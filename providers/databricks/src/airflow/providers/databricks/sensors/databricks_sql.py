@@ -136,7 +136,7 @@ class DatabricksSqlSensor(BaseSensorOperator):
         hook = self.hook
         sql_result = hook.run(
             self.sql,
-            handler=self.handler if self.do_xcom_push else None,
+            handler=self.handler,
         )
         self.log.debug("SQL result: %s", sql_result)
         return bool(sql_result)

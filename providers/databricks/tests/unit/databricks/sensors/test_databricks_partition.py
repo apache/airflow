@@ -27,6 +27,7 @@ import pytest
 from airflow.models import DAG
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
 
 TASK_ID = "db-partition-sensor"
@@ -206,3 +207,17 @@ class TestDatabricksPartitionSensor:
             sensor.poke(context={"ti": mock_ti})
 
         assert sensor._get_hook.query_tags["airflow_dag_id"] == "overridden"
+
+    @mock.patch.object(
+        DatabricksSqlHook,
+        "run",
+        autospec=True,
+        # DESCRIBE DETAIL lists the partition columns in its 8th field, then the partition query finds a row.
+        side_effect=[[[None] * 7 + [["date"]]], [(1,)]],
+    )
+    def test_poke_fetches_rows_without_xcom_push(self, mock_run):
+        sensor = self._make_sensor(do_xcom_push=False, include_airflow_query_tags=False)
+
+        assert sensor.poke(context={}) is True
+        # Without a handler the hook returns None, which the partition lookup cannot read.
+        assert [call.kwargs["handler"] for call in mock_run.call_args_list] == [fetch_all_handler] * 2

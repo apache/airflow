@@ -26,6 +26,8 @@ import pytest
 
 from airflow.models import DAG
 from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
+from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 
 TASK_ID = "db-sensor"
@@ -101,6 +103,14 @@ class TestDatabricksSqlSensor:
             " Please specify either http_path or sql_warehouse_name.",
         ):
             self.sensor._get_results()
+
+    @mock.patch.object(DatabricksSqlHook, "run", autospec=True, return_value=[(1,)])
+    def test_get_results_fetches_rows_without_xcom_push(self, mock_run):
+        sensor = self._make_sensor(do_xcom_push=False)
+
+        assert sensor._get_results() is True
+        # Without a handler the hook returns None, so the sensor could never succeed.
+        mock_run.assert_called_once_with(sensor.hook, DEFAULT_SQL, handler=fetch_all_handler)
 
     def _make_sensor(self, **kwargs):
         return DatabricksSqlSensor(

@@ -125,7 +125,7 @@ class DatabricksPartitionSensor(BaseSensorOperator):
         hook = self._get_hook
         sql_result = hook.run(
             sql,
-            handler=self.handler if self.do_xcom_push else None,
+            handler=self.handler,
         )
         self.log.debug("SQL result: %s", sql_result)
         return sql_result
