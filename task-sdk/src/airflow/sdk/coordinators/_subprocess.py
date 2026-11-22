@@ -40,7 +40,7 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, NoReturn, TypeVar, cast
 
 import attrs
 import psutil
@@ -816,11 +816,19 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self, msg: GetXCom, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult | ResponseSent:
         result, dump_opts = handle_get_xcom(self.client, msg)
-        if not (isinstance(result, XComResult) and result.value is not None and _is_loaded_through_backend()):
-            return result, dump_opts
+        # A mapped task's values are loaded one by one; the lang SDK gets either as one XCom value.
+        match result:
+            case XComResult(value=stored) if stored is not None:
+                hook: Literal["load", "load_many"] = "load"
+            case XComSequenceSliceResult(root=stored) if stored:
+                hook = "load_many"
+            case _:
+                return result, dump_opts
+        if not _is_loaded_through_backend():
+            return XComResult(key=msg.key, value=stored), {}
         return self._call_xcom_backend(
-            XComBackendCall(hook="load", key=msg.key, value=result.value),
-            lambda loaded: (result.model_copy(update={"value": loaded.value}), dump_opts),
+            XComBackendCall(hook=hook, key=msg.key, value=stored),
+            lambda loaded: (XComResult(key=msg.key, value=loaded.value), {}),
             req_id,
         )
 
