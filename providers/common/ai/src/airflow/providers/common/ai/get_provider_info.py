@@ -34,6 +34,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-common-ai/operators/agent.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_batch.rst",
+                    "/docs/apache-airflow-providers-common-ai/operators/llm_ocr.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_file_analysis.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_branch.rst",
                     "/docs/apache-airflow-providers-common-ai/operators/llm_sql.rst",
@@ -481,6 +482,7 @@ def get_provider_info():
                     "airflow.providers.common.ai.operators.agent",
                     "airflow.providers.common.ai.operators.llm",
                     "airflow.providers.common.ai.operators.llm_batch",
+                    "airflow.providers.common.ai.operators.llm_ocr",
                     "airflow.providers.common.ai.operators.llm_file_analysis",
                     "airflow.providers.common.ai.operators.llm_branch",
                     "airflow.providers.common.ai.operators.llm_sql",
@@ -504,6 +506,7 @@ def get_provider_info():
                 "class-name": "airflow.providers.common.ai.decorators.llm_batch.llm_batch_task",
                 "name": "llm_batch",
             },
+            {"class-name": "airflow.providers.common.ai.decorators.llm_ocr.llm_ocr_task", "name": "llm_ocr"},
             {
                 "class-name": "airflow.providers.common.ai.decorators.llm_file_analysis.llm_file_analysis_task",
                 "name": "llm_file_analysis",
