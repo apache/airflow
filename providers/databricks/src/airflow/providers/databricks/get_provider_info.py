@@ -138,7 +138,6 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.databricks.triggers.databricks",
                     "airflow.providers.databricks.triggers.agent",
-                    "airflow.providers.databricks.triggers.vector_search",
                 ],
             }
         ],

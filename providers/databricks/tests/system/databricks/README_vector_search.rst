@@ -40,8 +40,8 @@ Keep credentials out of commits. Run the example through the Breeze system-test 
 
 A passing test proves that Databricks accepted the sync request and the index reported an online
 state without pending updates. This follows the SDK's state-based wait; it does not identify a
-particular sync execution or independently verify search-result freshness. The example uses a
-triggerer and waits for up to 600 seconds after submission.
+particular sync execution or independently verify search-result freshness. The example waits
+for up to 600 seconds after submission.
 
 The test uses the existing endpoint, index and source table without creating or deleting resources.
 Fixture provisioning and deletion remain the responsibility of the test-environment owner.

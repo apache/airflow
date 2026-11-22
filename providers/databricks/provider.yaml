@@ -201,7 +201,6 @@ triggers:
     python-modules:
       - airflow.providers.databricks.triggers.databricks
       - airflow.providers.databricks.triggers.agent
-      - airflow.providers.databricks.triggers.vector_search
 
 sensors:
   - integration-name: Databricks

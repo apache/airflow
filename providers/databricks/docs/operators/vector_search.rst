@@ -41,11 +41,11 @@ convention. Index failures and unrecognized states fail the task. This state che
 a particular sync execution and can finish immediately if the index already reports a qualifying state.
 
 ``polling_period_seconds`` defaults to 30 seconds. ``timeout`` defaults to 3600 seconds and bounds the
-wait after submission, including status requests and retries. Set ``deferrable=True`` to release the
-worker while waiting. A timeout does not cancel the synchronization in Databricks.
+wait after submission, including status requests and retries. A timeout does not cancel the
+synchronization in Databricks.
 
-Set ``wait_for_completion=False`` to return as soon as the sync request succeeds, without polling or
-deferring. Both modes return ``None``.
+Set ``wait_for_completion=False`` to return as soon as the sync request succeeds, without polling.
+Both modes return ``None``.
 
 HTTP requests are attempted once by default. ``databricks_retry_limit``, ``databricks_retry_delay``
 and ``databricks_retry_args`` configure HTTP retries. A timeout can occur after Databricks accepts

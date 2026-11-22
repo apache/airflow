@@ -39,7 +39,6 @@ with DAG(
         task_id="sync_index",
         databricks_conn_id="databricks_default",
         index_name=INDEX_NAME,
-        deferrable=True,
         timeout=600,
         retries=0,
     )
