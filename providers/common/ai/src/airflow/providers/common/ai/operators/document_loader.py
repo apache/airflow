@@ -16,13 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import csv
 import glob
 import io
 import json
-from collections.abc import Sequence
+import posixpath
+import zipfile
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO
+from xml.etree import ElementTree
 
 from airflow.providers.common.compat.sdk import (
     AirflowOptionalProviderFeatureException,
@@ -55,6 +59,95 @@ _DOCX_TABLE_MAX_COLUMNS = 1000
 # characters. The count includes about 3 characters of separators per cell, so padded empty
 # cells count too. 1M characters is about 6000 rows of 10 columns; longer tables are skipped.
 _DOCX_TABLE_MAX_CHARS = 1_000_000
+
+# python-docx reads every part of a DOCX whole, and the XML parts it parses take 13-18x their
+# size in memory (about 50x for a file of empty paragraphs). Word-saved files hold about 30 bytes
+# of XML per character, so 50 MB is about 1.5M characters. Both limits are on uncompressed sizes,
+# which can be far larger or smaller than the .docx file itself.
+_DOCX_MAX_XML_BYTES = 50 * 1024 * 1024
+
+# Word does not open files over 512 MB.
+_DOCX_MAX_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
+
+_CONTENT_TYPES_NS = "{http://schemas.openxmlformats.org/package/2006/content-types}"
+
+
+def _build_docx_size_error(source_hint: str, parts: str, size: int, limit: int) -> ValueError:
+    return ValueError(
+        f"Cannot load DOCX {source_hint}: {parts} total {size / 2**20:.1f} MB uncompressed, "
+        f"over the {limit / 2**20:.0f} MB limit."
+    )
+
+
+def _iter_docx_part_chunks(
+    zf: zipfile.ZipFile, info: zipfile.ZipInfo, *, source_hint: str
+) -> Iterator[bytes]:
+    # ZipFile stops reading at the declared size, so read through a copy that allows one more
+    # byte: a part holding more data then fails the CRC check or yields the extra byte.
+    probe = copy.copy(info)
+    probe.file_size += 1
+    read_bytes = 0
+    with zf.open(probe) as part:
+        while chunk := part.read(64 * 1024):
+            read_bytes += len(chunk)
+            if read_bytes > info.file_size:
+                raise ValueError(
+                    f"Cannot load DOCX {source_hint}: part {info.filename!r} holds more data than "
+                    "its declared size."
+                )
+            yield chunk
+
+
+def _check_docx_part_sizes(stream: BinaryIO, *, source_hint: str) -> None:
+    """
+    Reject a DOCX whose parts are too large to load, before python-docx reads it.
+
+    The sizes declared in the zip directory are checked first. Every part is then inflated in
+    small chunks to confirm it holds no more than its declared size: ``ZipFile.read`` inflates up
+    to 1 GiB (2 GiB on Python 3.14) before it cuts the data at the declared size, so a forged
+    size alone would not bound memory.
+
+    A part counts as XML when its content type ends in "xml" or it is a ``.rels`` file, which
+    python-docx parses whatever its content type. Content types are looked up the way
+    python-docx does it, so a part cannot escape the XML limit through its name.
+    """
+    with zipfile.ZipFile(stream) as zf:
+        infos = zf.infolist()
+        total_bytes = sum(info.file_size for info in infos)
+        if total_bytes > _DOCX_MAX_UNCOMPRESSED_BYTES:
+            raise _build_docx_size_error(source_hint, "its parts", total_bytes, _DOCX_MAX_UNCOMPRESSED_BYTES)
+
+        content_types_info = zf.getinfo("[Content_Types].xml")
+        if content_types_info.file_size > _DOCX_MAX_XML_BYTES:
+            raise _build_docx_size_error(
+                source_hint, "its XML parts", content_types_info.file_size, _DOCX_MAX_XML_BYTES
+            )
+        types = ElementTree.fromstring(
+            b"".join(_iter_docx_part_chunks(zf, content_types_info, source_hint=source_hint))
+        )
+        defaults = {
+            e.get("Extension", "").lower(): e.get("ContentType", "")
+            for e in types.findall(f"{_CONTENT_TYPES_NS}Default")
+        }
+        overrides = {
+            e.get("PartName", "").lower(): e.get("ContentType", "")
+            for e in types.findall(f"{_CONTENT_TYPES_NS}Override")
+        }
+
+        xml_bytes = 0
+        for info in infos:
+            name = info.filename.lower()
+            content_type = overrides.get(f"/{name}") or defaults.get(posixpath.splitext(name)[1][1:], "")
+            if info is content_types_info or name.endswith(".rels") or content_type.endswith("xml"):
+                xml_bytes += info.file_size
+        if xml_bytes > _DOCX_MAX_XML_BYTES:
+            raise _build_docx_size_error(source_hint, "its XML parts", xml_bytes, _DOCX_MAX_XML_BYTES)
+
+        for info in infos:
+            if info is not content_types_info:
+                for _chunk in _iter_docx_part_chunks(zf, info, source_hint=source_hint):
+                    pass
+    stream.seek(0)
 
 
 class DocumentLoaderOperator(BaseOperator):
@@ -482,6 +575,7 @@ class DocumentLoaderOperator(BaseOperator):
         except ImportError as e:
             raise AirflowOptionalProviderFeatureException(e)
 
+        _check_docx_part_sizes(stream, source_hint=source_hint)
         doc = Document(stream)
         blocks = []
         for block in doc.iter_inner_content():
