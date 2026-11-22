@@ -6432,11 +6432,11 @@ def test_activity_start_prepares_supervisor_before_bare_fork(
 
     def import_task_runner():
         # Task runner must be imported before gc.freeze() so its modules are frozen too.
-        assert gc.get_freeze_count() == 0
+        assert not supervisor._is_gc_frozen()
         calls.append("import task runner")
 
     def fork(*args, **kwargs):
-        frozen_at_fork.append(gc.get_freeze_count() > 0)
+        frozen_at_fork.append(supervisor._is_gc_frozen())
         calls.append("fork")
         return MagicMock(spec=ActivitySubprocess)
 
@@ -6482,12 +6482,12 @@ def test_activity_start_unfreezes_gc_when_start_fails(monkeypatch, mocker, fail_
 
     def fail_fork(*args, **kwargs):
         nonlocal frozen_on_error
-        frozen_on_error = gc.get_freeze_count() > 0
+        frozen_on_error = supervisor._is_gc_frozen()
         raise OSError("fork failed")
 
     def fail_child_started(*args, **kwargs):
         nonlocal frozen_on_error
-        frozen_on_error = gc.get_freeze_count() > 0
+        frozen_on_error = supervisor._is_gc_frozen()
         raise RuntimeError("start rejected")
 
     if fail_in == "fork":
@@ -6500,7 +6500,7 @@ def test_activity_start_unfreezes_gc_when_start_fails(monkeypatch, mocker, fail_
         expected = RuntimeError
 
     try:
-        assert gc.get_freeze_count() == 0
+        assert not supervisor._is_gc_frozen()
         with pytest.raises(expected):
             ActivitySubprocess.start(
                 dag_rel_path=os.devnull,
@@ -6519,7 +6519,7 @@ def test_activity_start_unfreezes_gc_when_start_fails(monkeypatch, mocker, fail_
             )
 
         assert frozen_on_error is True
-        assert gc.get_freeze_count() == 0
+        assert not supervisor._is_gc_frozen()
     finally:
         gc.unfreeze()
 
@@ -6549,7 +6549,7 @@ def test_wait_unfreezes_gc_after_task_process_exits(
 
     def record_frozen_state(_self):
         nonlocal frozen_during_run
-        frozen_during_run = gc.get_freeze_count() > 0
+        frozen_during_run = supervisor._is_gc_frozen()
 
     mocker.patch.object(supervisor.WatchedSubprocess, "start", autospec=True, return_value=proc)
     mocker.patch.object(ActivitySubprocess, "_on_child_started")
@@ -6560,7 +6560,7 @@ def test_wait_unfreezes_gc_after_task_process_exits(
     mocker.patch.object(ActivitySubprocess, "_upload_logs")
 
     try:
-        assert gc.get_freeze_count() == 0
+        assert not supervisor._is_gc_frozen()
         started = ActivitySubprocess.start(
             dag_rel_path=os.devnull,
             bundle_info=FAKE_BUNDLE,
@@ -6579,7 +6579,7 @@ def test_wait_unfreezes_gc_after_task_process_exits(
         started.wait()
 
         assert frozen_during_run is expected_frozen_during_run
-        assert gc.get_freeze_count() == 0
+        assert not supervisor._is_gc_frozen()
     finally:
         gc.unfreeze()
 
@@ -6617,7 +6617,7 @@ def test_activity_start_preserves_inherited_gc_freeze(monkeypatch, mocker, outco
     gc.freeze()
     freeze_spy = mocker.spy(supervisor.gc, "freeze")
     try:
-        assert gc.get_freeze_count() > 0
+        assert supervisor._is_gc_frozen()
         start_kwargs: dict[str, Any] = {
             "dag_rel_path": os.devnull,
             "bundle_info": FAKE_BUNDLE,
@@ -6643,9 +6643,15 @@ def test_activity_start_preserves_inherited_gc_freeze(monkeypatch, mocker, outco
 
         pre_import.assert_called_once_with()
         freeze_spy.assert_not_called()
-        assert gc.get_freeze_count() > 0
+        assert supervisor._is_gc_frozen()
     finally:
         gc.unfreeze()
+
+
+def test_is_gc_frozen_ignores_non_zero_freeze_count_when_modules_still_tracked(mocker):
+    """CPython 3.12 starts with immortal tuples in the permanent generation (freeze count > 0)."""
+    mocker.patch.object(supervisor.gc, "get_freeze_count", return_value=375)
+    assert not supervisor._is_gc_frozen()
 
 
 def test_import_task_runner_before_fork_leaves_import_errors_to_the_child(monkeypatch):

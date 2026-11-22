@@ -387,6 +387,20 @@ def _import_task_runner_before_fork() -> None:
         import airflow.sdk.execution_time.task_runner  # noqa: F401
 
 
+def _is_gc_frozen() -> bool:
+    """
+    Return whether Python-level objects have already been frozen by a host process.
+
+    CPython 3.12 moves immortal built-in type tuples into the permanent generation during GC
+    passes, so ``gc.get_freeze_count()`` is non-zero even on a fresh interpreter. Checking whether
+    ``sys.modules`` is still in ``gc.get_objects()`` distinguishes a fresh interpreter from a
+    pre-forked worker (LocalExecutor, Celery) that called ``gc.freeze()``.
+    """
+    if gc.get_freeze_count() == 0:
+        return False
+    return not any(obj is sys.modules for obj in gc.get_objects())
+
+
 def _reset_signals():
     # Uninstall the rich etc. exception handler
     sys.excepthook = sys.__excepthook__
@@ -1717,10 +1731,10 @@ class ActivitySubprocess(WatchedSubprocess):
         bare_fork = target is _subprocess_main and not use_exec
         if bare_fork:
             _import_task_runner_before_fork()
-        # Only freeze when nothing is frozen yet: ``gc.unfreeze()`` releases the entire permanent
-        # generation, so unfreezing in ``wait()`` would undo the freeze that LocalExecutor and
-        # Celery workers inherit from their parent process.
-        gc_frozen = bare_fork and gc.get_freeze_count() == 0
+        # Only freeze when a host hasn't already frozen the heap: ``gc.unfreeze()`` releases the
+        # entire permanent generation, so unfreezing in ``wait()`` would undo the freeze that
+        # LocalExecutor and Celery workers inherit from their parent process.
+        gc_frozen = bare_fork and not _is_gc_frozen()
         if gc_frozen:
             # A GC pass in either process writes to the headers of the objects the task process
             # inherits, which splits the pages both processes share copy-on-write. ``wait()``
