@@ -54,7 +54,6 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.4")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.4")
-    implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.ktor:ktor-network:3.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")

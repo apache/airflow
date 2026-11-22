@@ -758,10 +758,8 @@ class ServerTest {
                 "-cp",
                 System.getProperty("java.class.path"),
                 probe.name,
-                "--comm",
-                "${loopback.hostAddress}:${commListener.localPort}",
-                "--logs",
-                "${loopback.hostAddress}:${logsListener.localPort}",
+                "--comm=${loopback.hostAddress}:${commListener.localPort}",
+                "--logs=${loopback.hostAddress}:${logsListener.localPort}",
               ),
           ).redirectErrorStream(true)
             .redirectOutput(output?.let { ProcessBuilder.Redirect.to(it) } ?: ProcessBuilder.Redirect.INHERIT)

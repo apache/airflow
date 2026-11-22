@@ -20,7 +20,6 @@
 package org.apache.airflow.sdk
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.xenomachina.argparser.SystemExitException
 import org.apache.airflow.example.DagSourceFixtures
 import org.apache.airflow.sdk.internal.DagSource
 import org.junit.jupiter.api.Assertions
@@ -28,6 +27,13 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+
+internal object ServerDependencyProbe {
+  @JvmStatic
+  fun main(args: Array<String>) {
+    Server.create(args)
+  }
+}
 
 internal class DagSourceTest {
   private class NoOp : Task {
@@ -125,8 +131,74 @@ internal class DagSourceTest {
   @Test
   @DisplayName("Should still require --comm and --logs without --describe-sources")
   fun createStillRequiresAddresses() {
-    Assertions.assertThrows(SystemExitException::class.java) { Server.create(arrayOf("--comm", "localhost:1")) }
-    Assertions.assertThrows(SystemExitException::class.java) { Server.create(arrayOf("--logs", "localhost:1")) }
-    Assertions.assertThrows(SystemExitException::class.java) { Server.create(emptyArray()) }
+    val missingComm = Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--logs", "localhost:1"))
+    }
+    Assertions.assertEquals("Missing required argument: --comm", missingComm.message)
+
+    val missingLogs = Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--comm", "localhost:1"))
+    }
+    Assertions.assertEquals("Missing required argument: --logs", missingLogs.message)
+
+    val missingBoth = Assertions.assertThrows(IllegalArgumentException::class.java) { Server.create(emptyArray()) }
+    Assertions.assertEquals("Missing required argument: --comm", missingBoth.message)
+  }
+
+  @Test
+  @DisplayName("Should reject missing values, malformed addresses and unknown arguments")
+  fun createRejectsInvalidArguments() {
+    val missingValue = Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--comm"))
+    }
+    Assertions.assertEquals("Missing value for --comm", missingValue.message)
+
+    val malformedAddress = Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--comm=localhost:port", "--logs=localhost:1"))
+    }
+    Assertions.assertEquals("--comm port must be numeric", malformedAddress.message)
+
+    val malformedAddressShape = Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--comm=localhost", "--logs=localhost:1"))
+    }
+    Assertions.assertEquals("--comm must use host:port", malformedAddressShape.message)
+
+    val invalidPort = Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--comm=localhost:65536", "--logs=localhost:1"))
+    }
+    Assertions.assertEquals("--comm port must be between 0 and 65535", invalidPort.message)
+
+    val missingSourcesPath = Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--describe-sources="))
+    }
+    Assertions.assertEquals("Missing value for --describe-sources", missingSourcesPath.message)
+
+    val unknownArgument = Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--unknown"))
+    }
+    Assertions.assertEquals("Unknown argument: --unknown", unknownArgument.message)
+  }
+
+  @Test
+  @DisplayName("Should create a Server when kotlin-argparser is absent from the runtime classpath")
+  fun createsWithoutKotlinArgparser() {
+    val classpath =
+      System.getProperty("java.class.path")
+        .split(File.pathSeparator)
+        .filterNot { it.contains("kotlin-argparser") || it.contains("xenocom") }
+        .joinToString(File.pathSeparator)
+    val process =
+      ProcessBuilder(
+        File(System.getProperty("java.home"), "bin/java").path,
+        "-cp",
+        classpath,
+        ServerDependencyProbe::class.java.name,
+        "--comm=127.0.0.1:1",
+        "--logs=127.0.0.1:2",
+      ).redirectErrorStream(true)
+        .start()
+    val output = process.inputStream.bufferedReader().use { it.readText() }
+
+    Assertions.assertEquals(0, process.waitFor(), output)
   }
 }
