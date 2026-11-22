@@ -22,7 +22,7 @@ from typing import Annotated, NoReturn
 from fastapi import Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
-from sqlalchemy import select, update
+from sqlalchemy import exists, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
@@ -247,6 +247,8 @@ def cancel_backfill(backfill_id: NonNegativeInt, session: SessionDep) -> Backfil
         raise HTTPException(status.HTTP_404_NOT_FOUND, BACKFILL_NOT_FOUND)
     if b.completed_at is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Backfill is already completed.")
+    if not session.scalar(select(exists().where(BackfillDagRun.backfill_id == b.id))):
+        raise HTTPException(status.HTTP_409_CONFLICT, "Backfill has no Dag runs yet. Try again shortly.")
 
     # first, pause, and commit immediately to ensure no other dag runs are started
     if not b.is_paused:
