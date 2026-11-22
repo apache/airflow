@@ -39,6 +39,20 @@ class TestQdrantHook:
 
             self.collection_name = "test_collection"
 
+    @pytest.mark.parametrize("extra", [{}, {"https": None}, {"url": "qdrant.example:6333"}])
+    @patch("airflow.providers.qdrant.hooks.qdrant.QdrantClient", autospec=True)
+    @patch.object(QdrantHook, "get_connection", spec=True)
+    def test_default_https(self, get_connection, client, extra):
+        conn = get_connection.return_value
+        conn.host = None if "url" in extra else "qdrant.example"
+        conn.port = 6333
+        conn.password = None
+        conn.extra_dejson = extra
+
+        self.qdrant_hook.get_conn()
+
+        assert client.call_args.kwargs["https"] is True
+
     @patch("airflow.providers.qdrant.hooks.qdrant.QdrantHook.conn")
     def test_verify_connection(self, mock_conn):
         """Test the verify_connection of the QdrantHook."""

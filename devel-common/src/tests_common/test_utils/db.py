@@ -918,6 +918,7 @@ def create_default_connections_for_tests():
                 conn_type="qdrant",
                 host="qdrant",
                 port=6333,
+                extra={"https": False},
             ),
             Connection(
                 conn_id="redis_default",
