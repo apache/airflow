@@ -63,8 +63,8 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
     :param error_handler: Called with the exception of a failed agent run and the arguments of
         the callable it names. It returns the output to use instead, which then goes through
         ``output_processor``, or raises. An error of the callable itself, which builds the
-        prompt, is not handed over. Not supported with ``durable=True``: the journal of the
-        failed run would stay behind a task that succeeded.
+        prompt, is not handed over. A failure it handles ends the task, so the durable journal
+        of the failed run is deleted, as it is after a run that succeeded.
     """
 
     template_fields: Sequence[str] = (
@@ -94,11 +94,6 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
             prompt=SET_DURING_EXECUTION,
             **kwargs,
         )
-        if error_handler is not None and self.durable:
-            raise ValueError(
-                "error_handler is not supported with durable=True: the journal of the failed run "
-                "would stay behind a task that succeeded."
-            )
         self.output_processor = output_processor
         self.error_handler = error_handler
 
@@ -141,7 +136,9 @@ class _AgentDecoratedOperator(DecoratedOperator, AgentOperator):
             if self.error_handler is None:
                 raise
             output = self._call_with_arguments(self.error_handler, error, context)
-            # The failed run saved its usage for a retry that will not come: the task succeeds.
+            # The failed run kept its usage, and under durable execution its journal, for a retry
+            # that will not come: the task succeeds.
+            self._delete_durable_state(context)
             self._clear_usage_budget(context)
         if self.output_processor is None:
             return output

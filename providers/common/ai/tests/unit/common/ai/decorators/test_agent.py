@@ -20,15 +20,20 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai import Agent
 from pydantic_ai.capabilities import Thinking
-from pydantic_ai.messages import ImageUrl
+from pydantic_ai.messages import ImageUrl, ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX
 from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -422,17 +427,6 @@ class TestAgentCallbacks:
         mock_resume.assert_called_once_with(op, ANY, **kwargs)
         mock_execute.assert_not_called()
 
-    def test_error_handler_is_refused_with_durable(self, mock_execute):
-        with pytest.raises(ValueError, match="error_handler is not supported with durable=True"):
-            _AgentDecoratedOperator(
-                task_id="test",
-                python_callable=_describe,
-                op_kwargs={"text": "the picture"},
-                llm_conn_id="my_llm",
-                durable=True,
-                error_handler=lambda error: "no answer",
-            )
-
 
 class TestAgentCallbacksOnARealRun:
     """The callbacks around ``AgentOperator.execute`` itself, with only the model stubbed."""
@@ -476,3 +470,42 @@ class TestAgentCallbacksOnARealRun:
 
         assert op.execute(context=_make_context()) == "no answer"
         assert seen == [(refused, "cat.png")]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="the journal is kept in the task state store")
+    def test_handled_failure_of_a_durable_run_leaves_no_journal(self, task_state_store_accessor):
+        journaled = []
+
+        def look_up() -> str:
+            return "a cat"
+
+        def refuse_after_the_tool(messages, info) -> ModelResponse:
+            if any(isinstance(part, ToolReturnPart) for message in messages for part in message.parts):
+                raise ValueError("content filter")
+            return ModelResponse(parts=[ToolCallPart(tool_name="look_up", args={})])
+
+        def no_answer(error: Exception) -> str:
+            journaled.extend(
+                key for key in task_state_store_accessor.data if key.startswith(DURABLE_KEY_PREFIX)
+            )
+            return "no answer"
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture"},
+            llm_conn_id="my_llm",
+            toolsets=[FunctionToolset(tools=[look_up], id="tools")],
+            enable_tool_logging=False,
+            durable=True,
+            error_handler=no_answer,
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kwargs: Agent(
+            FunctionModel(refuse_after_the_tool), **kwargs
+        )
+        context = {**_make_context(), "task_state_store": task_state_store_accessor}
+
+        assert op.execute(context=context) == "no answer"
+        # The failed run had recorded its steps for a retry; the task succeeded, so none is left.
+        assert journaled
+        assert not [key for key in task_state_store_accessor.data if key.startswith(DURABLE_KEY_PREFIX)]
