@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Request a sync of an existing triggered Delta Sync index; no resources are created or deleted."""
+"""Sync an existing triggered Delta Sync index and wait for its reported update state."""
 
 from __future__ import annotations
 
@@ -39,6 +39,8 @@ with DAG(
         task_id="sync_index",
         databricks_conn_id="databricks_default",
         index_name=INDEX_NAME,
+        deferrable=True,
+        timeout=600,
         retries=0,
     )
     # [END howto_operator_databricks_vector_search_sync]

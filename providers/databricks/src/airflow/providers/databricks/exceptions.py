@@ -40,6 +40,14 @@ class DatabricksWarehouseError(AirflowException):
     """Raised when a SQL warehouse fails to reach or times out waiting for a target state."""
 
 
+class DatabricksVectorSearchError(AirflowException):
+    """Raised when a Vector Search index cannot reach a state without pending updates."""
+
+
+class DatabricksVectorSearchTimeout(DatabricksVectorSearchError):
+    """Raised when waiting for a Vector Search index times out."""
+
+
 class DatabricksAgentInvocationError(AirflowException):
     """Raised when an agent invocation fails or cannot be completed."""
 

@@ -36,7 +36,11 @@ from requests.auth import HTTPBasicAuth
 
 from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowException
-from airflow.providers.databricks.exceptions import DatabricksApiError
+from airflow.providers.databricks.exceptions import (
+    DatabricksApiError,
+    DatabricksVectorSearchError,
+    DatabricksVectorSearchTimeout,
+)
 from airflow.providers.databricks.hooks.databricks import (
     GET_RUN_ENDPOINT,
     SUBMIT_RUN_ENDPOINT,
@@ -1617,6 +1621,141 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
 
 
 class TestVectorSearch:
+    @pytest.mark.parametrize(
+        ("index_name", "encoded_name"),
+        [
+            ("catalog.schema.index", "catalog.schema.index"),
+            ("catalog.schema.an index", "catalog.schema.an%20index"),
+        ],
+    )
+    @mock.patch.object(DatabricksHook, "_a_do_api_call", autospec=True)
+    @pytest.mark.asyncio
+    async def test_get_index(self, mock_api, index_name, encoded_name):
+        mock_api.return_value = {"status": {"detailed_state": "ONLINE"}}
+        hook = DatabricksHook()
+
+        assert await hook.a_get_vector_search_index(index_name) == mock_api.return_value
+
+        mock_api.assert_awaited_once_with(hook, ("GET", f"2.0/vector-search/indexes/{encoded_name}"))
+
+    @mock.patch.object(DatabricksHook, "_a_do_api_call", autospec=True)
+    @pytest.mark.asyncio
+    async def test_get_rejects_empty_name(self, mock_api):
+        with pytest.raises(ValueError, match="index_name must be provided"):
+            await DatabricksHook().a_get_vector_search_index("")
+        mock_api.assert_not_called()
+
+    @pytest.mark.parametrize("state", ["ONLINE", "ONLINE_NO_PENDING_UPDATE", "ONLINE_DIRECT_ACCESS"])
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    @pytest.mark.asyncio
+    async def test_wait_accepts_sdk_ready_states(self, mock_get, state):
+        mock_get.return_value = {"status": {"detailed_state": state}}
+        hook = DatabricksHook()
+
+        assert await hook.a_wait_for_vector_search_index("catalog.schema.index", timeout=100) is None
+
+        mock_get.assert_awaited_once_with(hook, "catalog.schema.index")
+        assert hook._session is None
+
+    @pytest.mark.parametrize(
+        "state",
+        [
+            "PROVISIONING",
+            "PROVISIONING_ENDPOINT",
+            "PROVISIONING_INDEX",
+            "PROVISIONING_PIPELINE_RESOURCES",
+            "PROVISIONING_INITIAL_SNAPSHOT",
+            "ONLINE_CONTINUOUS_UPDATE",
+            "ONLINE_TRIGGERED_UPDATE",
+            "ONLINE_UPDATING_PIPELINE_RESOURCES",
+            "DOWNLOADING",
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.hooks.databricks.asyncio.sleep", autospec=True)
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    @pytest.mark.asyncio
+    async def test_wait_polls_pending_states(self, mock_get, mock_sleep, state):
+        mock_get.side_effect = [
+            {"status": {"detailed_state": state}},
+            {"status": {"detailed_state": "ONLINE_NO_PENDING_UPDATE"}},
+        ]
+
+        await DatabricksHook().a_wait_for_vector_search_index(
+            "catalog.schema.index", timeout=100, polling_period_seconds=7
+        )
+
+        assert mock_get.await_count == 2
+        mock_sleep.assert_awaited_once_with(7)
+
+    @pytest.mark.parametrize("state", ["OFFLINE", "OFFLINE_FAILED", "ONLINE_PIPELINE_FAILED"])
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    @pytest.mark.asyncio
+    async def test_wait_fails_on_index_failure(self, mock_get, state):
+        mock_get.return_value = {"status": {"detailed_state": state}}
+        with pytest.raises(DatabricksVectorSearchError, match=f"entered {state}"):
+            await DatabricksHook().a_wait_for_vector_search_index("catalog.schema.index", timeout=100)
+
+    @pytest.mark.parametrize("payload", [{}, {"status": None}, {"status": {"detailed_state": "NEW_STATE"}}])
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    @pytest.mark.asyncio
+    async def test_wait_rejects_unrecognized_status(self, mock_get, payload):
+        mock_get.return_value = payload
+        with pytest.raises(DatabricksVectorSearchError, match="unrecognized status"):
+            await DatabricksHook().a_wait_for_vector_search_index("catalog.schema.index", timeout=100)
+
+    @pytest.mark.parametrize(("clock", "requests"), [([0, 10], 0), ([0, 0, 10], 1), ([0, 0, 11], 1)])
+    @mock.patch("airflow.providers.databricks.hooks.databricks.monotonic", autospec=True)
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    @pytest.mark.asyncio
+    async def test_wait_checks_deadline_before_poll_and_success(self, mock_get, mock_clock, clock, requests):
+        mock_clock.side_effect = clock
+        mock_get.return_value = {"status": {"detailed_state": "ONLINE"}}
+        with pytest.raises(DatabricksVectorSearchTimeout):
+            await DatabricksHook().a_wait_for_vector_search_index("catalog.schema.index", timeout=10)
+        assert mock_get.await_count == requests
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks.monotonic", autospec=True)
+    @mock.patch("airflow.providers.databricks.hooks.databricks.asyncio.sleep", autospec=True)
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    @pytest.mark.asyncio
+    async def test_wait_clips_sleep_to_remaining_budget(self, mock_get, mock_sleep, mock_clock):
+        mock_clock.side_effect = [0, 0, 9, 9, 10]
+        mock_get.return_value = {"status": {"detailed_state": "ONLINE_TRIGGERED_UPDATE"}}
+        with pytest.raises(DatabricksVectorSearchTimeout):
+            await DatabricksHook().a_wait_for_vector_search_index("catalog.schema.index", timeout=10)
+        mock_sleep.assert_awaited_once_with(1)
+
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    @pytest.mark.asyncio
+    async def test_wait_cancels_status_request_at_timeout(self, mock_get):
+        async def pending(*args):
+            await asyncio.Event().wait()
+
+        mock_get.side_effect = pending
+        hook = DatabricksHook()
+        with pytest.raises(DatabricksVectorSearchTimeout):
+            await hook.a_wait_for_vector_search_index("catalog.schema.index", timeout=0.1)
+        mock_get.assert_awaited_once()
+        assert hook._session is None
+
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    @pytest.mark.asyncio
+    async def test_request_timeout_is_not_wait_budget_timeout(self, mock_get):
+        mock_get.side_effect = TimeoutError("request timeout")
+        with pytest.raises(TimeoutError, match="request timeout"):
+            await DatabricksHook().a_wait_for_vector_search_index("catalog.schema.index", timeout=100)
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DatabricksHook, "a_get_vector_search_index", autospec=True)
+    async def test_wait_cancellation_closes_session(self, mock_get):
+        mock_get.side_effect = asyncio.CancelledError
+        hook = DatabricksHook()
+
+        with pytest.raises(asyncio.CancelledError):
+            await hook.a_wait_for_vector_search_index("catalog.schema.index", timeout=100)
+
+        assert hook._session is None
+
     @pytest.mark.parametrize(
         ("index_name", "encoded_name"),
         [

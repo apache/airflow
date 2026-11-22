@@ -34,9 +34,18 @@ and ``databricks_conn_id`` support templating.
     :start-after: [START howto_operator_databricks_vector_search_sync]
     :end-before: [END howto_operator_databricks_vector_search_sync]
 
-The operator returns ``None`` when the request succeeds. Synchronization continues in Databricks;
-task success does not guarantee that source-table changes are already searchable. Verify data
-freshness before running downstream tasks that depend on the updated index.
+By default, the operator waits for the index to report an online state without pending updates,
+following the Databricks SDK's
+`wait_until_ready(wait_for_updates=True) <https://api-docs.databricks.com/python/ai-search/databricks.ai_search.html#databricks.ai_search.index.AISearchIndex.wait_until_ready>`_
+convention. Index failures and unrecognized states fail the task. This state check does not identify
+a particular sync execution and can finish immediately if the index already reports a qualifying state.
+
+``polling_period_seconds`` defaults to 30 seconds. ``timeout`` defaults to 3600 seconds and bounds the
+wait after submission, including status requests and retries. Set ``deferrable=True`` to release the
+worker while waiting. A timeout does not cancel the synchronization in Databricks.
+
+Set ``wait_for_completion=False`` to return as soon as the sync request succeeds, without polling or
+deferring. Both modes return ``None``.
 
 HTTP requests are attempted once by default. ``databricks_retry_limit``, ``databricks_retry_delay``
 and ``databricks_retry_args`` configure HTTP retries. A timeout can occur after Databricks accepts
