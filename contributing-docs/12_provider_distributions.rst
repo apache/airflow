@@ -448,6 +448,14 @@ generous policy of supporting multiple versions of providers at the same time. A
 backward compatible with future versions of Airflow, so you can upgrade Airflow and keep the providers
 at the same version.
 
+Where practical, deprecate before you break. Keep the old class, parameter or behaviour working and emit
+``AirflowProviderDeprecationWarning`` (naming the replacement, if there is one), release that in a minor
+version of the provider, and make the breaking change in a later major version. Users then see the warning
+in their own Dags before the upgrade that breaks them. When there is nothing to warn on (for example the
+external API was already removed), go straight to the breaking change. Some providers describe their own
+procedure, for example the
+`Google provider deprecation policy <../providers/google/docs/deprecation-policy.rst>`_.
+
 When you introduce a breaking change in the provider, you have to make sure that you communicate it
 properly. You have to update ``changelog.rst`` file in the ``docs`` folder of the provider distribution.
 Ideally you should provide a migration path for the users to follow in the``changelog.rst``.
