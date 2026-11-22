@@ -32,6 +32,7 @@ uv run --active --group codegen --project apache-airflow-task-sdk --directory ta
 - Don't use keyword arguments with `endpoint()` — use positional: `endpoint("/path", ["GET"])`.
 - Don't add changes to already-released version files.
 - Don't forget response converters for new fields in nested objects.
+- Don't load the serialized Dag unconditionally on a per-task hot path such as `ti_run`. Gate the load so only the tasks that need it pay the cost (as `ti.is_stub` does), and add a `task_instance` column only when every task needs the value.
 - Don't branch business logic by comparing the negotiated API version to a date/version string. For this case, subclass `VersionChangeWithSideEffects` for the version change and check its `is_applied` flag instead:
 
   ```python
@@ -61,6 +62,15 @@ Adding a new Execution API feature touches multiple packages. All of these must 
    - `task-sdk/tests/task_sdk/api/test_client.py` — client method tests
    - `task-sdk/tests/task_sdk/execution_time/test_supervisor.py` — add a `RequestTestCase` entry to `REQUEST_TEST_CASES` list
    - `task-sdk/tests/task_sdk/execution_time/test_task_runner.py` — task runner integration tests
+   - `airflow-core/tests/unit/api_fastapi/execution_api/test_task_sdk_client_contract.py` — if the client method interprets the response (see below)
+
+### Client/server contract tests
+
+The task-sdk client tests use a mocked server, and the endpoint tests use a hand-written client, so neither catches a client that assumes something the server doesn't do. When a client method does more than send a request and parse the reply (it maps a status code to an `ErrorResponse`, parses a header, or falls back to another request), add a test to `test_task_sdk_client_contract.py`. It uses the `task_sdk_client` fixture, which sends the real client's requests, with its real `Airflow-API-Version` header, to this tree's routes in process.
+
+- Set up rows with `dag_maker` or the models, and assert on the client's return value, not on HTTP details.
+- The in-process API always answers as the newest version. Keep the mocked tests in `test_client.py` for behaviour against older servers.
+- In-process requests skip authorization, so these tests can't cover 401/403 handling. The mocked tests and `test_security.py` do.
 
 ### Key Paths
 
@@ -77,4 +87,4 @@ Adding a new Execution API feature touches multiple packages. All of these must 
 
 ## Token Scope Infrastructure
 
-Token types (`"execution"`, `"workload"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`.
+Token types (`"execution"`, `"workload"`, `"callback"`, `"dag_processor_session"`, `"dag_processor"`, `"dag_parse"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`. A route that admits `dag_processor` or `dag_parse` tokens for Connection, Variable, XCom, Dag run or task-instance reads must also bind the request to a granted Dag bundle (`SelectedDagBundle` or `DagInGrantedBundle`); the `/jobs` routes bind to the `job_id` claim instead. `test_token_scope_boundaries.py` lists the bundle-bound routes and the parse-time messages that use them.

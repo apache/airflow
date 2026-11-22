@@ -28,6 +28,7 @@ from sqlalchemy import delete, event, func, select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Select
 
+from airflow._shared.state import TaskScope
 from airflow.api_fastapi.core_api.datamodels.task_instances import PatchTaskInstanceBody
 from airflow.api_fastapi.core_api.services.public.dag_run import perform_clear_dag_run
 from airflow.api_fastapi.core_api.services.public.task_instances import _patch_selected_task_state
@@ -39,6 +40,7 @@ from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import DagRun, clear_partition_runs
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import (
     LoopClearScope,
     TaskInstance,
@@ -57,6 +59,7 @@ from airflow.sdk import task, task_group
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
+from airflow.state.metastore import MetastoreBackend
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -65,6 +68,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests_common.test_utils import db
 from tests_common.test_utils.asserts import count_queries
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.mapping import push_mapped_length
 from tests_common.test_utils.mock_operators import MockOperator
 from tests_common.test_utils.taskinstance import run_task_instance
 from unit.models import DEFAULT_DATE
@@ -251,7 +255,7 @@ def test_partition_clear_keeps_loop_runs_whole_across_batches(loop_run, session)
     assert result == (1, len(original))
     for ti_id, task_id, pass_index in original:
         archived = session.get(TaskInstance, ti_id)
-        later_pass = task_id != "outside" and pass_index >= 1
+        later_pass = task_id != "outside" and pass_index >= 2
         assert (archived.working_set, archived.archived_reason) == (
             None,
             "superseded" if later_pass else "retry",
@@ -298,7 +302,7 @@ def test_dry_run_clear_lists_later_loop_passes_that_clearing_a_gate_archives(
     assert {ti.id for ti in listed} == {
         ti.id
         for ti in tis
-        if ti.task_id == loop.gate_task_id or (ti.task_id != "outside" and (iteration(ti) or 0) >= 1)
+        if ti.task_id == loop.gate_task_id or (ti.task_id != "outside" and (iteration(ti) or 0) >= 2)
     }
     assert len(listed) == len({ti.id for ti in listed})
 
@@ -589,6 +593,56 @@ class TestClearTasks:
         assert (ti1.state, ti1.try_number, ti1.working_set) == (TaskInstanceState.SUCCESS, 1, None)
         assert (successors["0"].state, successors["0"].try_number, successors["0"].max_tries) == (None, 2, 1)
         assert (successors["1"].state, successors["1"].try_number, successors["1"].max_tries) == (None, 2, 3)
+
+    @pytest.mark.parametrize("keep_task_state", [False, True])
+    def test_clear_task_instances_task_state(self, dag_maker, session, keep_task_state):
+        with dag_maker("test_clear_task_instances_task_state", session=session):
+            EmptyOperator(task_id="cleared")
+            EmptyOperator(task_id="untouched")
+        dr = dag_maker.create_dagrun(state=State.FAILED)
+        for ti in dr.task_instances:
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.flush()
+
+        clear_task_instances(
+            [dr.get_task_instance("cleared", session=session)],
+            session=session,
+            keep_task_state=keep_task_state,
+        )
+
+        remaining = session.scalars(
+            select(TaskStateStoreModel.task_id).where(TaskStateStoreModel.run_id == dr.run_id)
+        ).all()
+        assert sorted(remaining) == (["cleared", "untouched"] if keep_task_state else ["untouched"])
+
+    @mock.patch("airflow.models.taskinstance._TASK_STATE_DISCARD_BATCH_SIZE", 1)
+    def test_clear_task_instances_discards_task_state_in_batches(self, dag_maker, session):
+        with dag_maker("test_clear_task_instances_discards_in_batches", session=session):
+            for task_id in ("a", "b", "untouched"):
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun(state=State.FAILED)
+        for ti in dr.task_instances:
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.flush()
+
+        clear_task_instances(
+            [dr.get_task_instance(task_id, session=session) for task_id in ("a", "b")], session=session
+        )
+
+        remaining = session.scalars(
+            select(TaskStateStoreModel.task_id).where(TaskStateStoreModel.run_id == dr.run_id)
+        ).all()
+        assert remaining == ["untouched"]
 
     def test_clear_task_instances_external_executor_id(self, dag_maker):
         with dag_maker(
@@ -1578,6 +1632,82 @@ class TestClearTasks:
         assert attempt.working_set is None
         assert attempt.dag_version_id == old_version_id
 
+    @pytest.mark.parametrize("dr_state", [DagRunState.SUCCESS, DagRunState.RUNNING])
+    @pytest.mark.parametrize("new_length", [1, 3])
+    def test_clear_latest_with_producer_keeps_mapped_task_for_revision(
+        self, dag_maker, session, dr_state, new_length
+    ):
+        with dag_maker("test_clear_latest_mapped", bundle_version="v1", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+        dr = dag_maker.create_dagrun(state=dr_state)
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, [1, 2], session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.SUCCESS
+        session.flush()
+
+        with dag_maker("test_clear_latest_mapped", bundle_version="v2", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+            EmptyOperator(task_id="added")
+
+        clear_task_instances(dr.get_task_instances(session=session), session, run_on_latest_version=True)
+
+        mapped_states = {
+            ti.map_index: ti.state for ti in dr.get_task_instances(session=session) if ti.task_id == "mapped"
+        }
+        assert mapped_states == {0: None, 1: None}
+
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, list(range(new_length)), session=session)
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        schedulable = sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "mapped")
+        assert schedulable == list(range(new_length))
+
+    @pytest.mark.parametrize(("new_length", "expected_schedulable"), [(1, []), (3, [1, 2])])
+    def test_clear_latest_producer_restores_removed_mapped_tis(
+        self, dag_maker, session, new_length, expected_schedulable
+    ):
+        with dag_maker("test_clear_latest_restore", bundle_version="v1", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, [1, 2, 3], session=session)
+        dr.task_instance_scheduling_decisions(session=session)
+        # As left by an earlier producer re-run that shrank the mapping to one.
+        for ti in dr.get_task_instances(session=session):
+            ti.state = TaskInstanceState.REMOVED if ti.map_index > 0 else TaskInstanceState.SUCCESS
+        session.flush()
+
+        with dag_maker("test_clear_latest_restore", bundle_version="v2", session=session):
+            size = EmptyOperator(task_id="size")
+            MockOperator.partial(task_id="mapped").expand(arg1=size.output)
+            EmptyOperator(task_id="added")
+
+        clear_task_instances(
+            [dr.get_task_instance("size", session=session)], session, run_on_latest_version=True
+        )
+
+        mapped_states = {
+            ti.map_index: ti.state for ti in dr.get_task_instances(session=session) if ti.task_id == "mapped"
+        }
+        assert mapped_states == {0: TaskInstanceState.SUCCESS, 1: None, 2: None}
+
+        size_ti = dr.get_task_instance("size", session=session)
+        size_ti.state = TaskInstanceState.SUCCESS
+        push_mapped_length(size_ti, list(range(new_length)), session=session)
+        decision = dr.task_instance_scheduling_decisions(session=session)
+
+        schedulable = sorted(ti.map_index for ti in decision.schedulable_tis if ti.task_id == "mapped")
+        assert schedulable == expected_schedulable
+
     def test_complete_restart_uses_latest_version_for_unpinned_run(self, dag_maker, session):
         with dag_maker("test_restart_unpinned", session=session):
             EmptyOperator(task_id="work")
@@ -2164,18 +2294,62 @@ def test_loop_upstream_scope_stays_in_iteration_before_downstream_expansion(loop
     }
 
 
+def test_loop_upstream_and_downstream_scope_excludes_other_descendants_of_upstream_tasks(dag_maker, session):
+    @task_group
+    def body():
+        prepare = EmptyOperator(task_id="prepare")
+        combine = EmptyOperator(task_id="combine")
+        prepare >> EmptyOperator(task_id="process") >> combine
+        prepare >> EmptyOperator(task_id="audit") >> combine
+
+    with dag_maker(serialized=True):
+        start = EmptyOperator(task_id="start")
+        loop = create_loop(body, max_iterations=3)
+        start >> EmptyOperator(task_id="report")
+        start >> loop >> EmptyOperator(task_id="finish")
+    dr = dag_maker.create_dagrun()
+    root = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+    for index in (2, 3):
+        for loop_task in loop.iter_tasks():
+            session.add(
+                TaskInstance(
+                    task=loop_task,
+                    run_id=dr.run_id,
+                    dag_version_id=dr.created_dag_version_id,
+                    region_id=root.id,
+                    region_index=index,
+                )
+            )
+    session.flush()
+    tis = {(ti.task_id, ti.region_index): ti for ti in dr.get_task_instances(session=session)}
+
+    scope = select_loop_clear_scope([tis["body.process", 2]], upstream=True, downstream=True, session=session)
+
+    assert {key for key, ti in tis.items() if ti.id in scope.retry_ids} == {
+        ("start", -1),
+        ("body.prepare", 2),
+        ("body.process", 2),
+        ("body.combine", 2),
+        (loop.gate_task_id, 2),
+        ("finish", -1),
+    }
+    assert {key for key, ti in tis.items() if ti.id in scope.archive_ids} == {
+        (loop_task.task_id, 3) for loop_task in loop.iter_tasks()
+    }
+
+
 def test_outside_seed_upstream_selects_all_current_loop_occurrences(loop_run, session):
     dr, dag, loop, root, tis, iteration = loop_run
     outside = next(ti for ti in tis if ti.task_id == "outside")
 
     scope = select_loop_clear_scope([outside], upstream=True, downstream=False, session=session)
 
-    assert scope.retry_ids == {ti.id for ti in tis if ti.task_id == "outside" or iteration(ti) == 0}
-    assert scope.archive_ids == {ti.id for ti in tis if ti.task_id != "outside" and iteration(ti) > 0}
+    assert scope.retry_ids == {ti.id for ti in tis if ti.task_id == "outside" or iteration(ti) == 1}
+    assert scope.archive_ids == {ti.id for ti in tis if ti.task_id != "outside" and iteration(ti) > 1}
 
 
-@pytest.mark.parametrize("upstream", [False, True])
-def test_outside_predecessor_selects_all_mapped_loop_occurrences(dag_maker, session, upstream):
+@pytest.fixture
+def mapped_loop_after_predecessor(dag_maker, session):
     @task_group
     def body():
         PythonOperator.partial(task_id="process", python_callable=list).expand(op_kwargs=[{}, {}])
@@ -2191,13 +2365,13 @@ def test_outside_predecessor_selects_all_mapped_loop_occurrences(dag_maker, sess
         run_id=dr.run_id,
         node_id="body.process",
         parent_region_id=root.id,
-        parent_region_index=1,
+        parent_region_index=2,
     )
     session.add(child)
     session.flush()
     for loop_task in loop.iter_tasks():
         mapped = loop_task.task_id == "body.process"
-        for index in range(2) if mapped else [1]:
+        for index in range(2) if mapped else [2]:
             session.add(
                 TaskInstance(
                     task=loop_task,
@@ -2208,23 +2382,44 @@ def test_outside_predecessor_selects_all_mapped_loop_occurrences(dag_maker, sess
                 )
             )
     session.flush()
-    tis = dr.get_task_instances(session=session)
-    seed = next(
-        ti
-        for ti in tis
-        if ti.task_id == ("body.process" if upstream else "before")
-        and ti.region_index == (0 if upstream else -1)
-    )
+    return loop, child, dr.get_task_instances(session=session)
+
+
+def test_outside_predecessor_selects_all_mapped_loop_occurrences(mapped_loop_after_predecessor, session):
+    loop, child, tis = mapped_loop_after_predecessor
+    before = next(ti for ti in tis if ti.task_id == "before")
 
     scope = select_loop_clear_scope(
-        [seed],
-        upstream=upstream,
+        [before],
+        upstream=False,
         downstream=True,
         later_loop_iterations=False,
         session=session,
     )
 
     assert scope.retry_ids == {ti.id for ti in tis}
+    assert not scope.archive_ids
+
+
+def test_loop_upstream_and_downstream_scope_excludes_other_map_indexes(
+    mapped_loop_after_predecessor, session
+):
+    loop, child, tis = mapped_loop_after_predecessor
+    seed = next(ti for ti in tis if ti.region_id == child.id and ti.region_index == 0)
+
+    scope = select_loop_clear_scope(
+        [seed],
+        upstream=True,
+        downstream=True,
+        later_loop_iterations=False,
+        session=session,
+    )
+
+    assert scope.retry_ids == {seed.id} | {
+        ti.id
+        for ti in tis
+        if ti.task_id == "before" or (ti.task_id == loop.gate_task_id and ti.region_index == 2)
+    }
     assert not scope.archive_ids
 
 
@@ -2377,19 +2572,19 @@ class TestWholeRunClear:
         clear_run(dr, session)
 
         live = dr.get_task_instances(session=session)
-        assert {ti.region_index for ti in live} == {0}
+        assert {ti.region_index for ti in live} == {1}
         for (task_id, index), ti_id in original.items():
             archived = session.get(TaskInstance, ti_id)
-            if index == 0:
+            if index == 1:
                 assert (archived.working_set, archived.archived_reason) == (None, "retry"), task_id
             else:
                 assert (archived.working_set, archived.archived_reason) == (None, "superseded"), task_id
         fork = session.scalar(select(DynamicRegion).where(DynamicRegion.forked_from_region_id.is_not(None)))
-        assert fork.resumes_from_index == 1
+        assert fork.resumes_from_index == 2
 
-        complete_pass(0, "continue")
+        complete_pass(1, "continue")
 
-        regenerated = [ti for ti in dr.get_task_instances(session=session) if ti.region_index == 1]
+        regenerated = [ti for ti in dr.get_task_instances(session=session) if ti.region_index == 2]
         assert len(regenerated) == 4
         assert {ti.region_id for ti in regenerated} == {fork.id}
 
@@ -2397,9 +2592,9 @@ class TestWholeRunClear:
         dr, loop, complete_pass = completed_loop
 
         clear_run(dr, session)
-        complete_pass(0, "stop")
+        complete_pass(1, "stop")
 
-        assert {ti.region_index for ti in dr.get_task_instances(session=session)} == {0}
+        assert {ti.region_index for ti in dr.get_task_instances(session=session)} == {1}
 
 
 def test_selected_state_patch_locks_dag_run_before_task_instances(completed_loop, session):

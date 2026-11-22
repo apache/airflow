@@ -27,15 +27,37 @@
 Changelog
 ---------
 
+4.8.5
+.....
+
+Misc
+~~~~
+
+* ``Raise the boto3 extra minimum to 1.43.6 (#75270, #76278, #76334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.8.4
+.....
+
+Misc
+~~~~
+
+* ``Bump optional boto3 requirement to 1.42.93 (#73822)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.8.3
+.....
+
 .. warning::
   In multi-team mode with ``use_team_secrets_path`` enabled (the default), a connection or variable
   looked up with no team is no longer resolved when its id contains ``/`` below the mount point. Such an
   id resolves under the same base path that team-scoped secrets are stored under, so it could name a
   team's secret. Store secrets used outside any team under ids without ``/``, or set
   ``use_team_secrets_path=False`` if the deployment does not use team-scoped Vault paths.
-
-4.8.3
-.....
 
 Bug Fixes
 ~~~~~~~~~

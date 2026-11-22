@@ -19,18 +19,18 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { DagVersionResponse, TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import BulkClearTaskInstancesButton from "src/pages/TaskInstances/BulkClearTaskInstancesButton";
 
 import {
   CLEAR_KEEP_TASK_STATE_KEY,
+  CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
 } from "src/constants/localStorage";
-import { handlers } from "src/mocks/handlers";
+import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import { ClearTaskInstanceButton } from "./ClearTaskInstanceButton";
@@ -93,8 +93,21 @@ const loopMember: TaskInstanceResponse = {
   in_loop: true,
 };
 
+// A code-only change advanced the Dag version's bundle in place; the run stays pinned to its bundle.
+const latestVersion: DagVersionResponse = {
+  bundle_name: "git-bundle",
+  bundle_url: null,
+  bundle_version: "latest-sha",
+  created_at: "2025-01-02T00:00:00Z",
+  dag_display_name: "Test DAG",
+  dag_id: DAG_ID,
+  id: "version-21",
+  version_number: 21,
+};
+
 const mutateMock = vi.fn();
 const dryRunsMock = vi.fn();
+const confirmationDryRun = { isFetching: false };
 
 vi.mock("src/queries/useClearTaskInstances", () => ({
   useClearTaskInstances: () => ({ isPending: false, mutate: mutateMock }),
@@ -104,7 +117,11 @@ vi.mock("src/queries/useClearTaskInstances", () => ({
 // list in the main dialog and the confirmation dialog's running-task gate; a
 // same-tick response for both keeps the gate from blocking on a real fetch.
 vi.mock("src/queries/useClearTaskInstancesDryRun", () => ({
-  useClearTaskInstancesDryRun: () => ({ data: affectedTasks, isFetching: false, isPending: false }),
+  useClearTaskInstancesDryRun: () => ({
+    data: affectedTasks,
+    isFetching: confirmationDryRun.isFetching,
+    isPending: false,
+  }),
   useClearTaskInstancesDryRuns: (args: unknown) => {
     dryRunsMock(args);
 
@@ -112,24 +129,42 @@ vi.mock("src/queries/useClearTaskInstancesDryRun", () => ({
   },
 }));
 
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(
-    ...handlers,
+beforeEach(() => {
+  server.use(
     http.get(`/api/v2/dags/${DAG_ID}/details`, () => HttpResponse.json({})),
     http.get(`/api/v2/dags/${DAG_ID}/dagRuns/${DAG_RUN_ID}`, () => HttpResponse.json({ dag_versions: [] })),
   );
-  server.listen({ onUnhandledFrame: "bypass" });
 });
 afterEach(() => {
   affectedTasks.task_instances = [taskInstance];
+  confirmationDryRun.isFetching = false;
   mutateMock.mockClear();
   dryRunsMock.mockClear();
-  server.resetHandlers();
   localStorage.clear();
 });
-afterAll(() => server.close());
+
+const serveBundleOnlyUpdate = (runLoaded: Promise<void> = Promise.resolve()) =>
+  server.use(
+    http.get(`/api/v2/dags/${DAG_ID}/details`, () =>
+      HttpResponse.json({
+        bundle_version: "latest-sha",
+        latest_dag_version: latestVersion,
+        rerun_with_latest_version: null,
+      }),
+    ),
+    http.get(`/api/v2/dags/${DAG_ID}/dagRuns/${DAG_RUN_ID}`, async () => {
+      await runLoaded;
+
+      return HttpResponse.json({ bundle_version: "historical-sha", dag_versions: [latestVersion] });
+    }),
+  );
+
+const clickConfirm = async () => {
+  const confirmButton = await screen.findByRole("button", { name: /modal\.confirm/iu });
+
+  await waitFor(() => expect(confirmButton).toBeEnabled());
+  fireEvent.click(confirmButton);
+};
 
 describe("ClearTaskInstanceDialog", () => {
   it("seeds the keep-task-state checkbox from the stored default and sends it on confirm", async () => {
@@ -143,15 +178,51 @@ describe("ClearTaskInstanceDialog", () => {
 
     expect(keepTaskStateCheckbox).toBeChecked();
 
-    const confirmButton = await screen.findByRole("button", { name: /modal\.confirm/iu });
-
-    fireEvent.click(confirmButton);
+    await clickConfirm();
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalled());
 
     const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: { keep_task_state?: boolean } }];
 
     expect(requestBody.keep_task_state).toBe(true);
+  });
+
+  it("sends the clear once the running-task check resolves", async () => {
+    const onClose = vi.fn();
+
+    confirmationDryRun.isFetching = true;
+    const { rerender } = render(
+      <ClearTaskInstanceDialog onClose={onClose} open taskInstance={taskInstance} />,
+      {
+        wrapper: Wrapper,
+      },
+    );
+
+    await clickConfirm();
+    // Let the clear dialog finish closing while the running-task check is still in flight.
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+    confirmationDryRun.isFetching = false;
+    rerender(<ClearTaskInstanceDialog onClose={onClose} open taskInstance={taskInstance} />);
+
+    await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
+    const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: { dry_run?: boolean } }];
+
+    expect(requestBody.dry_run).toBe(false);
+  });
+
+  it("warns instead of clearing a queued task when running tasks are protected", async () => {
+    localStorage.setItem(CLEAR_PREVENT_RUNNING_TASK_KEY, JSON.stringify(true));
+    affectedTasks.task_instances = [{ ...taskInstance, state: "queued" }];
+    render(<ClearTaskInstanceDialog onClose={vi.fn()} open taskInstance={taskInstance} />, {
+      wrapper: Wrapper,
+    });
+
+    await clickConfirm();
+
+    expect(await screen.findByText(/confirmationDialog\.title/iu)).toBeVisible();
+    expect(mutateMock).not.toHaveBeenCalled();
   });
 
   it("clears the kept loop passes by execution id when another pass is unticked", async () => {
@@ -164,7 +235,7 @@ describe("ClearTaskInstanceDialog", () => {
     const rows = await screen.findAllByRole("row");
 
     fireEvent.click(within(rows[1] as HTMLElement).getByRole("checkbox"));
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await clickConfirm();
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
     const [{ requestBody }] = mutateMock.mock.calls[0] as [
@@ -188,7 +259,7 @@ describe("ClearTaskInstanceDialog", () => {
     affectedTasks.task_instances = [loopPass("pass-0-retried", 0), loopPass("pass-2", 2)];
     rerender(dialog);
 
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await clickConfirm();
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
     const [{ requestBody }] = mutateMock.mock.calls[0] as [
@@ -242,7 +313,7 @@ describe("ClearTaskInstanceDialog", () => {
     });
 
     fireEvent.click(await screen.findByRole("button", { name: /options\.laterIterations/iu }));
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await clickConfirm();
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
     const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: Record<string, unknown> }];
@@ -266,7 +337,7 @@ describe("ClearTaskInstanceDialog", () => {
     });
 
     fireEvent.click(await screen.findByRole("button", { name: /options\.wholeExpansion/iu }));
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await clickConfirm();
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
     const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: Record<string, unknown> }];
@@ -306,7 +377,7 @@ describe("ClearTaskInstanceDialog", () => {
       wrapper: Wrapper,
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await clickConfirm();
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
     const [{ requestBody }] = mutateMock.mock.calls[0] as [{ requestBody: Record<string, unknown> }];
@@ -328,7 +399,7 @@ describe("ClearTaskInstanceDialog", () => {
       wrapper: Wrapper,
     });
 
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await clickConfirm();
 
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(2));
     expect(
@@ -355,7 +426,7 @@ describe("ClearTaskInstanceDialog", () => {
     const note = await screen.findByRole("textbox", { hidden: true });
 
     expect(note).toHaveValue("existing note");
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await clickConfirm();
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
     expect((mutateMock.mock.calls[0] as [{ requestBody: { note?: string } }])[0].requestBody.note).toBe(
       undefined,
@@ -370,7 +441,7 @@ describe("ClearTaskInstanceDialog", () => {
     fireEvent.change(await screen.findByRole("textbox", { hidden: true }), {
       target: { value: "new reason" },
     });
-    fireEvent.click(await screen.findByRole("button", { name: /modal\.confirm/iu }));
+    await clickConfirm();
     await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
     expect((mutateMock.mock.calls[0] as [{ requestBody: { note?: string } }])[0].requestBody.note).toBe(
       "new reason",
@@ -455,6 +526,82 @@ describe("ClearTaskInstanceDialog", () => {
       expect(screen.queryByRole("checkbox", { name: /runOnLatestVersion/iu }) !== null).toBe(expectedShown);
     },
   );
+
+  it.each([false, true])(
+    "offers the run-on-latest option when only the run's bundle is outdated and sends the choice: %s",
+    async (runOnLatest) => {
+      serveBundleOnlyUpdate();
+      render(
+        <ClearTaskInstanceDialog
+          onClose={vi.fn()}
+          open
+          taskInstance={{ ...taskInstance, dag_version: latestVersion }}
+        />,
+        { wrapper: Wrapper },
+      );
+
+      const checkbox = await screen.findByRole("checkbox", { name: /runOnLatestVersion/iu });
+
+      expect(checkbox).not.toBeChecked();
+      if (runOnLatest) {
+        fireEvent.click(checkbox);
+        await waitFor(() => expect(checkbox).toBeChecked());
+      }
+      await clickConfirm();
+
+      await waitFor(() => expect(mutateMock).toHaveBeenCalledTimes(1));
+      expect((mutateMock.mock.calls[0] as [{ requestBody: unknown }])[0].requestBody).toMatchObject({
+        dag_run_id: DAG_RUN_ID,
+        dry_run: false,
+        run_on_latest_version: runOnLatest,
+      });
+    },
+  );
+
+  it("offers the run-on-latest option when clearing all mapped instances on an outdated bundle", async () => {
+    serveBundleOnlyUpdate();
+    render(
+      <ClearTaskInstanceDialog
+        allMapped
+        dagId={DAG_ID}
+        dagRunId={DAG_RUN_ID}
+        onClose={vi.fn()}
+        open
+        taskId={TASK_ID}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    expect(await screen.findByRole("checkbox", { name: /runOnLatestVersion/iu })).toBeVisible();
+  });
+
+  it("keeps confirm disabled until the run's bundle has loaded", async () => {
+    let loadRun: (() => void) | undefined;
+
+    serveBundleOnlyUpdate(
+      new Promise<void>((resolve) => {
+        loadRun = resolve;
+      }),
+    );
+    render(
+      <ClearTaskInstanceDialog
+        onClose={vi.fn()}
+        open
+        taskInstance={{ ...taskInstance, dag_version: latestVersion }}
+      />,
+      { wrapper: Wrapper },
+    );
+
+    const confirmButton = await screen.findByRole("button", { name: /modal\.confirm/iu });
+
+    expect(confirmButton).toBeDisabled();
+    expect(screen.queryByRole("checkbox", { name: /runOnLatestVersion/iu })).not.toBeInTheDocument();
+
+    loadRun?.();
+
+    expect(await screen.findByRole("checkbox", { name: /runOnLatestVersion/iu })).toBeVisible();
+    await waitFor(() => expect(confirmButton).toBeEnabled());
+  });
 
   it.each([
     {

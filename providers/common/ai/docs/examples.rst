@@ -65,7 +65,7 @@ Batch processing
      - What it shows
    * - :doc:`operators/llm_batch`
      - :doc:`Classify thousands of reviews at half the price <use_cases/classify_reviews_in_bulk>`
-       through one OpenAI or Anthropic batch job, with structured output and results landed on
+       through one OpenAI, Anthropic or Gemini batch job, with structured output and results landed on
        object storage
        (`example_llm_batch.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py>`__).
 
@@ -100,6 +100,10 @@ Agents & tools
      - A LangChain ReAct agent that decides its own tool calls, composed with ``LLMOperator`` for
        report formatting and AIP-90 HITL review
        (`example_langchain_tool_agent.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_langchain_tool_agent.py>`__).
+   * - :doc:`use_cases/refine_a_draft_within_a_budget`
+     - An agent and a judge in a task loop that stops when the draft passes or a dollar or token
+       budget is spent
+       (`example_agent_loop_budget.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_agent_loop_budget.py>`__).
 
 Retrieval & document processing
 --------------------------------

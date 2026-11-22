@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-ssh``
 
-Release: ``7.0.0``
+Release: ``7.0.3``
 
 
 `Secure Shell (SSH) <https://tools.ietf.org/html/rfc4251>`__
@@ -36,7 +36,7 @@ This is a provider package for ``ssh`` provider. All classes for this provider p
 are in ``airflow.providers.ssh`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ssh/7.0.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-ssh/7.0.3/>`_.
 
 Installation
 ------------
@@ -54,10 +54,10 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
-``apache-airflow-providers-common-compat``  ``>=1.12.0``
-``asyncssh``                                ``>=2.12.0``
+``apache-airflow-providers-common-compat``  ``>=1.21.0``
+``asyncssh``                                ``>=2.18.0``
 ``paramiko``                                ``>=4.0.0``
 ==========================================  ==================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ssh/7.0.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-ssh/7.0.3/changelog.html>`_.

@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -78,7 +77,7 @@ apache-airflow-providers-microsoft-mssql package
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 
-Release: 4.7.2
+Release: 4.7.3
 
 Provider package
 ----------------
@@ -139,11 +138,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-microsoft-mssql[openlineage]
 
 
-===============  ========================================
-Extra            Dependencies
-===============  ========================================
-``openlineage``  ``apache-airflow-providers-openlineage``
-===============  ========================================
+================  ========================================
+Extra             Dependencies
+================  ========================================
+``openlineage``   ``apache-airflow-providers-openlineage``
+``mssql-python``  ``mssql-python>=1.15.0``
+================  ========================================
 
 Downloading official packages
 -----------------------------
@@ -151,5 +151,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-microsoft-mssql 4.7.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-microsoft-mssql 4.7.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-microsoft-mssql 4.7.3 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.3.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.3.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.3.tar.gz.sha512>`__)
+* `The apache-airflow-providers-microsoft-mssql 4.7.3 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.3-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.3-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_mssql-4.7.3-py3-none-any.whl.sha512>`__)

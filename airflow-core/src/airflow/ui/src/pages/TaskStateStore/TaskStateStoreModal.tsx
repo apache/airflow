@@ -38,6 +38,9 @@ import { JsonEditor } from "src/components/JsonEditor";
 import { useTimezone } from "src/context/timezone";
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useStoreMutation } from "src/queries/useStoreMutation";
+import { isOneOf } from "src/utils";
+
+const isExpiresAtMode = isOneOf(["custom", "default", "never"] as const);
 
 dayjs.extend(tz);
 
@@ -195,7 +198,11 @@ export const TaskStateStoreModal = ({
               {translate("dag:taskStateStore.expiresAt.label")}
             </Text>
             <RadioCard.Root
-              onValueChange={(ev) => setExpiresAt(ev.value as "custom" | "default" | "never")}
+              onValueChange={(details) => {
+                if (isExpiresAtMode(details.value)) {
+                  setExpiresAt(details.value);
+                }
+              }}
               value={expiresAt}
             >
               <Flex gap={2}>

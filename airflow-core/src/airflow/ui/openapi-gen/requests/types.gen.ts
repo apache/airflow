@@ -79,6 +79,8 @@ export type AssetEventResponse = {
     source_run_id?: string | null;
     source_map_index: number;
     source_task_instance_id?: string | null;
+    source_region_id?: string | null;
+    source_region_index?: number | null;
     created_dagruns: Array<DagRunAssetReference>;
     timestamp: string;
     partition_key?: string | null;
@@ -224,8 +226,15 @@ export type AssetStateStoreWriterKind = 'task' | 'watcher' | 'api';
  */
 export type AssetWatcherResponse = {
     name: string;
+    /**
+     * The watcher's trigger; `GET /triggers/{trigger_id}` has its state.
+     */
     trigger_id: number;
     created_date: string;
+    /**
+     * Status of the watcher's trigger, as in `GET /triggers`.
+     */
+    status: TriggerStatus;
 };
 
 /**
@@ -491,6 +500,10 @@ export type BulkDAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
 };
@@ -704,6 +717,11 @@ export type BulkUpdateAction_VariableBody_ = {
 };
 
 /**
+ * All possible states of callbacks.
+ */
+export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
+
+/**
  * Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
  */
 export type ClearPartitionsBody = {
@@ -786,6 +804,10 @@ export type ClearTaskInstancesBody = {
     dag_run_id?: string | null;
     include_upstream?: boolean;
     include_downstream?: boolean;
+    /**
+     * Also clear the tasks in other Dags that the cleared tasks recorded as external clear targets (for example through ``ExternalTaskMarker``), with their downstream tasks. If not specified, follows ``include_downstream``.
+     */
+    include_dependent_dags?: boolean | null;
     include_future?: boolean;
     include_past?: boolean;
     /**
@@ -798,6 +820,17 @@ export type ClearTaskInstancesBody = {
      */
     keep_task_state?: boolean;
     note?: string | null;
+};
+
+/**
+ * Login methods the auth manager offers to command-line clients, named as in RFC 8414.
+ */
+export type CliLoginMetadataResponse = {
+    grant_types_supported: Array<(string)>;
+    code_challenge_methods_supported: Array<(string)>;
+    authorization_endpoint: string | null;
+    device_authorization_endpoint: string | null;
+    token_endpoint: string | null;
 };
 
 /**
@@ -1075,6 +1108,10 @@ export type DAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -1251,7 +1288,7 @@ export type DagBundleDetailResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1259,11 +1296,11 @@ export type DagBundleDetailResponse = {
      */
     team_name: string | null;
     /**
-     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     * Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
     /**
-     * Number of live Dags recorded against the bundle that the caller is permitted to see, counted on the same terms as ``GET /dags``.
+     * Number of live Dags recorded against the bundle, including Dags the caller may not read.
      */
     dag_count: number;
 };
@@ -1282,7 +1319,7 @@ export type DagBundleFileCollectionResponse = {
 export type DagBundleFileResponse = {
     relative_fileloc: string;
     /**
-     * Number of live Dags the file defines that the caller may read.
+     * Number of live Dags the file defines, including Dags the caller may not read.
      */
     dag_count: number;
     /**
@@ -1294,9 +1331,13 @@ export type DagBundleFileResponse = {
      */
     last_parse_duration: number | null;
     /**
-     * Number of import errors recorded against the file, which is at most one. Null when the caller may not read import errors -- deliberately not zero, which would read as a file with nothing wrong.
+     * Number of import errors recorded against the file, which is at most one. Reading the error itself is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
+    /**
+     * Whether the caller may read the file's import error through ``GET /importErrors``, possibly with its stack trace redacted. Always false when the file has no error.
+     */
+    can_read_import_error: boolean;
 };
 
 /**
@@ -1317,7 +1358,7 @@ export type DagBundleResponse = {
      */
     last_refreshed: string | null;
     /**
-     * A link to view the bundle at ``version``, when one is configured and the caller may read Dag versions.
+     * A link to view the bundle at ``version``. Null when the bundle has no URL template, when the template needs a version and the bundle has not been refreshed yet, or when the template cannot be rendered.
      */
     bundle_url: string | null;
     /**
@@ -1325,9 +1366,9 @@ export type DagBundleResponse = {
      */
     team_name: string | null;
     /**
-     * Number of Dag import errors recorded against this bundle that the caller is permitted to see, counted on the same terms as ``GET /importErrors``. Null when the caller may not read import errors.
+     * Number of Dag import errors recorded against the bundle. Reading the errors themselves is authorized separately, through ``GET /importErrors``.
      */
-    import_error_count: number | null;
+    import_error_count: number;
 };
 
 /**
@@ -1580,11 +1621,26 @@ export type DryRunBackfillResponse = {
 };
 
 /**
- * Event Log Collection Response.
+ * Event Log collection response supporting both offset and cursor pagination.
  */
 export type EventLogCollectionResponse = {
     event_logs: Array<EventLogResponse>;
+    /**
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
+     */
     total_entries: number;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -1627,6 +1683,7 @@ export type ExternalViewResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     href: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base';
     [key: string]: unknown | string;
@@ -1833,6 +1890,9 @@ export type LastAssetEventResponse = {
  */
 export type LoopIterationResponse = {
     loop_id: string;
+    /**
+     * Position in the enclosing loop, counting from one.
+     */
     iteration: number;
 };
 
@@ -1918,6 +1978,36 @@ export type PluginImportErrorResponse = {
 };
 
 /**
+ * Serializer for a UI action that opens a URL.
+ */
+export type PluginLinkActionResponse = {
+    name: string;
+    destination: 'dag' | 'dag_run' | 'task_instance';
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    applies_to?: PluginAppliesToResponse | null;
+    action_type: "link";
+    href: string;
+    [key: string]: unknown | string | "link";
+};
+
+export type destination2 = 'dag' | 'dag_run' | 'task_instance';
+
+/**
+ * Serializer for a UI action that mounts a React component behind a button.
+ */
+export type PluginReactActionResponse = {
+    name: string;
+    destination: 'dag' | 'dag_run' | 'task_instance';
+    icon?: string | null;
+    icon_dark_mode?: string | null;
+    applies_to?: PluginAppliesToResponse | null;
+    action_type: "react";
+    bundle_url: string;
+    [key: string]: unknown | string | "react";
+};
+
+/**
  * Plugin serializer.
  */
 export type PluginResponse = {
@@ -1932,6 +2022,10 @@ export type PluginResponse = {
      */
     external_views: Array<ExternalViewResponse>;
     react_apps: Array<ReactAppResponse>;
+    /**
+     * User-defined actions rendered on Dag, Dag Run, and Task Instance table rows and header cards.
+     */
+    ui_actions?: Array<(PluginLinkActionResponse | PluginReactActionResponse)>;
     appbuilder_views: Array<AppBuilderViewResponse>;
     /**
      * @deprecated
@@ -1998,11 +2092,175 @@ export type PoolResponse = {
 };
 
 /**
+ * Asset URI scheme handling provided by a provider.
+ */
+export type ProviderAssetUriInfo = {
+    schemes: Array<(string)>;
+    handler?: string | null;
+    factory?: string | null;
+    to_openlineage_converter?: string | null;
+};
+
+/**
  * Provider Collection serializer for responses.
  */
 export type ProviderCollectionResponse = {
     providers: Array<ProviderResponse>;
     total_entries: number;
+};
+
+/**
+ * Configuration option contributed by a provider.
+ */
+export type ProviderConfigOptionInfo = {
+    description?: string | null;
+    version_added?: string | null;
+    type?: string | null;
+    example?: string | number | null;
+    default?: string | number | null;
+    sensitive?: boolean | null;
+    is_template?: boolean | null;
+    see_also?: string | null;
+};
+
+/**
+ * Configuration section contributed by a provider.
+ */
+export type ProviderConfigSectionInfo = {
+    description?: string | null;
+    options?: {
+        [key: string]: ProviderConfigOptionInfo;
+    };
+};
+
+/**
+ * Custom connection field a connection type stores in ``Connection.extra``.
+ */
+export type ProviderConnectionFieldInfo = {
+    label: string;
+    description?: string | null;
+    schema: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * Connection type provided by a provider.
+ */
+export type ProviderConnectionTypeInfo = {
+    connection_type: string;
+    hook_class_name: string;
+    hook_name?: string | null;
+    ui_field_behaviour?: ProviderConnectionUiFieldBehaviourInfo | null;
+    conn_fields?: {
+    [key: string]: ProviderConnectionFieldInfo;
+} | null;
+    external_services?: Array<(string)> | null;
+};
+
+/**
+ * Customizations a connection type applies to the standard connection form fields.
+ */
+export type ProviderConnectionUiFieldBehaviourInfo = {
+    hidden_fields?: Array<(string)> | null;
+    relabeling?: {
+    [key: string]: (string);
+} | null;
+    placeholders?: {
+    [key: string]: (string);
+} | null;
+};
+
+/**
+ * Detailed provider serializer for responses.
+ */
+export type ProviderDetailsResponse = {
+    package_name: string;
+    description: string;
+    version: string;
+    documentation_url: string | null;
+    provider_info: ProviderInfoResponse;
+};
+
+/**
+ * SQL dialect provided by a provider.
+ */
+export type ProviderDialectInfo = {
+    dialect_type?: string | null;
+    dialect_class_name?: string | null;
+};
+
+/**
+ * Typed provider metadata (from ``provider.yaml``) exposed by the API.
+ */
+export type ProviderInfoResponse = {
+    package_name?: string | null;
+    name?: string | null;
+    description?: string | null;
+    documentation_url?: string | null;
+    filesystems?: Array<(string)> | null;
+    integrations?: Array<ProviderIntegrationInfo> | null;
+    operators?: Array<ProviderIntegrationModulesInfo> | null;
+    sensors?: Array<ProviderIntegrationModulesInfo> | null;
+    hooks?: Array<ProviderIntegrationModulesInfo> | null;
+    triggers?: Array<ProviderIntegrationModulesInfo> | null;
+    bundles?: Array<ProviderIntegrationModulesInfo> | null;
+    asset_uris?: Array<ProviderAssetUriInfo> | null;
+    dialects?: Array<ProviderDialectInfo> | null;
+    transfers?: Array<ProviderTransferInfo> | null;
+    connection_types?: Array<ProviderConnectionTypeInfo> | null;
+    extra_links?: Array<(string)> | null;
+    secrets_backends?: Array<(string)> | null;
+    email_backends?: Array<(string)> | null;
+    logging?: Array<(string)> | null;
+    remote_logging?: Array<ProviderRemoteLoggingInfo> | null;
+    auth_backends?: Array<(string)> | null;
+    auth_managers?: Array<(string)> | null;
+    notifications?: Array<(string)> | null;
+    executors?: Array<(string)> | null;
+    db_managers?: Array<(string)> | null;
+    cli?: Array<(string)> | null;
+    config?: {
+    [key: string]: ProviderConfigSectionInfo;
+} | null;
+    task_decorators?: Array<ProviderTaskDecoratorInfo> | null;
+    plugins?: Array<ProviderPluginInfo> | null;
+    queues?: Array<(string)> | null;
+};
+
+/**
+ * Integration provided by a provider.
+ */
+export type ProviderIntegrationInfo = {
+    integration_name: string;
+    external_doc_url?: string | null;
+    how_to_guide?: Array<(string)> | null;
+    logo?: string | null;
+    tags?: Array<(string)> | null;
+};
+
+/**
+ * Python modules an integration contributes for one kind of functionality.
+ */
+export type ProviderIntegrationModulesInfo = {
+    integration_name: string;
+    python_modules: Array<(string)>;
+};
+
+/**
+ * Plugin provided by a provider.
+ */
+export type ProviderPluginInfo = {
+    name?: string | null;
+    plugin_class?: string | null;
+};
+
+/**
+ * Remote logging IO handler provided by a provider.
+ */
+export type ProviderRemoteLoggingInfo = {
+    classpath: string;
+    scheme: string;
 };
 
 /**
@@ -2013,6 +2271,24 @@ export type ProviderResponse = {
     description: string;
     version: string;
     documentation_url: string | null;
+};
+
+/**
+ * TaskFlow decorator provided by a provider.
+ */
+export type ProviderTaskDecoratorInfo = {
+    name?: string | null;
+    class_name?: string | null;
+};
+
+/**
+ * Transfer operator provided by a provider.
+ */
+export type ProviderTransferInfo = {
+    source_integration_name: string;
+    target_integration_name: string;
+    python_module: string;
+    how_to_guide?: string | null;
 };
 
 /**
@@ -2044,12 +2320,13 @@ export type ReactAppResponse = {
     category?: string | null;
     nav_top_level?: boolean | null;
     applies_to?: PluginAppliesToResponse | null;
+    show_icon_with_label?: boolean | null;
     bundle_url: string;
     destination?: 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
     [key: string]: unknown | string;
 };
 
-export type destination2 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
+export type destination3 = 'nav' | 'dag' | 'dag_run' | 'task' | 'task_instance' | 'asset' | 'base' | 'dashboard' | 'dag_overview' | 'task_overview';
 
 /**
  * Internal enum for setting reprocess behavior in a backfill.
@@ -2192,9 +2469,13 @@ export type TaskInstanceHistoryResponse = {
     dag_version: DagVersionResponse | null;
     note?: string | null;
     /**
-     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     * The reason this try ended, as recorded by a retry policy.
      */
     state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -2243,9 +2524,13 @@ export type TaskInstanceResponse = {
     dag_version: DagVersionResponse | null;
     team_name?: string | null;
     /**
-     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: it is cleared only when the task next starts running, so a task waiting to be retried or re-run can still carry the reason its last attempt ended.
+     * The reason the task instance reached its current state, as recorded by a retry policy. May describe a previous attempt: a task waiting to be retried still carries the reason its last attempt ended. It is cleared when the task is cleared and when the next attempt is scheduled or deferred.
      */
     state_reason?: string | null;
+    /**
+     * When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.
+     */
+    retry_at?: string | null;
 };
 
 /**
@@ -2400,6 +2685,38 @@ export type TimeDelta = {
 };
 
 /**
+ * An asset watcher a trigger serves.
+ */
+export type TriggerAssetWatcherReferenceResponse = {
+    asset_id: number;
+    asset_name: string;
+    asset_uri: string;
+    watcher_name: string;
+    /**
+     * The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.
+     */
+    scheduled_dag_ids: Array<(string)>;
+};
+
+/**
+ * The callback a trigger runs.
+ */
+export type TriggerCallbackReferenceResponse = {
+    id: string;
+    dag_id: string | null;
+    dag_run_id: string | null;
+    state: CallbackState | null;
+};
+
+/**
+ * Trigger collection response.
+ */
+export type TriggerCollectionResponse = {
+    triggers: Array<TriggerDetailResponse>;
+    total_entries: number;
+};
+
+/**
  * Trigger Dag Run Serializer for POST body.
  */
 export type TriggerDAGRunPostBody = {
@@ -2421,6 +2738,61 @@ export type TriggerDAGRunPostBody = {
 };
 
 /**
+ * A trigger, who it runs for, and how it is doing; never its kwargs.
+ */
+export type TriggerDetailResponse = {
+    id: number;
+    /**
+     * What the trigger runs for: a deferred `task`, a `callback` or an `asset_watcher`.
+     */
+    kind: TriggerKind;
+    classpath: string;
+    created_date: string;
+    queue: string | null;
+    team_name: string | null;
+    /**
+     * `pending`: not picked up by a triggerer yet. `running`: on a live triggerer and not failed since it last recovered. `failing`: on a live triggerer and failed since it last recovered, that is `consecutive_failures` is above 0; it recovers when it fires an event or stays up for two minutes. `orphaned`: its triggerer stopped sending heartbeats; another triggerer will take it.
+     */
+    status: TriggerStatus;
+    /**
+     * Host of the triggerer the trigger is assigned to; whether it is alive is the `orphaned` status.
+     */
+    triggerer_hostname: string | null;
+    /**
+     * Failures since the trigger last recovered.
+     */
+    consecutive_failures: number;
+    /**
+     * When the current run of failures started.
+     */
+    first_failed_at: string | null;
+    last_failed_at: string | null;
+    /**
+     * Exception type and message of the last failure, with secrets masked. It is kept after a recovery; the traceback is in the trigger's logs.
+     */
+    last_error: string | null;
+    /**
+     * When the trigger last fired an event.
+     */
+    last_event_at: string | null;
+    /**
+     * The Dag of the task instance or callback the trigger runs for.
+     */
+    dag_id: string | null;
+    task_instance: TriggerTaskInstanceReferenceResponse | null;
+    callback: TriggerCallbackReferenceResponse | null;
+    /**
+     * The watchers the trigger serves, on the assets the caller can read.
+     */
+    asset_watchers: Array<TriggerAssetWatcherReferenceResponse>;
+};
+
+/**
+ * What a trigger runs for, worked out from what it is used by rather than stored.
+ */
+export type TriggerKind = 'task' | 'callback' | 'asset_watcher';
+
+/**
  * Trigger serializer for responses.
  */
 export type TriggerResponse = {
@@ -2433,6 +2805,23 @@ export type TriggerResponse = {
     created_date: string;
     queue: string | null;
     triggerer_id: number | null;
+};
+
+/**
+ * How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat.
+ */
+export type TriggerStatus = 'pending' | 'running' | 'failing' | 'orphaned';
+
+/**
+ * The task instance a trigger runs for.
+ */
+export type TriggerTaskInstanceReferenceResponse = {
+    dag_id: string;
+    dag_run_id: string;
+    task_id: string;
+    map_index: number;
+    try_number: number;
+    state: TaskInstanceState | null;
 };
 
 /**
@@ -2462,6 +2851,10 @@ export type UpdateHITLDetailPayload = {
     params_input?: {
         [key: string]: unknown;
     };
+    /**
+     * The ``created_at`` of the request this response answers, exactly as the GET endpoint returned it. When the task has since replaced its request (it asked again after a resume, retry or clear), the response is refused with 409 instead of answering a request the user did not see. Leave it out to answer whatever request is waiting.
+     */
+    request_created_at?: string | null;
 };
 
 export type ValidationError = {
@@ -2600,6 +2993,49 @@ export type XComUpdateBody = {
 };
 
 /**
+ * Partition keys of an asset with their status.
+ */
+export type AssetPartitionCollectionResponse = {
+    partitions: Array<AssetPartitionResponse>;
+    total_entries: number;
+    status_counts: AssetPartitionStatusCounts;
+};
+
+/**
+ * The latest run of a producing Dag for one partition key.
+ */
+export type AssetPartitionProducerRunResponse = {
+    dag_id: string;
+    run_id: string;
+    state: DagRunState;
+    start_date: string | null;
+    end_date: string | null;
+};
+
+/**
+ * Status of one partition key of an asset.
+ */
+export type AssetPartitionResponse = {
+    partition_key: string;
+    status: 'materialized' | 'in_progress' | 'failed';
+    last_event_id: number | null;
+    last_event_timestamp: string | null;
+    last_producer_run: AssetPartitionProducerRunResponse | null;
+    consumer_runs: Array<DagRunAssetReference>;
+};
+
+export type status = 'materialized' | 'in_progress' | 'failed';
+
+/**
+ * Number of partition keys per status.
+ */
+export type AssetPartitionStatusCounts = {
+    materialized?: number;
+    in_progress?: number;
+    failed?: number;
+};
+
+/**
  * Authenticated user information serializer for responses.
  */
 export type AuthenticatedMeResponse = {
@@ -2633,12 +3069,14 @@ export type BaseGraphResponse = {
 export type BaseNodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
 };
 
-export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
 
 /**
  * Response model for calendar deadline aggregation results.
@@ -2855,6 +3293,13 @@ export type DAGsRunStateCountsCollectionResponse = {
 };
 
 /**
+ * Number of Dag bundles holding a Dag or an import error the caller may read.
+ */
+export type DagBundleCountResponse = {
+    total_entries: number;
+};
+
+/**
  * Collection of distinct Dag folders, each scoped to the bundle it belongs to.
  */
 export type DagFolderCollectionResponse = {
@@ -2938,6 +3383,14 @@ export type DeadlineResponse = {
     alert_id?: string | null;
     alert_name?: string | null;
     team_name?: string | null;
+    callback_id: string;
+    callback_type: string;
+    callback_state?: CallbackState | null;
+    callback_path?: string | null;
+    /**
+     * The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.
+     */
+    callback_trigger_id?: number | null;
 };
 
 /**
@@ -3127,6 +3580,9 @@ export type LightGridTaskInstanceSummary = {
     dag_version_number?: number | null;
     has_note?: boolean;
     loop_iterations_count?: number | null;
+    latest_region_id?: string | null;
+    latest_region_index?: number | null;
+    retry_at?: string | null;
 };
 
 /**
@@ -3150,9 +3606,14 @@ export type LoopInvocationResponse = {
  */
 export type LoopIterationSummary = {
     index: number;
+    task_count?: number;
     state?: TaskInstanceState | null;
     start_date?: string | null;
     end_date?: string | null;
+    /**
+     * Why the loop's gate continued or stopped the loop at this iteration, if its until callable said.
+     */
+    decision_reason?: string;
 };
 
 /**
@@ -3169,7 +3630,7 @@ export type LoopRunSummary = {
     loop_region_id?: string | null;
 };
 
-export type status = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+export type status2 = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
 
 /**
  * Runtime state of one loop invocation.
@@ -3238,9 +3699,11 @@ export type NextRunAssetsResponse = {
 export type NodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     is_loop?: boolean | null;
@@ -3260,9 +3723,10 @@ export type OklchColor = string;
  * Asset info within a partitioned Dag run detail.
  */
 export type PartitionedDagRunAssetResponse = {
-    asset_id: number;
-    asset_name: string;
-    asset_uri: string;
+    asset_id: number | null;
+    asset_name: string | null;
+    asset_uri: string | null;
+    hidden?: boolean;
     received: boolean;
     received_count: number;
     required_count: number;
@@ -3440,6 +3904,10 @@ export type GetAssetsData = {
      */
     orderBy?: Array<(string)>;
     /**
+     * Return only the assets this trigger's watchers watch.
+     */
+    triggerId?: number | null;
+    /**
      * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
      */
     uri?: Array<(string)>;
@@ -3514,6 +3982,10 @@ export type GetAssetEventsData = {
     timestampGte?: string | null;
     timestampLt?: string | null;
     timestampLte?: string | null;
+    /**
+     * Return only the events of the assets this trigger's watchers watch.
+     */
+    triggerId?: number | null;
 };
 
 export type GetAssetEventsResponse = AssetEventCollectionResponse;
@@ -3541,6 +4013,10 @@ export type GetAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteAssetQueuedEventsData = {
     assetId: number;
     before?: string | null;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteAssetQueuedEventsResponse = void;
@@ -3561,6 +4037,10 @@ export type GetDagAssetQueuedEventsResponse = QueuedEventCollectionResponse;
 export type DeleteDagAssetQueuedEventsData = {
     before?: string | null;
     dagId: string;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteDagAssetQueuedEventsResponse = void;
@@ -3577,6 +4057,10 @@ export type DeleteDagAssetQueuedEventData = {
     assetId: number;
     before?: string | null;
     dagId: string;
+    /**
+     * Delete queued events of partitioned assets emitted for this partition key whose Dag run has not been created yet, instead of queued events of non-partitioned assets. The key is matched against the partition key the asset event was emitted for, not against the partition keys of the Dag runs the event feeds; a partition mapper can make them differ.
+     */
+    partitionKey?: string | null;
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
@@ -3635,6 +4119,17 @@ export type NextRunAssetsData = {
 };
 
 export type NextRunAssetsResponse2 = NextRunAssetsResponse;
+
+export type GetAssetPartitionsData = {
+    assetId: number;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    partitionKeyPattern?: string | null;
+    status?: Array<('materialized' | 'in_progress' | 'failed')> | null;
+};
+
+export type GetAssetPartitionsResponse = AssetPartitionCollectionResponse;
 
 export type ListBackfillsData = {
     dagId: string;
@@ -4058,6 +4553,8 @@ export type GetDagBundleFilesData = {
 
 export type GetDagBundleFilesResponse = DagBundleFileCollectionResponse;
 
+export type GetDagBundleCountResponse = DagBundleCountResponse;
+
 export type GetDagStatsData = {
     dagIds?: Array<(string)>;
 };
@@ -4144,7 +4641,7 @@ export type GetDagsData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
@@ -4289,7 +4786,7 @@ export type GetDagsUiData = {
     limit?: number;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, state, start_date, last_run_state, last_run_start_date, last_run_run_after`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `dag_id, dag_display_name, next_dagrun, last_run_state, last_run_start_date, last_run_run_after`
      */
     orderBy?: Array<(string)>;
     owners?: Array<(string)>;
@@ -4347,6 +4844,10 @@ export type GetEventLogResponse = EventLogResponse;
 export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -4636,12 +5137,18 @@ export type GetTaskInstancesData = {
     endDateLt?: string | null;
     endDateLte?: string | null;
     executor?: Array<(string)>;
+    /**
+     * Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.
+     */
     iteration?: number | null;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
     logicalDateLt?: string | null;
     logicalDateLte?: string | null;
+    /**
+     * Task group id of a loop; matches every instance it produced.
+     */
     loopId?: string | null;
     mapIndex?: Array<(number)>;
     offset?: number;
@@ -5061,6 +5568,12 @@ export type GetProvidersData = {
 
 export type GetProvidersResponse = ProviderCollectionResponse;
 
+export type GetProviderData = {
+    providerName: string;
+};
+
+export type GetProviderResponse = ProviderDetailsResponse;
+
 export type ListAssetStateStoreData = {
     assetId: number;
     limit?: number;
@@ -5219,6 +5732,10 @@ export type GetXcomEntriesData = {
     dagDisplayNamePrefixPattern?: string | null;
     dagId: string;
     dagRunId: string;
+    /**
+     * Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
+     */
+    excludeInternalKeys?: boolean;
     limit?: number;
     logicalDateGt?: string | null;
     logicalDateGte?: string | null;
@@ -5291,6 +5808,51 @@ export type GetTaskData = {
 };
 
 export type GetTaskResponse = TaskResponse;
+
+export type GetTriggersData = {
+    /**
+     * Return only the triggers of this asset's watchers.
+     */
+    assetId?: number | null;
+    /**
+     * Return only the triggers of this Dag's task instances and callbacks.
+     */
+    dagId?: string | null;
+    /**
+     * Return only triggers of these kinds.
+     */
+    kind?: Array<TriggerKind>;
+    limit?: number;
+    offset?: number;
+    /**
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_date, consecutive_failures, last_failed_at, last_event_at`
+     */
+    orderBy?: Array<(string)>;
+    /**
+     * Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
+     */
+    scheduledDagId?: string | null;
+    /**
+     * Return only triggers with one of these statuses.
+     */
+    status?: Array<TriggerStatus>;
+    /**
+     * Return only the triggers of these teams.
+     */
+    teams?: Array<(string)>;
+    /**
+     * Return only the triggers assigned to the triggerer on this host.
+     */
+    triggererHostname?: string | null;
+};
+
+export type GetTriggersResponse = TriggerCollectionResponse;
+
+export type GetTriggerData = {
+    triggerId: number;
+};
+
+export type GetTriggerResponse = TriggerDetailResponse;
 
 export type DeleteVariableData = {
     variableKey: string;
@@ -5381,6 +5943,8 @@ export type LoginData = {
 
 export type LoginResponse = unknown;
 
+export type GetCliLoginMetadataResponse = CliLoginMetadataResponse;
+
 export type LogoutResponse = unknown;
 
 export type GetAuthMenusResponse = MenuItemCollectionResponse;
@@ -5441,7 +6005,7 @@ export type GetDeadlinesData = {
     missed?: boolean | null;
     offset?: number;
     /**
-     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name`
+     * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, deadline_time, created_at, last_updated_at, missed, dag_id, dag_run_id, alert_name, callback_state, callback_type`
      */
     orderBy?: Array<(string)>;
     teams?: Array<(string)>;
@@ -5452,6 +6016,10 @@ export type GetDeadlinesResponse = DeadlineCollectionResponse;
 export type GetDagDeadlineAlertsData = {
     dagId: string;
     limit?: number;
+    /**
+     * Case-insensitive substring match (SQL `ILIKE`). Slower than `name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     */
+    namePattern?: string | null;
     offset?: number;
     /**
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, created_at, name`
@@ -5461,6 +6029,15 @@ export type GetDagDeadlineAlertsData = {
 };
 
 export type GetDagDeadlineAlertsResponse = DeadlineAlertCollectionResponse;
+
+export type GetCallbackLogsData = {
+    accept?: 'application/json' | 'application/x-ndjson' | '*/*';
+    callbackId: string;
+    dagId: string;
+    dagRunId: string;
+};
+
+export type GetCallbackLogsResponse = TaskInstancesLogResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -5547,7 +6124,15 @@ export type GetGridRunsResponse = Array<GridRunsResponse>;
 
 export type GetGridTiSummariesStreamData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runIds?: Array<(string)> | null;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGridTiSummariesStreamResponse = string;
@@ -5571,7 +6156,15 @@ export type GetLoopHistoryResponse = LoopHistoryResponse;
 
 export type GetGanttDataData = {
     dagId: string;
+    endDateGt?: string | null;
+    endDateGte?: string | null;
+    endDateLt?: string | null;
+    endDateLte?: string | null;
     runId: string;
+    startDateGt?: string | null;
+    startDateGte?: string | null;
+    startDateLt?: string | null;
+    startDateLte?: string | null;
 };
 
 export type GetGanttDataResponse = GanttResponse;
@@ -5988,6 +6581,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: NextRunAssetsResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/assets/{asset_id}/partitions': {
+        get: {
+            req: GetAssetPartitionsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetPartitionCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -7055,6 +7671,16 @@ export type $OpenApiTs = {
                  * Validation Error
                  */
                 422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dagBundles/count': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DagBundleCountResponse;
             };
         };
     };
@@ -8813,6 +9439,33 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/providers/{provider_name}': {
+        get: {
+            req: GetProviderData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: ProviderDetailsResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/assets/{asset_id}/state-store': {
         get: {
             req: ListAssetStateStoreData;
@@ -9371,6 +10024,60 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/triggers': {
+        get: {
+            req: GetTriggersData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TriggerCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/api/v2/triggers/{trigger_id}': {
+        get: {
+            req: GetTriggerData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TriggerDetailResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/api/v2/variables/{variable_key}': {
         delete: {
             req: DeleteVariableData;
@@ -9649,6 +10356,16 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/auth/cli/metadata': {
+        get: {
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: CliLoginMetadataResponse;
+            };
+        };
+    };
     '/api/v2/auth/logout': {
         get: {
             res: {
@@ -9819,6 +10536,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: DeadlineAlertCollectionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/callbacks/{callback_id}/logs': {
+        get: {
+            req: GetCallbackLogsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: TaskInstancesLogResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */

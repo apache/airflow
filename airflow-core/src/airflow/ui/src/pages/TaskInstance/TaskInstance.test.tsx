@@ -405,7 +405,7 @@ describe("TaskInstance", () => {
     { inLoop: false, visible: true },
     { inLoop: true, visible: false },
   ])(
-    "shows the mapped task instances tab only outside a loop (in_loop=$inLoop)",
+    "shows the mapped task instances tab only outside a loop (inLoop=$inLoop)",
     async ({ inLoop, visible }) => {
       const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       const regionId = "11111111-1111-4111-8111-111111111111";

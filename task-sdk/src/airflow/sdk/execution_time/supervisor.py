@@ -22,6 +22,7 @@ from __future__ import annotations
 import atexit
 import contextlib
 import functools
+import importlib.util
 import io
 import logging
 import math
@@ -35,7 +36,8 @@ import time
 import weakref
 from collections import deque
 from collections.abc import Callable, Generator
-from contextlib import contextmanager, suppress
+from contextlib import contextmanager, nullcontext, suppress
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from enum import Enum, auto
 from http import HTTPStatus
@@ -56,17 +58,19 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 import attrs
-import httpx
+import httpx2
 import msgspec
 import psutil
 import structlog
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
+from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
+    LoopDecisionPayload,
     TaskInstance,
     TaskInstanceState,
     TerminalStateNonSuccess,
@@ -105,6 +109,7 @@ from airflow.sdk.execution_time.comms import (
     GetDagRun,
     GetDagRunState,
     GetDRCount,
+    GetHITLDetailResponse,
     GetPreviousDagRun,
     GetPreviousTI,
     GetPrevSuccessfulDagRun,
@@ -155,6 +160,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
+    handle_get_hitl_detail_response,
     handle_get_prev_successful_dag_run,
     handle_get_previous_dag_run,
     handle_get_previous_ti,
@@ -172,6 +178,7 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_update_dag_run_note,
 )
 from airflow.sdk.execution_time.schema import get_schema_version_migrator, resolve_body_class
+from airflow.sdk.log import _supervisor_comms
 
 try:
     from socket import send_fds
@@ -184,11 +191,13 @@ from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapProp
 _trace_propagator = TraceContextTextMapPropagator()
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from typing import Self
 
     from structlog.typing import FilteringBoundLogger, WrappedLogger
 
     from airflow.executors.workloads import BundleInfo
+    from airflow.sdk.api.datamodels._generated import TIRunContext
     from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
     from airflow.sdk.definitions.connection import Connection
     from airflow.sdk.types import RuntimeTaskInstanceProtocol as RuntimeTI
@@ -362,6 +371,19 @@ def _subprocess_main():
     from airflow.sdk.execution_time.task_runner import main
 
     main()
+
+
+def _import_task_runner_before_fork() -> None:
+    """
+    Import the task runner so that a child forked from this process inherits it.
+
+    Task and callback processes both import it, so importing it once here saves every forked child
+    from importing it again. It is not imported at module level because secrets lookups outside a
+    task import this module, and they must not load the task runtime.
+    """
+    # If it fails to import, the child imports it again and reports the error in its own log.
+    with suppress(ImportError):
+        import airflow.sdk.execution_time.task_runner  # noqa: F401
 
 
 def _reset_signals():
@@ -628,7 +650,7 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
-def _task_process_uses_exec() -> bool:
+def task_process_uses_exec() -> bool:
     """
     Whether the task process should ``exec`` a fresh interpreter after the fork.
 
@@ -767,6 +789,27 @@ class PsutilTracker(ProcessTracker):
         return self._impl.wait(timeout)
 
 
+def signal_process_tree(pid: int, sig: signal.Signals, *, fallback: Callable[[signal.Signals], None]) -> None:
+    """
+    Deliver ``sig`` to *pid*'s process group, so every process it spawned is reached too.
+
+    Calls *fallback* instead when the group cannot be resolved or signalled, and -- critically --
+    when *pid* is still in the caller's own process group, because ``killpg`` on our own group
+    would signal the caller itself and its siblings.
+    """
+    try:
+        pgid = os.getpgid(pid)
+    except (ProcessLookupError, PermissionError):
+        pgid = None
+    if pgid is not None and pgid != os.getpgid(0):
+        try:
+            os.killpg(pgid, sig)
+            return
+        except (ProcessLookupError, PermissionError):
+            pass
+    fallback(sig)
+
+
 def _validate_schema_version(instance, _, value) -> str | None:
     if value is None:
         return None
@@ -790,6 +833,7 @@ class WatchedSubprocess:
             _register_client_handler(GetConnection, handle_get_connection),
             _register_client_handler(GetDagRunState, handle_get_dag_run_state),
             _register_client_handler(GetDRCount, handle_get_dr_count),
+            _register_client_handler(GetHITLDetailResponse, handle_get_hitl_detail_response),
             _register_client_handler(GetPreviousDagRun, handle_get_previous_dag_run),
             _register_client_handler(GetPreviousTI, handle_get_previous_ti),
             _register_client_handler(GetTaskStates, handle_get_task_states),
@@ -1053,12 +1097,21 @@ class WatchedSubprocess:
             length_prefixed_frame_reader(self.handle_requests(log), on_close=self._on_socket_closed),
         )
 
+    @staticmethod
+    def _default_target_loggers(
+        process_log: FilteringBoundLogger, subprocess_logs_to_stdout: bool
+    ) -> tuple[FilteringBoundLogger, ...]:
+        """
+        Return the loggers child process output is forwarded to, before any subclass has its say.
+
+        Call this only where there is no instance yet. Everything else goes through
+        :meth:`_get_target_loggers`, which a subclass can override.
+        """
+        return (process_log, log) if subprocess_logs_to_stdout else (process_log,)
+
     def _get_target_loggers(self) -> tuple[FilteringBoundLogger, ...]:
         """Return the loggers that child process output should be forwarded to."""
-        target_loggers: tuple[FilteringBoundLogger, ...] = (self.process_log,)
-        if self.subprocess_logs_to_stdout:
-            target_loggers += (log,)
-        return target_loggers
+        return self._default_target_loggers(self.process_log, self.subprocess_logs_to_stdout)
 
     def _create_log_forwarder(
         self,
@@ -1129,8 +1182,21 @@ class WatchedSubprocess:
 
             try:
                 msg = self.decoder.validate_python(self._deserialize_request(request.body))
-            except Exception:
+            except Exception as e:
                 log.exception("Unable to decode message", body=request.body)
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.GENERIC_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": f"Unable to decode message: {e}",
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=request.id,
+                    )
                 continue
 
             # Restore the task runner's trace context so that any outbound HTTP calls made while
@@ -1140,32 +1206,17 @@ class WatchedSubprocess:
                 if request.context_carrier:
                     ctx = _trace_propagator.extract(request.context_carrier)
                     token = otel_context.attach(ctx)
-                self._handle_request(msg, log, request.id)
+                with self._request_scope(request):
+                    self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
-                error_details = e.response.json() if e.response else None
-                log.error(
-                    "API server error",
-                    status_code=e.response.status_code,
-                    detail=error_details,
-                    message=str(e),
-                )
+                error = ErrorResponse.from_server_error(e)
+                log.error("API server error", **(error.detail or {}))
 
                 # Send error response back to task so that the error appears in the task logs
-                self.send_msg(
-                    msg=None,
-                    error=ErrorResponse(
-                        error=ErrorType.API_SERVER_ERROR,
-                        detail={
-                            "status_code": e.response.status_code,
-                            "message": str(e),
-                            "detail": error_details,
-                        },
-                    ),
-                    request_id=request.id,
-                )
+                self.send_msg(msg=None, error=error, request_id=request.id)
             except Exception as e:
-                # Generic exception handling so a transient network error (httpx.ConnectError /
-                # httpx.TimeoutException) or any other exception
+                # Generic exception handling so a transient network error (httpx2.ConnectError /
+                # httpx2.TimeoutException) or any other exception
                 # doesn't crash this generator and crash the IPC communication between supervisor and task.
                 log.exception(
                     "Unhandled exception while handling task request",
@@ -1188,6 +1239,10 @@ class WatchedSubprocess:
             finally:
                 if token is not None:
                     otel_context.detach(token)
+
+    def _request_scope(self, request: _RequestFrame) -> AbstractContextManager[None]:
+        """Return a context manager that wraps the handling of ``request``; subclasses override to scope API calls."""
+        return nullcontext()
 
     def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         if self._request_handlers is None:
@@ -1243,25 +1298,13 @@ class WatchedSubprocess:
         """
         Deliver ``sig`` to the child process, or to its whole process group when it has its own.
 
-        When ``new_process_group`` was set at ``start()`` time, the signal is sent with
-        ``os.killpg`` so subprocesses spawned by the child (venv children, bash shells, etc.)
-        are reached too (see issue #65505). Falls back to signalling the child PID alone when
-        the group cannot be resolved or signalled -- and, critically, when the child still
-        shares the supervisor's own process group (``setpgid`` failed), because ``killpg`` on
-        our own group would signal the supervisor itself and its siblings.
+        When ``new_process_group`` was set at ``start()`` time, the signal reaches the subprocesses
+        the child spawned too (venv children, bash shells, etc.); see issue #65505.
         """
         if self._new_process_group:
-            try:
-                pgid = os.getpgid(self._process.pid)
-            except (ProcessLookupError, PermissionError):
-                pgid = None
-            if pgid is not None and pgid != os.getpgid(0):
-                try:
-                    os.killpg(pgid, sig)
-                    return
-                except (ProcessLookupError, PermissionError):
-                    pass
-        self._process.send_signal(sig)
+            signal_process_tree(self._process.pid, sig, fallback=self._process.send_signal)
+        else:
+            self._process.send_signal(sig)
 
     def cleanup_sockets_after_kill(self) -> None:
         """Drain log-bearing sockets, then close every remaining socket after a forced kill."""
@@ -1531,7 +1574,7 @@ def _ensure_client(
         yield client
         return
 
-    limits = httpx.Limits(max_keepalive_connections=1, max_connections=10)
+    limits = httpx2.Limits(max_keepalive_connections=1, max_connections=10)
     new_client = Client(base_url=server or "", limits=limits, dry_run=dry_run, token=token)
     log.debug("Connecting to execution API server", server=server)
     try:
@@ -1668,7 +1711,9 @@ class ActivitySubprocess(WatchedSubprocess):
         # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _task_process_uses_exec()
+        use_exec = target is _subprocess_main and task_process_uses_exec()
+        if target is _subprocess_main and not use_exec:
+            _import_task_runner_before_fork()
         proc: Self = super().start(
             id=what.id,
             client=client,
@@ -1713,6 +1758,10 @@ class ActivitySubprocess(WatchedSubprocess):
                 return
             raise
 
+        if (prepared := self._prepare_ti_context(ti, ti_context)) is None:
+            return
+        ti_context = prepared
+
         # ti_context.start_date is only populated by the server when resuming from a deferral (to preserve the
         # original start_date rather than using the resume time). We fall back to now() otherwise. This ensures
         # that `context["ti"].start_date` always reflects the *first* start time. See TIRunContext.start_date
@@ -1736,6 +1785,17 @@ class ActivitySubprocess(WatchedSubprocess):
         except (BrokenPipeError, ConnectionResetError):
             # Debug is fine, the process will have shown _something_ in it's last_chance exception handler
             log.debug("Couldn't send startup message to Subprocess - it died very early", pid=self.pid)
+
+    def _prepare_ti_context(self, ti: TaskInstance, ti_context: TIRunContext) -> TIRunContext | None:
+        """
+        Return the context the supervisor sends to the task process, or None when the task must not run.
+
+        An implementation that returns None must first stop the task process and record the outcome that
+        will be reported. This base version returns the context unchanged, because the Python task runner
+        itself deletes the XComs in ``ti_context.xcom_keys_to_clear`` with ``XCom.delete``, which also
+        purges them from the XCom backend.
+        """
+        return ti_context
 
     def wait(self) -> int:
         if self._wait_completed and self._exit_code is not None:
@@ -1818,6 +1878,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     when=msg.end_date or datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     retry_reason=msg.retry_reason,
+                    loop_decision=_redact_loop_decision(msg.loop_decision, self.process_log),
                 )
             elif isinstance(msg, SucceedTask):
                 self.client.task_instances.succeed(
@@ -1826,6 +1887,8 @@ class ActivitySubprocess(WatchedSubprocess):
                     task_outlets=msg.task_outlets,
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
+                    loop_decision=_redact_loop_decision(msg.loop_decision, self.process_log),
+                    external_clear_target=msg.external_clear_target,
                 )
             elif isinstance(msg, RetryTask):
                 self.client.task_instances.retry(
@@ -1956,14 +2019,16 @@ class ActivitySubprocess(WatchedSubprocess):
         """
         Enforce the task process's current timeout from outside it.
 
-        The task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the only
-        place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that can
-        still run Python signal handlers; one that has not reported a terminal state within the grace period
-        is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
+        A Python task process raises ``AirflowTaskTimeout`` itself when the timeout elapses, which is the
+        only place ``on_kill``, the retry policy, callbacks and listeners can run. That needs a process that
+        can still run Python signal handlers; one that has not reported a terminal state within the grace
+        period is stuck (native code, SIGSEGV) and is sent SIGTERM, then SIGKILL.
 
-        The deadline is armed by ``SetExecutionTimeout``: with ``dagbag_import_timeout`` around parsing a
-        plain Python Dag file and with ``execution_timeout`` right before ``execute()``. Bundle loading and
-        zipped Dags, whose members are each imported under their own timeout, are not covered.
+        ``SetExecutionTimeout`` arms the deadline with ``dagbag_import_timeout`` around parsing a plain Python
+        Dag file, and right before ``execute()`` with the timeout the task process enforces itself, so both
+        use the same value. ``SetExecutionTimeout(0)`` clears it. Bundle loading and zipped Dags, whose
+        members are each imported under their own timeout, are not covered. The process is sent SIGTERM
+        ``killed_task_cleanup_time`` after the timeout elapses.
         """
         if self._execution_timeout_due_in() > 0:
             return
@@ -2115,8 +2180,17 @@ class ActivitySubprocess(WatchedSubprocess):
             self._execution_timeout_enforce_at = None
             return None, {}
         self._execution_timeout_seconds = msg.timeout_seconds
-        self._execution_timeout_enforce_at = time.monotonic() + msg.timeout_seconds + KILLED_TASK_CLEANUP_TIME
+        self._arm_execution_timeout()
         return None, {}
+
+    def _arm_execution_timeout(self) -> None:
+        # Zero means no timeout, as a zero timedelta does for a Python task.
+        if not self._execution_timeout_seconds:
+            return
+        # A negative timeout has already elapsed, so the task gets only the grace period.
+        self._execution_timeout_enforce_at = (
+            time.monotonic() + max(self._execution_timeout_seconds, 0.0) + KILLED_TASK_CLEANUP_TIME
+        )
 
     def _handle_set_rendered_fields(
         self, msg: SetRenderedFields, log: FilteringBoundLogger, req_id: int
@@ -2367,6 +2441,7 @@ class ActivitySubprocess(WatchedSubprocess):
             GetConnection,
             GetDRCount,
             GetDagRunState,
+            GetHITLDetailResponse,
             GetPrevSuccessfulDagRun,
             GetPreviousDagRun,
             GetPreviousTI,
@@ -2412,11 +2487,11 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(RetryTask, _handle_task_state),
                 register_request_method(SetAssetStateStoreByName, _handle_set_asset_state_store_by_name),
                 register_request_method(SetAssetStateStoreByUri, _handle_set_asset_state_store_by_uri),
-                register_request_method(SetExecutionTimeout, _handle_set_execution_timeout),
                 register_request_method(SetRenderedFields, _handle_set_rendered_fields),
                 register_request_method(SetRenderedMapIndex, _handle_set_rendered_map_index),
                 register_request_method(SetTaskStateStore, _handle_set_task_state_store),
                 register_request_method(SkipDownstreamTasks, _handle_skip_downstream_tasks),
+                register_request_method(SetExecutionTimeout, _handle_set_execution_timeout),
                 register_request_method(SucceedTask, _handle_finished_task),
                 register_request_method(TaskState, _handle_task_state),
                 register_request_method(TriggerDagRun, _handle_trigger_dag_run),
@@ -2456,30 +2531,71 @@ class ActivitySubprocess(WatchedSubprocess):
 def in_process_api_server():
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
-    api = InProcessExecutionAPI()
+    api = InProcessExecutionAPI(serve_while_debugger_paused=True)
     return api
+
+
+_IN_PROCESS_RESPONSE_SINK: ContextVar[deque[BaseModel | None] | None] = ContextVar(
+    "in_process_response_sink", default=None
+)
+"""Where :meth:`InProcessTestSupervisor.send_msg` must deliver the response it is about to send.
+
+Only :meth:`InProcessSupervisorComms.send` sets it, and it gets a fresh sink per call, so a response
+can never reach a caller other than the one that is waiting for it. When no sink is set, the request
+came over the socket from a child process (read by the thread started in
+``_setup_subprocess_socket``) and is answered on the socket instead.
+
+Whether a sink is set depends on the call, not the thread, so the sink must not be replaced with a
+thread-identity check: handling a child's ``GetVariable``/``GetConnection`` on the socket thread calls
+``mask_secret``, which re-enters :meth:`InProcessSupervisorComms.send` on that same thread. The nested
+``MaskSecret`` response lands in the nested sink, which is reset before the outer response is written
+to the socket.
+"""
+
+
+@functools.cache
+def _has_per_request_server_context() -> bool:
+    """
+    Whether the installed airflow-core has ``airflow.process_context``.
+
+    An older core decides from the presence of ``task_runner.SUPERVISOR_COMMS`` alone, so the
+    attribute has to go while a request is served there.
+    """
+    return importlib.util.find_spec("airflow.process_context") is not None
 
 
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
-    """In-process communication handler that uses deques instead of sockets."""
+    """In-process communication handler that returns each response directly to its caller."""
 
     log: FilteringBoundLogger = attrs.field(repr=False, factory=structlog.get_logger)
     supervisor: InProcessTestSupervisor
-    messages: deque[BaseModel | None] = attrs.field(factory=deque)
 
-    def _get_response(self) -> BaseModel | None:
-        """Get a message from the supervisor. Blocks until a message is available."""
-        return self.messages.popleft()
+    def send(self, msg: BaseModel) -> BaseModel | None:
+        """
+        Send a request to the supervisor and return its response.
 
-    def send(self, msg: BaseModel):
-        """Send a request to the supervisor."""
+        Safe to call from several threads: each call gets its own response sink, and the comms are
+        hidden from the code serving the request only (``task_runner.hide_supervisor_comms``). With an
+        airflow-core from before ``airflow.process_context`` they are removed for the whole process
+        instead, as before, so there only one thread of a task may make SDK calls at a time.
+        """
+        from airflow.sdk.execution_time.task_runner import hide_supervisor_comms
+
         self.log.debug("Sending request", msg=msg)
+        hidden_comms = (
+            hide_supervisor_comms() if _has_per_request_server_context() else set_supervisor_comms(None)
+        )
 
-        with set_supervisor_comms(None):
-            self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        responses: deque[BaseModel | None] = deque()
+        token = _IN_PROCESS_RESPONSE_SINK.set(responses)
+        try:
+            with hidden_comms:
+                self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
+        finally:
+            _IN_PROCESS_RESPONSE_SINK.reset(token)
 
-        return self._get_response()
+        return responses.popleft() if responses else None
 
 
 @attrs.define
@@ -2577,8 +2693,14 @@ class InProcessTestSupervisor(ActivitySubprocess):
             **kwargs,
         )
 
-        from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, finalize, run
+        from airflow.sdk.execution_time.task_runner import (
+            RuntimeTaskInstance,
+            check_xcom_backend_supports_loops,
+            finalize,
+            run,
+        )
 
+        check_xcom_backend_supports_loops(task.dag)
         supervisor.comms = InProcessSupervisorComms(supervisor=supervisor)
         with set_supervisor_comms(supervisor.comms):
             supervisor.ti = what  # type: ignore[assignment]
@@ -2648,8 +2770,15 @@ class InProcessTestSupervisor(ActivitySubprocess):
     def send_msg(
         self, msg: BaseModel | None, request_id: int, error: ErrorResponse | None = None, **dump_opts
     ):
-        """Override to use in-process comms."""
-        self.comms.messages.append(msg)
+        """Deliver the response in-process, or over the socket when the request came from there."""
+        sink = _IN_PROCESS_RESPONSE_SINK.get()
+        if sink is None:
+            # A real child process (a virtualenv operator's, say) sent this request over the socket
+            # set up by `_setup_subprocess_socket`. It is blocked reading a response frame, so
+            # anything queued in-process would never reach it.
+            super().send_msg(msg, request_id, error=error, **dump_opts)
+            return
+        sink.append(msg)
 
     @classmethod
     def run_trigger_in_process(cls, *, trigger, ti):
@@ -2697,9 +2826,10 @@ def set_supervisor_comms(temp_comms):
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
-    Some parts of the code (e.g. models.Variable.get) check for the presence
-    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
-    This override ensures those code paths behave correctly during in-process tests.
+    Some parts of the code (e.g. models.Variable.get) ask `task_runner.get_supervisor_comms()`, in
+    airflow-core through `airflow.process_context.should_use_task_sdk_api_path()`, to determine if the code
+    is running in a Task SDK execution context. That reads the comms set here, so this override ensures
+    those code paths behave correctly during in-process tests.
     """
     from airflow.sdk.execution_time import task_runner
 
@@ -2866,7 +2996,15 @@ def process_log_messages_from_subprocess(
         if ts := event.get("timestamp"):
             # We use msgspec to decode the timestamp as it does it orders of magnitude quicker than
             # datetime.strptime cn
-            event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
+            try:
+                event["timestamp"] = msgspec.json.decode(f'"{ts}"', type=datetime)
+            except msgspec.DecodeError:
+                # The subprocess sends the timestamp field, and msgspec cannot always parse its value. For
+                # example, user code can call self.log.info("...", timestamp=1697190085).
+                # An uncaught DecodeError would stop the task supervisor before it reports the
+                # task state, or stop the whole Dag processor during Dag parsing. Moving the value to
+                # invalid_timestamp lets MaybeTimeStamper add the time the supervisor received the line.
+                event["invalid_timestamp"] = event.pop("timestamp")
 
         if exc := event.pop("exception", None):
             # TODO: convert the dict back to a pretty stack trace
@@ -2924,14 +3062,9 @@ def ensure_secrets_backend_loaded() -> list[BaseSecretsBackend]:
     from airflow.sdk.execution_time.secrets import DEFAULT_SECRETS_SEARCH_PATH_WORKERS
 
     # 1. Check for client context (SUPERVISOR_COMMS)
-    try:
-        from airflow.sdk.execution_time import task_runner
-
-        if hasattr(task_runner, "SUPERVISOR_COMMS") and task_runner.SUPERVISOR_COMMS is not None:
-            # Client context: task runner with SUPERVISOR_COMMS
-            return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
-    except (ImportError, AttributeError):
-        pass
+    if _supervisor_comms() is not None:
+        # Client context: task runner with SUPERVISOR_COMMS
+        return ensure_secrets_loaded(default_backends=DEFAULT_SECRETS_SEARCH_PATH_WORKERS)
 
     # 2. Check for explicit server context
     if os.environ.get("_AIRFLOW_PROCESS_CONTEXT") == "server":
@@ -2972,6 +3105,37 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
+def _redact_loop_decision(
+    decision: LoopDecisionPayload | None, log: FilteringBoundLogger
+) -> LoopDecisionPayload | None:
+    """
+    Mask a loop gate's reason, then cut it to the byte limit, before it is stored and shown in the UI.
+
+    The supervisor holds every value the task registered with ``MaskSecret``, so it masks the reason
+    of a gate written in any language. Masking runs first, so a secret that crosses the limit is masked
+    whole and no fragment of it survives the cut.
+    """
+    if decision is None or decision.reason is None:
+        return decision
+    reason = str(redact(decision.reason))
+    # Imported here: the module loads the authoring classes, which the supervisor otherwise never needs.
+    from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
+
+    # A language SDK runtime is not told the limit, and a mask longer than the secret it hides can push
+    # a reason past it. Cutting here keeps the API server from rejecting the gate.
+    encoded = reason.encode()
+    if len(encoded) > LOOP_DECISION_REASON_MAX_BYTES:
+        log.warning(
+            "Loop decision reason exceeds the byte limit and is cut to it",
+            reason_bytes=len(encoded),
+            max_reason_bytes=LOOP_DECISION_REASON_MAX_BYTES,
+        )
+        reason = encoded[:LOOP_DECISION_REASON_MAX_BYTES].decode(errors="ignore")
+    if reason == decision.reason:
+        return decision
+    return decision.model_copy(update={"reason": reason})
+
+
 def _fail_task_before_runtime(
     *, ti: TaskInstance, client: Client, logger: FilteringBoundLogger, error: TaskLaunchError
 ) -> int:
@@ -2983,7 +3147,6 @@ def _fail_task_before_runtime(
     retryable *error* puts the task up for retry while it has retries left. Returns the process exit
     code, 1.
     """
-    from airflow.sdk._shared.secrets_masker import redact
     from airflow.sdk.log import upload_to_remote
 
     try:
@@ -3064,6 +3227,7 @@ def supervise_task(
     _make_process_nondumpable()
 
     from airflow.sdk._shared.secrets_masker import reset_secrets_masker
+    from airflow.sdk.definitions._internal.abstractoperator import DEFAULT_QUEUE
 
     if not client:
         if dry_run and server:
@@ -3101,7 +3265,7 @@ def supervise_task(
         raise ValueError("dag_path is required")
 
     try:
-        coordinator = get_coordinator_manager().for_queue(ti.queue or "default")
+        coordinator = get_coordinator_manager().for_queue(ti.queue or DEFAULT_QUEUE)
     except:
         log.exception(
             "Failed to initialize coordinator for task",
@@ -3157,6 +3321,17 @@ def supervise_task(
                 logger=logger or structlog.get_logger(logger_name="task").bind(),
                 error=e,
             )
+        except httpx2.RequestError as e:
+            if logger is not None:
+                logger.info("::endgroup::")
+                logger.error(
+                    "Could not reach the Execution API server. Verify the `[core] "
+                    "execution_api_server_url` (or `[api] base_url`) setting points at a reachable "
+                    "Airflow API server.",
+                    server=server,
+                    error=str(e),
+                )
+            raise
         finally:
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()

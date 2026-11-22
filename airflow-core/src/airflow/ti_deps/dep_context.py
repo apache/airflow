@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagrun import DagRun
-    from airflow.models.task_coordinates import TaskCoordinateResolver
+    from airflow.models.task_coordinates import SchedulingTI, TaskCoordinateResolver
     from airflow.models.taskinstance import TaskInstance
 
 
@@ -82,7 +82,7 @@ class DepContext:
     ignore_task_deps: bool = False
     ignore_ti_state: bool = False
     ignore_unmapped_tasks: bool = False
-    finished_tis: list[TaskInstance] | None = None
+    finished_tis: list[SchedulingTI] | None = None
     description: str | None = None
 
     have_changed_ti_states: bool = False
@@ -182,20 +182,22 @@ class DepContext:
     task mid-pass adds task instances but not skip decisions, so it never needs invalidating.
     """
 
-    def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
+    def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[SchedulingTI]:
         """
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
 
          :param dag_run: The DagRun for which to find finished tasks
          :return: A list of all the finished tasks of this DAG and logical_date
         """
+        finished_tis: list[SchedulingTI]
         if self.finished_tis is None:
-            finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
-            for ti in finished_tis:
+            fetched = dag_run.get_task_instances(state=State.finished, session=session)
+            for ti in fetched:
                 if getattr(ti, "task", None) is not None or (dag := dag_run.dag) is None:
                     continue
                 with contextlib.suppress(TaskNotFound):
                     ti.task = dag.get_task(ti.task_id)
+            finished_tis = list(fetched)
             self.finished_tis = finished_tis
         else:
             finished_tis = self.finished_tis

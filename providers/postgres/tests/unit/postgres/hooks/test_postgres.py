@@ -100,6 +100,22 @@ class TestPostgresHookConn:
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
+    def test_dialect_is_cached_per_hook(self):
+        assert self.db_hook.dialect is self.db_hook.dialect
+
+    def test_generate_insert_sql_looks_the_columns_up_once_per_hook(self):
+        columns = [
+            ("id", "integer", "NO", None, "NEVER", "NO"),
+            ("value", "text", "YES", None, "NEVER", "NO"),
+        ]
+        self.db_hook._resolve_target_fields = True
+        with mock.patch.object(self.db_hook, "get_records", return_value=columns) as get_records:
+            first = self.db_hook._generate_insert_sql("public.table", [1, "a"])
+            second = self.db_hook._generate_insert_sql("public.table", [2, "b"])
+
+        assert first == second
+        get_records.assert_called_once()
+
     def test_sqlalchemy_url_with_wrong_sqlalchemy_query_value(self):
         conn = Connection(
             login="login-conn",

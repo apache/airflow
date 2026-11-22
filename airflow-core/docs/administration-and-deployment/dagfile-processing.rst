@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -46,10 +45,10 @@ The ``DagFileProcessorManager`` coordinates this work but never runs user code i
 
 
 Fine-tuning your Dag processor performance
-------------------------------------------
+""""""""""""""""""""""""""""""""""""""""""
 
 What impacts Dag processor's performance
-""""""""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Dag processor is responsible for continuously parsing Dag files and synchronizing with the Dag in the database.
 In order to fine-tune your Dag processor, you need to include a number of factors:
@@ -77,7 +76,7 @@ In order to fine-tune your Dag processor, you need to include a number of factor
    * How many callbacks you run per Dag processor loop
 
 How to approach Dag processor's fine-tuning
-"""""""""""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Airflow gives you a lot of "knobs" to turn to fine tune the performance but it's a separate task,
 depending on your particular deployment, your Dag structure, hardware availability and expectations,
@@ -104,7 +103,7 @@ to observe and monitor your systems):
   the observation of your performance, bottlenecks. Performance improvement is an iterative process.
 
 What resources might limit Dag processor's performance
-""""""""""""""""""""""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are several areas of resource usage that you should pay attention to:
 
@@ -153,7 +152,7 @@ There are several areas of resource usage that you should pay attention to:
   on your deployment) rather than ``total memory used``.
 
 What can you do, to improve Dag processor's performance
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 When you know what your resource usage is, the improvements that you can consider might be:
 
@@ -179,7 +178,7 @@ When you know what your resource usage is, the improvements that you can conside
   in order to get better fine-tuned results for your particular deployment.
 
 Dag processor Configuration options
-"""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following config settings can be used to control aspects of the Dag processor.
 However, you can also look at other non-performance-related Dag processor configuration parameters available at

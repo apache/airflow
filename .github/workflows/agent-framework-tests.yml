@@ -20,6 +20,13 @@ name: Agent framework tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -55,10 +62,10 @@ jobs:
     # amd64 only for now: ci-amd.yml and ci-arm.yml must stay in sync, so the platform gate lives here.
     if: inputs.platform == 'linux/amd64'
     strategy:
-      # One job per framework, so a breaking release of one does not hide the other's result.
+      # One job per framework, so a breaking release of one does not hide the others' results.
       fail-fast: false
       matrix:
-        framework: [strands-agents, google-adk]
+        framework: [strands-agents, google-adk, openai-agents, llama-index]
     env:
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,6 +82,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

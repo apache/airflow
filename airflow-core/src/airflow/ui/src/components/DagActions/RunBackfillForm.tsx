@@ -30,7 +30,7 @@ import { Alert, Checkbox, RadioCardItem, RadioCardLabel, RadioCardRoot } from "s
 
 import { useRerunWithLatestVersion } from "src/components/Clear/useRerunWithLatestVersion";
 
-import { reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
+import { isReprocessBehavior, reprocessBehaviors } from "src/constants/reprocessBehaviourParams";
 import { useCreateBackfill } from "src/queries/useCreateBackfill";
 import { useCreateBackfillDryRun } from "src/queries/useCreateBackfillDryRun";
 import { useDagParams } from "src/queries/useDagParams";
@@ -204,7 +204,14 @@ const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProp
           control={control}
           name="reprocess_behavior"
           render={({ field }) => (
-            <RadioCardRoot defaultValue={field.value} onChange={field.onChange}>
+            <RadioCardRoot
+              onValueChange={(details) => {
+                if (isReprocessBehavior(details.value)) {
+                  field.onChange(details.value);
+                }
+              }}
+              value={field.value}
+            >
               <RadioCardLabel fontSize="md" fontWeight="semibold" mb={3}>
                 {translate("backfill.reprocessBehavior")}
               </RadioCardLabel>

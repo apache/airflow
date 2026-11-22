@@ -114,7 +114,7 @@ def example_agent_operator_hook():
             HookToolset(
                 http_hook,
                 allowed_methods=["run"],
-                tool_name_prefix="http_",
+                tool_prefix="http",
             )
         ],
     )
@@ -150,7 +150,7 @@ def example_agent_self_hosted():
             HookToolset(
                 http_hook,
                 allowed_methods=["run"],
-                tool_name_prefix="http_",
+                tool_prefix="http",
             )
         ],
     )
@@ -266,7 +266,6 @@ def example_agent_operator_hitl_review():
         enable_hitl_review=True,
         max_hitl_iterations=5,
         hitl_timeout=timedelta(minutes=30),
-        hitl_poll_interval=10.0,
     )
 
 

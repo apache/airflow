@@ -168,7 +168,7 @@ export const AssetsList = () => {
     value: searchParams.get(SearchParamsKeys.GROUP_PATTERN),
   });
 
-  const { data, error, isFetching, isLoading } = useAssetServiceGetAssetsUi(
+  const { data, error, isLoading } = useAssetServiceGetAssetsUi(
     {
       ...groupArg,
       dagIds: dagId === null || dagId === "" ? undefined : [dagId],
@@ -222,7 +222,6 @@ export const AssetsList = () => {
         </VStack>
       }
       initialState={tableURLState}
-      isFetching={isFetching}
       isLoading={isLoading}
       modelName="common:asset"
       onStateChange={setTableURLState}

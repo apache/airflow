@@ -23,6 +23,7 @@ import { NEVER_EXPIRE } from "../../src/sdk/client-types.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskClient } from "../../src/sdk/client.js";
+import type { GetXComOpts } from "../../src/sdk/client-types.js";
 import type { TaskContext } from "../../src/sdk/task.js";
 
 const RETENTION_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
@@ -40,6 +41,7 @@ const FAKE_CTX: TaskContext = {
   runId: "r",
   tryNumber: 1,
   mapIndex: -1,
+  conf: {},
   signal: new AbortController().signal,
 };
 
@@ -49,8 +51,22 @@ function client(frames: { body: unknown; error?: unknown }[]) {
   return createCoordinatorClient(fakeComm(frames), FAKE_CTX, FAKE_TI_ID);
 }
 
+const MAPPED_CTX: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+
+type XComOpts = Pick<GetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
+
+/** Each XCom call that takes a target, with the reply the supervisor gives it. */
+const XCOM_CALLS = [
+  [
+    "getXCom",
+    { type: "XComResult", key: "k", value: null },
+    (c: TaskClient, o: XComOpts) => c.getXCom(o),
+  ],
+  ["setXCom", null, (c: TaskClient, o: XComOpts) => c.setXCom({ ...o, value: 1 })],
+] as const;
+
 /** Captures the request bodies sent, answering each one with `reply`. */
-function recordingClient(reply: unknown = null) {
+function recordingClient(reply: unknown = null, ctx: TaskContext = FAKE_CTX) {
   const sent: Record<string, unknown>[] = [];
   const comm = {
     request: async (body: Record<string, unknown>) => {
@@ -58,7 +74,7 @@ function recordingClient(reply: unknown = null) {
       return { body: reply };
     },
   } as unknown as CommChannel;
-  return { client: createCoordinatorClient(comm, FAKE_CTX, FAKE_TI_ID), sent };
+  return { client: createCoordinatorClient(comm, ctx, FAKE_TI_ID), sent };
 }
 
 describe("getVariable not-found contract", () => {
@@ -94,11 +110,6 @@ describe("getVariableOrThrow", () => {
     const c = client([{ body: { type: "ErrorResponse", error: "VARIABLE_NOT_FOUND" } }]);
     await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
   });
-
-  it("throws VariableNotFoundError on a null-valued result", async () => {
-    const c = client([{ body: { type: "VariableResult", key: "x", value: null } }]);
-    await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
-  });
 });
 
 describe("setVariable", () => {
@@ -126,6 +137,17 @@ describe("setVariable", () => {
       value: "42",
       description: null,
     });
+  });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["number", 42],
+  ])("rejects a %s value without sending a request", async (_label, value) => {
+    const { client: c, sent } = recordingClient();
+    // @ts-expect-error exercising the runtime guard against an untyped caller.
+    await expect(c.setVariable("threshold", value)).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
   });
 });
 
@@ -165,7 +187,7 @@ describe("writes do not read a supervisor 404 as absence", () => {
     [
       "taskStateStore.set",
       "SetTaskStateStore",
-      (c: TaskClient) => c.taskStateStore.set("k", 1, { retentionMs: 60_000 }),
+      (c: TaskClient) => c.taskStateStore.set("k", 1, { retention: 60 }),
     ],
     [
       "taskStateStore.delete",
@@ -316,6 +338,57 @@ describe("client is bound to TaskContext", () => {
   });
 });
 
+describe("XCom map index default", () => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
+    it.each([
+      ["the running task", {}, 3],
+      ["the running task named explicitly", { dagId: "d", taskId: "t", runId: "r" }, 3],
+      ["another task", { taskId: "extract" }, null],
+      ["another Dag", { dagId: "other_dag" }, null],
+      ["another run", { runId: "manual__1" }, null],
+      ["another task with an explicit mapIndex", { taskId: "extract", mapIndex: 2 }, 2],
+      ["another task with mapIndex 0", { taskId: "extract", mapIndex: 0 }, 0],
+      ["the running task with mapIndex null", { mapIndex: null }, null],
+      ["the running task with null target ids", { dagId: null, taskId: null, runId: null }, 3],
+    ] as [string, Omit<XComOpts, "key">, number | null][])(
+      "from a mapped task targeting %s sends map_index %s",
+      async (_label, target, expected) => {
+        const { client: c, sent } = recordingClient(reply, MAPPED_CTX);
+
+        await call(c, { key: "k", ...target });
+
+        expect(sent[0]).toMatchObject({ map_index: expected });
+      },
+    );
+  });
+});
+
+describe("XCom key and map index guards", () => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
+    it.each([
+      ["an empty key", { key: "" }, RangeError],
+      ["an undefined key", { key: undefined }, TypeError],
+      ["a numeric key", { key: 1 }, TypeError],
+      ["a fractional mapIndex", { key: "k", mapIndex: 1.5 }, RangeError],
+      ["a NaN mapIndex", { key: "k", mapIndex: Number.NaN }, RangeError],
+      ["an Infinity mapIndex", { key: "k", mapIndex: Number.POSITIVE_INFINITY }, RangeError],
+      ["a string mapIndex", { key: "k", mapIndex: "1" }, TypeError],
+      ["a numeric dagId", { key: "k", dagId: 1 }, TypeError],
+      ["a numeric taskId", { key: "k", taskId: 1 }, TypeError],
+      ["an empty runId", { key: "k", runId: "" }, RangeError],
+    ] as [string, unknown, ErrorConstructor][])(
+      "rejects %s without sending a request",
+      async (_label, opts, errorType) => {
+        const { client: c, sent } = recordingClient(reply);
+
+        await expect(call(c, opts as XComOpts)).rejects.toThrow(errorType);
+
+        expect(sent).toHaveLength(0);
+      },
+    );
+  });
+});
+
 describe("getConnection", () => {
   it("maps wire snake_case connection fields to public camelCase fields", async () => {
     const c = client([
@@ -446,7 +519,7 @@ describe("taskStateStore.set retention", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
 
-    await c.taskStateStore.set("k", 1, { retentionMs: NEVER_EXPIRE });
+    await c.taskStateStore.set("k", 1, { retention: NEVER_EXPIRE });
 
     expect(sent[0]).toEqual({
       type: "SetTaskStateStore",
@@ -457,22 +530,22 @@ describe("taskStateStore.set retention", () => {
     });
   });
 
-  it("sends now + retentionMs for a finite retentionMs", async () => {
+  it("sends now + retention for a finite retention", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
 
-    await c.taskStateStore.set("k", 1, { retentionMs: 60_000 });
+    await c.taskStateStore.set("k", 1, { retention: 60 });
 
     expect(sent[0]).toMatchObject({ expires_at: "2026-01-01T00:01:00.000Z" });
   });
 
-  it("sends now (expire immediately) for retentionMs 0", async () => {
+  it("sends now (expire immediately) for retention 0", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { client: c, sent } = recordingClient({ type: "OKResponse", ok: true });
 
-    await c.taskStateStore.set("k", 1, { retentionMs: 0 });
+    await c.taskStateStore.set("k", 1, { retention: 0 });
 
     expect(sent[0]).toMatchObject({ expires_at: "2026-01-01T00:00:00.000Z" });
   });
@@ -535,15 +608,23 @@ describe("taskStateStore.set guards", () => {
   it.each([
     ["negative", -1],
     ["NaN", Number.NaN],
-  ])("rejects retentionMs=%s without sending a request", async (_label, retentionMs) => {
+  ])("rejects retention=%s without sending a request", async (_label, retention) => {
     const { client: c, sent } = recordingClient();
-    await expect(c.taskStateStore.set("k", 1, { retentionMs })).rejects.toThrow(RangeError);
+    await expect(c.taskStateStore.set("k", 1, { retention })).rejects.toThrow(RangeError);
+    expect(sent).toHaveLength(0);
+  });
+
+  it("reports an overflowing retention in seconds", async () => {
+    const { client: c, sent } = recordingClient();
+    await expect(c.taskStateStore.set("k", 1, { retention: 1e12 })).rejects.toThrow(
+      "a retention that ends 1000000000000s from now",
+    );
     expect(sent).toHaveLength(0);
   });
 
   it("rejects an empty key without sending a request", async () => {
     const { client: c, sent } = recordingClient();
-    await expect(c.taskStateStore.set("", 1, { retentionMs: 60_000 })).rejects.toThrow(RangeError);
+    await expect(c.taskStateStore.set("", 1, { retention: 60 })).rejects.toThrow(RangeError);
     expect(sent).toHaveLength(0);
   });
 });
@@ -577,7 +658,7 @@ describe("task state store key type guard", () => {
       "set",
       (c: TaskClient) => {
         // @ts-expect-error exercising the runtime guard against an untyped caller.
-        return c.taskStateStore.set(undefined, 1, { retentionMs: 60_000 });
+        return c.taskStateStore.set(undefined, 1, { retention: 60 });
       },
     ],
     [

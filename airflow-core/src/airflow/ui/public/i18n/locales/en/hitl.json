@@ -21,6 +21,7 @@
     "received": "Response received at ",
     "respond": "Respond",
     "responded_by_user_name": "Responded by (User Name)",
+    "selectAtLeastOne": "Select at least one option",
     "success": "{{taskId}} response successful",
     "title": "Human Task Instance - {{taskId}}"
   },

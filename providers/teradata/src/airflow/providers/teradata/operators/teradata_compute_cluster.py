@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import re
 from abc import abstractmethod
-from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -42,14 +41,6 @@ if TYPE_CHECKING:
 from airflow.providers.common.compat.sdk import AirflowException
 
 
-# Represents
-# 1. Compute Cluster Setup - Provision and Decomission operations
-# 2. Compute Cluster State - Resume and Suspend operations
-class _Operation(Enum):
-    SETUP = 1
-    STATE = 2
-
-
 # Handler to handle single result set of a SQL query
 def _single_result_row_handler(cursor):
     records = cursor.fetchone()
@@ -58,13 +49,6 @@ def _single_result_row_handler(cursor):
     if records is None:
         return records
     raise TypeError(f"Unexpected results: {cursor.fetchone()!r}")
-
-
-# Providers given operation is setup or state operation
-def _determine_operation_context(operation):
-    if operation == Constants.CC_CREATE_OPR or operation == Constants.CC_DROP_OPR:
-        return _Operation.SETUP
-    return _Operation.STATE
 
 
 class _TeradataComputeClusterOperator(BaseOperator):

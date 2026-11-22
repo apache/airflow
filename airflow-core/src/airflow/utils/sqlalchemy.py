@@ -29,6 +29,7 @@ from uuid import UUID
 from sqlalchemy import TIMESTAMP, PickleType, String, Uuid, event, nullsfirst, text
 from sqlalchemy.dialects import mysql
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.sql.expression import ColumnElement
 from sqlalchemy.sql.functions import FunctionElement
@@ -39,8 +40,6 @@ from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
     from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
@@ -51,6 +50,9 @@ if TYPE_CHECKING:
     from sqlalchemy.types import TypeEngine
 
     from airflow.typing_compat import Self
+
+    # TODO: use Select[UUID] once the minimum SQLAlchemy is 2.1; 2.0 uses Select[tuple[UUID]].
+    UUIDSelect = Select
 
 
 log = logging.getLogger(__name__)
@@ -682,6 +684,9 @@ def with_db_lock_timeout(session: Session, lock_timeout: int = 30) -> Generator[
             session.execute(text(f"SET SESSION innodb_lock_wait_timeout = {old_mysql_timeout}"))
 
 
+PROHIBIT_COMMIT_ERROR_MESSAGE = "UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!"
+
+
 class CommitProhibitorGuard:
     """Context manager class that powers prohibit_commit."""
 
@@ -690,11 +695,18 @@ class CommitProhibitorGuard:
     def __init__(self, session: Session):
         self.session = session
 
-    def _validate_commit(self, _):
+    def _validate_commit(self, session):
+        # before_commit fires for a SAVEPOINT release too, not just session.commit(). A
+        # savepoint release ends neither the outer transaction nor its row locks, so it can't
+        # break the HA locks this guard protects -- skip the check while one is open. This
+        # covers session.commit() and savepoint exits; nothing under this guard commits a
+        # transaction handle directly today, which would bypass this check.
+        if session.in_nested_transaction():
+            return
         if self.expected_commit:
             self.expected_commit = False
             return
-        raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
+        raise RuntimeError(PROHIBIT_COMMIT_ERROR_MESSAGE)
 
     def __enter__(self) -> Self:
         event.listen(self.session, "before_commit", self._validate_commit)
@@ -735,30 +747,41 @@ def prohibit_commit(session):
     return CommitProhibitorGuard(session)
 
 
+def _get_db_error_codes(orig: BaseException) -> tuple[Any, ...]:
+    """
+    Return the candidate error-code values of a DB-API exception, without importing the drivers.
+
+    psycopg2 sets ``pgcode``, psycopg 3 sets ``sqlstate``, and the MySQL drivers pass the numeric
+    error code as the first argument. mysql-connector-python sets both ``sqlstate`` (``40001`` for
+    a deadlock) and the first argument, so all of them are returned, not the first one present.
+    """
+    return (getattr(orig, "pgcode", None), getattr(orig, "sqlstate", None), *orig.args[:1])
+
+
 def is_lock_not_available_error(error: OperationalError):
     """Check if the Error is about not being able to acquire lock."""
+    if error.orig is None:
+        return False
     # DB specific error codes:
     # Postgres: 55P03
     # MySQL: 3572, 'Statement aborted because lock(s) could not be acquired immediately and NOWAIT
     #               is set.'
     # MySQL: 1205, 'Lock wait timeout exceeded; try restarting transaction
     #              (when NOWAIT isn't available)
-    db_err_code = getattr(error.orig, "pgcode", None) or (
-        error.orig.args[0] if error.orig and error.orig.args else None
-    )
-
-    # We could test if error.orig is an instance of
-    # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
-    # importing it. This doesn't
-    if db_err_code in ("55P03", 1205, 3572):
+    if any(code in ("55P03", 1205, 3572) for code in _get_db_error_codes(error.orig)):
         return True
     # SQLite: `database is locked` (SQLITE_BUSY) — check the error text since
     # sqlite3.OperationalError.args[0] is a human-readable string, not a numeric code
-    if error.orig and "database is locked" in str(error.orig).lower():
+    if "database is locked" in str(error.orig).lower():
         return True
     return False
 
 
-def make_dialect_kwarg(dialect: str) -> dict[str, str | Iterable[str]]:
-    """Create an SQLAlchemy-version-aware dialect keyword argument."""
-    return {"dialect_names": (dialect,)}
+def is_deadlock_error(error: Exception) -> bool:
+    """Check if the Error is a database deadlock."""
+    if not isinstance(error, DBAPIError) or error.orig is None:
+        return False
+    # DB specific error codes:
+    # Postgres: 40P01 (deadlock_detected)
+    # MySQL: 1213, 'Deadlock found when trying to get lock; try restarting transaction'
+    return any(code in ("40P01", 1213) for code in _get_db_error_codes(error.orig))

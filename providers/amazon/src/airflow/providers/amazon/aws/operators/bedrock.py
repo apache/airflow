@@ -17,10 +17,12 @@
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Sequence
 from time import sleep
 from typing import TYPE_CHECKING, Any, Literal
 
+import tenacity
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.bedrock import (
@@ -36,18 +38,22 @@ from airflow.providers.amazon.aws.triggers.bedrock import (
     BedrockAgentRuntimeDeletedTrigger,
     BedrockAgentRuntimeReadyTrigger,
     BedrockBatchInferenceCompletedTrigger,
+    BedrockBatchInferenceScheduledTrigger,
     BedrockCustomizeModelCompletedTrigger,
     BedrockIngestionJobTrigger,
     BedrockKnowledgeBaseActiveTrigger,
     BedrockProvisionModelThroughputCompletedTrigger,
 )
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.deferral import should_defer
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.common.compat.sdk import AirflowException, conf, timezone
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from airflow.providers.amazon.aws.triggers.bedrock import BedrockBaseBatchInferenceTrigger
     from airflow.sdk import Context
+    from airflow.sdk.types import Logger
 
 
 class BedrockInvokeModelOperator(AwsBaseOperator[BedrockRuntimeHook]):
@@ -132,8 +138,9 @@ class BedrockCreateAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for runtime readiness. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the AgentCore Runtime
-        to reach READY. This implies waiting for completion. This mode requires aiobotocore
-        module to be installed. (default: False)
+        to reach READY. This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -201,7 +208,7 @@ class BedrockCreateAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
         agent_runtime_id = response["agentRuntimeId"]
         agent_runtime_version = response["agentRuntimeVersion"]
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until AgentCore Runtime %s reaches READY.", agent_runtime_arn)
             self.defer(
                 trigger=BedrockAgentRuntimeReadyTrigger(
@@ -343,8 +350,9 @@ class BedrockDeleteAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for runtime deletion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the AgentCore Runtime
-        deletion to complete. This implies waiting for completion. This mode requires aiobotocore
-        module to be installed. (default: False)
+        deletion to complete. This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -388,7 +396,7 @@ class BedrockDeleteAgentRuntimeOperator(AwsBaseOperator[BedrockAgentCoreControlH
     def execute(self, context: Context) -> None:
         self.hook.conn.delete_agent_runtime(agentRuntimeId=self.agent_runtime_id)
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring until AgentCore Runtime %s is deleted.", self.agent_runtime_id)
             self.defer(
                 trigger=BedrockAgentRuntimeDeletedTrigger(
@@ -437,8 +445,9 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 120)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 75)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -543,7 +552,7 @@ class BedrockCustomizeModelOperator(AwsBaseOperator[BedrockHook]):
             raise AirflowException(f"Bedrock model customization job creation failed: {response}")
 
         task_description = f"Bedrock model customization job {self.job_name} to complete."
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for %s", task_description)
             self.defer(
                 trigger=BedrockCustomizeModelCompletedTrigger(
@@ -584,8 +593,9 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -635,7 +645,7 @@ class BedrockCreateProvisionedModelThroughputOperator(AwsBaseOperator[BedrockHoo
             **self.create_throughput_kwargs,
         )["provisionedModelArn"]
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for provisioned throughput.")
             self.defer(
                 trigger=BedrockProvisionModelThroughputCompletedTrigger(
@@ -695,8 +705,9 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -811,7 +822,7 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         self.log.info("Creating Amazon Bedrock Knowledge Base %s", self.name)
         knowledge_base_id = _create_kb()
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for Knowledge base creation.")
             self.defer(
                 trigger=BedrockKnowledgeBaseActiveTrigger(
@@ -912,8 +923,9 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 10)
     :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        This mode requires aiobotocore module to be installed. (default: False)
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -999,7 +1011,7 @@ class BedrockIngestDataOperator(AwsBaseOperator[BedrockAgentHook]):
 
         ingestion_job_id = start_ingestion_job()
 
-        if self.deferrable:
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring for ingestion job.")
             self.defer(
                 trigger=BedrockIngestionJobTrigger(
@@ -1239,14 +1251,18 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
     :param output_uri: The S3 location of the output data. (templated)
     :param invoke_kwargs: Additional keyword arguments to pass to the  API call. (templated)
 
-    :param wait_for_completion: Whether to wait for cluster to stop. (default: True)
+    :param wait_for_completion: Whether to wait for the job to reach ``success_state``. (default: True)
         NOTE:  The way batch inference jobs work, your jobs are added to a queue and done "eventually"
         so using deferrable mode is much more practical than using wait_for_completion.
+    :param success_state: The job state to wait for, either ``"completed"`` or ``"scheduled"``. Use
+        ``"scheduled"`` to stop waiting once Bedrock has queued the job. Accepts the
+        ``BedrockBatchInferenceSensor.SuccessState`` values. (default: "completed")
     :param waiter_delay: Time in seconds to wait between status checks. (default: 60)
     :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 20)
-    :param deferrable: If True, the operator will wait asynchronously for the cluster to stop.
-        This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+    :param deferrable: If True, the operator will wait asynchronously for the job to reach ``success_state``.
+        Deferring when ``wait_for_completion`` is False is deprecated; from the next major release
+        this has no effect when ``wait_for_completion`` is False.
+        This mode requires aiobotocore module to be installed. (default: False)
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
@@ -1268,6 +1284,10 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         "output_uri",
         "invoke_kwargs",
     )
+    _WAITERS: dict[str, tuple[str, type[BedrockBaseBatchInferenceTrigger]]] = {
+        "completed": ("batch_inference_complete", BedrockBatchInferenceCompletedTrigger),
+        "scheduled": ("batch_inference_scheduled", BedrockBatchInferenceScheduledTrigger),
+    }
 
     def __init__(
         self,
@@ -1278,6 +1298,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         output_uri: str,
         invoke_kwargs: dict[str, Any] | None = None,
         wait_for_completion: bool = True,
+        success_state: str = "completed",
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -1291,7 +1312,11 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         self.output_uri = output_uri
         self.invoke_kwargs = invoke_kwargs or {}
 
+        if success_state not in self._WAITERS:
+            raise ValueError(f"success_state must be one of {list(self._WAITERS)}, got {success_state!r}.")
+
         self.wait_for_completion = wait_for_completion
+        self.success_state = success_state
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
@@ -1304,7 +1329,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         if validated_event["status"] != "success":
             raise AirflowException(f"Error while running {self.activity}: {validated_event}")
 
-        self.log.info("%s '%s' complete.", self.activity, validated_event["job_arn"])
+        self.log.info("%s '%s' is %s.", self.activity, validated_event["job_arn"], self.success_state)
 
         return validated_event["job_arn"]
 
@@ -1320,11 +1345,12 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
         job_arn = response["jobArn"]
         self.log.info("%s '%s' started with ARN: %s", self.activity, self.job_name, job_arn)
 
-        task_description = f"for {self.activity} '{self.job_name}' to complete."
-        if self.deferrable:
+        waiter_name, trigger_class = self._WAITERS[self.success_state]
+        task_description = f"for {self.activity} '{self.job_name}' to be {self.success_state}."
+        if should_defer(deferrable=self.deferrable, wait_for_completion=self.wait_for_completion):
             self.log.info("Deferring %s", task_description)
             self.defer(
-                trigger=BedrockBatchInferenceCompletedTrigger(
+                trigger=trigger_class(
                     job_arn=job_arn,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1337,7 +1363,7 @@ class BedrockBatchInferenceOperator(AwsBaseOperator[BedrockHook]):
             )
         elif self.wait_for_completion:
             self.log.info("Waiting %s", task_description)
-            self.hook.get_waiter(waiter_name="batch_inference_complete").wait(
+            self.hook.get_waiter(waiter_name=waiter_name).wait(
                 jobIdentifier=job_arn,
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
@@ -1350,8 +1376,8 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
     Create an Amazon Bedrock guardrail to implement safeguards for generative AI applications.
 
     A guardrail can filter harmful content, block denied topics, filter words,
-    and mask sensitive information. The guardrail is created with a DRAFT version
-    that is immediately usable.
+    and mask sensitive information. The guardrail is created with a DRAFT version,
+    which is usable once it reaches READY. The operator waits for that by default.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1370,6 +1396,9 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
     :param tags: Tags to attach to the guardrail.
     :param if_exists: Behavior when a guardrail with the same name already exists.
         ``"fail"`` raises an error, ``"skip"`` returns the existing guardrail ID.
+    :param wait_for_completion: Whether to wait for the guardrail to reach READY status. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks. (default: 2)
+    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness. (default: 60)
     """
 
     aws_hook_class = BedrockHook
@@ -1401,6 +1430,9 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         kms_key_id: str | None = None,
         tags: list[dict[str, str]] | None = None,
         if_exists: Literal["fail", "skip"] = "skip",
+        wait_for_completion: bool = True,
+        waiter_delay: int = 2,
+        waiter_max_attempts: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1416,6 +1448,9 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         self.kms_key_id = kms_key_id
         self.tags = tags
         self.if_exists = if_exists
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> str:
         kwargs: dict[str, Any] = prune_dict(
@@ -1445,12 +1480,49 @@ class BedrockCreateGuardrailOperator(AwsBaseOperator[BedrockHook]):
             else:
                 raise
         self.log.info("Guardrail %s: %s", self.guardrail_name, guardrail_id)
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for guardrail %s to be ready.", guardrail_id)
+            self.hook.get_waiter("guardrail_ready").wait(
+                guardrailIdentifier=guardrail_id,
+                guardrailVersion="DRAFT",
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
         return guardrail_id
+
+
+def _is_guardrail_in_transition_error(exception: BaseException) -> bool:
+    if not isinstance(exception, ClientError):
+        return False
+    error = exception.response.get("Error", {})
+    code = error.get("Code")
+    # Bedrock reports a guardrail in a transitional status as a ValidationException, the code it
+    # also uses for invalid input, so only the message tells the two apart. ConflictException is
+    # what the guardrail APIs document for a conflict, so it is retried in case Bedrock switches to it.
+    return code == "ConflictException" or (
+        code == "ValidationException" and "be modified at this time" in error.get("Message", "")
+    )
+
+
+def _build_guardrail_in_transition_retrying(
+    logger: Logger | logging.Logger, waiter_delay: int, waiter_max_attempts: int
+) -> tenacity.Retrying:
+    return tenacity.Retrying(
+        retry=tenacity.retry_if_exception(_is_guardrail_in_transition_error),
+        wait=tenacity.wait_fixed(waiter_delay),
+        stop=tenacity.stop_after_attempt(waiter_max_attempts),
+        before_sleep=tenacity.before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
 
 
 class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
     """
     Delete an Amazon Bedrock guardrail.
+
+    Amazon Bedrock rejects the delete while the guardrail is in a transitional status, for example
+    right after a version is published. The operator retries until the guardrail can be deleted.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1458,6 +1530,9 @@ class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
 
     :param guardrail_identifier: The ID or ARN of the guardrail to delete. (templated)
     :param guardrail_version: Optional version number to delete a specific version. (templated)
+    :param waiter_delay: Time in seconds to wait before retrying a delete that was rejected because
+        the guardrail was in a transitional status. (default: 2)
+    :param waiter_max_attempts: Maximum number of times to attempt the delete. (default: 60)
     """
 
     aws_hook_class = BedrockHook
@@ -1468,11 +1543,15 @@ class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
         *,
         guardrail_identifier: str,
         guardrail_version: str | None = None,
+        waiter_delay: int = 2,
+        waiter_max_attempts: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.guardrail_identifier = guardrail_identifier
         self.guardrail_version = guardrail_version
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> None:
         self.log.info("Deleting Bedrock guardrail %s", self.guardrail_identifier)
@@ -1482,7 +1561,9 @@ class BedrockDeleteGuardrailOperator(AwsBaseOperator[BedrockHook]):
                 "guardrailVersion": self.guardrail_version,
             }
         )
-        self.hook.conn.delete_guardrail(**kwargs)
+        _build_guardrail_in_transition_retrying(self.log, self.waiter_delay, self.waiter_max_attempts)(
+            self.hook.conn.delete_guardrail, **kwargs
+        )
         self.log.info("Deleted guardrail %s", self.guardrail_identifier)
 
 
@@ -1493,12 +1574,22 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
     Guardrails are created as DRAFT. This operator publishes a numbered version
     that can be referenced in production workloads.
 
+    Amazon Bedrock rejects the call while the guardrail is in a transitional status, for example
+    right after another version is published. The operator retries until the version can be created,
+    whether or not ``wait_for_completion`` is set.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BedrockCreateGuardrailVersionOperator`
 
     :param guardrail_identifier: The ID or ARN of the guardrail to version. (templated)
     :param description: Optional description for this version. (templated)
+    :param wait_for_completion: Whether to wait for the guardrail to be in READY status, both before
+        creating the version and after. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks, and before retrying a call
+        that was rejected because the guardrail was in a transitional status. (default: 2)
+    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness, and to
+        create the version. (default: 60)
     """
 
     aws_hook_class = BedrockHook
@@ -1509,13 +1600,33 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
         *,
         guardrail_identifier: str,
         description: str | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 2,
+        waiter_max_attempts: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.guardrail_identifier = guardrail_identifier
         self.description = description
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+
+    def _wait_for_guardrail_ready(self, guardrail_identifier: str) -> None:
+        self.log.info("Waiting for guardrail %s to be ready.", guardrail_identifier)
+        self.hook.get_waiter("guardrail_ready").wait(
+            guardrailIdentifier=guardrail_identifier,
+            guardrailVersion="DRAFT",
+            WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+        )
 
     def execute(self, context: Context) -> str:
+        if self.wait_for_completion:
+            # A wait that fails only after the version is published, for example when the role lacks
+            # bedrock:GetGuardrail, makes every retry publish another version. Waiting first fails
+            # the task while there is still nothing to duplicate.
+            self._wait_for_guardrail_ready(self.guardrail_identifier)
+
         self.log.info("Creating version for guardrail %s", self.guardrail_identifier)
         kwargs: dict[str, Any] = prune_dict(
             {
@@ -1523,15 +1634,26 @@ class BedrockCreateGuardrailVersionOperator(AwsBaseOperator[BedrockHook]):
                 "description": self.description,
             }
         )
-        response = self.hook.conn.create_guardrail_version(**kwargs)
+        response = _build_guardrail_in_transition_retrying(
+            self.log, self.waiter_delay, self.waiter_max_attempts
+        )(self.hook.conn.create_guardrail_version, **kwargs)
+        guardrail_id = response["guardrailId"]
         version = response["version"]
-        self.log.info("Guardrail %s version %s created.", response["guardrailId"], version)
+        self.log.info("Guardrail %s version %s created.", guardrail_id, version)
+
+        if self.wait_for_completion:
+            self._wait_for_guardrail_ready(guardrail_id)
+
         return version
 
 
 class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
     """
     Update an Amazon Bedrock guardrail configuration.
+
+    Amazon Bedrock rejects the update while the guardrail is in a transitional status, for example
+    right after a version is published. The operator retries until the update is accepted, whether
+    or not ``wait_for_completion`` is set.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1546,6 +1668,11 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
     :param content_policy_config: Optional content filter policy configuration dict.
     :param word_policy_config: Optional word filter policy configuration dict.
     :param sensitive_information_policy_config: Optional sensitive information policy dict.
+    :param wait_for_completion: Whether to wait for the guardrail to return to READY status. (default: True)
+    :param waiter_delay: Time in seconds to wait between status checks, and before retrying an update
+        that was rejected because the guardrail was in a transitional status. (default: 2)
+    :param waiter_max_attempts: Maximum number of attempts to check for guardrail readiness, and to
+        update the guardrail. (default: 60)
     """
 
     aws_hook_class = BedrockHook
@@ -1565,6 +1692,9 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         content_policy_config: dict[str, Any] | None = None,
         word_policy_config: dict[str, Any] | None = None,
         sensitive_information_policy_config: dict[str, Any] | None = None,
+        wait_for_completion: bool = True,
+        waiter_delay: int = 2,
+        waiter_max_attempts: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1577,6 +1707,9 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
         self.content_policy_config = content_policy_config
         self.word_policy_config = word_policy_config
         self.sensitive_information_policy_config = sensitive_information_policy_config
+        self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context) -> str:
         self.log.info("Updating guardrail %s", self.guardrail_identifier)
@@ -1593,9 +1726,21 @@ class BedrockUpdateGuardrailOperator(AwsBaseOperator[BedrockHook]):
                 "sensitiveInformationPolicyConfig": self.sensitive_information_policy_config,
             }
         )
-        response = self.hook.conn.update_guardrail(**kwargs)
-        self.log.info("Updated guardrail %s version %s", response["guardrailId"], response["version"])
-        return response["guardrailId"]
+        response = _build_guardrail_in_transition_retrying(
+            self.log, self.waiter_delay, self.waiter_max_attempts
+        )(self.hook.conn.update_guardrail, **kwargs)
+        guardrail_id = response["guardrailId"]
+        self.log.info("Updated guardrail %s version %s", guardrail_id, response["version"])
+
+        if self.wait_for_completion:
+            self.log.info("Waiting for guardrail %s to be ready.", guardrail_id)
+            self.hook.get_waiter("guardrail_ready").wait(
+                guardrailIdentifier=guardrail_id,
+                guardrailVersion="DRAFT",
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
+
+        return guardrail_id
 
 
 class BedrockCreateEvaluationJobOperator(AwsBaseOperator[BedrockHook]):

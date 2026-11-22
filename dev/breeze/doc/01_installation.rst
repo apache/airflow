@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -551,6 +550,10 @@ with the users about information/errors/warnings/successes via colour-coded mess
 it off by passing ``--no-colour`` to config in which case the messages to the user printed by Breeze
 will be printed using different schemes (italic/bold/underline) to indicate different kind of messages
 rather than colours.
+
+You can also switch off the separate Docker Compose project that Breeze uses for each git worktree with
+``--no-worktree-isolation`` (see `Stopping the environment <03_developer_tasks.rst#stopping-the-environment>`_).
+The setting applies to every worktree of the checkout.
 
 These are all available flags of ``setup config`` command:
 

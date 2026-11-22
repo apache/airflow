@@ -108,7 +108,7 @@ if TYPE_CHECKING:
         get_hook_lineage_collector as get_hook_lineage_collector,
     )
     from airflow.sdk.listener import get_listener_manager as get_listener_manager
-    from airflow.sdk.log import redact as redact
+    from airflow.sdk.log import mask_secret as mask_secret, redact as redact
     from airflow.sdk.plugins_manager import AirflowPlugin as AirflowPlugin
 
     # Airflow 3-only exceptions (conditionally imported)
@@ -127,6 +127,7 @@ if TYPE_CHECKING:
             RetryPolicy as RetryPolicy,
             RetryRule as RetryRule,
         )
+    from airflow.sdk import ResumableJobMixin as ResumableJobMixin
     from airflow.sdk.execution_time.context import (
         AIRFLOW_VAR_NAME_FORMAT_MAPPING as AIRFLOW_VAR_NAME_FORMAT_MAPPING,
         context_to_airflow_vars as context_to_airflow_vars,
@@ -328,6 +329,11 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
         "airflow.sdk.execution_time.secrets_masker",
         "airflow.utils.log.secrets_masker",
     ),
+    "mask_secret": (
+        "airflow.sdk.log",
+        "airflow.sdk.execution_time.secrets_masker",
+        "airflow.utils.log.secrets_masker",
+    ),
     # ============================================================================
     # Listeners
     # ============================================================================
@@ -337,6 +343,12 @@ _IMPORT_MAP: dict[str, str | tuple[str, ...]] = {
     # ============================================================================
     "conf": ("airflow.sdk.configuration", "airflow.configuration"),
     "AirflowConfigException": ("airflow.sdk.exceptions", "airflow.exceptions"),
+    # ============================================================================
+    # Resumable jobs (AIP-103)
+    # ============================================================================
+    # ResumableJobMixin arrived in Airflow 3.3. The SDK is tried first; below 3.3 the stand-in submits a
+    # new job on every try, so a durable operator still runs there, just without resuming.
+    "ResumableJobMixin": ("airflow.sdk", "airflow.providers.common.compat._resumable_job_mixin"),
 }
 
 # Airflow 3-only exceptions (not available in Airflow 2)

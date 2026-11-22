@@ -88,7 +88,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Add Product To Product Set documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.add_product_to_product_set>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_add_product_to_product_set>`_.
 
 
 .. _howto/operator:CloudVisionImageAnnotateOperator:
@@ -146,7 +146,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Annotate Image documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.annotate_image>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.image_annotator.ImageAnnotatorClient>`_.
 
 .. _howto/operator:CloudVisionCreateProductOperator:
 
@@ -214,7 +214,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Product create documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.create_product>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_create_product>`_.
 
 .. _howto/operator:CloudVisionDeleteProductOperator:
 
@@ -266,7 +266,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Product delete documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.delete_product>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_delete_product>`_.
 
 .. _howto/operator:CloudVisionGetProductOperator:
 
@@ -314,7 +314,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Product get documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.get_product>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_get_product>`_.
 
 .. _howto/operator:CloudVisionCreateProductSetOperator:
 
@@ -376,7 +376,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision ProductSet create documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.create_product_set>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_create_product_set>`_.
 
 .. _howto/operator:CloudVisionDeleteProductSetOperator:
 
@@ -422,7 +422,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision ProductSet delete documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.delete_product_set>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_delete_product_set>`_.
 
 .. _howto/operator:CloudVisionGetProductSetOperator:
 
@@ -466,7 +466,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision ProductSet get documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.get_product_set>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_get_product_set>`_.
 
 .. _howto/operator:CloudVisionUpdateProductSetOperator:
 
@@ -536,7 +536,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision ProductSet update documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.update_product_set>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_update_product_set>`_.
 
 .. _howto/operator:CloudVisionUpdateProductOperator:
 
@@ -615,7 +615,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Product update documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.update_product>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_update_product>`_.
 
 .. _howto/operator:CloudVisionCreateReferenceImageOperator:
 
@@ -677,7 +677,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision ReferenceImage delete documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.create_reference_image>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_create_reference_image>`_.
 
 .. _howto/operator:CloudVisionDeleteReferenceImageOperator:
 
@@ -739,7 +739,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision ReferenceImage create documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.delete_reference_image>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_delete_reference_image>`_.
 
 .. _howto/operator:CloudVisionRemoveProductFromProductSetOperator:
 
@@ -804,7 +804,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Remove Product From Product Set documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ProductSearchClient.remove_product_from_product_set>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.product_search.ProductSearchClient#google_cloud_vision_v1_services_product_search_ProductSearchClient_remove_product_from_product_set>`_.
 
 
 .. _howto/operator:CloudVisionDetectTextOperator:
@@ -857,7 +857,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Text Detection documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.text_detection>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.image_annotator.ImageAnnotatorClient>`_.
 
 .. _howto/operator:CloudVisionTextDetectOperator:
 
@@ -909,7 +909,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Document Text Detection documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.document_text_detection>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.image_annotator.ImageAnnotatorClient>`_.
 
 .. _howto/operator:CloudVisionDetectImageLabelsOperator:
 
@@ -962,7 +962,7 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Label Detection documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.label_detection>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.image_annotator.ImageAnnotatorClient>`_.
 
 .. _howto/operator:CloudVisionDetectImageSafeSearchOperator:
 
@@ -1014,12 +1014,12 @@ More information
 """"""""""""""""
 
 See `Google Cloud Vision Safe Search Detection documentation
-<https://googleapis.github.io/google-cloud-python/latest/vision/gapic/v1/api.html#google.cloud.vision_v1.ImageAnnotatorClient.safe_search_detection>`_.
+<https://cloud.google.com/python/docs/reference/vision/latest/google.cloud.vision_v1.services.image_annotator.ImageAnnotatorClient>`_.
 
 Reference
 ---------
 
 For further information, look at:
 
-* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/vision/index.html>`__
+* `Client Library Documentation <https://cloud.google.com/python/docs/reference/vision/latest>`__
 * `Product Documentation <https://cloud.google.com/vision/docs/>`__

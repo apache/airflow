@@ -8,7 +8,7 @@ importers:
 
   .:
     dependencies:
-      apache-airflow-ts-sdk:
+      '@apache-airflow/ts-sdk':
         specifier: file:../../../ts-sdk
         version: file:../../../ts-sdk(esbuild@0.28.2)
     devDependencies:
@@ -23,6 +23,16 @@ importers:
         version: 6.0.3
 
 packages:
+
+  '@apache-airflow/ts-sdk@file:../../../ts-sdk':
+    resolution: {directory: ../../../ts-sdk, type: directory}
+    engines: {node: '>=22'}
+    hasBin: true
+    peerDependencies:
+      esbuild: ^0.28.2
+    peerDependenciesMeta:
+      esbuild:
+        optional: true
 
   '@esbuild/aix-ppc64@0.28.2':
     resolution: {integrity: sha512-XExcO+dvLKvVtNTibSTBej1NCAbaGhWn9Ww1ZPx80qsahhPFe/8jgWP0IchNe0F3HwkU7n8ejhH8bjonqht8mQ==}
@@ -187,16 +197,6 @@ packages:
   '@types/node@26.6.4':
     resolution: {integrity: sha512-ldVPDCzj7fsaGZrLB0NuHuTvJcsNasysBAqMolr/cgxrLd1xbqxIr3XJiPnHHJUCxj5sNF1vnRj9aWnrVh5Jcg==}
 
-  apache-airflow-ts-sdk@file:../../../ts-sdk:
-    resolution: {directory: ../../../ts-sdk, type: directory}
-    engines: {node: '>=22'}
-    hasBin: true
-    peerDependencies:
-      esbuild: ^0.28.2
-    peerDependenciesMeta:
-      esbuild:
-        optional: true
-
   esbuild@0.28.2:
     resolution: {integrity: sha512-HKVLS8dvII+xoKW9kmqxbRKrnWEXfJJr/FZhhJmiqIB0e053QNYFqOBouTMO/k5sID4MvCiUCvv8b9M4h32wIA==}
     engines: {node: '>=18'}
@@ -211,6 +211,12 @@ packages:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
 snapshots:
+
+  '@apache-airflow/ts-sdk@file:../../../ts-sdk(esbuild@0.28.2)':
+    dependencies:
+      '@msgpack/msgpack': 3.1.3
+    optionalDependencies:
+      esbuild: 0.28.2
 
   '@esbuild/aix-ppc64@0.28.2':
     optional: true
@@ -295,12 +301,6 @@ snapshots:
   '@types/node@26.6.4':
     dependencies:
       undici-types: 8.9.0
-
-  apache-airflow-ts-sdk@file:../../../ts-sdk(esbuild@0.28.2):
-    dependencies:
-      '@msgpack/msgpack': 3.1.3
-    optionalDependencies:
-      esbuild: 0.28.2
 
   esbuild@0.28.2:
     optionalDependencies:

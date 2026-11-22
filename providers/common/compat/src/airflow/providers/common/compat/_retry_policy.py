@@ -30,6 +30,7 @@ the compat tests compare the source of both classes and fail on drift.
 from __future__ import annotations
 
 import logging
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision, RetryPolicy
@@ -46,7 +47,7 @@ __all__ = ["ChainRetryPolicy"]
 
 class ChainRetryPolicy(RetryPolicy):
     """
-    Consult policies in order; the first RETRY or FAIL wins.
+    Consult policies in order; the first decision other than DEFAULT wins.
 
     Every policy sees the original task exception. A policy that returns DEFAULT has nothing
     to add, whatever reason it attached, and the next one is asked. When every policy returns
@@ -123,7 +124,7 @@ class ChainRetryPolicy(RetryPolicy):
             reason = f"{name}: {decision.reason or decision.action.value}"
             if trail:
                 reason = f"{reason} (after {'; '.join(trail)})"
-            return RetryDecision(action=decision.action, retry_delay=decision.retry_delay, reason=reason)
+            return replace(decision, reason=reason)
         # The worker logs this reason as the policy decision; it is not stored, since no policy
         # took a position.
         return RetryDecision(action=RetryAction.DEFAULT, reason=f"no policy decided ({'; '.join(trail)})")

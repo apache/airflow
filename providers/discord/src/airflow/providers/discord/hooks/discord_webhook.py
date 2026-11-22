@@ -88,7 +88,7 @@ class DiscordCommonHandler:
                 raise ValueError("Discord embed footer text must be 2048 or fewer characters")
         # Validate author
         if "author" in embed:
-            if len(embed["author"]["name"]) > 2048:
+            if len(embed["author"]["name"]) > 256:
                 raise ValueError("Discord embed author name must be 256 or fewer characters")
         # Validate fields
         if "fields" in embed:

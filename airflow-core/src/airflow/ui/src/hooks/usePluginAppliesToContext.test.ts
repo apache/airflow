@@ -61,6 +61,7 @@ const { calls, data, record } = vi.hoisted(() => {
 
 vi.mock("openapi/queries", async (importOriginal) => ({
   ...(await importOriginal<typeof OpenapiQueries>()),
+  useAssetServiceGetAsset: record("asset"),
   useDagRunServiceGetDagRun: record("dagRun"),
   useDagServiceGetDag: record("dag"),
   useTaskInstanceServiceGetMappedTaskInstance: record("taskInstance"),
@@ -82,6 +83,7 @@ describe("usePluginAppliesToContext", () => {
   it("issues no query when no view needs scoping", () => {
     renderContext(false);
 
+    expect(calls.asset?.options?.enabled).toBe(false);
     expect(calls.dag?.options?.enabled).toBe(false);
     expect(calls.dagRun?.options?.enabled).toBe(false);
     expect(calls.task?.options?.enabled).toBe(false);
@@ -189,6 +191,25 @@ describe("usePluginAppliesToContext", () => {
     renderContext(true);
 
     expect(calls.taskInstance?.options?.enabled).toBe(false);
+  });
+
+  it("resolves the asset on an asset route, and nothing else", () => {
+    mockParams = { assetId: "7" };
+
+    renderContext(true);
+
+    expect(calls.asset?.options?.enabled).toBe(true);
+    expect(calls.asset?.params).toStrictEqual({ assetId: 7 });
+    expect(calls.dag?.options?.enabled).toBe(false);
+    expect(calls.dagRun?.options?.enabled).toBe(false);
+  });
+
+  it("leaves the asset query disabled off an asset route", () => {
+    mockParams = { dagId };
+
+    renderContext(true);
+
+    expect(calls.asset?.options?.enabled).toBe(false);
   });
 
   it("resolves only the Dag on a Dag-level route", () => {

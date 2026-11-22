@@ -21,7 +21,9 @@ import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { useTaskInstanceServiceGetHitlDetails, useTaskInstanceServiceGetHitlDetail } from "openapi/queries";
+import { useTaskInstanceServiceGetHitlDetails } from "openapi/queries";
+
+import { isHITLPending } from "src/utils/hitl";
 
 export type HITLQueryParams = {
   dagId: string;
@@ -72,45 +74,32 @@ export const useRequiredActionTabs = (
     redirectPath = location.pathname.replace("/required_actions", "");
   }
 
+  // Both the broad and the exact lookup go through the collection endpoint. Asking the single-detail
+  // endpoint whether one task instance is HITL answers "no" with a 404, which every non-HITL task
+  // then logs as a failed request; the collection answers the same question with `total_entries: 0`.
   const collection = useTaskInstanceServiceGetHitlDetails(
     {
       dagId,
       dagRunId: dagRunId ?? "~",
+      mapIndex: exact ? (mapIndex ?? -1) : undefined,
+      regionId: exact ? regionId : undefined,
+      regionIndex: exact ? regionIndex : undefined,
       taskId,
       taskIdPrefixPattern: taskIdPattern,
     },
     undefined,
     {
-      enabled: enabled && !exact && Boolean(dagId),
+      enabled: enabled && Boolean(dagId),
       refetchInterval,
     },
   );
-  const detail = useTaskInstanceServiceGetHitlDetail(
-    {
-      dagId,
-      dagRunId: dagRunId ?? "",
-      mapIndex: mapIndex ?? -1,
-      regionId,
-      regionIndex,
-      taskId: taskId ?? "",
-    },
-    undefined,
-    { enabled: enabled && exact, refetchInterval, retry: false },
-  );
-  const hitlData = exact
-    ? {
-        hitl_details: detail.data === undefined ? [] : [detail.data],
-        total_entries: detail.data === undefined ? 0 : 1,
-      }
-    : collection.data;
-  const isLoadingHitl = exact ? detail.isLoading : collection.isLoading;
+  const hitlData = collection.data;
+  const isLoadingHitl = collection.isLoading;
 
   const hasHitlData = enabled && (hitlData?.total_entries ?? 0) > 0;
   const pendingActionsCount =
     hitlData?.hitl_details.filter(
-      (hitl) =>
-        (hitl.task_instance.state === "deferred" || hitl.task_instance.state === "awaiting_input") &&
-        !hitl.response_received,
+      (hitl) => isHITLPending(hitl.task_instance.state) && !hitl.response_received,
     ).length ?? 0;
 
   const processedTabs = tabs

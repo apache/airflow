@@ -409,7 +409,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             dag_id=run.dag_id, run_id=run.run_id, node_id=loop.group_id, session=session
         )
         passes = {}
-        for index in (1, 2):
+        for index in (2, 3):
             passes[index] = TaskInstance(
                 task=dag.get_task("body.work"),
                 run_id=run.run_id,
@@ -419,7 +419,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             )
             session.add(passes[index])
         session.flush()
-        archived = passes[2]
+        archived = passes[3]
         retried = archived.prepare_db_for_next_try(session=session)
         events = {
             name: Log(
@@ -428,7 +428,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
             for name, ti_id in [
                 ("first try", archived.id),
                 ("second try", retried.id),
-                ("other pass", passes[1].id),
+                ("other pass", passes[2].id),
                 ("unattributed", None),
             ]
         }
@@ -436,7 +436,7 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         session.commit()
 
         response = test_client.get(
-            "/eventLogs", params={"region_id": str(region.id), "region_index": 2, "task_id": "body.work"}
+            "/eventLogs", params={"region_id": str(region.id), "region_index": 3, "task_id": "body.work"}
         )
 
         assert response.status_code == 200, response.text
@@ -829,3 +829,81 @@ class TestGetEventLogs(TestEventLogsEndpoint):
         mock_is_authorized_view.assert_called_once_with(
             access_view=AccessView.AUDIT_LOGS_ALL, user=mock.ANY, team_name=None
         )
+
+    @pytest.mark.parametrize("order_by", ["-when", "event", "owner", "-event_log_id"])
+    def test_cursor_pagination_forward_then_previous_page(self, test_client, order_by):
+        """Every row is reached once going forward, and previous_cursor retraces each page back to the first."""
+        params = {"limit": 1, "order_by": order_by}
+        forward_pages = []
+        cursor = ""
+        while cursor is not None:
+            response = test_client.get("/eventLogs", params={**params, "cursor": cursor})
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            forward_pages.append(body)
+            cursor = body["next_cursor"]
+
+        forward_ids = [[log["event_log_id"] for log in page["event_logs"]] for page in forward_pages]
+        assert len(forward_pages) == 4
+        assert len({event_log_id for (event_log_id,) in forward_ids}) == 4
+        assert forward_pages[0]["previous_cursor"] is None
+
+        cursor = forward_pages[-1]["previous_cursor"]
+        for expected_index in (2, 1, 0):
+            response = test_client.get("/eventLogs", params={**params, "cursor": cursor})
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            assert [log["event_log_id"] for log in body["event_logs"]] == forward_ids[expected_index]
+            assert body["next_cursor"] is not None
+            assert (body["previous_cursor"] is not None) == (expected_index > 0)
+            cursor = body["previous_cursor"]
+
+    @pytest.mark.parametrize("order_by", ["extra", "-extra"])
+    def test_cursor_pagination_rejects_sorting_by_extra(self, test_client, order_by):
+        response = test_client.get("/eventLogs", params={"order_by": order_by, "cursor": ""})
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Sorting by `extra` is not supported with cursor pagination"
+
+    @pytest.mark.parametrize(("count_limit", "expected_total_entries"), [(2, 2), (10, 4)])
+    def test_cursor_pagination_caps_total_entries(self, test_client, count_limit, expected_total_entries):
+        """The count stops at the cap, so a total equal to total_entries_limit means at least that many."""
+        with mock.patch("airflow.api_fastapi.common.db.common.EXACT_COUNT_LIMIT", count_limit):
+            response = test_client.get("/eventLogs", params={"limit": 1, "cursor": ""})
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        assert body["total_entries"] == expected_total_entries
+        assert body["total_entries_limit"] == count_limit
+
+    def test_cursor_pagination_keeps_filters_on_every_page(self, test_client):
+        events = []
+        cursor = ""
+        while cursor is not None:
+            response = test_client.get(
+                "/eventLogs", params={"limit": 1, "dag_id": DAG_ID, "order_by": "event", "cursor": cursor}
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            events.extend(log["event"] for log in body["event_logs"])
+            cursor = body["next_cursor"]
+
+        assert events == [EVENT_WITH_OWNER_AND_TASK_INSTANCE, TASK_INSTANCE_EVENT]
+
+    @pytest.mark.parametrize("order_by", ["owner_display_name", "-owner_display_name"])
+    def test_cursor_pagination_matches_offset_order(self, test_client, order_by):
+        expected_ids = [
+            log["event_log_id"]
+            for log in test_client.get("/eventLogs", params={"order_by": order_by}).json()["event_logs"]
+        ]
+        event_log_ids = []
+        cursor = ""
+        for _ in expected_ids:
+            response = test_client.get(
+                "/eventLogs", params={"limit": 1, "order_by": order_by, "cursor": cursor}
+            )
+            assert response.status_code == 200, response.json()
+            body = response.json()
+            event_log_ids.extend(log["event_log_id"] for log in body["event_logs"])
+            cursor = body["next_cursor"]
+
+        assert event_log_ids == expected_ids
+        assert cursor is None

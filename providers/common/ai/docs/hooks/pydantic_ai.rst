@@ -80,7 +80,7 @@ you version-control agent configs independently.
 .. code-block:: yaml
    :caption: agent_spec.yaml
 
-   model: openai:gpt-5-mini
+   model: openai:gpt-6.1-terra
    instructions: >
      You are a concise summarizer. Given any text, respond with a single
      paragraph that captures the key points.
@@ -97,3 +97,23 @@ The spec file's ``model`` is the last resort: ``model_id`` and the connection's
 ``model`` extra both take precedence over it, in the
 :ref:`order the connection page lists <pydanticai-model-resolution>`. Passing
 ``instructions`` to ``create_agent`` when a ``spec_file`` is also given appends additional instructions to the file value.
+
+Using the hook in an async task
+-------------------------------
+
+In an ``async def`` task on Airflow 3.2.1 and later, use the async counterparts
+``aget_hook``, ``aget_conn`` and ``acreate_agent``, and run the agent with
+``await agent.run(...)``. They take the same parameters as ``get_hook``, ``get_conn`` and
+``create_agent`` and return the same objects, fallback chain included. Connection lookups
+make synchronous calls to the Task SDK, which block the event loop while another async
+call is in flight (from 3.3.1 they raise ``DeadlockImminentError`` instead), so the async
+methods run them on a worker thread of their own.
+
+.. code-block:: python
+
+    @task
+    async def summarize(text: str) -> str:
+        hook = await PydanticAIHook.aget_hook("my_llm")
+        agent = await hook.acreate_agent(instructions="Summarize the text in one sentence.")
+        result = await agent.run(text)
+        return result.output

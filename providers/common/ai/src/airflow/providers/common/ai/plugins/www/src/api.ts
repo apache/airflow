@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import { regionQuery, type TaskRegion } from "./region.ts";
 import type { SessionResponse } from "src/types/feedback";
 
 function getBase(): string {
@@ -29,8 +30,6 @@ function getBase(): string {
 
 const BASE = getBase();
 
-export type TaskRegion = { region_id: string; region_index: number };
-
 function buildQs(dagId: string, runId: string, taskId: string, mapIndex: number, region?: TaskRegion): string {
   const query = (
     `dag_id=${encodeURIComponent(dagId)}` +
@@ -38,9 +37,7 @@ function buildQs(dagId: string, runId: string, taskId: string, mapIndex: number,
     `&task_id=${encodeURIComponent(taskId)}` +
     `&map_index=${mapIndex}`
   );
-  return region === undefined
-    ? query
-    : `${query}&region_id=${encodeURIComponent(region.region_id)}&region_index=${region.region_index}`;
+  return `${query}${regionQuery(region)}`;
 }
 
 export class ApiError extends Error {

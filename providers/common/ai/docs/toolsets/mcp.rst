@@ -55,9 +55,9 @@ Parameters
   connection runs its ``Extra.command`` on the worker, so whoever picks the
   connection picks the command. A ``token_provider`` or ``env_provider`` is
   shared by every connection the template renders to.
-- ``tool_prefix``: Optional prefix prepended to tool names to avoid
+- ``tool_prefix``: Optional prefix joined to each tool name with an underscore to avoid
   collisions when using multiple MCP servers (e.g. ``"weather"`` produces
-  ``"weather_get_forecast"``).
+  ``"weather_get_forecast"``). Default ``""`` (no prefix).
 - ``token_provider``: Optional zero-argument callable returning a bearer token.
   When set, it overrides the connection's static ``password`` for the
   ``Authorization`` header. Called once, the first time this toolset
@@ -196,8 +196,8 @@ agent is offered. It does not change what the server lets the connection's crede
 do, so give the connection the narrowest credential the server accepts.
 
 To keep a tool available but have a person approve a call to it before it runs, wrap
-the toolset with ``.approval_required()`` instead. A task instance can pause for
-approval once per Dag run; see :doc:`../tool_approval`.
+the toolset with ``.approval_required()`` instead. On Airflow 3.3 a task instance can
+pause for approval only once per Dag run; see :doc:`../tool_approval`.
 
 Direct pydantic-ai MCP toolsets
 -------------------------------

@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, Emr
 from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 SUBMIT_JOB_SUCCESS_RETURN = {
@@ -133,15 +134,19 @@ class TestEmrContainerOperator:
 
         assert mock_check_query_status.call_count == 3
 
+    @pytest.mark.parametrize("wait_for_completion", [True, False], ids=["wait", "no_wait"])
     @mock.patch.object(EmrContainerHook, "submit_job")
     @mock.patch.object(
         EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
     )
-    def test_operator_defer(self, mock_submit_job, mock_check_query_status):
+    def test_operator_defer(self, mock_submit_job, mock_check_query_status, wait_for_completion):
         """Test the execute method raise TaskDeferred if running operator in deferrable mode"""
         self.emr_container.deferrable = True
-        self.emr_container.wait_for_completion = False
-        with pytest.raises(TaskDeferred) as exc:
+        self.emr_container.wait_for_completion = wait_for_completion
+        with (
+            expect_deferral_warning(deferrable=True, wait_for_completion=wait_for_completion),
+            pytest.raises(TaskDeferred) as exc,
+        ):
             self.emr_container.execute(context=None)
         assert isinstance(exc.value.trigger, EmrContainerTrigger), (
             f"{exc.value.trigger} is not a EmrContainerTrigger"

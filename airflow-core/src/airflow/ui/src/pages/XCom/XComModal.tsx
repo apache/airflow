@@ -72,10 +72,12 @@ const XComModal = ({
     {
       dagId,
       dagRunId: runId,
-      deserialize: true,
+      // Editing needs the stored type; display deserialization can parse JSON-looking strings.
+      deserialize: false,
       mapIndex,
       regionId,
       regionIndex,
+      stringify: false,
       taskId,
       xcomKey: xcomKey ?? "",
     },
@@ -88,7 +90,7 @@ const XComModal = ({
     if (isOpen && isEditMode && data) {
       const val = data.value;
 
-      setValue(typeof val === "string" ? val : JSON.stringify(val, undefined, 2));
+      setValue(JSON.stringify(val, undefined, 2));
     }
   }, [data, isEditMode, isOpen]);
 

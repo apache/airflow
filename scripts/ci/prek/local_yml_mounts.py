@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 
 from common_prek_utils import console, initialize_breeze_prek
 
@@ -29,3 +30,4 @@ res = subprocess.run(
 )
 if res.returncode != 0:
     console.print("\n[red]Error when running local mounts synchronization.\n")
+    sys.exit(res.returncode)

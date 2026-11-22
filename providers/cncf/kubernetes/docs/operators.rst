@@ -1,19 +1,19 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
-  or more contributor license agreements.  See the NOTICE file
-  distributed with this work for additional information
-  regarding copyright ownership.  The ASF licenses this file
-  to you under the Apache License, Version 2.0 (the
-  "License"); you may not use this file except in compliance
-  with the License.  You may obtain a copy of the License at
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
 
  ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-  software distributed under the License is distributed on an
-  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-  KIND, either express or implied.  See the License for the
-  specific language governing permissions and limitations
-  under the License.
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
 
 
 .. contents:: Table of Contents
@@ -73,6 +73,43 @@ You can print out the Kubernetes manifest for the pod that would be created at r
     )
 
     k.dry_run()
+
+Pod events in the task log
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+While the operator waits for the pod to leave the ``Pending`` phase, it reads the Kubernetes events of the pod
+(polling every ``startup_check_interval_seconds`` in synchronous mode) and writes them to the task log
+(scheduling, image pull, container start, and warnings such as ``FailedScheduling``). This logging is
+best-effort: if the events API fails, the operator logs one warning, stops reading events, and the task
+continues.
+
+In synchronous mode each poll is a ``list`` of ``Event`` objects with a field selector. Deferrable
+mode keeps a watch open instead, which costs less but still makes the API server read the namespace
+events each time the watch (re)starts before the first event was seen. The Kubernetes API server
+disables its watch cache for ``Event`` objects by default, so every list is an ``etcd`` read of all
+events in the namespace that is filtered afterwards. On clusters that run thousands of short-lived
+pods in one namespace this adds noticeable API server load.
+Keeping unrelated high-churn pods (for example Spark executors) in a separate namespace reduces the cost.
+
+To turn it off, set ``log_events_on_startup=False``. The parameter is honoured by ``KubernetesPodOperator``,
+``KubernetesPodTrigger``, ``@task.kubernetes`` and ``@task.kubernetes_cmd``. In deferrable mode the opt-out
+is sent to the trigger, so the triggerer needs a provider version that knows the parameter. ``GKEStartPodOperator`` and
+``EksPodOperator`` apply it in synchronous mode only; in deferrable mode their own triggers do not receive
+it yet. It is separate from ``log_events_on_failure``, which controls the one-shot read of events after a
+failure.
+
+.. Forwarding the parameter to the GKE and EKS triggers is tracked at
+   https://github.com/apache/airflow/issues/75014
+
+.. code-block:: python
+
+    KubernetesPodOperator(
+        task_id="no_startup_events",
+        name="no-startup-events",
+        namespace="default",
+        image="debian",
+        log_events_on_startup=False,
+    )
 
 Argument precedence
 ^^^^^^^^^^^^^^^^^^^
@@ -338,14 +375,19 @@ parameter.
 The following callbacks are supported:
 
 * on_sync_client_creation: called after creating the sync client
+* on_pod_manifest_created: called after the pod manifest is built but before the pod is created
 * on_pod_creation: called after creating the pod
 * on_pod_starting: called after the pod starts
 * on_pod_completion: called when the pod completes
+* on_pod_teardown: called after the completion callbacks but before the pod is deleted
 * on_pod_cleanup: called after cleaning/deleting the pod
 * on_operator_resuming: when resuming the task from deferred state
 * progress_callback: called on each line of containers logs
 
-Currently, the callbacks methods are not called in the async mode, this support will be added in the future.
+In deferrable mode the operator invokes ``on_pod_manifest_created``, ``on_pod_creation``,
+``on_operator_resuming``, ``on_pod_completion``, ``on_pod_teardown`` and ``on_pod_cleanup``.
+``on_pod_starting`` is not invoked, because the triggerer -- not the operator -- observes pod
+startup. The ``mode`` argument is currently always ``sync``.
 
 Example:
 ~~~~~~~~
@@ -824,6 +866,23 @@ When the task is killed, ``on_kill`` deletes the Job (with foreground cascade).
 For discovered pods, deletion is controlled by ``on_kill_action``:
 ``delete_pod`` attempts direct pod deletion and ``keep_pod`` skips it.
 
+XComs of a Job
+^^^^^^^^^^^^^^
+
+With ``wait_until_job_complete=True`` and ``do_xcom_push=True``, each pod writes its XCom to
+``/airflow/xcom/return.json``, as with ``KubernetesPodOperator``. ``return_value`` is the list of these
+values, one per pod (``None`` for a pod that writes nothing). A list with a single value is unwrapped,
+unless ``unwrap_single=False``.
+
+Whatever ``do_xcom_push`` is, the operator also pushes:
+
+* ``job_name`` and ``job_namespace``, when the Job is created;
+* ``job``: the Job as a dictionary, with its ``status`` (the finished Job when
+  ``wait_until_job_complete=True``).
+
+``KubernetesJobOperator`` reads the XComs of the pods it found when the Job started; for
+``KubernetesStartKueueJobOperator``, see :ref:`howto/operator:KubernetesStartKueueJobOperator`.
+
 
 
 .. _howto/operator:KubernetesDeleteJobOperator:
@@ -892,6 +951,71 @@ you to start a Kueue job in a Kubernetes cluster
     :dedent: 4
     :start-after: [START howto_operator_k8s_install_kueue]
     :end-before: [END howto_operator_k8s_install_kueue]
+
+Waiting for the Job
+^^^^^^^^^^^^^^^^^^^
+
+With ``wait_until_job_complete=True``, the operator waits on the Job itself, not on its pods, because
+Kueue controls when the pods exist:
+
+* the Job stays suspended, without pods, until Kueue admits it;
+* Kueue may preempt the Job, suspending it again and deleting its running pods, then admit it again
+  later, any number of times;
+* each admission creates new pods, with new names. Pods that already succeeded are kept and still count
+  for the Job.
+
+Once the Job is finished, logs are read from the pods it has at that time.
+
+The wait has no timeout of its own. If Kueue never admits the Job (for example, ``queue_name`` doesn't
+match a ``LocalQueue`` in the namespace), the task waits forever. Set ``execution_timeout`` to limit the
+wait; it also applies while the task is deferred. On timeout, the task fails and the Job is deleted, so
+Kueue doesn't run it later. ``active_deadline_seconds`` doesn't help here: Kubernetes resets its timer
+each time the Job is suspended.
+
+XComs
+^^^^^
+
+With ``do_xcom_push=True``:
+
+* the XCom of each pod is read while the Job runs, at the first poll after the pod's base container
+  ends. Until then, the XCom sidecar keeps the pod, and so the Job, from finishing;
+* once the Job is finished, only the XComs of pods that are ``Succeeded`` are kept. XComs of failed
+  pods, and of pods deleted by a preemption, are dropped;
+* ``return_value`` is the list of the kept XComs, one per succeeded pod, sorted by pod name. See
+  :ref:`howto/operator:kubernetesjoboperator` for ``unwrap_single`` and the other XComs pushed.
+
+The task fails, rather than return an incomplete list, when the XCom of a succeeded pod could not be
+read: for example, the pod was deleted before the task finished, or its ``return.json`` is not valid
+JSON. A pod that writes no XCom doesn't fail the task: its value is ``None``.
+
+With ``deferrable=True``, the XComs read so far are kept only in the trigger's memory. If the trigger
+restarts while the Job runs (for example, when the triggerer is redeployed), those XComs are lost: their
+sidecars are already stopped, so they can't be read again. If any of those pods succeeded, the task
+fails once the Job is finished, and a retry runs the whole Job again.
+
+Number of values in ``return_value``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``return_value`` has one value per pod that succeeded:
+
+* by default, one value;
+* with ``completions=N``, ``N`` values;
+* with ``parallelism=M`` and no ``completions`` (work queue), between 1 and ``M`` values.
+
+Values are sorted by pod name, not by the order in which pods ran. If the order matters, set
+``completion_mode="Indexed"``, write ``$JOB_COMPLETION_INDEX`` into the XCom, and sort on it in the
+downstream task:
+
+.. code-block:: bash
+
+    echo "{\"index\": $JOB_COMPLETION_INDEX, \"rows\": 42}" > /airflow/xcom/return.json
+
+Kueue reserves quota for all the pods the Job runs at once, so a high ``parallelism`` can delay admission.
+See the `Kubernetes Job documentation <https://kubernetes.io/docs/concepts/workloads/controllers/job/>`__
+for how ``completions``, ``parallelism`` and ``backoff_limit`` work.
+
+Reference
+^^^^^^^^^
 
 For further information, look at:
 

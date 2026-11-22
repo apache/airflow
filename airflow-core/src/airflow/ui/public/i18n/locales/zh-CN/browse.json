@@ -12,14 +12,30 @@
   },
   "dagBundles": {
     "active": "已启用",
-    "bundle_one": "Dag 套件包",
-    "bundle_other": "Dag 套件包",
     "columns": {
       "active": "已启用",
       "importErrors": "导入错误",
       "lastRefreshed": "上次刷新时间",
       "name": "名称",
       "version": "版本"
+    },
+    "detail": {
+      "status": "状态"
+    },
+    "files": {
+      "columns": {
+        "file": "文件",
+        "lastParsed": "最后解析时间",
+        "parseDuration": "解析耗时"
+      },
+      "importErrorForbidden": "您没有权限读取此导入错误。",
+      "importErrorGone": "此导入错误已不再被记录，可能已通过重新解析修复。",
+      "neverParsed": "从未",
+      "parsedFile_one": "已解析文件",
+      "parsedFile_other": "已解析文件",
+      "parsedFilesNote": "仅列出定义了 Dag 或导入失败的文件。",
+      "showImportError_one": "查看错误",
+      "showImportError_other": "查看 {{count, number}} 个错误"
     },
     "inactive": "已停用",
     "neverRefreshed": "从未",
@@ -55,6 +71,7 @@
     "columns": {
       "dag": "Dag",
       "key": "键",
+      "timestamp": "时间戳",
       "value": "值"
     },
     "delete": {

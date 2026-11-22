@@ -25,32 +25,11 @@ interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
 
-// Each of these language definitions exports its Monarch grammar (`conf` / `language`)
+// The Python language definition exports its Monarch grammar (`conf` / `language`)
 // but ships no `.d.ts` of its own.
 declare module "monaco-editor/languages/definitions/python/python" {
   // `import(...)` type syntax is required here: a top-level `import type` would turn this
   // ambient declaration file into a module and break the `ImportMeta` augmentation above.
-  /* eslint-disable @typescript-eslint/consistent-type-imports */
-  export const conf: import("monaco-editor").languages.LanguageConfiguration;
-  export const language: import("monaco-editor").languages.IMonarchLanguage;
-  /* eslint-enable @typescript-eslint/consistent-type-imports */
-}
-
-declare module "monaco-editor/languages/definitions/typescript/typescript" {
-  /* eslint-disable @typescript-eslint/consistent-type-imports */
-  export const conf: import("monaco-editor").languages.LanguageConfiguration;
-  export const language: import("monaco-editor").languages.IMonarchLanguage;
-  /* eslint-enable @typescript-eslint/consistent-type-imports */
-}
-
-declare module "monaco-editor/languages/definitions/java/java" {
-  /* eslint-disable @typescript-eslint/consistent-type-imports */
-  export const conf: import("monaco-editor").languages.LanguageConfiguration;
-  export const language: import("monaco-editor").languages.IMonarchLanguage;
-  /* eslint-enable @typescript-eslint/consistent-type-imports */
-}
-
-declare module "monaco-editor/languages/definitions/go/go" {
   /* eslint-disable @typescript-eslint/consistent-type-imports */
   export const conf: import("monaco-editor").languages.LanguageConfiguration;
   export const language: import("monaco-editor").languages.IMonarchLanguage;

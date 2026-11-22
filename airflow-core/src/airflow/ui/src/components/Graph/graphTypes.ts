@@ -19,6 +19,7 @@
 import { AliasNode } from "./AliasNode";
 import { AssetConditionNode } from "./AssetConditionNode";
 import { AssetNode } from "./AssetNode";
+import { AssetWatcherNode } from "./AssetWatcherNode";
 import { DagNode } from "./DagNode";
 import { DefaultNode } from "./DefaultNode";
 import Edge from "./Edge";
@@ -36,6 +37,7 @@ export const nodeTypes = {
   "asset-condition": AssetConditionNode,
   "asset-name-ref": DefaultNode,
   "asset-uri-ref": DefaultNode,
+  "asset-watcher": AssetWatcherNode,
   dag: DagNode,
   join: JoinNode,
   sensor: DefaultNode,

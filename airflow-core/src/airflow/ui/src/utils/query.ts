@@ -52,7 +52,8 @@ export const useAutoRefresh = ({
   const { data: dagRunData } = useDagRunServiceGetDagRuns(
     {
       dagId: dagId ?? "~",
-      limit: 1,
+      // Only the count is needed. Fetching a row can make Postgres scan dag_run from its oldest run.
+      limit: 0,
       state: ["running", "queued"],
     },
     undefined,
@@ -61,13 +62,13 @@ export const useAutoRefresh = ({
       enabled: checkPendingRuns,
       refetchInterval: (query) =>
         autoRefreshInterval !== undefined &&
-        ((query.state.data?.dag_runs ?? []).length > 0
+        ((query.state.data?.total_entries ?? 0) > 0
           ? autoRefreshInterval * 1000
           : autoRefreshInterval * 10 * 1000),
     },
   );
 
-  const pendingRuns = !checkPendingRuns || (dagRunData?.dag_runs ?? []).length >= 1;
+  const pendingRuns = !checkPendingRuns || (dagRunData?.total_entries ?? 0) > 0;
 
   const paused = Boolean(dagId) && dag?.is_paused;
 

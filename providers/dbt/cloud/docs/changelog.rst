@@ -28,13 +28,56 @@
 Changelog
 ---------
 
+4.12.0
+......
+
+.. note::
+    On Airflow 3.3 and later, ``DbtCloudRunJobOperator`` is durable by default when
+    ``wait_for_termination`` is True: a retry reconnects to the dbt Cloud run the previous try
+    triggered instead of triggering a new one. Before Airflow 3.5, clearing the whole Dag run keeps
+    the stored run id, so a task whose run succeeded does not run dbt again. Clear the task instance
+    instead, or set ``durable=False`` to trigger a new run on every try. Below Airflow 3.3 nothing
+    changes.
+
+Features
+~~~~~~~~
+
+* ``Support durable execution for dbt cloud job runs (#76918)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Apply timeout_seconds and connection proxies to dbt Cloud sync requests (#74684)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Fix task loop information and tests for OpenLineage provider (#74752)``
+
+4.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``dbt Cloud: emit OpenLineage events via the OpenLineage public API (#74754)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.11.0
 ......
 
 Features
 ~~~~~~~~
 
-* ``Apply hook_params to deferred dbt Cloud job runs (#74199)``
+* ``Apply hook_params to deferred dbt Cloud job runs (#74199, #74489)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -53,6 +96,7 @@ Doc-only
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare providers release 2026-10-06 (#74429)``
    * ``[main] Upgrade important CI environment (#73629)``
 
 4.10.0

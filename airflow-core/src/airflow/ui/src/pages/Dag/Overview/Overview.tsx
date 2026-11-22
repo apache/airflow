@@ -167,6 +167,7 @@ export const Overview = () => {
             <Skeleton height="310px" w="full" />
           ) : (
             <DurationChart
+              // oxlint-disable-next-line unicorn/prefer-spread -- a spread would drop the optional chain
               entries={gridRuns?.slice().reverse()}
               isAutoRefreshing={isAutoRefreshing}
               kind="Dag Run"

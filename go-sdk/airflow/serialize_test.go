@@ -22,8 +22,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -337,6 +339,34 @@ func TestSerializeWritesAPointerFieldThatHoldsTheZeroValue(t *testing.T) {
 		`{"do_xcom_push": false, "priority_weight": 0, "retry_delay": 0}`,
 		withoutKeys(serializedTask(t, got, "ping"), goTaskFields...),
 	)
+}
+
+func TestTaskRejectsAPriorityWeightOutsideTheInt32Range(t *testing.T) {
+	if strconv.IntSize < 64 {
+		t.Skip("requires 64-bit int to hold a weight outside the int32 range")
+	}
+	// int64, not int, so the file still compiles where int is 32 bits.
+	for name, weight := range map[string]int64{
+		"above": math.MaxInt32 + 1,
+		"below": math.MinInt32 - 1,
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.PanicsWithValue(t,
+				fmt.Sprintf(`airflow.DagRef.Task: task "ping" of Dag "etl": `+
+					"airflow.TaskSpec.PriorityWeight is %d; Airflow takes a priority weight "+
+					"only from -2147483648 to 2147483647", weight),
+				func() { Dag("etl").Task(ping, TaskSpec{PriorityWeight: ptr(int(weight))}) },
+			)
+		})
+	}
+}
+
+func TestTaskAcceptsAPriorityWeightAtTheInt32Bounds(t *testing.T) {
+	dag := Dag("etl")
+	assert.NotPanics(t, func() {
+		dag.Task(ping, TaskSpec{TaskID: "max", PriorityWeight: ptr(math.MaxInt32)})
+		dag.Task(ping, TaskSpec{TaskID: "min", PriorityWeight: ptr(math.MinInt32)})
+	})
 }
 
 func TestSerializeWritesTimesAndDurationsToTheMicrosecond(t *testing.T) {
@@ -759,10 +789,10 @@ func TestSerializeWritesTheLabelsOfEdges(t *testing.T) {
 	groupTask(t, transform, "clean")
 	publish := dag.TaskGroup("publish")
 	groupTask(t, publish, "push")
-	extracted.Before(Label(loaded, "rows"), notified)
-	extracted.Before(Label(transform, "to transform"))
-	transform.Before(Label(publish, "to publish"))
-	publish.Before(Label(notified, "to notify"))
+	extracted.Before(Label("rows").On(loaded), notified)
+	extracted.Before(Label("to transform").On(transform))
+	transform.Before(Label("to publish").On(publish))
+	publish.Before(Label("to notify").On(notified))
 
 	got := serializedDag(t, dag)
 
@@ -925,6 +955,7 @@ func TestSerializeWritesATriggerDagRunAsATriggerDagRunOperator(t *testing.T) {
 	assertJSON(t, `{
 		"task_id": "trigger",
 		"task_type": "TriggerDagRunOperator",
+		"is_stub": true,
 		"_task_module": "airflow.providers.standard.operators.trigger_dagrun",
 		"ui_color": "#ffefeb",
 		"template_fields": [
@@ -1012,7 +1043,7 @@ func TestSerializeWritesOnlyTheTriggerDagRunOptionsThatAreSet(t *testing.T) {
 		"skip_when_already_exists": false
 	}`, withoutKeys(serializedTask(t, got, "trigger"),
 		"task_id", "task_type", "_task_module", "ui_color", "template_fields",
-		"template_fields_renderers", "_operator_extra_links",
+		"template_fields_renderers", "_operator_extra_links", "is_stub",
 	))
 	// An empty FailedStates means that no Dag run state fails the task.
 	assertJSON(t, `[]`, serializedTask(t, got, "trigger_never_fails")["failed_states"])

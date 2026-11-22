@@ -23,7 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypeVar, overload
 
 from deprecated import deprecated
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from openai.auth import (
     azure_managed_identity_token_provider,
     gcp_id_token_provider,
@@ -33,6 +33,7 @@ from openai.auth import (
 if TYPE_CHECKING:
     from openai.auth import SubjectTokenProvider, WorkloadIdentity
     from openai.types import (
+        CreateEmbeddingResponse,
         FileDeleted,
         FileObject,
         VectorStore,
@@ -53,7 +54,10 @@ if TYPE_CHECKING:
     from openai.types.responses import ParsedResponse, Response
     from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
     from pydantic import BaseModel
+
+    from airflow.providers.common.compat.sdk import Connection
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 from airflow.providers.openai.exceptions import (
@@ -68,7 +72,7 @@ from airflow.providers.openai.exceptions import (
 #: methods wrapping it warn and point at the Responses and Conversations APIs (``create_response`` /
 #: ``create_conversation``); the removal date is stated once, in the reason string below.
 _ASSISTANTS_DEPRECATION_REASON = (
-    "The OpenAI Assistants API is deprecated and will be removed by OpenAI on 2026-08-26. "
+    "The OpenAI Assistants API is deprecated and was removed by OpenAI on 2026-08-26. "
     "Use the Responses API (create_response) and Conversations API (create_conversation) instead. "
     "See https://platform.openai.com/docs/guides/migrate-to-responses."
 )
@@ -195,7 +199,13 @@ class OpenAIHook(BaseHook):
         """Return an OpenAI connection object."""
         return self.get_conn()
 
-    def get_conn(self) -> OpenAI:
+    @overload
+    def get_conn(self, *, async_client: Literal[False] = False) -> OpenAI: ...
+
+    @overload
+    def get_conn(self, *, async_client: Literal[True]) -> AsyncOpenAI: ...
+
+    def get_conn(self, *, async_client: bool = False) -> OpenAI | AsyncOpenAI:
         """
         Return an OpenAI connection object.
 
@@ -205,10 +215,33 @@ class OpenAIHook(BaseHook):
         * ``"api_key"`` -- use the API key from the connection password (or ``openai_client_kwargs``).
         * ``"workload_identity"`` -- exchange a short-lived identity token for API access using the
           OpenAI client's workload identity support. See :meth:`_build_workload_identity`.
+
+        :param async_client: Return an ``AsyncOpenAI`` instead, for sync code that passes one to
+            an async library. The connection lookup blocks, so in async code use :meth:`aget_conn`.
+            Each call builds a new client. An async client is tied to the event loop it first
+            runs in, so use it inside one loop and get a new client for each ``asyncio.run`` call.
         """
         conn = self.get_connection(self.conn_id)
-        extras = conn.extra_dejson
-        openai_client_kwargs = extras.get("openai_client_kwargs", {})
+        client_class = AsyncOpenAI if async_client else OpenAI
+        return client_class(**self._client_kwargs(conn, conn.extra_dejson))
+
+    async def aget_conn(self) -> AsyncOpenAI:
+        """
+        Return an ``AsyncOpenAI`` client configured like :meth:`get_conn`.
+
+        From Airflow 3.3.2 the connection is resolved without a blocking call to the
+        supervisor, so this is safe on an event loop with other async calls in flight.
+
+        Each call builds a new client: close it with ``async with`` or ``await client.close()``.
+        With ``workload_identity`` each client exchanges its own token, so reuse one client
+        for many calls.
+        """
+        conn = await get_async_connection(self.conn_id, hook=self)
+        return AsyncOpenAI(**self._client_kwargs(conn, await get_async_extra_dejson(conn)))
+
+    def _client_kwargs(self, conn: Connection, extras: dict[str, Any]) -> dict[str, Any]:
+        """Build the ``OpenAI`` / ``AsyncOpenAI`` constructor kwargs from the connection."""
+        openai_client_kwargs = dict(extras.get("openai_client_kwargs", {}))
         base_url = openai_client_kwargs.pop("base_url", None) or conn.host or None
         # Pop api_key for every path so it is never forwarded alongside ``workload_identity``
         # (the OpenAI client rejects both being set at once).
@@ -216,14 +249,14 @@ class OpenAIHook(BaseHook):
         auth_type = extras.get("auth_type", "api_key")
 
         if auth_type == "api_key":
-            return OpenAI(api_key=api_key or conn.password, base_url=base_url, **openai_client_kwargs)
+            return {"api_key": api_key or conn.password, "base_url": base_url, **openai_client_kwargs}
 
         if auth_type == "workload_identity":
-            return OpenAI(
-                workload_identity=self._build_workload_identity(extras),
-                base_url=base_url,
+            return {
+                "workload_identity": self._build_workload_identity(extras),
+                "base_url": base_url,
                 **openai_client_kwargs,
-            )
+            }
 
         raise ValueError(
             f"Unsupported auth_type {auth_type!r} for OpenAI connection {self.conn_id!r}; "
@@ -295,7 +328,7 @@ class OpenAIHook(BaseHook):
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
         ],
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-6-luna",
         **kwargs: Any,
     ) -> list[ChatCompletionMessage]:
         """
@@ -307,7 +340,7 @@ class OpenAIHook(BaseHook):
         response = self.conn.chat.completions.create(model=model, messages=messages, **kwargs)
         return response.choices
 
-    def create_response(self, input: Any, model: str = "gpt-4o-mini", **kwargs: Any) -> Response:
+    def create_response(self, input: Any, model: str = "gpt-6-luna", **kwargs: Any) -> Response:
         """
         Create a model response using the Responses API.
 
@@ -319,7 +352,7 @@ class OpenAIHook(BaseHook):
     def parse_response(
         self,
         input: Any,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-6-luna",
         *,
         text_format: type[_TextFormatT],
         **kwargs: Any,
@@ -395,7 +428,7 @@ class OpenAIHook(BaseHook):
         return self.conn.conversations.delete(conversation_id)
 
     @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def create_assistant(self, model: str = "gpt-4o-mini", **kwargs: Any) -> Assistant:
+    def create_assistant(self, model: str = "gpt-6-luna", **kwargs: Any) -> Assistant:
         """
         Create an OpenAI assistant using the given model.
 
@@ -593,6 +626,48 @@ class OpenAIHook(BaseHook):
         :return: One embedding for a single text or token array; one embedding per item for a batch.
         """
         response = self.conn.embeddings.create(model=model, input=text, **kwargs)
+        return self._embeddings_result(text, response)
+
+    @overload
+    async def acreate_embeddings(
+        self,
+        text: str | list[int],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float]: ...
+
+    @overload
+    async def acreate_embeddings(
+        self,
+        text: list[str] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[list[float]]: ...
+
+    async def acreate_embeddings(
+        self,
+        text: str | list[str] | list[int] | list[list[int]],
+        model: str = "text-embedding-3-small",
+        **kwargs: Any,
+    ) -> list[float] | list[list[float]]:
+        """
+        Async version of :meth:`create_embeddings`.
+
+        Each call opens and closes its own client, so for many inputs pass one batched ``text`` list.
+
+        :param text: The text to generate embeddings for.
+        :param model: The model to use for generating embeddings.
+        :return: One embedding for a single text or token array; one embedding per item for a batch.
+        """
+        async with await self.aget_conn() as client:
+            response = await client.embeddings.create(model=model, input=text, **kwargs)
+        return self._embeddings_result(text, response)
+
+    @staticmethod
+    def _embeddings_result(
+        text: str | list[str] | list[int] | list[list[int]], response: CreateEmbeddingResponse
+    ) -> list[float] | list[list[float]]:
+        """Return one vector for a single text or token array, one vector per item in input order for a batch."""
         if isinstance(text, str) or (text and isinstance(text[0], int)):
             return response.data[0].embedding
         return [item.embedding for item in sorted(response.data, key=lambda item: item.index)]

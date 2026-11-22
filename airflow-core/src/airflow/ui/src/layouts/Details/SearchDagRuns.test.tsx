@@ -28,38 +28,31 @@ import type { DagRunSearchOption } from "src/utils/option";
 
 import { SearchDagRuns } from "./SearchDagRuns";
 
-const { searched } = vi.hoisted<{ searched: { current: Array<DagRunSearchOption> } }>(() => ({
-  searched: { current: [] },
-}));
-
 // Stands in for the real combo box: it lists whatever the panel was handed without a search, and
 // offers one button that runs a search, which is the split this component is built around.
 vi.mock("chakra-react-select", () => ({
-  AsyncSelect: ({
-    defaultOptions,
-    loadOptions,
+  Select: ({
+    inputValue,
     onChange,
+    onInputChange,
+    options,
   }: {
-    readonly defaultOptions: Array<DagRunSearchOption> | true;
-    readonly loadOptions: (input: string, callback: (options: Array<DagRunSearchOption>) => void) => void;
+    readonly inputValue: string;
     readonly onChange: (option: DagRunSearchOption) => void;
+    readonly onInputChange: (value: string, meta: { action: string }) => void;
+    readonly options: Array<DagRunSearchOption>;
   }) => (
     <>
-      {(Array.isArray(defaultOptions) ? defaultOptions : []).map((option) => (
+      <input
+        aria-label="Search"
+        onChange={(event) => onInputChange(event.target.value, { action: "input-change" })}
+        value={inputValue}
+      />
+      {options.map((option) => (
         <button key={option.value} onClick={() => onChange(option)} type="button">
           {`${option.label} (${option.state})`}
         </button>
       ))}
-      <button
-        onClick={() =>
-          loadOptions("older", (options) => {
-            searched.current = options;
-          })
-        }
-        type="button"
-      >
-        Search Runs
-      </button>
     </>
   ),
 }));
@@ -123,7 +116,6 @@ const RUN_2 = "run_2 (failed)";
 
 describe("SearchDagRuns", () => {
   beforeEach(() => {
-    searched.current = [];
     vi.spyOn(DagRunService, "getDagRuns").mockResolvedValue({
       dag_runs: [buildRun("run_2")],
       total_entries: 1,
@@ -145,14 +137,14 @@ describe("SearchDagRuns", () => {
   it("reaches past the listed runs when searched", async () => {
     renderSearch("/dags/my_dag/runs/run_1", "/dags/:dagId/runs/:runId");
 
-    fireEvent.click(screen.getByRole("button", { name: "Search Runs" }));
+    fireEvent.change(screen.getByLabelText("Search"), { target: { value: "older" } });
 
     await waitFor(() =>
       expect(DagRunService.getDagRuns).toHaveBeenCalledWith(
         expect.objectContaining({ dagId: "my_dag", runIdPattern: "older" }),
       ),
     );
-    expect(searched.current).toEqual([{ label: "run_2", state: "failed", value: "run_2" }]);
+    expect(await screen.findByRole("button", { name: "run_2 (failed)" })).toBeInTheDocument();
   });
 
   it("switches to the selected run and closes the panel", () => {

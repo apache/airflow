@@ -30,7 +30,14 @@ export type CompositeFilterValue = Record<string, string>;
 // A ``boolean`` filter's value is the string ``"true"``; absent means off. Keeping it a
 // string avoids ``isValidFilterValue`` treating ``false`` as a value worth writing to the URL.
 export type FilterValue =
-  Array<string> | CompositeFilterValue | Date | DateRangeValue | number | string | null | undefined;
+  | Array<string>
+  | CompositeFilterValue
+  | Date
+  | DateRangeValue
+  | number
+  | string
+  | null
+  | undefined;
 
 export type FilterConfig = {
   readonly defaultValue?: FilterValue;
@@ -59,9 +66,9 @@ export type FilterConfig = {
   readonly options?: Array<{ label: ReactNode | string; value: string }>;
   readonly placeholder?: string;
   readonly startKey?: string;
-  // Set on text filters whose API endpoint exposes both ``*_pattern`` (substring)
+  // Set on filters whose API endpoint exposes both ``*_pattern`` (substring)
   // and ``*_prefix_pattern`` (prefix) variants. The pill renders a toggle that
-  // controls which one the consuming page uses, via ``useAdvancedSearch``.
+  // controls which one the consuming query uses, via ``useAdvancedSearch``.
   readonly supportsAdvancedSearch?: boolean;
   readonly toSearchParams?: (value: FilterValue) => Record<string, string | undefined>;
   readonly type: "boolean" | "date" | "daterange" | "multiselect" | "number" | "select" | "text";
@@ -75,9 +82,13 @@ export type FilterState = {
 
 export type FilterBarProps = {
   readonly configs: Array<FilterConfig>;
+  // Shows Reset while a filter kept outside the bar (e.g. the Dag list's folder) is active.
+  readonly hasExternalFilters?: boolean;
   readonly initialValues?: Record<string, FilterValue>;
   readonly maxVisibleFilters?: number;
   readonly onFiltersChange: (filters: Record<string, FilterValue>) => void;
+  // Replaces onFiltersChange({}) on Reset, so filters kept outside the bar clear in the same update.
+  readonly onReset?: () => void;
   // Hide the Preset Filters control where they aren't useful (e.g. a Dag run's per-run task instances).
   readonly showPresetFilters?: boolean;
 };

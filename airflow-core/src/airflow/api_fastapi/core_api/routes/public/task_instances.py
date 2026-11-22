@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Sequence
+from collections.abc import Collection, Iterable, Sequence
 from typing import Annotated, Literal, cast
 from uuid import UUID
 
@@ -118,7 +118,8 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
 )
 from airflow.api_fastapi.core_api.services.public.task_instances import (
     BulkTaskInstanceService,
-    _discard_task_state_store,
+    DependentClear,
+    ExternalClearDepthExceeded,
     _get_task_group_task_ids,
     _patch_task_group_state,
     _patch_task_instance_note,
@@ -126,6 +127,9 @@ from airflow.api_fastapi.core_api.services.public.task_instances import (
     _patch_ti_group_validate_request,
     _patch_ti_validate_request,
     _reload_tis_with_rendered_fields,
+    build_dag_clear_check,
+    clear_dependent_runs,
+    find_dependent_clears,
     patch_region_selection,
 )
 from airflow.api_fastapi.logging.decorators import action_logging
@@ -145,6 +149,7 @@ from airflow.models.taskinstance import (
     TaskInstance as TI,
     apply_loop_clear_scope,
     clear_task_instances,
+    find_relevant_relatives,
     select_loop_clear_scope,
 )
 from airflow.ti_deps.dep_context import DepContext
@@ -213,7 +218,12 @@ def get_mapped_task_instances(
     dag_bag: DagBagDep,
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory("start_date", TI, null_lower_bound_clause=TI.end_date.is_(None))
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
@@ -559,7 +569,12 @@ def get_task_instances(
     task_id: Annotated[FilterParam[str | None], Depends(filter_param_factory(TI.task_id, str | None))],
     run_after_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("run_after", TI))],
     logical_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("logical_date", TI))],
-    start_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("start_date", TI))],
+    start_date_range: Annotated[
+        RangeFilter,
+        Depends(
+            datetime_range_filter_factory("start_date", TI, null_lower_bound_clause=TI.end_date.is_(None))
+        ),
+    ],
     end_date_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("end_date", TI))],
     update_at_range: Annotated[RangeFilter, Depends(datetime_range_filter_factory("updated_at", TI))],
     duration_range: Annotated[RangeFilter, Depends(float_range_filter_factory("duration", TI))],
@@ -635,14 +650,23 @@ def get_task_instances(
     resolver: CoordinateResolverDep,
     region_id: Annotated[UUID | None, Query()] = None,
     region_index: Annotated[int | None, Query(ge=-1)] = None,
+    loop_id: Annotated[
+        str | None,
+        Query(description="Task group id of a loop; matches every instance it produced."),
+    ] = None,
+    iteration: Annotated[
+        int | None,
+        Query(
+            ge=1,
+            description="Narrow ``loop_id`` to a single pass of that loop. Iterations count from one.",
+        ),
+    ] = None,
     cursor: str | None = Query(
         None,
         description="Cursor for keyset-based pagination. "
         "Pass an empty string for the first page, then use ``next_cursor`` from the response. "
         "When ``cursor`` is provided, ``offset`` is ignored.",
     ),
-    loop_id: Annotated[str | None, Query()] = None,
-    iteration: Annotated[int | None, Query(ge=0)] = None,
 ) -> TaskInstanceCollectionResponse:
     """
     Get list of task instances.
@@ -663,7 +687,7 @@ def get_task_instances(
     use_cursor = cursor is not None
     dag_run = None
     query = add_public_map_index(eager_load_task_instance_for_validation(select(TI)))
-    if loop_id is None and iteration is not None:
+    if iteration is not None and loop_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "iteration requires loop_id")
     if loop_id is not None:
         if dag_id == "~" or dag_run_id == "~":
@@ -680,9 +704,12 @@ def get_task_instances(
     if region_index is not None and region_id is None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "region_index requires region_id")
     if region_id is not None:
+        # One meaning per filter: ``region_id`` names an exact region, and the logical scope of
+        # a loop pass -- its own region plus the expansions nested in it -- is what ``loop_id``
+        # and ``iteration`` are for.
         query = query.where(TI.region_id == region_id)
-    if region_index is not None:
-        query = query.where(TI.region_index == region_index)
+        if region_index is not None:
+            query = query.where(TI.region_index == region_index)
     if dag_run_id != "~":
         if dag_id == "~":
             raise HTTPException(
@@ -836,9 +863,9 @@ def get_task_instances_batch(
     resolver: CoordinateResolverDep,
 ) -> TaskInstanceCollectionResponse:
     """Get list of task instances."""
-    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
-    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
-    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)  # type: ignore[arg-type]
+    dag_ids = FilterParam(TI.dag_id, body.dag_ids, FilterOptionEnum.IN)
+    dag_run_ids = FilterParam(TI.run_id, body.dag_run_ids, FilterOptionEnum.IN)
+    task_ids = FilterParam(TI.task_id, body.task_ids, FilterOptionEnum.IN)
     run_after = RangeFilter(
         Range(
             lower_bound_gte=body.run_after_gte,
@@ -864,7 +891,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.start_date_lte,
             upper_bound_lt=body.start_date_lt,
         ),
-        attribute=TI.start_date,  # type: ignore[arg-type]
+        attribute=TI.start_date,
     )
     end_date = RangeFilter(
         Range(
@@ -873,7 +900,7 @@ def get_task_instances_batch(
             upper_bound_lte=body.end_date_lte,
             upper_bound_lt=body.end_date_lt,
         ),
-        attribute=TI.end_date,  # type: ignore[arg-type]
+        attribute=TI.end_date,
     )
     duration = RangeFilter(
         Range(
@@ -882,12 +909,12 @@ def get_task_instances_batch(
             upper_bound_lte=body.duration_lte,
             upper_bound_lt=body.duration_lt,
         ),
-        attribute=TI.duration,  # type: ignore[arg-type]
+        attribute=TI.duration,
     )
-    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
-    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)  # type: ignore[arg-type]
+    state = FilterParam(TI.state, body.state, FilterOptionEnum.ANY_EQUAL)
+    pool = FilterParam(TI.pool, body.pool, FilterOptionEnum.ANY_EQUAL)
+    queue = FilterParam(TI.queue, body.queue, FilterOptionEnum.ANY_EQUAL)
+    executor = FilterParam(TI.executor, body.executor, FilterOptionEnum.ANY_EQUAL)
 
     offset = OffsetFilter(body.page_offset)
     limit = LimitFilter(body.page_limit)
@@ -1090,19 +1117,20 @@ def post_clear_task_instances(
         # Unmapped tasks are expressed in their task_ids (without map_indexes)
         normal_task_ids = {t for t in task_markers_to_clear if not isinstance(t, tuple)}
 
-        def _collect_relatives(run_id: str, direction: Literal["upstream", "downstream"]) -> None:
-            from airflow.models.taskinstance import find_relevant_relatives
-
-            relevant_relatives = find_relevant_relatives(
-                normal_task_ids,
-                mapped_tasks_tuples,
+        def _find_relatives(
+            run_id: str,
+            normal_tasks: Iterable[str],
+            mapped_tasks: Iterable[tuple[str, int]],
+            direction: Literal["upstream", "downstream"],
+        ) -> Collection[str | tuple[str, int]]:
+            return find_relevant_relatives(
+                normal_tasks,
+                mapped_tasks,
                 dag=dag,
                 run_id=run_id,
                 direction=direction,
                 session=session,
             )
-            normal_task_ids.update(t for t in relevant_relatives if not isinstance(t, tuple))
-            mapped_tasks_tuples.update(t for t in relevant_relatives if isinstance(t, tuple))
 
         # We can't easily calculate upstream/downstream map indexes when not
         # working for a specific dag run. It's possible by looking at the runs
@@ -1119,10 +1147,19 @@ def post_clear_task_instances(
                 )
                 normal_task_ids.update(partial_dag.task_dict)
         else:
+            # Both directions must start from the requested tasks only. Merging upstream results
+            # before the downstream pass would also select every descendant of those upstream tasks.
+            relatives: set[str | tuple[str, int]] = set()
             if upstream:
-                _collect_relatives(dag_run_id, "upstream")
+                relatives.update(
+                    _find_relatives(dag_run_id, normal_task_ids, mapped_tasks_tuples, "upstream")
+                )
             if downstream:
-                _collect_relatives(dag_run_id, "downstream")
+                relatives.update(
+                    _find_relatives(dag_run_id, normal_task_ids, mapped_tasks_tuples, "downstream")
+                )
+            normal_task_ids.update(t for t in relatives if not isinstance(t, tuple))
+            mapped_tasks_tuples.update(t for t in relatives if isinstance(t, tuple))
 
         task_markers_to_clear = [
             *normal_task_ids,
@@ -1170,10 +1207,35 @@ def post_clear_task_instances(
             status.HTTP_404_NOT_FOUND, "Selected task execution is not current in this DAG run"
         )
 
+    include_dependent_dags = (
+        body.include_downstream if body.include_dependent_dags is None else body.include_dependent_dags
+    )
+    can_clear_dag = build_dag_clear_check(user, session=session)
+
+    def find_dependents(selection: Sequence[TI]) -> list[DependentClear]:
+        if not include_dependent_dags or not selection:
+            return []
+        try:
+            return find_dependent_clears(
+                selection,
+                dag_bag=dag_bag,
+                can_clear=can_clear_dag,
+                only_failed=body.only_failed,
+                only_running=body.only_running,
+                session=session,
+            )
+        except ExternalClearDepthExceeded as e:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(e)) from e
+
     if task_instances:
         if not dry_run:
             run_keys = {(ti.dag_id, ti.run_id) for ti in task_instances}
-            lock_dag_runs(session, run_keys, refresh=True)
+            # Runs a cascade reaches are locked in the same ordered batch as the source runs, so two clears
+            # from opposite ends of linked Dags cannot deadlock. The plan is worked out again under the lock.
+            dependent_run_keys = {
+                (clear.dag.dag_id, clear.run_id) for clear in find_dependents(task_instances)
+            }
+            lock_dag_runs(session, run_keys | dependent_run_keys, refresh=True)
             if body.task_instance_ids is None:
                 task_instances = [ti for ti in select_candidates() if (ti.dag_id, ti.run_id) in run_keys]
         task_instances = session.scalars(
@@ -1236,6 +1298,10 @@ def post_clear_task_instances(
             .execution_options(populate_existing=True)
         ).all()
 
+    dependent_clears = find_dependents(task_instances)
+    if dry_run:
+        task_instances = [*task_instances, *(ti for clear in dependent_clears for ti in clear.task_instances)]
+
     if not dry_run:
         whole_task_keys = {
             (ti.dag_id, ti.run_id, ti.task_id)
@@ -1263,6 +1329,7 @@ def post_clear_task_instances(
                         run_on_latest_version=resolved_run_on_latest,
                         prevent_running_task=body.prevent_running_task,
                         whole_task_keys=whole_task_keys,
+                        keep_task_state=body.keep_task_state,
                     )
                 task_instances = cleared
             else:
@@ -1273,20 +1340,24 @@ def post_clear_task_instances(
                     run_on_latest_version=resolved_run_on_latest,
                     prevent_running_task=body.prevent_running_task,
                     whole_task_keys=whole_task_keys,
+                    keep_task_state=body.keep_task_state,
                 )
+            if dependent_clears:
+                task_instances = [
+                    *task_instances,
+                    *clear_dependent_runs(
+                        dependent_clears,
+                        body=body,
+                        dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
+                        session=session,
+                    ),
+                ]
         except AirflowClearRunningTaskException as e:
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
         except ValueError as e:
             if not loop_aware:
                 raise
             raise HTTPException(status.HTTP_409_CONFLICT, str(e)) from e
-
-        # After the clear has succeeded, so a failed clear cannot take the task state with it.
-        # This is the only clear path that discards task state today; Dag-run clear and
-        # mark-as-failed/success (which clear downstream tasks) still keep it unconditionally.
-        # It is tracked through https://github.com/apache/airflow/issues/72929
-        if not body.keep_task_state:
-            _discard_task_state_store(task_instances, session, event="Discarded task state on clear")
 
         if body.note is not None:
             _patch_task_instance_note(

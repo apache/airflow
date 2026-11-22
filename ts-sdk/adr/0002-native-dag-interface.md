@@ -59,7 +59,7 @@ protocol substrate recorded in
 ## Example
 
 ```ts
-import { Bundle, Dag, getClient } from "apache-airflow-ts-sdk";
+import { Bundle, Dag, getClient } from "@apache-airflow/ts-sdk";
 
 const dag = new Dag("ts_etl", { schedule: "@daily", catchup: false, tags: ["etl"] });
 
