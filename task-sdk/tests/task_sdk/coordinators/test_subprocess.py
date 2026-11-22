@@ -1818,6 +1818,64 @@ class TestPopenActivitySubprocessXComBackend:
         assert _sent_body(proc)["root"] == [serialize((12, 3402.0)), 5]
 
     @pytest.mark.parametrize(
+        ("key", "response", "expected"),
+        [
+            pytest.param(
+                "skipmixin_key",
+                {"key": "skipmixin_key", "value": {"skipped": ["load"]}},
+                {"skipped": ["load"]},
+                id="skipmixin-key",
+            ),
+            pytest.param(
+                "_link_TriggerDagRunLink",
+                {"key": "_link_TriggerDagRunLink", "value": "https://example.com/link"},
+                "https://example.com/link",
+                id="extra-link-key",
+            ),
+        ],
+    )
+    def test_get_xcom_returns_the_value_as_it_is_for_keys_that_bypass_the_backend(
+        self, make_proc, key, response, expected
+    ):
+        """A key that bypasses the backend on set holds its value as it is in the row, so get must not resolve it."""
+        proc = make_proc(
+            _RefXCom, _FakeApi({("GET", f"{_XCOM_PATH}".rsplit("/", 1)[0] + f"/{key}"): (200, response)})
+        )
+
+        proc._handle_request(
+            GetXCom(key=key, dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+
+        assert _sent_body(proc).get("value") == expected
+        assert proc._xcom_backend.calls == []
+
+    def test_get_xcom_sequence_item_returns_the_value_as_it_is_for_keys_that_bypass_the_backend(
+        self, make_proc
+    ):
+        proc = make_proc(
+            _RefXCom,
+            _FakeApi(
+                {
+                    ("GET", f"{_XCOM_PATH.rsplit('/', 1)[0]}/skipmixin_key/item/0"): (
+                        200,
+                        {"skipped": ["load"]},
+                    )
+                }
+            ),
+        )
+
+        proc._handle_request(
+            GetXComSequenceItem(
+                key="skipmixin_key", dag_id="tutorial_dag", run_id="run_1", task_id="task_1", offset=0
+            ),
+            log,
+            1,
+        )
+
+        assert _sent_body(proc).get("root") == {"skipped": ["load"]}
+        assert proc._xcom_backend.calls == []
+
+    @pytest.mark.parametrize(
         ("xcom", "requests", "purged"),
         [
             pytest.param(BaseXCom, [("DELETE", _XCOM_PATH, None)], [], id="default-backend"),
