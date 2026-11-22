@@ -94,7 +94,8 @@ Keeping unrelated high-churn pods (for example Spark executors) in a separate na
 To turn it off, set ``log_events_on_startup=False``. The parameter is honoured by ``KubernetesPodOperator``,
 ``KubernetesPodTrigger``, ``@task.kubernetes`` and ``@task.kubernetes_cmd``, as well as the ``GKEStartPodOperator``
 and ``EksPodOperator`` in both synchronous and deferrable mode. In deferrable mode the opt-out
-is sent to the trigger, so the triggerer needs a provider version that knows the parameter. It is separate
+is sent to the trigger, so the triggerer needs a provider version that knows the parameter (for ``EksPodOperator``,
+the triggerer also needs a version of the Amazon provider that supports the parameter). It is separate
 from ``log_events_on_failure``, which controls the one-shot read of events after a failure.
 
 .. code-block:: python
