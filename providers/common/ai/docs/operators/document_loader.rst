@@ -95,6 +95,11 @@ including any tables nested in it, would be longer than about 1,000,000
 characters. If a skipped table is nested inside a cell, only that table is left
 out.
 
+Reading stops with a warning once the text passes about 10,000,000 characters,
+or the document has more than 1,000,000 paragraphs and table cells, including
+those in tables. The text read up to that point is kept, and the rest of the
+document is left out.
+
 .. note::
 
    Only paragraphs and tables in the document body are read. Headers, footers,

@@ -56,6 +56,34 @@ _DOCX_TABLE_MAX_COLUMNS = 1000
 # cells count too. 1M characters is about 6000 rows of 10 columns; longer tables are skipped.
 _DOCX_TABLE_MAX_CHARS = 1_000_000
 
+# Unlike the table limits above, these end the whole document: the text read so far is kept and
+# the rest is left out with a warning. Each paragraph and cell is counted as it is read, since an
+# empty one adds no text but still takes 10-30 us; real documents have up to tens of thousands.
+_DOCX_MAX_CHARS = 10_000_000
+_DOCX_MAX_PARAGRAPHS_AND_CELLS = 1_000_000
+
+
+class _DocxLimitReachedError(Exception):
+    """Stop reading a DOCX. Not a ValueError, which only skips the table being read."""
+
+
+class _DocxBudget:
+    """Count the characters, paragraphs and cells read from a DOCX against the document limits."""
+
+    def __init__(self) -> None:
+        self.chars = 0
+        self.paragraphs_and_cells = 0
+
+    def charge(self, chars: int, *, paragraphs_and_cells: int = 1) -> None:
+        self.chars += chars
+        self.paragraphs_and_cells += paragraphs_and_cells
+        if self.chars > _DOCX_MAX_CHARS:
+            raise _DocxLimitReachedError(f"its text exceeds {_DOCX_MAX_CHARS} characters")
+        if self.paragraphs_and_cells > _DOCX_MAX_PARAGRAPHS_AND_CELLS:
+            raise _DocxLimitReachedError(
+                f"it has more than {_DOCX_MAX_PARAGRAPHS_AND_CELLS} paragraphs and table cells"
+            )
+
 
 class DocumentLoaderOperator(BaseOperator):
     """
@@ -483,19 +511,24 @@ class DocumentLoaderOperator(BaseOperator):
             raise AirflowOptionalProviderFeatureException(e)
 
         doc = Document(stream)
+        budget = _DocxBudget()
         blocks = []
-        for block in doc.iter_inner_content():
-            if isinstance(block, Table):
-                rows = self._get_docx_table_rows_or_none(
-                    block, Table, _Cell, InvalidXmlError, source_hint=source_hint
-                )
-                if rows is None:
-                    continue
-                text = "\n".join(f"| {' | '.join(cells)} |" for cells in rows)
-            else:
-                text = block.text
-            if text.strip():
-                blocks.append(text)
+        try:
+            for block in doc.iter_inner_content():
+                if isinstance(block, Table):
+                    rows = self._get_docx_table_rows_or_none(
+                        block, Table, _Cell, InvalidXmlError, budget=budget, source_hint=source_hint
+                    )
+                    if rows is None:
+                        continue
+                    text = "\n".join(f"| {' | '.join(cells)} |" for cells in rows)
+                else:
+                    text = block.text
+                    budget.charge(len(text))
+                if text.strip():
+                    blocks.append(text)
+        except _DocxLimitReachedError as e:
+            self.log.warning("Stopped reading %s because %s; the rest is left out.", source_hint, e)
         text = "\n\n".join(blocks)
         return [{"text": text, "metadata": {}}]
 
@@ -506,11 +539,12 @@ class DocumentLoaderOperator(BaseOperator):
         cell_cls: type[_Cell],
         invalid_xml_error_cls: type[InvalidXmlError],
         *,
+        budget: _DocxBudget,
         source_hint: str,
     ) -> list[list[str]] | None:
         try:
             return self._get_docx_table_rows(
-                table, table_cls, cell_cls, invalid_xml_error_cls, source_hint=source_hint
+                table, table_cls, cell_cls, invalid_xml_error_cls, budget=budget, source_hint=source_hint
             )
         except (ValueError, invalid_xml_error_cls) as e:
             # ValueError covers a w:vMerge continuation that does not line up with a cell above,
@@ -529,6 +563,7 @@ class DocumentLoaderOperator(BaseOperator):
         cell_cls: type[_Cell],
         invalid_xml_error_cls: type[InvalidXmlError],
         *,
+        budget: _DocxBudget,
         source_hint: str,
     ) -> list[list[str]]:
         # w:gridBefore and w:gridAfter come straight from the XML and can be any integer, so the
@@ -582,12 +617,16 @@ class DocumentLoaderOperator(BaseOperator):
                             f"w:vMerge continuation of cell {index} does not line up with a cell above it"
                         )
                     text = above[offset][0]
+                    # The repeated text was counted where it was read, but appears again here.
+                    budget.charge(len(text))
                 else:
+                    budget.charge(0)
                     text = self._get_docx_cell_text(
                         cell_cls(tc, table),
                         table_cls,
                         cell_cls,
                         invalid_xml_error_cls,
+                        budget=budget,
                         source_hint=source_hint,
                     )
                 current[offset] = (text, span)
@@ -599,6 +638,7 @@ class DocumentLoaderOperator(BaseOperator):
             # Merges starting in a row that is left out for being empty still continue below it.
             above = current
             if any(cells):
+                budget.charge(3 * len(cells), paragraphs_and_cells=0)
                 char_count += sum(map(len, cells)) + 3 * len(cells)
                 if char_count > _DOCX_TABLE_MAX_CHARS:
                     raise ValueError(
@@ -614,13 +654,14 @@ class DocumentLoaderOperator(BaseOperator):
         cell_cls: type[_Cell],
         invalid_xml_error_cls: type[InvalidXmlError],
         *,
+        budget: _DocxBudget,
         source_hint: str,
     ) -> str:
         parts = []
         for item in cell.iter_inner_content():
             if isinstance(item, table_cls):
                 rows = self._get_docx_table_rows_or_none(
-                    item, table_cls, cell_cls, invalid_xml_error_cls, source_hint=source_hint
+                    item, table_cls, cell_cls, invalid_xml_error_cls, budget=budget, source_hint=source_hint
                 )
                 if rows is None:
                     continue
@@ -629,6 +670,7 @@ class DocumentLoaderOperator(BaseOperator):
                 if TYPE_CHECKING:
                     assert isinstance(item, Paragraph)
                 text = " ".join(item.text.split())
+                budget.charge(len(text))
             if text:
                 parts.append(text)
         return " ".join(parts)

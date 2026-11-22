@@ -657,6 +657,70 @@ class TestDocxParser:
             "ValueError('the table text exceeds the maximum of 20 characters')"
         ) in caplog.messages
 
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_MAX_CHARS", 12)
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_MAX_PARAGRAPHS_AND_CELLS", 5)
+    @pytest.mark.parametrize(
+        ("blocks", "expected", "reason"),
+        [
+            pytest.param(
+                ("aaaa", "bbbb", "cccc", "dddd"),
+                "aaaa\n\nbbbb\n\ncccc",
+                "its text exceeds 12 characters",
+                id="text-over-limit",
+            ),
+            # 4 + 3 + 3 separators + 3 is over the limit in the table's second row, and the
+            # paragraph after the table is left out too.
+            pytest.param(
+                ("keep", [["abc"], ["abc"]], "after"),
+                "keep",
+                "its text exceeds 12 characters",
+                id="text-over-limit-inside-table",
+            ),
+            pytest.param(
+                ("", "", "", "", "", "late"),
+                "",
+                "it has more than 5 paragraphs and table cells",
+                id="empty-paragraphs-over-limit",
+            ),
+            pytest.param(
+                ([["a", "b", "c"]],),
+                "",
+                "it has more than 5 paragraphs and table cells",
+                id="cells-and-their-paragraphs-over-limit",
+            ),
+        ],
+    )
+    def test_docx_document_over_limit_stops_with_warning(self, blocks, expected, reason, caplog):
+        assert _load_docx_text(_build_docx_bytes(*blocks)) == expected
+        assert f"Stopped reading <bytes:.docx> because {reason}; the rest is left out." in caplog.messages
+
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_MAX_CHARS", 12)
+    def test_docx_repeated_merge_text_counts_toward_document_limit(self):
+        doc = _create_docx()
+        doc.add_paragraph("keep")
+        # 4 + 2 + 3, then the merge repeats "ab" on the second row: + 2 + 3.
+        merged = doc.add_table(rows=2, cols=1)
+        merged.cell(0, 0).merge(merged.cell(1, 0)).text = "ab"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == "keep"
+
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_MAX_CHARS", 10)
+    @patch.object(
+        DocumentLoaderOperator,
+        "_get_docx_table_rows",
+        autospec=True,
+        side_effect=DocumentLoaderOperator._get_docx_table_rows,
+    )
+    def test_docx_document_limit_stops_inside_a_cell_before_its_other_tables(self, read_table):
+        doc = _create_docx()
+        cell = doc.add_table(rows=1, cols=1).cell(0, 0)
+        for _ in range(5):
+            cell.add_table(rows=1, cols=1).cell(0, 0).text = "aaaa"
+
+        assert _load_docx_text(_get_docx_bytes(doc)) == ""
+        # The outer table and the first two nested ones: the second nested table goes over 10.
+        assert read_table.call_count == 3
+
     def test_docx_vmerge_continuation_lines_up_after_capped_grid_before(self):
         doc = _create_docx()
         table = doc.add_table(rows=2, cols=2)
