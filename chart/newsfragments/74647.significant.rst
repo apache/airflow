@@ -1,10 +1,15 @@
-Default PgBouncer image updated to PgBouncer 1.25.2 and PgBouncer exporter image to 0.21.0
+Default PgBouncer image updated to PgBouncer 1.26.1 and PgBouncer exporter image to 0.22.0
 
-The default PgBouncer image is now ``airflow-pgbouncer-2026.10.13-1.25.2``, previously it was
-``airflow-pgbouncer-2026.04.17-1.23.1``. It fixes CVE-2026-6664, CVE-2026-6665, CVE-2026-6666 and
-CVE-2026-6667. The default PgBouncer exporter image is now ``airflow-pgbouncer-exporter-2026.10.13-0.21.0``,
-previously it was ``airflow-pgbouncer-exporter-2026.04.17-0.18.0``, built with Go 1.27.2. Exporter
-0.21.0 is required to scrape PgBouncer 1.24 and later; its metric names are unchanged.
+The default PgBouncer image is now ``airflow-pgbouncer-2026.11.22-1.26.1``, previously it was
+``airflow-pgbouncer-2025.03.05-1.23.1``. It fixes CVE-2026-6664, CVE-2026-6665, CVE-2026-6666,
+CVE-2026-6667, CVE-2026-19888, CVE-2026-6668, CVE-2026-6669, CVE-2026-107348, CVE-2026-107349 and
+CVE-2026-107350. The default PgBouncer exporter image is now
+``airflow-pgbouncer-exporter-2026.11.22-0.22.0``, previously it was
+``airflow-pgbouncer-exporter-2025.03.05-0.18.0``, built with Go 1.27.2. Exporter 0.22.0
+(`jbub/pgbouncer_exporter#35`_) is required to scrape PgBouncer 1.26.x; 0.21.0 only returned
+``build_info`` against 1.26. Metric names are unchanged.
+
+.. _`jbub/pgbouncer_exporter#35`: https://github.com/jbub/pgbouncer_exporter/pull/35
 
 PgBouncer 1.24 and 1.25 change some behaviour:
 
@@ -15,5 +20,16 @@ PgBouncer 1.24 and 1.25 change some behaviour:
 * ``KILL_CLIENT`` is restricted to users listed in ``admin_users`` (CVE-2026-6667).
 * A custom ``auth_query`` must take the password's ``VALID UNTIL`` into account (CVE-2025-2291).
 
-The first three are defaults, and the previous values can be restored through ``pgbouncer.extraIni``.
-The last three need no action: the old name still works, and the two security fixes cannot be turned off.
+PgBouncer 1.26 changes some further behaviour:
+
+* On PostgreSQL 18 and above, ``search_path`` is now tracked per client in transaction pooling
+  by default. To restore the 1.25 behaviour, add
+  ``ignore_startup_parameters = extra_float_digits, search_path`` to ``pgbouncer.extraIni``
+  (the chart already emits ``extra_float_digits``; the value must be kept).
+* The legacy online-restart flags ``-R``, ``SUSPEND``, and ``SHOW FDS`` are removed.
+* Passwords in ``auth_file`` can now be up to 65535 bytes, matching libpq. Earlier versions
+  rejected entries longer than 2047 characters (``password too long in auth file``), which
+  broke long cloud IAM tokens.
+
+The 1.24/1.25 defaults can be restored through ``pgbouncer.extraIni``. The security fixes and the
+removal of ``-R``/``SUSPEND``/``SHOW FDS`` cannot be turned off.
