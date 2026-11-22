@@ -1714,9 +1714,14 @@ class ActivitySubprocess(WatchedSubprocess):
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
         use_exec = target is _subprocess_main and task_process_uses_exec()
-        gc_frozen = target is _subprocess_main and not use_exec
-        if gc_frozen:
+        bare_fork = target is _subprocess_main and not use_exec
+        if bare_fork:
             _import_task_runner_before_fork()
+        # Only freeze when nothing is frozen yet: ``gc.unfreeze()`` releases the entire permanent
+        # generation, so unfreezing in ``wait()`` would undo the freeze that LocalExecutor and
+        # Celery workers inherit from their parent process.
+        gc_frozen = bare_fork and gc.get_freeze_count() == 0
+        if gc_frozen:
             # A GC pass in either process writes to the headers of the objects the task process
             # inherits, which splits the pages both processes share copy-on-write. ``wait()``
             # unfreezes once the task process exits, so a worker that supervises many tasks in one
