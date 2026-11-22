@@ -157,12 +157,12 @@ class DurableStorage:
 
     def delete_steps(self, keys: Iterable[str]) -> None:
         """Remove these steps, and the journal file once nothing is left in it."""
-        cache = self._load_cache()
-        for key in keys:
-            cache.pop(key, None)
         # Runs after the run has already succeeded, so it must never raise; a file left
         # behind holds only steps a retry of this run would replay.
         try:
+            cache = self._load_cache()
+            for key in keys:
+                cache.pop(key, None)
             if cache:
                 self._write(json.dumps(cache))
             else:

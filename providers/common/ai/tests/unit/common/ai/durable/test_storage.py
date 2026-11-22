@@ -120,6 +120,20 @@ class TestSaveLoad:
 
 
 class TestDeleteSteps:
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
+    @patch.object(
+        DurableStorage,
+        "_load_cache",
+        autospec=True,
+        side_effect=DurableJournalError("the journal is corrupt"),
+    )
+    def test_a_corrupt_journal_does_not_make_cleanup_raise(self, _, mock_log, storage):
+        storage.delete_steps(["a"])
+
+        mock_log.warning.assert_called_once_with(
+            "Durable: could not clean up the journal file", exc_info=True
+        )
+
     @pytest.mark.parametrize("journal_exists", [True, False])
     @patch.object(ObjectStoragePath, "read_text", autospec=True, side_effect=OSError("S3 is unavailable"))
     def test_saving_after_cleanup_does_not_read_storage(self, mock_read, storage, journal_exists):

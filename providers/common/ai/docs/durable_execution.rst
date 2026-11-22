@@ -177,10 +177,12 @@ addition to permissions to read, write, and delete journal objects. Without
 when the journal does not exist. This is treated as a storage read failure, so even
 the first task attempt fails. Read failures stop the attempt to avoid repeating
 completed LLM calls or tool operations when an existing journal cannot be read.
+They raise the original storage error, so Airflow retries them according to the
+task's configured retry policy.
 
-A corrupt journal also fails the task attempt and is left unchanged. Retrying alone
-does not repair it: the ``path`` field on the ``Durable: journal is corrupt`` task-log
-warning names the file to inspect and restore before retrying. Deleting it allows
+A corrupt journal also fails the task attempt and is left unchanged, but Airflow does
+not retry it. The ``path`` field on the ``Durable: journal is corrupt`` task-log warning
+names the file to inspect and restore before running the task again. Deleting it allows
 completed LLM calls and tool operations to run again.
 
 .. _durable-replay:
