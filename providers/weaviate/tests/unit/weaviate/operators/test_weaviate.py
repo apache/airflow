@@ -25,6 +25,7 @@ pytest.importorskip("weaviate")
 from airflow.providers.weaviate.operators.weaviate import (
     WeaviateDocumentIngestOperator,
     WeaviateIngestOperator,
+    WeaviateSwapAliasOperator,
 )
 
 from tests_common.test_utils.taskinstance import render_template_fields
@@ -209,3 +210,72 @@ class TestWeaviateDocumentIngestOperator:
         for ti in tis:
             rendered = render_template_fields(ti, task.unmap({"input_data": {}}))
             assert rendered.hook_params == {"baz": "biz"}
+
+
+class TestWeaviateSwapAliasOperator:
+    @staticmethod
+    def make_operator(**kwargs):
+        operator = WeaviateSwapAliasOperator(
+            task_id="swap_alias",
+            conn_id="weaviate_conn",
+            alias_name="Docs",
+            target_collection="Docs_v2",
+            **kwargs,
+        )
+        operator.hook.get_alias = MagicMock(return_value=None)
+        operator.hook.create_alias = MagicMock()
+        operator.hook.update_alias = MagicMock(return_value=True)
+        operator.hook.delete_collections = MagicMock()
+        return operator
+
+    def test_creates_missing_alias(self):
+        operator = self.make_operator()
+
+        assert operator.execute(context=None) is None
+
+        operator.hook.create_alias.assert_called_once_with("Docs", "Docs_v2")
+        operator.hook.update_alias.assert_not_called()
+
+    def test_missing_alias_raises_without_create_if_missing(self):
+        operator = self.make_operator(create_if_missing=False)
+
+        with pytest.raises(ValueError, match="does not exist"):
+            operator.execute(context=None)
+
+        operator.hook.create_alias.assert_not_called()
+
+    def test_alias_already_on_target_is_a_no_op(self):
+        operator = self.make_operator(delete_previous_collection=True)
+        operator.hook.get_alias.return_value = MagicMock(collection="Docs_v2")
+
+        assert operator.execute(context=None) == "Docs_v2"
+
+        operator.hook.update_alias.assert_not_called()
+        operator.hook.delete_collections.assert_not_called()
+
+    def test_swaps_alias_and_keeps_previous_collection_by_default(self):
+        operator = self.make_operator()
+        operator.hook.get_alias.return_value = MagicMock(collection="Docs_v1")
+
+        assert operator.execute(context=None) == "Docs_v1"
+
+        operator.hook.update_alias.assert_called_once_with("Docs", "Docs_v2")
+        operator.hook.delete_collections.assert_not_called()
+
+    def test_deletes_previous_collection_after_swap(self):
+        operator = self.make_operator(delete_previous_collection=True)
+        operator.hook.get_alias.return_value = MagicMock(collection="Docs_v1")
+
+        operator.execute(context=None)
+
+        operator.hook.delete_collections.assert_called_once_with("Docs_v1")
+
+    def test_raises_when_alias_disappears_before_update(self):
+        operator = self.make_operator(delete_previous_collection=True)
+        operator.hook.get_alias.return_value = MagicMock(collection="Docs_v1")
+        operator.hook.update_alias.return_value = False
+
+        with pytest.raises(RuntimeError, match="disappeared"):
+            operator.execute(context=None)
+
+        operator.hook.delete_collections.assert_not_called()

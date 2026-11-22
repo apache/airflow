@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     import pandas as pd
+    from weaviate.aliases.alias import AliasReturn
     from weaviate.auth import AuthCredentials
     from weaviate.collections import Collection
     from weaviate.collections.classes.batch import ErrorReference
@@ -335,6 +336,55 @@ class WeaviateHook(BaseHook):
         """Update the collection configuration."""
         collection = self.get_collection(collection_name)
         collection.config.update(**kwargs)
+
+    def create_alias(self, alias_name: str, target_collection: str) -> None:
+        """
+        Create an alias that points to a collection.
+
+        Queries can use the alias in place of the collection name. Requires Weaviate 1.32 or later.
+
+        :param alias_name: The name of the alias to create.
+        :param target_collection: The name of the collection the alias points to.
+        """
+        self.conn.alias.create(alias_name=alias_name, target_collection=target_collection)
+
+    def get_alias(self, alias_name: str) -> AliasReturn | None:
+        """
+        Get an alias by name.
+
+        :param alias_name: The name of the alias.
+        :return: The alias and the collection it points to, or ``None`` if the alias does not exist.
+        """
+        return self.conn.alias.get(alias_name=alias_name)
+
+    def list_aliases(self, collection_name: str | None = None) -> dict[str, AliasReturn]:
+        """
+        List aliases, keyed by alias name.
+
+        :param collection_name: Only list the aliases that point to this collection. Lists all aliases if not set.
+        """
+        return self.conn.alias.list_all(collection=collection_name)
+
+    def update_alias(self, alias_name: str, target_collection: str) -> bool:
+        """
+        Point an existing alias to a different collection.
+
+        The switch is atomic, so queries that use the alias move to the new collection without downtime.
+
+        :param alias_name: The name of the alias to update.
+        :param target_collection: The name of the collection the alias should point to.
+        :return: ``True`` if the alias was updated, ``False`` if it does not exist.
+        """
+        return self.conn.alias.update(alias_name=alias_name, new_target_collection=target_collection)
+
+    def delete_alias(self, alias_name: str) -> bool:
+        """
+        Delete an alias. The collection it points to is not affected.
+
+        :param alias_name: The name of the alias to delete.
+        :return: ``True`` if the alias was deleted, ``False`` if it does not exist.
+        """
+        return self.conn.alias.delete(alias_name=alias_name)
 
     @staticmethod
     def _convert_dataframe_to_list(data: list[dict[str, Any]] | pd.DataFrame | None) -> list[dict[str, Any]]:

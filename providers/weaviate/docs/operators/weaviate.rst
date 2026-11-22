@@ -58,3 +58,27 @@ An example using the operator to ingest data without vectors retrieved from a py
     :language: python
     :start-after: [START howto_operator_weaviate_ingest_callable_data_without_vectors]
     :end-before: [END howto_operator_weaviate_ingest_callable_data_without_vectors]
+
+.. _howto/operator:WeaviateSwapAliasOperator:
+
+WeaviateSwapAliasOperator
+=========================
+
+Use the :class:`~airflow.providers.weaviate.operators.weaviate.WeaviateSwapAliasOperator` to point a
+Weaviate alias to a collection. Applications that query the alias instead of the collection name can then
+be moved to a freshly built collection without downtime: load and embed the data into a new collection,
+then swap the alias to it. The alias is created if it does not exist. Aliases require Weaviate 1.32 or later.
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+The operator requires ``alias_name`` and ``target_collection``. Set ``delete_previous_collection=True`` to
+delete the collection the alias pointed to before, once the swap has succeeded. The operator returns the
+name of that previous collection, so a later task can use it from XCom.
+
+An example swapping an alias to a re-indexed collection and deleting the old one:
+
+.. exampleinclude:: /../../weaviate/tests/system/weaviate/example_weaviate_swap_alias.py
+    :language: python
+    :start-after: [START howto_operator_weaviate_swap_alias]
+    :end-before: [END howto_operator_weaviate_swap_alias]
