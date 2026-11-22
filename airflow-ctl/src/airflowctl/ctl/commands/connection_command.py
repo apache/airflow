@@ -47,6 +47,7 @@ def _build_connection_body(connection_id: str, details: dict[str, Any], filename
             port=details.get("port"),
             extra=details.get("extra"),
             description=details.get("description", ""),
+            team_name=details.get("team_name"),
             **({"schema": details["schema"]} if "schema" in details else {}),
         )
     except ValidationError as e:
