@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import uuid
+from contextlib import contextmanager
 from datetime import timedelta
 from typing import Any
 from unittest import mock
@@ -25,7 +26,7 @@ import jwt
 import pytest
 import time_machine
 from pydantic import BaseModel
-from sqlalchemy import update
+from sqlalchemy import event, select, update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
@@ -42,7 +43,8 @@ from airflow.callbacks.callback_requests import (
     EmailRequest,
     TaskCallbackRequest,
 )
-from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, START_DEADLINE_KEY
+from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, HEARTBEAT_SUPPORTED_KEY
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
@@ -51,8 +53,10 @@ from airflow.models.callback import (
     ExecutorCallback,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.deadline import Deadline
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import SyncCallback
+from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -65,6 +69,26 @@ pytestmark = pytest.mark.db_test
 def sync_callback():
     """Empty (sync) callable used for unit tests"""
     pass
+
+
+@contextmanager
+def _interleave_before_callback_update(session, action):
+    interleaved = False
+
+    def run_before_update(conn, cursor, statement, parameters, context, executemany):
+        nonlocal interleaved
+        if not interleaved and context.isupdate and context.compiled.statement.table.name == "callback":
+            interleaved = True
+            with create_session(scoped=False) as scheduler_session:
+                action(scheduler_session)
+
+    bind = session.get_bind()
+    event.listen(bind, "before_cursor_execute", run_before_update)
+    try:
+        yield
+    finally:
+        event.remove(bind, "before_cursor_execute", run_before_update)
+    assert interleaved
 
 
 @pytest.fixture(autouse=True)
@@ -80,7 +104,7 @@ def queued_callback(session):
         callback_def=SyncCallback(sync_callback, kwargs={}),
         fetch_method=CallbackFetchMethod.IMPORT_PATH,
     )
-    callback.data["dag_id"] = "test_dag"
+    callback.data |= {"dag_id": "test_dag", HEARTBEAT_SUPPORTED_KEY: True}
     callback.state = CallbackState.QUEUED
     session.add(callback)
     session.commit()
@@ -171,6 +195,28 @@ def other_callback(make_running_callback):
 
 
 class TestUpdateCallbackState:
+    @pytest.mark.backend("sqlite")
+    def test_late_success_keeps_the_schedulers_failure(self, client, session, running_callback):
+        callback_id = running_callback.id
+
+        def fail_in_scheduler(scheduler_session):
+            scheduler_session.execute(
+                update(Callback)
+                .where(Callback.id == callback_id, Callback.state == CallbackState.RUNNING)
+                .values(state=CallbackState.FAILED, state_deadline=None, output="worker timed out")
+            )
+
+        with _interleave_before_callback_update(session, fail_in_scheduler):
+            response = client.patch(
+                f"/execution/callbacks/{callback_id}/state",
+                json={"state": "success", "output": "late success"},
+            )
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["previous_state"] == CallbackState.FAILED
+        session.refresh(running_callback)
+        assert (running_callback.state, running_callback.output) == (CallbackState.FAILED, "worker timed out")
+
     @pytest.mark.parametrize(
         ("state", "output"),
         [
@@ -182,6 +228,8 @@ class TestUpdateCallbackState:
     def test_running_callback_reaches_its_terminal_state(
         self, client, session, running_callback, state, output
     ):
+        running_callback.state_deadline = NOW + timedelta(minutes=1)
+        session.commit()
         body = {"state": state}
         if output is not None:
             body["output"] = output
@@ -192,6 +240,7 @@ class TestUpdateCallbackState:
         session.expire_all()
         session.refresh(running_callback)
         assert running_callback.state == state
+        assert running_callback.state_deadline is None
         assert running_callback.output == output
 
     @pytest.mark.parametrize("state", ["success", "failed"])
@@ -379,6 +428,35 @@ def _add_routed_callback(session, request, state=CallbackState.RUNNING) -> Callb
 
 
 class TestRunCallbackStartDeadline:
+    @pytest.mark.backend("sqlite")
+    def test_scheduler_replaces_callback_between_admission_read_and_write(self, client, session):
+        callback = _add_routed_callback(
+            session,
+            DagCallbackRequest(**REQUEST_FIELDS, dag_id="test_dag", run_id="test_run"),
+            state=CallbackState.QUEUED,
+        )
+        callback_id = callback.id
+
+        def replace_in_scheduler(scheduler_session):
+            original = scheduler_session.get_one(Callback, callback_id)
+            assert SchedulerJobRunner._replace_unstarted_callback(
+                original, "executor reported a launch failure", session=scheduler_session
+            )
+
+        with _interleave_before_callback_update(session, replace_in_scheduler):
+            response = client.patch(f"/execution/callbacks/{callback_id}/run", json=WORKER)
+
+        assert response.status_code == 409
+        assert response.json()["detail"]["previous_state"] == CallbackState.FAILED
+        assert "Refreshed-API-Token" not in response.headers
+        session.refresh(callback)
+        assert callback.state == CallbackState.FAILED
+        assert callback.started_at is None
+        replacement = session.scalars(
+            select(ExecutorCallback).where(ExecutorCallback.id != callback.id)
+        ).one()
+        assert replacement.state == CallbackState.SCHEDULED
+
     @time_machine.travel(NOW, tick=False)
     @pytest.mark.parametrize(
         ("deadline_offset", "expected_status", "expected_state"),
@@ -391,10 +469,7 @@ class TestRunCallbackStartDeadline:
     def test_run_honors_start_deadline(
         self, client, session, queued_callback, deadline_offset, expected_status, expected_state
     ):
-        queued_callback.data = {
-            **queued_callback.data,
-            START_DEADLINE_KEY: (NOW + deadline_offset).isoformat(),
-        }
+        queued_callback.state_deadline = NOW + deadline_offset
         session.commit()
 
         response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
@@ -421,15 +496,25 @@ class TestRunCallbackIdentityClaims:
         yield
         clear_db_runs()
 
-    def test_run_signs_the_dag_run_and_bundle_of_the_callback(self, client, session, dag_maker):
+    @pytest.mark.parametrize("has_snapshot", [True, False], ids=["captured-run", "legacy-deadline-link"])
+    def test_run_signs_the_dag_run_and_bundle_of_the_callback(self, client, session, dag_maker, has_snapshot):
         with dag_maker("test_dag", session=session):
             EmptyOperator(task_id="test_task")
         dag_run = dag_maker.create_dagrun(run_id="test_run")
-        callback = ExecutorCallback(
-            callback_def=SyncCallback(sync_callback, kwargs={}),
-            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+        deadline = Deadline(
+            deadline_time=NOW,
+            callback=SyncCallback(sync_callback),
+            dagrun_id=dag_run.id,
+            deadline_alert_id=None,
         )
-        callback.data |= {"dag_id": "test_dag", "dag_run_id": dag_run.id}
+        callback = deadline.callback
+        callback.data |= {"dag_id": "test_dag", "dag_run_id": str(dag_run.id)}
+        if has_snapshot:
+            callback.data["kwargs"] = {
+                "context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "test_run"}}
+            }
+        else:
+            session.add(deadline)
         callback.bundle_name = "testing"
         callback.state = CallbackState.QUEUED
         session.add(callback)
@@ -460,6 +545,7 @@ class TestRunCallbackIdentityClaims:
             ),
             pytest.param(TaskCallbackRequest(**REQUEST_FIELDS, ti=TI), id="task"),
             pytest.param(EmailRequest(**REQUEST_FIELDS, ti=TI, context_from_server=TI_CONTEXT), id="email"),
+            pytest.param(None, id="deadline"),
         ],
     )
     @pytest.mark.parametrize(
@@ -491,7 +577,15 @@ class TestRunCallbackIdentityClaims:
         session.add_all([previous, original])
         session.flush()
         original_id = original.id
-        callback = _add_routed_callback(session, request_, state=CallbackState.QUEUED)
+        if request_ is None:
+            callback = ExecutorCallback(SyncCallback(sync_callback), CallbackFetchMethod.IMPORT_PATH)
+            callback.state = CallbackState.QUEUED
+            callback.data["kwargs"] = {
+                "context": {"dag_run": {"dag_id": "test_dag", "dag_run_id": "test_run"}}
+            }
+            session.add(callback)
+        else:
+            callback = _add_routed_callback(session, request_, state=CallbackState.QUEUED)
         callback.data = {**callback.data, "dag_id": "test_dag", "dag_run_id": original_id}
         session.delete(original)
         session.commit()
@@ -535,11 +629,15 @@ class TestRunCallbackRetriedExchange:
         url = f"/execution/callbacks/{queued_callback.id}/run"
 
         with time_machine.travel(NOW, tick=False) as clock:
-            first = client.patch(url, json=WORKER)
+            first = client.patch(url, json=WORKER, headers={"Prefer": "callback-heartbeat"})
             clock.shift(timedelta(seconds=30))
             retried = client.patch(url, json=WORKER)
 
         assert first.status_code == retried.status_code == 204
+        assert (
+            first.headers["Airflow-Callback-Heartbeat-Timeout"]
+            == retried.headers["Airflow-Callback-Heartbeat-Timeout"]
+        )
         payload = jwt.decode(retried.headers["Refreshed-API-Token"], options={"verify_signature": False})
         assert payload["sub"] == str(queued_callback.id)
         assert payload["scope"] == "execution"
@@ -548,6 +646,26 @@ class TestRunCallbackRetriedExchange:
         assert callback.state == CallbackState.RUNNING
         assert callback.started_by == WORKER
         assert callback.started_at == NOW
+
+    @pytest.mark.parametrize(
+        ("state", "fetch_method", "lease"),
+        [
+            (CallbackState.RUNNING, CallbackFetchMethod.IMPORT_PATH, None),
+            (CallbackState.SUCCESS, CallbackFetchMethod.IMPORT_PATH, NOW),
+            (CallbackState.RUNNING, CallbackFetchMethod.DAG_ATTRIBUTE, NOW),
+        ],
+    )
+    def test_heartbeat_cannot_extend_an_unmonitored_terminal_or_routed_callback(
+        self, client, session, queued_callback, state, fetch_method, lease
+    ):
+        queued_callback.state = state
+        queued_callback.fetch_method = fetch_method
+        queued_callback.state_deadline = lease
+        session.commit()
+        response = client.put(f"/execution/callbacks/{queued_callback.id}/heartbeat")
+        assert response.status_code == 409
+        session.refresh(queued_callback)
+        assert queued_callback.state_deadline == lease
 
     @pytest.mark.parametrize(
         "retry_body",
@@ -804,8 +922,9 @@ def test_context_requires_the_exchanged_token(client, session, token_sub, token_
         pytest.param("self", "callback", 403, id="callback-scope-token-rejected"),
     ],
 )
-def test_state_validates_token_scope_and_sub(
-    client, running_callback, other_callback, token_sub, token_scope, expected_status
+@pytest.mark.parametrize("path", ["state", "heartbeat"])
+def test_worker_updates_validate_token_scope_and_sub(
+    client, session, running_callback, other_callback, token_sub, token_scope, expected_status, path
 ):
     """
     Reporting state needs the execution token minted by /run, not the admission ticket.
@@ -831,5 +950,10 @@ def test_state_validates_token_scope_and_sub(
     }
     lifespan.registry.register_value(JWTValidator, validator)
 
-    resp = client.patch(f"/execution/callbacks/{running_callback.id}/state", json={"state": "success"})
+    if path == "heartbeat":
+        running_callback.state_deadline = timezone.utcnow() + timedelta(minutes=5)
+        session.commit()
+        resp = client.put(f"/execution/callbacks/{running_callback.id}/heartbeat")
+    else:
+        resp = client.patch(f"/execution/callbacks/{running_callback.id}/state", json={"state": "success"})
     assert resp.status_code == expected_status, resp.json()

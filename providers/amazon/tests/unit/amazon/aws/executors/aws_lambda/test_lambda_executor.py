@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
+import sys
 from unittest import mock
 from uuid import uuid4
 
@@ -93,6 +95,25 @@ def _generate_mock_cmd():
 @pytest.fixture
 def mock_cmd():
     return _generate_mock_cmd()
+
+
+@pytest.fixture
+def callback_workload():
+    from airflow.executors.workloads import ExecuteCallback
+    from airflow.executors.workloads.base import BundleInfo
+    from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
+
+    return ExecuteCallback(
+        callback=CallbackDTO(
+            id=str(uuid4()),
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.module.alert_func", "kwargs": {}},
+        ),
+        dag_rel_path="test.py",
+        bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+        token="test_token",
+        log_path="test.log",
+    )
 
 
 @pytest.fixture
@@ -176,7 +197,7 @@ class TestAwsLambdaExecutor:
         self, mock_executor, queue_url, result, retry_delete
     ):
         callback_key = CallbackKey(str(uuid4()))
-        transport_key = str(callback_key)
+        transport_key = f"callback:{callback_key}"
         mock_executor.running_workloads[transport_key] = callback_key
         mock_executor.running.add(callback_key)
 
@@ -191,8 +212,8 @@ class TestAwsLambdaExecutor:
             ]
         }
         responses = [{}, response] if queue_url == DEFAULT_DLQ_URL else [response]
-        mock_executor.sqs_client.receive_message.side_effect = responses * (2 if retry_delete else 1)
         if retry_delete:
+            mock_executor.sqs_client.receive_message.side_effect = responses
             mock_executor.sqs_client.delete_message.side_effect = [
                 ClientError({"Error": {"Code": "InternalError", "Message": "Try again"}}, "DeleteMessage"),
                 None,
@@ -202,10 +223,11 @@ class TestAwsLambdaExecutor:
             assert transport_key in mock_executor._released_callbacks
             assert not mock_executor.event_buffer
 
+        mock_executor.sqs_client.receive_message.side_effect = [*responses, {}]
         mock_executor.sync_running_workloads()
 
         assert not mock_executor.running_workloads
-        assert not mock_executor._released_callbacks
+        assert (transport_key in mock_executor._released_callbacks) is (result.get("return_code") != 0)
         assert not mock_executor.running
         assert not mock_executor.event_buffer
         assert mock_executor.slots_available == mock_executor.parallelism
@@ -379,7 +401,7 @@ class TestAwsLambdaExecutor:
         mock_executor.attempt_workload_runs()
         mock_executor.lambda_client.invoke.assert_called_once()
         payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
-        assert payload["task_key"] == str(callback_id)
+        assert payload["task_key"] == f"callback:{callback_id}"
         assert payload["command"] == [
             "python",
             "-m",
@@ -390,7 +412,133 @@ class TestAwsLambdaExecutor:
 
         # Callback is stored in running workloads.
         assert len(mock_executor.running_workloads) == 1
-        assert str(callback_id) in mock_executor.running_workloads
+        assert payload["task_key"] in mock_executor.running_workloads
+
+    @pytest.mark.skipif(not hasattr(BaseExecutor, "release_callback"), reason="Requires monitored callbacks")
+    @pytest.mark.parametrize("original", ["running", "released", "finished"])
+    @pytest.mark.parametrize("legacy_transport", [False, True], ids=["typed-key", "legacy-key"])
+    @mock.patch("airflow.sdk.execution_time.execute_workload.execute_workload", autospec=True)
+    def test_redelivered_callback_cannot_settle_original(
+        self, execute, mock_executor, callback_workload, original, legacy_transport, monkeypatch
+    ):
+        from airflow.sdk.exceptions import CallbackAlreadyStartedError
+        from airflow.sdk.execution_time.execute_workload import main
+        from airflow.utils.state import CallbackState
+
+        key = callback_workload.callback.key
+        mock_executor.queue_workload(callback_workload, session=None)
+        mock_executor._process_workloads([callback_workload])
+        mock_executor.attempt_workload_runs()
+        mock_executor.get_event_buffer()
+        payload = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])
+        transport_key = payload["task_key"]
+        if legacy_transport:
+            mock_executor.running_workloads[str(key)] = mock_executor.running_workloads.pop(transport_key)
+            transport_key = str(key)
+        monkeypatch.setattr(sys, "argv", payload["command"][2:])
+        execute.side_effect = CallbackAlreadyStartedError("A different worker already claimed the callback")
+        with pytest.raises(SystemExit) as duplicate:
+            main()
+        execute.assert_called_once_with(callback_workload)
+
+        def deliver(receipt, return_code):
+            mock_executor.sqs_client.receive_message.return_value = {
+                "Messages": [
+                    {
+                        "ReceiptHandle": receipt,
+                        "Body": json.dumps({"task_key": transport_key, "return_code": return_code}),
+                    }
+                ],
+            }
+            mock_executor.process_queue(DEFAULT_QUEUE_URL)
+
+        if original == "released":
+            mock_executor.release_callback(key)
+        elif original == "finished":
+            deliver("original", 0)
+            assert mock_executor.get_event_buffer() == {key: (CallbackState.SUCCESS, None)}
+
+        deliver("duplicate", duplicate.value.code)
+
+        assert not mock_executor.get_event_buffer()
+        mock_executor.sqs_client.delete_message.assert_called_with(
+            QueueUrl=DEFAULT_QUEUE_URL, ReceiptHandle="duplicate"
+        )
+        mock_executor.sqs_client.change_message_visibility.assert_not_called()
+        if original == "running":
+            assert key in mock_executor.running
+            assert mock_executor.running_workloads[transport_key] == key
+            deliver("original", 0)
+            assert mock_executor.get_event_buffer() == {key: (CallbackState.SUCCESS, None)}
+        elif original == "released":
+            assert transport_key in mock_executor._released_callbacks
+            deliver("original", 0)
+            assert (transport_key in mock_executor._released_callbacks) is legacy_transport
+            assert not mock_executor.get_event_buffer()
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires callback admission checks"
+    )
+    @pytest.mark.parametrize(
+        ("queue_url", "failed_delivery", "reason"),
+        [
+            pytest.param(None, None, "lost invoke response", id="invoke-timeout"),
+            pytest.param(DEFAULT_QUEUE_URL, {"return_code": 1}, "code 1", id="duplicate-fails-before-claim"),
+            pytest.param(DEFAULT_DLQ_URL, {"command": ["callback"]}, "dead-letter", id="duplicate-in-dlq"),
+        ],
+    )
+    @mock.patch.object(
+        lambda_executor, "calculate_next_attempt_delay", autospec=True, return_value=dt.timedelta(0)
+    )
+    def test_unconfirmed_callback_failure_retains_ownership_of_possible_worker(
+        self, mock_backoff, mock_executor, callback_workload, queue_url, failed_delivery, reason
+    ):
+        from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+        from airflow.utils.state import CallbackState
+
+        key = callback_workload.callback.key
+        mock_executor.queue_workload(callback_workload, session=None)
+        mock_executor._process_workloads([callback_workload])
+        if queue_url is None:
+            mock_executor.lambda_client.invoke.side_effect = TimeoutError("lost invoke response")
+            for _ in range(int(mock_executor.max_invoke_attempts)):
+                mock_executor.attempt_workload_runs()
+        else:
+            mock_executor.attempt_workload_runs()
+        transport_key = json.loads(mock_executor.lambda_client.invoke.call_args.kwargs["Payload"])["task_key"]
+        if queue_url is not None:
+            mock_executor.sqs_client.receive_message.return_value = {
+                "Messages": [
+                    {
+                        "ReceiptHandle": "duplicate",
+                        "Body": json.dumps({"task_key": transport_key, **failed_delivery}),
+                    }
+                ]
+            }
+            mock_executor.process_queue(queue_url)
+            mock_executor.sqs_client.delete_message.assert_called_once_with(
+                QueueUrl=queue_url, ReceiptHandle="duplicate"
+            )
+
+        state, info = mock_executor.get_event_buffer()[key]
+        assert state == CallbackState.FAILED
+        assert isinstance(info, CallbackLaunchUnconfirmed)
+        assert reason in str(info)
+        assert key in mock_executor.running
+        assert not mock_executor.pending_workloads
+        assert mock_executor.running_workloads[transport_key] == key
+        mock_executor.sqs_client.receive_message.return_value = {
+            "Messages": [
+                {
+                    "ReceiptHandle": "original",
+                    "Body": json.dumps({"task_key": transport_key, "return_code": 0}),
+                }
+            ]
+        }
+        mock_executor.process_queue(DEFAULT_QUEUE_URL)
+        assert mock_executor.get_event_buffer() == {key: (CallbackState.SUCCESS, None)}
+        assert not mock_executor.running_workloads
+        assert key not in mock_executor.running
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @pytest.mark.parametrize("legacy_workload", [False, True], ids=["configured", "older-core"])
@@ -398,23 +546,10 @@ class TestAwsLambdaExecutor:
         lambda_executor, "calculate_next_attempt_delay", autospec=True, return_value=dt.timedelta(0)
     )
     def test_callback_executor_config_survives_launch_retry(
-        self, mock_backoff, mock_executor, legacy_workload
+        self, mock_backoff, mock_executor, callback_workload, legacy_workload
     ):
-        from airflow.executors.workloads import ExecuteCallback
-        from airflow.executors.workloads.base import BundleInfo
-        from airflow.executors.workloads.callback import CallbackDTO, CallbackFetchMethod
-
-        workload = ExecuteCallback(
-            callback=CallbackDTO(
-                id=str(uuid4()),
-                fetch_method=CallbackFetchMethod.IMPORT_PATH,
-                data={"path": "test.module.alert_func", "kwargs": {}},
-            ),
-            dag_rel_path="test.py",
-            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
-            token="test_token",
-            log_path="test.log",
-        )
+        assert mock_executor.supports_routed_callbacks
+        workload = callback_workload
         executor_config = {"callback_environment": "custom"}
         if legacy_workload:
             if hasattr(workload, "executor_config"):
@@ -445,7 +580,7 @@ class TestAwsLambdaExecutor:
             payload = json.loads(call.kwargs["Payload"])
             assert payload["executor_config"] == ({} if legacy_workload else executor_config)
             assert payload["command"] == queued.command
-        assert mock_executor.running_workloads[str(workload.callback.key)] == workload.callback.key
+        assert mock_executor.running_workloads[payload["task_key"]] == workload.callback.key
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_task_sdk_callback_with_queue(self, mock_airflow_key, mock_executor):
@@ -792,7 +927,8 @@ class TestAwsLambdaExecutor:
 
     @mock.patch.object(BaseExecutor, "fail")
     @mock.patch.object(BaseExecutor, "success")
-    def test_sync_running_fail(self, success_mock, fail_mock, mock_executor, mock_airflow_key):
+    @pytest.mark.parametrize("return_code", [1, os.EX_TEMPFAIL])
+    def test_sync_running_fail(self, success_mock, fail_mock, mock_executor, mock_airflow_key, return_code):
         airflow_key = mock_airflow_key()
         ser_airflow_key = json.dumps(airflow_key._asdict())
 
@@ -806,7 +942,7 @@ class TestAwsLambdaExecutor:
                     "Body": json.dumps(
                         {
                             "task_key": ser_airflow_key,
-                            "return_code": 1,  # Non-zero return code, workload failed.
+                            "return_code": return_code,
                         }
                     ),
                 }

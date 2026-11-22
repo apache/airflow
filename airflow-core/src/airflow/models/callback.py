@@ -18,15 +18,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid, or_, select, update
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
@@ -41,11 +41,11 @@ from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import (
     CALLBACK_KWARGS_ENCODING_KEY,
     CALLBACK_REQUEST_DATA_KEY,
+    EXECUTION_TIMEOUT_KEY,
     SERDE_KWARGS_ENCODING,
-    START_DEADLINE_KEY,
-    STARTED_AT_KEY,
     STARTED_BY_KEY,
     CallbackFetchMethod,
+    get_callback_report_window,
 )
 from airflow.models import Base
 from airflow.models.base import StringID
@@ -66,9 +66,11 @@ class CallbackKey:
 
 
 if TYPE_CHECKING:
+    from sqlalchemy import CursorResult
     from sqlalchemy.orm import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.models.dagrun import DagRun
     from airflow.triggers.base import TriggerEvent
 
 log = structlog.get_logger(__name__)
@@ -154,6 +156,9 @@ class Callback(Base, BaseWorkload):
 
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
+    started_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    # The latest time to start while queued, or to hear from the worker while running.
+    state_deadline: Mapped[datetime | None] = mapped_column(UtcDateTime)
     processor_job_id: Mapped[int | None] = mapped_column(
         ForeignKey("job.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -180,7 +185,14 @@ class Callback(Base, BaseWorkload):
             sqlite_where=trigger_id.is_not(None),
         ),
         # Every scheduler loop looks callbacks up by type and state, and routed ones by fetch method too.
-        Index("idx_callback_type_state_fetch_method", "type", "state", "fetch_method"),
+        Index("idx_callback_type_state_fetch_method", "type", "state", "fetch_method", "id"),
+        Index(
+            "idx_callback_state_deadline",
+            "state",
+            "state_deadline",
+            postgresql_where=state_deadline.is_not(None),
+            sqlite_where=state_deadline.is_not(None),
+        ),
     )
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
@@ -239,30 +251,86 @@ class Callback(Base, BaseWorkload):
         """Return the DAG ID for scheduler routing."""
         return self.data.get("dag_id")
 
+    def get_dag_run(self, *, session: Session) -> DagRun | None:
+        """Resolve the original run even if SQLite has reused its integer primary key."""
+        from airflow.callbacks.callback_requests import DagCallbackRequest
+        from airflow.models.dagrun import DagRun
+
+        try:
+            # Deadline.handle_miss stores this integer as a string; routed requests store an integer.
+            dag_run_id = int(self.data["dag_run_id"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        request = self.get_callback_request()
+        if request is None:
+            # Deadline.handle_miss snapshots the Dag run before queueing the callback.
+            run = ((self.data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
+            dag_id, run_id = run.get("dag_id"), run.get("dag_run_id")
+            if not dag_id or not run_id:
+                # A deadline row still links a legacy callback to its run via foreign keys.
+                from airflow.models.deadline import Deadline
+
+                return session.scalar(
+                    select(DagRun)
+                    .join(Deadline, Deadline.dagrun_id == DagRun.id)
+                    .where(Deadline.callback_id == self.id, DagRun.id == dag_run_id)
+                )
+        elif isinstance(request, DagCallbackRequest):
+            dag_id, run_id = request.dag_id, request.run_id
+        else:
+            dag_id, run_id = request.ti.dag_id, request.ti.run_id
+        return session.scalar(
+            select(DagRun).where(DagRun.id == dag_run_id, DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        )
+
     def get_executor_name(self) -> str | None:
         """Return the executor name for scheduler routing."""
         return self.data.get("executor")
-
-    @property
-    def start_deadline(self) -> datetime | None:
-        """Return when a routed callback must have started by, or ``None`` if it has no deadline."""
-        value = self.data.get(START_DEADLINE_KEY)
-        return datetime.fromisoformat(value) if value else None
-
-    @property
-    def started_at(self) -> datetime | None:
-        """Return when the callback's worker exchanged its token, if it recorded that."""
-        value = self.data.get(STARTED_AT_KEY)
-        return datetime.fromisoformat(value) if value else None
 
     @property
     def started_by(self) -> dict[str, Any] | None:
         """Return the worker process that exchanged the callback's token, if it identified itself."""
         return self.data.get(STARTED_BY_KEY)
 
-    def mark_started(self, when: datetime, *, started_by: dict[str, Any] | None = None) -> None:
-        # Reassigned rather than mutated so the JSON column is flagged as changed.
-        self.data = {**self.data, STARTED_AT_KEY: when.isoformat(), STARTED_BY_KEY: started_by}
+    def try_start(
+        self,
+        when: datetime,
+        *,
+        started_by: dict[str, Any] | None,
+        heartbeat_timeout: timedelta | None,
+        session: Session,
+    ) -> bool:
+        """Claim a queued callback before its deadline; the scheduler can concurrently replace it."""
+        timeout = (
+            self.data.get(EXECUTION_TIMEOUT_KEY)
+            if self.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE
+            else None
+        )
+        report_window = (
+            timedelta(seconds=get_callback_report_window(timeout)) if timeout else heartbeat_timeout
+        )
+        claimed = cast(
+            "CursorResult",
+            session.execute(
+                update(Callback)
+                .where(
+                    Callback.id == self.id,
+                    Callback.state == CallbackState.QUEUED,
+                    or_(Callback.state_deadline.is_(None), Callback.state_deadline > when),
+                )
+                .values(
+                    state=CallbackState.RUNNING,
+                    started_at=when,
+                    state_deadline=when + report_window if report_window else None,
+                    data={**self.data, STARTED_BY_KEY: started_by},
+                )
+                .execution_options(synchronize_session=False)
+            ),
+        )
+        if not claimed.rowcount:
+            return False
+        session.expire(self)
+        return True
 
     def get_callback_request(self) -> CallbackRequest | None:
         """Return the Dag processor callback request this callback stores, or ``None`` if it has none."""

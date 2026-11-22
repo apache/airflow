@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from collections import deque
 from collections.abc import Sequence
@@ -42,16 +43,22 @@ from airflow.providers.amazon.version_compat import (
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts, prune_dict
 
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.models.callback import CallbackKey
+
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
 
+if hasattr(BaseExecutor, "supports_routed_callbacks"):
+    from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+    from airflow.utils.state import CallbackState
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
-    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstance import TaskInstance
     from airflow.providers.amazon.aws.executors.batch.utils import BatchJobWorkloadKey
 
@@ -102,6 +109,7 @@ class AwsBatchExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
+    supports_routed_callbacks: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
     if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
@@ -344,6 +352,14 @@ class AwsBatchExecutor(BaseExecutor):
         # Airflow, which will be handled separately.
         job_info = self.active_workers.id_to_job_info[job.job_id]
         workload_key = self.active_workers.id_to_key[job.job_id]
+        if (
+            hasattr(BaseExecutor, "supports_routed_callbacks")
+            and isinstance(workload_key, CallbackKey)
+            and job.exit_code == os.EX_TEMPFAIL
+        ):
+            # Keep the logical slot until the admitted callback reports or its lease expires.
+            self.active_workers.pop_by_id(job.job_id)
+            return
         workload_cmd = job_info.cmd
         queue = job_info.queue
         exec_info = job_info.config
@@ -428,7 +444,17 @@ class AwsBatchExecutor(BaseExecutor):
                         f"Dropping the workload. Reason: {failure_reason}",
                         ti_key=workload_key,
                     )
-                    self.fail(key=workload_key)
+                    if hasattr(BaseExecutor, "supports_routed_callbacks") and isinstance(
+                        workload_key, CallbackKey
+                    ):
+                        self.change_state(
+                            workload_key,
+                            CallbackState.FAILED,
+                            info=CallbackLaunchUnconfirmed(failure_reason),
+                            remove_running=False,
+                        )
+                    else:
+                        self.fail(key=workload_key)
                 else:
                     batch_job.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
                         attempt_number

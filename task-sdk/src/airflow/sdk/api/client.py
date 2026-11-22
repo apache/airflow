@@ -21,10 +21,13 @@ import logging
 import os
 import ssl
 import sys
+import time
 import uuid
+from contextvars import ContextVar
 from datetime import datetime
 from functools import cache
 from http import HTTPStatus
+from threading import Event, Lock
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import quote
 
@@ -1277,19 +1280,38 @@ class CallbackOperations:
     def __init__(self, client: Client):
         self.client = client
 
-    def run(self, callback_id: uuid.UUID) -> None:
-        """Exchange the single-use callback token for an execution token."""
+    def run(self, callback_id: uuid.UUID) -> int | None:
+        """Exchange the callback token and return the heartbeat timeout if the server enabled it."""
         # Retries of this request resend the same attempt ID, so the API server accepts a retry whose
         # first response was lost, but not a second delivery of the callback.
         body = CallbackRunPayload(hostname=get_hostname(), pid=os.getpid(), attempt_id=uuid.uuid4())
         try:
-            self.client.patch(f"callbacks/{callback_id}/run", content=body.model_dump_json())
+            response = self.client.patch(
+                f"callbacks/{callback_id}/run",
+                content=body.model_dump_json(),
+                headers={"content-type": "application/json", "Prefer": "callback-heartbeat"},
+            )
         except ServerResponseError as e:
             if e.response.status_code == HTTPStatus.CONFLICT:
+                # An older server or worker cannot detect a lost deadline callback. Keep the
+                # executor failure on a redelivery so it can still settle the original row.
+                detail = e.detail
+                if isinstance(detail, dict) and (
+                    detail.get("previous_state") == "running" and not detail.get("worker_is_monitored")
+                ):
+                    raise
                 raise CallbackAlreadyStartedError(
                     f"Callback {callback_id} already started, or can no longer start"
                 ) from e
             raise
+        timeout = response.headers.get("Airflow-Callback-Heartbeat-Timeout")
+        return int(timeout) if timeout is not None else None
+
+    def heartbeat(self, callback_id: uuid.UUID, *, timeout: float) -> None:
+        """Renew the worker lease. The supervision loop retries transient errors."""
+        self.client.request(
+            "PUT", f"callbacks/{callback_id}/heartbeat", retry=False, timeout=min(timeout, API_TIMEOUT)
+        )
 
     def get_context(self, callback_id: uuid.UUID) -> CallbackContextResponse:
         """Fetch the context of a running Dag-attribute callback from the API server."""
@@ -1366,6 +1388,11 @@ def _should_retry_api_request(exception: BaseException) -> bool:
     return isinstance(exception, httpx2.RequestError)
 
 
+callback_request_budget: ContextVar[tuple[float | None, Event] | None] = ContextVar(
+    "callback_request_budget", default=None
+)
+
+
 class Client(httpx2.Client):
     @lru_cache()
     @staticmethod
@@ -1394,6 +1421,7 @@ class Client(httpx2.Client):
     def __init__(self, *, base_url: str | None, dry_run: bool = False, token: str, **kwargs: Any):
         if (not base_url) ^ dry_run:
             raise ValueError(f"Can only specify one of {base_url=} or {dry_run=}")
+        self._auth_refresh_lock = Lock()
         auth = BearerAuth(token)
 
         if dry_run:
@@ -1431,8 +1459,14 @@ class Client(httpx2.Client):
 
     def _update_auth(self, response: httpx2.Response):
         if new_token := response.headers.get("Refreshed-API-Token"):
-            log.debug("Execution API issued us a refreshed Task token")
-            self.auth = BearerAuth(new_token)
+            with self._auth_refresh_lock:
+                # A slow request may finish after a concurrent heartbeat already refreshed its token.
+                current = self.auth
+                if isinstance(current, BearerAuth) and response.request.headers.get("Authorization") == (
+                    "Bearer " + current.token if current.token else None
+                ):
+                    log.debug("Execution API issued us a refreshed Task token")
+                    self.auth = BearerAuth(new_token)
 
     def request(self, *args, retry: bool = True, **kwargs):
         """
@@ -1445,6 +1479,13 @@ class Client(httpx2.Client):
         return self._request_with_retry(*args, **kwargs)
 
     def _request_without_retry(self, *args, **kwargs):
+        if budget := callback_request_budget.get():
+            deadline, cancelled = budget
+            if cancelled.is_set() or (deadline is not None and deadline <= time.monotonic()):
+                raise TimeoutError("Callback stopped waiting for the Execution API")
+            if deadline is not None:
+                kwargs["timeout"] = min(API_TIMEOUT, max(0.0, deadline - time.monotonic()))
+
         # Set content type as convenience if not already set
         if kwargs.get("content", None) is not None and "content-type" not in (
             kwargs.get("headers", {}) or {}

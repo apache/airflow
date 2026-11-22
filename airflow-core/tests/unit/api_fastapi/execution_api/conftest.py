@@ -95,7 +95,12 @@ def client(request: pytest.FixtureRequest, async_db_engine):
 
 
 @pytest.fixture
-def task_sdk_client():
+def in_process_execution_api():
+    return InProcessExecutionAPI()
+
+
+@pytest.fixture
+def task_sdk_client(in_process_execution_api):
     """
     A Task SDK client that sends its real requests to this tree's Execution API in process.
 
@@ -104,7 +109,7 @@ def task_sdk_client():
     so a mismatch between what the client assumes and what the server does fails here.
     Authorization is bypassed in process; the security tests cover it.
     """
-    client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
+    client = Client(base_url=None, token="", dry_run=True, transport=in_process_execution_api.transport)
     client.base_url = "http://in-process.invalid./"
     # The transport stops its event loop and thread when it is garbage collected.
     with client:

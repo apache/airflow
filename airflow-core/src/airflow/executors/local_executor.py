@@ -131,6 +131,7 @@ class LocalExecutor(BaseExecutor):
     is_mp_using_fork: bool
 
     supports_multi_team: bool = True
+    supports_routed_callbacks = True
     supports_task_instance_uuid = True
     serve_logs: bool = True
     # The connection-test supervisor uses ``signal.SIGALRM`` (via ``TimeoutPosix``) to bound hook

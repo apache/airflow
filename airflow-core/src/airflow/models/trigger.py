@@ -911,11 +911,10 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     dag_bag = DBDagBag()
     dag = None
 
-    if event.task_instance_state in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED):
-        # A newly parsed file move must not change the path within the run's pinned bundle.
+    if event.task_instance_state == TaskInstanceState.FAILED:
         try:
             dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
-            if dag is not None and event.task_instance_state == TaskInstanceState.FAILED:
+            if dag is not None:
                 task_instance.task = dag.get_task(task_instance.task_id)
                 should_retry = task_instance.is_eligible_to_retry()
         except Exception:

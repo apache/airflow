@@ -82,10 +82,13 @@ class BatchJob:
         "FAILED": State.FAILED,
     }
 
-    def __init__(self, job_id: str, status: str, status_reason: str | None = None):
+    def __init__(
+        self, job_id: str, status: str, status_reason: str | None = None, exit_code: int | None = None
+    ):
         self.job_id = job_id
         self.status = status
         self.status_reason = status_reason
+        self.exit_code = exit_code
 
     def get_job_state(self) -> str:
         """Return the state of the job."""

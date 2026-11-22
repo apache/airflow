@@ -1414,7 +1414,7 @@ class TestLocalExecutorCallbackSupport:
         "airflow.sdk.execution_time.callback_supervisor.supervise_callback",
         side_effect=RuntimeError("Callback subprocess exited with code 1"),
     )
-    def test_execute_workload_raises_on_callback_failure(self, mock_supervise_callback):
+    def test_execute_workload_propagates_unreported_callback_failure(self, mock_supervise_callback):
         callback_data = CallbackDTO(
             id=self.CALLBACK_UUID,
             fetch_method=CallbackFetchMethod.IMPORT_PATH,

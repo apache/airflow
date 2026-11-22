@@ -28,10 +28,13 @@ Arguments:
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from typing import TYPE_CHECKING
 
 import structlog
+
+from airflow.sdk.exceptions import CallbackAlreadyStartedError
 
 if TYPE_CHECKING:
     from airflow.executors.workloads import ExecuteTask
@@ -99,7 +102,11 @@ def main():
             log.error("Failed to parse input JSON string", error=str(e))
             sys.exit(1)
 
-    execute_workload(workload)
+    try:
+        execute_workload(workload)
+    except CallbackAlreadyStartedError:
+        # A container executor must distinguish a duplicate delivery from the admitted worker's failure.
+        sys.exit(os.EX_TEMPFAIL)
 
 
 if __name__ == "__main__":

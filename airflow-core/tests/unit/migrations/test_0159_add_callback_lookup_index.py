@@ -103,6 +103,11 @@ def test_downgrade_settles_routed_callbacks(database_at_revision):
     downgrade(to_revision=PREVIOUS_REVISION)
 
     with database_at_revision.connect() as connection:
+        inspector = sa.inspect(connection)
+        assert "state_deadline" not in {column["name"] for column in inspector.get_columns("callback")}
+        assert "idx_callback_state_deadline" not in {
+            index["name"] for index in inspector.get_indexes("callback")
+        }
         stored = {
             row.id: (row.type, row.state, row.output)
             for row in connection.execute(
@@ -118,3 +123,15 @@ def test_downgrade_settles_routed_callbacks(database_at_revision):
         "deadline": ("executor", "scheduled", None),
         "dag_processor": ("dag_processor", None, None),
     }
+
+    upgradedb(to_revision=_migration.revision)
+    with database_at_revision.connect() as connection:
+        inspector = sa.inspect(connection)
+        indexes = {index["name"]: index["column_names"] for index in inspector.get_indexes("callback")}
+        assert indexes["idx_callback_state_deadline"] == ["state", "state_deadline"]
+        assert indexes["idx_callback_type_state_fetch_method"] == ["type", "state", "fetch_method", "id"]
+        assert connection.execute(
+            sa.select(sa.column("started_at", UtcDateTime), sa.column("state_deadline", UtcDateTime))
+            .select_from(callback)
+            .where(callback.c.id == ids["deadline"])
+        ).one() == (None, None)

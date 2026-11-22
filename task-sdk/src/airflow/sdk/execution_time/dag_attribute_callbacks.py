@@ -19,7 +19,8 @@ Run the Dag and task callbacks, and task emails, that the scheduler routes to ex
 
 These are the callbacks a Dag processor otherwise runs inside a parse of the Dag file. The worker
 parses the file at the Dag run's bundle version, finds the callbacks on the Dag or task, and runs
-them with the context the scheduler recorded when it requested them.
+them with the context the scheduler recorded when it requested them. Changes to callback selection
+or context also apply to ``airflow.dag_processing.processor._execute_callbacks``.
 """
 
 from __future__ import annotations

@@ -23,6 +23,7 @@ Each Airflow task gets delegated out to an Amazon ECS Task.
 
 from __future__ import annotations
 
+import os
 import time
 import warnings
 from collections import deque
@@ -61,14 +62,20 @@ from airflow.providers.common.compat.sdk import AirflowException, Stats, timezon
 from airflow.utils.helpers import merge_dicts, prune_dict
 from airflow.utils.state import State
 
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.models.callback import CallbackKey
+
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
+
+if hasattr(BaseExecutor, "supports_routed_callbacks"):
+    from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+    from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
-    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
         CommandType,
@@ -116,6 +123,7 @@ class AwsEcsExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
+    supports_routed_callbacks: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
 
     if AIRFLOW_V_3_4_PLUS:
@@ -393,6 +401,17 @@ class AwsEcsExecutor(BaseExecutor):
 
         # Mark finished tasks as either a success/failure.
         if task_state == State.FAILED or task_state == State.REMOVED:
+            if (
+                hasattr(BaseExecutor, "supports_routed_callbacks")
+                and isinstance(task_key, CallbackKey)
+                and any(
+                    container["name"] == self.container_name and container.get("exit_code") == os.EX_TEMPFAIL
+                    for container in task.containers
+                )
+            ):
+                # Keep the logical slot until the admitted callback reports or its lease expires.
+                self.active_workers.pop_by_key(task_key)
+                return
             self.__log_container_failures(task_arn=task.task_arn)
             self.__handle_failed_workload(task.task_arn, task.stopped_reason)
         elif task_state == State.SUCCESS:
@@ -608,7 +627,15 @@ class AwsEcsExecutor(BaseExecutor):
                         f"Marking as failed. Reasons: {reasons_str}"
                     ),
                 )
-                self.fail(task_key)
+                if hasattr(BaseExecutor, "supports_routed_callbacks") and isinstance(task_key, CallbackKey):
+                    self.change_state(
+                        task_key,
+                        CallbackState.FAILED,
+                        info=CallbackLaunchUnconfirmed(reasons_str),
+                        remove_running=False,
+                    )
+                else:
+                    self.fail(task_key)
         elif not run_task_response["tasks"]:
             self.log.error("ECS RunTask Response: %s", run_task_response)
             self.log_task_event(

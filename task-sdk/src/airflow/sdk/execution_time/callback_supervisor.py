@@ -22,10 +22,17 @@ import os
 import signal
 import sys
 import time
+from collections.abc import Callable
+from concurrent.futures import Future
+from contextlib import suppress
+from contextvars import copy_context
+from functools import partial
+from http import HTTPStatus
 from importlib import import_module
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, Protocol, cast
+from threading import Event
+from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, Protocol, TypeVar, cast
 from uuid import UUID
 
 import attrs
@@ -34,6 +41,7 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
 from airflow.sdk._shared.module_loading import UNUSUAL_MODULE_PREFIX, accepts_context, accepts_keyword_args
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk.api.client import ServerResponseError, callback_request_budget
 from airflow.sdk.api.datamodels._generated import (
     BundleInfo,
     CallbackTerminalState,
@@ -43,6 +51,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.execution_time.comms import (
     DeleteVariable,
+    GetAssetsByAlias,
     GetConnection,
     GetPreviousDagRun,
     GetPreviousTI,
@@ -65,8 +74,11 @@ from airflow.sdk.execution_time.comms import (
 from airflow.sdk.execution_time.supervisor import (
     MIN_HEARTBEAT_INTERVAL,
     SOCKET_CLEANUP_TIMEOUT,
+    ResponseSent,
     WatchedSubprocess,
+    _CallbackIOThread,
     _ensure_client,
+    _has_live_callback_io,
     _import_task_runner_before_fork,
     _make_process_nondumpable,
     _register_request_handler,
@@ -96,9 +108,10 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 
 # The set of messages that a callback subprocess can send to the supervisor: the requests a Dag
 # processor answers for the callbacks it runs, so a Dag or task callback has the same context on a
-# worker, plus MaskSecret for the secrets masker.
+# worker, plus asset alias resolution during context construction and MaskSecret for the secrets masker.
 _CALLBACK_REQUEST_TYPES: tuple[type[BaseModel], ...] = (
     DeleteVariable,
+    GetAssetsByAlias,
     GetConnection,
     GetPrevSuccessfulDagRun,
     GetPreviousDagRun,
@@ -116,6 +129,7 @@ _CALLBACK_REQUEST_TYPES: tuple[type[BaseModel], ...] = (
 )
 CallbackToSupervisor = Annotated[
     DeleteVariable
+    | GetAssetsByAlias
     | GetConnection
     | GetPrevSuccessfulDagRun
     | GetPreviousDagRun
@@ -183,30 +197,44 @@ SERDE_KWARGS_ENCODING = "serde"
 DAG_ATTRIBUTE_FETCH_METHOD = "dag_attribute"
 
 
-class DagCallbackStartupDetails(BaseModel):
+class CallbackStartupDetails(BaseModel):
     dag_rel_path: Path
     bundle_info: BundleInfo | None = None
-    context: Annotated[
-        DagCallbackContext | TaskCallbackContext | EmailCallbackContext, Field(discriminator="type")
-    ]
-    type: Literal["DagCallbackStartupDetails"] = "DagCallbackStartupDetails"
+    context: (
+        Annotated[
+            DagCallbackContext | TaskCallbackContext | EmailCallbackContext, Field(discriminator="type")
+        ]
+        | None
+    ) = None
+    callback_path: str = ""
+    callback_kwargs: dict[str, Any] = Field(default_factory=dict)
+    callback_kwargs_encoding: str | None = None
+    type: Literal["CallbackStartupDetails"] = "CallbackStartupDetails"
 
 
-def _run_dag_callback_entrypoint() -> None:
+def _run_callback_entrypoint() -> None:
     from airflow.sdk.execution_time import task_runner
     from airflow.sdk.execution_time.comms import CommsDecoder
 
     _log = structlog.get_logger(logger_name="callback_runner")
-    comms = CommsDecoder[DagCallbackStartupDetails, CallbackToSupervisor](
-        body_decoder=TypeAdapter(DagCallbackStartupDetails), log=_log
+    comms = CommsDecoder[CallbackStartupDetails, CallbackToSupervisor](
+        body_decoder=TypeAdapter(CallbackStartupDetails), log=_log
     )
     msg = comms._get_response()
-    if not isinstance(msg, DagCallbackStartupDetails):
-        raise RuntimeError(
-            f"Required first message to be DagCallbackStartupDetails, got {type(msg).__name__}"
-        )
+    if not isinstance(msg, CallbackStartupDetails):
+        raise RuntimeError(f"Required first message to be CallbackStartupDetails, got {type(msg).__name__}")
     task_runner.SUPERVISOR_COMMS = CommsDecoder[ToTask, ToSupervisor](socket=comms.socket, log=_log)
-    _run_dag_callback(msg.context, msg.dag_rel_path, msg.bundle_info, _log)
+    if msg.context is not None:
+        _run_dag_callback(msg.context, msg.dag_rel_path, msg.bundle_info, _log)
+    else:
+        _run_import_callback(
+            msg.callback_path,
+            msg.callback_kwargs,
+            msg.callback_kwargs_encoding,
+            msg.dag_rel_path,
+            msg.bundle_info,
+            _log,
+        )
 
 
 def _run_dag_callback(
@@ -224,6 +252,53 @@ def _run_dag_callback(
         context, dag_rel_path=dag_rel_path, bundle_info=cast("BundleInfo", bundle_info), log=log
     ):
         log.error("Callback failed", errors=errors)
+        sys.exit(1)
+
+
+def _run_import_callback(
+    callback_path: str,
+    callback_kwargs: dict,
+    callback_kwargs_encoding: str | None,
+    dag_rel_path: os.PathLike[str],
+    bundle_info: _BundleInfoLike | None,
+    log: FilteringBoundLogger,
+) -> None:
+    bundle_path = None
+
+    # If bundle info is provided, initialize the bundle and ensure its path is importable.
+    # This is needed for user-defined callbacks that live inside a DAG bundle rather than
+    # in an installed package or the plugins directory.
+    if bundle_info and bundle_info.name:
+        try:
+            from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
+
+            bundle = DagBundlesManager().get_bundle(
+                name=bundle_info.name,
+                version=bundle_info.version,
+                version_data=bundle_info.version_data,
+            )
+            bundle.initialize()
+            if (bundle_path := str(bundle.path)) not in sys.path:
+                sys.path.append(bundle_path)
+                log.debug("Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path)
+        except Exception:
+            log.warning(
+                "Failed to initialize DAG bundle for callback",
+                bundle_name=bundle_info.name,
+                exc_info=True,
+            )
+
+    _add_xcom_pull_to_context(callback_kwargs)
+    success, error_msg = execute_callback(
+        callback_path=callback_path,
+        callback_kwargs=callback_kwargs,
+        dag_rel_path=dag_rel_path,
+        bundle_path=bundle_path,
+        log=log,
+        callback_kwargs_encoding=callback_kwargs_encoding,
+    )
+    if not success:
+        log.error("Callback failed", error=error_msg)
         sys.exit(1)
 
 
@@ -249,7 +324,7 @@ def execute_callback(
     callback_path: str,
     callback_kwargs: dict,
     dag_rel_path: os.PathLike[str],
-    bundle_path: os.PathLike[str] | None,
+    bundle_path: os.PathLike[str] | str | None,
     log,
     callback_kwargs_encoding: str | None = None,
 ) -> tuple[bool, str | None]:
@@ -354,6 +429,139 @@ def _check_callback_start_deadline(deadline: float | None, timeout: float | None
         raise TimeoutError(f"Callback timed out after {timeout} seconds during startup")
 
 
+@attrs.define
+class _CallbackHeartbeat:
+    """Keep a deadline callback's worker lease alive even when it has no execution time limit."""
+
+    timeout: int
+    last_success: float
+    last_attempt: float
+
+    def renew_if_due(
+        self, client: Client, callback_id: UUID, *, execution_deadline: float | None = None
+    ) -> float:
+        """Renew if needed and return how long the supervisor can wait for the next attempt."""
+        interval = min(max(1, MIN_HEARTBEAT_INTERVAL), self.timeout / 3)
+        now = time.monotonic()
+        if (remaining := self.last_attempt + interval - now) > 0:
+            return remaining
+
+        timeout = self.last_success + self.timeout - now
+        if timeout <= 0:
+            raise TimeoutError("Lost the callback worker heartbeat")
+        if execution_deadline is not None:
+            timeout = min(timeout, execution_deadline - now)
+            if timeout <= 0:
+                return 0
+        try:
+            client.callbacks.heartbeat(callback_id, timeout=timeout)
+        except Exception as e:
+            if isinstance(e, ServerResponseError) and e.response.status_code in (
+                HTTPStatus.UNAUTHORIZED,
+                HTTPStatus.FORBIDDEN,
+                HTTPStatus.NOT_FOUND,
+                HTTPStatus.CONFLICT,
+                HTTPStatus.GONE,
+            ):
+                raise
+            if time.monotonic() - self.last_success >= self.timeout:
+                raise TimeoutError("Lost the callback worker heartbeat") from e
+            log.warning("Failed to heartbeat deadline callback", callback_id=callback_id, exc_info=True)
+        else:
+            self.last_success = now
+        self.last_attempt = now
+        return max(0.0, now + interval - time.monotonic())
+
+
+_T = TypeVar("_T")
+
+
+@attrs.define
+class _CallbackIO:
+    """Keep supervision on the calling thread while a blocking callback API or setup operation runs."""
+
+    client: Client
+    callback_id: UUID
+    heartbeat: _CallbackHeartbeat | None
+    deadline: float | None
+    startup_timeout: float | None = None
+    interrupted: Exception | None = None
+
+    def _expire(self) -> TimeoutError:
+        if self.startup_timeout is not None:
+            stats.incr("callback.timeouts")
+            return TimeoutError(f"Callback timed out after {self.startup_timeout} seconds during startup")
+        return TimeoutError("Callback execution deadline passed")
+
+    def call(
+        self,
+        operation: Callable[[], _T],
+        *,
+        discard: Callable[[_T], None] | None = None,
+        reporting: bool = False,
+    ) -> _T:
+        if self.deadline is None and self.heartbeat is None:
+            return operation()
+
+        if self.deadline is not None and self.deadline <= time.monotonic():
+            self.interrupted = self._expire()
+            raise self.interrupted
+
+        result: Future[_T] = Future()
+        cancelled = Event()
+
+        def run():
+            token = callback_request_budget.set((self.deadline, cancelled))
+            try:
+                result.set_result(operation())
+            except BaseException as e:
+                result.set_exception(e)
+            finally:
+                callback_request_budget.reset(token)
+
+        # A transport may still be inside a system call at the deadline. Its response is discarded
+        # and cancelled prevents subsequent attempts. Only the supervisor may start user code.
+        worker = _CallbackIOThread(target=copy_context().run, args=(run,), name="callback-io", daemon=True)
+        worker.start()
+        try:
+            while not result.done():
+                remaining = None if self.deadline is None else self.deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    raise self._expire()
+                if self.heartbeat is not None:
+                    try:
+                        due = self.heartbeat.renew_if_due(
+                            self.client, self.callback_id, execution_deadline=self.deadline
+                        )
+                    except Exception:
+                        if not reporting:
+                            raise
+                        # The server can acknowledge the terminal write before its HTTP response arrives.
+                        worker.join()
+                        break
+                    remaining = due if remaining is None else min(remaining, due)
+                worker.join(remaining)
+            worker.join()  # Join before the supervisor forks a callback subprocess.
+        except Exception as e:
+            self.interrupted = e
+            cancelled.set()
+            if discard is not None:
+
+                def discard_late_result(done: Future[_T]) -> None:
+                    if done.exception() is None:
+                        discard(done.result())
+
+                result.add_done_callback(discard_late_result)
+            raise
+        try:
+            return result.result()
+        except TimeoutError:
+            if self.deadline is not None and time.monotonic() >= self.deadline:
+                self.interrupted = self._expire()
+                raise self.interrupted from None
+            raise
+
+
 @attrs.define(kw_only=True)
 class CallbackSubprocess(WatchedSubprocess):
     """
@@ -372,7 +580,9 @@ class CallbackSubprocess(WatchedSubprocess):
     """Seconds the callback may run; ``None`` reads ``[callbacks] callback_execution_timeout``."""
     execution_deadline: float | None = None
     """Monotonic deadline shared with routed callback setup, including the token exchange."""
+    heartbeat: _CallbackHeartbeat | None = None
     timed_out: bool = attrs.field(default=False, init=False)
+    _io: _CallbackIO | None = attrs.field(default=None, init=False)
 
     decoder: ClassVar[TypeAdapter[CallbackToSupervisor | _UnsupportedRequest]] = TypeAdapter(
         Annotated[CallbackToSupervisor | _UnsupportedRequest, Field(union_mode="left_to_right")]
@@ -383,6 +593,25 @@ class CallbackSubprocess(WatchedSubprocess):
             _register_request_handler(GetPrevSuccessfulDagRun, _handle_previous_successful_dag_run_request),
         ]
     )
+
+    def _call_request_handler(
+        self, handler: RequestHandler[Any], msg: BaseModel, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        if self._io is None:
+            return super()._call_request_handler(handler, msg, log, req_id)
+        if self._io.interrupted is not None:
+            return ResponseSent.ALREADY_SENT
+        try:
+            result = self._io.call(partial(handler, self, msg, log, req_id))
+            if self._io.deadline is not None and time.monotonic() >= self._io.deadline:
+                self._io.interrupted = TimeoutError("Callback execution deadline passed")
+                return ResponseSent.ALREADY_SENT
+            return result
+        except Exception:
+            if self._io.interrupted is None:
+                raise
+            # The monitor will terminate the child. Returning an IPC error would let it resume.
+            return ResponseSent.ALREADY_SENT
 
     @classmethod
     def start(  # type: ignore[override]
@@ -405,31 +634,47 @@ class CallbackSubprocess(WatchedSubprocess):
         With a ``context``, the callback is a Dag or task attribute: the subprocess parses the Dag
         file at ``bundle_info`` and runs the callbacks the context names instead of ``callback_path``.
         """
-        if context is not None and _should_use_exec():
-            msg = DagCallbackStartupDetails(
+        callback_id = UUID(id) if not isinstance(id, UUID) else id
+        deadline = kwargs.get("execution_deadline")
+        startup_io = _CallbackIO(
+            client, callback_id, kwargs.get("heartbeat"), deadline, kwargs.get("execution_timeout")
+        )
+        if (context is not None and _should_use_exec()) or _has_live_callback_io():
+            msg = CallbackStartupDetails(
                 dag_rel_path=Path(dag_rel_path),
                 bundle_info=BundleInfo.model_validate(bundle_info, from_attributes=True)
                 if bundle_info
                 else None,
                 context=context,
+                callback_path=callback_path if context is None else "",
+                callback_kwargs=callback_kwargs if context is None else {},
+                callback_kwargs_encoding=callback_kwargs_encoding if context is None else None,
             )
             # Serialize before spawning so an invalid payload cannot leave a child waiting for startup.
-            startup_frame = _ResponseFrame(id=0, body=msg.model_dump()).as_bytes()
+            startup_frame = startup_io.call(lambda: _ResponseFrame(id=0, body=msg.model_dump()).as_bytes())
             _check_callback_start_deadline(kwargs.get("execution_deadline"), kwargs.get("execution_timeout"))
             proc = super().start(
-                id=UUID(id) if not isinstance(id, UUID) else id,
+                id=callback_id,
                 client=client,
-                target=_run_dag_callback_entrypoint,
+                target=_run_callback_entrypoint,
                 logger=logger,
                 use_exec=True,
+                new_process_group=True,
                 **kwargs,
             )
             try:
+                if deadline is not None:
+                    proc.stdin.settimeout(max(0.0, deadline - time.monotonic()))
                 proc.stdin.sendall(startup_frame)
+                if deadline is not None:
+                    proc.stdin.settimeout(None)
             except Exception:
+                expired = deadline is not None and time.monotonic() >= deadline
                 proc.kill(signal.SIGKILL)
                 proc._cleanup_open_sockets()
                 proc.selector.close()
+                if expired:
+                    raise startup_io._expire() from None
                 raise
             return proc
 
@@ -447,52 +692,17 @@ class CallbackSubprocess(WatchedSubprocess):
                 _run_dag_callback(context, dag_rel_path, bundle_info, _log)
                 return
 
-            bundle_path = None
-
-            # If bundle info is provided, initialize the bundle and ensure its path is importable.
-            # This is needed for user-defined callbacks that live inside a DAG bundle rather than
-            # in an installed package or the plugins directory.
-            if bundle_info and bundle_info.name:
-                try:
-                    from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
-
-                    bundle = DagBundlesManager().get_bundle(
-                        name=bundle_info.name,
-                        version=bundle_info.version,
-                        version_data=bundle_info.version_data,
-                    )
-                    bundle.initialize()
-                    if (bundle_path := str(bundle.path)) not in sys.path:
-                        sys.path.append(bundle_path)
-                        _log.debug(
-                            "Added bundle path to sys.path", bundle_name=bundle_info.name, path=bundle_path
-                        )
-                except Exception:
-                    _log.warning(
-                        "Failed to initialize DAG bundle for callback",
-                        bundle_name=bundle_info.name,
-                        exc_info=True,
-                    )
-
-            _add_xcom_pull_to_context(callback_kwargs)
-            success, error_msg = execute_callback(
-                callback_path=callback_path,
-                callback_kwargs=callback_kwargs,
-                dag_rel_path=dag_rel_path,
-                bundle_path=bundle_path,
-                log=_log,
-                callback_kwargs_encoding=callback_kwargs_encoding,
+            _run_import_callback(
+                callback_path, callback_kwargs, callback_kwargs_encoding, dag_rel_path, bundle_info, _log
             )
-            if not success:
-                _log.error("Callback failed", error=error_msg)
-                sys.exit(1)
 
-        _import_task_runner_before_fork()
+        startup_io.call(_import_task_runner_before_fork)
         _check_callback_start_deadline(kwargs.get("execution_deadline"), kwargs.get("execution_timeout"))
         return super().start(
-            id=UUID(id) if not isinstance(id, UUID) else id,
+            id=callback_id,
             client=client,
             target=_target,
+            new_process_group=True,
             logger=logger,
             **kwargs,
         )
@@ -501,8 +711,7 @@ class CallbackSubprocess(WatchedSubprocess):
         """
         Wait for the callback subprocess to complete.
 
-        Mirrors the structure of ActivitySubprocess.wait() but without heartbeating
-        or task API state management.
+        Deadline callbacks renew their worker heartbeat while the child runs.
         """
         if self._exit_code is not None:
             return self._exit_code
@@ -536,11 +745,22 @@ class CallbackSubprocess(WatchedSubprocess):
                 "Failed to upload callback logs to remote storage", callback_id=self.id, pid=self.pid
             )
 
+    def _terminate_callback(self) -> None:
+        # kill() stops escalating when the child exits. Descendants may still be in its process
+        # group (e.g. a helper ignoring SIGTERM); finish that group when the callback loses ownership.
+        pgid = None
+        if self._new_process_group:
+            with suppress(ProcessLookupError):
+                if os.getpgid(self.pid) == self.pid:
+                    pgid = self.pid
+        self.kill(signal.SIGTERM, escalation_delay=5.0, force=True)
+        if pgid is not None:
+            with suppress(ProcessLookupError):
+                os.killpg(pgid, signal.SIGKILL)
+
     def _monitor_subprocess(self):
         """
         Monitor the subprocess until it exits.
-
-        A simplified version of ActivitySubprocess._monitor_subprocess() without heartbeating.
 
         If ``[callbacks] callback_execution_timeout`` is set to a positive value, the subprocess
         is killed after that many seconds. Routed callbacks retain the deadline from worker setup.
@@ -550,8 +770,22 @@ class CallbackSubprocess(WatchedSubprocess):
         if deadline is None and timeout > 0:
             deadline = time.monotonic() + timeout
 
+        self._io = _CallbackIO(self.client, self.id, self.heartbeat, deadline)
         while self._exit_code is None or self._open_sockets:
             max_wait_time: float = MIN_HEARTBEAT_INTERVAL
+            if self.heartbeat is not None:
+                try:
+                    max_wait_time = min(
+                        max_wait_time,
+                        self.heartbeat.renew_if_due(
+                            self.client,
+                            self.id,
+                            execution_deadline=deadline if self._exit_code is None else None,
+                        ),
+                    )
+                except Exception:
+                    self._terminate_callback()
+                    raise
             if deadline is not None and self._exit_code is None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -563,12 +797,18 @@ class CallbackSubprocess(WatchedSubprocess):
                         timeout_seconds=timeout,
                         elapsed_seconds=timeout - remaining,
                     )
-                    self.kill(signal.SIGTERM, escalation_delay=5.0, force=True)
+                    self._terminate_callback()
                     self.timed_out = True
                     break
                 max_wait_time = min(max_wait_time, remaining)
 
             self._service_subprocess(max_wait_time=max_wait_time)
+            if self._io.interrupted is not None:
+                self._terminate_callback()
+                if deadline is not None and time.monotonic() >= deadline:
+                    self.timed_out = True
+                    break
+                raise self._io.interrupted
 
             # If the process has exited but sockets remain open, apply a timeout
             # to prevent hanging indefinitely on stuck sockets.
@@ -594,17 +834,23 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
 
     log_file = init_log_file(log_path)
     log_file_descriptor: BinaryIO = log_file.open("ab")
-    underlying_logger = structlog.BytesLogger(log_file_descriptor)
-    with _remote_logging_conn(client):
-        processors = logging_processors(json_output=True)
-    logger = structlog.wrap_logger(underlying_logger, processors=processors, logger_name="callback").bind()
+    try:
+        underlying_logger = structlog.BytesLogger(log_file_descriptor)
+        with _remote_logging_conn(client):
+            processors = logging_processors(json_output=True)
+        logger = structlog.wrap_logger(
+            underlying_logger, processors=processors, logger_name="callback"
+        ).bind()
+    except BaseException:
+        log_file_descriptor.close()
+        raise
 
     return logger, log_file_descriptor
 
 
 def _report_callback_state(
     client: Client, callback_id: str, state: CallbackTerminalState, output: str | None = None
-) -> None:
+) -> bool:
     try:
         client.callbacks.finish(UUID(callback_id), state=state, output=output)
     except Exception:
@@ -612,6 +858,8 @@ def _report_callback_state(
         log.warning(
             "Failed to report the callback state", callback_id=callback_id, state=state, exc_info=True
         )
+        return False
+    return True
 
 
 def supervise_callback(
@@ -646,7 +894,7 @@ def supervise_callback(
         routed from the Dag processor: its context is read from the API server and its callbacks from
         the parsed Dag. Otherwise the callback is imported from ``callback_path``.
     :param execution_timeout: Seconds the callback may run, overriding ``[callbacks] callback_execution_timeout``.
-    :return: Exit code of the subprocess (0 = success).
+    :return: Zero when the callback succeeded or the API acknowledged its failure.
     """
     _make_process_nondumpable()
 
@@ -665,24 +913,38 @@ def supervise_callback(
     with _ensure_client(server, token, client=client) as client:
         # Swap the single-use callback token for an execution token before any other request: the
         # callback token can't read the connection that logging setup reads for remote logging.
-        client.callbacks.run(UUID(id))
+        callback_id = UUID(id)
+        io = _CallbackIO(client, callback_id, None, deadline, execution_timeout)
+        heartbeat_timeout = io.call(partial(client.callbacks.run, callback_id))
+        heartbeat = (
+            _CallbackHeartbeat(heartbeat_timeout, last_success=time.monotonic(), last_attempt=start)
+            if heartbeat_timeout
+            else None
+        )
 
+        io.heartbeat = heartbeat
         terminal_state = CallbackTerminalState.FAILED
         terminal_output: str | None = None
+        supervisor_error: Exception | None = None
         process = None
 
         try:
             _check_callback_start_deadline(deadline, execution_timeout)
             if log_path:
-                logger, log_file_descriptor = _configure_logging(log_path, client)
+                logger, log_file_descriptor = io.call(
+                    partial(_configure_logging, log_path, client),
+                    discard=lambda configured: configured[1].close(),
+                )
             else:
                 logger = structlog.get_logger(logger_name="callback").bind()
 
             _check_callback_start_deadline(deadline, execution_timeout)
             context = None
             if fetch_method == DAG_ATTRIBUTE_FETCH_METHOD:
-                context = client.callbacks.get_context(UUID(id)).context
+                context = io.call(partial(client.callbacks.get_context, callback_id)).context
             _check_callback_start_deadline(deadline, execution_timeout)
+            if heartbeat is not None:
+                heartbeat.renew_if_due(client, UUID(id))
             process = CallbackSubprocess.start(
                 id=id,
                 callback_path=callback_path,
@@ -696,6 +958,7 @@ def supervise_callback(
                 subprocess_logs_to_stdout=True,
                 execution_timeout=execution_timeout,
                 execution_deadline=deadline,
+                heartbeat=heartbeat,
             )
 
             exit_code = process.wait()
@@ -717,10 +980,14 @@ def supervise_callback(
             else:
                 terminal_state = CallbackTerminalState.SUCCESS
         except Exception as e:
+            supervisor_error = e
             terminal_output = f"Callback supervisor error: {type(e).__name__}: {e}"
-            raise
+            log.exception("Callback supervisor failed", callback_id=id)
         finally:
-            _report_callback_state(client, id, terminal_state, terminal_output)
+            report_io = _CallbackIO(client, callback_id, heartbeat, None)
+            reported = report_io.call(
+                partial(_report_callback_state, client, id, terminal_state, terminal_output), reporting=True
+            )
             # Report first so a slow log upload cannot use up the scheduler's timeout grace period.
             if process is not None:
                 process._upload_logs()
@@ -728,6 +995,8 @@ def supervise_callback(
             if log_path and log_file_descriptor:
                 log_file_descriptor.close()
 
-    if terminal_state == CallbackTerminalState.FAILED:
-        raise RuntimeError(terminal_output)
-    return exit_code
+    # Executors such as ECS and Batch retry a nonzero exit as a launch failure. Once the API
+    # acknowledges the outcome, the executor's task is complete even if the callback failed.
+    if terminal_state == CallbackTerminalState.FAILED and not reported:
+        raise supervisor_error or RuntimeError(terminal_output)
+    return 0

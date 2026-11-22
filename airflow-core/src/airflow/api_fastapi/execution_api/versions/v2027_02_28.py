@@ -137,6 +137,7 @@ class AddCallbackContextEndpoint(VersionChange):
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/context", ["GET"]).didnt_exist,
         endpoint("/callbacks/{callback_id}/previous-successful-dagrun", ["GET"]).didnt_exist,
+        endpoint("/callbacks/{callback_id}/heartbeat", ["PUT"]).didnt_exist,
     )
 
     @convert_request_to_next_version_for("/callbacks/{callback_id}/run", ["PATCH"])  # type: ignore[arg-type]

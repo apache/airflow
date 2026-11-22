@@ -2559,6 +2559,7 @@ class TestEcsExecutorCallbackSupport:
     def test_callback_executor_config_survives_launch_retry(
         self, mock_backoff, mock_executor, callback_workload, legacy_workload
     ):
+        assert mock_executor.supports_routed_callbacks
         executor_config = {
             "overrides": {"taskRoleArn": "arn:aws:iam::123456789012:role/callback-role"},
             "networkConfiguration": {"awsvpcConfiguration": {"subnets": ["callback-subnet"]}},
@@ -2608,6 +2609,67 @@ class TestEcsExecutorCallbackSupport:
             )
             assert kwargs["overrides"]["containerOverrides"][0]["command"] == queued.command
         assert mock_executor.active_workers.arn_to_key[ARN1] == callback_workload.callback.key
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires monitored callbacks"
+    )
+    def test_lost_run_task_response_preserves_callback_slot(self, mock_executor, callback_workload):
+        from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+        from airflow.utils.state import CallbackState
+
+        mock_executor.max_run_task_attempts = 1
+        mock_executor.ecs.run_task.side_effect = TimeoutError("lost RunTask response")
+        mock_executor.queue_workload(callback_workload, session=None)
+        mock_executor.trigger_workloads(1)
+
+        mock_executor.attempt_workload_runs()
+
+        key = callback_workload.key
+        state, info = mock_executor.get_event_buffer()[key]
+        assert state == CallbackState.FAILED
+        assert isinstance(info, CallbackLaunchUnconfirmed)
+        assert str(info) == "lost RunTask response"
+        assert key in mock_executor.running
+        assert not mock_executor.pending_workloads
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires monitored callbacks"
+    )
+    @pytest.mark.parametrize(
+        ("is_callback", "failed_container"),
+        [(True, "container-name"), (True, "sidecar"), (False, "container-name")],
+    )
+    def test_duplicate_exit_only_discards_a_callback_in_its_airflow_container(
+        self, mock_executor, is_callback, failed_container
+    ):
+        from airflow.models.callback import CallbackKey
+
+        key = CallbackKey(str(uuid4())) if is_callback else TaskInstanceUuid(uuid4())
+        mock_executor.active_workers.add_task(mock_task(ARN1), key, None, ["workload"], {}, 1)
+        mock_executor.running.add(key)
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [
+                {
+                    "taskArn": ARN1,
+                    "lastStatus": "STOPPED",
+                    "desiredStatus": "STOPPED",
+                    "startedAt": "2024-01-01T00:00:00Z",
+                    "containers": [
+                        {"name": name, "exitCode": os.EX_TEMPFAIL if name == failed_container else 0}
+                        for name in ("container-name", "sidecar")
+                    ],
+                }
+            ],
+            "failures": [],
+        }
+
+        mock_executor.sync_running_workloads()
+
+        assert not mock_executor.active_workers.arn_to_key
+        assert key in mock_executor.running
+        assert not mock_executor.get_event_buffer()
+        duplicate = is_callback and failed_container == "container-name"
+        assert [task.key for task in mock_executor.pending_workloads] == ([] if duplicate else [key])
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_callback_sync_running_success(self, mock_executor, callback_workload):

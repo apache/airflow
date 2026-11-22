@@ -29,10 +29,11 @@ MISSING_CALLBACK_URL = "/execution/callbacks/00000000-0000-0000-0000-00000000000
         pytest.param("GET", "context", None, id="context"),
         pytest.param("GET", "previous-successful-dagrun", None, id="previous-successful-dagrun"),
         pytest.param("PATCH", "state", {"state": "success"}, id="state"),
+        pytest.param("PUT", "heartbeat", None, id="heartbeat"),
     ],
 )
-class TestCallbackContextAndStateEndpointVersioning:
-    """The callback context, previous run and state endpoints didn't exist before the 2027-02-28 API version."""
+class TestCallbackEndpointVersioning:
+    """These callback endpoints first appeared in the 2027-02-28 API version."""
 
     def test_old_version_returns_404(self, client, method, path, body):
         client.headers["Airflow-API-Version"] = "2026-10-30"
@@ -51,6 +52,7 @@ class TestCallbackContextAndStateEndpointVersioning:
 
 @pytest.fixture
 def queued_callback(session):
+    from airflow.executors.workloads.callback import HEARTBEAT_SUPPORTED_KEY
     from airflow.models.callback import CallbackFetchMethod, CallbackState, ExecutorCallback
     from airflow.sdk.definitions.callback import SyncCallback
 
@@ -61,6 +63,7 @@ def queued_callback(session):
         callback_def=SyncCallback(_empty_callback, kwargs={}), fetch_method=CallbackFetchMethod.IMPORT_PATH
     )
     callback.state = CallbackState.QUEUED
+    callback.data[HEARTBEAT_SUPPORTED_KEY] = True
     session.add(callback)
     session.commit()
     yield callback
@@ -77,8 +80,9 @@ def test_old_version_keeps_the_single_use_exchange(client, queued_callback):
     url = f"/execution/callbacks/{queued_callback.id}/run"
     body = {"hostname": "worker-1", "pid": 4242, "attempt_id": "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be49"}
 
-    first = client.patch(url, json=body)
+    first = client.patch(url, json=body, headers={"Prefer": "callback-heartbeat"})
     repeated = client.patch(url, json=body)
 
     assert first.status_code == 204
+    assert "Airflow-Callback-Heartbeat-Timeout" not in first.headers
     assert repeated.status_code == 409

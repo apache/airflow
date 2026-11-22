@@ -43,6 +43,9 @@ class BatchJobDetailSchema(Schema):
     status = fields.String(required=True)
     # A short, human-readable string to provide additional details about the current status of the job.
     status_reason = fields.String(data_key="statusReason")
+    exit_code = fields.Function(
+        deserialize=lambda container: container.get("exitCode"), data_key="container", allow_none=True
+    )
 
     @post_load
     def make_job(self, data, **kwargs):

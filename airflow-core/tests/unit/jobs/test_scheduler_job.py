@@ -89,9 +89,9 @@ from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.base import BundleInfo
 from airflow.executors.workloads.callback import (
     EXECUTION_TIMEOUT_KEY,
-    START_DEADLINE_KEY,
-    STARTED_AT_KEY,
+    HEARTBEAT_SUPPORTED_KEY,
     TRY_NUMBER_KEY,
+    CallbackLaunchUnconfirmed,
 )
 from airflow.executors.workloads.types import TaskInstanceUuid
 from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, run_job
@@ -1243,8 +1243,11 @@ class TestSchedulerJob:
                 deadline_alert_id=None,
             ).callback
             callback.state = state
-            callback.data["dag_run_id"] = dag_run.id
-            callback.data["dag_id"] = dag_run.dag_id
+            callback.data.update(
+                dag_run_id=dag_run.id,
+                dag_id=dag_run.dag_id,
+                kwargs={"context": {"dag_run": {"dag_id": dag_run.dag_id, "dag_run_id": dag_run.run_id}}},
+            )
             return callback
 
         with dag_maker(dag_id="test_callback_states"):
@@ -1253,9 +1256,11 @@ class TestSchedulerJob:
 
         scheduled_callback = create_callback_in_state(CallbackState.SCHEDULED)
         pending_callback = create_callback_in_state(CallbackState.PENDING)
+        orphan = create_callback_in_state(CallbackState.PENDING)
+        orphan.data["kwargs"]["context"]["dag_run"]["dag_run_id"] = "deleted-run"
         queued_callback = create_callback_in_state(CallbackState.QUEUED)
         running_callback = create_callback_in_state(CallbackState.RUNNING)
-        session.add_all([scheduled_callback, pending_callback, queued_callback, running_callback])
+        session.add_all([scheduled_callback, pending_callback, queued_callback, running_callback, orphan])
         session.flush()
 
         scheduler_job = Job()
@@ -1267,6 +1272,12 @@ class TestSchedulerJob:
         self.job_runner._enqueue_executor_callbacks(session)
         # PENDING should progress to QUEUED after _enqueue_executor_callbacks
         assert session.get(ExecutorCallback, pending_callback.id).state == CallbackState.QUEUED
+        session.flush()
+        session.expire_all()
+        assert pending_callback.data[HEARTBEAT_SUPPORTED_KEY] is True
+        assert HEARTBEAT_SUPPORTED_KEY not in queued_callback.data
+        assert orphan.state == CallbackState.FAILED
+        assert HEARTBEAT_SUPPORTED_KEY not in orphan.data
 
         # Other callbacks should remain in their original states
         assert session.get(ExecutorCallback, scheduled_callback.id).state == CallbackState.SCHEDULED
@@ -18597,6 +18608,7 @@ class TestRouteDagProcessorCallbacks:
         executor.supported_workload_types = (
             RUNS_CALLBACKS if runs_callbacks else frozenset({WorkloadType.EXECUTE_TASK})
         )
+        executor.supports_routed_callbacks = True
         return executor
 
     @staticmethod
@@ -18668,7 +18680,7 @@ class TestRouteDagProcessorCallbacks:
         assert callback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE
         assert callback.data["dag_id"] == dag_run.dag_id
         assert callback.data["dag_run_id"] == dag_run.id
-        assert callback.start_deadline == ROUTING_NOW + timedelta(seconds=runner._task_queued_timeout)
+        assert callback.state_deadline == ROUTING_NOW + timedelta(seconds=runner._task_queued_timeout)
         assert callback.data[EXECUTION_TIMEOUT_KEY] == 300
         assert "executor" not in callback.data
         assert "queue" not in callback.data
@@ -18769,6 +18781,21 @@ class TestRouteDagProcessorCallbacks:
             name=request.bundle_name, version="v1", version_data=old_manifest
         )
 
+    def test_unpinned_callback_follows_renamed_file_in_live_bundle(self, dag_maker, session):
+        with dag_maker("routed_live_dag", relative_fileloc="moved_from.py", session=session):
+            EmptyOperator(task_id="task")
+        run = dag_maker.create_dagrun(run_id="unpinned", bundle_version=None)
+        request = self._dag_request(run)
+        callback_id = _add_waiting_callback(session, request)
+        with dag_maker(run.dag_id, relative_fileloc="moved_to.py", session=session):
+            EmptyOperator(task_id="task")
+        executor = self._make_executor("default_exec")
+        self._make_runner([executor])._route_dag_processor_callbacks(session=session)
+        (workload,) = self._queued_callbacks(executor)
+        assert workload.callback.id == str(callback_id)
+        assert workload.bundle_info.version is None
+        assert workload.dag_rel_path == Path("moved_to.py")
+
     @pytest.mark.parametrize("clear_before_routing", [False, True])
     def test_routes_callback_produced_after_its_pinned_dag_file_moves(
         self, dag_maker, session, clear_before_routing
@@ -18842,11 +18869,11 @@ class TestRouteDagProcessorCallbacks:
             [self._make_executor("default_exec")], enabled=False, **{f"callbacks.{option}": "0"}
         )
 
-    def test_refuses_to_start_unless_every_executor_runs_callbacks(self):
-        executors = [
-            self._make_executor("default_exec"),
-            self._make_executor("other_exec", runs_callbacks=False),
-        ]
+    @pytest.mark.parametrize("deadline_only", [False, True], ids=["tasks-only", "old-callback-provider"])
+    def test_refuses_to_start_unless_every_executor_runs_callbacks(self, deadline_only):
+        other = self._make_executor("other_exec", runs_callbacks=deadline_only)
+        other.supports_routed_callbacks = not deadline_only
+        executors = [self._make_executor("default_exec"), other]
 
         with pytest.raises(
             ValueError, match="needs every executor to run callbacks, but MockExecutor cannot"
@@ -19130,7 +19157,7 @@ class TestRouteDagProcessorCallbacks:
         callback = session.get_one(Callback, callback_id)
         assert (type(callback), callback.state) == (ExecutorCallback, CallbackState.SCHEDULED)
         assert callback.data[TRY_NUMBER_KEY] == 2
-        assert START_DEADLINE_KEY not in callback.data
+        assert callback.state_deadline is None
 
     @pytest.mark.backend("postgres", "mysql")
     def test_skips_a_callback_another_scheduler_is_routing(self, dag_run, session):
@@ -19150,7 +19177,7 @@ class TestRouteDagProcessorCallbacks:
             CallbackState.QUEUED,
         ]
 
-    @mock.patch("airflow.jobs.scheduler_job_runner.MAX_HAND_BACK_BATCHES_PER_CALL", 2)
+    @mock.patch("airflow.jobs.scheduler_job_runner.MAX_CALLBACK_BATCHES_PER_CALL", 2)
     @mock.patch("airflow.jobs.scheduler_job_runner.ROUTED_CALLBACKS_BATCH_SIZE", 2)
     @mock.patch("airflow.jobs.scheduler_job_runner.create_session", autospec=True, side_effect=create_session)
     def test_hands_back_waiting_callbacks_a_committed_batch_at_a_time(self, sessions, dag_run, session):
@@ -19295,6 +19322,7 @@ class TestRouteDagProcessorCallbacks:
         session.commit()
         executor = MockExecutor(do_update=False, parallelism=executor_parallelism)
         executor.supported_workload_types = RUNS_CALLBACKS
+        executor.supports_routed_callbacks = True
         executor.running.update(TaskInstanceUuid(uuid4()) for _ in range(occupied_slots))
         runner = self._make_runner(
             [executor, self._make_executor("other_exec")], **{"core.parallelism": str(parallelism)}
@@ -19336,7 +19364,7 @@ class TestRouteDagProcessorCallbacks:
         ]
         assert default.slots_available == 0
         assert len(self._queued_callbacks(other)) == 1
-        assert session.get_one(Callback, callback_ids[1]).start_deadline is None
+        assert session.get_one(Callback, callback_ids[1]).state_deadline is None
 
     def test_fails_unroutable_callbacks_without_using_up_free_slots(self, dag_run, session):
         executor = self._make_executor("default_exec")
@@ -19477,8 +19505,31 @@ class TestRoutedCallbackOutcomes:
         yield
         _clean_db()
 
+    @pytest.mark.parametrize("monitored", [False, True])
+    def test_ambiguous_launch_failure_preserves_an_admitted_monitored_worker(self, session, monitored):
+        deadline = timezone.utcnow() + timedelta(minutes=5) if monitored else None
+        callback_id = self._add_routed_callback(session, state=CallbackState.RUNNING, state_deadline=deadline)
+        executor = MockExecutor(do_update=False)
+        executor.event_buffer[CallbackKey(id=str(callback_id))] = (
+            CallbackState.FAILED,
+            CallbackLaunchUnconfirmed("invoke response lost"),
+        )
+        SchedulerJobRunner.process_executor_events(
+            executor=executor, job_id=None, scheduler_dag_bag=mock.Mock(spec=CachedDBDagBag), session=session
+        )
+        session.expire_all()
+        stored = session.get_one(Callback, callback_id)
+        if monitored:
+            assert (stored.state, stored.state_deadline, stored.output) == (
+                CallbackState.RUNNING,
+                deadline,
+                None,
+            )
+        else:
+            assert (stored.state, stored.output) == (CallbackState.FAILED, "invoke response lost")
+
     @staticmethod
-    def _add_routed_callback(session, *, state, **data) -> UUID:
+    def _add_routed_callback(session, *, state, state_deadline=None, **data) -> UUID:
         request = DagCallbackRequest(
             filepath="dag.py",
             dag_id="test_dag",
@@ -19488,6 +19539,7 @@ class TestRoutedCallbackOutcomes:
         )
         callback = ExecutorCallback.from_dag_processor_request(request)
         callback.state = state
+        callback.state_deadline = state_deadline
         callback.data |= data
         session.add(callback)
         session.commit()
@@ -19530,7 +19582,7 @@ class TestRoutedCallbackOutcomes:
         callback_id = self._add_routed_callback(
             session,
             state=CallbackState.QUEUED,
-            **{START_DEADLINE_KEY: (ROUTING_NOW + timedelta(seconds=600)).isoformat()},
+            state_deadline=ROUTING_NOW + timedelta(seconds=600),
         )
         executor = MockExecutor(do_update=False)
         executor.event_buffer[CallbackKey(id=str(callback_id))] = (CallbackState.FAILED, "publish failed")
@@ -19579,10 +19631,7 @@ class TestRoutedCallbackOutcomes:
         callback_id = self._add_routed_callback(
             session,
             state=CallbackState.RUNNING,
-            **{
-                EXECUTION_TIMEOUT_KEY: 300,
-                STARTED_AT_KEY: (ROUTING_NOW - timedelta(seconds=450)).isoformat(),
-            },
+            state_deadline=ROUTING_NOW,
         )
         runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
 
@@ -19595,7 +19644,7 @@ class TestRoutedCallbackOutcomes:
                 )
 
         with self._interleave_after_callback_read(session, report_worker_outcome):
-            runner._settle_routed_callbacks([callback_id], now=ROUTING_NOW, session=session)
+            runner._settle_expired_callback_batch(now=ROUTING_NOW, session=session)
         session.commit()
 
         session.expunge_all()
@@ -19611,7 +19660,7 @@ class TestRoutedCallbackOutcomes:
         self, issue_token, mock_stats_incr, session
     ):
         callback_id = self._add_routed_callback(
-            session, state=CallbackState.QUEUED, **{START_DEADLINE_KEY: ROUTING_NOW.isoformat()}
+            session, state=CallbackState.QUEUED, state_deadline=ROUTING_NOW
         )
         runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
         started_at = ROUTING_NOW - timedelta(seconds=1)
@@ -19633,7 +19682,7 @@ class TestRoutedCallbackOutcomes:
                     assert (context.dag_id, context.run_id) == ("test_dag", "test_run")
 
             with self._interleave_after_callback_read(session, commit_start):
-                runner._settle_routed_callbacks([callback_id], now=ROUTING_NOW, session=session)
+                runner._settle_expired_callback_batch(now=ROUTING_NOW, session=session)
             session.commit()
 
         issue_token.assert_called_once()
@@ -19696,7 +19745,9 @@ class TestRoutedCallbackOutcomes:
 
     @pytest.mark.backend("postgres", "mysql")
     def test_executor_event_holds_the_callback_lock_until_its_outcome_is_committed(self, session):
-        callback_id = self._add_routed_callback(session, state=CallbackState.RUNNING)
+        callback_id = self._add_routed_callback(
+            session, state=CallbackState.RUNNING, state_deadline=ROUTING_NOW
+        )
         executor = MockExecutor(do_update=False)
         executor.event_buffer[CallbackKey(id=str(callback_id))] = (CallbackState.FAILED, "worker died")
 
@@ -19717,6 +19768,7 @@ class TestRoutedCallbackOutcomes:
                 select(Callback).where(Callback.id == callback_id).with_for_update(nowait=True)
             )
             assert callback.state == CallbackState.FAILED
+            assert callback.state_deadline is None
 
     @pytest.mark.backend("postgres", "mysql")
     @mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", False)
@@ -19771,7 +19823,11 @@ class TestRoutedCallbackOutcomes:
             deadline_alert_id=None,
         ).callback
         callback.state = CallbackState.PENDING
-        callback.data |= {"dag_run_id": dag_run.id, "dag_id": dag_run.dag_id}
+        callback.data.update(
+            dag_run_id=dag_run.id,
+            dag_id=dag_run.dag_id,
+            kwargs={"context": {"dag_run": {"dag_id": dag_run.dag_id, "dag_run_id": dag_run.run_id}}},
+        )
         session.add(callback)
         session.flush()
         runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
@@ -19784,11 +19840,11 @@ class TestRoutedCallbackOutcomes:
 
     @time_machine.travel(ROUTING_NOW, tick=False)
     @pytest.mark.parametrize(
-        ("state", "data", "expected"),
+        ("state", "deadline_offset", "expected"),
         [
             pytest.param(
                 CallbackState.QUEUED,
-                {START_DEADLINE_KEY: (ROUTING_NOW - timedelta(seconds=1)).isoformat()},
+                timedelta(seconds=-1),
                 (
                     ExecutorCallback,
                     CallbackState.FAILED,
@@ -19799,36 +19855,34 @@ class TestRoutedCallbackOutcomes:
             ),
             pytest.param(
                 CallbackState.QUEUED,
-                {START_DEADLINE_KEY: (ROUTING_NOW + timedelta(seconds=1)).isoformat()},
+                timedelta(seconds=1),
                 (ExecutorCallback, CallbackState.QUEUED, None),
                 id="queued-before-start-deadline",
             ),
             pytest.param(
                 CallbackState.RUNNING,
-                {
-                    EXECUTION_TIMEOUT_KEY: 300,
-                    STARTED_AT_KEY: (ROUTING_NOW - timedelta(seconds=450)).isoformat(),
-                },
+                timedelta(0),
                 (
                     ExecutorCallback,
                     CallbackState.FAILED,
-                    "Its worker did not report it finished within 450s of its start",
+                    f"Its worker did not report by {ROUTING_NOW.isoformat()}",
                 ),
                 id="running-past-timeout-and-grace-is-failed",
             ),
             pytest.param(
                 CallbackState.RUNNING,
-                {
-                    EXECUTION_TIMEOUT_KEY: 300,
-                    STARTED_AT_KEY: (ROUTING_NOW - timedelta(seconds=449)).isoformat(),
-                },
+                timedelta(seconds=1),
                 (ExecutorCallback, CallbackState.RUNNING, None),
                 id="running-within-grace",
             ),
         ],
     )
-    def test_reaper_settles_routed_callbacks_that_can_no_longer_finish(self, session, state, data, expected):
-        callback_id = self._add_routed_callback(session, state=state, **data)
+    def test_reaper_settles_routed_callbacks_that_can_no_longer_finish(
+        self, session, state, deadline_offset, expected
+    ):
+        callback_id = self._add_routed_callback(
+            session, state=state, state_deadline=ROUTING_NOW + deadline_offset
+        )
         runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
 
         runner._reap_routed_callbacks()
@@ -19839,41 +19893,42 @@ class TestRoutedCallbackOutcomes:
         assert (type(callback), callback.state, callback.output) == expected
 
     @time_machine.travel(ROUTING_NOW, tick=False)
-    def test_reaper_leaves_a_callback_its_worker_reported_after_the_scan(self, session):
-        """The reaper re-checks each callback under its row lock, so a report since its scan stands."""
-        callback_id = self._add_routed_callback(
-            session,
-            state=CallbackState.SUCCESS,
-            **{
-                EXECUTION_TIMEOUT_KEY: 300,
-                STARTED_AT_KEY: (ROUTING_NOW - timedelta(seconds=450)).isoformat(),
-            },
+    def test_reaper_only_loads_expired_active_callbacks(self, session):
+        expired = self._add_routed_callback(session, state=CallbackState.RUNNING, state_deadline=ROUTING_NOW)
+        self._add_routed_callback(session, state=CallbackState.SUCCESS, state_deadline=ROUTING_NOW)
+        self._add_routed_callback(
+            session, state=CallbackState.QUEUED, state_deadline=ROUTING_NOW + timedelta(seconds=1)
         )
+        self._add_routed_callback(session, state=CallbackState.RUNNING)
         runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        loaded = []
 
-        # Found by the scan while still running past its report window.
-        runner._settle_routed_callbacks([callback_id], now=ROUTING_NOW, session=session)
-        session.commit()
+        def record_load(session, obj):
+            if isinstance(obj, ExecutorCallback):
+                loaded.append(obj.id)
 
-        session.expunge_all()
-        callback = session.get_one(Callback, callback_id)
-        assert (type(callback), callback.state, callback.output) == (
-            ExecutorCallback,
-            CallbackState.SUCCESS,
-            None,
-        )
+        sa_event.listen(session, "loaded_as_persistent", record_load)
+        try:
+            assert runner._settle_expired_callback_batch(now=ROUTING_NOW, session=session) == 1
+        finally:
+            sa_event.remove(session, "loaded_as_persistent", record_load)
+        assert loaded == [expired]
 
     @time_machine.travel(ROUTING_NOW, tick=False)
-    def test_reaper_works_through_batches(self, session):
-        past = (ROUTING_NOW - timedelta(seconds=1)).isoformat()
+    @mock.patch("airflow.jobs.scheduler_job_runner.MAX_CALLBACK_BATCHES_PER_CALL", 2)
+    @mock.patch("airflow.jobs.scheduler_job_runner.ROUTED_CALLBACKS_BATCH_SIZE", 2)
+    def test_reaper_resumes_remaining_batches_next_interval(self, session):
+        past = ROUTING_NOW - timedelta(seconds=1)
         callback_ids = [
-            self._add_routed_callback(session, state=CallbackState.QUEUED, **{START_DEADLINE_KEY: past})
+            self._add_routed_callback(session, state=CallbackState.QUEUED, state_deadline=past)
             for _ in range(5)
         ]
         runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
 
-        with mock.patch("airflow.jobs.scheduler_job_runner.ROUTED_CALLBACKS_BATCH_SIZE", 2):
-            runner._reap_routed_callbacks()
+        runner._reap_routed_callbacks()
+        session.expire_all()
+        assert [session.get_one(Callback, id_).state for id_ in callback_ids].count(CallbackState.FAILED) == 4
+        runner._reap_routed_callbacks()
 
         session.expire_all()
         session.expunge_all()
@@ -19881,8 +19936,38 @@ class TestRoutedCallbackOutcomes:
             CallbackState.FAILED
         }
 
+    @mock.patch("airflow.jobs.scheduler_job_runner.time", autospec=True)
+    def test_reaper_yields_within_a_slow_batch_and_resumes(self, clock, session):
+        past = timezone.utcnow() - timedelta(minutes=1)
+        ids = [
+            self._add_routed_callback(session, state=CallbackState.QUEUED, state_deadline=past)
+            for _ in range(3)
+        ]
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        clock.monotonic.side_effect = [10.0, 12.0]
+        runner._reap_routed_callbacks()
+        states = select(Callback.state).where(Callback.id.in_(ids))
+        assert session.scalars(states).all().count(CallbackState.FAILED) == 1
+
+        clock.monotonic.side_effect = None
+        clock.monotonic.return_value = 20.0
+        runner._reap_routed_callbacks()
+        assert session.scalars(states).all() == [CallbackState.FAILED] * 3
+
     @time_machine.travel(ROUTING_NOW, tick=False)
-    def test_reaper_leaves_import_path_callbacks(self, dag_maker, session):
+    @pytest.mark.parametrize(
+        ("state", "deadline", "expected"),
+        [
+            (CallbackState.QUEUED, ROUTING_NOW, CallbackState.QUEUED),
+            (CallbackState.RUNNING, None, CallbackState.RUNNING),
+            (CallbackState.RUNNING, ROUTING_NOW + timedelta(seconds=1), CallbackState.RUNNING),
+            (CallbackState.RUNNING, ROUTING_NOW, CallbackState.FAILED),
+        ],
+        ids=["queued", "legacy-worker", "live-worker", "lost-worker"],
+    )
+    def test_reaper_releases_only_expired_running_deadline_callbacks(
+        self, dag_maker, session, state, deadline, expected
+    ):
         with dag_maker(dag_id="test_reaper_import_path"):
             pass
         dag_run = dag_maker.create_dagrun()
@@ -19892,32 +19977,64 @@ class TestRoutedCallbackOutcomes:
             dagrun_id=dag_run.id,
             deadline_alert_id=None,
         ).callback
-        callback.state = CallbackState.QUEUED
-        callback.data[START_DEADLINE_KEY] = (ROUTING_NOW - timedelta(seconds=1)).isoformat()
+        callback.state = state
+        callback.state_deadline = deadline
         session.add(callback)
         session.commit()
-        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        executor = MockExecutor(do_update=False)
+        key = CallbackKey(str(callback.id))
+        executor.running.add(key)
+        runner = SchedulerJobRunner(job=Job(), executors=[executor])
 
         runner._reap_routed_callbacks()
 
         session.expire_all()
-        assert session.get_one(ExecutorCallback, callback.id).state == CallbackState.QUEUED
+        stored = session.get_one(ExecutorCallback, callback.id)
+        assert stored.state == expected
+        assert stored.state_deadline == (None if expected == CallbackState.FAILED else deadline)
+        assert (key in executor.running) == (expected != CallbackState.FAILED)
+        assert session.scalars(select(ExecutorCallback.id)).all() == [callback.id]
+
+    @mock.patch("airflow.utils.sqlalchemy.USE_ROW_LEVEL_LOCKING", False)
+    def test_reaper_preserves_a_lease_renewed_after_its_read(self, session):
+        callback = ExecutorCallback(
+            SyncCallback(empty_callback_for_deadline), CallbackFetchMethod.IMPORT_PATH
+        )
+        callback.state = CallbackState.RUNNING
+        callback.state_deadline = ROUTING_NOW
+        session.add(callback)
+        session.commit()
+        callback_id = callback.id
+        session.expunge_all()
+        renewed_deadline = ROUTING_NOW + timedelta(seconds=60)
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+
+        def renew_lease():
+            with create_session(scoped=False) as renewing_session:
+                renewing_session.get_one(ExecutorCallback, callback_id).state_deadline = renewed_deadline
+
+        with self._interleave_after_callback_read(session, renew_lease):
+            runner._settle_expired_callback_batch(now=ROUTING_NOW, session=session)
+        session.commit()
+        session.expire_all()
+        stored = session.get_one(ExecutorCallback, callback_id)
+        assert (stored.state, stored.state_deadline) == (CallbackState.RUNNING, renewed_deadline)
 
     @time_machine.travel(ROUTING_NOW, tick=False)
     def test_reaper_frees_the_executor_slots_of_settled_callbacks(self, dag_maker, session):
-        past = (ROUTING_NOW - timedelta(seconds=1)).isoformat()
-        future = (ROUTING_NOW + timedelta(seconds=1)).isoformat()
+        past = ROUTING_NOW - timedelta(seconds=1)
+        future = ROUTING_NOW + timedelta(seconds=1)
 
         def add(state, **data) -> CallbackKey:
             return CallbackKey(str(self._add_routed_callback(session, state=state, **data)))
 
-        sent_reaped = add(CallbackState.QUEUED, **{START_DEADLINE_KEY: past})
-        unsent_reaped = add(CallbackState.QUEUED, **{START_DEADLINE_KEY: past})
+        sent_reaped = add(CallbackState.QUEUED, state_deadline=past)
+        unsent_reaped = add(CallbackState.QUEUED, state_deadline=past)
         # Failed on another scheduler.
         reaped_elsewhere = add(CallbackState.FAILED)
         # Deleted, as ``airflow db clean`` does.
         claimed = CallbackKey(str(uuid4()))
-        waiting = add(CallbackState.QUEUED, **{START_DEADLINE_KEY: future})
+        waiting = add(CallbackState.QUEUED, state_deadline=future)
         with dag_maker(dag_id="test_reaper_slots"):
             pass
         deadline_callback = Deadline(
@@ -19967,7 +20084,7 @@ class TestRoutedCallbackOutcomes:
     ):
         """A new callback, which its token can't start, takes the place of one no worker started."""
         callback_id = self._add_routed_callback(
-            session, state=CallbackState.QUEUED, **{TRY_NUMBER_KEY: try_number}
+            session, state=CallbackState.QUEUED, state_deadline=ROUTING_NOW, **{TRY_NUMBER_KEY: try_number}
         )
         executor = MockExecutor(do_update=False)
         # What the Celery executor reports for a workload it could not publish.
@@ -19981,6 +20098,7 @@ class TestRoutedCallbackOutcomes:
         session.expunge_all()
         callback = session.get_one(Callback, callback_id)
         assert (callback.state, callback.output) == (CallbackState.FAILED, expected_output)
+        assert callback.state_deadline is None
         replacements = session.scalars(select(Callback).where(Callback.id != callback_id)).all()
         if expected_replacement_try is None:
             assert not replacements

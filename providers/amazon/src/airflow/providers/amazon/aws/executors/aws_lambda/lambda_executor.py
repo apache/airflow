@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import warnings
 from collections import OrderedDict, deque
@@ -51,6 +52,9 @@ from airflow.providers.amazon.version_compat import (
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import prune_dict
 
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.models.callback import CallbackKey
+
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
@@ -59,11 +63,14 @@ if AIRFLOW_V_3_4_PLUS:
 if hasattr(BaseExecutor, "get_task_key"):
     from airflow.executors.workloads.types import TaskInstanceUuid
 
+if hasattr(BaseExecutor, "supports_routed_callbacks"):
+    from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+    from airflow.utils.state import CallbackState
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.executors import workloads
-    from airflow.models.callback import CallbackKey
     from airflow.models.taskinstance import TaskInstance
 
     if AIRFLOW_V_3_3_PLUS:
@@ -76,6 +83,7 @@ if TYPE_CHECKING:
 
 # Allow for Lambda's asynchronous retries before SQS's maximum 14-day message retention.
 _RELEASED_CALLBACK_RETENTION = 15 * 24 * 60 * 60
+_CALLBACK_KEY_PREFIX = "callback:"
 
 
 class AwsLambdaExecutor(BaseExecutor):
@@ -90,6 +98,7 @@ class AwsLambdaExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
+    supports_routed_callbacks: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
     if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
@@ -370,6 +379,8 @@ class AwsLambdaExecutor(BaseExecutor):
                 ser_workload_key = json.dumps(workload_key._asdict())
             except AttributeError:
                 ser_workload_key = str(workload_key)
+                if AIRFLOW_V_3_3_PLUS and isinstance(workload_key, CallbackKey):
+                    ser_workload_key = f"{_CALLBACK_KEY_PREFIX}{ser_workload_key}"
 
             payload = {
                 "task_key": ser_workload_key,
@@ -433,7 +444,12 @@ class AwsLambdaExecutor(BaseExecutor):
                             f"Marking as failed. Reasons: {reasons_str}"
                         ),
                     )
-                    self.fail(workload_key)
+                    if hasattr(BaseExecutor, "supports_routed_callbacks") and isinstance(
+                        workload_key, CallbackKey
+                    ):
+                        self._report_unconfirmed_callback(workload_key, ser_workload_key, reasons_str)
+                    else:
+                        self.fail(workload_key)
             else:
                 status_code = response.get("StatusCode")
                 self.log.info("Invoked Lambda for workload %s with status %s", workload_key, status_code)
@@ -449,6 +465,14 @@ class AwsLambdaExecutor(BaseExecutor):
             stacklevel=2,
         )
         return self.attempt_workload_runs()
+
+    def _report_unconfirmed_callback(self, key: CallbackKey, transport_key: str, reason: str) -> None:
+        # AWS identifies the invocation by callback ID. A different invocation may have exchanged
+        # the token, so the scheduler must check admission before settling the logical callback.
+        self.running_workloads[transport_key] = key
+        self.change_state(
+            key, CallbackState.FAILED, info=CallbackLaunchUnconfirmed(reason), remove_running=False
+        )
 
     def release_callback(self, key: CallbackKey) -> None:
         """Release a settled callback's slot, retaining ownership of any late Lambda result."""
@@ -538,9 +562,32 @@ class AwsLambdaExecutor(BaseExecutor):
                 continue
             return_code = body.get("return_code")
             ser_task_key = body.get("task_key")
+            if (
+                hasattr(BaseExecutor, "supports_routed_callbacks")
+                and queue_url != self.dlq_url
+                and return_code == os.EX_TEMPFAIL
+                and isinstance(ser_task_key, str)
+                and (
+                    ser_task_key.startswith(_CALLBACK_KEY_PREFIX)
+                    or ser_task_key in self._released_callbacks
+                    or (
+                        AIRFLOW_V_3_3_PLUS
+                        and isinstance(self.running_workloads.get(ser_task_key), CallbackKey)
+                    )
+                )
+            ):
+                # Any scheduler may acknowledge this delivery, even after the original worker reported.
+                # It conveys no outcome and must leave ownership of the original invocation intact.
+                self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
+                continue
             if ser_task_key in self._released_callbacks:
                 self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)
-                del self._released_callbacks[ser_task_key]
+                if (
+                    ser_task_key.startswith(_CALLBACK_KEY_PREFIX)
+                    and return_code == 0
+                    and queue_url != self.dlq_url
+                ):
+                    del self._released_callbacks[ser_task_key]
                 continue
             # Fetch the real task key from the running_workloads dict, using the serialized task key.
             try:
@@ -560,7 +607,18 @@ class AwsLambdaExecutor(BaseExecutor):
                 )
                 continue
 
-            if workload_key:
+            if (
+                hasattr(BaseExecutor, "supports_routed_callbacks")
+                and isinstance(workload_key, CallbackKey)
+                and (return_code != 0 or queue_url == self.dlq_url)
+            ):
+                reason = (
+                    "Lambda delivered the callback invocation to its dead-letter queue"
+                    if queue_url == self.dlq_url
+                    else f"Lambda callback invocation exited with code {return_code}"
+                )
+                self._report_unconfirmed_callback(workload_key, ser_task_key, reason)
+            elif workload_key:
                 if return_code == 0:
                     self.success(workload_key)
                     self.log.info(
@@ -585,6 +643,13 @@ class AwsLambdaExecutor(BaseExecutor):
 
                 # Remove the workload from the tracking mapping.
                 self.running_workloads.pop(ser_task_key)
+                if (
+                    AIRFLOW_V_3_3_PLUS
+                    and isinstance(workload_key, CallbackKey)
+                    and not ser_task_key.startswith(_CALLBACK_KEY_PREFIX)
+                ):
+                    # Legacy callback transport keys look like task UUIDs once their owner is gone.
+                    self._released_callbacks[ser_task_key] = time.monotonic()
 
             # Delete the message from the queue.
             self.sqs_client.delete_message(QueueUrl=queue_url, ReceiptHandle=receipt_handle)

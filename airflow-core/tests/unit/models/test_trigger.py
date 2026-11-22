@@ -910,9 +910,10 @@ def test_submit_event_task_end(mock_utcnow, session, create_task_instance, event
     assert actual_xcoms == {"return_value": "xcomret", "a": "b", "c": {"d": [1, 2]}}
 
 
-@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
-def test_submit_event_task_end_callback_includes_version_data(mock_send, session, create_task_instance):
-    """A finished deferred task's callback carries version_data for a pinned run."""
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
+def test_submit_success_event_preserves_bundle_without_loading_dag(
+    mock_send, session, create_task_instance, mocker
+):
     version_data = {"schema_version": 1, "files": {"dags/my_dag.py": "ver123"}}
 
     trigger = Trigger(classpath="does.not.matter", kwargs={})
@@ -925,13 +926,17 @@ def test_submit_event_task_end_callback_includes_version_data(mock_send, session
     task_instance.dag_run.bundle_version = "some_hash"
     task_instance.dag_version.bundle_version = "some_hash"
     task_instance.dag_version.version_data = version_data
+    task_instance.dag_model.relative_fileloc = "current.py"
     session.commit()
 
+    get_dag = mocker.patch("airflow.models.dagbag.DBDagBag.get_dag_for_run", autospec=True)
     Trigger.submit_event(trigger.id, TaskSuccessEvent(), session=session)
     session.flush()
 
+    get_dag.assert_not_called()
     mock_send.assert_called_once()
     request = mock_send.call_args.kwargs["callback"]
+    assert request.filepath == "current.py"
     assert request.bundle_version == "some_hash"
     assert request.version_data == version_data
 
@@ -999,16 +1004,15 @@ def test_submit_event_task_end_callback_uses_run_bundle_after_code_only_update(
 
 
 @pytest.mark.parametrize(
-    ("event_cls", "retries", "expected_state"),
+    ("retries", "expected_state"),
     [
-        (TaskSuccessEvent, 0, TaskInstanceState.SUCCESS),
-        (TaskFailedEvent, 0, TaskInstanceState.FAILED),
-        (TaskFailedEvent, 1, TaskInstanceState.UP_FOR_RETRY),
+        (0, TaskInstanceState.FAILED),
+        (1, TaskInstanceState.UP_FOR_RETRY),
     ],
 )
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
-def test_submit_event_callback_uses_file_from_pinned_run(
-    mock_send, session, create_task_instance, event_cls, retries, expected_state
+def test_submit_failure_event_callback_uses_file_from_pinned_run(
+    mock_send, session, create_task_instance, retries, expected_state
 ):
     trigger = Trigger(classpath="does.not.matter", kwargs={})
     session.add(trigger)
@@ -1025,7 +1029,7 @@ def test_submit_event_callback_uses_file_from_pinned_run(
     task_instance.dag_model.relative_fileloc = "moved.py"
     session.commit()
 
-    Trigger.submit_event(trigger.id, event_cls(), session=session)
+    Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
 
     mock_send.assert_called_once()
     request = mock_send.call_args.kwargs["callback"]
@@ -1035,12 +1039,11 @@ def test_submit_event_callback_uses_file_from_pinned_run(
     assert session.scalar(select(TaskInstance)).state == expected_state
 
 
-@pytest.mark.parametrize("event_cls", [TaskSuccessEvent, TaskFailedEvent])
 @pytest.mark.parametrize("unavailable", ["dag", "path", "load_error"])
 @patch("airflow.models.dagbag.DBDagBag.get_dag_for_run", autospec=True)
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
-def test_submit_event_callback_falls_back_when_serialized_path_is_unavailable(
-    mock_send, mock_get_dag, session, create_task_instance, dag_maker, event_cls, unavailable
+def test_submit_failure_event_callback_falls_back_when_serialized_path_is_unavailable(
+    mock_send, mock_get_dag, session, create_task_instance, dag_maker, unavailable
 ):
     trigger = Trigger(classpath="does.not.matter", kwargs={})
     session.add(trigger)
@@ -1056,14 +1059,13 @@ def test_submit_event_callback_falls_back_when_serialized_path_is_unavailable(
         if unavailable == "load_error":
             mock_get_dag.side_effect = ValueError("Serialized Dag is unavailable")
 
-    event = event_cls()
-    Trigger.submit_event(trigger.id, event, session=session)
+    Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
 
     mock_send.assert_called_once()
     request = mock_send.call_args.kwargs["callback"]
     assert request.filepath == "current.py"
-    assert request.task_callback_type == event.task_instance_state
-    assert task_instance.state == event.task_instance_state
+    assert request.task_callback_type == TaskInstanceState.FAILED
+    assert task_instance.state == TaskInstanceState.FAILED
 
 
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")

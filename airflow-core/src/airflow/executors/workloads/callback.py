@@ -53,12 +53,11 @@ class CallbackFetchMethod(StrEnum):
 CALLBACK_KWARGS_ENCODING_KEY = "kwargs_encoding"
 SERDE_KWARGS_ENCODING = "serde"
 
-# Keys in ``CallbackDTO.data`` set by the scheduler when it routes a Dag processor callback. Times
-# are ISO 8601 strings. The timeout is stamped by the scheduler so the worker enforcing it and the
-# scheduler reaping a lost callback agree on it.
-START_DEADLINE_KEY = "start_deadline"
-STARTED_AT_KEY = "started_at"
+# Identifies the worker allowed to repeat its token exchange after losing the API response.
 STARTED_BY_KEY = "started_by"
+# Only schedulers that reap lost deadline workers set this on the callbacks they enqueue.
+HEARTBEAT_SUPPORTED_KEY = "heartbeat_supported"
+# Stamped by the scheduler so the worker and scheduler agree on the execution timeout.
 EXECUTION_TIMEOUT_KEY = "execution_timeout"
 # Which try at getting the callback started this is, from 1; absent on a first try.
 TRY_NUMBER_KEY = "try_number"
@@ -69,6 +68,10 @@ CALLBACK_REQUEST_DATA_KEY = "req_data"
 def get_callback_report_window(execution_timeout: int) -> int:
     """Return the seconds a routed callback has from its start to report its outcome: its timeout and a grace."""
     return execution_timeout + max(60, execution_timeout // 2)
+
+
+class CallbackLaunchUnconfirmed(Exception):
+    """The executor could not establish that the failure belongs to the worker that claimed the callback."""
 
 
 class CallbackDTO(BaseModel):

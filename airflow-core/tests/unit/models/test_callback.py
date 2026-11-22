@@ -630,31 +630,33 @@ class TestRoutedCallbackData:
 
         assert callback.get_callback_request() is None
 
-    def test_start_deadline_and_started_at_are_unset_by_default(self):
-        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
-
-        assert callback.start_deadline is None
-        assert callback.started_at is None
-
-    def test_start_deadline_is_read_from_data(self):
-        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
-        deadline = timezone.datetime(2026, 10, 22, 12, 0, 0)
-        callback.data["start_deadline"] = deadline.isoformat()
-
-        assert callback.start_deadline == deadline
-
-    def test_mark_started_persists_the_start(self, session):
-        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+    @pytest.mark.parametrize(
+        ("fetch_method", "report_window"),
+        [
+            (CallbackFetchMethod.DAG_ATTRIBUTE, timedelta(seconds=450)),
+            (CallbackFetchMethod.IMPORT_PATH, None),
+        ],
+    )
+    def test_claiming_a_queued_callback_replaces_the_queue_deadline(
+        self, session, fetch_method, report_window
+    ):
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=fetch_method)
+        started = timezone.datetime(2026, 10, 22, 12, 0, 0)
+        callback.state = CallbackState.QUEUED
+        callback.state_deadline = started + timedelta(hours=1)
+        callback.data["execution_timeout"] = 300
         session.add(callback)
         session.commit()
-        started = timezone.datetime(2026, 10, 22, 12, 0, 0)
 
-        callback.mark_started(started, started_by={"hostname": "worker-1", "pid": 4242})
+        assert callback.try_start(
+            started, started_by={"hostname": "worker-1", "pid": 4242}, heartbeat_timeout=None, session=session
+        )
         session.commit()
         session.expire_all()
 
         stored = session.get_one(Callback, callback.id)
         assert stored.started_at == started
+        assert stored.state_deadline == (started + report_window if report_window else None)
         assert stored.started_by == {"hostname": "worker-1", "pid": 4242}
 
     def test_repr_of_a_routed_callback_names_its_request_and_executor(self):

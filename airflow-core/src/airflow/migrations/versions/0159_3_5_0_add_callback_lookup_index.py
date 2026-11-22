@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add an index for looking callbacks up by type, state, and fetch method.
+Store callback deadlines and index waiting and expired callbacks.
 
 Revision ID: f9520b8eed39
 Revises: feb8b1e719ee
@@ -30,6 +30,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.utils.sqlalchemy import UtcDateTime
+
 revision = "f9520b8eed39"
 down_revision = "feb8b1e719ee"
 branch_labels = None
@@ -38,8 +40,19 @@ airflow_version = "3.5.0"
 
 
 def upgrade():
-    """Index the columns each scheduler loop looks callbacks up by."""
-    op.create_index("idx_callback_type_state_fetch_method", "callback", ["type", "state", "fetch_method"])
+    """Existing callbacks have no scheduler deadline until a worker opts in at admission."""
+    op.add_column("callback", sa.Column("started_at", UtcDateTime(), nullable=True))
+    op.add_column("callback", sa.Column("state_deadline", UtcDateTime(), nullable=True))
+    op.create_index(
+        "idx_callback_type_state_fetch_method", "callback", ["type", "state", "fetch_method", "id"]
+    )
+    op.create_index(
+        "idx_callback_state_deadline",
+        "callback",
+        ["state", "state_deadline"],
+        postgresql_where=sa.text("state_deadline IS NOT NULL"),
+        sqlite_where=sa.text("state_deadline IS NOT NULL"),
+    )
 
 
 def downgrade():
@@ -65,3 +78,6 @@ def downgrade():
         .values(state="failed", output="Airflow was downgraded before the callback finished")
     )
     op.drop_index("idx_callback_type_state_fetch_method", table_name="callback")
+    op.drop_index("idx_callback_state_deadline", table_name="callback")
+    op.drop_column("callback", "state_deadline")
+    op.drop_column("callback", "started_at")

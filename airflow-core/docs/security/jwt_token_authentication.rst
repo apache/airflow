@@ -296,10 +296,11 @@ The Execution API uses the following token scopes. Each endpoint accepts only it
    A single-use token exchanged at ``/callbacks/{callback_id}/run`` for an ``execution``
    token when a queued callback starts. Once the callback runs, the exchange is refused, except
    when repeated by the same attempt to run it, which identifies itself with an ID it generates, as
-   when it never got the response. The ``execution`` token lasts at least until a callback the scheduler routed must
-   report its outcome, since callbacks do not heartbeat. It carries the callback's Dag, Dag run, and
-   Dag bundle; in multi-team mode, that makes deadline callbacks use their Dag bundle's team rather
-   than no team.
+   when it never got the response. For routed Dag and task callbacks, the ``execution`` token lasts
+   at least until the worker must report the outcome. Workers that support heartbeats for deadline
+   callbacks can keep reporting liveness even when the callback has no execution time limit.
+   The token carries the callback's Dag, Dag run, and Dag bundle so deadline callbacks can use their
+   Dag bundle's team in multi-team mode.
 
 **dag_processor_session**
    A provisioned credential accepted only by ``POST /jobs`` for Job registration and renewal.

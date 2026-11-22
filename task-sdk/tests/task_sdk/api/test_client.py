@@ -21,8 +21,10 @@ import contextlib
 import json
 import os
 import pickle
+import time
 import uuid
 from datetime import UTC, datetime
+from threading import Event
 from typing import TYPE_CHECKING
 from unittest import mock
 
@@ -35,7 +37,13 @@ from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
 from airflow.sdk import timezone
-from airflow.sdk.api.client import Client, RemoteValidationError, ServerResponseError
+from airflow.sdk.api.client import (
+    API_TIMEOUT,
+    Client,
+    RemoteValidationError,
+    ServerResponseError,
+    callback_request_budget,
+)
 from airflow.sdk.api.datamodels._generated import (
     AssetEventsResponse,
     AssetResponse,
@@ -105,6 +113,43 @@ def ca_file(tmp_path):
 
 
 class TestClient:
+    @pytest.mark.parametrize("cancelled", [False, True], ids=["expired", "cancelled"])
+    def test_abandoned_callback_requests_cannot_retry(self, cancelled):
+        event = Event()
+        if cancelled:
+            event.set()
+        deadline = time.monotonic() + (60 if cancelled else -1)
+        transport = mock.Mock(spec=httpx2.MockTransport)
+        client = make_client(transport)
+        budget = callback_request_budget.set((deadline, event))
+        try:
+            with pytest.raises(TimeoutError, match="stopped waiting"):
+                client.variables.get("key")
+        finally:
+            callback_request_budget.reset(budget)
+        transport.handle_request.assert_not_called()
+
+    def test_callback_request_uses_the_remaining_transport_budget(self):
+        def respond(request: httpx2.Request):
+            assert 0 < request.extensions["timeout"]["read"] <= min(0.5, API_TIMEOUT)
+            return httpx2.Response(200, json={"key": "key", "value": "value"})
+
+        client = make_client(httpx2.MockTransport(respond))
+        budget = callback_request_budget.set((time.monotonic() + 0.5, Event()))
+        try:
+            assert client.variables.get("key").value == "value"
+        finally:
+            callback_request_budget.reset(budget)
+
+    def test_late_response_cannot_replace_a_concurrently_refreshed_token(self):
+        client = Client(base_url="test://server", token="original")
+        request = httpx2.Request(
+            "GET", "test://server/variables/key", headers={"Authorization": "Bearer original"}
+        )
+        for token in ("heartbeat-token", "late-token"):
+            client._update_auth(httpx2.Response(200, request=request, headers={"Refreshed-API-Token": token}))
+        assert client.auth.token == "heartbeat-token"
+
     @pytest.mark.parametrize(
         ("path", "json_response"),
         [
@@ -2799,8 +2844,8 @@ class TestCallbackOperations:
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
-            client.callbacks.run(callback_id)
-            client.callbacks.run(callback_id)
+            assert client.callbacks.run(callback_id) is None
+            assert client.callbacks.run(callback_id) is None
 
         assert client.auth is not None
         assert client.auth.token == "execution-token"
@@ -2810,20 +2855,24 @@ class TestCallbackOperations:
         assert retried == first_attempt
         assert second_attempt["attempt_id"] != first_attempt["attempt_id"]
 
-    def test_run_raises_on_conflict(self):
+    @pytest.mark.parametrize(
+        ("monitored", "expected"),
+        [(True, CallbackAlreadyStartedError), (False, ServerResponseError), (None, ServerResponseError)],
+    )
+    def test_only_a_monitored_running_callback_can_ignore_redelivery(self, monitored, expected):
         callback_id = uuid7()
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
-            return httpx2.Response(
-                status_code=409,
-                json={"detail": {"reason": "invalid_state", "previous_state": "running"}},
-            )
+            detail = {"reason": "invalid_state", "previous_state": "running"}
+            if monitored is not None:
+                detail["worker_is_monitored"] = monitored
+            return httpx2.Response(status_code=409, json={"detail": detail})
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
-        with pytest.raises(CallbackAlreadyStartedError) as err:
+        with pytest.raises(expected) as err:
             client.callbacks.run(callback_id)
         # What the Celery executor ignores when a callback's message is delivered twice.
-        assert isinstance(err.value, TaskAlreadyRunningError)
+        assert isinstance(err.value, TaskAlreadyRunningError) is (monitored is True)
 
     def test_run_lets_a_rejected_token_fail_the_workload(self):
         """Only a 409 means the callback started elsewhere; any other refusal fails this delivery."""
@@ -2836,6 +2885,25 @@ class TestCallbackOperations:
             client.callbacks.run(uuid7())
         assert err.value.response.status_code == 403
         assert not isinstance(err.value, CallbackAlreadyStartedError)
+
+    @pytest.mark.parametrize(("budget", "expected_timeout"), [(1, 1), (10, 5)])
+    @mock.patch("airflow.sdk.api.client.API_TIMEOUT", 5)
+    def test_heartbeat_observes_its_remaining_budget_and_never_retries(self, budget, expected_timeout):
+        callback_id = uuid7()
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            return httpx2.Response(503)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError):
+            client.callbacks.heartbeat(callback_id, timeout=budget)
+
+        [request] = requests
+        assert request.method == "PUT"
+        assert request.url.path == f"/callbacks/{callback_id}/heartbeat"
+        assert set(request.extensions["timeout"].values()) == {expected_timeout}
 
     def test_get_previous_successful_dagrun_asks_the_callback_endpoint(self):
         callback_id = uuid7()

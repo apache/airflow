@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Annotated
+from datetime import timedelta
+from typing import TYPE_CHECKING, Annotated, cast
 from uuid import UUID
 
 from cadwyn import VersionedAPIRouter
-from fastapi import Body, HTTPException, Response, Security, status
-from sqlalchemy import select
+from fastapi import Body, Header, HTTPException, Response, Security, status
+from sqlalchemy import update
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.common.db.common import SessionDep
@@ -42,11 +43,20 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
 )
 from airflow.callbacks.callback_requests import DagCallbackRequest, EmailRequest, TaskCallbackRequest
-from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, get_callback_report_window
+from airflow.configuration import conf
+from airflow.executors.workloads.callback import (
+    EXECUTION_TIMEOUT_KEY,
+    HEARTBEAT_SUPPORTED_KEY,
+    CallbackFetchMethod,
+    get_callback_report_window,
+)
 from airflow.models.callback import Callback
 from airflow.models.dagrun import DagRun
 from airflow.utils.helpers import prune_dict
 from airflow.utils.state import CallbackState, DagRunState
+
+if TYPE_CHECKING:
+    from sqlalchemy import CursorResult
 
 router = VersionedAPIRouter(
     route_class=ExecutionAPIRoute,
@@ -57,7 +67,7 @@ router = VersionedAPIRouter(
 
 
 def _get_callback(callback_id: UUID, *, session: SessionDep, for_update: bool = False) -> Callback:
-    callback = session.get(Callback, callback_id, with_for_update=for_update)
+    callback = session.get(Callback, callback_id, with_for_update=for_update, populate_existing=for_update)
     if callback is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -69,26 +79,9 @@ def _get_callback(callback_id: UUID, *, session: SessionDep, for_update: bool = 
     return callback
 
 
-def _get_callback_dag_run(callback: Callback, *, session: SessionDep) -> DagRun | None:
-    """Return the callback's original Dag run, if it still exists."""
-    if not (dag_run_id := callback.data.get("dag_run_id")):
-        return None
-    if (request := callback.get_callback_request()) is None:
-        return session.get(DagRun, dag_run_id)
-
-    if isinstance(request, DagCallbackRequest):
-        dag_id, run_id = request.dag_id, request.run_id
-    else:
-        dag_id, run_id = request.ti.dag_id, request.ti.run_id
-    # SQLite can reuse a deleted run's integer ID while its callback is still queued or running.
-    return session.scalar(
-        select(DagRun).where(DagRun.id == dag_run_id, DagRun.dag_id == dag_id, DagRun.run_id == run_id)
-    )
-
-
 def _get_identity_claims(callback: Callback, *, session: SessionDep) -> dict[str, str]:
     """Return the Dag, run, and bundle a callback runs for, which resolve its team."""
-    dag_run = _get_callback_dag_run(callback, session=session)
+    dag_run = callback.get_dag_run(session=session)
     return prune_dict(
         {
             "dag_id": callback.get_dag_id(),
@@ -118,6 +111,7 @@ def run_callback(
     session: SessionDep,
     services=DepContainer,
     body: CallbackRunPayload | None = None,
+    prefer: Annotated[str | None, Header()] = None,
 ) -> None:
     """
     Exchange a single-use callback token for a short-lived execution token.
@@ -125,48 +119,57 @@ def run_callback(
     An attempt that identifies itself can repeat its own exchange, as when it never got the response,
     and gets a new execution token. Any other exchange of a callback that already started is refused,
     including a second delivery of its workload.
+
+    A deadline worker can request heartbeats with ``Prefer: callback-heartbeat``. When enabled,
+    the response returns its worker timeout in seconds in ``Airflow-Callback-Heartbeat-Timeout``.
     """
     callback = _get_callback(callback_id, session=session, for_update=True)
     started_by = body.model_dump(mode="json") if body is not None else None
-
-    if (
-        callback.state == CallbackState.RUNNING
-        and started_by is not None
-        and callback.started_by == started_by
+    heartbeat_timeout = (
+        _get_callback_heartbeat_timeout()
+        if (
+            started_by is not None
+            and prefer == "callback-heartbeat"
+            and callback.fetch_method == CallbackFetchMethod.IMPORT_PATH
+            and callback.data.get(HEARTBEAT_SUPPORTED_KEY)
+        )
+        else None
+    )
+    if not callback.try_start(
+        timezone.utcnow(), started_by=started_by, heartbeat_timeout=heartbeat_timeout, session=session
     ):
-        _issue_callback_token(callback, response, services, session=session)
-        return
+        callback = _get_callback(callback_id, session=session, for_update=True)
+        if callback.state == CallbackState.QUEUED and callback.state_deadline is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "reason": "start_deadline_passed",
+                    "message": f"Callback {callback_id} had to start by {callback.state_deadline.isoformat()}",
+                },
+            )
+        if callback.state != CallbackState.RUNNING or started_by is None or callback.started_by != started_by:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "reason": "invalid_state",
+                    "message": (
+                        f"Callback {callback_id} is in state {callback.state}; its token can only be "
+                        "exchanged once while QUEUED."
+                    ),
+                    "previous_state": callback.state,
+                    "worker_is_monitored": callback.state_deadline is not None,
+                },
+            )
+        # A retry whose first response was lost repeats the original negotiation.
+        if callback.fetch_method == CallbackFetchMethod.IMPORT_PATH and callback.state_deadline is not None:
+            heartbeat_timeout = _get_callback_heartbeat_timeout()
+            _renew_callback_heartbeat(callback_id, heartbeat_timeout, session=session)
+        else:
+            heartbeat_timeout = None
 
-    if callback.state != CallbackState.QUEUED:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "invalid_state",
-                "message": (
-                    f"Callback {callback_id} is in state {callback.state}; its token can only be "
-                    "exchanged once while QUEUED."
-                ),
-                "previous_state": callback.state,
-            },
-        )
-
-    now = timezone.utcnow()
-    if (start_deadline := callback.start_deadline) is not None and now >= start_deadline:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "start_deadline_passed",
-                "message": f"Callback {callback_id} had to start by {start_deadline.isoformat()}",
-            },
-        )
-
-    callback.state = CallbackState.RUNNING
-    callback.mark_started(now, started_by=started_by)
-    _issue_callback_token(callback, response, services, session=session)
-
-
-def _issue_callback_token(callback: Callback, response: Response, services, *, session: SessionDep) -> None:
-    # A callback doesn't heartbeat, so its token must last until it reports its outcome.
+    if heartbeat_timeout is not None:
+        response.headers["Airflow-Callback-Heartbeat-Timeout"] = str(int(heartbeat_timeout.total_seconds()))
+    # A routed callback doesn't heartbeat, so its token must last until it reports its outcome.
     timeout = callback.data.get(EXECUTION_TIMEOUT_KEY)
     issue_execution_token(
         services,
@@ -175,6 +178,45 @@ def _issue_callback_token(callback: Callback, response: Response, services, *, s
         claims=_get_identity_claims(callback, session=session),
         min_valid_for=get_callback_report_window(timeout) if timeout else None,
     )
+
+
+def _get_callback_heartbeat_timeout() -> timedelta:
+    return timedelta(seconds=max(1, conf.getint("scheduler", "task_instance_heartbeat_timeout")))
+
+
+@router.put(
+    "/{callback_id}/heartbeat",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Security(require_auth, scopes=["token:execution"])],
+    responses=create_openapi_http_exception_doc(
+        [
+            (status.HTTP_404_NOT_FOUND, "Callback not found"),
+            (status.HTTP_409_CONFLICT, "Callback has no running heartbeat to renew"),
+        ]
+    ),
+)
+def heartbeat_callback(callback_id: UUID, session: SessionDep) -> None:
+    """Renew a deadline callback's worker heartbeat, independently of its execution timeout."""
+    _renew_callback_heartbeat(callback_id, _get_callback_heartbeat_timeout(), session=session)
+
+
+def _renew_callback_heartbeat(callback_id: UUID, timeout: timedelta, *, session: SessionDep) -> None:
+    renewed = cast(
+        "CursorResult",
+        session.execute(
+            update(Callback)
+            .where(
+                Callback.id == callback_id,
+                Callback.fetch_method == CallbackFetchMethod.IMPORT_PATH,
+                Callback.state == CallbackState.RUNNING,
+                Callback.state_deadline.is_not(None),
+            )
+            .values(state_deadline=timezone.utcnow() + timeout)
+        ),
+    )
+    if not renewed.rowcount:
+        _get_callback(callback_id, session=session)
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"reason": "invalid_state"})
 
 
 @router.get(
@@ -258,7 +300,7 @@ def get_callback_previous_successful_dagrun(
     """
     callback = _get_callback(callback_id, session=session)
     previous = None
-    if dag_run := _get_callback_dag_run(callback, session=session):
+    if dag_run := callback.get_dag_run(session=session):
         previous = DagRun.get_previous_dagrun(dag_run, state=DagRunState.SUCCESS, session=session)
     if previous is None:
         return PrevSuccessfulDagRunResponse()
@@ -282,28 +324,27 @@ def update_callback_state(
     session: SessionDep,
 ) -> None:
     """Report the final state of a callback that has finished running."""
-    callback = _get_callback(callback_id, session=session, for_update=True)
-
-    # Accepting the state the row already holds keeps the report idempotent: the SDK client retries
-    # a lost response (Client.request defaults to retry=True), and a 409 there makes the supervisor
-    # log a failure for an outcome that is correct. Safe to replay because this route issues no
-    # token, unlike /run above.
     reported_state = CallbackState(payload.state)
-    if callback.state not in (CallbackState.RUNNING, reported_state):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail={
-                "reason": "invalid_state",
-                "message": (
-                    f"Callback {callback_id} is in state {callback.state}; a terminal state can only "
-                    f"be reported for a RUNNING callback, or for one already in {reported_state}."
-                ),
-                "previous_state": callback.state,
-            },
-        )
-
-    callback.state = reported_state
-    # Written on the idempotent path too: the scheduler may have reached this same terminal state
-    # first and stored its own placeholder output.
+    # A retried report can replace the scheduler's placeholder output for the same outcome.
+    stmt = (
+        update(Callback)
+        .where(Callback.id == callback_id, Callback.state.in_((CallbackState.RUNNING, reported_state)))
+        .values(state=reported_state, state_deadline=None)
+        .execution_options(synchronize_session=False)
+    )
     if payload.output is not None:
-        callback.output = payload.output
+        stmt = stmt.values(output=payload.output)
+    if cast("CursorResult", session.execute(stmt)).rowcount:
+        return
+    callback = _get_callback(callback_id, session=session, for_update=True)
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "reason": "invalid_state",
+            "message": (
+                f"Callback {callback_id} is in state {callback.state}; a terminal state can only "
+                f"be reported for a RUNNING callback, or for one already in {reported_state}."
+            ),
+            "previous_state": callback.state,
+        },
+    )

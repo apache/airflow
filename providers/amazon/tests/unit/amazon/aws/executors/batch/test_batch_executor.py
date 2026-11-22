@@ -457,6 +457,7 @@ class TestAwsBatchExecutor:
             token="test_token",
             log_path="test.log",
         )
+        assert mock_executor.supports_routed_callbacks
         resource_requirements = [{"type": "VCPU", "value": "2"}]
         executor_config = {
             "jobDefinition": "callback-job-def",
@@ -495,6 +496,50 @@ class TestAwsBatchExecutor:
             )
             assert kwargs["containerOverrides"]["command"] == queued.command
         assert mock_executor.active_workers.id_to_key[ARN1] == workload.callback.key
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires monitored callbacks"
+    )
+    def test_lost_submit_job_response_preserves_callback_slot(self, mock_executor):
+        from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+        from airflow.models.callback import CallbackKey
+        from airflow.utils.state import CallbackState
+
+        key = CallbackKey(str(uuid4()))
+        mock_executor.max_submit_job_attempts = 1
+        mock_executor.batch.submit_job.side_effect = TimeoutError("lost SubmitJob response")
+        mock_executor.execute_async(key, ["airflow", "workload"])
+        mock_executor.running.add(key)
+
+        mock_executor.attempt_submit_jobs()
+
+        state, info = mock_executor.get_event_buffer()[key]
+        assert state == CallbackState.FAILED
+        assert isinstance(info, CallbackLaunchUnconfirmed)
+        assert str(info) == "lost SubmitJob response"
+        assert key in mock_executor.running
+        assert not mock_executor.pending_jobs
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires monitored callbacks"
+    )
+    @pytest.mark.parametrize("is_callback", [True, False], ids=["callback", "task"])
+    def test_duplicate_exit_only_discards_a_callback_job(self, mock_executor, is_callback):
+        from airflow.models.callback import CallbackKey
+
+        key = CallbackKey(str(uuid4())) if is_callback else TaskInstanceUuid(uuid4())
+        mock_executor.active_workers.add_job(ARN1, key, ["workload"], "queue", {}, 1)
+        mock_executor.running.add(key)
+        mock_executor.batch.describe_jobs.return_value = {
+            "jobs": [{"jobId": ARN1, "status": "FAILED", "container": {"exitCode": os.EX_TEMPFAIL}}]
+        }
+
+        mock_executor.sync_running_jobs()
+
+        assert not mock_executor.active_workers.id_to_key
+        assert key in mock_executor.running
+        assert not mock_executor.get_event_buffer()
+        assert [job.key for job in mock_executor.pending_jobs] == ([] if is_callback else [key])
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     @mock.patch("airflow.providers.amazon.aws.executors.batch.batch_executor.AwsBatchExecutor.running_state")
