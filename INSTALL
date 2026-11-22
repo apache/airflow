@@ -246,7 +246,7 @@ Using Hatch to build packages
 -----------------------------
 
 You can use Hatch to build installable packages from the Airflow sources. Such package will
-include all metadata configured in `pyproject.toml` and will be installable with ``pip`` and and any other
+include all metadata configured in `pyproject.toml` and will be installable with ``pip`` and any other
 PEP-compliant packaging front-end. You can run those commands in:
 
 * root folder of the repository to build "meta" airflow distribution that install other distribution
