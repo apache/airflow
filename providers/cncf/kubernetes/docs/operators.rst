@@ -969,8 +969,24 @@ Once the Job is finished, logs are read from the pods it has at that time.
 The wait has no timeout of its own. If Kueue never admits the Job (for example, ``queue_name`` doesn't
 match a ``LocalQueue`` in the namespace), the task waits forever. Set ``execution_timeout`` to limit the
 wait; it also applies while the task is deferred. On timeout, the task fails and the Job is deleted, so
-Kueue doesn't run it later. ``active_deadline_seconds`` doesn't help here: Kubernetes resets its timer
-each time the Job is suspended.
+Kueue doesn't run it later, unless ``on_kill_action="keep_pod"`` (see below). ``active_deadline_seconds``
+doesn't help here: Kubernetes resets its timer each time the Job is suspended.
+
+Deleting the Job
+^^^^^^^^^^^^^^^^
+
+ Deleting the Job also deletes its pods and its Kueue ``Workload``:
+
+* ``delete_pod`` (the default) deletes the Job, whether it succeeded or failed;
+* ``delete_succeeded_pod`` deletes the Job only if it succeeded;
+* ``keep_pod`` and ``delete_active_pod`` keep the Job. Set ``ttl_seconds_after_finished`` to have
+  Kubernetes delete it later.
+
+When a user marks the task failed or success, or clears it, the Job is deleted, so that it doesn't keep
+its place in the queue or its quota: by ``on_kill`` on the worker or, while the task is deferred, by the
+trigger (from Airflow 3.3). ``on_kill_propagation_policy`` and ``termination_grace_period`` apply to both.
+With ``on_kill_action="keep_pod"``, the Job is kept instead: it stays in its queue, and Kueue may still
+run it.
 
 XComs
 ^^^^^
