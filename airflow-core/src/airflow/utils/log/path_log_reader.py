@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 """Reader for logs not tied to a TaskInstance, looked up by their path relative to the log folder."""
 
 from __future__ import annotations
