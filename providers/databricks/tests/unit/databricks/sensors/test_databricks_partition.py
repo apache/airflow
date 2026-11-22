@@ -141,9 +141,10 @@ class TestDatabricksPartitionSensor:
     )
     def test_poke_keeps_waiting_until_partition_arrives(self, _check_table_partitions):
         _check_table_partitions.side_effect = [[], [], [[1]]]
-        assert self.partition_sensor.poke(context={}) is False
-        assert self.partition_sensor.poke(context={}) is False
-        assert self.partition_sensor.poke(context={}) is True
+
+        for expected in (False, False, True):
+            assert self.partition_sensor.poke(context={}) is expected
+
         assert _check_table_partitions.call_count == 3
 
     def _make_sensor(self, **kwargs):
