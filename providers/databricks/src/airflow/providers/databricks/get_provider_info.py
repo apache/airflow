@@ -37,6 +37,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-databricks/operators/run_now.rst",
                     "/docs/apache-airflow-providers-databricks/operators/task.rst",
                     "/docs/apache-airflow-providers-databricks/operators/agent.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/vector_search.rst",
                 ],
                 "logo": "/docs/integration-logos/Databricks.png",
                 "tags": ["service"],
@@ -81,6 +82,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks",
                     "airflow.providers.databricks.operators.agent",
+                    "airflow.providers.databricks.operators.vector_search",
                 ],
             },
             {

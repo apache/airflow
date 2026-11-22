@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 from enum import Enum
 from typing import Any
+from urllib.parse import quote
 
 from requests import exceptions as requests_exceptions
 
@@ -857,6 +858,17 @@ class DatabricksHook(BaseDatabricksHook):
         :return: ``None`` when the request succeeds, without waiting for configuration changes to finish.
         """
         self._do_api_call(("POST", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}/edit"), json)
+
+    def sync_vector_search_index(self, index_name: str) -> None:
+        """
+        Request a synchronization of an existing triggered Delta Sync index.
+
+        :param index_name: Three-level Unity Catalog name of the index.
+        :return: ``None`` when the request succeeds, without waiting for the sync to finish.
+        """
+        if not index_name:
+            raise ValueError("index_name must be provided.")
+        self._do_api_call(("POST", f"2.0/vector-search/indexes/{quote(index_name, safe='')}/sync"))
 
     def install(self, json: dict) -> None:
         """

@@ -1616,6 +1616,35 @@ class TestDatabricksHookConnSettings(TestDatabricksHookToken):
         assert mock_get.call_args.args == (f"http://{HOST}:7908/api/2.1/foo/bar",)
 
 
+class TestVectorSearch:
+    @pytest.mark.parametrize(
+        ("index_name", "encoded_name"),
+        [
+            ("catalog.schema.search_index", "catalog.schema.search_index"),
+            ("catalog.schema.search index", "catalog.schema.search%20index"),
+        ],
+    )
+    @mock.patch.object(DatabricksHook, "_do_api_call", autospec=True)
+    def test_sync_index_endpoint(self, mock_do_api_call, index_name, encoded_name):
+        mock_do_api_call.return_value = {}
+        hook = DatabricksHook()
+
+        assert hook.sync_vector_search_index(index_name) is None
+
+        mock_do_api_call.assert_called_once_with(
+            hook, ("POST", f"2.0/vector-search/indexes/{encoded_name}/sync")
+        )
+
+    @mock.patch.object(DatabricksHook, "_do_api_call", autospec=True)
+    def test_rejects_empty_index_name(self, mock_do_api_call):
+        hook = DatabricksHook()
+
+        with pytest.raises(ValueError, match="index_name must be provided"):
+            hook.sync_vector_search_index("")
+
+        mock_do_api_call.assert_not_called()
+
+
 class TestWarehouseLifecycle:
     @pytest.mark.parametrize(
         "payload",
