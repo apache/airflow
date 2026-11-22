@@ -59,6 +59,12 @@ def get_provider_info():
                 "factory": "airflow.providers.common.io.assets.file.create_asset",
             }
         ],
+        "plugins": [
+            {
+                "name": "common_io",
+                "plugin-class": "airflow.providers.common.io.plugins.common_io.CommonIOPlugin",
+            }
+        ],
         "config": {
             "common.io": {
                 "description": "Common IO configuration section",
