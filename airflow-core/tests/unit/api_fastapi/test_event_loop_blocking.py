@@ -158,6 +158,26 @@ class TestNoSyncDbOnEventLoop:
         method, path = route.split(" ", 1)
         assert not _send_request(test_client, event_loop_queries, method, path, mode)
 
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize(
+        ("url", "body"),
+        [
+            pytest.param("/api/v2/pools", {"name": "team_pool", "slots": 1}, id="pool"),
+            pytest.param(
+                "/api/v2/connections", {"connection_id": "team_conn", "conn_type": "http"}, id="connection"
+            ),
+            pytest.param("/api/v2/variables", {"key": "team_var", "value": "v"}, id="variable"),
+        ],
+    )
+    def test_team_lookup_runs_no_sync_sql_on_the_event_loop(
+        self, test_client, event_loop_queries, testing_team, url, body
+    ):
+        """The event loop sweep sends ``{}`` as the body, so it never reaches the lookup of a ``team_name`` in it."""
+        response = test_client.post(url, json={**body, "team_name": testing_team.name})
+
+        assert response.status_code == 201
+        assert [query.site for query in event_loop_queries] == []
+
 
 class _OffloadFinder(ast.NodeVisitor):
     """Collect ``<file>::<Qualified.function>`` of every call that hands work to a thread."""
