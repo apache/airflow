@@ -52,8 +52,9 @@ if TYPE_CHECKING:
 
 _STATE_DIR = "_airflow_batch_state"
 
-#: Bumped if the on-disk record shape ever changes incompatibly.
-SCHEMA_VERSION = 1
+#: Bumped if the on-disk record shape ever changes incompatibly. Version 2 added
+#: ``provider_handle``; a version 1 record still reads, with no handle.
+SCHEMA_VERSION = 2
 
 
 def compute_identity_key(
@@ -210,6 +211,10 @@ class BatchStateRecord:
     provider_input_ref: str | None
     request_count: int | None
     submitted_at: str | None
+    #: The adapter's own serialized state for the batch (pydantic-ai's ``Batch`` handle), so a
+    #: different process can poll, cancel and collect it. ``None`` on a version 1 record and for
+    #: an adapter that needs only ``batch_id``.
+    provider_handle: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -219,10 +224,10 @@ class BatchStateRecord:
         if not isinstance(data, dict):
             raise TypeError(f"state record must be a JSON object; got {type(data).__name__}")
         version = data["schema_version"]
-        if version != SCHEMA_VERSION:
+        if version not in (1, SCHEMA_VERSION):
             raise ValueError(
-                f"state record was written with schema version {version}; this provider reads version "
-                f"{SCHEMA_VERSION}"
+                f"state record was written with schema version {version}; this provider reads versions "
+                f"1 and {SCHEMA_VERSION}"
             )
         return cls(
             schema_version=version,
@@ -238,6 +243,7 @@ class BatchStateRecord:
             provider_input_ref=data.get("provider_input_ref"),
             request_count=data.get("request_count"),
             submitted_at=data.get("submitted_at"),
+            provider_handle=data.get("provider_handle"),
         )
 
 
@@ -284,6 +290,7 @@ def write_intent(
             provider_input_ref=None,
             request_count=None,
             submitted_at=None,
+            provider_handle=None,
         ),
     )
 
@@ -303,6 +310,7 @@ def write_submitted(
     provider_input_ref: str | None,
     request_count: int,
     submitted_at: str,
+    provider_handle: str | None = None,
 ) -> None:
     """Phase B: overwrite the intent record with the full record, once the provider has accepted the batch."""
     _write(
@@ -322,6 +330,7 @@ def write_submitted(
             provider_input_ref=provider_input_ref,
             request_count=request_count,
             submitted_at=submitted_at,
+            provider_handle=provider_handle,
         ),
     )
 

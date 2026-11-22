@@ -578,8 +578,8 @@ class RuntimeTaskInstance(TaskInstance):
         :param dag_id: If provided, only pulls XComs from this Dag. If *None*
             (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
-            If *None* (default), this is inferred from the task(s) being pulled
-            (see below for details).
+            If not provided (default), every instance of the task(s) being pulled
+            is pulled (see below for details).
         :param include_prior_dates: If False, only XComs from the current
             logical_date are returned. If *True*, XComs from previous dates
             are returned as well.
@@ -587,14 +587,15 @@ class RuntimeTaskInstance(TaskInstance):
             If *None* (default), the run_id of the calling task is used.
 
         When pulling one single task (``task_id`` is *None* or a str) without
-        specifying ``map_indexes``, the return value is a single XCom entry
-        (map_indexes is set to map_index of the calling task instance).
+        specifying ``map_indexes``, the XComs of all its instances are pulled. If
+        exactly one is found, it is returned on its own; otherwise they are
+        returned as a list.
 
-        When pulling task is mapped the specified ``map_index`` is used, so by default
-        pulling on mapped task will result in no matching XComs if the task instance
-        of the method call is not mapped. Otherwise, the map_index of the calling task
-        instance is used. Setting ``map_indexes`` to *None* will pull XCom as it would
-        from a non mapped task.
+        Setting ``map_indexes`` to *None* pulls the task's result: the XCom of a
+        non-mapped task, or for a mapped task the XComs of all its instances as a
+        list (*None* instead of an empty list on Airflow 3.4). With
+        ``include_prior_dates``, a mapped task matches no XCom. A map index the
+        task has no instance at matches no XCom either.
 
         In either case, ``default`` (*None* if not specified) is returned if no
         matching XComs are found.
@@ -1241,6 +1242,34 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
+
+# True while code serves an in-process supervisor request (dag.test()). That code acts as
+# the server side, so get_supervisor_comms() returns None there. Other task threads are unaffected.
+_supervisor_comms_hidden: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_supervisor_comms_hidden", default=False
+)
+
+
+def get_supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
+    """
+    Return the comms to the supervisor, or ``None``.
+
+    ``None`` outside a task execution context and inside :func:`hide_supervisor_comms`. Code that
+    decides whether it runs inside a task should ask this instead of checking for ``SUPERVISOR_COMMS``.
+    """
+    if _supervisor_comms_hidden.get():
+        return None
+    return globals().get("SUPERVISOR_COMMS")
+
+
+@contextmanager
+def hide_supervisor_comms() -> Iterator[None]:
+    """Hide the comms from the code run inside this block, and only from it."""
+    token = _supervisor_comms_hidden.set(True)
+    try:
+        yield
+    finally:
+        _supervisor_comms_hidden.reset(token)
 
 
 # State machine!
