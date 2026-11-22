@@ -61,11 +61,11 @@ class _DbApiDriver(ABC):
 
     def build_sqlalchemy_url(self, connection: Connection, database: str | None, scheme: str) -> URL:
         """Return the SQLAlchemy URL. Without one, the engine is built from ``MsSqlHook.get_uri()``."""
-        raise NotImplementedError
+        raise NotImplementedError(f"The {self.name} driver builds no SQLAlchemy URL, use get_uri().")
 
     def rewrite_uri(self, uri: str, scheme: str) -> str:
         """Turn the URI of the Airflow connection into the one used for the SQLAlchemy engine."""
-        return uri
+        raise NotImplementedError(f"The {self.name} driver does not rewrite the connection URI.")
 
     def set_autocommit(self, conn: Any, autocommit: bool) -> None:
         conn.autocommit = autocommit
