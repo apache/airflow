@@ -37,7 +37,7 @@ def test_main_runs_compare_with_the_go_serializer_and_returns_its_exit_code(mock
         "--sdk",
         "go",
         "--supports",
-        "all",
+        "branch,switch,edge_labels,group_options,trigger_dag_run,literal_inputs",
         "--",
         *checker.SERIALIZER,
     ]

@@ -26,6 +26,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { JsonValue } from "./client-types.js";
 import type { TaskClient } from "./client.js";
+import type { LoopContext } from "./loop.js";
 
 /** Runtime metadata for the current task invocation. */
 export interface TaskContext<TConf = Readonly<Record<string, JsonValue>>> {
@@ -55,6 +56,8 @@ export interface TaskContext<TConf = Readonly<Record<string, JsonValue>>> {
 export interface TaskScope {
   readonly ctx: TaskContext;
   readonly client: TaskClient;
+  /** Reads the loop the task is in; absent for a task outside any loop. */
+  readonly loop?: () => Promise<LoopContext>;
 }
 
 // Keyed on a global symbol, as the serve latch is: two resolved copies of the
@@ -80,9 +83,10 @@ export function runInTaskScope<T>(scope: TaskScope, fn: () => T): T {
   return scopeStorage().run(scope, fn);
 }
 
-type ScopeAccessor = "getContext" | "getClient";
+type ScopeAccessor = "getContext" | "getClient" | "getLoop";
 
-function currentScope(accessor: ScopeAccessor): TaskScope {
+/** Internal: the scope of the running task, or a throw naming `accessor` outside one. */
+export function getTaskScope(accessor: ScopeAccessor): TaskScope {
   const scope = scopeStorage().getStore();
   if (!scope) {
     throw new Error(
@@ -113,7 +117,7 @@ function currentScope(accessor: ScopeAccessor): TaskScope {
  * @throws when called outside a task handler.
  */
 export function getContext<TConf = TaskContext["conf"]>(): TaskContext<TConf> {
-  return currentScope("getContext").ctx as TaskContext<TConf>;
+  return getTaskScope("getContext").ctx as TaskContext<TConf>;
 }
 
 /**
@@ -135,7 +139,7 @@ export function getContext<TConf = TaskContext["conf"]>(): TaskContext<TConf> {
  * @throws when called outside a task handler.
  */
 export function getClient(): TaskClient {
-  return currentScope("getClient").client;
+  return getTaskScope("getClient").client;
 }
 
 /**

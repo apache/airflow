@@ -325,7 +325,7 @@ def test_main_fails_when_the_sdk_writes_other_dags_than_it_supports(
     assert mock_run.call_count == 1
     assert (
         "The go SDK wrote the Dags ['d'], but it supports "
-        "['branch', 'edge_labels', 'group_options', 'literal_inputs', 'switch', 'trigger_dag_run'] "
+        "['branch', 'edge_labels', 'group_options', 'literal_inputs', 'loops', 'switch', 'trigger_dag_run'] "
         "and so should write ['branchy', 'd', 'labelled_switch']"
     ) in capsys.readouterr().err
 
@@ -417,3 +417,5 @@ def test_test_dags_require_the_feature_of_each_key_they_use():
             assert "group_options" in required, case["dag_id"]
         if any(len(edge) == 3 for edge in case.get("order_edges", [])):
             assert "edge_labels" in required, case["dag_id"]
+        if case.get("loops"):
+            assert "loops" in required, case["dag_id"]

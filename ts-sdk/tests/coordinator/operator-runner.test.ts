@@ -25,7 +25,7 @@ import { buildOperatorContext, runOperator } from "../../src/coordinator/operato
 import type { StartupDetails } from "../../src/coordinator/protocol.js";
 import { Dag } from "../../src/sdk/dag.js";
 import type { Operator, OperatorContext, OperatorOutcome } from "../../src/sdk/operator.js";
-import type { TaskContext } from "../../src/sdk/task.js";
+import { getContext, type TaskContext } from "../../src/sdk/task.js";
 
 const SUCCEEDED = {
   type: "SucceedTask",
@@ -46,11 +46,14 @@ function makeContext(tiContext: Record<string, unknown> = {}) {
   const skipDownstreamTasks = vi.fn(async () => undefined);
   const error = vi.fn();
   const fail = vi.fn((message: string) => ({ type: "TaskState", state: "failed", message }));
+  const ctx = { taskId: "t", signal: new AbortController().signal } as TaskContext;
+  const client = { setXCom, skipDownstreamTasks } as unknown as CoordinatorClient;
   const op = buildOperatorContext({
     details: makeDetails(tiContext),
     dag: new Dag("d"),
-    ctx: { taskId: "t", signal: new AbortController().signal } as TaskContext,
-    client: { setXCom, skipDownstreamTasks } as unknown as CoordinatorClient,
+    ctx,
+    client,
+    scope: { ctx, client },
     logs: { error } as unknown as LogChannel,
     fail: fail as unknown as OperatorContext["fail"],
   });
@@ -140,6 +143,12 @@ describe("buildOperatorContext", () => {
     await op.succeed({ ok: true });
 
     expect(setXCom).toHaveBeenCalledWith({ key: "return_value", value: { ok: true } });
+  });
+
+  it("runs a callable in the task's scope", () => {
+    const { op } = makeContext();
+
+    expect(op.runInScope(() => getContext().taskId)).toBe("t");
   });
 
   it("skips tasks as SkipMixin does", async () => {

@@ -77,6 +77,9 @@ export interface TaskClient {
    * Returns `null` when the row is missing. Locator fields default to the
    * current task's context; see {@link GetXComOpts} for how `mapIndex` defaults.
    *
+   * Reading a loop task's XCom from outside the loop fails. Wire `LoopRef.all()`
+   * as an input to read every iteration.
+   *
    * The generic `T` lets callers narrow the return type when the shape is
    * known:
    *

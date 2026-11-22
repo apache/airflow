@@ -53,6 +53,8 @@ export interface OperatorContext {
   readonly ctx: TaskContext;
   readonly client: CoordinatorClient;
   readonly logs: LogChannel;
+  /** Call `fn` with `getContext()`, `getClient()` and `getLoop()` working inside it. */
+  runInScope<T>(fn: () => T): T;
   /** Bind the task's declared inputs, applying the `withArgNames` renames of `argNames`. */
   resolveArgs(argNames?: ReadonlyMap<string, string>): Promise<object>;
   /** Push `value` under `return_value` when it is given, then succeed. */
