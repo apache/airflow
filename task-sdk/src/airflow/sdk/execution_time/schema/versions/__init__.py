@@ -50,6 +50,7 @@ def get_bundle() -> VersionBundle:
         AddExecutionTimeoutToSupervisorTIRunContext,
         AddExternalClearTargetToSucceedTask,
         AddXComBackendErrorType,
+        AllowZeroToClearSetExecutionTimeout,
         MakeSupervisorVariableValueNonNullable,
     )
 
@@ -61,6 +62,7 @@ def get_bundle() -> VersionBundle:
             AddExternalClearTargetToSucceedTask,
             MakeSupervisorVariableValueNonNullable,
             AddXComBackendErrorType,
+            AllowZeroToClearSetExecutionTimeout,
         ),
         Version(
             "2026-10-30",

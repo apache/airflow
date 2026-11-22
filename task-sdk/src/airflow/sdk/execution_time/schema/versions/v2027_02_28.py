@@ -38,7 +38,7 @@ from cadwyn import (
 
 from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
+from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable, SetExecutionTimeout
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -107,3 +107,14 @@ class AddXComBackendErrorType(VersionChange):
         """Report the failure as a generic one to a runtime whose version has no type for it."""
         if response.body.get("error") == ErrorType.XCOM_BACKEND_ERROR.value:
             response.body["error"] = ErrorType.GENERIC_ERROR.value
+
+
+class AllowZeroToClearSetExecutionTimeout(VersionChange):
+    """Let ``SetExecutionTimeout`` send ``0`` to clear the supervisor's deadline."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(SetExecutionTimeout).field("timeout_seconds").didnt_have("ge"),
+        schema(SetExecutionTimeout).field("timeout_seconds").had(gt=0),
+    )
