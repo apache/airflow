@@ -20,6 +20,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
+import yaml
 from ci.prek import check_unspecced_mocks as hook
 from ci.prek.check_unspecced_mocks import UnspeccedMockAllowlistManager
 from rich.text import Text
@@ -50,7 +51,7 @@ def create_fake_repo(tmp_path, monkeypatch):
     return _write
 
 
-class TestCountOccurrences:
+class TestUnspeccedMockAllowlistManager:
     @pytest.mark.parametrize(
         "code",
         [
@@ -126,14 +127,12 @@ class TestCountOccurrences:
     def test_syntax_error_returns_no_violations(self, count_violations):
         assert count_violations("MagicMock(\n") == 0
 
-    def test_invalid_utf8_does_not_crash(self, tmp_path):
+    def test_invalid_utf8_is_still_counted(self, tmp_path):
         path = tmp_path / "invalid_utf8.py"
         path.write_bytes(b"# bad byte: \xff\nMagicMock()\n")
 
         assert UnspeccedMockAllowlistManager(tmp_path / "allowlist.txt").count_occurrences(path) == 1
 
-
-class TestFormatViolationDetails:
     def test_lists_violation_lines_in_order(self, write_python_file, tmp_path):
         path = write_python_file(
             """\
@@ -150,8 +149,6 @@ class TestFormatViolationDetails:
 
         assert details == ["L2 mock.MagicMock(...)", "L4 mock.patch(...)"]
 
-
-class TestIterFiles:
     def test_scans_only_tests_directories_under_project_roots(self, create_fake_repo, tmp_path):
         for rel in (
             "providers/amazon/tests/unit/amazon/test_hook.py",
@@ -172,8 +169,6 @@ class TestIterFiles:
             "providers/amazon/tests/unit/amazon/test_hook.py",
         ]
 
-
-class TestCheck:
     def test_new_violation_in_allowlisted_file_fails(self, create_fake_repo, tmp_path):
         rel = "airflow-core/tests/unit/models/test_variable.py"
         path = create_fake_repo(
@@ -188,3 +183,15 @@ class TestCheck:
 
         assert manager.check([path], manager.load()) == 1
         assert manager.load() == {rel: 1}
+
+
+def test_hook_files_pattern_matches_project_roots():
+    config = yaml.safe_load((hook.AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml").read_text())
+    [entry] = [
+        hook_entry
+        for repo in config["repos"]
+        for hook_entry in repo.get("hooks", [])
+        if hook_entry["id"] == "check-no-new-unspecced-mocks"
+    ]
+
+    assert entry["files"] == rf"^({'|'.join(hook._PROJECT_ROOTS)})/(.*/)?tests/.*\.py$"

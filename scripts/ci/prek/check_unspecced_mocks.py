@@ -65,6 +65,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import textwrap
 from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import NamedTuple
@@ -103,14 +104,14 @@ _MOCK_CLASSES = frozenset({"Mock", "MagicMock", "AsyncMock", "NonCallableMock", 
 _PATCH_SPEC_OR_NEW_KEYWORDS = frozenset({"spec", "spec_set", "autospec", "new", "new_callable"})
 
 
-class _MockFactory(NamedTuple):
+class _SpecRule(NamedTuple):
     spec_keywords: frozenset[str]
     min_args_for_spec: int
 
 
-_MOCK_CLASS = _MockFactory(frozenset({"spec", "spec_set"}), 1)
-_PATCH = _MockFactory(_PATCH_SPEC_OR_NEW_KEYWORDS, 2)
-_PATCH_OBJECT = _MockFactory(_PATCH_SPEC_OR_NEW_KEYWORDS, 3)
+_MOCK_CLASS_RULE = _SpecRule(frozenset({"spec", "spec_set"}), 1)
+_PATCH_RULE = _SpecRule(_PATCH_SPEC_OR_NEW_KEYWORDS, 2)
+_PATCH_OBJECT_RULE = _SpecRule(_PATCH_SPEC_OR_NEW_KEYWORDS, 3)
 
 
 def _get_dotted_name(node: ast.expr) -> str | None:
@@ -124,14 +125,14 @@ def _get_dotted_name(node: ast.expr) -> str | None:
     return ".".join(reversed(parts))
 
 
-def _find_mock_factory(name: str) -> _MockFactory | None:
+def _get_spec_rule(name: str) -> _SpecRule | None:
     parts = name.split(".")
     if parts[-1] in _MOCK_CLASSES:
-        return _MOCK_CLASS
+        return _MOCK_CLASS_RULE
     if parts == ["patch"] or parts[-2:] in (["mock", "patch"], ["mocker", "patch"]):
-        return _PATCH
+        return _PATCH_RULE
     if parts[-2:] == ["patch", "object"]:
-        return _PATCH_OBJECT
+        return _PATCH_OBJECT_RULE
     return None
 
 
@@ -144,15 +145,15 @@ def _new_callable_is_mock_class(call: ast.Call) -> bool:
     return False
 
 
-def _is_unspecced(call: ast.Call, factory: _MockFactory) -> bool:
+def _is_unspecced(call: ast.Call, rule: _SpecRule) -> bool:
     keyword_names = {keyword.arg for keyword in call.keywords}
     unpacks_kwargs = None in keyword_names
     if _new_callable_is_mock_class(call) and not keyword_names & {"spec", "spec_set", "autospec"}:
         keyword_names.discard("new_callable")
     return (
         not unpacks_kwargs
-        and not keyword_names & factory.spec_keywords
-        and len(call.args) < factory.min_args_for_spec
+        and not keyword_names & rule.spec_keywords
+        and len(call.args) < rule.min_args_for_spec
     )
 
 
@@ -172,8 +173,8 @@ def _iter_unspecced_mock_calls(path: Path) -> Iterator[tuple[ast.Call, str]]:
         name = _get_dotted_name(node.func)
         if name is None:
             continue
-        factory = _find_mock_factory(name)
-        if factory is not None and _is_unspecced(node, factory):
+        rule = _get_spec_rule(name)
+        if rule is not None and _is_unspecced(node, rule):
             yield node, name
 
 
@@ -188,16 +189,21 @@ class UnspeccedMockAllowlistManager(AllowlistManager):
         return sum(1 for _ in _iter_unspecced_mock_calls(path))
 
     def violation_panel_text(self) -> str:
-        return (
-            "New [bold]mock without spec[/bold] detected.\n"
-            "Pass ``spec=`` to the mock class or ``autospec=True`` to ``patch`` so the mock\n"
-            "rejects attributes and calls the real object does not have:\n\n"
-            "  [cyan]mock.MagicMock(spec=SomeClass)\n"
-            '  mock.patch("package.module.SomeClass.method", autospec=True)[/cyan]\n\n'
-            "If this usage is intentional and pre-existing, run:\n\n"
-            "  [cyan]uv run ./scripts/ci/prek/check_unspecced_mocks.py --generate[/cyan]\n\n"
-            "to regenerate the allowlist, then commit the updated\n"
-            "[cyan]generated/known_unspecced_mocks.txt[/cyan]."
+        return textwrap.dedent(
+            """\
+            New [bold]mock without spec[/bold] detected.
+            Pass [cyan]spec=[/cyan] to the mock class or [cyan]autospec=True[/cyan] to [cyan]patch[/cyan] so the mock
+            rejects attributes and calls the real object does not have:
+
+              [cyan]mock.MagicMock(spec=SomeClass)
+              mock.patch("package.module.SomeClass.method", autospec=True)[/cyan]
+
+            If this usage is intentional and pre-existing, run:
+
+              [cyan]uv run ./scripts/ci/prek/check_unspecced_mocks.py --generate[/cyan]
+
+            to regenerate the allowlist, then commit the updated
+            [cyan]generated/known_unspecced_mocks.txt[/cyan]."""
         )
 
     def format_violation_details(self, path: Path) -> list[str]:
