@@ -286,7 +286,7 @@ export const Logs = () => {
 
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
-      {historical ? undefined : <DurableBanner taskInstance={taskInstance} tryNumber={tryNumber} />}
+      <DurableBanner taskInstance={taskInstance} tryNumber={tryNumber} />
       <TaskLogHeader {...logHeaderProps} />
       {showExternalLogRedirect && externalLogName && taskInstance ? (
         tryNumber === undefined ? (

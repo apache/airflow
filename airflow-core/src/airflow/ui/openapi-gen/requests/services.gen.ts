@@ -4469,12 +4469,12 @@ export class TaskStateStoreService {
      * @param data.dagId
      * @param data.dagRunId
      * @param data.taskId
-     * @param data.includeReserved Include keys starting with ``__airflow_``, which Airflow writes.
      * @param data.mapIndex
      * @param data.regionId
      * @param data.regionIndex
      * @param data.limit
      * @param data.offset
+     * @param data.includeReserved Include keys starting with ``__airflow_``, which Airflow writes.
      * @returns TaskStateStoreCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -4488,12 +4488,12 @@ export class TaskStateStoreService {
                 task_id: data.taskId
             },
             query: {
-                include_reserved: data.includeReserved,
                 map_index: data.mapIndex,
                 region_id: data.regionId,
                 region_index: data.regionIndex,
                 limit: data.limit,
-                offset: data.offset
+                offset: data.offset,
+                include_reserved: data.includeReserved
             },
             errors: {
                 400: 'Bad Request',

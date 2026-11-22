@@ -184,6 +184,20 @@ def _resolve_expires_at(expires_at: datetime | None | Literal["default"]) -> dat
     return expires_at
 
 
+def _include_reserved(
+    include_reserved: Annotated[
+        bool,
+        Query(description=f"Include keys starting with ``{RESERVED_KEY_PREFIX}``, which Airflow writes."),
+    ] = False,
+) -> bool:
+    return include_reserved
+
+
+# A dependency, not a plain query param: FastAPI lists plain params first, which would put this
+# ahead of the released map_index/limit/offset and shift positional calls in generated clients.
+QueryIncludeReserved = Annotated[bool, Depends(_include_reserved)]
+
+
 @task_state_store_router.get(
     "",
     responses=create_openapi_http_exception_doc(
@@ -195,11 +209,8 @@ def list_task_state_store(
     scope: TaskScopeDep,
     limit: QueryLimit,
     offset: QueryOffset,
+    include_reserved: QueryIncludeReserved,
     session: SessionDep,
-    include_reserved: Annotated[
-        bool,
-        Query(description=f"Include keys starting with ``{RESERVED_KEY_PREFIX}``, which Airflow writes."),
-    ] = False,
 ) -> TaskStateStoreCollectionResponse:
     """List all task state store entries for a task instance."""
     base = (

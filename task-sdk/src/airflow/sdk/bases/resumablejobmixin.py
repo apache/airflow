@@ -151,18 +151,14 @@ class ResumableJobMixin(ABC):
 
         decision = self.get_resume_decision(context)
         if decision.action == "reconnect":
-            self._record_try(context, DurableDecision.RECONNECTED, decision.external_id, status="running")
             try:
                 result = self.poll_until_complete(decision.external_id, context)
             except Exception:
-                self._record_try(context, DurableDecision.RECONNECTED, decision.external_id, status="failed")
+                self._record_reconnect_failure(context, decision.external_id)
                 raise
             self._record_reconnect_outcome(context, decision.external_id)
             return result
         if decision.action == "already_succeeded":
-            self._record_try(
-                context, DurableDecision.ALREADY_SUCCEEDED, decision.external_id, status="success"
-            )
             return self.get_job_result(decision.external_id, context)
 
         # The replaced job's ID is kept in the history record; the banner does not show resubmits.
@@ -183,7 +179,8 @@ class ResumableJobMixin(ABC):
         """
         Decide whether to reconnect to the stored job, take its result, or submit a new one.
 
-        Never submits or polls, so a deferrable operator can call it before ``defer()``.
+        Never submits or polls, so a deferrable operator can call it before ``defer()``. A reconnect or
+        already succeeded decision is recorded for the logs banner here, so every caller gets it.
         """
         if not self.durable:
             return ResumeDecision("submit")
@@ -227,6 +224,7 @@ class ResumableJobMixin(ABC):
                     external_id=external_id,
                     status=status,
                 )
+                self._record_try(context, DurableDecision.RECONNECTED, external_id, status="running")
                 return ResumeDecision("reconnect", external_id)
 
             if self.is_job_succeeded(status):
@@ -237,6 +235,7 @@ class ResumableJobMixin(ABC):
                     external_id_key=self.external_id_key,
                     external_id=external_id,
                 )
+                self._record_try(context, DurableDecision.ALREADY_SUCCEEDED, external_id, status="success")
                 return ResumeDecision("already_succeeded", external_id)
 
             span.set_attribute("resumable.decision", "terminal_resubmit")
@@ -270,9 +269,18 @@ class ResumableJobMixin(ABC):
         except Exception:
             self.log.warning("Could not read job status for durable execution history", exc_info=True)
             return
-        if self.is_job_succeeded(job_status):
+        # A poll that returned without raising accepted the job's end state (e.g. SageMaker ``Stopped``).
+        if not self.is_job_active(job_status):
             self._record_try(context, DurableDecision.RECONNECTED, external_id, status="success")
-        elif not self.is_job_active(job_status):
+
+    def _record_reconnect_failure(self, context: Context, external_id: JsonValue) -> None:
+        """Record ``failed`` only if the job ended; a wait timeout raises while the job still runs."""
+        try:
+            job_status = self.get_job_status(external_id, context)
+        except Exception:
+            self.log.warning("Could not read job status for durable execution history", exc_info=True)
+            return
+        if not self.is_job_active(job_status) and not self.is_job_succeeded(job_status):
             self._record_try(context, DurableDecision.RECONNECTED, external_id, status="failed")
 
     def _record_try(

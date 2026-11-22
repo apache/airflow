@@ -28,8 +28,9 @@ def get_non_reserved_task_state_writes(task_state_store: mock.Mock) -> list[mock
     """
     Return the ``set`` calls an operator made on a mocked task state store.
 
-    From Airflow 3.3 the durable execution mixin also writes ``__airflow_`` keys for the logs banner,
-    and older Airflow versions do not, so tests that pin the operator's own writes skip those keys.
+    From Airflow 3.5 (Task SDK 1.5) the durable execution mixin also writes ``__airflow_`` keys for
+    the logs banner, and older Airflow versions do not, so tests that pin the operator's own writes
+    skip those keys.
     """
     return [
         call

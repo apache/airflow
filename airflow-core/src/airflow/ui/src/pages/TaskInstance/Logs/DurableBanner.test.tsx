@@ -95,7 +95,9 @@ const renderFor = (tryNumber: number, taskInstance: Partial<TaskInstanceResponse
             dag_id: "d",
             dag_run_id: "r",
             map_index: -1,
+            state: "running",
             task_id: "t",
+            try_number: tryNumber,
             ...taskInstance,
           } as TaskInstanceResponse
         }
@@ -117,6 +119,17 @@ describe("DurableBanner", () => {
 
     expect(screen.getByText(title)).toBeInTheDocument();
     expect(screen.getByText(detail)).toBeInTheDocument();
+  });
+
+  it.each([
+    { name: "the task finished", taskInstance: { state: "success" } },
+    { name: "the try failed and waits to retry", taskInstance: { state: "up_for_retry" } },
+    { name: "a later try exists", taskInstance: { try_number: 5 } },
+  ] as const)("drops a running status once $name", ({ taskInstance }) => {
+    renderFor(4, taskInstance);
+
+    expect(screen.getByText("logs.durable.detail.reconnectedNoDuration")).toBeInTheDocument();
+    expect(screen.queryByTestId("state-badge")).not.toBeInTheDocument();
   });
 
   it("shows the job status as an icon-only badge", () => {

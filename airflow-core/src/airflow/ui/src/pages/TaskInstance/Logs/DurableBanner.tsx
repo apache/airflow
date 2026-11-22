@@ -38,7 +38,7 @@ export const DurableBanner = ({
 }: {
   readonly taskInstance?: Pick<
     TaskInstanceResponse,
-    "dag_id" | "dag_run_id" | "end_date" | "map_index" | "state" | "task_id"
+    "dag_id" | "dag_run_id" | "end_date" | "map_index" | "state" | "task_id" | "try_number"
   >;
   readonly tryNumber?: number;
 }) => {
@@ -76,15 +76,20 @@ export const DurableBanner = ({
     return undefined;
   }
 
+  // A deferred, timed-out or killed try never updates its "running" entry, so it is unknown once the try ends.
+  const tryIsLive =
+    tryNumber === taskInstance?.try_number &&
+    (taskInstance?.state === "running" || taskInstance?.state === "deferred");
+  const status = entry.status === "running" && !tryIsLive ? null : entry.status;
   const seconds = entry.saved_seconds;
   const externalId =
     typeof entry.external_id === "string" ? entry.external_id : JSON.stringify(entry.external_id);
   let detail = translate(`logs.durable.detail.${entry.decision}`);
 
   if (entry.decision === "reconnected") {
-    if (entry.status === "failed") {
+    if (status === "failed") {
       detail = translate("logs.durable.detail.reconnectedFailed");
-    } else if (entry.status === "success") {
+    } else if (status === "success" || status === null) {
       detail =
         seconds === null
           ? translate("logs.durable.detail.reconnectedNoDuration")
@@ -115,9 +120,9 @@ export const DurableBanner = ({
       <Alert status="info" title={translate(`logs.durable.title.${entry.decision}`)}>
         <HStack gap={2}>
           <Text>{detail}</Text>
-          {entry.status === null ? undefined : (
+          {status === null ? undefined : (
             <Tooltip content={jobDetails}>
-              <StateBadge aria-label={translate(`common:states.${entry.status}`)} state={entry.status} />
+              <StateBadge aria-label={translate(`common:states.${status}`)} state={status} />
             </Tooltip>
           )}
         </HStack>

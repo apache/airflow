@@ -185,6 +185,30 @@ class TestDurableRecord:
             },
         ]
 
+    def test_already_succeeded_records_success_without_saved_time(self):
+        task_state = FakeTaskState()
+        ti = FakeTI()
+        op = ConcreteResumableOperator(task_id="t")
+        ctx = {"task_state_store": task_state, "ti": ti}
+
+        ti.try_number = 1
+        with time_machine.travel("2026-11-10 10:00:00+00:00", tick=False):
+            op.execute_resumable(ctx)
+
+        ti.try_number = 2
+        op._status_map = {"job-001": "SUCCEEDED"}
+        with time_machine.travel("2026-11-10 10:20:00+00:00", tick=False):
+            op.execute_resumable(ctx)
+
+        assert task_state.get(DURABLE_RECORD_KEY)["tries"][-1] == {
+            "try_number": 2,
+            "decision": "already_succeeded",
+            "external_id": "job-001",
+            "status": "success",
+            "submitted_at": "2026-11-10T10:00:00+00:00",
+            "saved_seconds": None,
+        }
+
     def test_each_try_keeps_the_submit_time_of_its_own_job(self):
         task_state = FakeTaskState()
         ti = FakeTI()
@@ -223,7 +247,7 @@ class TestDurableRecord:
         ("status_after_poll", "expected_status"),
         [
             pytest.param("RUNNING", "running", id="poll-returned-early"),
-            pytest.param("FAILED", "failed", id="job-failed"),
+            pytest.param("STOPPED", "success", id="poll-accepted-other-end-state"),
         ],
     )
     def test_reconnect_records_job_status_after_poll(self, status_after_poll, expected_status):
@@ -240,20 +264,28 @@ class TestDurableRecord:
         last_try = task_state.get(DURABLE_RECORD_KEY)["tries"][-1]
         assert (last_try["status"], last_try["saved_seconds"]) == (expected_status, None)
 
-    def test_reconnect_records_failed_when_poll_raises(self):
+    @pytest.mark.parametrize(
+        ("status_after_raise", "expected_status"),
+        [
+            pytest.param("FAILED", "failed", id="job-failed"),
+            pytest.param("RUNNING", "running", id="wait-timed-out"),
+        ],
+    )
+    def test_reconnect_records_failed_only_when_the_job_ended(self, status_after_raise, expected_status):
         op = ConcreteResumableOperator(task_id="t")
         op._status_map = {"job-001": "RUNNING"}
         task_state = FakeTaskState({"test_job_id": "job-001"})
 
         def poll(external_id, context):
-            raise RuntimeError("job failed")
+            op._status_map["job-001"] = status_after_raise
+            raise RuntimeError("poll stopped")
 
         op.poll_until_complete = poll
 
-        with pytest.raises(RuntimeError, match="job failed"):
+        with pytest.raises(RuntimeError, match="poll stopped"):
             op.execute_resumable(make_context(task_state))
 
-        assert task_state.get(DURABLE_RECORD_KEY)["tries"][-1]["status"] == "failed"
+        assert task_state.get(DURABLE_RECORD_KEY)["tries"][-1]["status"] == expected_status
 
     def test_reconnect_status_read_failure_does_not_fail_the_task(self):
         op = ConcreteResumableOperator(task_id="t")
@@ -797,6 +829,27 @@ class TestGetResumeDecision:
         assert op.get_resume_decision(make_context(task_state)) == expected
         assert op.submitted_ids == []
         assert op.polled_ids == []
+
+    @pytest.mark.parametrize(
+        ("status", "expected_entry"),
+        [
+            pytest.param("RUNNING", ("reconnected", "running"), id="reconnect"),
+            pytest.param("SUCCEEDED", ("already_succeeded", "success"), id="already-succeeded"),
+            pytest.param("FAILED", None, id="submit"),
+        ],
+    )
+    def test_records_the_decision_for_the_banner(self, status, expected_entry):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = status
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+
+        op.get_resume_decision(make_context(task_state))
+
+        record = task_state.get(DURABLE_RECORD_KEY)
+        if expected_entry is None:
+            assert record is None
+        else:
+            assert (record["tries"][-1]["decision"], record["tries"][-1]["status"]) == expected_entry
 
     def test_submit_without_reading_store_when_not_durable(self):
         op = ConcreteResumableOperator(task_id="test_task", durable=False)

@@ -6538,15 +6538,6 @@ paths:
         schema:
           type: string
           title: Task Id
-      - name: include_reserved
-        in: query
-        required: false
-        schema:
-          type: boolean
-          description: Include keys starting with ``__airflow_``, which Airflow writes.
-          default: false
-          title: Include Reserved
-        description: Include keys starting with ``__airflow_``, which Airflow writes.
       - name: map_index
         in: query
         required: false
@@ -6588,6 +6579,15 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: include_reserved
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Include keys starting with ``__airflow_``, which Airflow writes.
+          default: false
+          title: Include Reserved
+        description: Include keys starting with ``__airflow_``, which Airflow writes.
       responses:
         '200':
           description: Successful Response

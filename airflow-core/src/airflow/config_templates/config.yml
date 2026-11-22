@@ -3601,7 +3601,7 @@ state_store:
         advanced watermarks) after the run completes.
         Consider setting to True if you do not need post-success visibility and want automatic
         cleanup without waiting for the global retention period. This also removes the durable
-        execution banner from the logs of succeeded tries.
+        execution banner from every try of that task instance.
       version_added: 3.3.0
       type: boolean
       example: "True"

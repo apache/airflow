@@ -28,6 +28,7 @@ import { TaskInstanceService, type TaskInstanceResponse } from "openapi/requests
 import { useLogs } from "src/queries/useLogs";
 import { BaseWrapper } from "src/utils/Wrapper";
 
+import { DurableBanner } from "./DurableBanner";
 import { Logs } from "./Logs";
 import type { TaskLogHeaderProps } from "./TaskLogHeader";
 
@@ -43,7 +44,7 @@ vi.mock("src/queries/useLogs", () => ({
     parsedData: { parsedLogs: [], searchableText: [], sources: [] },
   })),
 }));
-vi.mock("./DurableBanner", () => ({ DurableBanner: () => undefined }));
+vi.mock("./DurableBanner", () => ({ DurableBanner: vi.fn(() => undefined) }));
 vi.mock("./TaskLogContent", () => ({ TaskLogContent: () => <div data-testid="log-content" /> }));
 vi.mock("./TaskLogHeader", () => ({
   TaskLogHeader: ({ onSelectTryNumber }: TaskLogHeaderProps) => (
@@ -122,6 +123,30 @@ describe("Task log try selection", () => {
     fireEvent.click(screen.getByRole("button", { name: "2" }));
     expect(screen.getByTestId("search-params")).toHaveTextContent(`region_id=${regionId}`);
     expect(screen.getByTestId("search-params")).toHaveTextContent("try_number=2");
+  });
+
+  it("shows the durable banner for a retained try", async () => {
+    const regionId = "11111111-1111-4111-8111-111111111111";
+
+    vi.spyOn(TaskInstanceService, "getTaskInstanceTryDetails").mockResolvedValue({
+      dag_id: "dag",
+      dag_run_id: "run",
+      id: "retained",
+      map_index: -1,
+      region_id: regionId,
+      region_index: 3,
+      state: "success",
+      task_id: "task",
+      try_number: 2,
+    } as TaskInstanceResponse);
+    renderLogs("success", `?region_id=${regionId}&region_index=3&try_number=2`);
+
+    await waitFor(() =>
+      expect(vi.mocked(DurableBanner).mock.lastCall?.[0]).toMatchObject({
+        taskInstance: { id: "retained" },
+        tryNumber: 2,
+      }),
+    );
   });
   it.each(["up_for_retry", null] as const)("disables pending log fetching in %s", async (state) => {
     renderLogs(state);
