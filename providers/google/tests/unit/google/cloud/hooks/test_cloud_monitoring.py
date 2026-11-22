@@ -88,7 +88,8 @@ TEST_NOTIFICATION_CHANNEL_2 = {
         ("_get_channel_client", "NotificationChannelServiceClient"),
     ],
 )
-def test_clients_use_connection_credentials(getter, client_class):
+def test_clients_use_connection_credentials(getter, client_class, monkeypatch):
+    monkeypatch.setenv("AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT", "google-cloud-platform://")
     hook = cloud_monitoring.CloudMonitoringHook()
     with (
         mock.patch.object(hook, "get_credentials", autospec=True) as credentials,
