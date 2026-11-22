@@ -25,6 +25,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     ForeignKey,
     ForeignKeyConstraint,
@@ -144,6 +145,7 @@ class AssetWatcherModel(Base):
     )
     asset_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
     trigger_id: Mapped[int] = mapped_column(Integer, primary_key=True, nullable=False)
+    is_paused: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     asset = relationship("AssetModel", back_populates="watchers")
     trigger = relationship("Trigger", back_populates="asset_watchers")
@@ -169,7 +171,7 @@ class AssetWatcherModel(Base):
     def __repr__(self):
         return (
             f"{self.__class__.__name__}"
-            f"(name={self.name!r}, asset_id={self.asset_id!r}, trigger_id={self.trigger_id!r})"
+            f"(name={self.name!r}, asset_id={self.asset_id!r}, trigger_id={self.trigger_id!r}, is_paused={self.is_paused!r})"
         )
 
 

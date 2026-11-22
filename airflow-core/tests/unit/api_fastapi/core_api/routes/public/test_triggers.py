@@ -306,6 +306,7 @@ class TestGetTriggers:
                 "asset_name": "to_failing_asset",
                 "asset_uri": "s3://bucket/failing",
                 "watcher_name": "failing_watcher",
+                "is_paused": False,
                 "scheduled_dag_ids": ["dag_sensor"],
             }
         ]
@@ -807,5 +808,6 @@ def test_get_asset_lists_its_watchers_with_their_status_and_trigger(test_client,
             "trigger_id": triggers["failing"].id,
             "created_date": "2026-10-21T12:00:00Z",
             "status": "failing",
+            "is_paused": False,
         }
     ]

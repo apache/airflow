@@ -18,7 +18,7 @@
  */
 import { useState, type PropsWithChildren } from "react";
 
-import { Table } from "@chakra-ui/react";
+import { HStack, Table, Text, VStack } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
@@ -40,6 +40,7 @@ import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
 import { StateBadge } from "src/components/StateBadge";
 import Time from "src/components/Time";
+import { TogglePauseWatcher } from "src/components/TogglePauseWatcher";
 
 import { useConfig } from "src/queries/useConfig";
 
@@ -68,11 +69,22 @@ const createColumns = (
   },
   {
     accessorKey: "watchers",
-    cell: ({ row: { original } }: AssetRow) =>
-      original.watchers
-        .filter((watcher) => watcher.trigger_id === triggerId)
-        .map((watcher) => watcher.name)
-        .join(", "),
+    cell: ({ row: { original } }: AssetRow) => (
+      <VStack align="start" gap={1}>
+        {original.watchers
+          .filter((watcher) => watcher.trigger_id === triggerId)
+          .map((watcher) => (
+            <HStack gap={2} key={watcher.name}>
+              <TogglePauseWatcher
+                assetId={original.id}
+                isPaused={watcher.is_paused}
+                watcherName={watcher.name}
+              />
+              <Text>{watcher.name}</Text>
+            </HStack>
+          ))}
+      </VStack>
+    ),
     enableSorting: false,
     header: translate("watcher_one"),
   },

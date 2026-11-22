@@ -788,6 +788,19 @@ export const $AssetStateStoreWriterKind = {
 \`\`API\`\` — written directly through the Core API (e.g. manual admin write).`
 } as const;
 
+export const $AssetWatcherPatchBody = {
+    properties: {
+        is_paused: {
+            type: 'boolean',
+            title: 'Is Paused'
+        }
+    },
+    type: 'object',
+    required: ['is_paused'],
+    title: 'AssetWatcherPatchBody',
+    description: 'Payload for pausing or resuming an asset watcher.'
+} as const;
+
 export const $AssetWatcherResponse = {
     properties: {
         name: {
@@ -807,10 +820,14 @@ export const $AssetWatcherResponse = {
         status: {
             '$ref': '#/components/schemas/TriggerStatus',
             description: "Status of the watcher's trigger, as in `GET /triggers`."
+        },
+        is_paused: {
+            type: 'boolean',
+            title: 'Is Paused'
         }
     },
     type: 'object',
-    required: ['name', 'trigger_id', 'created_date', 'status'],
+    required: ['name', 'trigger_id', 'created_date', 'status', 'is_paused'],
     title: 'AssetWatcherResponse',
     description: 'Asset watcher serializer for responses.'
 } as const;
@@ -10618,6 +10635,10 @@ export const $TriggerAssetWatcherReferenceResponse = {
             type: 'string',
             title: 'Watcher Name'
         },
+        is_paused: {
+            type: 'boolean',
+            title: 'Is Paused'
+        },
         scheduled_dag_ids: {
             items: {
                 type: 'string'
@@ -10628,7 +10649,7 @@ export const $TriggerAssetWatcherReferenceResponse = {
         }
     },
     type: 'object',
-    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name', 'scheduled_dag_ids'],
+    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name', 'is_paused', 'scheduled_dag_ids'],
     title: 'TriggerAssetWatcherReferenceResponse',
     description: 'An asset watcher a trigger serves.'
 } as const;
@@ -11035,7 +11056,7 @@ export const $TriggerResponse = {
 
 export const $TriggerStatus = {
     type: 'string',
-    enum: ['pending', 'running', 'failing', 'orphaned'],
+    enum: ['pending', 'running', 'failing', 'orphaned', 'paused'],
     title: 'TriggerStatus',
     description: "How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat."
 } as const;

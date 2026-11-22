@@ -33,6 +33,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     DagDetails,
 )
 from airflow.api_fastapi.core_api.security import PermittedAssetEventFilter
+from airflow.jobs.job import Job
 from airflow.models import DagModel
 from airflow.models.asset import (
     AssetActive,
@@ -554,6 +555,7 @@ class TestGetAssets(TestAssets):
                             "trigger_id": asset1.watchers[0].trigger_id,
                             "created_date": tz_datetime_format,
                             "status": "pending",
+                            "is_paused": False,
                         }
                     ],
                     "last_asset_event": {"id": None, "timestamp": None},
@@ -576,6 +578,7 @@ class TestGetAssets(TestAssets):
                             "trigger_id": asset2.watchers[0].trigger_id,
                             "created_date": tz_datetime_format,
                             "status": "pending",
+                            "is_paused": False,
                         }
                     ],
                     "last_asset_event": {"id": None, "timestamp": None},
@@ -2045,6 +2048,7 @@ class TestGetAssetEndpoint(TestAssets):
                     "trigger_id": asset.watchers[0].trigger_id,
                     "created_date": tz_datetime_format,
                     "status": "pending",
+                    "is_paused": False,
                 }
             ],
             "last_asset_event": {"id": None, "timestamp": None},
@@ -3677,4 +3681,112 @@ class TestDeleteDagAssetQueuedEvent(TestQueuedEventEndpoint):
         assert (
             response.json()["detail"]
             == "Queued event with dag_id: `not_exists` and asset_id: `1` was not found"
+        )
+
+
+class TestPatchAssetWatcher:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        clear_db_assets()
+
+    def teardown_method(self):
+        clear_db_assets()
+
+    @provide_session
+    def test_patch_asset_watcher_pause_and_unpause(self, test_client, *, session):
+        assets = _create_assets_with_watchers(session=session, num=1)
+        asset = assets[0]
+        watcher = asset.watchers[0]
+
+        # Pause watcher
+        response = test_client.patch(
+            f"/assets/{asset.id}/watchers/{watcher.name}",
+            json={"is_paused": True},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == watcher.name
+        assert data["is_paused"] is True
+
+        # Verify DB
+        session.expire_all()
+        db_watcher = session.scalar(
+            select(AssetWatcherModel).where(
+                AssetWatcherModel.asset_id == asset.id,
+                AssetWatcherModel.name == watcher.name,
+            )
+        )
+        assert db_watcher.is_paused is True
+
+        # Unpause watcher
+        response = test_client.patch(
+            f"/assets/{asset.id}/watchers/{watcher.name}",
+            json={"is_paused": False},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["is_paused"] is False
+
+        session.expire_all()
+        db_watcher = session.scalar(
+            select(AssetWatcherModel).where(
+                AssetWatcherModel.asset_id == asset.id,
+                AssetWatcherModel.name == watcher.name,
+            )
+        )
+        assert db_watcher.is_paused is False
+
+    @provide_session
+    def test_patch_asset_watcher_clears_triggerer_id_when_all_paused(self, test_client, *, session):
+        assets = _create_assets_with_watchers(session=session, num=1)
+        asset = assets[0]
+        watcher = asset.watchers[0]
+        job = Job(job_type="TriggererJob")
+        session.add(job)
+        session.flush()
+        trigger = watcher.trigger
+        trigger.triggerer_id = job.id
+        session.commit()
+
+        response = test_client.patch(
+            f"/assets/{asset.id}/watchers/{watcher.name}",
+            json={"is_paused": True},
+        )
+        assert response.status_code == 200
+        session.expire_all()
+        reloaded_trigger = session.get(Trigger, trigger.id)
+        assert reloaded_trigger.triggerer_id is None
+
+    @provide_session
+    def test_patch_asset_watcher_keeps_triggerer_id_when_other_watcher_unpaused(
+        self, test_client, *, session
+    ):
+        assets = _create_assets_with_watchers(session=session, num=2)
+        asset1, asset2 = assets
+        job = Job(job_type="TriggererJob")
+        session.add(job)
+        session.flush()
+        shared_trigger = asset1.watchers[0].trigger
+        shared_trigger.triggerer_id = job.id
+        asset2.watchers[0].trigger_id = shared_trigger.id
+        session.commit()
+
+        response = test_client.patch(
+            f"/assets/{asset1.id}/watchers/{asset1.watchers[0].name}",
+            json={"is_paused": True},
+        )
+        assert response.status_code == 200
+        session.expire_all()
+        reloaded_trigger = session.get(Trigger, shared_trigger.id)
+        assert reloaded_trigger.triggerer_id == job.id
+
+    def test_patch_asset_watcher_not_found(self, test_client):
+        response = test_client.patch(
+            "/assets/9999/watchers/non_existent",
+            json={"is_paused": True},
+        )
+        assert response.status_code == 404
+        assert (
+            response.json()["detail"]
+            == "Asset watcher with asset_id: 9999 and name: 'non_existent' was not found"
         )

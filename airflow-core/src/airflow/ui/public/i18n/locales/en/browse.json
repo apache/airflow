@@ -96,10 +96,12 @@
     },
     "status": {
       "failing": "Failing",
-      "orphaned": "Orphaned"
+      "orphaned": "Orphaned",
+      "paused": "Paused"
     },
     "statusHint": {
-      "orphaned": "Its triggerer stopped. It's waiting for another triggerer to take it over."
+      "orphaned": "Its triggerer stopped. It's waiting for another triggerer to take it over.",
+      "paused": "All watchers on this trigger are paused. The trigger will not run until at least one watcher is resumed."
     }
   },
   "xcom": {

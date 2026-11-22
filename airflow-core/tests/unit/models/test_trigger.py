@@ -38,7 +38,7 @@ from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.dag_version import DagVersion
-from airflow.models.trigger import RecordedFailure, handle_event_submit
+from airflow.models.trigger import RecordedFailure, TriggerStatus, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
@@ -2213,3 +2213,121 @@ def test_kind_is_the_same_in_sql_and_python(session, used_by_ref, watched, expec
     assert sql_kind == expected
     kind = session.get(Trigger, trigger.id).kind
     assert (kind.value if kind else None) == expected
+
+
+def test_trigger_paused_status_in_sql_and_python(session):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+
+    asset1 = AssetModel("watched_paused_1")
+    asset1.add_trigger(trigger, "w1")
+    session.add(asset1)
+    session.flush()
+
+    # Mark watcher as paused
+    watcher1 = asset1.watchers[0]
+    watcher1.is_paused = True
+    session.commit()
+
+    sql_status = session.scalar(
+        select(Trigger.status_expression())
+        .select_from(Trigger)
+        .outerjoin(Trigger.triggerer_job)
+        .where(Trigger.id == trigger.id)
+    )
+    session.expire_all()
+    loaded_trigger = session.get(Trigger, trigger.id)
+    assert sql_status == "paused"
+    assert loaded_trigger.status() == TriggerStatus.PAUSED
+
+    # Add second unpaused watcher to the same trigger
+    asset2 = AssetModel("watched_paused_2")
+    asset2.add_trigger(trigger, "w2")
+    session.add(asset2)
+    session.commit()
+
+    sql_status = session.scalar(
+        select(Trigger.status_expression())
+        .select_from(Trigger)
+        .outerjoin(Trigger.triggerer_job)
+        .where(Trigger.id == trigger.id)
+    )
+    session.expire_all()
+    loaded_trigger = session.get(Trigger, trigger.id)
+    assert sql_status == "pending"
+    assert loaded_trigger.status() == TriggerStatus.PENDING
+
+
+def test_get_sorted_triggers_skips_fully_paused_asset_triggers(session):
+    # Trigger 1: fully paused
+    t1 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(t1)
+    session.flush()
+    a1 = AssetModel("test_gst_paused_a1")
+    a1.add_trigger(t1, "w1")
+    session.add(a1)
+    session.flush()
+    a1.watchers[0].is_paused = True
+
+    # Trigger 2: unpaused
+    t2 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(t2)
+    session.flush()
+    a2 = AssetModel("test_gst_paused_a2")
+    a2.add_trigger(t2, "w2")
+    session.add(a2)
+    session.flush()
+
+    # Trigger 3: partially paused (one paused, one unpaused)
+    t3 = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(t3)
+    session.flush()
+    a3_1 = AssetModel("test_gst_paused_a3_1")
+    a3_1.add_trigger(t3, "w3_1")
+    session.add(a3_1)
+    session.flush()
+    a3_1.watchers[0].is_paused = True
+    a3_2 = AssetModel("test_gst_paused_a3_2")
+    a3_2.add_trigger(t3, "w3_2")
+    session.add(a3_2)
+    session.flush()
+
+    session.commit()
+
+    result = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], queues=None, session=session)
+    selected_ids = {row[0] for row in result}
+
+    assert t1.id not in selected_ids
+    assert t2.id in selected_ids
+    assert t3.id in selected_ids
+
+
+def test_submit_event_skips_paused_asset_watcher(session):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+
+    asset1 = AssetModel("submit_event_paused_asset1")
+    asset1.add_trigger(trigger, "w1")
+    session.add(asset1)
+    session.flush()
+    asset1.watchers[0].is_paused = True
+
+    asset2 = AssetModel("submit_event_active_asset2")
+    asset2.add_trigger(trigger, "w2")
+    session.add(asset2)
+    session.flush()
+
+    session.commit()
+
+    Trigger.submit_event(trigger_id=trigger.id, event=AssetTriggerEvent(payload={"k": "v"}), session=session)
+    session.commit()
+
+    # Check AssetEvent rows
+    events_asset1 = session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset1.id)).all()
+    events_asset2 = session.scalars(select(AssetEvent).where(AssetEvent.asset_id == asset2.id)).all()
+
+    assert len(events_asset1) == 0
+    assert len(events_asset2) == 1
+    assert events_asset2[0].extra == {"from_trigger": True, "payload": {"k": "v"}}

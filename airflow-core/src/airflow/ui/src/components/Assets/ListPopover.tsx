@@ -26,6 +26,7 @@ import type { AssetAliasResponse, AssetWatcherResponse } from "openapi/requests/
 import { Popover, RouterLink } from "src/system-components";
 
 import Time from "src/components/Time";
+import { TogglePauseWatcher } from "src/components/TogglePauseWatcher";
 import { TriggerStatusBadge } from "src/components/TriggerStatusBadge";
 
 import { formatNumber } from "src/utils";
@@ -74,7 +75,13 @@ export const AliasesPopover = ({ aliases }: { readonly aliases: Array<AssetAlias
   );
 };
 
-export const WatchersPopover = ({ watchers }: { readonly watchers: Array<AssetWatcherResponse> }) => {
+export const WatchersPopover = ({
+  assetId,
+  watchers,
+}: {
+  readonly assetId?: number;
+  readonly watchers: Array<AssetWatcherResponse>;
+}) => {
   const { t: translate } = useTranslation("assets");
   const failing = watchers.filter(({ status }) => status === "failing").length;
   const orphaned = watchers.filter(({ status }) => status === "orphaned").length;
@@ -97,7 +104,14 @@ export const WatchersPopover = ({ watchers }: { readonly watchers: Array<AssetWa
         // Watchers with the same trigger class and arguments share one trigger.
         key: `${watcher.trigger_id}-${watcher.name}`,
         label: (
-          <HStack as="span">
+          <HStack as="span" gap={2}>
+            {assetId === undefined ? undefined : (
+              <TogglePauseWatcher
+                assetId={assetId}
+                isPaused={watcher.is_paused}
+                watcherName={watcher.name}
+              />
+            )}
             <RouterLink to={`/triggers/${watcher.trigger_id}`}>{watcher.name}</RouterLink>
             <TriggerStatusBadge status={watcher.status} />
             <Time datetime={watcher.created_date} />

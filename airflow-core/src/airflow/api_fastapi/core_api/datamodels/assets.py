@@ -88,6 +88,13 @@ class AssetWatcherResponse(BaseModel):
     trigger_id: int = Field(description="The watcher's trigger; `GET /triggers/{trigger_id}` has its state.")
     created_date: datetime
     status: TriggerStatus = Field(description="Status of the watcher's trigger, as in `GET /triggers`.")
+    is_paused: bool
+
+
+class AssetWatcherPatchBody(BaseModel):
+    """Payload for pausing or resuming an asset watcher."""
+
+    is_paused: bool
 
 
 class AssetResponse(BaseModel):
@@ -140,6 +147,7 @@ class AssetResponse(BaseModel):
                 "trigger_id": watcher.trigger_id,
                 "created_date": watcher.trigger.created_date,
                 "status": watcher.trigger.status(),
+                "is_paused": watcher.is_paused,
             }
             for watcher in asset.watchers
         ]

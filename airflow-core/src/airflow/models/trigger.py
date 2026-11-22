@@ -97,11 +97,12 @@ class TriggerStatus(str, Enum):
 
     # pending: not picked up yet. running: on a live triggerer and not failed since it last recovered.
     # failing: on a live triggerer and failed since it last recovered. orphaned: its triggerer stopped
-    # sending heartbeats; another triggerer will take it.
+    # sending heartbeats; another triggerer will take it. paused: all asset watchers on the trigger are paused.
     PENDING = "pending"
     RUNNING = "running"
     FAILING = "failing"
     ORPHANED = "orphaned"
+    PAUSED = "paused"
 
 
 def get_triggerer_alive_clauses(health_check_threshold: float) -> tuple[ColumnElement[bool], ...]:
@@ -398,9 +399,11 @@ class Trigger(Base):
         if trigger is None:
             # Already deleted for some reason
             return
-        for asset in trigger.assets:
+        for watcher in trigger.asset_watchers:
+            if watcher.is_paused:
+                continue
             AssetManager.register_asset_change(
-                asset=asset.to_serialized(),
+                asset=watcher.asset.to_serialized(),
                 extra={"from_trigger": True, "payload": event.payload},
                 partition_key=event.partition_key if isinstance(event, AssetTriggerEvent) else None,
                 session=session,
@@ -548,7 +551,13 @@ class Trigger(Base):
         # Positive conditions only: a NULL from the outer join (job row gone, no heartbeat) is not true, so
         # it falls through to "orphaned" as it does in Python.
         alive = and_(*get_triggerer_alive_clauses(threshold))
+        has_unpaused_watchers = cls.id.in_(
+            select(AssetWatcherModel.trigger_id).where(~AssetWatcherModel.is_paused)
+        )
+        is_asset_watcher = cls.id.in_(select(AssetWatcherModel.trigger_id))
+        is_paused = and_(is_asset_watcher, ~has_unpaused_watchers)
         return case(
+            (is_paused, TriggerStatus.PAUSED.value),
             (cls.triggerer_id.is_(None), TriggerStatus.PENDING.value),
             (and_(alive, cls.consecutive_failures > 0), TriggerStatus.FAILING.value),
             (alive, TriggerStatus.RUNNING.value),
@@ -568,6 +577,8 @@ class Trigger(Base):
 
     def status(self) -> TriggerStatus:
         """Return the :class:`TriggerStatus` of this trigger; needs ``triggerer_job`` loaded."""
+        if self.asset_watchers and all(w.is_paused for w in self.asset_watchers):
+            return TriggerStatus.PAUSED
         if self.triggerer_id is None:
             return TriggerStatus.PENDING
         if not self.is_owner_alive():
@@ -710,7 +721,7 @@ class Trigger(Base):
             # Asset triggers
             select(cls.id)
             .where(
-                cls.assets.any(),
+                cls.asset_watchers.any(~AssetWatcherModel.is_paused),
                 or_(cls.triggerer_id.is_(None), cls.triggerer_id.not_in(alive_triggerer_ids)),
             )
             .order_by(cls.created_date),

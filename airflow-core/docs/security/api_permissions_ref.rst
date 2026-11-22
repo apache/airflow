@@ -110,6 +110,10 @@ source code so it stays up to date as endpoints are added or changed.
      - ``/api/v2/assets/{asset_id}/state-store/{key}``
      - ``Asset``
      - ``PUT``
+   * - ``PATCH``
+     - ``/api/v2/assets/{asset_id}/watchers/{watcher_name}``
+     - ``Asset``
+     - ``PUT``
    * - ``GET``
      - ``/api/v2/auth/cli/metadata``
      - ``Public``

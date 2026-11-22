@@ -49,7 +49,7 @@ export const Header = ({ asset }: { readonly asset?: AssetResponse }) => {
     // Only assets that actually have them — unlike the dependency stats above, most assets have neither.
     ...(aliases.length ? [{ label: translate("aliases"), value: <AliasesPopover aliases={aliases} /> }] : []),
     ...(watchers.length
-      ? [{ label: translate("watchers"), value: <WatchersPopover watchers={watchers} /> }]
+      ? [{ label: translate("watchers"), value: <WatchersPopover assetId={asset?.id} watchers={watchers} /> }]
       : []),
   ];
 
