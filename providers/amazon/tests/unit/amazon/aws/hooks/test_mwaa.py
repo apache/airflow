@@ -233,6 +233,7 @@ class TestMwaaHook:
                 env_name=ENV_NAME, path=PATH, method=METHOD, generate_local_token=True, airflow_version=2
             )
 
+        assert caught_error.value.response is response
         assert caught_error.value.response.status_code == 502
         mock_error_log.assert_called_once_with(error_body.decode())
 
