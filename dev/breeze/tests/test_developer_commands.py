@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from subprocess import CompletedProcess
 from unittest.mock import create_autospec, patch
 
 import click
@@ -114,6 +115,76 @@ def test_down_lists_projects_left_in_other_worktrees(runner, tmp_path, args, lis
     else:
         find_others.assert_not_called()
         assert "/work/other" not in output
+
+
+@pytest.mark.parametrize(
+    ("stdin_is_terminal", "stdout_is_terminal", "docker_exec_flag"),
+    [
+        pytest.param(True, True, "-it", id="terminal"),
+        pytest.param(False, True, "-i", id="input-not-a-terminal"),
+        pytest.param(True, False, "-i", id="output-not-a-terminal"),
+    ],
+)
+def test_exec_selects_the_project_and_allocates_a_terminal_only_when_attached(
+    stdin_is_terminal, stdout_is_terminal, docker_exec_flag
+):
+    with (
+        patch("airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True),
+        patch("airflow_breeze.commands.developer_commands.check_docker_resources", autospec=True),
+        patch("airflow_breeze.commands.developer_commands.run_command", autospec=True) as run_command,
+        patch("sys.stdin", autospec=True) as stdin,
+        patch("sys.stdout", autospec=True) as stdout,
+    ):
+        stdin.isatty.return_value = stdin_is_terminal
+        stdout.isatty.return_value = stdout_is_terminal
+        run_command.side_effect = [
+            CompletedProcess(args=[], returncode=0, stdout="feedc0de\n0123abcd\n"),
+            CompletedProcess(args=[], returncode=3),
+        ]
+        with pytest.raises(SystemExit) as exit_info:
+            developer_commands.exec.main(
+                ["--project-name", "foobar", "--", "-c", "airflow version"], standalone_mode=False
+            )
+    assert exit_info.value.code == 3
+    find_container, run_in_container = run_command.call_args_list
+    assert find_container.args[0] == [
+        "docker",
+        "compose",
+        "--project-name",
+        "foobar",
+        "ps",
+        "--all",
+        "--quiet",
+        "--filter",
+        "status=running",
+        "airflow",
+    ]
+    assert run_in_container.args[0] == [
+        "docker",
+        "exec",
+        docker_exec_flag,
+        "0123abcd",
+        "/opt/airflow/scripts/docker/entrypoint_exec.sh",
+        "-c",
+        "airflow version",
+    ]
+
+
+def test_exec_reports_a_project_without_a_running_container(runner):
+    with (
+        patch("airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True),
+        patch("airflow_breeze.commands.developer_commands.check_docker_resources", autospec=True),
+        patch(
+            "airflow_breeze.commands.developer_commands.run_command",
+            autospec=True,
+            return_value=CompletedProcess(args=[], returncode=0, stdout=""),
+        ) as run_command,
+    ):
+        result = runner.invoke(developer_commands.exec, ["--project-name", "foobar"])
+    assert result.exit_code == 1
+    run_command.assert_called_once()
+    output = " ".join(click.unstyle(result.output).split())
+    assert "No airflow container is running in the foobar compose project" in output
 
 
 @pytest.fixture

@@ -550,6 +550,23 @@ to enter the running container. It's as easy as launching ``breeze exec`` while 
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
+``breeze exec`` looks for the container in the default compose project of the checkout. If you started
+the environment with ``--project-name``, pass the same name:
+
+.. code-block:: bash
+
+    breeze exec --project-name my-project
+
+Arguments after ``--`` are passed to ``bash`` in the container, so you can run a command without entering
+the shell. ``breeze exec`` exits with the exit code of the command:
+
+.. code-block:: bash
+
+    breeze exec --project-name my-project -- -c "airflow dags list"
+
+When its input or its output is not a terminal, for example in a pipe or in CI, ``breeze exec`` does not
+allocate one. Breeze prints its own checks before the output of the command.
+
 These are all available flags of ``exec`` command:
 
 .. image:: ./images/output_exec.svg
