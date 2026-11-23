@@ -622,8 +622,11 @@ class EmrServerlessStartJobTrigger(AwsBaseWaiterTrigger):
             run_ids=[self.task_instance.run_id],
             map_index=self.task_instance.map_index,
         )
+        # The execution API keys a mapped task instance as ``<task_id>_<map_index>``.
+        ti = self.task_instance
+        task_key = ti.task_id if ti.map_index < 0 else f"{ti.task_id}_{ti.map_index}"
         try:
-            task_state = task_states_response[self.task_instance.run_id][self.task_instance.task_id]
+            task_state = task_states_response[ti.run_id][task_key]
         except Exception:
             raise ValueError(
                 f"TaskInstance with dag_id: {self.task_instance.dag_id}, "
