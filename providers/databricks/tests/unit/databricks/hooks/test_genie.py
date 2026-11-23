@@ -18,18 +18,21 @@ from __future__ import annotations
 
 import builtins
 import importlib.util
+import io
 import json
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 import requests
 
+from airflow.providers.common.ai.managed_agents.base import ManagedAgentRequest
 from airflow.providers.common.ai.toolsets import ManagedAgentToolset
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.databricks.exceptions import DatabricksApiError, DatabricksGenieError
 from airflow.providers.databricks.hooks import genie as genie_module
 from airflow.providers.databricks.hooks.databricks_base import _TokenAuth
 from airflow.providers.databricks.hooks.genie import (
-    DatabricksGenieError,
     DatabricksGenieHook,
     _summarize_query_result,
     _truncate_result,
@@ -44,24 +47,43 @@ def build_response(
 ) -> requests.Response:
     response = requests.Response()
     response.status_code = status_code
-    response._content = content
-    response._content_consumed = True
+    response.raw = io.BytesIO(content)
     response.url = url
     return response
 
 
+MESSAGE_PATH = "spaces/space-1/conversations/conversation-1/messages/message-1"
+CREATED = {"conversation_id": "conversation-1", "message_id": "message-1"}
+ANSWERED = {"status": "COMPLETED", "attachments": [{"text": {"content": "Answer."}}]}
+
+
 @pytest.fixture
-def stub_hook():
-    """A hook whose connection lookups are spec'd mocks, so ``_request`` runs without a real connection."""
-    hook = DatabricksGenieHook(retry_limit=2, retry_delay=0.001)
-    hook.user_agent_header = {}
-    with (
-        mock.patch.object(hook, "_endpoint_url", autospec=True, return_value=GENIE_URL),
-        mock.patch.object(hook, "_get_aad_headers", autospec=True, return_value={}),
-        mock.patch.object(hook, "_get_token", autospec=True, return_value="secret-token"),
-        mock.patch.object(hook, "_get_requests_kwargs", autospec=True, return_value={}),
+def hook():
+    with mock.patch.object(
+        DatabricksGenieHook, "user_agent_header", new_callable=mock.PropertyMock, return_value={}
     ):
-        yield hook
+        yield DatabricksGenieHook(retry_limit=2, retry_delay=0.001, poll_interval=0.001)
+
+
+@pytest.fixture
+def genie_request():
+    """Replace the hook's HTTP call, so consult tests only script Genie's answers."""
+    with mock.patch.object(DatabricksGenieHook, "_request", autospec=True) as request:
+        yield request
+
+
+@pytest.fixture
+def connection():
+    """Spec'd stand-ins for the connection lookups, so ``_request`` runs without a real connection."""
+    with (
+        mock.patch.object(DatabricksGenieHook, "_endpoint_url", autospec=True, return_value=GENIE_URL) as url,
+        mock.patch.object(DatabricksGenieHook, "_get_aad_headers", autospec=True, return_value={}),
+        mock.patch.object(
+            DatabricksGenieHook, "_get_token", autospec=True, return_value="secret-token"
+        ) as token,
+        mock.patch.object(DatabricksGenieHook, "_get_requests_kwargs", autospec=True, return_value={}),
+    ):
+        yield SimpleNamespace(endpoint_url=url, get_token=token)
 
 
 class TestDatabricksGenieHook:
@@ -116,29 +138,18 @@ class TestDatabricksGenieHook:
             spec.loader.exec_module(module)
 
         hook = module.DatabricksGenieHook()
-        hook._request = mock.create_autospec(
-            hook._request,
-            side_effect=[
-                {"conversation_id": "conversation-1", "message_id": "message-1"},
-                {"status": "COMPLETED", "attachments": [{"text": {"content": "Answer."}}]},
-            ],
-        )
-        result = hook.consult("space-1", "Question?")
+        with mock.patch.object(
+            module.DatabricksGenieHook, "_request", autospec=True, side_effect=[CREATED, ANSWERED]
+        ) as request:
+            result = hook.consult("space-1", "Question?")
         assert result["answer"] == "Answer."
         assert result["conversation_id"] == "conversation-1"
-        assert hook._request.call_count == 2
+        assert request.call_count == 2
         with pytest.raises(AirflowOptionalProviderFeatureException, match="common.ai"):
             hook.agent("space-1")
 
-    def test_standard_managed_agent_toolset_returns_bounded_structured_ids(self):
-        hook = DatabricksGenieHook()
-        hook._request = mock.create_autospec(
-            hook._request,
-            side_effect=[
-                {"conversation_id": "conversation-1", "message_id": "message-1"},
-                {"status": "COMPLETED", "attachments": [{"text": {"content": "Answer."}}]},
-            ],
-        )
+    def test_standard_managed_agent_toolset_returns_bounded_structured_ids(self, hook, genie_request):
+        genie_request.side_effect = [CREATED, ANSWERED]
         toolset = ManagedAgentToolset(hook.agent("space-1"), tool_name="ask_genie", max_retries=0)
 
         result = json.loads(toolset.invoke_sync("Question?"))
@@ -147,36 +158,36 @@ class TestDatabricksGenieHook:
         assert result["conversation_id"] == "conversation-1"
         assert result["message_id"] == "message-1"
         assert result["answer"] == "Answer."
-        assert hook._request.call_count == 2
+        assert genie_request.call_count == 2
 
-    def test_consult_starts_once_polls_reads_and_returns_ids_and_query_result(self):
-        hook = DatabricksGenieHook(poll_interval=0.001)
-        hook._request = mock.create_autospec(
-            hook._request,
-            side_effect=[
-                {"conversation_id": "conversation-1", "message_id": "message-1"},
-                {"status": "ASKING_AI"},
-                {
-                    "status": "COMPLETED",
-                    "attachments": [
-                        {
-                            "attachment_id": "attachment-1",
-                            "text": {"content": "There are 12 open orders."},
-                            "query": {"title": "Open orders", "query": "select count(*)"},
-                        }
-                    ],
-                },
-                {
-                    "statement_response": {
-                        "manifest": {
-                            "schema": {"columns": [{"name": "count"}]},
-                            "total_row_count": 1,
-                        },
-                        "result": {"data_array": [["12"]]},
+    def test_invoke_agent_refuses_vendor_options(self, hook, genie_request):
+        request = ManagedAgentRequest(prompt="Question?", vendor_options={"space_id": "other-space"})
+
+        with pytest.raises(ValueError, match=r"does not support vendor_options: \['space_id'\]"):
+            hook.invoke_agent("space-1", request)
+        genie_request.assert_not_called()
+
+    def test_consult_starts_once_polls_reads_and_returns_ids_and_query_result(self, hook, genie_request):
+        genie_request.side_effect = [
+            CREATED,
+            {"status": "ASKING_AI"},
+            {
+                "status": "COMPLETED",
+                "attachments": [
+                    {
+                        "attachment_id": "attachment-1",
+                        "text": {"content": "There are 12 open orders."},
+                        "query": {"title": "Open orders", "query": "select count(*)"},
                     }
-                },
-            ],
-        )
+                ],
+            },
+            {
+                "statement_response": {
+                    "manifest": {"schema": {"columns": [{"name": "count"}]}, "total_row_count": 1},
+                    "result": {"data_array": [["12"]]},
+                }
+            },
+        ]
 
         result = hook.consult("space-1", "How many open orders?", timeout=1)
 
@@ -191,62 +202,88 @@ class TestDatabricksGenieHook:
                 {"columns": ["count"], "rows": [["12"]], "total_row_count": 1, "truncated": False}
             ],
         }
-        assert hook._request.call_count == 4
-        assert hook._request.call_args_list[0].args[:2] == (
-            "POST",
-            "spaces/space-1/start-conversation",
-        )
-        assert hook._request.call_args_list[0].kwargs["retry_read"] is False
-        assert all(call.kwargs.get("retry_read") is True for call in hook._request.call_args_list[1:])
+        calls = genie_request.call_args_list
+        assert len(calls) == 4
+        assert calls[0].args[1:] == ("POST", "spaces/space-1/start-conversation")
+        assert calls[0].kwargs["retry_read"] is False
+        assert all(call.kwargs.get("retry_read") is True for call in calls[1:])
 
-    def test_resumed_consult_posts_into_existing_conversation_once(self):
-        hook = DatabricksGenieHook()
-        hook._request = mock.create_autospec(
-            hook._request,
-            side_effect=[
-                {"conversation_id": "conversation-1", "message_id": "message-2"},
-                {"status": "COMPLETED", "attachments": [{"text": {"content": "Answer."}}]},
-            ],
-        )
+    def test_resumed_consult_posts_into_existing_conversation_once(self, hook, genie_request):
+        genie_request.side_effect = [{**CREATED, "message_id": "message-2"}, ANSWERED]
 
         hook.consult("space-1", "Another question", conversation_id="conversation-1")
 
-        assert hook._request.call_args_list[0].args[:2] == (
-            "POST",
-            "spaces/space-1/conversations/conversation-1/messages",
-        )
-        assert hook._request.call_args_list[0].kwargs["retry_read"] is False
-        assert hook._request.call_count == 2
+        calls = genie_request.call_args_list
+        assert calls[0].args[1:] == ("POST", "spaces/space-1/conversations/conversation-1/messages")
+        assert calls[0].kwargs["retry_read"] is False
+        assert len(calls) == 2
 
-    def test_non_idempotent_post_is_never_retried_after_timeout(self, stub_hook):
+    @pytest.mark.parametrize(
+        ("message", "match"),
+        [
+            pytest.param(
+                {"status": "FAILED", "error": {"error": "bad SQL"}},
+                "could not answer the question: bad SQL",
+                id="failed",
+            ),
+            pytest.param({"status": "CANCELLED"}, "ended with status CANCELLED", id="cancelled"),
+            pytest.param(
+                {"status": "QUERY_RESULT_EXPIRED"}, "ended with status QUERY_RESULT_EXPIRED", id="expired"
+            ),
+            pytest.param(
+                {"status": "SOMETHING_NEW"}, "unknown message status: 'SOMETHING_NEW'", id="unknown"
+            ),
+        ],
+    )
+    def test_consult_raises_for_terminal_status(self, hook, genie_request, message, match):
+        genie_request.side_effect = [CREATED, message]
+
+        with pytest.raises(DatabricksGenieError, match=match) as error:
+            hook.consult("space-1", "Question?")
+
+        assert isinstance(error.value, DatabricksApiError)
+        assert error.value.http_status_code is None
+        assert genie_request.call_args_list[1].args[1:] == ("GET", MESSAGE_PATH)
+
+    def test_consult_times_out(self, hook, genie_request):
+        genie_request.side_effect = [CREATED, {"status": "ASKING_AI"}]
+
+        with (
+            mock.patch.object(genie_module.time, "monotonic", autospec=True, side_effect=[0, 11]),
+            mock.patch.object(genie_module.time, "sleep", autospec=True) as sleep,
+            pytest.raises(DatabricksGenieError, match="Timed out waiting for Genie message message-1"),
+        ):
+            hook.consult("space-1", "Question?", timeout=10)
+
+        sleep.assert_not_called()
+        assert [call.args[1] for call in genie_request.call_args_list] == ["POST", "GET"]
+
+    def test_non_idempotent_post_is_never_retried_after_timeout(self, hook, connection):
         with (
             mock.patch(REQUEST, autospec=True, side_effect=requests.Timeout("timeout")) as request,
             pytest.raises(DatabricksGenieError, match="did not retry") as error,
         ):
-            stub_hook._request(
-                "POST",
-                "spaces/id/start-conversation",
-                body={"content": "question"},
-                retry_read=False,
+            hook._request(
+                "POST", "spaces/id/start-conversation", body={"content": "question"}, retry_read=False
             )
 
         assert request.call_count == 1
         assert "secret-token" not in str(error.value)
 
-    def test_token_request_uses_token_auth_so_netrc_cannot_override_bearer(self, stub_hook):
+    def test_token_request_uses_token_auth_so_netrc_cannot_override_bearer(self, hook, connection):
         """_TokenAuth keeps requests from applying ~/.netrc over the bearer token."""
         with mock.patch(REQUEST, autospec=True, return_value=build_response()) as request:
-            assert stub_hook._request("GET", "message", retry_read=True) == {"status": "COMPLETED"}
+            assert hook._request("GET", "message", retry_read=True) == {"status": "COMPLETED"}
 
         auth = request.call_args.kwargs["auth"]
         assert isinstance(auth, _TokenAuth)
         assert auth.token == "secret-token"
         assert "Authorization" not in request.call_args.kwargs["headers"]
 
-    def test_get_read_is_retried_after_a_server_error(self, stub_hook):
+    def test_get_read_is_retried_after_a_server_error(self, hook, connection):
         responses = [build_response(503, b'{"error":"temporarily unavailable"}'), build_response()]
         with mock.patch(REQUEST, autospec=True, side_effect=responses) as request:
-            result = stub_hook._request("GET", "message", retry_read=True)
+            result = hook._request("GET", "message", retry_read=True)
 
         assert result == {"status": "COMPLETED"}
         assert request.call_count == 2
@@ -258,42 +295,52 @@ class TestDatabricksGenieHook:
             pytest.param(build_response(200, b"not json"), id="invalid-json"),
         ],
     )
-    def test_ambiguous_post_is_never_retried(self, stub_hook, response):
+    def test_ambiguous_post_is_never_retried(self, hook, connection, response):
         with (
             mock.patch(REQUEST, autospec=True, return_value=response) as request,
             pytest.raises(DatabricksGenieError, match="outcome is unknown") as error,
         ):
-            stub_hook._request("POST", "message", body={"content": "question"}, retry_read=False)
+            hook._request("POST", "message", body={"content": "question"}, retry_read=False)
 
         assert request.call_count == 1
         assert "secret-token" not in str(error.value)
 
-    def test_remote_http_endpoint_is_rejected_before_credentials_are_sent(self, stub_hook):
-        stub_hook._endpoint_url.return_value = "http://workspace.example/api/2.0/genie/message"
+    def test_rejected_request_carries_http_status_code(self, hook, connection):
+        with (
+            mock.patch(REQUEST, autospec=True, return_value=build_response(404, b"{}")),
+            pytest.raises(DatabricksApiError, match="not found") as error,
+        ):
+            hook._request("GET", "message", retry_read=True)
+
+        assert isinstance(error.value, DatabricksGenieError)
+        assert error.value.http_status_code == 404
+
+    def test_remote_http_endpoint_is_rejected_before_credentials_are_sent(self, hook, connection):
+        connection.endpoint_url.return_value = "http://workspace.example/api/2.0/genie/message"
         with (
             mock.patch(REQUEST, autospec=True) as request,
             pytest.raises(DatabricksGenieError, match="requires HTTPS"),
         ):
-            stub_hook._request("GET", "message", retry_read=True)
+            hook._request("GET", "message", retry_read=True)
         request.assert_not_called()
-        stub_hook._get_token.assert_not_called()
+        connection.get_token.assert_not_called()
 
-    def test_credential_failure_is_raised_before_anything_is_sent(self, stub_hook):
-        stub_hook._get_token.side_effect = AirflowException("token endpoint unavailable")
+    def test_credential_failure_is_raised_before_anything_is_sent(self, hook, connection):
+        connection.get_token.side_effect = AirflowException("token endpoint unavailable")
         with (
             mock.patch(REQUEST, autospec=True) as request,
             pytest.raises(AirflowException, match="token endpoint unavailable"),
         ):
-            stub_hook._prepare_request("spaces/id/start-conversation")
+            hook._prepare_request("spaces/id/start-conversation")
         request.assert_not_called()
 
-    def test_prepared_request_is_sent_without_resolving_credentials_again(self, stub_hook):
-        prepared = stub_hook._prepare_request("spaces/id/start-conversation")
-        stub_hook._get_token.reset_mock()
-        stub_hook._endpoint_url.reset_mock()
+    def test_prepared_request_is_sent_without_resolving_credentials_again(self, hook, connection):
+        prepared = hook._prepare_request("spaces/id/start-conversation")
+        connection.get_token.reset_mock()
+        connection.endpoint_url.reset_mock()
 
         with mock.patch(REQUEST, autospec=True, return_value=build_response()) as request:
-            stub_hook._request(
+            hook._request(
                 "POST",
                 "spaces/id/start-conversation",
                 body={"content": "question"},
@@ -301,8 +348,8 @@ class TestDatabricksGenieHook:
                 prepared=prepared,
             )
 
-        stub_hook._get_token.assert_not_called()
-        stub_hook._endpoint_url.assert_not_called()
+        connection.get_token.assert_not_called()
+        connection.endpoint_url.assert_not_called()
         assert request.call_args.args == ("POST", GENIE_URL)
         assert request.call_args.kwargs["auth"] is prepared.auth
 

@@ -59,6 +59,15 @@ class DatabricksApiError(AirflowException):
         self.error_code = error_code
 
 
+class DatabricksGenieError(DatabricksApiError):
+    """
+    Raised when a Databricks Genie request fails or returns a result that cannot be used.
+
+    ``http_status_code`` holds the HTTP status Genie answered with, or ``None`` when there was no usable
+    response, for example after a timeout, a connection error or an invalid body.
+    """
+
+
 class DatabricksUnityMCPError(DatabricksApiError):
     """Raised when a call to a Unity Gateway MCP Service fails."""
 

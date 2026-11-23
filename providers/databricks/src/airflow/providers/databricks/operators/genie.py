@@ -27,10 +27,10 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import quote
 
 from airflow.providers.common.compat.sdk import AirflowFailException, BaseOperator, ResumableJobMixin, conf
+from airflow.providers.databricks.exceptions import DatabricksGenieError
 from airflow.providers.databricks.hooks.genie import (
     _PENDING_STATUSES,
     GENIE_TERMINAL_STATUSES,
-    DatabricksGenieError,
     DatabricksGenieHook,
     _truncate_result,
 )
@@ -226,7 +226,7 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
                 prepared=prepared,
             )
         except DatabricksGenieError as err:
-            if err.status_code is not None and err.status_code < 500:
+            if err.http_status_code is not None and err.http_status_code < 500:
                 # Databricks rejected the request, so nothing was created and a retry may submit again.
                 if store is not None:
                     store.delete(self._submission_key)
@@ -269,7 +269,7 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
         try:
             message = self._get_message(external_id)
         except DatabricksGenieError as err:
-            if err.status_code == 404:
+            if err.http_status_code == 404:
                 return _NOT_FOUND
             raise
         status = message.get("status")
@@ -374,6 +374,6 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
             raise DatabricksGenieError(
                 f"Polling Genie message {ref['message_id']} failed ({event.get('error_type')}); "
                 f"inspect the triggerer logs. {self._describe_next_try(context)}",
-                status_code=status_code if isinstance(status_code, int) else None,
+                http_status_code=status_code if isinstance(status_code, int) else None,
             )
         return self.get_job_result(ref, context)

@@ -22,7 +22,8 @@ from unittest import mock
 import pytest
 
 from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException, TaskDeferred
-from airflow.providers.databricks.hooks.genie import DatabricksGenieError, DatabricksGenieHook
+from airflow.providers.databricks.exceptions import DatabricksGenieError
+from airflow.providers.databricks.hooks.genie import DatabricksGenieHook
 from airflow.providers.databricks.operators.genie import DatabricksGenieOperator
 from airflow.providers.databricks.triggers.genie import DatabricksGenieMessageTrigger
 
@@ -359,7 +360,7 @@ def test_execute_complete_error_event(genie, status_code, expected):
     }
     with pytest.raises(DatabricksGenieError, match=r"failed \(api_error\).*asks the question again") as err:
         make_operator().execute_complete({}, event, ref=build_stored_ref())
-    assert err.value.status_code == expected
+    assert err.value.http_status_code == expected
     assert genie.journal == []
 
 
@@ -380,7 +381,7 @@ def test_execute_complete_invalid_event(genie, event):
 
 @pytest.mark.parametrize("status_code", [None, 500, 503])
 def test_unconfirmed_submission_fails_without_retry(genie, status_code):
-    genie.add("POST", START, DatabricksGenieError("unknown outcome", status_code=status_code))
+    genie.add("POST", START, DatabricksGenieError("unknown outcome", http_status_code=status_code))
     with pytest.raises(AirflowFailException, match="unknown outcome"):
         make_operator(durable=False).execute({})
 
@@ -393,7 +394,7 @@ def test_accepted_submission_without_ids_fails_without_retry(genie):
 
 @pytest.mark.parametrize("status_code", [400, 401, 403, 404, 429])
 def test_rejected_submission_is_retryable(genie, status_code):
-    genie.add("POST", START, DatabricksGenieError("rejected", status_code=status_code))
+    genie.add("POST", START, DatabricksGenieError("rejected", http_status_code=status_code))
     with pytest.raises(DatabricksGenieError, match="rejected") as err:
         make_operator(durable=False).execute({})
     assert not isinstance(err.value, AirflowFailException)
@@ -474,7 +475,9 @@ class TestDurable:
         [
             pytest.param(build_stored_ref(), build_message("FAILED"), id="failed"),
             pytest.param(build_stored_ref(), build_message("CANCELLED"), id="cancelled"),
-            pytest.param(build_stored_ref(), DatabricksGenieError("gone", status_code=404), id="deleted"),
+            pytest.param(
+                build_stored_ref(), DatabricksGenieError("gone", http_status_code=404), id="deleted"
+            ),
             pytest.param(build_stored_ref(fingerprint="other"), None, id="other-question"),
             pytest.param("legacy-id", None, id="unexpected-shape"),
         ],
@@ -491,7 +494,7 @@ class TestDurable:
         assert store.data == {KEY: build_stored_ref()}
 
     def test_stored_message_lookup_error_propagates(self, genie, journal):
-        genie.add("GET", MESSAGE, DatabricksGenieError("denied", status_code=403))
+        genie.add("GET", MESSAGE, DatabricksGenieError("denied", http_status_code=403))
         store = FakeStore(journal, {KEY: build_stored_ref()})
 
         with pytest.raises(DatabricksGenieError, match="denied"):
@@ -521,7 +524,7 @@ class TestDurable:
         assert store.data == {KEY: build_stored_ref()}
 
     def test_changed_question_does_not_reuse_answer(self, genie, journal):
-        genie.add("POST", START, DatabricksGenieError("rejected", status_code=400))
+        genie.add("POST", START, DatabricksGenieError("rejected", http_status_code=400))
         store = FakeStore(journal, {KEY: build_stored_ref()})
 
         with pytest.raises(DatabricksGenieError, match="rejected"):
@@ -561,7 +564,7 @@ class TestDurable:
         assert store.data == {KEY: build_stored_ref()}
 
     def test_unconfirmed_submission_blocks_next_try(self, genie, journal):
-        genie.add("POST", START, DatabricksGenieError("unknown outcome", status_code=None))
+        genie.add("POST", START, DatabricksGenieError("unknown outcome", http_status_code=None))
         store = FakeStore(journal)
 
         with pytest.raises(AirflowFailException, match="unknown outcome"):
@@ -600,7 +603,7 @@ class TestDurable:
 
     @pytest.mark.parametrize("status_code", [400, 403, 429])
     def test_rejected_submission_clears_marker(self, genie, journal, status_code):
-        genie.add("POST", START, DatabricksGenieError("rejected", status_code=status_code))
+        genie.add("POST", START, DatabricksGenieError("rejected", http_status_code=status_code))
         store = FakeStore(journal)
 
         with pytest.raises(DatabricksGenieError, match="rejected"):

@@ -28,9 +28,9 @@ from requests.auth import AuthBase, HTTPBasicAuth
 from tenacity import RetryError
 
 from airflow.providers.common.compat.sdk import (
-    AirflowException,
     AirflowOptionalProviderFeatureException,
 )
+from airflow.providers.databricks.exceptions import DatabricksGenieError
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook, _TokenAuth
 
 if TYPE_CHECKING:
@@ -92,15 +92,6 @@ class _PreparedRequest(NamedTuple):
     headers: dict[str, str]
     auth: AuthBase
     requests_kwargs: dict[str, Any]
-
-
-class DatabricksGenieError(AirflowException):
-    """A Genie request failed or returned a result that could not be used."""
-
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
-        super().__init__(message)
-        # AirflowException declares status_code as HTTPStatus; Genie keeps the raw code or None.
-        self.status_code = status_code  # type: ignore[assignment]
 
 
 class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
@@ -342,7 +333,7 @@ class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
                     "submitting again."
                 ) from exc
             except DatabricksGenieError as exc:
-                if exc.status_code is None or exc.status_code >= 500:
+                if exc.http_status_code is None or exc.http_status_code >= 500:
                     raise DatabricksGenieError(
                         f"{exc} The request may have been accepted; its outcome is unknown "
                         "and the hook did not retry it."
@@ -416,7 +407,7 @@ class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
             message = "Databricks rate-limited the Genie request (HTTP 429); retry after the task delay."
         else:
             message = f"Databricks Genie returned HTTP {status_code}."
-        return DatabricksGenieError(message, status_code=status_code)
+        return DatabricksGenieError(message, http_status_code=status_code)
 
 
 def _messages_to_prompt(messages: list[dict[str, Any]]) -> str:
