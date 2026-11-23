@@ -3688,6 +3688,58 @@ class TestDatabricksRunNowOperatorDurable:
         task_store.set.assert_not_called()
         assert op.run_id == RUN_ID
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_repair_request_carries_latest_repair_id_and_job_parameters(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, job_parameters={"region": "eu"})
+        db_mock = db_mock_class.return_value
+        db_mock.get_run.side_effect = [
+            make_run_state("TERMINATED", "FAILED"),
+            make_run_state("TERMINATED", "SUCCESS"),
+        ]
+        db_mock.get_latest_repair_id.return_value = 77
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+
+        op.execute(self._context(task_store))
+
+        db_mock.get_latest_repair_id.assert_called_once_with(RUN_ID)
+        db_mock.repair_run.assert_called_once_with(
+            {
+                "run_id": RUN_ID,
+                "rerun_all_failed_tasks": True,
+                "latest_repair_id": 77,
+                "job_parameters": {"region": "eu"},
+            }
+        )
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_updates_job_settings_before_repair_when_failure_matches_repair_reason(self, db_mock_class):
+        new_settings = {"new_cluster": {"node_type_id": "r5.2xlarge"}}
+        op = DatabricksRunNowOperator(
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            databricks_repair_reason_new_settings={"out of memory": new_settings},
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.get_run.side_effect = [
+            make_run_state("TERMINATED", "FAILED"),
+            make_run_state("TERMINATED", "SUCCESS"),
+        ]
+        db_mock.get_run_state.return_value = RunState("TERMINATED", "FAILED", "Driver ran out of memory")
+        db_mock.get_latest_repair_id.return_value = None
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = RUN_ID
+
+        op.execute(self._context(task_store))
+
+        db_mock.update_job.assert_called_once_with(job_id=JOB_ID, json=new_settings)
+        db_mock.repair_run.assert_called_once_with({"run_id": RUN_ID, "rerun_all_failed_tasks": True})
+        call_names = [name for name, *_ in db_mock.mock_calls]
+        assert call_names.index("update_job") < call_names.index("repair_run")
+        db_mock.run_now.assert_not_called()
+
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_resubmits_when_failure_does_not_match_repair_reason(self, db_mock_class):
         op = DatabricksRunNowOperator(
@@ -3710,6 +3762,25 @@ class TestDatabricksRunNowOperatorDurable:
         db_mock.repair_run.assert_not_called()
         db_mock.run_now.assert_called_once()
         task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_cancels_and_resubmits_instead_of_repairing_with_cancel_previous_runs(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, cancel_previous_runs=True)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_run.side_effect = [
+            make_run_state("TERMINATED", "FAILED"),
+            make_run_state("TERMINATED", "SUCCESS"),
+        ]
+        task_store = MagicMock(spec_set=["get", "set"])
+        task_store.get.return_value = 999
+
+        op.execute(self._context(task_store))
+
+        db_mock.repair_run.assert_not_called()
+        db_mock.cancel_all_runs.assert_called_once_with(JOB_ID)
+        db_mock.run_now.assert_called_once()
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_resubmits_when_stored_run_no_longer_exists(self, db_mock_class):

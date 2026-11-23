@@ -235,7 +235,8 @@ class TestResumeFailedJob:
     @pytest.mark.parametrize(
         "error", [None, RuntimeError("repair endpoint down")], ids=["declined", "raised"]
     )
-    def test_resubmits_when_resume_declined_or_raises(self, error):
+    @patch("airflow.sdk.bases.resumablejobmixin.time.sleep", autospec=True)
+    def test_resubmits_when_resume_declined_or_raises(self, mock_sleep, error):
         op = ResumingOperator(task_id="test_task", resumed_id=None, error=error)
         op._status_map["job-001"] = "FAILED"
         op._next_id = "job-002"
@@ -267,6 +268,92 @@ class TestResumeFailedJob:
         assert op.resume_calls == []
         assert op.submitted_ids == ["job-002"]
         assert task_state.get("test_job_id") == "job-002"
+
+    def test_decision_returns_resume_without_resuming(self):
+        op = ResumingOperator(task_id="test_task", resumed_id="job-001")
+        op._status_map["job-001"] = "FAILED"
+
+        decision = op.get_resume_decision(make_context(FakeTaskState({"test_job_id": "job-001"})))
+
+        assert decision == ResumeDecision("resume", "job-001", "FAILED")
+        assert op.resume_calls == []
+
+    def test_decision_submits_when_operator_cannot_resume(self):
+        op = ConcreteResumableOperator(task_id="test_task")
+        op._status_map["job-001"] = "FAILED"
+
+        decision = op.get_resume_decision(make_context(FakeTaskState({"test_job_id": "job-001"})))
+
+        assert decision == ResumeDecision("submit")
+
+
+class LostReplyOperator(ResumingOperator):
+    """Raises from the resume, then reports these statuses for the stored job, one per status read."""
+
+    def __init__(self, statuses_after_error: list[str | Exception], **kwargs):
+        super().__init__(error=TimeoutError("read timed out"), **kwargs)
+        self.statuses_after_error = statuses_after_error
+
+    def get_job_status(self, external_id: JsonValue, context) -> str:
+        if not self.resume_calls:
+            return "FAILED"
+        status = self.statuses_after_error.pop(0)
+        if isinstance(status, Exception):
+            raise status
+        return status
+
+
+@patch("airflow.sdk.bases.resumablejobmixin.time.sleep", autospec=True)
+class TestResumeRaised:
+    @pytest.mark.parametrize(
+        ("statuses", "sleeps"),
+        [
+            pytest.param(["RUNNING"], 0, id="running_on_first_check"),
+            pytest.param(["SUCCEEDED"], 0, id="already_finished"),
+            pytest.param(["FAILED", "PENDING"], 1, id="running_on_second_check"),
+        ],
+    )
+    def test_watches_job_that_resumed_despite_error(self, mock_sleep, statuses, sleeps):
+        op = LostReplyOperator(task_id="test_task", statuses_after_error=statuses)
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+
+        result = op.execute_resumable(make_context(task_state))
+
+        assert op.submitted_ids == []
+        assert op.polled_ids == ["job-001"]
+        assert result == "result-of-job-001"
+        assert mock_sleep.call_count == sleeps
+
+    def test_resubmits_when_job_still_failed_after_every_check(self, mock_sleep):
+        op = LostReplyOperator(task_id="test_task", statuses_after_error=["FAILED"] * 3)
+        op._next_id = "job-002"
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+
+        op.execute_resumable(make_context(task_state))
+
+        assert op.submitted_ids == ["job-002"]
+        assert task_state.get("test_job_id") == "job-002"
+        assert mock_sleep.call_args_list == [mock.call(10.0)] * 2
+
+    def test_fails_try_when_status_cannot_be_read(self, mock_sleep):
+        op = LostReplyOperator(task_id="test_task", statuses_after_error=[ConnectionError("engine down")])
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+
+        with pytest.raises(TimeoutError, match="read timed out"):
+            op.execute_resumable(make_context(task_state))
+
+        assert op.submitted_ids == []
+        assert task_state.get("test_job_id") == "job-001"
+
+    def test_resume_reply_lost_counter_fires(self, mock_sleep):
+        op = LostReplyOperator(task_id="test_task", statuses_after_error=["RUNNING"])
+        mock_incr = MagicMock()
+        with patch("airflow.sdk._shared.observability.metrics.stats.incr", mock_incr):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+
+        called_names = [call.args[0] for call in mock_incr.call_args_list]
+        assert "resumable_job.resume_reply_lost" in called_names
+        assert "resumable_job.terminal_resubmit" not in called_names
 
 
 class TestNoneExternalId:
@@ -370,6 +457,15 @@ class TestMetrics:
         assert "resumable_job.already_succeeded" in called_names
         assert "resumable_job.reconnect_success" not in called_names
         assert "resumable_job.fresh_submit" not in called_names
+
+    def test_resumed_fires_when_failed_job_is_resumed(self):
+        op = ResumingOperator(task_id="test_task", resumed_id="job-001")
+        op._status_map["job-001"] = "FAILED"
+        mock_incr = MagicMock()
+        with patch(self._PATCH, mock_incr):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        called_names = [call.args[0] for call in mock_incr.call_args_list]
+        assert called_names == ["resumable_job.reconnect_attempt", "resumable_job.resumed"]
 
     def test_terminal_resubmit_fires_when_job_failed(self):
         op = ConcreteResumableOperator(task_id="test_task")
@@ -485,6 +581,17 @@ class TestTracing:
         assert span.attributes["resumable.decision"] == expected_decision
         assert span.attributes["resumable.external_id"] == "job-001"
         assert span.attributes["resumable.prior_status"] == status
+
+    def test_resume_span_attributes(self):
+        op = ResumingOperator(task_id="test_task", resumed_id="job-001")
+        op._status_map["job-001"] = "FAILED"
+        exporter, module_tracer = self._make_tracer()
+        with mock.patch(self._MODULE_TRACER, module_tracer):
+            op.execute_resumable(make_context(FakeTaskState({"test_job_id": "job-001"})))
+        span = self._get_decision_span(exporter)
+        assert span is not None
+        assert span.attributes["resumable.decision"] == "resume"
+        assert span.attributes["resumable.prior_status"] == "FAILED"
 
 
 class TestLogging:

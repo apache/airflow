@@ -1343,7 +1343,8 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         fresh run on retry. Requires Airflow 3.3+; on earlier versions it is silently ignored.
     :param resume_on_retry: When ``True`` (the default), a retry that finds the stored run failed repairs
         it instead of triggering a new run. Set to ``False`` to trigger a new run instead. Unlike
-        ``repair_run``, this acts between tries, not within one. Requires Airflow 3.5+.
+        ``repair_run``, this acts between tries, not within one. Requires Airflow 3.5+. Only applies when
+        ``deferrable=False``.
     :param forward_dag_params: Whether to forward Dag-level params as ``job_parameters``
         when no ``job_parameters`` are specified. (default: ``True``)
 
@@ -1597,7 +1598,8 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         return is_run_succeeded(status)
 
     def resume_failed_job(self, external_id: JsonValue, status: str, context: Context) -> JsonValue | None:
-        if status == RUN_NOT_FOUND_STATUS:
+        # cancel_previous_runs keeps only the newest run going; reviving this one would break that.
+        if status == RUN_NOT_FOUND_STATUS or self.cancel_previous_runs:
             return None
         run_id = cast("int", external_id)
         self._merged_json = self._build_run_now_payload(context)
