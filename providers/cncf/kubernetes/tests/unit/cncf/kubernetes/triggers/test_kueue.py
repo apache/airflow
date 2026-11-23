@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import json
 from contextlib import nullcontext
 from unittest import mock
@@ -79,6 +80,7 @@ def build_pod(
     sidecar: str | None = None,
     phase: str = "Running",
     owner_uid: str | None = JOB_UID,
+    deletion_timestamp: datetime.datetime | None = None,
 ) -> k8s.V1Pod:
     """
     Build a pod of the Job, with its base and XCom sidecar containers "running", "terminated" or None.
@@ -111,6 +113,7 @@ def build_pod(
             namespace=NAMESPACE,
             labels={"try_number": "1", "batch.kubernetes.io/controller-uid": "job-uid"},
             owner_references=owner_references,
+            deletion_timestamp=deletion_timestamp,
         ),
         status=k8s.V1PodStatus(phase=phase, container_statuses=statuses),
     )
@@ -159,8 +162,9 @@ def test_build_pod_label_selector(selector, expected_label_selector):
     assert build_pod_label_selector(job) == expected_label_selector
 
 
-TERMINATING_POD = build_pod("preempted")
-TERMINATING_POD.metadata.deletion_timestamp = "2026-01-01T00:00:00Z"
+TERMINATING_POD = build_pod(
+    "preempted", deletion_timestamp=datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC)
+)
 
 
 class TestCollectXcomResults:
