@@ -18,9 +18,13 @@
 from __future__ import annotations
 
 import contextlib
+import itertools
+import json
 import logging
 import os
+import queue
 import textwrap
+import threading
 import time
 from datetime import UTC, datetime as dt, timedelta
 from pathlib import Path
@@ -31,7 +35,7 @@ import boto3
 import pendulum
 import pytest
 import time_machine
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, EndpointConnectionError, ReadTimeoutError
 from moto import mock_aws
 from pydantic import TypeAdapter
 from watchtower import CloudWatchLogHandler
@@ -41,6 +45,7 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import (
     CloudWatchRemoteLogIO,
     CloudwatchTaskHandler,
+    _CloudWatchLogHandler,
 )
 from airflow.providers.amazon.aws.utils import datetime_to_epoch_utc_ms
 from airflow.providers.common.compat.sdk import timezone
@@ -186,6 +191,39 @@ class TestCloudWatchRemoteLogIOFromConfig:
         legacy_discover.assert_not_called()
 
 
+TASKS_ARN = "arn:aws:logs:us-west-2:11111111:log-group:tasks"
+TRIGGERS_ARN = "arn:aws:logs:us-west-2:11111111:log-group:triggers-group"
+TRIGGER_STREAM = "triggers/trigger_id=7/triggerer_job_id=3/trigger.log"
+
+
+def _subject(**kwargs):
+    return CloudWatchRemoteLogIO(base_log_folder="/tmp", log_group_arn=TASKS_ARN, **kwargs)
+
+
+def _put_events(group, streams):
+    conn = boto3.client("logs", region_name="us-west-2")
+    conn.create_log_group(logGroupName=group)
+    now = int(time.time() * 1000)
+    for name, events in streams.items():
+        conn.create_log_stream(logGroupName=group, logStreamName=name)
+        conn.put_log_events(
+            logGroupName=group,
+            logStreamName=name,
+            logEvents=[
+                {"timestamp": now - len(events) + i, "message": json.dumps({"event": event})}
+                for i, event in enumerate(events)
+            ],
+        )
+
+
+def _events(logs):
+    return [json.loads(line)["event"] for stream in logs for line in stream]
+
+
+def _handler_mock():
+    return mock.create_autospec(_CloudWatchLogHandler, instance=True, shutting_down=False)
+
+
 # We only test this directly on Airflow 3
 @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="This path only works on Airflow 3")
 class TestCloudRemoteLogIO:
@@ -266,6 +304,28 @@ class TestCloudRemoteLogIO:
             structlog.configure(processors=old_processors, logger_factory=logger_factory)
             # Clear @cache to avoid cross-test contamination.
             airflow.sdk.log.logging_processors.cache_clear()
+
+    def test_upload_waits_only_for_its_own_stream_but_has_every_stream_sent(self):
+        handler = self.subject.handler
+        own = handler.queues.setdefault(self.task_log_path.replace(":", "_"), queue.Queue())
+        # No sender thread takes from it, like a stream still being created or a quiet one between sends.
+        other = handler.queues.setdefault("other", queue.Queue())
+
+        def put(item, *args, **kwargs):
+            # Another thread opens a stream meanwhile.
+            handler.queues.setdefault("opened", queue.Queue())
+
+        self.subject.delete_local_copy = False
+        started = time.monotonic()
+        with mock.patch.object(own, "put", autospec=True, side_effect=put) as mock_put:
+            self.subject.upload(self.task_log_path, self.ti)
+
+        assert time.monotonic() - started < 5
+        mock_put.assert_called_once_with(handler.FLUSH)
+        assert other.get_nowait() == handler.FLUSH
+        handler.queues.clear()
+        with conf_vars({("logging", "base_log_folder"): self.local_log_location.as_posix()}):
+            handler.close()
 
     def test_upload_deletes_local_log_dir_when_delete_local_copy_true(self):
         """upload() with delete_local_copy=True deletes the local log parent directory."""
@@ -400,6 +460,206 @@ class TestCloudRemoteLogIO:
 
             assert self.subject.handler is original
             assert self.subject.handler.shutting_down is True
+
+    @pytest.mark.parametrize(
+        ("state", "suffixes"),
+        [
+            pytest.param(None, ["", ".trigger.3.log", ".trigger.4.log"], id="no-ti"),
+            pytest.param(State.SUCCESS, ["", ".trigger.3.log", ".trigger.4.log"], id="finished"),
+            # Deferred on job 4: FileTaskHandler reads that stream live.
+            pytest.param(State.DEFERRED, ["", ".trigger.3.log"], id="deferred"),
+        ],
+    )
+    def test_stream_reads_the_trigger_log_streams_of_a_task_log(self, state, suffixes):
+        names = [f"dag_id=a/attempt=1.log{suffix}" for suffix in ("", ".trigger.3.log", ".trigger.4.log")]
+        _put_events("tasks", {name: [name] for name in [*names, "dag_id=a/attempt=10.log"]})
+        ti = (
+            None
+            if state is None
+            else mock.create_autospec(
+                TaskInstance, instance=True, state=state, triggerer_job=mock.Mock(id=4), end_date=None
+            )
+        )
+
+        messages, logs = _subject().stream("dag_id=a/attempt=1.log", ti)
+
+        expected = [f"dag_id=a/attempt=1.log{suffix}" for suffix in suffixes]
+        assert messages == [
+            f"Reading remote log from Cloudwatch log_group: tasks log_stream: {name}" for name in expected
+        ]
+        assert _events(logs) == expected
+
+    @pytest.mark.parametrize(
+        ("path", "expected"),
+        [
+            pytest.param("triggers/trigger_id=7/", ["7/3 rotated", "7/3", "7/30", "7/4"], id="watcher"),
+            pytest.param("triggers/trigger_id=7/triggerer_job_id=3/", ["7/3 rotated", "7/3"], id="one-job"),
+            # Not a "No log stream found" notice.
+            pytest.param("triggers/trigger_id=8/", [], id="without-streams"),
+        ],
+    )
+    def test_stream_of_a_directory_reads_the_streams_under_it(self, path, expected):
+        _put_events(
+            "tasks",
+            {
+                "triggers/trigger_id=7/triggerer_job_id=3/rotated/trigger.log": ["7/3 rotated"],
+                "triggers/trigger_id=7/triggerer_job_id=3/trigger.log": ["7/3"],
+                "triggers/trigger_id=7/triggerer_job_id=30/trigger.log": ["7/30"],
+                "triggers/trigger_id=7/triggerer_job_id=4/trigger.log": ["7/4"],
+                "triggers/trigger_id=70/triggerer_job_id=3/trigger.log": ["70/3"],
+            },
+        )
+
+        _, logs = _subject().stream(path, None)
+
+        assert sorted(_events(logs)) == sorted(expected)
+
+    @mock.patch.object(CloudWatchRemoteLogIO, "_list_log_stream_names", autospec=True)
+    def test_stream_reads_the_exact_stream_when_listing_fails(self, mock_list):
+        mock_list.side_effect = ClientError({"Error": {"Code": "ThrottlingException"}}, "DescribeLogStreams")
+        _put_events("tasks", {"dag_id=a/attempt=1.log": ["w"]})
+
+        messages, logs = _subject().stream("dag_id=a/attempt=1.log", None)
+
+        assert messages[0].startswith("Could not list Cloudwatch log streams under dag_id=a/attempt=1.log: ")
+        assert messages[1:] == [
+            "Reading remote log from Cloudwatch log_group: tasks log_stream: dag_id=a/attempt=1.log"
+        ]
+        assert _events(logs) == ["w"]
+
+    @mock.patch.object(CloudWatchRemoteLogIO, "_list_log_stream_names", autospec=True)
+    def test_stream_of_a_directory_raises_when_listing_fails(self, mock_list):
+        mock_list.side_effect = ClientError(
+            {"Error": {"Code": "AccessDeniedException"}}, "DescribeLogStreams"
+        )
+
+        with pytest.raises(ClientError, match="AccessDeniedException"):
+            _subject().stream("triggers/7/3/", None)
+
+    @pytest.mark.parametrize(
+        ("tail_lines", "page_limit", "expected_calls"),
+        [
+            pytest.param(5, 10_000, 1, id="one-page"),
+            pytest.param(9, 4, 3, id="paged-backwards"),
+            pytest.param(50, 10_000, 2, id="more-than-the-stream"),
+        ],
+    )
+    def test_stream_with_tail_lines_reads_the_end_of_the_stream(self, tail_lines, page_limit, expected_calls):
+        _put_events("tasks", {TRIGGER_STREAM: [f"line {i}" for i in range(30)]})
+        subject = _subject()
+        conn = subject.hook.conn
+
+        with (
+            mock.patch.object(
+                conn, "get_log_events", autospec=True, side_effect=conn.get_log_events
+            ) as get_events,
+            mock.patch(
+                "airflow.providers.amazon.aws.log.cloudwatch_task_handler._GET_LOG_EVENTS_MAX_LIMIT",
+                page_limit,
+            ),
+        ):
+            _, logs = subject.stream("triggers/trigger_id=7/triggerer_job_id=3/", None, tail_lines=tail_lines)
+            events = _events(logs)
+
+        assert events == [f"line {i}" for i in range(max(0, 30 - tail_lines), 30)]
+        assert get_events.call_count == expected_calls
+        assert all(c.kwargs["startFromHead"] is False for c in get_events.call_args_list)
+
+    def test_get_cloudwatch_logs_tail_of_a_missing_stream_yields_hint(self):
+        boto3.client("logs", region_name="us-west-2").create_log_group(logGroupName="tasks")
+
+        events = list(_subject().get_cloudwatch_logs_tail("triggers/trigger_id=7/x.log", None, tail_lines=10))
+
+        assert len(events) == 1
+        assert events[0]["message"].startswith("No log stream found in CloudWatch (log_group=tasks, ")
+
+    def test_get_cloudwatch_logs_tail_other_client_error_propagates(self):
+        subject = _subject()
+        error = ClientError({"Error": {"Code": "AccessDeniedException"}}, "GetLogEvents")
+
+        with mock.patch.object(subject.hook.conn, "get_log_events", autospec=True, side_effect=error):
+            events = subject.get_cloudwatch_logs_tail("triggers/trigger_id=7/x.log", None, tail_lines=10)
+            with pytest.raises(ClientError, match="AccessDeniedException"):
+                list(events)
+
+    def test_trigger_log_group_reads_trigger_streams_there_and_task_streams_in_the_task_group(self):
+        _put_events("tasks", {"dag_id=a/attempt=1.log": ["task line"]})
+        _put_events("triggers-group", {TRIGGER_STREAM: ["watcher line"]})
+        subject = _subject(trigger_log_group_arn=TRIGGERS_ARN)
+
+        trigger_messages, trigger_logs = subject.stream("triggers/trigger_id=7/", None)
+        task_messages, task_logs = subject.stream("dag_id=a/attempt=1.log", None)
+
+        assert trigger_messages == [
+            f"Reading remote log from Cloudwatch log_group: triggers-group log_stream: {TRIGGER_STREAM}"
+        ]
+        assert _events(trigger_logs) == ["watcher line"]
+        assert task_messages == [
+            "Reading remote log from Cloudwatch log_group: tasks log_stream: dag_id=a/attempt=1.log"
+        ]
+        assert _events(task_logs) == ["task line"]
+
+    @pytest.mark.parametrize(
+        ("trigger_log_group_arn", "stream", "expected"),
+        [
+            pytest.param(None, TRIGGER_STREAM, "tasks", id="no-trigger-log-group"),
+            pytest.param(TRIGGERS_ARN, TRIGGER_STREAM, "triggers-group", id="trigger-stream"),
+            # A custom log_filename_template can put a task's logs under triggers/, for a Dag named "triggers".
+            pytest.param(
+                TRIGGERS_ARN, "triggers/run_id=r/task_id=t/attempt=1.log", "tasks", id="task-stream"
+            ),
+        ],
+    )
+    def test_each_stream_is_written_to_its_log_group(self, trigger_log_group_arn, stream, expected):
+        subject = _subject(trigger_log_group_arn=trigger_log_group_arn)
+
+        assert subject._get_handler(stream).log_group_name == expected
+
+    @mock.patch.object(CloudWatchRemoteLogIO, "_build_handler", autospec=True)
+    @mock.patch("airflow.sdk.log.relative_path_from_logger", autospec=True)
+    def test_processors_send_trigger_lines_to_the_trigger_log_group(
+        self, mock_relative_path, mock_build_handler
+    ):
+        subject = _subject(trigger_log_group_arn=TRIGGERS_ARN)
+        handlers = {"tasks": _handler_mock(), "triggers-group": _handler_mock()}
+        mock_build_handler.side_effect = lambda self, group=None: handlers[group or "tasks"]
+        mock_relative_path.side_effect = [Path(TRIGGER_STREAM), Path("dag_id=a/attempt=1.log")]
+
+        proc = subject.processors[0]
+        proc(mock.sentinel.logger, "info", {"event": "watcher"})
+        proc(mock.sentinel.logger, "info", {"event": "task"})
+
+        assert handlers["triggers-group"].log_stream_name == TRIGGER_STREAM
+        assert handlers["triggers-group"].handle.call_args.args[0].msg["event"] == "watcher"
+        assert handlers["tasks"].log_stream_name == "dag_id=a/attempt=1.log"
+        assert handlers["tasks"].handle.call_args.args[0].msg["event"] == "task"
+
+    def test_close_flushes_the_trigger_log_group_handler_too(self):
+        subject = _subject(trigger_log_group_arn=TRIGGERS_ARN)
+        task_handler, trigger_handler = _handler_mock(), _handler_mock()
+        subject._cached_handler, subject._cached_trigger_handler = task_handler, trigger_handler
+
+        subject.close(TRIGGER_STREAM)
+
+        task_handler.flush_stream.assert_called_once_with(TRIGGER_STREAM)
+        trigger_handler.flush_stream.assert_called_once_with(TRIGGER_STREAM)
+
+    def test_trigger_log_group_in_another_region_is_rejected(self):
+        with pytest.raises(ValueError, match="must be in the region of log_group_arn"):
+            _subject(trigger_log_group_arn="arn:aws:logs:eu-west-1:11111111:log-group:triggers-group")
+
+    @conf_vars(
+        {
+            ("logging", "base_log_folder"): "/tmp/airflow/logs",
+            ("logging", "remote_base_log_folder"): f"cloudwatch://{TASKS_ARN}",
+            ("logging", "remote_task_handler_kwargs"): json.dumps({"trigger_log_group_arn": TRIGGERS_ARN}),
+        }
+    )
+    def test_from_config_takes_trigger_log_group_arn_from_remote_task_handler_kwargs(self):
+        subject = CloudWatchRemoteLogIO.from_config()
+
+        assert subject.trigger_log_group == "triggers-group"
+        assert subject.log_group == "tasks"
 
 
 @pytest.mark.db_test
@@ -562,6 +822,23 @@ class TestCloudwatchTaskHandler:
                 ]
             ]
 
+    # TODO: Remove when we stop testing for 2.11 compatibility
+    @conf_vars({("core", "use_historical_filename_templates"): "True"})
+    @mock.patch.object(CloudWatchRemoteLogIO, "_list_log_stream_names", autospec=True)
+    def test_read_remote_logs_does_not_list_log_streams(self, mock_list):
+        generate_log_events(
+            self.conn,
+            self.remote_log_group,
+            self.remote_log_stream,
+            [{"timestamp": int(time.time()) * 1000, "message": "First"}],
+        )
+
+        _, logs = self.cloudwatch_task_handler._read_remote_logs(self.ti, self.ti.try_number)
+
+        assert len(logs) == 1
+        assert logs[0].endswith("] First")
+        mock_list.assert_not_called()
+
     @pytest.mark.parametrize(
         ("end_date", "expected_end_time"),
         [
@@ -663,7 +940,7 @@ class TestCloudwatchTaskHandler:
                 )
 
     def test_close_prevents_duplicate_calls(self):
-        with mock.patch("watchtower.CloudWatchLogHandler.close") as mock_log_handler_close:
+        with mock.patch.object(_CloudWatchLogHandler, "close") as mock_log_handler_close:
             with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.set_context"):
                 with mock.patch.object(self.cloudwatch_task_handler.io, "upload"):
                     self.cloudwatch_task_handler.set_context(self.ti)
@@ -686,7 +963,7 @@ class TestCloudwatchTaskHandler:
         """close() calls io.upload() exactly once, even when called multiple times."""
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.set_context"):
             with mock.patch.object(self.cloudwatch_task_handler.io, "upload") as mock_upload:
-                with mock.patch("watchtower.CloudWatchLogHandler.close"):
+                with mock.patch.object(_CloudWatchLogHandler, "close"):
                     self.cloudwatch_task_handler.set_context(self.ti)
                     for _ in range(3):
                         self.cloudwatch_task_handler.close()
@@ -732,7 +1009,7 @@ class TestCloudwatchTaskHandler:
                 f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
             )
         with mock.patch("airflow.utils.log.file_task_handler.FileTaskHandler.set_context"):
-            with mock.patch("watchtower.CloudWatchLogHandler.close"):
+            with mock.patch.object(_CloudWatchLogHandler, "close"):
                 handler.set_context(self.ti)
                 handler.close()
 
@@ -767,3 +1044,116 @@ def generate_log_events(conn, log_group_name, log_stream_name, log_events):
     conn.create_log_group(logGroupName=log_group_name)
     conn.create_log_stream(logGroupName=log_group_name, logStreamName=log_stream_name)
     conn.put_log_events(logGroupName=log_group_name, logStreamName=log_stream_name, logEvents=log_events)
+
+
+def _client_error(code, status=400):
+    return ClientError(
+        {"Error": {"Code": code}, "ResponseMetadata": {"HTTPStatusCode": status}}, "CreateLogStream"
+    )
+
+
+def _mock_create_log_stream(client, errors):
+    create, errors = client.create_log_stream, iter(errors)
+
+    def create_after_errors(**kwargs):
+        if (error := next(errors, None)) is not None:
+            raise error
+        return create(**kwargs)
+
+    return mock.patch.object(client, "create_log_stream", autospec=True, side_effect=create_after_errors)
+
+
+def _put_first_line(client):
+    client.put_log_events(
+        logGroupName="tasks",
+        logStreamName="new-stream",
+        logEvents=[{"timestamp": int(time.time() * 1000), "message": "first line"}],
+    )
+
+
+class TestLogStreamCreator:
+    @pytest.mark.parametrize(
+        "errors",
+        [
+            pytest.param([], id="created"),
+            # 8 x 30 s: thousands of streams opened at once keep CreateLogStream throttled for minutes.
+            pytest.param([_client_error("ThrottlingException")] * 8, id="throttled-for-minutes"),
+            pytest.param([_client_error("408", 408)], id="request-timeout"),
+            pytest.param([_client_error("InternalFailure", 500)], id="internal-failure"),
+            pytest.param([ReadTimeoutError(endpoint_url="https://logs")], id="read-timeout"),
+            pytest.param([EndpointConnectionError(endpoint_url="https://logs")], id="connection"),
+        ],
+    )
+    @mock.patch("time.sleep", autospec=True)
+    def test_a_new_stream_is_created_before_its_first_put(self, mock_sleep, errors):
+        # watchtower creates a stream only after a put to it fails, and drops every stream's records meanwhile.
+        conn = boto3.client("logs", region_name="us-west-2")
+        conn.create_log_group(logGroupName="tasks")
+        client = _subject().handler.cwl_client
+        clock = itertools.count(0, 30)
+
+        with (
+            _mock_create_log_stream(client, errors) as mock_create,
+            mock.patch("time.monotonic", autospec=True, side_effect=lambda: next(clock)),
+        ):
+            _put_first_line(client)
+
+        assert mock_create.call_count == len(errors) + 1
+        assert mock_sleep.call_count == len(errors)
+        events = conn.get_log_events(logGroupName="tasks", logStreamName="new-stream")["events"]
+        assert [event["message"] for event in events] == ["first line"]
+
+    @mock.patch("time.sleep", autospec=True)
+    def test_a_new_stream_is_left_to_watchtower_on_other_errors(self, mock_sleep):
+        boto3.client("logs", region_name="us-west-2").create_log_group(logGroupName="tasks")
+        client = _subject().handler.cwl_client
+
+        with _mock_create_log_stream(client, [_client_error("AccessDeniedException")]) as mock_create:
+            with pytest.raises(ClientError, match="ResourceNotFoundException"):
+                _put_first_line(client)
+
+        assert mock_create.call_count == 1
+        mock_sleep.assert_not_called()
+
+
+class TestCloudWatchLogHandler:
+    @pytest.fixture
+    def parked(self):
+        """Emit to "throttled", whose CreateLogStream waits until released, and to "fine"."""
+        boto3.client("logs", region_name="us-west-2").create_log_group(logGroupName="tasks")
+        subject = _subject(delete_local_copy=False)
+        handler, client = subject.handler, subject.handler.cwl_client
+        create = client.create_log_stream
+        parked, release = threading.Event(), threading.Event()
+
+        def create_when_released(**kwargs):
+            if kwargs["logStreamName"] == "throttled":
+                parked.set()
+                release.wait(10)
+            return create(**kwargs)
+
+        with mock.patch.object(client, "create_log_stream", autospec=True, side_effect=create_when_released):
+            handler.send_interval = 0.05
+            for stream in ("throttled", "fine"):
+                handler.log_stream_name = stream
+                handler.emit(logging.makeLogRecord({"msg": f"to {stream}"}))
+            assert parked.wait(10)
+            yield subject, release
+            release.set()
+
+    @pytest.mark.parametrize("call", ["flush", "close", "upload"])
+    def test_a_stream_still_being_created_is_not_waited_for(self, parked, call):
+        subject, release = parked
+        started = time.monotonic()
+        subject.upload("throttled") if call == "upload" else getattr(subject.handler, call)()
+
+        assert time.monotonic() - started < 5
+        release.set()
+        for _ in range(200):
+            if not subject.handler.creator.waiting:
+                break
+            time.sleep(0.05)
+        subject.handler.close()
+        for stream in ("throttled", "fine"):
+            events = subject.handler.cwl_client.get_log_events(logGroupName="tasks", logStreamName=stream)
+            assert [e["message"] for e in events["events"]] == [f"to {stream}"]

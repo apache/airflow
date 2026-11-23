@@ -32,6 +32,11 @@ Changelog
   returning, so the task role needs the ``bedrock:GetGuardrail`` permission. Pass
   ``wait_for_completion=False`` to restore the previous behaviour.
 
+.. note::
+  The CloudWatch log reader now lists the streams of a task's log, to show a deferred task's trigger logs
+  after it finishes. Reading logs needs the ``logs:DescribeLogStreams`` permission on the log group; without
+  it, a task's log is read from its own stream alone.
+
 9.41.0
 ......
 

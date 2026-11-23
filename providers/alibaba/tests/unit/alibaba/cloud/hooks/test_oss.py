@@ -196,6 +196,29 @@ class TestOSSHook:
             bucket=MOCK_BUCKET_NAME, key=MOCK_KEY
         )
 
+    @mock.patch(OSS_STRING.format("OSSHook._get_client"), autospec=True)
+    def test_list_keys(self, mock_get_client):
+        pages = [
+            mock.Mock(
+                spec=oss.ListObjectsV2Result,
+                contents=[
+                    mock.Mock(spec=oss.ObjectProperties, key="a/1.log"),
+                    mock.Mock(spec=oss.ObjectProperties, key="a/1.log.trigger.4.log"),
+                ],
+            ),
+            mock.Mock(spec=oss.ListObjectsV2Result, contents=None),
+        ]
+        iter_page = mock_get_client.return_value.list_objects_v2_paginator.return_value.iter_page
+        iter_page.return_value = pages
+
+        res = self.hook.list_keys(MOCK_BUCKET_NAME, "a/1.log")
+
+        assert res == ["a/1.log", "a/1.log.trigger.4.log"]
+        request = iter_page.call_args.args[0]
+        assert isinstance(request, oss.ListObjectsV2Request)
+        assert request.bucket == MOCK_BUCKET_NAME
+        assert request.prefix == "a/1.log"
+
     def test_get_default_region(self):
         assert self.hook.get_default_region() == "mock_region"
 
