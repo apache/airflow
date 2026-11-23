@@ -22,19 +22,33 @@ import re
 from typing import Any
 from urllib.parse import quote
 
-from huggingface_hub import DatasetInfo, GitCommitInfo, HfApi, constants
+from huggingface_hub import HfApi, constants
+from huggingface_hub.hf_api import DatasetInfo, GitCommitInfo
 from huggingface_hub.utils import (
     RepositoryNotFoundError,
     RevisionNotFoundError,
     build_hf_headers,
-    get_async_session,
     hf_raise_for_status,
     parse_datetime,
 )
 
-from airflow.exceptions import AirflowNotFoundException
+try:
+    from huggingface_hub.utils import get_async_session
+except ImportError:
+    get_async_session = None  # type: ignore[assignment]
+
+from airflow.exceptions import AirflowNotFoundException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.compat.connection import get_async_connection
 from airflow.providers.common.compat.sdk import BaseHook
+
+
+def _create_async_session() -> Any:
+    if get_async_session is None:
+        raise AirflowOptionalProviderFeatureException(
+            "Async Hugging Face metadata calls require huggingface-hub 1.0.0 or newer. "
+            "Upgrade huggingface-hub or use the synchronous hook methods."
+        )
+    return get_async_session()
 
 
 class HuggingFaceHook(BaseHook):
@@ -131,7 +145,7 @@ class HuggingFaceHook(BaseHook):
         if revision is not None:
             path = f"{path}/revision/{quote(revision, safe='')}"
         headers = build_hf_headers(token=await self._aget_token())
-        async with get_async_session() as client:
+        async with _create_async_session() as client:
             response = await self._aget(client, path, headers=headers)
         return DatasetInfo(**response.json())
 
@@ -146,7 +160,7 @@ class HuggingFaceHook(BaseHook):
         """Async variant of :meth:`find_commit_by_marker`; scans the latest commit per requested ref."""
         headers = build_hf_headers(token=await self._aget_token())
         revisions = [revision] if revision else ["main"]
-        async with get_async_session() as client:
+        async with _create_async_session() as client:
             if include_pull_requests:
                 try:
                     refs_response = await self._aget(

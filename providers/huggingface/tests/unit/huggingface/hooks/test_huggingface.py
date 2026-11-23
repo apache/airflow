@@ -18,35 +18,42 @@
 
 from __future__ import annotations
 
-import tomllib
+import importlib
+import inspect
 from datetime import UTC, datetime
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from huggingface_hub import GitCommitInfo, get_async_session
+from huggingface_hub import GitCommitInfo
 from huggingface_hub.utils import RepositoryNotFoundError, RevisionNotFoundError
-from packaging.requirements import Requirement
-from packaging.version import Version
 
-from airflow.exceptions import AirflowNotFoundException
+try:
+    from huggingface_hub.utils import get_async_session
+except ImportError:
+    get_async_session = None  # type: ignore[assignment]
+
+from airflow.exceptions import AirflowNotFoundException, AirflowOptionalProviderFeatureException
 from airflow.providers.huggingface.hooks.huggingface import HuggingFaceHook
 
+requires_async_session = pytest.mark.skipif(
+    get_async_session is None, reason="requires huggingface-hub>=1.0.0"
+)
 
-def test_huggingface_hub_dependency_supports_async_session():
-    assert callable(get_async_session)
-    pyproject = Path(__file__).resolve().parents[4] / "pyproject.toml"
-    hub_req = Requirement(
-        next(
-            dep
-            for dep in tomllib.loads(pyproject.read_text())["project"]["dependencies"]
-            if dep.startswith("huggingface-hub")
-        )
-    )
-    floors = [Version(spec.version) for spec in hub_req.specifier if spec.operator in {">=", ">", "=="}]
-    assert floors
-    assert min(floors) >= Version("1.0.0")
+
+def _async_http():
+    annotation = inspect.signature(get_async_session).return_annotation
+    module_name = annotation if isinstance(annotation, str) else annotation.__module__
+    return importlib.import_module(module_name.split(".")[0])
+
+
+def _mock_async_session(handler):
+    http = _async_http()
+
+    def create_client():
+        return http.AsyncClient(transport=http.MockTransport(handler))
+
+    return create_client
 
 
 def git_commit_info(commit_id, title, message=""):
@@ -73,6 +80,24 @@ def connection_env(monkeypatch):
 def test_connection_resolution_uses_password_only(connection_env):
     hook = HuggingFaceHook("huggingface_test")
     assert hook.get_token() == "test-secret"
+
+
+@pytest.mark.parametrize(
+    "invoke",
+    [
+        pytest.param(lambda hook: hook.aget_dataset_info("org/data"), id="aget_dataset_info"),
+        pytest.param(
+            lambda hook: hook.afind_commit_by_marker("org/data", "marker"), id="afind_commit_by_marker"
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_async_metadata_calls_require_hub_with_async_session(invoke, mocker):
+    mocker.patch("airflow.providers.huggingface.hooks.huggingface.get_async_session", None)
+    hook = HuggingFaceHook(None)
+
+    with pytest.raises(AirflowOptionalProviderFeatureException, match="huggingface-hub 1.0.0"):
+        await invoke(hook)
 
 
 def test_get_conn_caches_autospecced_hf_api(connection_env):
@@ -194,6 +219,7 @@ def test_find_commit_by_marker_scans_pull_request_refs_when_requested():
     assert api.list_repo_commits.call_args_list[1].kwargs["revision"] == "refs/pr/7"
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_aget_dataset_info_builds_url_and_returns_info(connection_env, mocker):
     calls = []
@@ -215,6 +241,7 @@ async def test_aget_dataset_info_builds_url_and_returns_info(connection_env, moc
     assert calls[0][0].endswith("/api/datasets/org/data")
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_aget_dataset_info_quotes_revision(connection_env, mocker):
     calls = []
@@ -257,6 +284,7 @@ def _commit_payload(commit_id, title, message=""):
     }
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_afind_commit_by_marker_matches_first_ref(connection_env, mocker):
     marker = "airflow-artifact-sha256:abc:target:def"
@@ -283,6 +311,7 @@ async def test_afind_commit_by_marker_matches_first_ref(connection_env, mocker):
     assert commit.title == f"Publish [{marker}]"
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_afind_commit_by_marker_does_not_reuse_historical_commit(connection_env, mocker):
     marker = "airflow-artifact-sha256:abc:target:def"
@@ -301,6 +330,7 @@ async def test_afind_commit_by_marker_does_not_reuse_historical_commit(connectio
     assert await hook.afind_commit_by_marker("org/data", marker) is None
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_afind_commit_by_marker_rejects_part_commits(connection_env, mocker):
     marker = "airflow-artifact-sha256:abc:target:def"
@@ -316,6 +346,7 @@ async def test_afind_commit_by_marker_rejects_part_commits(connection_env, mocke
     assert await hook.afind_commit_by_marker("org/data", marker) is None
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_afind_commit_by_marker_scans_pull_request_refs(connection_env, mocker):
     marker = "huggingface-stream-publish:target"
@@ -349,16 +380,17 @@ async def test_afind_commit_by_marker_scans_pull_request_refs(connection_env, mo
 
 
 def _hf_error(cls):
-    import httpx2
+    http = _async_http()
 
     return cls(
         "missing",
-        response=httpx2.Response(
-            404, headers={}, request=httpx2.Request("GET", "https://huggingface.co/api/datasets/org/data")
+        response=http.Response(
+            404, headers={}, request=http.Request("GET", "https://huggingface.co/api/datasets/org/data")
         ),
     )
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_afind_commit_by_marker_repository_not_found_returns_none(connection_env, mocker):
     async def fake_get(client, url, *, headers, **kwargs):
@@ -370,6 +402,7 @@ async def test_afind_commit_by_marker_repository_not_found_returns_none(connecti
     assert await hook.afind_commit_by_marker("org/data", "marker") is None
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_afind_commit_by_marker_revision_not_found_skips_ref(connection_env, mocker):
     async def fake_get(client, url, *, headers, **kwargs):
@@ -381,6 +414,7 @@ async def test_afind_commit_by_marker_revision_not_found_skips_ref(connection_en
     assert await hook.afind_commit_by_marker("org/data", "marker", revision="missing") is None
 
 
+@requires_async_session
 @pytest.mark.asyncio
 async def test_afind_commit_by_marker_empty_commits_returns_none(connection_env, mocker):
     async def fake_get(client, url, *, headers, **kwargs):
