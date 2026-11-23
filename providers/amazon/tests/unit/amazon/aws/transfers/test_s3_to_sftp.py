@@ -387,6 +387,72 @@ class TestS3ToSFTPOperatorInit:
         mock_log_warning.assert_called_once_with(mock.ANY, len(skipped), "pre_", skipped, "")
 
     @pytest.mark.parametrize(
+        ("keys", "s3_filenames", "sftp_filenames", "expected", "markers"),
+        [
+            pytest.param(
+                ["source/", "source/one.txt", "source/sub/", "source/sub/two.txt", "source/empty/"],
+                "*",
+                None,
+                [
+                    ("source/one.txt", "/destination/one.txt"),
+                    ("source/sub/two.txt", "/destination/sub/two.txt"),
+                ],
+                ["source/", "source/sub/", "source/empty/"],
+                id="all-files",
+            ),
+            pytest.param(
+                ["source/pre_dir/", "source/pre_dir/pre_one.txt"],
+                "pre_",
+                "new_",
+                [("source/pre_dir/pre_one.txt", "/destination/pre_dir/new_one.txt")],
+                ["source/pre_dir/"],
+                id="prefix",
+            ),
+        ],
+    )
+    @mock.patch.object(S3ToSFTPOperator, "_download_from_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.SSHHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.S3Hook")
+    def test_execute_skips_folder_marker_keys(
+        self,
+        mock_s3_hook_class,
+        mock_ssh_hook_class,
+        mock_download_from_s3,
+        keys,
+        s3_filenames,
+        sftp_filenames,
+        expected,
+        markers,
+    ):
+        """A key ending in ``/`` is a folder marker, such as the S3 console creates for each folder.
+        An SFTP server cannot store a file at a path ending in ``/``, so every marker is skipped and
+        logged, including one that no other key overlaps, and none is reported as an unselected file."""
+        mock_s3_hook = mock_s3_hook_class.return_value
+        mock_s3_hook.list_keys.return_value = keys
+        sftp_client = mock_ssh_hook_class.return_value.get_conn.return_value.open_sftp.return_value
+        operator = S3ToSFTPOperator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key="source/",
+            sftp_path="/destination/",
+            sftp_conn_id=SFTP_CONN_ID,
+            s3_filenames=s3_filenames,
+            sftp_filenames=sftp_filenames,
+        )
+
+        with (
+            mock.patch.object(operator.log, "info") as mock_log_info,
+            mock.patch.object(operator.log, "warning") as mock_log_warning,
+        ):
+            operator.execute(None)
+
+        assert mock_download_from_s3.call_args_list == [
+            mock.call(sftp_client, mock_s3_hook, *call) for call in expected
+        ]
+        mock_log_info.assert_any_call(mock.ANY, len(markers), markers, "")
+        mock_log_warning.assert_not_called()
+
+    @pytest.mark.parametrize(
         ("s3_filenames", "sftp_filenames"),
         [
             (None, None),

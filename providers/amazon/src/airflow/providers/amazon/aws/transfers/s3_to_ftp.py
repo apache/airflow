@@ -51,7 +51,7 @@ class S3ToFTPOperator(BaseOperator):
         a list with exact key suffixes present under the s3_key prefix, or a string
         prefix that all filenames must match. The prefix applies to the file name, the
         last segment of each key under s3_key. Use ``"*"`` to move all objects under
-        the s3_key prefix.
+        the s3_key prefix. Keys ending in ``"/"`` are folder markers and are skipped.
     :param ftp_path: The ftp remote path. For a single file it must include the file
         path. For multiple files it is the destination directory path and must end
         with ``"/"``.
@@ -121,7 +121,19 @@ class S3ToFTPOperator(BaseOperator):
             if isinstance(self.s3_filenames, str):
                 self.log.info("Getting files in s3://%s/%s", self.s3_bucket, self.s3_key)
                 all_keys = s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_key) or []
-                filenames = [k[len(self.s3_key) :] for k in all_keys]
+                # A key ending in "/" is a folder marker, such as the S3 console creates for each
+                # folder. An FTP server cannot store a file at a path ending in "/", so skip every
+                # marker, not only those that overlap other keys as the object-store transfers do.
+                folder_markers = [k for k in all_keys if k.endswith("/")]
+                if folder_markers:
+                    omitted = len(folder_markers) - SKIPPED_SAMPLE_SIZE
+                    self.log.info(
+                        "Skipping %d S3 folder-marker key(s), which have no file to transfer: %s%s",
+                        len(folder_markers),
+                        folder_markers[:SKIPPED_SAMPLE_SIZE],
+                        f" and {omitted} more" if omitted > 0 else "",
+                    )
+                filenames = [k[len(self.s3_key) :] for k in all_keys if not k.endswith("/")]
                 s3_prefix: str = self.s3_filenames
                 if s3_prefix == "*":
                     files = filenames
