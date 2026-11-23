@@ -143,7 +143,7 @@ def get_provider_info():
                     },
                     "result_backend_schema": {
                         "description": "The database schema that the Celery result backend tables (``celery_taskmeta``,\n``celery_tasksetmeta``) live in, when they are provisioned into a schema other than\nthe one used by ``sql_alchemy_conn``. When set, ``airflow db clean`` (and the\narchived-table export/drop commands) operate on these tables in this schema instead\nof silently skipping them.\n",
-                        "version_added": None,
+                        "version_added": "4.1.0",
                         "type": "string",
                         "example": "celery",
                         "default": None,
