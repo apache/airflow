@@ -57,8 +57,8 @@
   "name": "Name",
   "partitions": {
     "consumerRuns": "Abhängige Läufe",
-    "consumerRunsHelp": "Dag Läufe die eine Benachrichtigung erhalten haben",
-    "lastProducerRun": "Letzter Lauf des Aufrufenden Dag ",
+    "consumerRunsHelp": "Dag Läufe die ein Datenset Ereignis erhalten haben",
+    "lastProducerRun": "Letzter Lauf des produzierenden Dags ",
     "status": {
       "in_progress": "Laufend",
       "materialized": "Materialisiert"

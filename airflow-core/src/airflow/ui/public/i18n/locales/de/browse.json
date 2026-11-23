@@ -63,35 +63,35 @@
   "triggers": {
     "columns": {
       "dagsAffected": "Dags betroffen",
-      "failures": "Fehlgschlagen",
+      "failures": "Fehlgeschlagen",
       "kind": "Typ",
       "lastError": "Letzter Fehler",
       "lastEvent": "Letzte Benachrichtigung",
       "status": "Status",
-      "triggerer": "Auslösender",
+      "triggerer": "Benachrichtiger",
       "usedBy": "Benutzt von"
     },
     "detail": {
       "firstFailedAt": "Fehlgeschlagener Teil",
-      "lastFailedAt": "Zuletzt Fehlgeschlagen um",
-      "noReadableScheduledDags": "Keiner kann Lesen",
+      "lastFailedAt": "Zuletzt fehlgeschlagen um",
+      "noReadableScheduledDags": "Keine lesbaren geplanten Dag Läufe",
       "scheduledDags": "Geplante Dag Läufe"
     },
     "filters": {
-      "triggererHostname": "Benachrichtigender Hostname"
+      "triggererHostname": "Benachrichtiger Hostname"
     },
     "forbidden": {
-      "description": "Benachrichtigungen werden Angezeigt für was sie ausgelöst wurden: Aufgaben von Dags, Dag Läufe oder ein Bestand auf die sie schauen. Sie können keine sehen.",
+      "description": "Benachrichtigungen werden angezeigt für Benutzer, die Zugriff auf den Ursprung der Benachrichtigung haben: Tasks von Dags, Dag Läufe oder ein Datenset (Asset) das die Benachrichtigung beobachtet.",
       "title": "Keine Benachrichtigungen zu zeigen"
     },
     "kind": {
-      "asset_watcher": "Bestandsbenachrichtigung",
-      "callback": "Rückmeldung",
-      "task": "Aufgabe"
+      "asset_watcher": "Datenset (Asset) Beobachter",
+      "callback": "Callback",
+      "task": "Task"
     },
     "notFound": {
       "backToList": "Zurück zu Benachrichtigungen",
-      "description": "Benachrichtigungen werden entfernt sobald sie ausgelöst wurden oder wenn der Fakt erledigt ist, dieser Fakt ist vermutlich abgeschlossen.",
+      "description": "Benachrichtigungen werden entfernt sobald sie ausgelöst wurden oder wenn ihr Zweck erfüllt ist, z.B. ihr Task beendet wurde.",
       "title": "Diese Benachrichtigung existiert nicht mehr"
     },
     "status": {
@@ -99,7 +99,7 @@
       "orphaned": "Verwaist"
     },
     "statusHint": {
-      "orphaned": "Benachrichtigung angehalten. Er wartet auf eine andere Benachrichtigung und Fortzusetzen."
+      "orphaned": "Der Sender dieser Benachrichtigung wurde gestoppt. Die Benachrichtigung wartet auf einen neuen Benachrichtiger-Prozess um fortgesetzt zu werden."
     }
   },
   "xcom": {

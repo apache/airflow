@@ -31,7 +31,7 @@
     "deadlines": "Fristen",
     "jobs": "Jobs",
     "requiredActions": "Erforderliche Interaktionen",
-    "triggers": "Auslösende",
+    "triggers": "Benachrichtigungen",
     "xcoms": "Task Kommunikation (XComs)"
   },
   "collapseAllExtra": "Alle JSON Details ausblenden",
@@ -262,7 +262,7 @@
     "asset_triggered": "Durch Datenset (Asset) ausgelöst",
     "backfill": "Nachträglich Aufgefüllt",
     "manual": "Manuell",
-    "operator_triggered": "Von einer Aufgabe Ausgelöst",
+    "operator_triggered": "Von einem Task in einem anderen Dag ausgelöst",
     "scheduled": "Geplant"
   },
   "scroll": {
