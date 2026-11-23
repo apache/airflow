@@ -705,9 +705,10 @@ The ``Client``
      - A ``Connection`` with ``id``, ``type``, ``host``, ``schema``, ``login``, ``password``, ``port`` and
        ``extra``. Throws when the connection does not exist.
    * - ``getXCom(taskId)``
-     - The ``return_value`` XCom of a task in the same Dag run, or ``null`` when it does not exist. Overloads
-       read another key, Dag or run; see the API reference. For the Java types values arrive as, see
-       :ref:`java-sdk/types`.
+     - The ``return_value`` XCom of a task in the same Dag run, or ``null`` when it does not exist. For a mapped
+       task, it is the values of all its instances in a ``List`` ordered by map index. Overloads read another
+       key, Dag, run, or one instance of a mapped task; a map index that selects no task instance reads
+       ``null``. See the API reference. For the Java types values arrive as, see :ref:`java-sdk/types`.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
      - Publishes an XCom value. The value must be JSON-serializable.
    * - ``getTaskStateStore()``
