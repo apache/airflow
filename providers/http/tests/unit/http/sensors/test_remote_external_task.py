@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import base64
 import datetime
+import time
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -225,6 +226,21 @@ class TestRemoteExternalTaskSensorV1:
         bangkok = datetime.timezone(datetime.timedelta(hours=7))
 
         make_sensor().poke(context_for(datetime.datetime(2026, 11, 17, 12, 0, tzinfo=bangkok)))
+
+        assert requests_mock.last_request.json()["execution_date_gte"] == LOGICAL_DATE_ISO
+
+    def test_naive_date_is_not_read_in_the_host_time_zone(self, requests_mock, monkeypatch):
+        # Airflow's default time zone is UTC in tests; the worker host is in Bangkok (UTC+7).
+        monkeypatch.setenv("TZ", "Asia/Bangkok")
+        time.tzset()
+        requests_mock.post(DAG_RUNS_V1, **total(1))
+        try:
+            poke(
+                make_sensor(execution_date_fn=lambda logical_date, **_: datetime.datetime(2026, 11, 17, 5, 0))
+            )
+        finally:
+            monkeypatch.undo()
+            time.tzset()
 
         assert requests_mock.last_request.json()["execution_date_gte"] == LOGICAL_DATE_ISO
 

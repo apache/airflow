@@ -30,6 +30,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowFailException,
     AirflowOptionalProviderFeatureException,
     BaseSensorOperator,
+    timezone,
 )
 from airflow.providers.http.exceptions import RemoteAirflowApiUnavailableException
 from airflow.providers.http.hooks.http import HttpHook
@@ -185,7 +186,9 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
     def _build_exact_date_filter(self, date: datetime.datetime) -> dict[str, str]:
         """Filter that matches exactly this date: the list endpoints only have from/to date filters."""
         date_field = "execution_date" if self.api_version == "v1" else "logical_date"
-        date_in_utc = date.astimezone(datetime.UTC).isoformat()
+        # A naive date (e.g. from a user's execution_date_fn) is read in Airflow's default time zone,
+        # as everywhere in Airflow, not in the time zone of the worker host.
+        date_in_utc = timezone.coerce_datetime(date).astimezone(datetime.UTC).isoformat()
         return {f"{date_field}_gte": date_in_utc, f"{date_field}_lte": date_in_utc}
 
     def _count_remote_dag_runs_in_states(
