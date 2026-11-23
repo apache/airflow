@@ -99,7 +99,9 @@ it returns: `undefined` pushes nothing, and `null` is a value it pushes, as `set
    task language, for this field and every other one Python templates; a later ADR specifies it for
    every SDK.
 9. **`getContext()` gains `expandedTiCount`**, read-only beside `mapIndex`, for "instance 3 of 10".
-   It is never used to resolve arguments (ADR-0016, *Acting on `expanded_ti_count`*).
+   It is `null` for a task that is not mapped, where `mapIndex` is `-1`: the Execution API leaves
+   the count out, and Python's is `None`. It is never used to resolve arguments (ADR-0016, *Acting
+   on `expanded_ti_count`*).
 10. **A reduce reads an `XComSequence<T>`, defined here.** ADR-0003 already names the type for a
     loop's `all()`. It reads on demand, as Python's `LazyXComSequence` does (ADR-0016, decision 8):
     `length()`, `at(i)` with a negative `i` counting from the end, `slice(start, stop)`, and
@@ -344,8 +346,8 @@ interface Branch {
 class SkipError extends Error {}
 
 interface TaskContext {
-  /** How many instances this expansion has; -1 for a task that is not mapped. */
-  readonly expandedTiCount: number;
+  /** How many instances this expansion has; `null` for a task that is not mapped. */
+  readonly expandedTiCount: number | null;
 }
 
 interface TaskClient {
