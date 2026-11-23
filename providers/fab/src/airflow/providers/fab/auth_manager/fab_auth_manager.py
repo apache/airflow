@@ -34,7 +34,6 @@ from flask import current_app, g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -64,7 +63,7 @@ from airflow.providers.common.compat.security.access_view import (
     IMPORT_ERRORS_ALL_ACCESS_VIEW,
     REPARSE_ALL_ACCESS_VIEW,
 )
-from airflow.providers.fab.auth_manager.models import Permission, Role, User
+from airflow.providers.fab.auth_manager.models import Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.app import create_app
@@ -106,6 +105,7 @@ from airflow.utils.session import NEW_SESSION, create_session, create_session_as
 
 if TYPE_CHECKING:
     from flask import Flask
+    from sqlalchemy.orm import Session
     from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -677,33 +677,11 @@ class FabAuthManager(BaseAuthManager[User]):
         if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
             # If user is authorized to access all DAGs, return all DAGs
             return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-        if isinstance(user, AnonymousUser):
-            return set()
-        user_query = (
-            session.scalars(
-                select(User)
-                .options(
-                    joinedload(User.roles)
-                    .subqueryload(Role.permissions)
-                    .options(joinedload(Permission.action), joinedload(Permission.resource))
-                )
-                .where(User.id == user.id)
-            )
-            .unique()
-            .one()
-        )
-        roles = user_query.roles
-
         fab_action = get_fab_action_from_method_map().get(method)
         resources = set()
-        for role in roles:
-            for permission in role.permissions:
-                if permission.action.name == fab_action:
-                    resource = permission.resource.name
-                    if resource == permissions.RESOURCE_DAG:
-                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+        for action, resource in self._get_user_permissions(user):
+            if action == fab_action and resource.startswith(RESOURCE_DAG_PREFIX):
+                resources.add(resource[len(RESOURCE_DAG_PREFIX) :])
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @provide_session
