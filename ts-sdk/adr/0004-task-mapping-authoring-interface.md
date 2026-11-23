@@ -115,9 +115,11 @@ it returns: `undefined` pushes nothing, and `null` is a value it pushes, as `set
 12. **A mapped task in a loop body is a `LoopMappedTaskRef<T>`**: a `MappedTaskRef<T>` that records
     its loop. Inside the loop it is a `MappedTaskRef<T>` for one iteration. From outside, only `all()`
     reads it, a `TaskRef<XComSequence<T>>` ordered by iteration, then by map index (ADR-0016,
-    *Reduce*). ADR-0003's `LoopTaskRef<T>` stays the type of an unmapped body task. An `expand` over a
-    body task from outside its loop fails when the Dag is read, ADR-0017's rule (decision 3) checked
-    early.
+    *Reduce*). ADR-0003's `LoopTaskRef<T>` stays the type of an unmapped body task. An `expand` over
+    a body task from outside its loop fails when the Dag is read, ADR-0017's rule (decision 3)
+    checked early. Passed bare as a reduce from outside its loop, it fails when the Dag is read too,
+    as a bare `LoopTaskRef` does (ADR-0003, decision 6), since `tsc` accepts it there as a
+    `MappedTaskRef`.
 13. **`triggerRule: "always"` is rejected on a task that expands over an upstream's output**, when
     the Dag is read, as Python rejects it: `always` runs the task even when that upstream failed and
     left nothing to expand over. The check covers `expandKwargs` over a reference, and
@@ -381,9 +383,12 @@ before `"2"`. The payload is written in that order, and that is the expansion or
   - a mapped task passed as one value;
   - every shape ADR-0016 decision 4 rejects.
 
-  Four are left to the Dag read: a `partial` never expanded, an `expand` with no key when every
-  remaining argument is optional, as Python raises for both, `triggerRule: "always"` with an
-  upstream to expand over, and an `expand` over a loop body task from outside its loop.
+  Five are left to the Dag read:
+  - a `partial` never expanded, and an `expand` with no key when every remaining argument is
+    optional, as Python raises for both;
+  - `triggerRule: "always"` with an upstream to expand over;
+  - an `expand` over a loop body task from outside its loop;
+  - a `LoopMappedTaskRef` passed as a reduce from outside its loop.
 - **`expandKwargs` over an upstream's objects is checked at run time only for a key `partial` also
   sets.** A key the handler requires but the object leaves out reaches it as `undefined`, and an
   extra one is passed on. Python raises for both. This is what lets the handler's own defaults apply.
