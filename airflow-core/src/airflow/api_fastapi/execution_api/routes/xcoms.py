@@ -26,6 +26,7 @@ from uuid import UUID
 import attrs
 from cadwyn import current_dependency_solver
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi.responses import RedirectResponse
 from pydantic import JsonValue
 from sqlalchemy import select
 from sqlalchemy.sql.selectable import Select
@@ -618,13 +619,19 @@ def _resolve_omitted_map_index(
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
-    responses=create_openapi_http_exception_doc(
-        [
-            (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
-            (status.HTTP_409_CONFLICT, "Several live task instances produce the requested value"),
-        ]
-    ),
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
+                (status.HTTP_409_CONFLICT, "Several live task instances produce the requested value"),
+            ]
+        ),
+        status.HTTP_307_TEMPORARY_REDIRECT: {
+            "description": "An omitted map index reads every instance of a mapped task, from the slice",
+        },
+    },
     description="Get a single XCom Value",
+    response_model=XComResponse,
 )
 def get_xcom(
     dag_id: str,
@@ -632,11 +639,17 @@ def get_xcom(
     task_id: str,
     key: Annotated[str, Path(min_length=1)],
     params: Annotated[GetXcomFilterParams, Query()],
+    request: Request,
     session: SessionDep,
     resolver: _ResolverDep,
     token: ExecutionToken = _TriggerAwareToken,
-) -> XComResponse:
-    """Get an Airflow XCom from database - not other XCom Backends."""
+) -> XComResponse | RedirectResponse:
+    """
+    Get an Airflow XCom from database - not other XCom Backends.
+
+    A read of every instance of a mapped task is redirected to the slice
+    endpoint, which lists one stored value per instance.
+    """
     if params.map_index is not None:
         map_index: int | None = params.map_index
     else:
@@ -681,20 +694,8 @@ def get_xcom(
             },
         )
     if map_index is None:
-        mapped_read = _build_xcom_read(
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            key=key,
-            session=session,
-            resolver=resolver,
-            token=token,
-            include_prior_dates=params.include_prior_dates,
-            previous_iteration=params.previous_iteration,
-            sequence=True,
-        )
-        values = _read_xcom_slice(mapped_read, start=None, stop=None, step=None, session=session)
-        return XComResponse(key=key, value=values)
+        slice_url = request.url.replace(path=f"{request.url.path}/slice")
+        return RedirectResponse(slice_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     xcom_read = _build_xcom_read(
         dag_id=dag_id,
         run_id=run_id,

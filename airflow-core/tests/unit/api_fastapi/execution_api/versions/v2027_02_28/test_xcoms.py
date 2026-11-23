@@ -45,8 +45,8 @@ class TestOmittedMapIndexVersioning:
         assert response.status_code == 404
         assert response.json()["detail"]["message"].startswith("XCom with key='return_value' map_index=-1")
 
-    def test_head_version_reads_every_instance(self, client):
-        response = client.get(f"/execution/xcoms/dag/runid/mapped/{XCOM_RETURN_KEY}")
+    def test_head_version_redirects_to_the_slice(self, client):
+        response = client.get(f"/execution/xcoms/dag/runid/mapped/{XCOM_RETURN_KEY}", follow_redirects=False)
 
-        assert response.status_code == 200
-        assert response.json() == {"key": XCOM_RETURN_KEY, "value": [0, 1]}
+        assert response.status_code == 307
+        assert response.headers["location"].endswith(f"/mapped/{XCOM_RETURN_KEY}/slice")

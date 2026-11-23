@@ -29,6 +29,7 @@ import pytest
 import time_machine
 import truststore
 import uuid6
+from pydantic import ValidationError
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
@@ -1303,6 +1304,46 @@ class TestXCOMOperations:
 
         assert dict(requests[0].url.params) == expected_params
         assert result == XComResponse(key="key", value=["a", "b"])
+
+    @pytest.mark.parametrize(
+        ("slice_values", "expected"),
+        [
+            pytest.param(["a", "b"], XComSequenceSliceResponse(["a", "b"]), id="mapped"),
+            pytest.param([], XComResponse(key="key", value=None), id="nothing"),
+        ],
+    )
+    def test_xcom_get_follows_a_redirect_to_the_slice(self, slice_values, expected):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            if request.url.path.endswith("/slice"):
+                return httpx2.Response(status_code=200, json=slice_values)
+            location = request.url.copy_with(path=f"{request.url.path}/slice")
+            return httpx2.Response(status_code=307, headers={"Location": str(location)})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", previous_iteration=True
+        )
+
+        assert result == expected
+        assert [request.url.path for request in requests] == [
+            "/xcoms/dag_id/run_id/task_id/key",
+            "/xcoms/dag_id/run_id/task_id/key/slice",
+        ]
+        assert requests[1].url.params["previous_iteration"] == "true"
+
+    def test_xcom_get_does_not_read_another_redirect_as_a_slice(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path.endswith("/slice"):
+                return httpx2.Response(status_code=200, json=["a", "b"])
+            location = request.url.copy_with(path="/xcoms/dag_id/run_id/other/key/slice")
+            return httpx2.Response(status_code=307, headers={"Location": str(location)})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ValidationError):
+            client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key")
 
     @pytest.mark.parametrize(
         ("slice_values", "expected"),

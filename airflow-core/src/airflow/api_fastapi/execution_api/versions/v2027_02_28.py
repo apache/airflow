@@ -111,9 +111,9 @@ class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
     """
     Resolve an omitted XCom ``map_index`` by the producing task's definition.
 
-    A mapped task now returns the values of all its instances as a list, except
-    with ``include_prior_dates``. An unmapped task still reads map index -1, as
-    do older clients.
+    A mapped task is now redirected to the slice endpoint, which lists the values
+    of all its instances, except with ``include_prior_dates``. An unmapped task
+    still reads map index -1, as do older clients.
     """
 
     description = __doc__

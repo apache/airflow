@@ -554,16 +554,15 @@ def test_outside_caller_reads_every_iteration_of_a_mapped_loop_task(client, outs
 
     response = client.get(url)
 
-    assert response.status_code == 200
-    assert response.json() == {"key": "key", "value": LOOP_SEQUENCES["mapped"][1]}
-    assert response.json()["value"] == client.get(f"{url}/slice").json()
+    assert [r.status_code for r in response.history] == [307]
+    assert response.json() == LOOP_SEQUENCES["mapped"][1]
+    assert response.json() == client.get(f"{url}/slice").json()
 
 
 @pytest.mark.parametrize(
     ("task_id", "params", "expected"),
     [
         pytest.param("body.step", {}, "step-2", id="unmapped"),
-        pytest.param("body.fanout", {}, ["2-0", "2-1"], id="mapped-all"),
         pytest.param("body.fanout", {"map_index": 1}, "2-1", id="mapped-one"),
     ],
 )
@@ -575,6 +574,16 @@ def test_inside_caller_reads_a_loop_task_on_its_own_pass(client, outside_loop_ru
 
     assert response.status_code == 200
     assert response.json() == {"key": "key", "value": expected}
+
+
+def test_inside_caller_reads_every_instance_of_a_loop_task_on_its_own_pass(client, outside_loop_run):
+    dr, _, _, steps, authenticate_as = outside_loop_run
+    authenticate_as(steps[2])
+
+    response = client.get(get_loop_url(dr, "body.fanout"))
+
+    assert [r.status_code for r in response.history] == [307]
+    assert response.json() == ["2-0", "2-1"]
 
 
 def test_inside_caller_reads_a_map_index_past_the_expansion_as_not_found(client, outside_loop_run):
@@ -1450,8 +1459,19 @@ class TestXComsGetOmittedMapIndex:
         return dag_run
 
     @staticmethod
-    def get(client, task_id, **params):
-        return client.get(f"/execution/xcoms/dag/runid/{task_id}/{XCOM_RETURN_KEY}", params=params)
+    def get(client, task_id, *, dag_id="dag", run_id="runid", **params):
+        return client.get(
+            f"/execution/xcoms/{dag_id}/{run_id}/{task_id}/{XCOM_RETURN_KEY}",
+            params=params,
+            follow_redirects=False,
+        )
+
+    @staticmethod
+    def assert_redirected_to_slice(response):
+        assert response.status_code == 307
+        location = urllib.parse.urlsplit(response.headers["location"])
+        assert location.path == f"{response.request.url.path}/slice"
+        assert location.query == response.request.url.query.decode()
 
     @pytest.mark.parametrize(
         ("task_id", "params", "expected"),
@@ -1459,15 +1479,12 @@ class TestXComsGetOmittedMapIndex:
             pytest.param("plain", {}, "plain", id="unmapped"),
             pytest.param("plain", {"map_index": -1}, "plain", id="unmapped-minus-one"),
             pytest.param("plain", {"map_index": 0}, None, id="unmapped-index"),
-            pytest.param("mapped", {}, ["mapped 0", "mapped 2"], id="mapped-all"),
             pytest.param("mapped", {"map_index": 0}, "mapped 0", id="mapped-one"),
             pytest.param("mapped", {"map_index": 1}, None, id="mapped-one-not-pushed"),
             pytest.param("mapped", {"map_index": 3}, None, id="mapped-past-end"),
             pytest.param("mapped", {"map_index": -1}, None, id="mapped-minus-one"),
             pytest.param("mapped", {"offset": -1}, "mapped 2", id="mapped-offset"),
             pytest.param("mapped", {"include_prior_dates": True}, None, id="mapped-prior-dates"),
-            pytest.param("empty", {}, [], id="mapped-to-none"),
-            pytest.param("group.inner", {}, ["inner 0", "inner 1"], id="mapped-group-all"),
             pytest.param("group.inner", {"map_index": 1}, "inner 1", id="mapped-group-one"),
             pytest.param("missing", {}, None, id="unknown-task"),
         ],
@@ -1483,14 +1500,20 @@ class TestXComsGetOmittedMapIndex:
             assert response.json() == {"key": XCOM_RETURN_KEY, "value": expected}
 
     @pytest.mark.parametrize(
-        ("same_run_caller", "status_code"),
+        ("task_id", "params"),
         [
-            pytest.param(True, 200, id="same-run-caller"),
-            pytest.param(False, 409, id="no-caller"),
+            pytest.param("mapped", {}, id="mapped"),
+            pytest.param("mapped", {"previous_iteration": True}, id="mapped-keeps-query"),
+            pytest.param("empty", {}, id="mapped-to-none"),
+            pytest.param("group.inner", {}, id="mapped-group"),
         ],
     )
+    def test_every_instance_is_redirected_to_the_slice(self, client, task_id, params):
+        self.assert_redirected_to_slice(self.get(client, task_id, **params))
+
+    @pytest.mark.parametrize("same_run_caller", [True, False], ids=["same-run-caller", "no-caller"])
     def test_same_run_caller_reads_by_its_own_dag_version(
-        self, client, mocker, session, dag_run, authenticate_as, same_run_caller, status_code
+        self, client, mocker, session, dag_run, authenticate_as, same_run_caller
     ):
         # The task's live instances disagree on its definition across Dag versions.
         mocker.patch.object(
@@ -1501,9 +1524,10 @@ class TestXComsGetOmittedMapIndex:
 
         response = self.get(client, "mapped")
 
-        assert response.status_code == status_code
         if same_run_caller:
-            assert response.json() == {"key": XCOM_RETURN_KEY, "value": ["mapped 0", "mapped 2"]}
+            self.assert_redirected_to_slice(response)
+        else:
+            assert response.status_code == 409
 
     def test_caller_in_the_same_mapped_group_reads_every_instance(
         self, client, session, dag_run, authenticate_as
@@ -1518,8 +1542,7 @@ class TestXComsGetOmittedMapIndex:
 
         response = self.get(client, "group.inner")
 
-        assert response.status_code == 200
-        assert response.json() == {"key": XCOM_RETURN_KEY, "value": ["inner 0", "inner 1"]}
+        self.assert_redirected_to_slice(response)
 
     def test_another_dag_is_read_by_its_own_definition(
         self, client, dag_maker, session, dag_run, authenticate_as
@@ -1535,11 +1558,10 @@ class TestXComsGetOmittedMapIndex:
         session.commit()
         authenticate_as(dag_run.get_task_instance("plain", session=session))
 
-        other = client.get(f"/execution/xcoms/other/other_run/plain/{XCOM_RETURN_KEY}")
+        other = self.get(client, "plain", dag_id="other", run_id="other_run")
         own = self.get(client, "plain")
 
-        assert other.status_code == 200
-        assert other.json() == {"key": XCOM_RETURN_KEY, "value": ["other 0", "other 1"]}
+        self.assert_redirected_to_slice(other)
         assert own.status_code == 200
         assert own.json() == {"key": XCOM_RETURN_KEY, "value": "plain"}
 
