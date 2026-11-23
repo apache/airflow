@@ -615,6 +615,12 @@ class TestHttpHook:
                 "https://example.org/", "/v1/test", "https://example.org/v1/test", id="both-have-slash"
             ),
             pytest.param("https://", "/example.org/v1/test", "https://example.org/v1/test", id="scheme-only"),
+            pytest.param(
+                "https://example.org/",
+                "//v1/test",
+                "https://example.org/v1/test",
+                id="endpoint-multiple-slashes",
+            ),
         ],
     )
     def test_url_from_endpoint(self, base_url: str, endpoint: str, expected_url: str):

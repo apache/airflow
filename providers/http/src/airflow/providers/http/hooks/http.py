@@ -57,11 +57,8 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
     """Combine base url with endpoint, adding or removing a slash so the two are joined by one."""
     if not base_url or not endpoint:
         return (base_url or "") + (endpoint or "")
-    if base_url.endswith("/") and endpoint.startswith("/"):
-        return base_url + endpoint[1:]
-    if not base_url.endswith("/") and not endpoint.startswith("/"):
-        return f"{base_url}/{endpoint}"
-    return base_url + endpoint
+    separator = "" if base_url.endswith("/") else "/"
+    return base_url + separator + endpoint.lstrip("/")
 
 
 def _order_srv_targets(answers: Iterable[SRV]) -> list[tuple[str, int]]:
