@@ -8364,6 +8364,20 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Db Managers'
         },
+        db_cleanup_tables: {
+            anyOf: [
+                {
+                    items: {
+                        type: 'string'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Db Cleanup Tables'
+        },
         cli: {
             anyOf: [
                 {

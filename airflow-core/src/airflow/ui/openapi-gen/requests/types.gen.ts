@@ -2219,6 +2219,7 @@ export type ProviderInfoResponse = {
     notifications?: Array<(string)> | null;
     executors?: Array<(string)> | null;
     db_managers?: Array<(string)> | null;
+    db_cleanup_tables?: Array<(string)> | null;
     cli?: Array<(string)> | null;
     config?: {
     [key: string]: ProviderConfigSectionInfo;

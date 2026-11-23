@@ -2950,6 +2950,7 @@ class ProviderInfoResponse(BaseModel):
     notifications: Annotated[list[str] | None, Field(title="Notifications")] = None
     executors: Annotated[list[str] | None, Field(title="Executors")] = None
     db_managers: Annotated[list[str] | None, Field(title="Db Managers")] = None
+    db_cleanup_tables: Annotated[list[str] | None, Field(title="Db Cleanup Tables")] = None
     cli: Annotated[list[str] | None, Field(title="Cli")] = None
     config: Annotated[dict[str, ProviderConfigSectionInfo] | None, Field(title="Config")] = None
     task_decorators: Annotated[list[ProviderTaskDecoratorInfo] | None, Field(title="Task Decorators")] = None
