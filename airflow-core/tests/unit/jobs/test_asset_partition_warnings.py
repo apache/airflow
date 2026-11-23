@@ -167,6 +167,9 @@ def test_reports_pending_rows_and_oldest_creation_without_distinct_key_deduplica
     assert re.search(r"\b3\b", message)
     assert oldest.isoformat() in message
     assert "3600" in message
+    assert "asset inputs" in message
+    assert "pending partition backlog" in message
+    assert "other Dags can delay evaluation" in message
 
 
 @time_machine.travel(NOW, tick=False)
@@ -402,8 +405,9 @@ def test_rotates_over_configured_dags_in_bounded_batches(fail_first_batch):
 
 
 @time_machine.travel(NOW, tick=False)
-@conf_vars({TIMEOUT_OPTION: "{}"})
-def test_disabled_policy_clears_existing_warnings_in_bounded_batches():
+@pytest.mark.parametrize("policy", ["{}", ""])
+def test_disabled_policy_clears_existing_warnings_in_bounded_batches(policy, monkeypatch):
+    monkeypatch.setenv("AIRFLOW__SCHEDULER__PENDING_PARTITIONED_DAG_RUN_TIMEOUT", policy)
     dag_ids = [f"removed-{index:03d}" for index in range(105)]
     with create_session(scoped=False) as session:
         for dag_id in dag_ids:
@@ -429,30 +433,36 @@ def test_pending_stats_queries_do_not_scale_with_number_of_configured_dags():
 
     for count in (1, 50):
         policy = {f"monitored-{index:03d}": 3600 for index in range(count)}
-        with conf_vars({TIMEOUT_OPTION: json.dumps(policy)}), count_queries() as queries:
-            AssetPartitionWaitMonitor().check()
-        query_counts.append(sum(queries.values()))
+        monitor = AssetPartitionWaitMonitor()
+        with conf_vars({TIMEOUT_OPTION: json.dumps(policy)}):
+            for _ in range(2):
+                with count_queries() as queries:
+                    monitor.check()
+                query_counts.append(sum(queries.values()))
 
-    assert query_counts == [3, 3]
+    assert query_counts == [4, 3, 4, 3]
     assert _get_warnings() == {}
 
 
 @time_machine.travel(NOW, tick=False)
 @pytest.mark.parametrize(
-    "policy",
+    ("policy", "invalid_key"),
     [
-        pytest.param("[]", id="list"),
-        pytest.param("null", id="null"),
-        pytest.param('{"monitored": true}', id="boolean"),
-        pytest.param('{"monitored": "3600"}', id="numeric-string"),
-        pytest.param('{"monitored": 0}', id="zero"),
-        pytest.param('{"monitored": -1}', id="negative"),
-        pytest.param('{"monitored": NaN}', id="nan"),
-        pytest.param('{"monitored": Infinity}', id="infinity"),
-        pytest.param('{"": 3600}', id="empty-dag-id"),
+        pytest.param("[]", None, id="list"),
+        pytest.param("null", None, id="null"),
+        pytest.param('{"monitored": true}', "monitored", id="boolean"),
+        pytest.param('{"monitored": "3600"}', "monitored", id="numeric-string"),
+        pytest.param('{"monitored": 0}', "monitored", id="zero"),
+        pytest.param('{"monitored": -1}', "monitored", id="negative"),
+        pytest.param('{"monitored": NaN}', "monitored", id="nan"),
+        pytest.param('{"monitored": Infinity}', "monitored", id="infinity"),
+        pytest.param(json.dumps({"monitored": 10**400}), "monitored", id="huge-integer"),
+        pytest.param('{"": 3600}', "", id="empty-dag-id"),
+        pytest.param('{" ": 3600}', " ", id="blank-dag-id"),
+        pytest.param('{"monitored": 3600, "other": 0}', "other", id="invalid-second-entry"),
     ],
 )
-def test_invalid_policy_preserves_existing_warning(policy):
+def test_invalid_policy_preserves_existing_warning(policy, invalid_key):
     with create_session(scoped=False) as session:
         _add_dag(session)
         session.add(DagWarning("monitored", WARNING_TYPE, "Previous observation", timestamp=NOW))
@@ -460,11 +470,76 @@ def test_invalid_policy_preserves_existing_warning(policy):
 
     with (
         conf_vars({TIMEOUT_OPTION: policy}),
-        pytest.raises(ValueError, match="pending_partitioned_dag_run_timeout"),
+        pytest.raises(ValueError, match="pending_partitioned_dag_run_timeout") as error,
     ):
         AssetPartitionWaitMonitor().check()
 
+    if invalid_key is not None:
+        assert f"Invalid entry for {invalid_key!r}" in str(error.value)
     assert _get_warnings() == before
+
+
+@time_machine.travel(NOW, tick=False)
+@conf_vars({TIMEOUT_OPTION: '{"monitored": 3600, "missing": 3600}'})
+@pytest.mark.parametrize("fail_first_check", [False, True])
+def test_unknown_dag_diagnostic_does_not_interrupt_monitoring(caplog, mocker, fail_first_check):
+    with create_session(scoped=False) as session:
+        _add_dag(session)
+        _add_pending(session)
+    monitor = AssetPartitionWaitMonitor()
+    if fail_first_check:
+        refresh = mocker.patch.object(
+            monitor, "_refresh", autospec=True, side_effect=RuntimeError("write failed")
+        )
+        with pytest.raises(RuntimeError, match="write failed"):
+            monitor.check()
+        mocker.stop(refresh)
+        assert not [entry for entry in caplog if "dag_ids" in entry]
+
+    monitor.check()
+
+    assert set(_get_warnings()) == {("monitored", WARNING_TYPE)}
+    [diagnostic] = [entry for entry in caplog if "dag_ids" in entry]
+    assert diagnostic["dag_ids"] == ["missing"]
+    assert diagnostic["log_level"] == "warning"
+    assert "pending_partitioned_dag_run_timeout" in diagnostic["event"]
+    assert "not been parsed yet" in diagnostic["event"]
+
+    caplog.clear()
+    monitor.check()
+    assert not list(caplog)
+
+    with create_session(scoped=False) as session:
+        _add_dag(session, "missing")
+        _add_pending(session, "missing")
+    monitor.check()
+    assert set(_get_warnings()) == {("monitored", WARNING_TYPE), ("missing", WARNING_TYPE)}
+
+
+def test_unknown_dag_diagnostics_are_bounded_and_recheck_readded_ids(caplog):
+    dag_ids = [f"missing-{index:03d}" for index in range(105)]
+    policy = json.dumps(dict.fromkeys(dag_ids, 3600))
+    monitor = AssetPartitionWaitMonitor()
+
+    with conf_vars({TIMEOUT_OPTION: policy}):
+        monitor.check()
+        [diagnostic] = [entry for entry in caplog if "dag_ids" in entry]
+        assert diagnostic["dag_ids"] == dag_ids[:100]
+        caplog.clear()
+        monitor.check()
+        [diagnostic] = [entry for entry in caplog if "dag_ids" in entry]
+        assert diagnostic["dag_ids"] == dag_ids[100:]
+        caplog.clear()
+        monitor.check()
+        assert not list(caplog)
+
+    with conf_vars({TIMEOUT_OPTION: "{}"}):
+        monitor.check()
+    with conf_vars({TIMEOUT_OPTION: policy}):
+        monitor.check()
+    [diagnostic] = [entry for entry in caplog if "dag_ids" in entry]
+    assert diagnostic["dag_ids"] == dag_ids[:100]
+    assert _get_warnings() == {}
 
 
 @time_machine.travel(NOW, tick=False)

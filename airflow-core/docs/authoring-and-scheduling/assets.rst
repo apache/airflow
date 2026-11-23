@@ -752,6 +752,10 @@ the scheduler adds a warning when its oldest pending partitioned Dag run is stri
 older than the configured threshold. It reports how many partitioned Dag runs are
 pending and when the oldest became pending. Several pending runs can share a partition key.
 
+The warning reports the length of the wait, not its cause. Check both the Dag's asset
+inputs and the scheduler's pending partition backlog: older pending runs from other
+Dags can occupy the scheduler's evaluation window and delay an otherwise ready partition.
+
 To view **Pending partitioned Dag runs** in the UI, open **Dags → the affected Dag → Overview**
 and click the warning icon before the breadcrumb. This works before any Dag run exists;
 the warning is not shown on Dag list rows or cards. It is also available through
@@ -768,6 +772,12 @@ Dags and Dags with an existing warning. Updates are eventually consistent: with 
 than 100 Dags, a full pass takes multiple checks. The warning clears on the next check
 of that Dag when no pending partitioned Dag runs exceed the threshold, the Dag becomes ineligible,
 or its policy is removed.
+
+Invalid configuration errors identify the offending entry. Each scheduler also checks
+up to 100 previously unchecked configured Dag IDs per poll and logs IDs that do not
+match a registered Dag. Check for typos, or whether the Dag has been parsed yet.
+These diagnostics do not stop monitoring valid Dags. An ID is checked again after
+it is removed from the policy and re-added, or when the scheduler restarts.
 
 This advisory warning does not send notifications or recover inputs automatically.
 It only monitors existing pending partitioned Dag runs. When none exists, it cannot

@@ -18,8 +18,11 @@
 from __future__ import annotations
 
 import math
+import sys
+from itertools import islice
 from typing import TYPE_CHECKING
 
+import structlog
 from sqlalchemy import and_, bindparam, delete, func, or_, select
 
 from airflow._shared.timezones import timezone
@@ -37,6 +40,8 @@ if TYPE_CHECKING:
 
     PendingRunTimeouts: TypeAlias = dict[str, float]
 
+log = structlog.get_logger(__name__)
+
 
 class AssetPartitionWaitMonitor:
     """Refresh advisory warnings about pending partition age, independently of run creation."""
@@ -45,6 +50,7 @@ class AssetPartitionWaitMonitor:
 
     def __init__(self) -> None:
         self._cursor: str | None = None
+        self._checked_dag_ids: set[str] = set()
 
     def check(self) -> None:
         # Validate before reconciling: invalid configuration must not clear existing warnings.
@@ -61,14 +67,24 @@ class AssetPartitionWaitMonitor:
                 or isinstance(value, bool)
                 or not isinstance(value, (int, float))
                 or value <= 0
+                or value > sys.float_info.max
                 or not math.isfinite(value)
             ):
                 raise ValueError(
-                    "pending_partitioned_dag_run_timeout requires nonempty consumer Dag IDs and finite positive seconds"
+                    f"Invalid entry for {dag_id!r} in pending_partitioned_dag_run_timeout: "
+                    "expected a nonempty consumer Dag ID and finite positive seconds"
                 )
             timeouts[dag_id] = value
 
+        unchecked_dag_ids = list(
+            islice((dag_id for dag_id in timeouts if dag_id not in self._checked_dag_ids), self._batch_size)
+        )
         with create_session(scoped=False) as session:
+            missing_dag_ids = set(unchecked_dag_ids)
+            if unchecked_dag_ids:
+                missing_dag_ids.difference_update(
+                    session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(unchecked_dag_ids)))
+                )
             dag_ids = self._get_next_batch(timeouts, after=self._cursor, session=session)
             if not dag_ids and self._cursor is not None:
                 dag_ids = self._get_next_batch(timeouts, after=None, session=session)
@@ -76,6 +92,14 @@ class AssetPartitionWaitMonitor:
                 self._refresh(dag_ids, timeouts, session=session)
         # Do not advance on rollback: the same batch needs another opportunity next time.
         self._cursor = dag_ids[-1] if len(dag_ids) == self._batch_size else None
+        self._checked_dag_ids.intersection_update(timeouts)
+        self._checked_dag_ids.update(unchecked_dag_ids)
+        if missing_dag_ids:
+            log.warning(
+                "No registered Dag matches these pending_partitioned_dag_run_timeout entries; "
+                "check for typos or Dags that have not been parsed yet",
+                dag_ids=sorted(missing_dag_ids),
+            )
 
     def _get_next_batch(
         self, timeouts: PendingRunTimeouts, *, session: Session, after: str | None
@@ -135,7 +159,8 @@ class AssetPartitionWaitMonitor:
                     overdue[dag_id] = (
                         f"{count} pending partitioned Dag runs; oldest pending since {oldest.isoformat()}. "
                         f"The configured wait threshold is {timeout:g} seconds. "
-                        "Inspect the pending asset inputs for this Dag."
+                        "Check this Dag's asset inputs and the scheduler's pending partition backlog; "
+                        "older pending runs from other Dags can delay evaluation."
                     )
 
         if cleared := existing.keys() - overdue.keys():
