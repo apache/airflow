@@ -37,6 +37,12 @@ from fill_durable_versions import (
 POD_PATH = "providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py"
 POD_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator"
 
+# Every class a test dates, each holding both tokens, for tests that are not about the class body.
+DURABLE_SOURCE = "\n".join(
+    f"class {name}:\n    def execute(self, task_state_store):\n        return self.execute_resumable()\n"
+    for name in ("Op", "KubernetesPodOperator")
+)
+
 
 @pytest.fixture(autouse=True)
 def clear_tag_cache():
@@ -45,13 +51,15 @@ def clear_tag_cache():
     get_released_tags.cache_clear()
 
 
-def fake_git(tags=(), matches=(), token=None, paths=(), allow_grep=True):
+def fake_git(tags=(), matches=(), token=None, paths=(), allow_grep=True, sources=None):
     """Stand in for run_git. The grep argv is checked, since without `-lE` git prints
-    `tag:path:line` and nothing gets dated."""
+    `tag:path:line` and nothing gets dated. `sources` maps `tag:path` to the file `git show` returns."""
 
     def run(*args, **kwargs):
         if args[0] == "tag":
             return list(tags)
+        if args[0] == "show":
+            return (sources or {}).get(args[1], DURABLE_SOURCE).splitlines()
         if args[0] == "grep":
             if not allow_grep:
                 raise AssertionError("grep ran even though there were no tags to search")
@@ -116,7 +124,7 @@ class TestDurableGroup:
                 "durable_gating_class": "airflow.providers.apache.livy.operators.livy.LivyOperator",
             }
         )
-        assert marker == ("cncf-kubernetes", DURABLE_TOKENS["marker"], POD_PATH)
+        assert marker == ("cncf-kubernetes", DURABLE_TOKENS["marker"], POD_PATH, "KubernetesPodOperator")
         assert mixin[1] == "execute_resumable"
 
     @pytest.mark.parametrize(
@@ -163,15 +171,17 @@ class TestFindFirstReleases:
             "fill_durable_versions.run_git",
             fake_git(tags, matches, token="task_state_store", paths={POD_PATH}),
         ):
-            assert find_first_releases("cncf-kubernetes", "task_state_store", {POD_PATH}) == {
-                POD_PATH: "9.9.0"
-            }
+            assert find_first_releases(
+                "cncf-kubernetes", "task_state_store", {(POD_PATH, "KubernetesPodOperator")}
+            ) == {(POD_PATH, "KubernetesPodOperator"): "9.9.0"}
 
     def test_versions_are_compared_as_versions_not_strings(self):
         tags = [f"providers-amazon/{v}" for v in ("9.35.0", "10.1.0")]
         matches = [f"{t}:x.py" for t in tags]
         with mock.patch("fill_durable_versions.run_git", fake_git(tags, matches)):
-            assert find_first_releases("amazon", "execute_resumable", {"x.py"}) == {"x.py": "9.35.0"}
+            assert find_first_releases("amazon", "execute_resumable", {("x.py", "Op")}) == {
+                ("x.py", "Op"): "9.35.0"
+            }
 
     def test_each_path_is_dated_on_its_own(self):
         tags = [f"providers-amazon/{v}" for v in ("9.33.0", "9.35.0")]
@@ -181,9 +191,39 @@ class TestFindFirstReleases:
             "providers-amazon/9.35.0:glue.py",
         ]
         with mock.patch("fill_durable_versions.run_git", fake_git(tags, matches)):
-            assert find_first_releases("amazon", "execute_resumable", {"glue.py", "redshift.py"}) == {
-                "redshift.py": "9.33.0",
-                "glue.py": "9.35.0",
+            assert find_first_releases(
+                "amazon", "execute_resumable", {("glue.py", "Op"), ("redshift.py", "Op")}
+            ) == {("redshift.py", "Op"): "9.33.0", ("glue.py", "Op"): "9.35.0"}
+
+    def test_classes_sharing_a_file_are_dated_by_their_own_body(self):
+        tags = [f"providers-databricks/{v}" for v in ("7.17.0", "7.25.0")]
+        before = (
+            "class DatabricksSubmitRunOperator:\n    def execute(self):\n        self.execute_resumable()\n\n"
+            "class DatabricksTaskBaseOperator:\n    def execute(self):\n        self.submit()\n"
+        )
+        after = before.replace("self.submit()", "self.execute_resumable()")
+        sources = {f"{tags[0]}:databricks.py": before, f"{tags[1]}:databricks.py": after}
+        matches = [f"{t}:databricks.py" for t in tags]
+        with mock.patch("fill_durable_versions.run_git", fake_git(tags, matches, sources=sources)):
+            assert find_first_releases(
+                "databricks",
+                "execute_resumable",
+                {
+                    ("databricks.py", "DatabricksSubmitRunOperator"),
+                    ("databricks.py", "DatabricksTaskBaseOperator"),
+                },
+            ) == {
+                ("databricks.py", "DatabricksSubmitRunOperator"): "7.17.0",
+                ("databricks.py", "DatabricksTaskBaseOperator"): "7.25.0",
+            }
+
+    def test_release_without_the_class_is_skipped(self):
+        tags = [f"providers-amazon/{v}" for v in ("9.33.0", "9.35.0")]
+        sources = {f"{tags[0]}:x.py": "execute_resumable = None\n"}
+        matches = [f"{t}:x.py" for t in tags]
+        with mock.patch("fill_durable_versions.run_git", fake_git(tags, matches, sources=sources)):
+            assert find_first_releases("amazon", "execute_resumable", {("x.py", "Op")}) == {
+                ("x.py", "Op"): "9.35.0"
             }
 
     def test_prerelease_tags_are_not_offered_as_an_answer(self):
@@ -193,7 +233,7 @@ class TestFindFirstReleases:
 
     def test_no_tags_means_no_grep_at_all(self):
         with mock.patch("fill_durable_versions.run_git", fake_git([], [], allow_grep=False)):
-            assert find_first_releases("amazon", "execute_resumable", {"glue.py"}) == {}
+            assert find_first_releases("amazon", "execute_resumable", {("glue.py", "Op")}) == {}
 
 
 class TestMain:

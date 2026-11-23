@@ -1132,6 +1132,14 @@ Or if you just want to publish a few selected providers, you can run:
 > [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
 > the `-docs` branch workaround.
 
+<!-- -->
+
+> [!NOTE]
+> To re-publish a wave tagged before [#76575](https://github.com/apache/airflow/pull/76575) merged, add
+> `--workflow-branch main`. Publishes from main add fields to the registry data on S3 that the tag's own
+> registry workflow rejects, and a failed registry job also skips the docs sync. Main's workflow still
+> builds the docs from the tag.
+
 You can also run each workflow by hand from the GitHub UI, as described in
 [Publishing the documentation by the release manager](../docs/README.md#publishing-the-documentation-by-the-release-manager).
 This should normally not be needed unless there is some problem with the workflow automation above.
@@ -2203,6 +2211,14 @@ Or if you just want to publish a few selected providers, you can run:
 > logic in the release tag (e.g. it was added or changed in `main` after the tag was cut), see
 > [Fixing released documentation](#fixing-released-documentation) in the Misc section below for
 > the `-docs` branch workaround.
+
+<!-- -->
+
+> [!NOTE]
+> To re-publish a wave tagged before [#76575](https://github.com/apache/airflow/pull/76575) merged, add
+> `--workflow-branch main`. Publishes from main add fields to the registry data on S3 that the tag's own
+> registry workflow rejects, and a failed registry job also skips the docs sync. Main's workflow still
+> builds the docs from the tag.
 
 You can also run each workflow by hand from the GitHub UI, as described in
 [Publishing the documentation by the release manager](../docs/README.md#publishing-the-documentation-by-the-release-manager).

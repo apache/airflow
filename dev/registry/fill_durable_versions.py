@@ -27,8 +27,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import functools
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -84,38 +86,67 @@ def build_source_path(provider_id: str, qualified_class: str) -> str:
     return f"providers/{provider_id.replace('-', '/')}/src/{module_path}.py"
 
 
-def find_first_releases(provider_id: str, token: str, paths: set[str]) -> dict[str, str]:
-    """Map each path to the earliest released version of `provider_id` whose copy holds `token`.
+def find_class_source(module_source: str, class_name: str) -> str | None:
+    """Return the source of the top-level class `class_name`, or None when the module lacks it."""
+    try:
+        tree = ast.parse(module_source)
+    except SyntaxError:
+        return None
+    for node in tree.body:
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            return ast.get_source_segment(module_source, node)
+    return None
 
-    One `git grep` searches every release tag at once, so this costs a single call per provider
-    rather than one per version, and it reports every match rather than assuming the capability
-    was added once and kept.
+
+def find_first_releases(
+    provider_id: str, token: str, targets: set[tuple[str, str]]
+) -> dict[tuple[str, str], str]:
+    """Map each (path, class) to the earliest released version of `provider_id` whose class holds `token`.
+
+    One `git grep` over every release tag finds the versions whose copy of each file holds the
+    token, so only those are read. The token is then searched in the class body alone, because
+    several durable classes can share a file and each adopts the capability in its own release.
     """
     tags = get_released_tags(provider_id)
     if not tags:
         return {}
+    paths = {path for path, _ in targets}
     # git grep exits 1 when nothing matches, which is an ordinary answer here.
     matches = run_git("grep", "-lE", token, *tags, "--", *sorted(paths), allowed_returncodes=(0, 1))
-    earliest: dict[str, Version] = {}
+    candidates: dict[str, list[tuple[Version, str]]] = {}
     for line in matches:
         tag, _, path = line.partition(":")
         try:
             version = Version(tag.rsplit("/", 1)[-1])
         except InvalidVersion:
             continue
-        if path in paths and (path not in earliest or version < earliest[path]):
-            earliest[path] = version
-    return {path: str(version) for path, version in earliest.items()}
+        if path in paths:
+            candidates.setdefault(path, []).append((version, tag))
+
+    pattern = re.compile(token)
+    first_releases: dict[tuple[str, str], str] = {}
+    for path, class_name in targets:
+        for version, tag in sorted(candidates.get(path, [])):
+            class_source = find_class_source("\n".join(run_git("show", f"{tag}:{path}")), class_name)
+            if class_source is not None and pattern.search(class_source):
+                first_releases[(path, class_name)] = str(version)
+                break
+    return first_releases
 
 
-def durable_group(module: dict) -> tuple[str, str, str] | None:
-    """Return the (provider, token, source path) a module's durable capability is dated from."""
+def durable_group(module: dict) -> tuple[str, str, str, str] | None:
+    """Return the (provider, token, source path, class name) a module's durable capability is dated from."""
     provider_id = module.get("durable_gating_provider")
     qualified_class = module.get("durable_gating_class")
     token = DURABLE_TOKENS.get(module.get("durable_mechanism") or "")
     if not (provider_id and qualified_class and token):
         return None
-    return provider_id, token, build_source_path(provider_id, qualified_class)
+    return (
+        provider_id,
+        token,
+        build_source_path(provider_id, qualified_class),
+        qualified_class.rsplit(".", 1)[-1],
+    )
 
 
 def main() -> int:
@@ -136,27 +167,28 @@ def main() -> int:
             continue
         catalog = json.loads(modules_file.read_text())
 
-        wanted: dict[tuple[str, str], set[str]] = {}
+        wanted: dict[tuple[str, str], set[tuple[str, str]]] = {}
         if has_tags:
             for module in catalog["modules"]:
                 group = durable_group(module)
                 if group:
-                    provider_id, token, path = group
-                    wanted.setdefault((provider_id, token), set()).add(path)
+                    provider_id, token, path, class_name = group
+                    wanted.setdefault((provider_id, token), set()).add((path, class_name))
 
         versions = {
-            (provider_id, path): version
-            for (provider_id, token), paths in wanted.items()
-            for path, version in find_first_releases(provider_id, token, paths).items()
+            (provider_id, *target): version
+            for (provider_id, token), targets in wanted.items()
+            for target, version in find_first_releases(provider_id, token, targets).items()
         }
 
         filled = 0
         for module in catalog["modules"]:
             group = durable_group(module) if has_tags else None
             if group:
-                provider_id, _, path = group
-                module["durable_since_version"] = versions.get((provider_id, path))
-                filled += (provider_id, path) in versions
+                provider_id, _, path, class_name = group
+                key = (provider_id, path, class_name)
+                module["durable_since_version"] = versions.get(key)
+                filled += key in versions
             for field in EXTRACTION_ONLY_FIELDS:
                 module.pop(field, None)
         modules_file.write_text(json.dumps(catalog, indent=2))
