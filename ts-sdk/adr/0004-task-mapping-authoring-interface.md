@@ -136,49 +136,101 @@ it returns: `undefined` pushes nothing, and `null` is a value it pushes, as `set
 ## Example
 
 ```ts
-async function listFiles(): Promise<string[]>;
-async function process(args: { path: string; bucket: string }): Promise<number>;
-async function audit(args: { size: number }): Promise<void>;
-async function tag(args: { entry: [string, string] }): Promise<void>;
-async function pair(args: { p: [string, number | null] }): Promise<void>;
-async function cleanup(): Promise<void>;
-async function summarize(args: { sizes: XComSequence<number> }): Promise<void>;
-async function report(args: { sizes: XComSequence<number>; format: string }): Promise<void>;
-async function hasFiles(args: { files: string[] }): Promise<boolean>;
-async function sizeIfLarge(args: { path: string; min?: number }): Promise<number | undefined>;
-```
+import { Dag, type XComSequence } from "@apache-airflow/ts-sdk";
 
-```ts
-const files = dag.task(listFiles)();                                   // TaskRef<string[]>
-const otherFiles = dag.task("list_other_files", listFiles)();
+const dag = new Dag("mapping_example", { schedule: "@daily", catchup: false });
 
-// expand over an upstream's list, a literal, or a mapped upstream
-const sizes = dag.task(process).partial({ bucket: "raw" }).expand({ path: files }); // MappedTaskRef<number>
-dag.task("process_grid", process).expand({ path: ["a.csv", "b.csv"], bucket: ["raw", "eu"] }); // cross product
-dag.task(audit).expand({ size: sizes });                               // one audit per process instance
-dag.task(tag).expand({ entry: { env: "prod", team: "data" } });        // one [key, value] per instance
+// Shared handlers, each registered under several task ids below.
+const measure = async ({ path, bucket }: { path: string; bucket: string }) =>
+  path.length + bucket.length;
 
-// reduce: a mapped task where the argument is a sequence
-dag.task(summarize)({ sizes });
-dag.task(report).partial({ sizes }).expand({ format: ["csv", "pdf"] });
+const sizeIfLarge = async ({ path, min = 5 }: { path: string; min?: number }) =>
+  path.length >= min ? path.length : undefined;
 
-// expandKwargs: one argument object per instance, spread into the handler's arguments
-dag.task("process_kwargs", process).expandKwargs(files.map((f) => ({ path: f, bucket: "raw" })));
-dag.task("process_some", process).partial({ bucket: "raw" }).expandKwargs([{ path: "a.csv" }, { path: "b.csv" }]);
-dag.task("size_some", sizeIfLarge).expandKwargs([{ path: "a.csv" }, { path: "b.csv", min: 10 }]); // `min` defaults in the handler
+const summarizeSizes = async ({ sizes }: { sizes: XComSequence<number> }) => {
+  console.log(await sizes.length());
+};
 
-// an instance that returns nothing is not in the reduce
-const large = dag.task(sizeIfLarge).expand({ path: files });          // MappedTaskRef<number>
-dag.task("summarize_large", summarize)({ sizes: large });
+const listFiles = dag.task("list_files", async (): Promise<string[]> => ["a.csv", "b.csv"]);
+const listOtherFiles = dag.task("list_other_files", async (): Promise<string[]> => ["c.csv"]);
+const files = listFiles(); // TaskRef<string[]>
+const otherFiles = listOtherFiles();
 
-// map, zip, concat
-dag.task("process_trimmed", process).partial({ bucket: "raw" }).expand({ path: files.map((f) => f.trim()) });
-dag.task(pair).expand({ p: files.zip(sizes, { padding: null }) });    // the shorter side padded with null
-dag.task("process_both", process).partial({ bucket: "raw" }).expand({ path: files.concat(otherFiles) });
+// Expand over an upstream's list, a literal, or a mapped upstream.
+const measureFile = dag.task("measure_file", measure);
+// MappedTaskRef<number>
+const sizes = measureFile.partial({ bucket: "raw" }).expand({ path: files });
 
-// a mapped task as a branch target, and as an ordering node
-dag.if(hasFiles, { files }).then(sizes);
-sizes.before(dag.task(cleanup)());
+// A cross product: four instances.
+const measureGrid = dag.task("measure_grid", measure);
+measureGrid.expand({ path: ["a.csv", "b.csv"], bucket: ["raw", "eu"] });
+
+// One audit per measure_file instance.
+const audit = dag.task("audit", async ({ size }: { size: number }) => {
+  console.log(size);
+});
+audit.expand({ size: sizes });
+
+// One [key, value] pair per instance.
+const tag = dag.task("tag", async ({ entry }: { entry: [string, string] }) => {
+  console.log(entry[0], entry[1]);
+});
+tag.expand({ entry: { env: "prod", team: "data" } });
+
+// A reduce: a mapped task where the argument is a sequence.
+const summarize = dag.task("summarize", summarizeSizes);
+summarize({ sizes });
+
+const report = dag.task(
+  "report",
+  async ({ sizes, format }: { sizes: XComSequence<number>; format: string }) => {
+    console.log(format, await sizes.length());
+  },
+);
+report.partial({ sizes }).expand({ format: ["csv", "pdf"] });
+
+// expandKwargs: one argument object per instance, spread into the handler's arguments.
+const measureKwargs = dag.task("measure_kwargs", measure);
+const fileArgs = files.map((path) => ({ path, bucket: "raw" }));
+measureKwargs.expandKwargs(fileArgs);
+
+const measureSome = dag.task("measure_some", measure);
+measureSome.partial({ bucket: "raw" }).expandKwargs([{ path: "a.csv" }, { path: "b.csv" }]);
+
+// The first instance leaves `min` to the handler's default.
+const sizeSome = dag.task("size_some", sizeIfLarge);
+sizeSome.expandKwargs([{ path: "a.csv" }, { path: "b.csv", min: 10 }]);
+
+// An instance that returns nothing is not in the reduce.
+const sizeLarge = dag.task("size_large", sizeIfLarge);
+const large = sizeLarge.expand({ path: files }); // MappedTaskRef<number>
+const summarizeLarge = dag.task("summarize_large", summarizeSizes);
+summarizeLarge({ sizes: large });
+
+// Sources built with map, zip and concat.
+const measureTrimmed = dag.task("measure_trimmed", measure);
+const trimmed = files.map((path) => path.trim());
+measureTrimmed.partial({ bucket: "raw" }).expand({ path: trimmed });
+
+// Either side may be padded, so both slots can be null.
+const pair = dag.task("pair", async ({ p }: { p: [string | null, number | null] }) => {
+  console.log(p[0], p[1]);
+});
+const padded = files.zip(sizes, { padding: null });
+pair.expand({ p: padded });
+
+const measureBoth = dag.task("measure_both", measure);
+const allFiles = files.concat(otherFiles);
+measureBoth.partial({ bucket: "raw" }).expand({ path: allFiles });
+
+// A mapped task as a branch target, and as an ordering node.
+const hasFiles = async ({ files: paths }: { files: string[] }) => paths.length > 0;
+const gate = dag.if(hasFiles, { files }, { taskId: "has_files" });
+gate.then(sizes);
+
+const cleanup = dag.task("cleanup", async () => {});
+const cleaned = cleanup();
+sizes.before(cleaned);
 ```
 
 ## Signature
@@ -406,7 +458,7 @@ before `"2"`. The payload is written in that order, and that is the expansion or
 
 ## Alternatives
 
-- **A per-argument marker, as a positional SDK uses**, `process.expand({ path: expand(files), bucket: "raw" })`.
+- **A per-argument marker, as a positional SDK uses**, `measure.expand({ path: expand(files), bucket: "raw" })`.
   Rejected: TypeScript can split the arguments by key, which is Python's own spelling, so
   ADR-0016 has it keep that spelling. The marker is the substitute for an SDK that cannot.
 - **`MappedTaskRef<T>` as a `TaskRef<T>`, with `all()` for the reduce**, as a loop body's ref is.
