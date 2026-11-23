@@ -40,7 +40,7 @@ Arguments
 The ``input``, ``voice`` and ``audio_config`` arguments need to be dicts or objects of corresponding classes from
 ``google.cloud.texttospeech_v1.types`` module
 
-for more information, see: https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/api.html#google.cloud.texttospeech_v1.TextToSpeechClient.synthesize_speech
+for more information, see: https://cloud.google.com/python/docs/reference/texttospeech/latest/google.cloud.texttospeech_v1.services.text_to_speech.TextToSpeechClient#google_cloud_texttospeech_v1_services_text_to_speech_TextToSpeechClient_synthesize_speech
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/text_to_speech/example_text_to_speech.py
       :language: python
@@ -77,5 +77,5 @@ Reference
 
 For further information, look at:
 
-* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/speech/>`__
+* `Client Library Documentation <https://cloud.google.com/python/docs/reference/speech/latest>`__
 * `Product Documentation <https://cloud.google.com/speech/>`__

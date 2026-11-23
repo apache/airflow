@@ -66,7 +66,14 @@ def _get_compression_suffix(compression: str) -> str:
 
 @cache
 def _get_base_path() -> ObjectStoragePath:
-    return ObjectStoragePath(conf.get_mandatory_value(SECTION, "xcom_objectstorage_path"))
+    path = conf.get_mandatory_value(SECTION, "xcom_objectstorage_path")
+    # Reads only resolve URLs, so a schemeless path would read back as the path string.
+    if not urlsplit(path).scheme:
+        raise ValueError(
+            f"[{SECTION}] xcom_objectstorage_path must be a URL with a scheme, such as "
+            f"s3://conn_id@bucket/path or file:///path/to/xcom; got {path!r}."
+        )
+    return ObjectStoragePath(path)
 
 
 @cache
@@ -114,18 +121,18 @@ class XComObjectStorageBackend(BaseXCom):
 
     @classmethod
     def store_value(cls, coordinate: XComCoordinate, key: str, value: Any) -> str:
-        base = _get_base_path()
-        path = cls._write_large_value(
-            value,
-            lambda suffix: base.joinpath(
+        def get_path(suffix: str) -> ObjectStoragePath:
+            base = _get_base_path()
+            return base.joinpath(
                 coordinate.build_path(
                     "",
                     key,
                     suffix=f".json{suffix}",
                     max_length=_MAX_PATH_LENGTH - len(str(base).encode()) - 1,
                 )
-            ),
-        )
+            )
+
+        path = cls._write_large_value(value, get_path)
         return BaseXCom.serialize_value(value if path is None else str(path))
 
     @staticmethod

@@ -326,6 +326,93 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/assets/{asset_id}/partitions:
+    get:
+      tags:
+      - Asset
+      summary: Get Asset Partitions
+      description: Return the partition keys of an asset with the status of each.
+      operationId: get_asset_partitions
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      - name: status
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              enum:
+              - materialized
+              - in_progress
+              - failed
+              type: string
+          - type: 'null'
+          title: Status
+      - name: partition_key_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key Pattern
+      - name: order_by
+        in: query
+        required: false
+        schema:
+          type: string
+          default: -partition_key
+          title: Order By
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 50
+          title: Limit
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          default: 0
+          title: Offset
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetPartitionCollectionResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/dags/{dag_id}/dagRuns/{dag_run_id}/stats:
     get:
       tags:
@@ -2447,6 +2534,78 @@ paths:
               type: string
           - type: 'null'
           title: Run Ids
+      - name: start_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gte
+      - name: start_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Gt
+      - name: start_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lte
+      - name: start_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date Lt
+      - name: end_date_gte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gte
+      - name: end_date_gt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Gt
+      - name: end_date_lte
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lte
+      - name: end_date_lt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date Lt
       responses:
         '200':
           description: "NDJSON stream \u2014 one ``GridTISummaries`` JSON object per\
@@ -3120,6 +3279,115 @@ components:
       title: AssetExpressionRef
       description: 'An unresolved asset reference leaf: ``{"asset_ref": {"name": ...}}``
         or ``{"asset_ref": {"uri": ...}}``.'
+    AssetPartitionCollectionResponse:
+      properties:
+        partitions:
+          items:
+            $ref: '#/components/schemas/AssetPartitionResponse'
+          type: array
+          title: Partitions
+        total_entries:
+          type: integer
+          title: Total Entries
+        status_counts:
+          $ref: '#/components/schemas/AssetPartitionStatusCounts'
+      type: object
+      required:
+      - partitions
+      - total_entries
+      - status_counts
+      title: AssetPartitionCollectionResponse
+      description: Partition keys of an asset with their status.
+    AssetPartitionProducerRunResponse:
+      properties:
+        dag_id:
+          type: string
+          title: Dag Id
+        run_id:
+          type: string
+          title: Run Id
+        state:
+          $ref: '#/components/schemas/DagRunState'
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+      type: object
+      required:
+      - dag_id
+      - run_id
+      - state
+      - start_date
+      - end_date
+      title: AssetPartitionProducerRunResponse
+      description: The latest run of a producing Dag for one partition key.
+    AssetPartitionResponse:
+      properties:
+        partition_key:
+          type: string
+          title: Partition Key
+        status:
+          type: string
+          enum:
+          - materialized
+          - in_progress
+          - failed
+          title: Status
+        last_event_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Last Event Id
+        last_event_timestamp:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Last Event Timestamp
+        last_producer_run:
+          anyOf:
+          - $ref: '#/components/schemas/AssetPartitionProducerRunResponse'
+          - type: 'null'
+        consumer_runs:
+          items:
+            $ref: '#/components/schemas/DagRunAssetReference'
+          type: array
+          title: Consumer Runs
+      type: object
+      required:
+      - partition_key
+      - status
+      - last_event_id
+      - last_event_timestamp
+      - last_producer_run
+      - consumer_runs
+      title: AssetPartitionResponse
+      description: Status of one partition key of an asset.
+    AssetPartitionStatusCounts:
+      properties:
+        materialized:
+          type: integer
+          title: Materialized
+          default: 0
+        in_progress:
+          type: integer
+          title: In Progress
+          default: 0
+        failed:
+          type: integer
+          title: Failed
+          default: 0
+      type: object
+      title: AssetPartitionStatusCounts
+      description: Number of partition keys per status.
     AssetResponse:
       properties:
         id:
@@ -3371,6 +3639,7 @@ components:
           - asset-alias
           - asset-name-ref
           - asset-uri-ref
+          - asset-watcher
           - dag
           - sensor
           - trigger
@@ -3388,6 +3657,15 @@ components:
             - and-gate
           - type: 'null'
           title: Asset Condition Type
+        trigger_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Trigger Id
+        trigger_status:
+          anyOf:
+          - $ref: '#/components/schemas/TriggerStatus'
+          - type: 'null'
       type: object
       required:
       - id
@@ -4048,6 +4326,72 @@ components:
       title: DagFolderResponse
       description: A distinct Dag folder (directory of ``relative_fileloc``) within
         a bundle.
+    DagRunAssetReference:
+      properties:
+        run_id:
+          type: string
+          title: Run Id
+        dag_id:
+          type: string
+          title: Dag Id
+        logical_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Logical Date
+        start_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Start Date
+        end_date:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: End Date
+        state:
+          type: string
+          title: State
+        data_interval_start:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval Start
+        data_interval_end:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Data Interval End
+        partition_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partition Key
+        triggering:
+          type: boolean
+          title: Triggering
+          description: Whether this asset event triggered the referenced dag run.
+            Only a run's most recent consumed asset event triggers it; earlier consumed
+            events are included in the run but did not trigger it.
+      type: object
+      required:
+      - run_id
+      - dag_id
+      - logical_date
+      - start_date
+      - end_date
+      - state
+      - data_interval_start
+      - data_interval_end
+      - partition_key
+      - triggering
+      title: DagRunAssetReference
+      description: DagRun serializer for asset responses.
     DagRunState:
       type: string
       enum:
@@ -4341,6 +4685,13 @@ components:
           - type: string
           - type: 'null'
           title: Callback Path
+        callback_trigger_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Callback Trigger Id
+          description: The trigger running a triggerer callback, while it runs; see
+            `GET /api/v2/triggers`.
       type: object
       required:
       - id
@@ -5513,6 +5864,7 @@ components:
           - asset-alias
           - asset-name-ref
           - asset-uri-ref
+          - asset-watcher
           - dag
           - sensor
           - trigger
@@ -5530,6 +5882,15 @@ components:
             - and-gate
           - type: 'null'
           title: Asset Condition Type
+        trigger_id:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Trigger Id
+        trigger_status:
+          anyOf:
+          - $ref: '#/components/schemas/TriggerStatus'
+          - type: 'null'
         children:
           anyOf:
           - items:

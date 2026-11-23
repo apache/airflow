@@ -207,7 +207,14 @@ else:
 # End of copied code from breeze
 
 os.environ["AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES"] = "airflow.*\nunit.*\n"
-os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
+# Unit-test plugins register ClassBasedListener, which breaks on system-test task instances.
+# Check sys.argv before pytest parses options, and pass the result via env for xdist workers,
+# since config.option.system is not available this early.
+run_system_tests = "--system" in sys.argv or os.environ.get("_AIRFLOW_SYSTEM_TESTS") == "true"
+if run_system_tests:
+    os.environ["_AIRFLOW_SYSTEM_TESTS"] = "true"
+else:
+    os.environ["AIRFLOW__CORE__PLUGINS_FOLDER"] = os.fspath(AIRFLOW_CORE_TESTS_PATH / "unit" / "plugins")
 
 IS_MOCK_PLUGINS_MANAGER = bool(
     os.environ.get("_AIRFLOW_SKIP_DB_TESTS", "false") == "true" and importlib.util.find_spec("airflow")

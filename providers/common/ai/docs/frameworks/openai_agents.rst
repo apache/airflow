@@ -27,7 +27,8 @@ through connections your deployment already manages. The agent, its runner, hand
 guardrails and your own function tools stay plain OpenAI Agents SDK. Airflow adds these,
 each of which you can use without the others:
 
-- :func:`~airflow.providers.common.ai.durable.openai_agents.run_durably_sync` runs the
+- :func:`~airflow.providers.common.ai.durable.openai_agents.run_durably` and
+  :func:`~airflow.providers.common.ai.durable.openai_agents.run_durably_sync` run the
   agent so that a task retry replays the model and tool calls the failed try completed,
   instead of paying for them again.
 - :class:`~airflow.providers.common.ai.tools.openai_agents.AirflowTools` gives the agent
@@ -53,12 +54,14 @@ switched on with one argument. See :ref:`howto/operator:agent`.
 Installation
 ------------
 
-Install the provider with the ``sql`` extra, which the examples' SQL toolset needs, and
-the SDK:
+Install the provider with the ``sql`` extra, which the examples' SQL toolset needs, the
+SDK, and the OpenAI provider, whose hook builds the SDK's client from an Airflow
+connection:
 
 .. code-block:: bash
 
-    pip install "apache-airflow-providers-common-ai[sql]>=1.0.0" "openai-agents>=0.20.0"
+    pip install "apache-airflow-providers-common-ai[sql]>=1.0.0" "openai-agents>=0.20.0" \
+        "apache-airflow-providers-openai>=2.2.0"
 
 ``openai-agents`` 0.21 and later require ``openai`` 3. Where ``openai`` is held below 3,
 the resolver picks ``openai-agents`` 0.20, the last release that accepts ``openai`` 2.
@@ -89,7 +92,7 @@ Then build the agent as you would without Airflow, with the toolset's tools in
 
     agent = Agent(
         name="analyst",
-        model="gpt-5-mini",
+        model="gpt-6.1-terra",
         instructions="Use list_tables, get_schema and query to answer.",
         tools=AirflowTools(SQLToolset(db_conn_id="crm")),
     )
@@ -115,18 +118,42 @@ Run the agent in a task
 -----------------------
 
 In a Dag, build the agent inside the ``@task`` function, so connections are read when
-the task runs rather than when the Dag file is parsed. Here the model's API key, and
-optionally the base URL of another OpenAI-compatible endpoint such as a gateway or a
-self-hosted server, come from an Airflow connection too:
+the task runs rather than when the Dag file is parsed. Here the model's client comes
+from an Airflow connection too:
+:meth:`~airflow.providers.openai.hooks.openai.OpenAIHook.aget_conn` returns an
+``AsyncOpenAI`` built from it, which is what the SDK's models take:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_openai_agents_agent.py
     :language: python
     :start-after: [START example_openai_agents_agent]
     :end-before: [END example_openai_agents_agent]
 
-The example reads two connections: ``openai_default``, whose password is the API key and
-whose host, if set, is the base URL, and ``sql_default``, a database connection. Set the
-``LLM_CONN_ID`` and ``DB_CONN_ID`` environment variables to use others.
+The example reads two connections: ``openai_default``, an OpenAI connection, and
+``sql_default``, a database connection. Set the ``LLM_CONN_ID`` and ``DB_CONN_ID``
+environment variables to use others. The OpenAI connection's password is the API key and
+its host, if set, is the base URL of another OpenAI-compatible endpoint, such as a
+gateway or a self-hosted server. Because the hook builds the client, the connection's
+other settings apply too: ``openai_client_kwargs`` in its extra (such as ``timeout``,
+``organization`` or ``default_headers``), and workload identity instead of an API key.
+See :doc:`apache-airflow-providers-openai:connections`.
+
+The task is ``async`` because ``aget_conn`` is a coroutine, and async tasks need Airflow
+3.2.1 or later. On an earlier Airflow, use a sync task: build the client from the
+connection's key and host, pass it to the model as above, and run the agent with
+``Runner.run_sync``. The connection's other settings don't apply then:
+
+.. code-block:: python
+
+    from openai import AsyncOpenAI
+
+    from airflow.providers.common.compat.sdk import BaseHook
+
+    conn = BaseHook.get_connection(LLM_CONN_ID)
+    client = AsyncOpenAI(api_key=conn.password, base_url=conn.host or None)
+
+The OpenAI provider's next release after 2.2.0 adds
+``OpenAIHook(LLM_CONN_ID).get_conn(async_client=True)``, which builds the same client as
+``aget_conn`` from sync code, the connection's other settings included.
 
 The example uses ``OpenAIChatCompletionsModel``, so the connection's host can point at
 a server that implements only the Chat Completions API. Against OpenAI itself,
@@ -244,18 +271,28 @@ it:
 ``list_keys`` and ``read_key`` and the bucket pinned. The same toolset works in
 ``AirflowTools(...)``.
 
-``.filtered()`` and ``.approval_required()``, which pydantic-ai toolsets offer, do not
-reach the SDK through ``AirflowTools``. They return wrappers that ``AirflowTools`` cannot
-read, and building it fails:
+To offer the model only some of a toolset's tools, wrap the toolset with ``.filtered()``
+before you pass it in. These tools are every ``SQLToolset`` tool except ``query``:
+
+.. code-block:: python
+
+    tools = AirflowTools(SQLToolset(db_conn_id="warehouse").filtered(lambda ctx, tool: tool.name != "query"))
+
+``.prefixed()`` and ``.renamed()`` carry over the same way, nested in any order. The filter
+runs once, when ``AirflowTools`` is built, with a placeholder run context whose ``deps``
+is ``None``, so a filter that reads an attribute of ``ctx.deps`` fails there. Whatever the
+filter decides holds for every run of an agent given these tools, where a Pydantic AI agent
+asks it again before each model turn.
+
+Any other wrapper fails with a ``TypeError`` that names it, such as for
+``.approval_required()``:
 
 .. code-block:: text
 
-    AttributeError: 'FilteredToolset' object has no attribute 'airflow_tools'
+    TypeError: AirflowTools cannot carry ApprovalRequiredToolset (.approval_required()) to another framework's agent: only a Pydantic AI run pauses for the approval it asks for. Pass the toolset without it and use the framework's own tool approval, such as needs_approval in the OpenAI Agents SDK, whose guide says how it behaves in a task, or run the agent with AgentOperator.
 
-Choose the tools with ``allowed_tables``, ``allowed_methods`` and ``pinned_arguments``
-instead. There is no per-call approval on this path; see
-:ref:`howto/frameworks:openai-agents-limits`. Each toolset's page covers the rest of its
-options: :ref:`howto/toolsets`.
+:ref:`howto/frameworks:openai-agents-approval` says what ``needs_approval`` does in a task.
+Each toolset's page covers the rest of its options: :ref:`howto/toolsets`.
 
 Tools
 -----
@@ -325,7 +362,7 @@ destroys the sandbox when the block ends. A call outside the block fails with
     from airflow.providers.common.ai.toolsets import SandboxToolset
 
     with SandboxToolset(ModalSandboxBackend()) as sandbox:
-        agent = Agent(name="coder", model="gpt-5-mini", tools=AirflowTools(sandbox))
+        agent = Agent(name="coder", model="gpt-6.1-terra", tools=AirflowTools(sandbox))
         answer = Runner.run_sync(agent, "Plot last month's signups.").final_output
 
 See :ref:`sandbox-other-frameworks` for the backends and what the sandbox contains.
@@ -335,7 +372,7 @@ The SDK routes a call by tool name, so two toolsets that define the same name ra
 
 .. code-block:: text
 
-    ValueError: More than one tool is named check_query, get_schema, list_tables, query. Give the toolsets different tool_prefix values, where they take one, so the model can call each of them.
+    ValueError: More than one tool is named check_query, get_schema, list_tables, query. Give the toolsets different tool_prefix values, where they take one, or wrap them with .prefixed(), so the model can call each of them.
 
 .. _howto/frameworks:openai-agents-failures:
 
@@ -360,7 +397,8 @@ that has an ``arr`` column but no ``revenue`` column:
 
 A toolset's tool may fail this way once in a row by default; pass ``max_retries`` to the
 toolset to allow more. The count starts over after a call that succeeds and on every run
-of the agent. A tool still failing after that raises
+of the agent, except that a retry of a durable run counts the failures it replays as well
+(see :ref:`howto/frameworks:openai-agents-durable`). A tool still failing after that raises
 :class:`~airflow.providers.common.ai.tools.ToolCallError` out of ``Runner.run`` and
 ``Runner.run_sync``, so the task fails and Airflow's own retry takes over. Catch it as
 ``ToolCallError``; the traceback names a private subclass of it. For the same query sent
@@ -421,7 +459,7 @@ next to the toolsets:
         function=lookup_customer,
     )
     warehouse = SQLToolset(db_conn_id="warehouse")
-    agent = Agent(name="support", model="gpt-5-mini", tools=AirflowTools(warehouse, lookup))
+    agent = Agent(name="support", model="gpt-6.1-terra", tools=AirflowTools(warehouse, lookup))
 
 Return ``ToolResult(content=..., is_error=True)`` for a failure the model can correct,
 and raise for anything else. An ``AirflowTool`` you build has no retry limit of its own,
@@ -446,12 +484,12 @@ pass ``failure_error_function=None``:
 
     analyst = Agent(
         name="analyst",
-        model="gpt-5-mini",
+        model="gpt-6.1-terra",
         tools=AirflowTools(SQLToolset(db_conn_id="warehouse")),
     )
     lead = Agent(
         name="lead",
-        model="gpt-5-mini",
+        model="gpt-6.1-terra",
         tools=[analyst.as_tool("ask_analyst", "Ask the SQL analyst.", failure_error_function=None)],
     )
 
@@ -525,13 +563,14 @@ Durable execution
 
 When a task that calls ``Runner.run`` fails and Airflow retries it, the agent starts
 again from the prompt: every model call is paid for again, and every tool call happens
-again. On a task with ``retries``, run the agent with ``run_durably_sync``, or
-:func:`~airflow.providers.common.ai.durable.openai_agents.run_durably` from async code,
-instead. They take the same arguments as ``Runner.run_sync`` and ``Runner.run``, except
-``previous_response_id``, ``conversation_id`` and ``auto_previous_response_id``, which
-they refuse with ``ValueError`` inside a task: with them OpenAI keeps the conversation,
-and a replayed call never reaches it. This Dag runs the agent from the task example
-with ``run_durably_sync``:
+again. On a task with ``retries``, run the agent with
+:func:`~airflow.providers.common.ai.durable.openai_agents.run_durably`, or
+``run_durably_sync`` from sync code, instead. They take the same arguments as
+``Runner.run`` and ``Runner.run_sync``, except ``previous_response_id``,
+``conversation_id`` and ``auto_previous_response_id``, which they refuse with
+``ValueError`` inside a task: with them OpenAI keeps the conversation, and a replayed
+call never reaches it. This Dag runs the agent from the task example with
+``run_durably``:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_openai_agents_durable.py
     :language: python
@@ -547,21 +586,23 @@ Outside a task there is nothing to replay into, and the agent runs as ``Runner.r
 it.
 
 What was recorded is deleted when the agent's run succeeds, so clearing the task later
-starts over. That happens when ``run_durably_sync`` returns, not when the task
-succeeds: if the task fails after the agent has answered, for example while writing the
-answer somewhere, the retry runs the whole agent again. Write the answer in a
-downstream task, so that a failed write retries on its own. Here ``build_agent()``
-stands for building the agent as the task example does:
+starts over. That happens when ``run_durably`` or ``run_durably_sync`` returns, not when
+the task succeeds: if the task fails after the agent has answered, for example while
+writing the answer somewhere, the retry runs the whole agent again. Write the answer in a
+downstream task, so that a failed write retries on its own. Here ``build_agent(client)``
+stands for building the agent on the client as the task example does:
 
 .. code-block:: python
 
-    from airflow.providers.common.ai.durable.openai_agents import run_durably_sync
+    from airflow.providers.common.ai.durable.openai_agents import run_durably
+    from airflow.providers.openai.hooks.openai import OpenAIHook
     from airflow.sdk import ObjectStoragePath, task
 
 
     @task(retries=2)
-    def answer(question: str) -> str:
-        return run_durably_sync(build_agent(), question).final_output
+    async def answer(question: str) -> str:
+        async with await OpenAIHook(LLM_CONN_ID).aget_conn() as client:
+            return (await run_durably(build_agent(client), question)).final_output
 
 
     @task(retries=5)
@@ -570,6 +611,9 @@ stands for building the agent as the task example does:
 
 
     publish(answer("Which customer has the highest ARR?"))
+
+A tool call that needs approval pauses the task until a person answers; see
+:ref:`howto/frameworks:openai-agents-approval`.
 
 What a retry replays
 ^^^^^^^^^^^^^^^^^^^^
@@ -581,12 +625,25 @@ starting agent and of the agents in its ``handoffs`` list, and an agent used thr
 ``as_tool``, which replays as one call. Recorded tool results pass through Airflow's
 secret masker before they are saved, and a replayed model call reports no token usage.
 
+A failure the model could correct, which an ``AirflowTools`` tool answers with
+``{"error": ...}``, is recorded and replays like any other result, together with how many of
+the tool's corrections were used when it finished. The replay restores that count, so the
+retry limit spans the task's tries: a model that used one of two corrections before the
+crash has one left on the retry, not two. A run that used the limit up fails on the model's
+answers, so each retry asks the model once more, with the errors it already got in its
+history. The task log notes when a replay changes the count:
+
+.. code-block:: text
+
+    Tool query: an earlier attempt left 1 of its 2 correction(s) used
+
 From the first call that differs, that call and every call after it run live:
 
 - A retry whose prompt, instructions, model settings or tools differ from the failed
   try's runs everything live from the first call that sees the difference.
 - When the run failed because of the model's answers (``MaxTurnsExceeded``,
-  ``ModelBehaviorError``, ``ModelRefusalError``, or an output or tool input guardrail),
+  ``ModelBehaviorError``, ``ModelRefusalError``, an output or tool input guardrail, or an
+  ``AirflowTools`` tool that used up its retry limit),
   replaying those answers would fail it the same way, so the retry asks the model again
   from its last request.
 
@@ -600,6 +657,9 @@ What always runs live
   not a raise: it is recorded, and the retry replays it. A ``ModelBehaviorError`` that a tool raises, such as
   arguments that fail validation with ``failure_error_function=None``, counts as the
   tool's failure: the tool call runs again, but the answer that asked for it replays.
+  Once a call has failed the try on two tries in a row, though, the next try asks the
+  model again from the request that chose the call, since replaying that answer would
+  only reach the same failure.
 - Tools other than function tools: hosted tools, the tools of ``mcp_servers``, and shell
   and computer tools.
 - A function tool whose ``needs_approval`` is a function: the SDK checks that the
@@ -615,6 +675,72 @@ A ``SandboxToolset`` without ``attach_to`` is destroyed when its ``with`` block 
 which a failed try also ends, so the retry starts with a new, empty sandbox that the
 replayed conversation does not describe.
 
+.. _howto/frameworks:openai-agents-approval:
+
+Have a person approve tool calls
+--------------------------------
+
+A refund, a deployment or an email to a customer shouldn't happen only because a model
+asked for it. Set ``needs_approval=True`` on the function tool and run the agent with
+``run_durably``, or ``run_durably_sync`` in a sync task: each call to that tool waits in
+Required Actions until a person approves or rejects it. To have a person review the
+agent's answer rather than its tool calls, use ``AgentOperator(enable_hitl_review=True)``,
+or add the standard provider's ``ApprovalOperator`` as the next task.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_openai_agents_approval.py
+    :language: python
+    :start-after: [START example_openai_agents_approval]
+    :end-before: [END example_openai_agents_approval]
+
+When the model asks to call ``issue_refund``, the task stops in the ``awaiting_input``
+state without holding a worker slot, and Required Actions shows a request titled
+``support wants to call issue_refund``. Its body names the agent and the tool, with the
+tool's description, and lists the call's arguments after Airflow's secret masker has
+masked them. The reviewer chooses **Approve** or **Reject**, and can fill in a reason.
+
+The answer resumes the task, which runs from the top again. ``run_durably`` replays
+the calls it recorded before the pause instead of making them again (the calls in "What
+always runs live" above still run live), and then:
+
+- On **Approve**, the tool runs and the agent continues.
+- On **Reject**, the tool does not run, and the model gets the reviewer's reason as the
+  call's result, or the SDK's default rejection message when the reason is empty.
+
+Things to know:
+
+- Pausing needs Airflow 3.4 or later, a standard provider that has
+  :func:`~airflow.providers.standard.operators.hitl.request_input`, and a ``@task`` or
+  ``PythonOperator``. Elsewhere the task fails with ``UnsupportedToolDeferralError``
+  instead, without retrying.
+- Code in the task before ``run_durably`` runs again every time the task resumes. So
+  does an earlier agent run in the same task, since what it recorded is deleted when it
+  finishes: run an agent whose tools need approval in a task of its own.
+- If a step before the paused call returns something different when the task resumes (a
+  tool that always runs live, a prompt built from live data, a Dag changed while the task
+  waited), the run never comes back to the call the reviewer answered. The task then fails
+  with ``DurableJournalError``, without retrying, rather than ask a question the reviewer
+  did not see. Clearing it then asks about the call the run stopped at instead, or, when
+  the run finished without stopping, replays that result.
+- When one answer from the model asks for several calls that need approval, they are asked
+  one at a time, in the order the model made them, and the agent continues once every one
+  is answered.
+- A retry asks again about calls that had not run. A call whose result was recorded ran
+  after it was approved, so the retry approves it without asking.
+- A function tool whose ``needs_approval`` is a function, and a tool of an MCP server in
+  ``mcp_servers`` whose ``require_approval`` applies, are not recorded (see "What always
+  runs live" above). Once approved, such a tool runs again every time the task resumes or
+  retries later in the run, so make it safe to repeat, or use ``needs_approval=True`` on a
+  function tool of your own.
+- The task fails with ``UnsupportedToolDeferralError`` instead of pausing when the run has
+  a ``session``, when the call is made by an agent used through ``as_tool`` or reached
+  through ``handoff()``, or when the approval is for a hosted MCP tool
+  (``HostedMCPTool``). After you remove the approval requirement, clearing the task with
+  its task state kept replays the turns before that call and asks the model again from
+  there, so a tool call made in that same answer runs again if the model asks for it. A
+  clear that discards the task state starts the agent over (see :ref:`durable-clear`).
+- Every pause carries the answers the task has received so far, so keep the approvals one
+  run asks for to a handful.
+
 .. _howto/frameworks:openai-agents-limits:
 
 Sessions, approvals and streaming
@@ -623,10 +749,9 @@ Sessions, approvals and streaming
 These SDK features interact with Airflow in ways the SDK documentation does not cover:
 
 - A ``session`` works, but under ``run_durably`` it makes every retry run live, as
-  above.
-- A tool's ``needs_approval`` is not connected to Airflow's approval UI. The run stops
-  at the first call that needs approval and returns with ``final_output`` set to
-  ``None`` and the pending call in ``result.interruptions``, and nothing in Airflow
-  resumes it. To have a person approve the agent's answer, add the standard
-  provider's ``ApprovalOperator`` as the next task.
+  above, and a run with a ``session`` cannot pause for approval.
+- ``Runner.run`` stops at the first tool call that needs approval and returns with
+  ``final_output`` set to ``None`` and the pending call in ``result.interruptions``, and
+  the task succeeds without an answer unless your code handles them. ``run_durably`` asks
+  a person instead; see :ref:`howto/frameworks:openai-agents-approval`.
 - A streamed run (``Runner.run_streamed``) is not recorded for durable retries.

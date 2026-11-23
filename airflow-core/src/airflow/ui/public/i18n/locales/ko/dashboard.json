@@ -55,6 +55,7 @@
   "history": "기록",
   "importErrors": {
     "bundle": "번들",
+    "copyStackTrace": "스택 트레이스 복사",
     "dagImportError_one": "Dag 가져오기 오류",
     "dagImportError_other": "Dag 가져오기 오류들",
     "searchByFile": "파일로 검색",
@@ -72,6 +73,7 @@
   "stats": {
     "activeDags": "활성 Dags",
     "failedDags": "실패한 Dags",
+    "failingTriggers": "실패한 트리거",
     "queuedDags": "대기 중인 Dags",
     "requiredActions": "필수 작업",
     "runningDags": "실행 중인 Dags",

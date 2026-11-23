@@ -18,14 +18,33 @@ from __future__ import annotations
 
 import threading
 import time
+from types import SimpleNamespace
+from unittest import mock
 from unittest.mock import DEFAULT, MagicMock
 
 import pytest
-from pydantic_ai import CancellationToken
+from pydantic_ai import Agent, CancellationToken
+from pydantic_ai.exceptions import FallbackExceptionGroup, ModelHTTPError
+from pydantic_ai.messages import ModelResponse, ToolCallPart
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.toolsets import FunctionToolset
 
+from airflow.providers.common.ai.durable import AirflowDurability, journal as journal_module
+from airflow.providers.common.ai.durable.journal import DurableJournal, journal_scope
+from airflow.providers.common.ai.fallback_exceptions import FallbackChainExhaustedError
 from airflow.providers.common.ai.mixins.cancellable_run import CancellableAgentRunMixin
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.operators.llm import LLMOperator
+
+from unit.common.ai.durable.memory_storage import MemoryStorage
+
+
+def _failing_member(status_code: int):
+    def fail(messages, info: AgentInfo) -> ModelResponse:
+        raise ModelHTTPError(status_code=status_code, model_name="member")
+
+    return fail
 
 
 class TestRunAgentSync:
@@ -61,6 +80,112 @@ class TestRunAgentSync:
             mixin.run_agent_sync(agent, "prompt")
 
         assert mixin._cancellation_token is None
+
+
+class TestFallbackChainExhausted:
+    @pytest.fixture
+    def task_context(self, monkeypatch):
+        monkeypatch.setattr(journal_module, "_task_journal", None)
+        context = {"task_instance": SimpleNamespace(id="ti-1")}
+        with (
+            mock.patch.object(journal_module, "get_current_context", autospec=True, return_value=context),
+            mock.patch.object(
+                journal_module, "build_task_storage", autospec=True, return_value=MemoryStorage()
+            ),
+        ):
+            yield
+
+    def test_group_is_raised_again_as_chain_error_with_members_in_chain_order(self):
+        # Without the ``except FallbackExceptionGroup`` in run_agent_sync the run raises the bare
+        # group, and ``pytest.raises(FallbackChainExhaustedError)`` fails.
+        chain = FallbackModel(FunctionModel(_failing_member(429)), FunctionModel(_failing_member(400)))
+
+        with pytest.raises(FallbackChainExhaustedError) as caught:
+            CancellableAgentRunMixin().run_agent_sync(Agent(chain), "go")
+
+        error = caught.value
+        assert isinstance(error, FallbackExceptionGroup)
+        assert isinstance(error.__cause__, FallbackExceptionGroup)
+        assert not isinstance(error.__cause__, FallbackChainExhaustedError)
+        assert error.member_errors == error.__cause__.exceptions
+        assert [member.status_code for member in error.member_errors] == [429, 400]
+        assert error.attempts == getattr(error.__cause__, "attempts", ())
+        # Outside a task: no journal.
+        assert error.replayed_steps is None
+        assert error.recorded_steps is None
+
+    @pytest.mark.usefixtures("task_context")
+    def test_inside_a_task_without_a_journal_reports_no_progress(self):
+        chain = FallbackModel(FunctionModel(_failing_member(429)), FunctionModel(_failing_member(400)))
+
+        with pytest.raises(FallbackChainExhaustedError) as caught:
+            CancellableAgentRunMixin().run_agent_sync(Agent(chain), "go")
+
+        assert caught.value.replayed_steps is None
+        assert caught.value.recorded_steps is None
+
+    @pytest.mark.usefixtures("task_context")
+    def test_inside_a_task_reports_the_journal_an_attempt_already_kept(self):
+        journal = journal_module.current_journal()
+        assert journal is not None
+        journal.stats.recorded["model"] = 1
+        journal.stats.replayed["tool"] = 2
+        chain = FallbackModel(FunctionModel(_failing_member(429)), FunctionModel(_failing_member(400)))
+
+        with pytest.raises(FallbackChainExhaustedError) as caught:
+            CancellableAgentRunMixin().run_agent_sync(Agent(chain), "go")
+
+        assert (caught.value.replayed_steps, caught.value.recorded_steps) == (2, 1)
+
+    def test_durable_retry_reports_what_the_attempt_replayed_and_recorded(self):
+        # Drops ``replayed_steps``/``recorded_steps`` (hard-coded None) -> both asserts below fail.
+        storage = MemoryStorage()
+        mixin = CancellableAgentRunMixin()
+        failing_after = {"responses": 1}
+
+        def member(messages, info: AgentInfo) -> ModelResponse:
+            answered = sum(isinstance(message, ModelResponse) for message in messages)
+            if answered >= failing_after["responses"]:
+                raise ModelHTTPError(status_code=429, model_name="member")
+            return ModelResponse(parts=[ToolCallPart("query", {"sql": "select 1"})])
+
+        def build() -> Agent[None, str]:
+            toolset = FunctionToolset(id="db")
+
+            @toolset.tool_plain
+            def query(sql: str) -> str:
+                return "3 rows"
+
+            return Agent(
+                FallbackModel(FunctionModel(member), FunctionModel(member)),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        def run_attempt() -> FallbackChainExhaustedError:
+            with journal_scope(DurableJournal(storage)):
+                with pytest.raises(FallbackChainExhaustedError) as caught:
+                    mixin.run_agent_sync(build(), "go")
+            return caught.value
+
+        first = run_attempt()
+        # The second request of the first attempt fails; one model step and one tool step were recorded.
+        assert (first.replayed_steps, first.recorded_steps) == (0, 2)
+
+        failing_after["responses"] = 2
+        second = run_attempt()
+        assert (second.replayed_steps, second.recorded_steps) == (2, 2)
+
+    def test_error_that_is_already_a_chain_error_is_not_wrapped_again(self):
+        agent = MagicMock(spec=["run_sync"])
+        original = FallbackChainExhaustedError("all failed", [RuntimeError("a")])
+        agent.run_sync.side_effect = original
+
+        with pytest.raises(FallbackChainExhaustedError) as caught:
+            CancellableAgentRunMixin().run_agent_sync(agent, "go")
+
+        assert caught.value is original
 
 
 class TestOnKill:

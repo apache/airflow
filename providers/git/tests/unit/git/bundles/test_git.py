@@ -1083,6 +1083,11 @@ class TestGitDagBundle:
         [
             ("git@github.com:apache/airflow.git", None, "https://github.com/apache/airflow/tree/0f0f0f"),
             ("git@github.com:apache/airflow", None, "https://github.com/apache/airflow/tree/0f0f0f"),
+            (
+                "git@github.com:apache/airflow.github.io.git",
+                None,
+                "https://github.com/apache/airflow.github.io/tree/0f0f0f",
+            ),
             ("https://github.com/apache/airflow", None, "https://github.com/apache/airflow/tree/0f0f0f"),
             ("https://github.com/apache/airflow.git", None, "https://github.com/apache/airflow/tree/0f0f0f"),
             ("git@gitlab.com:apache/airflow.git", None, "https://gitlab.com/apache/airflow/-/tree/0f0f0f"),

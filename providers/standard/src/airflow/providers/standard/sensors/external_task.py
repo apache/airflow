@@ -24,6 +24,9 @@ from collections.abc import Callable, Collection, Iterable, Sequence
 from typing import TYPE_CHECKING, ClassVar
 from urllib.parse import urljoin
 
+import pendulum
+from jinja2 import TemplateSyntaxError, nodes
+
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dag import DagModel
 from airflow.providers.common.compat.sdk import (
@@ -62,7 +65,13 @@ if AIRFLOW_V_3_2_PLUS:
 else:
     from airflow.models.dagbag import DagBag  # type: ignore[attr-defined, no-redef]
 
+try:
+    from airflow.sdk import ExternalClearTarget
+except ImportError:  # Airflow without cross-Dag clear targets
+    ExternalClearTarget = None  # type: ignore[assignment,misc]
+
 if TYPE_CHECKING:
+    import jinja2
     from sqlalchemy.orm import Session
 
     from airflow.providers.common.compat.sdk import Context, TaskInstanceKey
@@ -700,6 +709,26 @@ class ExternalTaskSensor(BaseSensorOperator):
         return kwargs_callable(logical_date, **kwargs)
 
 
+def _literal_text(env: jinja2.Environment, value: object) -> str | None:
+    """Return the text of a template field that holds no template syntax, otherwise ``None``."""
+    # Anything but a string (a callable, a ``literal()`` wrapper) is left to render on a worker.
+    if not isinstance(value, str):
+        return None
+    try:
+        body = env.parse(value).body
+    except TemplateSyntaxError:
+        return None
+    text = []
+    for node in body:
+        if not isinstance(node, nodes.Output):
+            return None
+        for part in node.nodes:
+            if not isinstance(part, nodes.TemplateData):
+                return None
+            text.append(part.data)
+    return "".join(text)
+
+
 class ExternalTaskMarker(EmptyOperator):
     """
     Use this operator to indicate that a task on a different DAG depends on this task.
@@ -711,6 +740,7 @@ class ExternalTaskMarker(EmptyOperator):
     :param external_dag_id: The dag_id that contains the dependent task that needs to be cleared.
     :param external_task_id: The task_id of the dependent task that needs to be cleared.
     :param logical_date: The logical date of the dependent task execution that needs to be cleared.
+        Defaults to the logical date of this task's own run; a run without one clears nothing.
     :param recursion_depth: The maximum level of transitive dependencies allowed. Default is 10.
         This is mostly used for preventing cyclic dependencies. It is fine to increase
         this number if necessary. However, too many levels of transitive dependencies will make
@@ -732,17 +762,21 @@ class ExternalTaskMarker(EmptyOperator):
         *,
         external_dag_id: str,
         external_task_id: str,
-        logical_date: str | datetime.datetime | None = "{{ logical_date.isoformat() }}",
+        logical_date: str | datetime.datetime | None = None,
         recursion_depth: int = 10,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
+        self.logical_date: str | None
         if isinstance(logical_date, datetime.datetime):
             self.logical_date = logical_date.isoformat()
         elif isinstance(logical_date, str):
             self.logical_date = logical_date
+        elif logical_date is None:
+            # Airflow 2's webserver renders this template when clearing; Airflow 3 reads the run's date.
+            self.logical_date = None if AIRFLOW_V_3_0_PLUS else "{{ logical_date.isoformat() }}"
         else:
             raise TypeError(
                 f"Expected str or datetime.datetime type for logical_date. Got {type(logical_date)}"
@@ -754,6 +788,60 @@ class ExternalTaskMarker(EmptyOperator):
         if recursion_depth <= 0:
             raise ValueError("recursion_depth should be a positive integer")
         self.recursion_depth = recursion_depth
+
+    @property
+    def inherits_from_empty_operator(self) -> bool:  # type: ignore[override]
+        # The marker only needs a worker when Airflow can follow a target and has to render it first.
+        return ExternalClearTarget is None or self.external_clear_target is not None
+
+    @property
+    def external_clear_target(self) -> ExternalClearTarget | None:
+        """The target when no field needs rendering, so Airflow stores it with the Dag version."""
+        if ExternalClearTarget is None:
+            return None
+        env = self.get_template_env()
+        dag_id = _literal_text(env, self.external_dag_id)
+        task_id = _literal_text(env, self.external_task_id)
+        if dag_id is None or task_id is None:
+            return None
+        logical_date: datetime.datetime | None = None
+        if self.logical_date is not None:
+            if (literal := _literal_text(env, self.logical_date)) is None:
+                return None
+            try:
+                parsed = pendulum.parse(literal)
+            except ValueError:
+                # Left to the worker, which fails the task with the bad value.
+                return None
+            if not isinstance(parsed, datetime.datetime):
+                return None
+            logical_date = parsed
+        return ExternalClearTarget(
+            dag_id=dag_id, task_id=task_id, logical_date=logical_date, recursion_depth=self.recursion_depth
+        )
+
+    def get_external_clear_target(self, context: Context) -> ExternalClearTarget | None:
+        rendered: object = self.logical_date
+        if rendered is None:
+            # The run's own logical date, filled in by the task runner.
+            return ExternalClearTarget(
+                dag_id=self.external_dag_id,
+                task_id=self.external_task_id,
+                recursion_depth=self.recursion_depth,
+            )
+        if isinstance(rendered, str):
+            try:
+                rendered = pendulum.parse(rendered)
+            except ValueError as e:
+                raise ValueError(f"logical_date must render to a date and time, got {rendered!r}") from e
+        if not isinstance(rendered, datetime.datetime):
+            raise ValueError(f"logical_date must render to a date and time, got {rendered!r}")
+        return ExternalClearTarget(
+            dag_id=self.external_dag_id,
+            task_id=self.external_task_id,
+            logical_date=rendered,
+            recursion_depth=self.recursion_depth,
+        )
 
     @classmethod
     def get_serialized_fields(cls):

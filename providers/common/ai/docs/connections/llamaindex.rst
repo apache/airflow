@@ -44,7 +44,7 @@ Embedding Model (Extra field)
     (via ``conn-fields``) and stores its value in ``extra["embed_model"]``.
 
 LLM Model (Extra field)
-    Default LlamaIndex LLM model name (e.g. ``gpt-5``). This field appears
+    Default LlamaIndex LLM model name (e.g. ``gpt-6.1-sol``). This field appears
     as a dedicated input in the connection form (via ``conn-fields``) and
     stores its value in ``extra["llm_model"]``.
 
@@ -93,7 +93,7 @@ Examples
     {
         "conn_type": "llamaindex",
         "password": "sk-...",
-        "extra": "{\"embed_model\": \"text-embedding-3-small\", \"llm_model\": \"gpt-5\"}"
+        "extra": "{\"embed_model\": \"text-embedding-3-small\", \"llm_model\": \"gpt-6.1-sol\"}"
     }
 
 **LLM only (embeddings unset)**
@@ -103,5 +103,5 @@ Examples
     {
         "conn_type": "llamaindex",
         "password": "sk-...",
-        "extra": "{\"llm_model\": \"gpt-5\"}"
+        "extra": "{\"llm_model\": \"gpt-6.1-sol\"}"
     }

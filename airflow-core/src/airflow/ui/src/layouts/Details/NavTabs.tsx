@@ -33,6 +33,7 @@ export type NavTab = {
   /** Additional route segments that should also mark this tab as active. */
   readonly matchPaths?: Array<string>;
   readonly search?: string;
+  readonly showIconWithLabel?: boolean;
   readonly value: string;
 };
 
@@ -44,6 +45,27 @@ const INDICATOR_HEIGHT = "2px";
 
 const trimTrailingSlash = (path: string) => path.replace(/\/$/u, "");
 
+const reserveBoldWidth = {
+  content: "attr(data-label)",
+  fontWeight: "bold",
+  height: 0,
+  overflow: "hidden",
+  visibility: "hidden",
+};
+
+const TabLabel = ({ label }: { readonly label: string }) => (
+  <Box
+    _after={reserveBoldWidth}
+    alignItems="center"
+    as="span"
+    data-label={label}
+    display="flex"
+    flexDirection="column"
+  >
+    {label}
+  </Box>
+);
+
 const TabContent = ({ active, children, ...rest }: { readonly active: boolean } & CenterProps) => (
   <Center
     _focus={{ color: active ? "fg" : "brand.solid" }}
@@ -53,6 +75,7 @@ const TabContent = ({ active, children, ...rest }: { readonly active: boolean } 
     color={active ? "fg" : "fg.muted"}
     fontSize="md"
     fontWeight={active ? "bold" : "medium"}
+    gap={2}
     height="40px"
     mb={`-${INDICATOR_HEIGHT}`}
     px={4}
@@ -89,7 +112,25 @@ export const NavTabs = ({ tabs }: Props) => {
     );
   });
   const showLabels = containerWidth > 600;
-  const getTabContent = ({ icon, label }: NavTab) => (showLabels || !Boolean(icon) ? label : icon);
+  const getTabContent = ({ icon, label, showIconWithLabel = false }: NavTab): ReactNode => {
+    if (!Boolean(icon)) {
+      return <TabLabel label={label} />;
+    }
+    if (!showLabels) {
+      return icon;
+    }
+
+    return showIconWithLabel ? (
+      <>
+        <Box aria-hidden as="span" display="flex" flexShrink={0}>
+          {icon}
+        </Box>
+        <TabLabel label={label} />
+      </>
+    ) : (
+      <TabLabel label={label} />
+    );
+  };
   const moreLabel = showLabels ? (
     <HStack as="span" gap={1}>
       {translate("moreTabs")}

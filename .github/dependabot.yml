@@ -137,6 +137,9 @@ updates:
       oxc:
         patterns:
           - "oxfmt"
+          - "oxlint*"
+      # `typescript` (the TypeScript 6 API) and `@typescript/native` (TypeScript 7, `tsc`) in the UI
+      # are `npm:` aliases, which Dependabot skips: bump them by hand, alongside `oxlint-tsgolint`.
       typescript:
         patterns:
           - "typescript*"

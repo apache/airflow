@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING
 
 from airflow.listeners import hookimpl
 from airflow.models.taskinstance import TaskInstance
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
-    from airflow.utils.state import TaskInstanceState
 
 
 # [START howto_listen_ti_running_task]
@@ -102,15 +102,23 @@ def on_task_instance_failed(
     error: None | str | BaseException,
 ):
     """
-    Called when task state changes to FAILED.
+    Called when a task instance attempt fails, including an attempt that will be retried.
 
     previous_task_state, task_instance object and error can be used to retrieve more information about current
     task_instance that has failed, its dag_run, task and dag information.
+
+    ``task_instance.state`` is ``UP_FOR_RETRY`` when the attempt will be retried and ``FAILED`` when it
+    will not.
 
     A RuntimeTaskInstance is provided in most cases, except when the task's state change is triggered
     through the API. In that case, the TaskInstance available on the API server will be provided instead.
     """
     print("Task instance in failure state")
+
+    if task_instance.state == TaskInstanceState.UP_FOR_RETRY:
+        print("This attempt failed and the task instance will be retried.")
+    else:
+        print("The task instance failed and will not be retried.")
 
     if isinstance(task_instance, TaskInstance):
         print("Task instance's state was changed through the API.")

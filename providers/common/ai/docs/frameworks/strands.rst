@@ -203,7 +203,7 @@ model failed in its second cycle; ``cycle`` counts from 0:
 answer, or an interrupt or a cancellation, which it does not resume. It deletes the
 saved state then, so clearing the task later starts the agent over. If that delete
 fails, the task still succeeds and logs ``Could not delete the Strands agent's saved
-state``, and a later clear of the whole Dag run resumes from the last pause.
+state``, and a later clear that keeps task state resumes from the last pause.
 
 A retry runs some work again:
 
@@ -221,8 +221,9 @@ A retry runs some work again:
   or keep sandbox work out of a durable agent.
 
 A retry resumes the saved conversation with the system prompt it was saved with.
-So does clearing the whole Dag run, which keeps task state. To run a changed system
-prompt on a failed task, clear the task itself without keeping its task state.
+So does a clear that keeps task state. To run a changed system prompt on a failed
+task, clear it without keeping its task state (see :ref:`durable-clear` for when a
+clear keeps it).
 
 An agent whose model keeps the conversation server-side (``model.stateful``) raises
 ``ValueError``: Strands' `session manager
@@ -306,5 +307,5 @@ integration is tested with. Without a bound, a resolver that cannot satisfy Stra
 dependencies may pick the ``0.0.1`` placeholder release instead of reporting a
 conflict. For ``AnthropicModel``, install ``anthropic`` through this provider's
 ``anthropic`` extra rather than through Strands' own ``anthropic`` extra, which
-requires an ``anthropic`` release older than 1.0. Strands also pins ``mcp`` below 2.2, so
-installing it downgrades a newer ``mcp``, which ``MCPToolset`` uses.
+requires an ``anthropic`` release older than 1.0. Strands Agents releases up to 1.62 pin
+``mcp`` below 2.2, so installing one of them downgrades a newer ``mcp``, which ``MCPToolset`` uses.

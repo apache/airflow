@@ -195,3 +195,42 @@ class TestBatchInferenceScheduledWaiter(TestBedrockCustomWaitersBase):
         BedrockHook().get_waiter(self.WAITER_NAME).wait(
             jobIdentifier="job_arn", WaiterConfig={"Delay": 0.01, "MaxAttempts": 1}
         )
+
+
+class TestGuardrailReadyWaiter(TestBedrockCustomWaitersBase):
+    WAITER_NAME = "guardrail_ready"
+
+    @pytest.fixture
+    def mock_get_guardrail(self):
+        with mock.patch.object(self.client, "get_guardrail", autospec=True) as mock_getter:
+            yield mock_getter
+
+    def test_guardrail_ready(self, mock_get_guardrail):
+        mock_get_guardrail.return_value = {"status": "READY"}
+
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(
+            guardrailIdentifier="guardrail_id", guardrailVersion="DRAFT"
+        )
+
+    @pytest.mark.parametrize("state", ["FAILED", "DELETING"])
+    def test_guardrail_failed(self, state, mock_get_guardrail):
+        mock_get_guardrail.return_value = {"status": state}
+
+        with pytest.raises(botocore.exceptions.WaiterError):
+            BedrockHook().get_waiter(self.WAITER_NAME).wait(
+                guardrailIdentifier="guardrail_id", guardrailVersion="DRAFT"
+            )
+
+    @pytest.mark.parametrize("state", ["CREATING", "UPDATING", "VERSIONING"])
+    def test_guardrail_wait(self, state, mock_get_guardrail):
+        wait = {"status": state}
+        success = {"status": "READY"}
+        mock_get_guardrail.side_effect = [wait, wait, success]
+
+        BedrockHook().get_waiter(self.WAITER_NAME).wait(
+            guardrailIdentifier="guardrail_id",
+            guardrailVersion="DRAFT",
+            WaiterConfig={"Delay": 0.01, "MaxAttempts": 3},
+        )
+
+        assert mock_get_guardrail.call_count == 3
