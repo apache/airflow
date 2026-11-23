@@ -81,16 +81,13 @@ affinity = k8s.V1Affinity(
     ),
     pod_affinity=k8s.V1PodAffinity(
         required_during_scheduling_ignored_during_execution=[
-            k8s.V1WeightedPodAffinityTerm(
-                weight=1,
-                pod_affinity_term=k8s.V1PodAffinityTerm(
-                    label_selector=k8s.V1LabelSelector(
-                        match_expressions=[
-                            k8s.V1LabelSelectorRequirement(key="security", operator="In", values="S1")
-                        ]
-                    ),
-                    topology_key="failure-domain.beta.kubernetes.io/zone",
+            k8s.V1PodAffinityTerm(
+                label_selector=k8s.V1LabelSelector(
+                    match_expressions=[
+                        k8s.V1LabelSelectorRequirement(key="security", operator="In", values=["S1"])
+                    ]
                 ),
+                topology_key="failure-domain.beta.kubernetes.io/zone",
             )
         ]
     ),
@@ -134,7 +131,7 @@ with DAG(
     quay_k8s = KubernetesPodOperator(
         namespace="default",
         image="quay.io/apache/bash",
-        image_pull_secrets=[k8s.V1LocalObjectReference("testquay")],
+        image_pull_secrets=[k8s.V1LocalObjectReference(name="testquay")],
         cmds=["bash", "-cx"],
         arguments=["echo", "10", "echo pwd"],
         labels={"foo": "bar"},
