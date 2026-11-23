@@ -24,7 +24,7 @@ import tempfile
 from collections.abc import AsyncGenerator
 from functools import cached_property
 from time import sleep
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import aiofiles
 import requests
@@ -54,7 +54,8 @@ if TYPE_CHECKING:
 
     from aiohttp import ClientResponse
     from kubernetes.client import V1JobList
-    from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
+    from kubernetes.client.models import V1Job, V1Pod
+    from pydantic import BaseModel
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -100,10 +101,10 @@ class PodOperatorHookProtocol(Protocol):
     def get_xcom_sidecar_container_image(self) -> str | None:
         """Return the xcom sidecar image that defined in the connection."""
 
-    def get_xcom_sidecar_container_resources(self) -> str | None:
+    def get_xcom_sidecar_container_resources(self) -> dict | None:
         """Return the xcom sidecar resources that defined in the connection."""
 
-    def get_xcom_sidecar_container_security_context(self) -> str | None:
+    def get_xcom_sidecar_container_security_context(self) -> dict | None:
         """Return the xcom sidecar security context that defined in the connection."""
 
 
@@ -586,7 +587,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Deployment namespace
         """
         return self.apps_v1_client.read_namespaced_deployment_status(
-            name=name, namespace=namespace, pretty=True, **kwargs
+            name=name, namespace=namespace, pretty="true", **kwargs
         )
 
     @generic_api_retry
@@ -604,9 +605,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         json_job = json.dumps(sanitized_job, indent=2)
 
         self.log.debug("Job Creation Request: \n%s", json_job)
+        metadata = cast("client.V1ObjectMeta", job.metadata)
         try:
             resp = self.batch_v1_client.create_namespaced_job(
-                body=sanitized_job, namespace=job.metadata.namespace, **kwargs
+                body=sanitized_job, namespace=cast("str", metadata.namespace), **kwargs
             )
             self.log.debug("Job Creation Response: %s", resp)
         except Exception as e:
@@ -625,7 +627,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty="true")
 
     @generic_api_retry
     def get_job_status(self, job_name: str, namespace: str) -> V1Job:
@@ -639,7 +641,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty="true")
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
         """
@@ -665,7 +667,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         :return: V1JobList object
         """
-        return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
+        return self.batch_v1_client.list_job_for_all_namespaces(pretty="true")
 
     @generic_api_retry
     def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
@@ -675,9 +677,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: V1JobList object
         """
-        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True)
+        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty="true")
 
-    def is_job_complete(self, job: V1Job) -> bool:
+    def is_job_complete(self, job: V1Job | async_client.V1Job) -> bool:
         """
         Check whether the given job is complete (with success or fail).
 
@@ -691,7 +693,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                     s = "s" if len(final_condition_types) > 1 else ""
                     self.log.info(
                         "The job '%s' state%s: %s",
-                        job.metadata.name,
+                        job.metadata.name if job.metadata else None,
                         s,
                         ", ".join(f"{c.type} at {c.last_transition_time}" for c in final_condition_types),
                     )
@@ -699,7 +701,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return False
 
     @staticmethod
-    def is_job_failed(job: V1Job) -> str | bool:
+    def is_job_failed(job: V1Job | async_client.V1Job) -> str | bool | None:
         """
         Check whether the given job is failed.
 
@@ -712,7 +714,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return False
 
     @staticmethod
-    def is_job_successful(job: V1Job) -> str | bool:
+    def is_job_successful(job: V1Job | async_client.V1Job) -> str | bool:
         """
         Check whether the given job is completed successfully..
 
@@ -724,7 +726,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return False
 
     @generic_api_retry
-    def patch_namespaced_job(self, job_name: str, namespace: str, body: object) -> V1Job:
+    def patch_namespaced_job(
+        self, job_name: str, namespace: str, body: dict[str, Any] | list[dict[str, Any]] | BaseModel
+    ) -> V1Job:
         """
         Update the specified Job.
 
@@ -852,7 +856,7 @@ class AsyncKubernetesHook(KubernetesHook):
         self._event_polling_fallback = False
         self._client_cacheable = False
         # Override the parent's sync-typed client_configuration with the async type.
-        self.client_configuration: async_client.Configuration | None = client_configuration
+        self.client_configuration: async_client.Configuration | None = client_configuration  # type: ignore[assignment]
         # Cached result of exec-auth detection. None means not yet detected.
         # This is to optimise and not calling _uses_exec_auth repeatedly on every _load_config() call.
         self._is_exec_auth: bool | None = None
@@ -1070,7 +1074,7 @@ class AsyncKubernetesHook(KubernetesHook):
         return extras.get(prefixed_name)
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
+    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:  # type: ignore[override]
         await self._load_config()
         if self._client_cacheable:
             # Reuse one client per hook: each construction runs ssl.create_default_context()
@@ -1094,7 +1098,7 @@ class AsyncKubernetesHook(KubernetesHook):
             await cached.close()
 
     @generic_api_retry
-    async def get_pod(self, name: str, namespace: str) -> V1Pod:
+    async def get_pod(self, name: str, namespace: str) -> async_client.V1Pod:
         """
         Get pod's object.
 
@@ -1104,7 +1108,7 @@ class AsyncKubernetesHook(KubernetesHook):
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
-                pod: V1Pod = await v1_api.read_namespaced_pod(
+                pod: async_client.V1Pod = await v1_api.read_namespaced_pod(
                     name=name,
                     namespace=namespace,
                 )
@@ -1131,7 +1135,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 await v1_api.delete_namespaced_pod(
                     name=name,
                     namespace=namespace,
-                    body=client.V1DeleteOptions(grace_period_seconds=grace_period_seconds),
+                    body=async_client.V1DeleteOptions(grace_period_seconds=grace_period_seconds),
                 )
             except async_client.ApiException as e:
                 # If the pod is already deleted
@@ -1187,7 +1191,7 @@ class AsyncKubernetesHook(KubernetesHook):
     @generic_api_retry
     async def get_pod_events(
         self, name: str, namespace: str, resource_version: str | None = None
-    ) -> CoreV1EventList:
+    ) -> async_client.CoreV1EventList:
         """
         Get pod events.
 
@@ -1206,7 +1210,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     kwargs["resource_version"] = resource_version
                     kwargs["resource_version_match"] = "NotOlderThan"
 
-                events: CoreV1EventList = await v1_api.list_namespaced_event(**kwargs)
+                events: async_client.CoreV1EventList = await v1_api.list_namespaced_event(**kwargs)
                 return events
             except async_client.ApiException as e:
                 if e.status == 403:
@@ -1220,7 +1224,7 @@ class AsyncKubernetesHook(KubernetesHook):
         namespace: str,
         resource_version: str | None = None,
         timeout_seconds: int = 30,
-    ) -> AsyncGenerator[CoreV1Event]:
+    ) -> AsyncGenerator[async_client.CoreV1Event]:
         """
         Watch Kubernetes events for a pod.
 
@@ -1324,7 +1328,7 @@ class AsyncKubernetesHook(KubernetesHook):
         namespace: str,
         resource_version: str | None = None,
         interval: int = 30,
-    ) -> AsyncGenerator[CoreV1Event]:
+    ) -> AsyncGenerator[async_client.CoreV1Event]:
         """
         Fallback method to poll pod event at regular intervals.
 
@@ -1335,13 +1339,13 @@ class AsyncKubernetesHook(KubernetesHook):
         :param resource_version: Only return events not older than this resource version
         :param interval: Polling interval in seconds
         """
-        events: CoreV1EventList = await self.get_pod_events(name, namespace, resource_version)
+        events: async_client.CoreV1EventList = await self.get_pod_events(name, namespace, resource_version)
         for event in events.items:
             yield event
         await asyncio.sleep(interval)
 
     @generic_api_retry
-    async def get_job_status(self, name: str, namespace: str) -> V1Job:
+    async def get_job_status(self, name: str, namespace: str) -> async_client.V1Job:
         """
         Get job's status object.
 
@@ -1352,13 +1356,15 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         async with self.get_conn() as connection:
             v1_api = async_client.BatchV1Api(connection)
-            job: V1Job = await v1_api.read_namespaced_job(
+            job: async_client.V1Job = await v1_api.read_namespaced_job(
                 name=name,
                 namespace=namespace,
             )
         return job
 
-    async def wait_until_job_complete(self, name: str, namespace: str, poll_interval: float = 10) -> V1Job:
+    async def wait_until_job_complete(  # type: ignore[override]
+        self, name: str, namespace: str, poll_interval: float = 10
+    ) -> async_client.V1Job:
         """
         Block job of specified name and namespace until it is complete or failed.
 
@@ -1369,7 +1375,7 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         while True:
             self.log.info("Requesting status for the job '%s' ", name)
-            job: V1Job = await self.get_job_status(name=name, namespace=namespace)
+            job: async_client.V1Job = await self.get_job_status(name=name, namespace=namespace)
             if self.is_job_complete(job=job):
                 return job
             self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", name, poll_interval)
