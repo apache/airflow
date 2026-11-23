@@ -106,6 +106,7 @@ from airflow.sdk.execution_time.comms import (
     VariableKeysResult,
     VariableResult,
     XComResult,
+    XComSequenceSliceResult,
     _new_encoder,
     _RequestFrame,
 )
@@ -485,6 +486,7 @@ ToTriggerRunner = Annotated[
     | VariableResult
     | VariableKeysResult
     | XComResult
+    | XComSequenceSliceResult
     | DagRunStateResult
     | DRCount
     | TICount

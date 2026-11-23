@@ -122,6 +122,7 @@ from airflow.sdk.execution_time.comms import (
     SetAssetStateStoreByUri,
     ToSupervisor,
     ToTask,
+    XComSequenceSliceResult,
     _new_encoder,
     _RequestFrame,
     _ResponseFrame,
@@ -4912,7 +4913,6 @@ class TestTriggererMessageTypes:
             "PrevSuccessfulDagRunResult",
             "XComCountResponse",
             "XComSequenceIndexResult",
-            "XComSequenceSliceResult",
             "PreviousDagRunResult",
             "PreviousTIResult",
             "HITLDetailRequestResult",
@@ -4939,6 +4939,12 @@ class TestTriggererMessageTypes:
             + "\n".join(f"  - {t}" for t in sorted(task_diff))
             + "\n\nEither handle these types in ToTriggerRunner or update in_task_but_not_in_trigger_runner list."
         )
+
+    def test_trigger_runner_decodes_a_mapped_xcom_read(self):
+        """GetXCom on a mapped task is answered with a slice result, which a trigger must decode."""
+        wire = _new_encoder().encode(XComSequenceSliceResult(root=[1, 2]).model_dump())
+        decoded = TypeAdapter(ToTriggerRunner).validate_python(msgspec.msgpack.decode(wire))
+        assert decoded == XComSequenceSliceResult(root=[1, 2])
 
 
 def _make_ti_dto(task_id="my_task", map_index=-1, context_carrier=None):

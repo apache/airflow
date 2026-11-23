@@ -403,6 +403,10 @@ else:
             partial_kwargs["start_date"] = timezone.convert_to_utc(start_date)
         if end_date := partial_kwargs.get("end_date", None):
             partial_kwargs["end_date"] = timezone.convert_to_utc(end_date)
+        # The scheduler reads a mapped task's pool only from partial_kwargs, and the key being
+        # present is what makes expand(pool=...) fail as "unmappable".
+        if partial_kwargs.get("pool") is None:
+            partial_kwargs["pool"] = DEFAULT_POOL_NAME
         if partial_kwargs["pool_slots"] < 1:
             dag_str = ""
             if dag:

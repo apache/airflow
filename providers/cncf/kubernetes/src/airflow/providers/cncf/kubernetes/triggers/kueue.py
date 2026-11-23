@@ -23,7 +23,7 @@ import json
 from collections.abc import AsyncIterator, Iterable
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from kubernetes.client.rest import ApiException
 
@@ -40,6 +40,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from kubernetes.client import CoreV1Api, models as k8s
+    from kubernetes_asyncio.client import models as async_k8s
 
 
 class KueueJobState(str, Enum):
@@ -57,7 +58,7 @@ JOB_STATE_MESSAGES = {
 }
 
 
-def get_job_state(job: k8s.V1Job) -> KueueJobState:
+def get_job_state(job: k8s.V1Job | async_k8s.V1Job) -> KueueJobState:
     """Return the state of a Job run through Kueue; finished means Complete or Failed."""
     conditions = (job.status.conditions if job.status else None) or []
     if any(c.type in JOB_FINAL_STATUS_CONDITION_TYPES and c.status == "True" for c in conditions):
@@ -68,14 +69,15 @@ def get_job_state(job: k8s.V1Job) -> KueueJobState:
     return KueueJobState.RUNNING
 
 
-def build_pod_label_selector(job: k8s.V1Job) -> str:
+def build_pod_label_selector(job: k8s.V1Job | async_k8s.V1Job) -> str:
     """
     Return the label selector of the pods of the Job, built from its ``spec.selector``.
 
     Kubernetes adds the ``batch.kubernetes.io/job-name`` label to the pods only without ``manualSelector``,
     while ``spec.selector`` matches them in both modes.
     """
-    selector = job.spec.selector
+    spec = cast("k8s.V1JobSpec | async_k8s.V1JobSpec", job.spec)
+    selector = cast("k8s.V1LabelSelector | async_k8s.V1LabelSelector", spec.selector)
     requirements = [f"{key}={value}" for key, value in sorted((selector.match_labels or {}).items())]
     for expression in selector.match_expressions or []:
         values = ",".join(expression.values or [])
@@ -90,7 +92,7 @@ def build_pod_label_selector(job: k8s.V1Job) -> str:
     return ",".join(requirements)
 
 
-def build_job_event(job: k8s.V1Job, xcom_results: dict[str, str]) -> dict[str, Any]:
+def build_job_event(job: k8s.V1Job | async_k8s.V1Job, xcom_results: dict[str, str]) -> dict[str, Any]:
     """
     Build the event of a finished Job, as passed to ``KubernetesStartKueueJobOperator.execute_complete``.
 
@@ -98,9 +100,10 @@ def build_job_event(job: k8s.V1Job, xcom_results: dict[str, str]) -> dict[str, A
     :param xcom_results: the raw XComs read from the pods, by pod name.
     """
     error_message = KubernetesHook.is_job_failed(job=job)
+    metadata = cast("k8s.V1ObjectMeta | async_k8s.V1ObjectMeta", job.metadata)
     return {
-        "name": job.metadata.name,
-        "namespace": job.metadata.namespace,
+        "name": metadata.name,
+        "namespace": metadata.namespace,
         "status": "error" if error_message else "success",
         "message": f"Job failed with error: {error_message}"
         if error_message
@@ -116,7 +119,11 @@ def get_succeeded_pod_xcoms(pods: Iterable[k8s.V1Pod], xcom_results: dict[str, s
     return [
         xcom_results[pod.metadata.name]
         for pod in pods
-        if pod.metadata.name in xcom_results and pod.status and pod.status.phase == "Succeeded"
+        if pod.metadata
+        and pod.metadata.name is not None
+        and pod.metadata.name in xcom_results
+        and pod.status
+        and pod.status.phase == "Succeeded"
     ]
 
 
@@ -129,14 +136,19 @@ def list_job_pods(client: CoreV1Api, namespace: str, label_selector: str, job_ui
     in another Dag run; the Job controller tells them apart by owner too.
     """
     pods = client.list_namespaced_pod(namespace=namespace, label_selector=label_selector).items
-    return [pod for pod in pods if any(owner.uid == job_uid for owner in pod.metadata.owner_references or [])]
+    return [
+        pod
+        for pod in pods
+        if pod.metadata and any(owner.uid == job_uid for owner in pod.metadata.owner_references or [])
+    ]
 
 
 @generic_api_retry
 def is_pod_deleted(client: CoreV1Api, pod: k8s.V1Pod) -> bool:
     """Return whether the pod no longer exists."""
+    metadata = cast("k8s.V1ObjectMeta", pod.metadata)
     try:
-        client.read_namespaced_pod(name=pod.metadata.name, namespace=pod.metadata.namespace)
+        client.read_namespaced_pod(name=cast("str", metadata.name), namespace=cast("str", metadata.namespace))
     except ApiException as e:
         if e.status == 404:
             return True
@@ -147,7 +159,7 @@ def is_pod_deleted(client: CoreV1Api, pod: k8s.V1Pod) -> bool:
 def collect_xcom_results(
     client: CoreV1Api,
     pod_manager: PodManager,
-    job: k8s.V1Job,
+    job: k8s.V1Job | async_k8s.V1Job,
     base_container_name: str,
     xcom_results: dict[str, str],
 ) -> None:
@@ -157,7 +169,10 @@ def collect_xcom_results(
     Reading the XCom also stops the XCom sidecar: until then the pod, and so the Job, cannot finish.
     Pods already read are skipped, so this is called at each poll.
     """
-    for pod in list_job_pods(client, job.metadata.namespace, build_pod_label_selector(job), job.metadata.uid):
+    metadata = cast("k8s.V1ObjectMeta | async_k8s.V1ObjectMeta", job.metadata)
+    for pod in list_job_pods(
+        client, cast("str", metadata.namespace), build_pod_label_selector(job), cast("str", metadata.uid)
+    ):
         if (
             pod.metadata.name in xcom_results
             or not container_is_terminated(pod, base_container_name)
@@ -259,7 +274,7 @@ class KubernetesKueueJobTrigger(BaseTrigger):
                 await asyncio.to_thread(self._collect_xcom_results, job, xcom_results)
             await asyncio.sleep(self.poll_interval)
 
-    def _collect_xcom_results(self, job: k8s.V1Job, xcom_results: dict[str, str]) -> None:
+    def _collect_xcom_results(self, job: async_k8s.V1Job, xcom_results: dict[str, str]) -> None:
         # Run in a thread: the sync client loads its connection and kube config on first use
         collect_xcom_results(
             self.sync_hook.core_v1_client, self.pod_manager, job, self.base_container_name, xcom_results
