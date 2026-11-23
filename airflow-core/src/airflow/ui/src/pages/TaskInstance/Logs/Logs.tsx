@@ -158,9 +158,10 @@ export const Logs = () => {
   }, debounceDelay);
 
   // Back/Forward can change the url without remounting; adopt it unless a typed edit is still pending.
+  // The debounced write of the box's own query also lands here, and must not reset the selected match.
   if (urlSearchQuery !== lastUrlSearchQuery) {
     setLastUrlSearchQuery(urlSearchQuery);
-    if (!syncSearchParam.isPending()) {
+    if (!syncSearchParam.isPending() && urlSearchQuery !== searchQuery) {
       setSearchQuery(urlSearchQuery);
       setActiveSearchIndex(0);
     }
