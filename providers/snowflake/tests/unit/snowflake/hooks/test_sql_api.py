@@ -268,6 +268,146 @@ def create_async_request_client_response_success(json=GET_RESPONSE, status_code=
     return response
 
 
+THREE_STMTS = "select 1; select 2; select 3;"
+THREE_QUERY_IDS = ["q1", "q2", "q3"]
+
+
+class TestFormatStatementError:
+    def test_full_format(self):
+        msg = SnowflakeSqlApiHook.format_statement_error(
+            "boom", query_id="q2", sql=THREE_STMTS, query_ids=THREE_QUERY_IDS
+        )
+        assert msg == "Snowflake statement q2 (statement 2 of 3) failed: boom\nSQL: select 2;"
+
+    def test_keeps_snowflake_message_verbatim(self):
+        # _process_response already folds code / sqlState / handle into the message for HTTP 422.
+        message = "SQL compilation error (Code: 001003, SQL State: 42000, Statement Handle: q1)"
+        msg = SnowflakeSqlApiHook.format_statement_error(message, query_id="q1", sql="select 1")
+        assert message in msg
+
+    @pytest.mark.parametrize(
+        ("sql", "statement_count", "failed_index", "expected_statement"),
+        [
+            pytest.param(THREE_STMTS, 3, 1, "select 2;", id="trailing-semicolon"),
+            pytest.param("select ';'; select 2", 2, 0, "select ';';", id="semicolon-in-literal"),
+            pytest.param(
+                "select 'it''s; fine'; select 2;", 2, 0, "select 'it''s; fine';", id="escaped-quote"
+            ),
+            pytest.param('select "a;b" from t; select 2;', 2, 1, "select 2;", id="semicolon-in-identifier"),
+            pytest.param(
+                "select 1; -- done; really\nselect 2;",
+                2,
+                0,
+                "select 1; -- done; really",
+                id="comment-kept-as-written",
+            ),
+            pytest.param(
+                "/* lead; comment */ select 1; select 2;",
+                2,
+                0,
+                "/* lead; comment */ select 1;",
+                id="block-comment-kept-as-written",
+            ),
+            pytest.param(
+                "create procedure p() returns int language sql as $$ begin return 1; end; $$; call p();",
+                2,
+                1,
+                "call p();",
+                id="dollar-quoted-body",
+            ),
+            pytest.param(
+                "execute immediate $$ begin return 1; end; $$; select 2;",
+                2,
+                0,
+                "execute immediate $$ begin return 1; end; $$;",
+                id="dollar-quoted-scripting-block",
+            ),
+        ],
+    )
+    def test_points_at_failed_statement(self, sql, statement_count, failed_index, expected_statement):
+        query_ids = [f"q{i}" for i in range(statement_count)]
+        msg = SnowflakeSqlApiHook.format_statement_error(
+            "boom", query_id=query_ids[failed_index], sql=sql, query_ids=query_ids
+        )
+        assert f"(statement {failed_index + 1} of {len(query_ids)})" in msg
+        assert msg.endswith(f"\nSQL: {expected_statement}")
+
+    @pytest.mark.parametrize(
+        ("sql", "query_id", "query_ids"),
+        [
+            pytest.param(THREE_STMTS, "q2", ["q1", "q2"], id="more-statements-than-handles"),
+            pytest.param(THREE_STMTS, "q9", THREE_QUERY_IDS, id="query-id-not-in-handles"),
+            # The connector splits an empty statement out of ``;;``.
+            pytest.param("select 1;; select 2;", "q2", ["q1", "q2"], id="empty-statement"),
+            # Not wrapped in $$, a scripting block is split at every inner ``;`` by the connector.
+            pytest.param(
+                "begin let x := 1; return x; end; select 2;", "q1", ["q1", "q2"], id="bare-scripting-block"
+            ),
+        ],
+    )
+    def test_falls_back_to_whole_sql_when_statements_do_not_line_up(self, sql, query_id, query_ids):
+        msg = SnowflakeSqlApiHook.format_statement_error(
+            "boom", query_id=query_id, sql=sql, query_ids=query_ids
+        )
+        assert "(statement" not in msg
+        assert msg.endswith(f"\nSQL: {sql}")
+
+    @pytest.mark.parametrize("query_ids", [None, ["q1"]])
+    def test_single_statement_is_not_split_or_numbered(self, query_ids):
+        sql = "select 1; -- trailing note"
+        msg = SnowflakeSqlApiHook.format_statement_error("boom", query_id="q1", sql=sql, query_ids=query_ids)
+        assert "(statement" not in msg
+        assert msg.endswith(f"\nSQL: {sql}")
+
+    def test_falls_back_to_whole_sql_when_split_fails(self):
+        with mock.patch("snowflake.connector.util_text.split_statements", side_effect=ValueError("bad sql")):
+            msg = SnowflakeSqlApiHook.format_statement_error(
+                "boom", query_id="q2", sql=THREE_STMTS, query_ids=THREE_QUERY_IDS
+            )
+        assert msg == f"Snowflake statement q2 failed: boom\nSQL: {THREE_STMTS}"
+
+    @pytest.mark.parametrize("sql", [None, "", "   "])
+    def test_omits_sql_line_without_sql(self, sql):
+        msg = SnowflakeSqlApiHook.format_statement_error("boom", query_id="q1", sql=sql)
+        assert msg == "Snowflake statement q1 failed: boom"
+
+    def test_without_query_id(self):
+        msg = SnowflakeSqlApiHook.format_statement_error("boom", sql="select 1")
+        assert msg == "Snowflake statement failed: boom\nSQL: select 1"
+
+    @pytest.mark.parametrize("message", [None, ""])
+    def test_missing_message(self, message):
+        msg = SnowflakeSqlApiHook.format_statement_error(message, query_id="q1")
+        assert msg == "Snowflake statement q1 failed: no error message was returned"
+        assert "None" not in msg
+
+    def test_sql_at_limit_is_not_truncated(self):
+        sql = "x" * SnowflakeSqlApiHook.ERROR_SQL_MAX_LENGTH
+        msg = SnowflakeSqlApiHook.format_statement_error("boom", query_id="q1", sql=sql)
+        assert msg.endswith(f"\nSQL: {sql}")
+
+    def test_long_sql_is_truncated(self):
+        limit = SnowflakeSqlApiHook.ERROR_SQL_MAX_LENGTH
+        sql = "select '" + "x" * (limit * 2) + "'"
+        msg = SnowflakeSqlApiHook.format_statement_error("boom", query_id="q1", sql=sql)
+        assert msg.endswith(f"\nSQL: {sql[:limit]}... [truncated, {len(sql)} chars total]")
+
+    def test_truncates_the_failed_statement_not_the_whole_sql(self):
+        limit = SnowflakeSqlApiHook.ERROR_SQL_MAX_LENGTH
+        long_statement = "select '" + "x" * (limit * 2) + "'"
+        sql = f"select 1; {long_statement}; select 3;"
+        msg = SnowflakeSqlApiHook.format_statement_error(
+            "boom", query_id="q2", sql=sql, query_ids=THREE_QUERY_IDS
+        )
+        failed_statement = f"{long_statement};"
+        assert "(statement 2 of 3)" in msg
+        assert msg.endswith(
+            f"\nSQL: {failed_statement[:limit]}... [truncated, {len(failed_statement)} chars total]"
+        )
+        assert "select 1" not in msg
+        assert "select 3" not in msg
+
+
 class TestSnowflakeSqlApiHook:
     @pytest.mark.parametrize(
         ("sql", "statement_count", "expected_response", "expected_query_ids"),
@@ -402,6 +542,60 @@ class TestSnowflakeSqlApiHook:
 
         with pytest.raises(RuntimeError):
             hook.execute_query(sql, statement_count)
+
+    @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
+    @mock.patch(f"{HOOK_PATH}._get_conn_params")
+    @mock.patch(f"{HOOK_PATH}.get_headers")
+    def test_execute_query_without_statement_handle_keeps_snowflake_error(
+        self, mock_get_header, mock_conn_param, mock_make_api_call
+    ):
+        """A submit response without a handle must not drop the error Snowflake sent back."""
+        mock_conn_param.return_value = CONN_PARAMS
+        mock_make_api_call.return_value = (
+            422,
+            {"message": "SQL compilation error: syntax error", "code": "001003", "sqlState": "42000"},
+        )
+        hook = SnowflakeSqlApiHook("mock_conn_id")
+
+        with pytest.raises(RuntimeError) as excinfo:
+            hook.execute_query(SINGLE_STMT, 1)
+
+        error = str(excinfo.value)
+        assert "No statementHandle/statementHandles present in response" in error
+        assert "SQL compilation error: syntax error" in error
+        assert "001003" in error
+        assert "42000" in error
+
+    @pytest.mark.parametrize(
+        ("status_code", "response", "expected"),
+        [
+            pytest.param(
+                200,
+                {"statementHandle": "uuid"},
+                {"status": "success", "message": "", "statement_handles": ["uuid"]},
+                id="success-without-message",
+            ),
+            pytest.param(
+                204,
+                {},
+                {"status": "error", "message": "Unknown error occurred"},
+                id="unexpected-status-without-message",
+            ),
+            pytest.param(
+                204,
+                {"message": "odd", "code": "000001", "sqlState": "01000", "statementHandle": "uuid"},
+                {
+                    "status": "error",
+                    "message": "odd (Code: 000001, SQL State: 01000, Statement Handle: uuid)",
+                },
+                id="unexpected-status-keeps-code-and-sql-state",
+            ),
+        ],
+    )
+    def test_process_response_tolerates_missing_fields(self, status_code, response, expected):
+        """Every branch reads Snowflake's fields defensively and keeps code / sqlState on errors."""
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        assert hook._process_response(status_code, response) == expected
 
     @pytest.mark.parametrize(
         ("sql", "statement_count", "bindings"),
@@ -1338,7 +1532,7 @@ class TestSnowflakeSqlApiHook:
 
         with pytest.raises(RuntimeError) as excinfo:
             hook.wait_for_query("qid-789", raise_error=True)
-        assert str(excinfo.value) == "oh no!"
+        assert str(excinfo.value) == "Snowflake statement qid-789 failed: oh no!"
         sleep_mock.assert_not_called()
 
     @mock.patch(f"{MODULE_PATH}.time.sleep")
@@ -1465,12 +1659,31 @@ class TestSnowflakeSqlApiHook:
 
         with pytest.raises(
             RuntimeError, match="Query must have status `success` to retrieve data; got `failed`."
-        ):
+        ) as excinfo:
             hook.get_result_from_successful_sql_api_query(query_id="qid-3")
+        assert "qid-3" in str(excinfo.value)
 
         mock_get_url.assert_called_once_with("qid-3")
         mock_api_call.assert_called_once_with("GET", "url", "header", "params")
         mock_process_response.assert_called_once_with(400, {"some": "response"})
+
+    @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
+    @mock.patch(f"{HOOK_PATH}.get_request_url_header_params")
+    def test_get_result_from_failed_query_keeps_snowflake_error(self, mock_get_url, mock_api_call):
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
+        mock_get_url.return_value = ("header", "params", "url")
+        mock_api_call.return_value = (
+            422,
+            {"message": "SQL compilation error", "code": "001003", "sqlState": "42000"},
+        )
+
+        with pytest.raises(RuntimeError) as excinfo:
+            hook.get_result_from_successful_sql_api_query(query_id="qid-4")
+
+        assert str(excinfo.value) == (
+            "Query must have status `success` to retrieve data; got `error`. Query id: qid-4. "
+            "Snowflake: SQL compilation error (Code: 001003, SQL State: 42000)"
+        )
 
     @mock.patch(f"{HOOK_PATH}._make_api_call_with_retries")
     @mock.patch(f"{HOOK_PATH}._process_response")

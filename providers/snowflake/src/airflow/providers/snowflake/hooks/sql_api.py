@@ -21,7 +21,8 @@ import time
 import uuid
 import warnings
 from datetime import timedelta
-from typing import Any
+from io import StringIO
+from typing import Any, cast
 
 import aiohttp
 import requests
@@ -104,6 +105,63 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     HTTP_REQUEST_KWARGS_GUARD_KEYS: set[str] = {"method", "url", "headers", "params", "json"}
     AIOHTTP_SESSION_KWARGS_GUARD_KEYS: set[str] = {"headers"}
     AIOHTTP_REQUEST_KWARGS_GUARD_KEYS: set[str] = {"method", "url", "params", "headers"}
+    ERROR_SQL_MAX_LENGTH = 500  # SQL longer than this is truncated in error messages
+
+    @classmethod
+    def format_statement_error(
+        cls,
+        message: str | None,
+        *,
+        query_id: str | None = None,
+        sql: str | None = None,
+        query_ids: list[str] | None = None,
+    ) -> str:
+        """
+        Describe a failed statement: its handle, its position in a multi-statement request, and its SQL.
+
+        :param message: the error message Snowflake returned for the statement.
+        :param query_id: the statement handle that failed.
+        :param sql: the SQL that was submitted. Binding values are never part of it.
+        :param query_ids: every statement handle of the request, in submission order. When the SQL
+            splits into exactly that many statements (split as the Snowflake connector does), the
+            failed one is named and shown alone; otherwise the whole SQL is shown.
+        """
+        subject = f"Snowflake statement {query_id}" if query_id else "Snowflake statement"
+        statement = sql.strip() if sql else ""
+        if statement and query_ids and len(query_ids) > 1 and query_id in query_ids:
+            try:
+                from snowflake.connector import util_text
+
+                statements = [
+                    s.strip() for s, _ in util_text.split_statements(StringIO(statement)) if s.strip()
+                ]
+            except Exception:
+                statements = []  # Never let describing an error hide the error itself.
+            if len(statements) == len(query_ids):
+                position = query_ids.index(query_id)
+                subject += f" (statement {position + 1} of {len(query_ids)})"
+                statement = statements[position]
+        error = f"{subject} failed: {message or 'no error message was returned'}"
+        if statement:
+            if len(statement) > cls.ERROR_SQL_MAX_LENGTH:
+                statement = (
+                    f"{statement[: cls.ERROR_SQL_MAX_LENGTH]}... [truncated, {len(statement)} chars total]"
+                )
+            error += f"\nSQL: {statement}"
+        return error
+
+    @staticmethod
+    def _describe_error_response(resp: dict[str, Any]) -> str:
+        """Return Snowflake's error message with its code, SQL state and statement handle, if present."""
+        error_message = resp.get("message", "Unknown error occurred")
+        error_details = []
+        if code := resp.get("code"):
+            error_details.append(f"Code: {code}")
+        if sql_state := resp.get("sqlState"):
+            error_details.append(f"SQL State: {sql_state}")
+        if statement_handle := resp.get("statementHandle"):
+            error_details.append(f"Statement Handle: {statement_handle}")
+        return f"{error_message} ({', '.join(error_details)})" if error_details else error_message
 
     def __init__(
         self,
@@ -206,7 +264,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         elif "statementHandle" in json_response:
             self.query_ids.append(json_response["statementHandle"])
         else:
-            raise RuntimeError("No statementHandle/statementHandles present in response")
+            error = "No statementHandle/statementHandles present in response"
+            if "message" in json_response or "code" in json_response:
+                error += f": {self._describe_error_response(json_response)}"
+            raise RuntimeError(error)
 
         # Send Hook Level Lineage
         len_query_ids = len(self.query_ids)
@@ -305,21 +366,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         if status_code == 202:
             return {"status": "running", "message": "Query statements are still running"}
         if status_code == 422:
-            error_message = resp.get("message", "Unknown error occurred")
-            error_details = []
-            if code := resp.get("code"):
-                error_details.append(f"Code: {code}")
-            if sql_state := resp.get("sqlState"):
-                error_details.append(f"SQL State: {sql_state}")
-            if statement_handle := resp.get("statementHandle"):
-                error_details.append(f"Statement Handle: {statement_handle}")
-
-            if error_details:
-                enhanced_message = f"{error_message} ({', '.join(error_details)})"
-            else:
-                enhanced_message = error_message
-
-            return {"status": "error", "message": enhanced_message}
+            return {"status": "error", "message": self._describe_error_response(resp)}
         if status_code == 200:
             if resp_statement_handles := resp.get("statementHandles"):
                 statement_handles = resp_statement_handles
@@ -329,10 +376,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
                 statement_handles = []
             return {
                 "status": "success",
-                "message": resp["message"],
+                "message": resp.get("message", ""),
                 "statement_handles": statement_handles,
             }
-        return {"status": "error", "message": resp["message"]}
+        return {"status": "error", "message": self._describe_error_response(resp)}
 
     def get_sql_api_query_status(self, query_id: str) -> dict[str, str | list[str]]:
         """
@@ -377,7 +424,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             time.sleep(poll_interval)
 
         if response["status"] == "error" and raise_error:
-            raise RuntimeError(response["message"])
+            raise RuntimeError(
+                self.format_statement_error(cast("str | None", response.get("message")), query_id=query_id)
+            )
 
         return response
 
@@ -393,8 +442,11 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         header, params, url = self.get_request_url_header_params(query_id)
         status_code, response = self._make_api_call_with_retries("GET", url, header, params)
 
-        if (query_status := self._process_response(status_code, response)["status"]) != "success":
-            msg = f"Query must have status `success` to retrieve data; got `{query_status}`."
+        processed = self._process_response(status_code, response)
+        if (query_status := processed["status"]) != "success":
+            msg = f"Query must have status `success` to retrieve data; got `{query_status}`. Query id: {query_id}"
+            if message := processed.get("message"):
+                msg += f". Snowflake: {message}"
             raise RuntimeError(msg)
 
         # Below fields should always be present in response, but added some safety checks
