@@ -280,6 +280,8 @@ class TestSQLExecuteQueryOperator:
         cursor.execute.side_effect = AirflowTaskTimeout()
         hook.get_conn().cursor.return_value = cursor
         mock_get_hook.return_value = hook
+        # The hook leaves it off by default, ``execute`` turns it on from ``cancel_on_kill``
+        assert hook.cancel_on_interrupt is False
         operator = self._construct_operator("SELECT pg_sleep(600);", cancel_on_kill=cancel_on_kill)
 
         # ``on_kill`` is only called after ``AirflowTaskTimeout`` left ``execute``

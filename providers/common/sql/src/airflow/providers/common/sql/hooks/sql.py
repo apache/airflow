@@ -160,11 +160,12 @@ class DbApiHook(BaseHook):
         should be done before calling the ``DBApiHook.__init__()``.
     :param log_sql: Whether to log SQL query when it's executed. Defaults to *True*.
 
-    The ``cancel_on_interrupt`` attribute (default ``True``) controls whether a statement interrupted by
+    The ``cancel_on_interrupt`` attribute (default ``False``) controls whether a statement interrupted by
     the ``execution_timeout`` of the task (or a keyboard interrupt) is cancelled through ``cancel_query``
-    before the interruption propagates. Set it to ``False`` to leave such a statement running.
-    :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` sets it from its
-    ``cancel_on_kill`` parameter.
+    before the interruption propagates. With the default, such a statement is left running, as before, for
+    every caller of ``run`` (check operators, sensors, ``GenericTransfer``, user code). Set it to ``True``
+    to opt in. :class:`~airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` sets it from
+    its ``cancel_on_kill`` parameter.
     """
 
     # Override to provide the connection name.
@@ -206,8 +207,9 @@ class DbApiHook(BaseHook):
         # The cursor whose statement is running right now (set by ``_track_running_cursor``), used by
         # ``cancel_query``
         self._running_cursor: Any = None
-        # Whether ``_track_running_cursor`` cancels a statement interrupted by a timeout or keyboard interrupt
-        self.cancel_on_interrupt = True
+        # Whether ``_track_running_cursor`` cancels a statement interrupted by a timeout or keyboard interrupt.
+        # Off by default so that callers of ``run`` other than ``SQLExecuteQueryOperator`` keep their behaviour.
+        self.cancel_on_interrupt = False
         self._insert_statement_format: str | None = kwargs.get("insert_statement_format")
         self._replace_statement_format: str | None = kwargs.get("replace_statement_format")
         self._escape_word_format: str | None = kwargs.get("escape_word_format")
@@ -906,11 +908,11 @@ class DbApiHook(BaseHook):
         """
         Make ``cur`` the cursor that ``cancel_query`` cancels while the block runs.
 
-        An interruption that is not an ``Exception`` (``AirflowTaskTimeout`` raised from ``SIGALRM`` when the
-        ``execution_timeout`` of the task elapses, ``KeyboardInterrupt``) cancels the statement before it
-        propagates (unless ``cancel_on_interrupt`` is ``False``): ``on_kill`` is only called after it has
-        unwound through ``run``, which closes the cursor and the connection on the way, so cancelling there
-        would be too late.
+        When ``cancel_on_interrupt`` is ``True`` (it is ``False`` by default), an interruption that is not an
+        ``Exception`` (``AirflowTaskTimeout`` raised from ``SIGALRM`` when the ``execution_timeout`` of the
+        task elapses, ``KeyboardInterrupt``) cancels the statement before it propagates: ``on_kill`` is only
+        called after it has unwound through ``run``, which closes the cursor and the connection on the way,
+        so cancelling there would be too late.
 
         Nested blocks for the same cursor leave the tracking to the outermost one, so that ``run`` keeps the
         cursor tracked from ``_run_command`` through the result handler.

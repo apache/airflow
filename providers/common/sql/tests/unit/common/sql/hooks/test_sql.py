@@ -612,6 +612,7 @@ class TestDbApiHookCancelQuery:
         cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
         getattr(cursor, interrupted_method).side_effect = AirflowTaskTimeout()
         hook = self._hook_with_cursor(cursor)
+        hook.cancel_on_interrupt = True
 
         with pytest.raises(AirflowTaskTimeout):
             hook.run("select pg_sleep(600)", handler=fetch_all_handler)
@@ -619,11 +620,12 @@ class TestDbApiHookCancelQuery:
         cursor.cancel.assert_called_once_with()
         assert hook._running_cursor is None
 
-    def test_statement_is_not_cancelled_on_timeout_when_disabled(self):
+    def test_statement_is_not_cancelled_on_timeout_by_default(self):
+        # Callers of ``run`` other than ``SQLExecuteQueryOperator`` keep the statement running unless they opt in
         cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
         cursor.execute.side_effect = AirflowTaskTimeout()
         hook = self._hook_with_cursor(cursor)
-        hook.cancel_on_interrupt = False
+        assert hook.cancel_on_interrupt is False
 
         with pytest.raises(AirflowTaskTimeout):
             hook.run("select pg_sleep(600)")
@@ -636,6 +638,7 @@ class TestDbApiHookCancelQuery:
         cursor.execute.side_effect = AirflowTaskTimeout()
         cursor.cancel.side_effect = RuntimeError("connection is closed")
         hook = self._hook_with_cursor(cursor)
+        hook.cancel_on_interrupt = True
 
         with caplog.at_level(logging.ERROR), pytest.raises(AirflowTaskTimeout):
             hook.run("select pg_sleep(600)")

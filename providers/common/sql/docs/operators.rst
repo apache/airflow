@@ -51,6 +51,12 @@ With ``cancel_on_kill=False`` the statement is not cancelled, but on ``execution
 connection are still closed, and some drivers stop the statement when that happens (for example ``trino``, whose
 cursor cancels its query when it is closed).
 
+The cancellation on ``execution_timeout`` is controlled by the ``cancel_on_interrupt`` attribute of
+:class:`~airflow.providers.common.sql.hooks.sql.DbApiHook`, which is ``False`` by default.
+``SQLExecuteQueryOperator`` sets it from ``cancel_on_kill``. Other callers of ``DbApiHook.run`` (the SQL check
+operators, ``SqlSensor``, ``GenericTransfer`` or your own tasks) keep leaving the statement running unless they set
+``hook.cancel_on_interrupt = True`` before running it.
+
 The example below shows how to instantiate the SQLExecuteQueryOperator task.
 
 .. exampleinclude:: /../tests/system/common/sql/example_sql_execute_query.py
