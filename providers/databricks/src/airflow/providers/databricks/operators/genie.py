@@ -43,6 +43,12 @@ GenieMessageRef = dict[str, str]
 
 _NOT_FOUND = "NOT_FOUND"
 _STALE = "STALE"
+_UNCONFIRMED_HINT = (
+    "Airflow will not retry this task. Inspect the Genie space before clearing it: a default clear "
+    "discards the task state and asks the question again, while a clear that keeps task state "
+    "refuses to ask until you attach with conversation_id and message_id or set "
+    "resubmit_unconfirmed=True."
+)
 
 
 class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
@@ -57,8 +63,10 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
 
     Genie has no idempotency key, so a submission whose outcome is unknown (a timeout, a connection
     error or a 5xx response) cannot be told apart from one that was never received. The operator fails
-    without retrying in that case and the next try refuses to submit again; set ``conversation_id`` and
-    ``message_id`` to attach to the message you found, or ``resubmit_unconfirmed=True`` to ask again.
+    without retrying in that case. A later try that still finds the unconfirmed submission in task state
+    refuses to submit again; set ``conversation_id`` and ``message_id`` to attach to the message you
+    found, or ``resubmit_unconfirmed=True`` to ask again. A clear that discards task state (the default
+    from Airflow 3.4) asks again without that check.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -70,7 +78,8 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
     :param conversation_id: Existing conversation to ask the question in. The operator never deletes it.
         Defaults to ``None``, which starts a new conversation. An empty string means ``None``. (templated)
     :param message_id: Existing message to wait for instead of asking a question. Requires
-        ``conversation_id``. An empty string means ``None``. (templated)
+        ``conversation_id``. An empty string means ``None``. A fixed value applies to every Dag run, so
+        prefer a run-scoped template such as ``"{{ params.genie_message_id }}"``. (templated)
     :param polling_period_seconds: Seconds between status checks. Defaults to ``5``.
     :param timeout: Maximum seconds to wait for the answer in one try. Timing out does not cancel the
         message. With durable execution the next try reconnects to it; with ``durable=False``, or on
@@ -160,8 +169,8 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
     def _describe_next_try(self, context: Context) -> str:
         """Say what a retry does, since only durable execution or an explicit message_id reconnects."""
         if self.message_id is not None or self._get_task_state_store(context) is not None:
-            return "The next try reconnects to the message."
-        return "The next try asks the question again, because durable execution is off or unavailable."
+            return "A retry reconnects to the message."
+        return "A retry asks the question again, because durable execution is off or unavailable."
 
     def _validate(self) -> None:
         self.conversation_id = self.conversation_id or None
@@ -231,14 +240,13 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
                 if store is not None:
                     store.delete(self._submission_key)
                 raise
-            raise AirflowFailException(str(err)) from err
+            raise AirflowFailException(f"{err} {_UNCONFIRMED_HINT}") from err
 
         conversation_id = created.get("conversation_id")
         message_id = created.get("message_id") or created.get("id")
         if not isinstance(conversation_id, str) or not isinstance(message_id, str):
             raise AirflowFailException(
-                "Genie accepted the question but returned no conversation or message ID; "
-                "the question will not be asked again."
+                f"Genie accepted the question but returned no conversation or message ID. {_UNCONFIRMED_HINT}"
             )
         ref = {
             "space_id": self.space_id,

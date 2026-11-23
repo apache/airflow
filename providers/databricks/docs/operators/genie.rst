@@ -31,24 +31,19 @@ Install the optional Common AI integration when using its managed-agent toolset:
 
     pip install 'apache-airflow-providers-databricks[common.ai]'
 
-.. code-block:: python
-
-    from airflow.providers.common.ai.toolsets import ManagedAgentToolset
-    from airflow.providers.databricks.hooks.genie import DatabricksGenieHook
-
-    hook = DatabricksGenieHook(databricks_conn_id="databricks_analytics")
-    toolset = ManagedAgentToolset(
-        hook.agent("your-genie-space-id"),
-        tool_name="ask_analytics_genie",
-        description="Answers questions about the analytics tables in this Genie space.",
-        max_retries=0,
-    )
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_genie.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_hook_databricks_genie_toolset]
+    :end-before: [END howto_hook_databricks_genie_toolset]
 
 The hook can also be called directly without Common AI:
 
-.. code-block:: python
-
-    result = hook.consult("your-genie-space-id", "How many orders were placed last week?")
+.. exampleinclude:: /../../databricks/tests/system/databricks/example_databricks_genie.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_hook_databricks_genie_consult]
+    :end-before: [END howto_hook_databricks_genie_consult]
 
 The result contains IDs and structured answer, generated query, and query-result fields. Large
 responses are capped. A request that starts a conversation or posts a message is sent once; after

@@ -382,7 +382,9 @@ def test_execute_complete_invalid_event(genie, event):
 @pytest.mark.parametrize("status_code", [None, 500, 503])
 def test_unconfirmed_submission_fails_without_retry(genie, status_code):
     genie.add("POST", START, DatabricksGenieError("unknown outcome", http_status_code=status_code))
-    with pytest.raises(AirflowFailException, match="unknown outcome"):
+    with pytest.raises(
+        AirflowFailException, match="unknown outcome.*a default clear discards the task state"
+    ):
         make_operator(durable=False).execute({})
 
 
@@ -398,6 +400,39 @@ def test_rejected_submission_is_retryable(genie, status_code):
     with pytest.raises(DatabricksGenieError, match="rejected") as err:
         make_operator(durable=False).execute({})
     assert not isinstance(err.value, AirflowFailException)
+
+
+def test_template_fields_include_attach_ids():
+    assert {"conversation_id", "message_id"} <= set(DatabricksGenieOperator.template_fields)
+
+
+ATTACH_TEMPLATES = {
+    "conversation_id": "{{ params.genie_conversation_id }}",
+    "message_id": "{{ params.genie_message_id }}",
+}
+
+
+def test_run_scoped_params_attach_to_existing_message(genie):
+    genie.add("GET", MESSAGE, COMPLETED)
+    genie.add("GET", ATTACHMENT_RESULT, QUERY_RESULT)
+    op = make_operator(**ATTACH_TEMPLATES)
+
+    op.render_template_fields(
+        context={"params": {"genie_conversation_id": CONVERSATION_ID, "genie_message_id": MESSAGE_ID}}
+    )
+
+    assert op.execute({}) == EXPECTED_RESULT
+    assert genie.calls("POST") == []
+
+
+def test_empty_run_scoped_params_ask_the_question(genie):
+    stub_answered(genie)
+    op = make_operator(**ATTACH_TEMPLATES)
+
+    op.render_template_fields(context={"params": {"genie_conversation_id": "", "genie_message_id": ""}})
+
+    assert op.execute({}) == EXPECTED_RESULT
+    assert genie.calls("POST") == [("POST", START)]
 
 
 def test_attach_to_existing_message_without_store(genie):
@@ -574,6 +609,22 @@ class TestDurable:
         with pytest.raises(AirflowFailException, match="never confirmed the outcome"):
             self.run(make_operator(), store)
         assert genie.calls("POST") == [("POST", START)]
+
+    def test_clear_that_discards_task_state_asks_again(self, genie, journal):
+        """A default clear on Airflow 3.4+ deletes the marker, so nothing stops a second submission."""
+        genie.add(
+            "POST",
+            START,
+            DatabricksGenieError("unknown outcome", http_status_code=None),
+            {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID},
+        )
+        genie.add("GET", MESSAGE, COMPLETED)
+        genie.add("GET", ATTACHMENT_RESULT, QUERY_RESULT)
+        with pytest.raises(AirflowFailException, match="unknown outcome"):
+            self.run(make_operator(), FakeStore(journal))
+
+        assert self.run(make_operator(), FakeStore(journal)) == EXPECTED_RESULT
+        assert genie.calls("POST") == [("POST", START), ("POST", START)]
 
     def test_changed_question_ignores_submission_marker(self, genie, journal):
         stub_answered(genie)
