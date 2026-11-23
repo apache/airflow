@@ -20,7 +20,6 @@
 package org.apache.airflow.sdk
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.xenomachina.argparser.SystemExitException
 import org.apache.airflow.example.DagSourceFixtures
 import org.apache.airflow.sdk.internal.DagSource
 import org.junit.jupiter.api.Assertions
@@ -125,8 +124,50 @@ internal class DagSourceTest {
   @Test
   @DisplayName("Should still require --comm and --logs without --describe-sources")
   fun createStillRequiresAddresses() {
-    Assertions.assertThrows(SystemExitException::class.java) { Server.create(arrayOf("--comm", "localhost:1")) }
-    Assertions.assertThrows(SystemExitException::class.java) { Server.create(arrayOf("--logs", "localhost:1")) }
-    Assertions.assertThrows(SystemExitException::class.java) { Server.create(emptyArray()) }
+    Assertions.assertThrows(IllegalArgumentException::class.java) { Server.create(arrayOf("--comm", "localhost:1")) }
+    Assertions.assertThrows(IllegalArgumentException::class.java) { Server.create(arrayOf("--logs", "localhost:1")) }
+    Assertions.assertThrows(IllegalArgumentException::class.java) { Server.create(emptyArray()) }
+  }
+
+  @Test
+  @DisplayName("Should reject unknown and duplicate command-line options")
+  fun rejectsInvalidOptions() {
+    Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--unknown", "value"))
+    }
+    Assertions.assertThrows(IllegalArgumentException::class.java) {
+      Server.create(arrayOf("--comm", "localhost:1", "--comm", "localhost:2"))
+    }
+  }
+
+  @Test
+  @DisplayName("Should reject missing values and malformed addresses")
+  fun rejectsMalformedArguments() {
+    val invalidArgs =
+      listOf(
+        arrayOf("--comm"),
+        arrayOf("--comm="),
+        arrayOf("--comm", "localhost"),
+        arrayOf("--comm", "localhost:abc"),
+        arrayOf("--comm", "localhost:65536"),
+        arrayOf("--logs", "localhost:0"),
+      )
+
+    invalidArgs.forEach { args ->
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Server.create(args)
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("Should accept both separated and equals-style arguments")
+  fun acceptsSupportedArgumentForms() {
+    Assertions.assertTrue(
+      Server.create(arrayOf("--comm", "localhost:1234", "--logs=localhost:5678")) is CoordinatorServer,
+    )
+    Assertions.assertTrue(
+      Server.create(arrayOf("--comm=localhost:1234", "--logs", "localhost:5678")) is CoordinatorServer,
+    )
   }
 }
