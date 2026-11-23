@@ -685,6 +685,66 @@ def test_marker_covers_the_database_clients():
     assert all(re.search(rf"\b{variable}\b", marker_block) for variable in CLIENT_VARIABLES)
 
 
+@pytest.mark.parametrize(
+    ("lines", "base_libraries", "expected_error"),
+    [
+        pytest.param(
+            "ii  libpython3.13:amd64 1 amd64 Python library",
+            "libpython3.13:amd64",
+            None,
+            id="library-already-in-pinned-layer",
+        ),
+        pytest.param(
+            "ii  libpython3.13:amd64 1 amd64 Python library",
+            "",
+            "libpython3.13:amd64",
+            id="new-library-on-fresh-base",
+        ),
+        pytest.param(
+            "ii  libpython3.13:amd64 1 amd64 Python library\nii  libpython3.14:amd64 1 amd64 Python library",
+            "libpython3.13:amd64",
+            "libpython3.14:amd64",
+            id="new-library-on-pinned-layer",
+        ),
+        pytest.param(
+            "ii  libpython3.13:amd64 1 amd64 Python library\nii  python3.13 1 amd64 Python interpreter",
+            "libpython3.13:amd64",
+            "python3.13",
+            id="new-interpreter-using-pinned-library",
+        ),
+    ],
+)
+def test_system_python_guard_checks_libraries_added_during_os_setup(lines, base_libraries, expected_error):
+    script = (AIRFLOW_ROOT_PATH / "scripts" / "docker" / "install_os_dependencies.sh").read_text()
+    guard = script.split("function hold_hardened_python", 1)[1]
+    guard = "function hold_hardened_python" + guard
+    guard = guard.split("function install_debian_runtime_dependencies", 1)[0]
+    result = subprocess.run(
+        [
+            shutil.which("bash"),
+            "-euo",
+            "pipefail",
+            "-c",
+            'dpkg_output=$1; dpkg() { printf "%s\\n" "$dpkg_output"; }; '
+            'apt-get() { :; }; aptitude() { printf "%s\\n" "$2"; };\n'
+            + guard
+            + 'check_no_system_python "$2"',
+            "bash",
+            lines,
+            base_libraries,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    if expected_error is None:
+        assert result.returncode == 0, result.stdout + result.stderr
+    else:
+        assert result.returncode == 1, result.stdout + result.stderr
+        assert expected_error in result.stdout
+
+
 def test_hardened_flavor_explains_a_base_image_without_python(tmp_path):
     for tool in ("cat", "cut", "dirname"):
         (tmp_path / tool).symlink_to(shutil.which(tool))
