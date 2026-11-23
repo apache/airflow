@@ -62,9 +62,10 @@ def _get_char_code(char: str) -> int:
 
 
 def natural_sort_key(text: str) -> tuple:
-    """Create a sort key matching eslint-plugin-jsonc with natural: true.
+    """Create a sort key matching the ``natural-compare`` npm package.
 
-    natural-compare, the comparator behind the UI's ``jsonc/sort-keys`` rule, compares
+    This is the locale key order the ``check-i18n-json`` prek hook enforces (keep the two
+    in sync), originally from the UI's ``jsonc/sort-keys`` rule. natural-compare compares
     digit runs numerically and other characters by ``_get_char_code``. Each token also
     carries a bucket so numbers sort between characters below "0" and above "9".
     """
@@ -80,7 +81,7 @@ def natural_sort_key(text: str) -> tuple:
         else:
             for char in part:
                 code = _get_char_code(char)
-                tokens.append((0, code) if code < 66 else (2, code))
+                tokens.append((0, code) if code < _CHAR_CODES["0"] else (2, code))
     return tuple(tokens)
 
 

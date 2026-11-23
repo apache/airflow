@@ -32,17 +32,8 @@ from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
     COOKIE_NAME_REFRESH_TOKEN,
 )
+from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_8_PLUS
-
-try:
-    from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
-except ImportError:
-
-    class AuthManagerRefreshTokenExpiredException(Exception):  # type: ignore[no-redef]
-        """In case it is using a version of Airflow without ``AuthManagerRefreshTokenExpiredException``."""
-
-        pass
-
 
 if AIRFLOW_V_3_1_8_PLUS:
     from airflow.api_fastapi.app import get_cookie_path
@@ -51,6 +42,9 @@ else:
     def get_cookie_path() -> str:
         return "/"
 
+
+# The core route that revokes the Airflow JWT sent with the request, relative to the root path.
+LOGOUT_PATH = "/api/v2/auth/logout"
 
 if TYPE_CHECKING:
     from fastapi import Request, Response
@@ -82,6 +76,13 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
                 HTTPException,
             ):
                 new_token = ""
+                # The session ends here and the response clears the Airflow JWT. Hide it
+                # from the inner middlewares and the route too: resolving it again without
+                # the Keycloak tokens yields no user, which ``get_user`` would hand to the
+                # authorization checks instead of answering 401. The logout route needs no
+                # user and revokes the JWT it receives, so it keeps it.
+                if not self._is_logout(request):
+                    self._drop_cookie(request, COOKIE_NAME_JWT_TOKEN)
 
             if user is not None:
                 request.state.user = user
@@ -234,6 +235,26 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
                 max_age=0,
             )
         return response
+
+    @staticmethod
+    def _is_logout(request: Request) -> bool:
+        """Tell whether the request is for the core logout route."""
+        scope = request.scope
+        return scope["path"].removeprefix(scope.get("root_path", "")) == LOGOUT_PATH
+
+    @staticmethod
+    def _drop_cookie(request: Request, name: str) -> None:
+        """Remove a cookie from the request that the inner middlewares and the route receive."""
+        prefix = f"{name}=".encode("latin-1")
+        headers = []
+        for key, value in request.scope["headers"]:
+            if key != b"cookie":
+                headers.append((key, value))
+                continue
+            kept = b";".join(part for part in value.split(b";") if not part.lstrip().startswith(prefix))
+            if kept.strip():
+                headers.append((key, kept.strip()))
+        request.scope["headers"] = headers
 
     @staticmethod
     async def _is_jwt_still_valid(request: Request) -> bool:

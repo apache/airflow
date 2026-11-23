@@ -16,12 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useState } from "react";
 
 import { useSearchParams } from "react-router-dom";
 
+import {
+  pausedStateToSearchParams,
+  type PausedStateValue,
+} from "src/components/FilterBar/filters/pausedStateParams";
+
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useConfig } from "src/queries/useConfig";
+
+const HIDE_PAUSED_DEFAULT: PausedStateValue = "not_paused";
+
+const hasPausedFilter = (params: URLSearchParams) =>
+  params.has(SearchParamsKeys.PAUSED) || params.has(SearchParamsKeys.SCHEDULING_STATE);
 
 /**
  * Writes the ``hide_paused_dags_by_default`` default into the URL so it shows up as a
@@ -29,35 +39,50 @@ import { useConfig } from "src/queries/useConfig";
  *
  * Seeds once per page load. Removing the pill is how you ask to see paused Dags, so re-seeding
  * whenever the param goes missing would put it straight back and leave them unreachable.
+ *
+ * Returns the default paused state until it is in the URL, so callers can query with it from the first render.
+ * ``hasSeeded`` flips only once the URL carries a filter: flipping it when the write is issued would
+ * leave a render with neither the param nor the pending flag, and fire an unfiltered request.
  */
 export const usePausedDefault = () => {
   const hidePausedDagsByDefault = Boolean(useConfig("hide_paused_dags_by_default"));
   const [searchParams, setSearchParams] = useSearchParams();
-  const hasSeeded = useRef(false);
+  const [hasSeeded, setHasSeeded] = useState(false);
 
   useEffect(() => {
-    if (
-      hasSeeded.current ||
-      !hidePausedDagsByDefault ||
-      searchParams.has(SearchParamsKeys.PAUSED) ||
-      searchParams.has(SearchParamsKeys.SCHEDULING_STATE)
-    ) {
+    if (hasSeeded || !hidePausedDagsByDefault) {
       return;
     }
 
-    hasSeeded.current = true;
+    if (hasPausedFilter(searchParams)) {
+      setHasSeeded(true);
+
+      return;
+    }
 
     // Functional form is required: PresetFiltersMenu restores a default preset from a
     // deeper effect that commits first, so an object write would clobber it with stale params.
     setSearchParams(
       (prev) => {
+        if (hasPausedFilter(prev)) {
+          return prev;
+        }
+
         const next = new URLSearchParams(prev);
 
-        next.set(SearchParamsKeys.PAUSED, "false");
+        Object.entries(pausedStateToSearchParams(HIDE_PAUSED_DEFAULT)).forEach(([key, value]) => {
+          if (value !== undefined) {
+            next.set(key, value);
+          }
+        });
 
         return next;
       },
       { replace: true },
     );
-  }, [hidePausedDagsByDefault, searchParams, setSearchParams]);
+  }, [hasSeeded, hidePausedDagsByDefault, searchParams, setSearchParams]);
+
+  return hidePausedDagsByDefault && !hasSeeded && !hasPausedFilter(searchParams)
+    ? HIDE_PAUSED_DEFAULT
+    : undefined;
 };

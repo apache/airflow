@@ -29,6 +29,7 @@ permissions:
 jobs:
   notify:
     name: "Notify open PRs that conflict on uv.lock"
+    if: github.repository == 'apache/airflow'
     runs-on: ["ubuntu-slim"]
     timeout-minutes: 10
     steps:

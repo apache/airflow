@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type FC, lazy, Suspense } from "react";
+import { type ComponentType, lazy, Suspense } from "react";
 
 import { Spinner } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
@@ -51,7 +51,7 @@ export type PluginProps = {
   taskInstance?: TaskInstanceResponse;
 };
 
-type PluginComponentType = FC<PluginProps>;
+type PluginComponentType = ComponentType<PluginProps>;
 
 const loadPluginDependencies = async () => {
   const { registerPluginDependencies } = await import("src/utils/registerPluginDependencies");

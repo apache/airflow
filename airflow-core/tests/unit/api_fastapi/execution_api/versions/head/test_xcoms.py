@@ -42,10 +42,19 @@ from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerE
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
+from airflow.models.xcom import (
+    EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+    XCOM_RETURN_KEY,
+    XComModel,
+    XComModelV1,
+    XComModelV2,
+    xcom_entity,
+)
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
+from airflow.sdk.api.client import Client
+from airflow.sdk.api.datamodels import _generated as client_models
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.session import create_session
@@ -699,6 +708,17 @@ def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_insta
     assert response.status_code == 400
 
 
+def test_normal_xcom_push_rejects_the_external_clear_target_key(client, create_task_instance):
+    ti = create_task_instance()
+    forged = {"dag_id": "other", "task_id": "t", "logical_date": "2026-10-01T00:00:00Z", "recursion_depth": 1}
+
+    response = client.post(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{EXTERNAL_CLEAR_TARGET_XCOM_KEY}", json=forged
+    )
+
+    assert (response.status_code, response.json()["detail"]) == (400, "Reserved XCom key")
+
+
 def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client, authenticate_as):
     @task_group
     def body():
@@ -1151,6 +1171,9 @@ class TestXComsGetEndpoint:
             pytest.param(slice(-1, None, -1), id="-1::-1"),
             pytest.param(slice(-2, -1, None), id="-2:-1"),
             pytest.param(slice(-1, -3, -1), id="-1:-3:-1"),
+            pytest.param(slice(-2, 10, None), id="-2:10"),
+            pytest.param(slice(2, -10, -1), id="2:-10:-1"),
+            pytest.param(slice(1, -10, -1), id="1:-10:-1"),
         ],
     )
     def test_xcom_get_with_slice(self, client, dag_maker, session, key):
@@ -1357,6 +1380,44 @@ class TestXComsGetEndpoint:
 
         assert response.status_code == 404
         assert "XCom" in response.json()["detail"]["message"]
+
+
+class TestTaskSdkClientGetXCom:
+    """The Task SDK client reads XComs from this tree's Execution API as both sides intend."""
+
+    @pytest.fixture(autouse=True)
+    def dag_run(self, dag_maker, session):
+        with dag_maker(dag_id="dag", serialized=True):
+            EmptyOperator(task_id="plain")
+            PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        for ti in dag_run.get_task_instances(session=session):
+            value = "plain" if ti.task_id == "plain" else ti.region_index
+            session.add(XComModelV2(key=XCOM_RETURN_KEY, value=value, task_instance_id=ti.id))
+        session.commit()
+        return dag_run
+
+    @pytest.mark.parametrize(
+        ("task_id", "map_index", "expected"),
+        [
+            pytest.param(
+                "mapped", None, client_models.XComSequenceSliceResponse([0, 1]), id="mapped-omitted"
+            ),
+            pytest.param(
+                "mapped", 1, client_models.XComResponse(key=XCOM_RETURN_KEY, value=1), id="mapped-one"
+            ),
+            pytest.param(
+                "plain",
+                None,
+                client_models.XComResponse(key=XCOM_RETURN_KEY, value="plain"),
+                id="unmapped-omitted",
+            ),
+        ],
+    )
+    def test_get(self, task_id, map_index, expected):
+        client = Client(base_url=None, token="", dry_run=True, transport=InProcessExecutionAPI().transport)
+        client.base_url = "http://in-process.invalid/"
+        assert client.xcoms.get("dag", "runid", task_id, XCOM_RETURN_KEY, map_index) == expected
 
 
 class TestXComsSetEndpoint:
@@ -1658,6 +1719,28 @@ class TestXComsDeleteEndpoint:
             assert XComModelV2.get_for_attempt(ti.id, "xcom_1", session=verify) is None
             assert verify.get(XComModelV1, (ti.dag_run.id, ti.task_id, ti.map_index, "xcom_1")) is None
             assert XComModelV2.get_for_attempt(ti1.id, "xcom_1", session=verify) is not None
+
+    @pytest.mark.parametrize(
+        ("key", "detail"),
+        [
+            ("_airflow_loop_decision_reason", "Reserved loop XCom key"),
+            (EXTERNAL_CLEAR_TARGET_XCOM_KEY, "Reserved XCom key"),
+        ],
+    )
+    def test_xcom_delete_rejects_reserved_key(
+        self, client, create_task_instance, authenticate_as, session, key, detail
+    ):
+        ti = create_task_instance()
+        ti.xcom_push(key=key, value='"reason"', session=session)
+        session.commit()
+        authenticate_as(ti)
+
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{key}")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == detail
+        with create_session(scoped=False) as verify:
+            assert XComModelV2.get_for_attempt(ti.id, key, session=verify) is not None
 
     @pytest.mark.parametrize(
         ("target_task_id", "ti_map_index"),

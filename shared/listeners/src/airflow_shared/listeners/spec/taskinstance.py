@@ -53,7 +53,13 @@ def on_task_instance_failed(
     task_instance: RuntimeTaskInstance | TaskInstance,
     error: None | str | BaseException,
 ):
-    """Execute when task state changes to FAIL. previous_state can be None."""
+    """
+    Execute when a task instance attempt fails. previous_state can be None.
+
+    This also runs for an attempt that will be retried. ``task_instance.state`` is then
+    ``UP_FOR_RETRY``, and ``FAILED`` when the task instance will not be retried. A listener that
+    should only react to final failures can check ``task_instance.state``.
+    """
 
 
 @hookspec

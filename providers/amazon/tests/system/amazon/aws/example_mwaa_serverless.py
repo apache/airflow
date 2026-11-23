@@ -31,9 +31,9 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteBucketOperator,
 )
 from airflow.providers.amazon.aws.sensors.mwaa_serverless import MwaaServerlessWorkflowRunSensor
-from airflow.providers.common.compat.sdk import DAG, chain
+from airflow.providers.common.compat.sdk import DAG, chain, task
 
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, print_and_delete_log_group
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -76,6 +76,15 @@ systest_mwaa_serverless_stoppable:
 """
 
 sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def print_and_delete_workflow_logs(workflow_arn: str):
+    """Copy the workflow logs into this task's log, then delete their CloudWatch log group."""
+    # The service names the log group after the workflow ID, the last ARN segment, which ends in
+    # a generated suffix. The name is therefore only known once the workflow exists.
+    print_and_delete_log_group(f"/aws/mwaa-serverless/{workflow_arn.rsplit('/', 1)[-1]}/")
+
 
 with DAG(
     dag_id=DAG_ID,
@@ -210,6 +219,7 @@ with DAG(
         # TEST TEARDOWN
         delete_workflow,
         delete_bucket,
+        print_and_delete_workflow_logs(workflow_arn),
     )
 
     from tests_common.test_utils.watcher import watcher
