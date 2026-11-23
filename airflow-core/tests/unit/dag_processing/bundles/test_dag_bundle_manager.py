@@ -2384,7 +2384,7 @@ def test_literal_configuration_does_not_reload(mock_command, mock_secret):
         assert source.reconcilable is False
         assert source.parse_context("my-test-bundle") is None
         manager = DagBundlesManager()
-        assert manager.get_bundle_parse_context("my-test-bundle") is None
+        assert source.parse_context("my-test-bundle", manager=lambda: manager) is None
         assert get_configured_bundle_names() == {"my-test-bundle"}
         conf.set("dag_processor", "dag_bundle_config_list", json.dumps(SECOND_BUNDLE_CONFIG))
         _expire_bundle_config_snapshot()
@@ -2637,7 +2637,7 @@ def test_missing_bundle_lookup_accepts_corrected_classpath(mock_clock, mock_comm
 @mock.patch("airflow.dag_processing.bundles.manager.time.monotonic", autospec=True)
 @pytest.mark.parametrize("source_kind", ["cmd", "secret"])
 @pytest.mark.parametrize("recovery", ["refreshed-snapshot", "expired-miss"])
-@pytest.mark.parametrize("lookup", ["get_bundle", "get_bundle_parse_context"])
+@pytest.mark.parametrize("lookup", ["get_bundle", "parse_context"])
 def test_missing_bundle_lookup_recovers(
     mock_clock, mock_command, mock_secret, dynamic_bundle_config, source_kind, recovery, lookup
 ):
@@ -2653,8 +2653,14 @@ def test_missing_bundle_lookup_recovers(
         mock_clock.return_value = 100.0
         source_read.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
         manager = DagBundlesManager()
+
+        def do_lookup(current: DagBundlesManager, name: str):
+            if lookup == "get_bundle":
+                return current.get_bundle(name)
+            return _get_bundle_config_source().parse_context(name, manager=lambda: current)
+
         with pytest.raises(ValueError, match="Requested bundle 'second-bundle' is not configured"):
-            getattr(manager, lookup)("second-bundle")
+            do_lookup(manager, "second-bundle")
         assert source_read.call_count == 2
 
         mock_clock.return_value = 101.0
@@ -2666,7 +2672,7 @@ def test_missing_bundle_lookup_recovers(
             mock_clock.return_value = 105.0
 
         for current in (manager, DagBundlesManager()):
-            result = getattr(current, lookup)("second-bundle")
+            result = do_lookup(current, "second-bundle")
             if lookup == "get_bundle":
                 assert result.name == "second-bundle"
             else:
@@ -2703,7 +2709,12 @@ def test_reconcile_rejects_missing_team_and_accepts_correction(
 
     assert processor._dag_bundles == [retained]
     assert set(processor._dag_bundle_manager._bundle_config) == {retained.name}
-    assert processor._dag_bundle_manager.get_bundle_parse_context(retained.name) == BundleParseContext()
+    assert (
+        _get_bundle_config_source().parse_context(
+            retained.name, manager=lambda: processor._dag_bundle_manager
+        )
+        == BundleParseContext()
+    )
     assert known_files == {retained.name: set()}
     mock_removed.assert_not_called()
     session.expire_all()
@@ -2862,7 +2873,7 @@ def test_bundle_configuration_preserves_importer_settings_without_validating_the
     dynamic_bundle_config.write_text(json.dumps([config]))
     manager = DagBundlesManager()
     assert manager.get_all_bundle_names() == ["my-test-bundle"]
-    parse_context = manager.get_bundle_parse_context(config["name"])
+    parse_context = _get_bundle_config_source().parse_context(config["name"], manager=lambda: manager)
     assert parse_context == BundleParseContext(importers=config["importers"])
 
 
@@ -2870,14 +2881,13 @@ def test_bundle_configuration_preserves_importer_settings_without_validating_the
 @pytest.mark.parametrize(
     "importers", [None, [], [{"classpath": "airflow.sdk.importers.PythonDagImporter", "kwargs": {}}]]
 )
-def test_get_bundle_parse_context_retains_accepted_data_without_refresh(
-    mock_command, dynamic_bundle_config, importers
-):
+def test_parse_context_retains_accepted_data_without_refresh(mock_command, dynamic_bundle_config, importers):
     mock_command.return_value = json.dumps([{**BASIC_BUNDLE_CONFIG[0], "importers": importers}])
     manager = DagBundlesManager()
+    source = _get_bundle_config_source()
     mock_command.side_effect = OSError("configuration source unavailable")
 
-    accepted_context = manager.get_bundle_parse_context("my-test-bundle")
+    accepted_context = source.parse_context("my-test-bundle", manager=lambda: manager)
     assert accepted_context == BundleParseContext(importers=importers)
     assert accepted_context is not None
     accepted_importers = accepted_context.importers
@@ -2885,10 +2895,12 @@ def test_get_bundle_parse_context_retains_accepted_data_without_refresh(
         if accepted_importers:
             accepted_importers[0]["kwargs"]["changed_by_caller"] = True
         accepted_importers.append({"classpath": "changed.by.caller"})
-    assert manager.get_bundle_parse_context("my-test-bundle") == BundleParseContext(importers=importers)
+    assert source.parse_context("my-test-bundle", manager=lambda: manager) == BundleParseContext(
+        importers=importers
+    )
     mock_command.assert_called_once()
     with pytest.raises(ValueError, match="Requested bundle 'missing' is not configured"):
-        manager.get_bundle_parse_context("missing")
+        source.parse_context("missing", manager=lambda: manager)
     assert mock_command.call_count == 2
 
 

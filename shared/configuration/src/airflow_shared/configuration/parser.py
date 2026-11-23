@@ -34,11 +34,10 @@ from collections.abc import Callable, Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
-from dataclasses import dataclass, field
 from enum import Enum
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any, Literal, TypeVar, overload
+from typing import IO, TYPE_CHECKING, Any, TypeVar, overload
 
 from .exceptions import AirflowConfigException
 
@@ -129,21 +128,6 @@ class ValueNotFound:
 
 
 VALUE_NOT_FOUND_SENTINEL = ValueNotFound()
-
-
-@dataclass(frozen=True)
-class DynamicConfigSource:
-    """A configured ``_cmd`` or ``_secret`` source for a sensitive option."""
-
-    kind: Literal["cmd", "secret"]
-    value: str
-    _parser: AirflowConfigParser = field(repr=False, compare=False)
-
-    def read(self) -> str | None:
-        """Read the current raw value from the command or secrets backend without falling back to defaults."""
-        if self.kind == "cmd":
-            return run_command(self.value)
-        return self._parser._get_config_value_from_secret_backend(self.value)
 
 
 @overload
@@ -251,6 +235,23 @@ def create_provider_cfg_config_fallback_defaults(
     config_parser = ConfigParser()
     config_parser.read(provider_config_fallback_defaults_cfg_path)
     return config_parser
+
+
+def get_dynamic_option_reader(
+    parser: AirflowConfigParser,
+    section: str,
+    key: str,
+    *,
+    lookup_from_deprecated: bool = True,
+) -> Callable[[], str | None] | None:
+    """
+    Return a callable that reads the ``_cmd`` or ``_secret`` source of an option, if it wins precedence.
+
+    Follows the same lookup precedence as :meth:`AirflowConfigParser.get` without executing commands
+    or querying secrets backends. Returns ``None`` when the option is supplied as a literal value,
+    uses a default, is unset, or is not marked sensitive.
+    """
+    return parser._get_dynamic_option_reader(section, key, lookup_from_deprecated=lookup_from_deprecated)
 
 
 class AirflowConfigParser(ConfigParser):
@@ -1156,46 +1157,43 @@ class AirflowConfigParser(ConfigParser):
         team_component: str = f"{team_name.upper()}___" if team_name else ""
         return f"{ENV_VAR_PREFIX}{team_component}{section.replace('.', '_').upper()}__{key.upper()}"
 
-    def _get_env_var_dynamic_source(
+    def _get_env_var_dynamic_reader(
         self, section: str, key: str, team_name: str | None = None
-    ) -> tuple[bool, DynamicConfigSource | None]:
-        """Return ``(found, dynamic_source)`` for an option's environment variable lookup."""
+    ) -> tuple[bool, Callable[[], str | None] | None]:
+        """Return ``(found, reader)`` for an option's environment variable lookup."""
         env_var = self._env_var_name(section, key, team_name=team_name)
         if env_var in os.environ:
             return True, None
         if (section, key) in self.sensitive_config_values:
             if (env_var_cmd := f"{env_var}_CMD") in os.environ:
-                return True, DynamicConfigSource("cmd", os.environ[env_var_cmd], self)
+                command = os.environ[env_var_cmd]
+                return True, lambda: run_command(command)
             if (env_var_secret := f"{env_var}_SECRET") in os.environ:
-                return True, DynamicConfigSource("secret", os.environ[env_var_secret], self)
+                secret_path = os.environ[env_var_secret]
+                return True, lambda: self._get_config_value_from_secret_backend(secret_path)
         return False, None
 
-    def _get_config_file_cmd_source(self, section: str, key: str) -> DynamicConfigSource | None:
+    def _get_config_file_cmd_reader(self, section: str, key: str) -> Callable[[], str] | None:
         fallback_key = f"{key}_cmd"
         if (section, key) in self.sensitive_config_values and super().has_option(section, fallback_key):
-            return DynamicConfigSource("cmd", super().get(section, fallback_key), self)
+            command = super().get(section, fallback_key)
+            return lambda: run_command(command)
         return None
 
-    def _get_config_file_secret_source(self, section: str, key: str) -> DynamicConfigSource | None:
+    def _get_config_file_secret_reader(self, section: str, key: str) -> Callable[[], str | None] | None:
         fallback_key = f"{key}_secret"
         if (section, key) in self.sensitive_config_values and super().has_option(section, fallback_key):
-            return DynamicConfigSource("secret", super().get(section, fallback_key), self)
+            secret_path = super().get(section, fallback_key)
+            return lambda: self._get_config_value_from_secret_backend(secret_path)
         return None
 
-    def get_dynamic_option_source(
+    def _get_dynamic_option_reader(
         self,
         section: str,
         key: str,
         *,
         lookup_from_deprecated: bool = True,
-    ) -> DynamicConfigSource | None:
-        """
-        Return the configured ``_cmd`` or ``_secret`` source for an option, if it wins precedence.
-
-        Follows the same lookup precedence as :meth:`get` without executing commands or querying
-        secrets backends. Returns ``None`` when the option is supplied as a literal value, uses a
-        default, is unset, or is not marked sensitive.
-        """
+    ) -> Callable[[], str | None] | None:
         section, key, deprecated_section, deprecated_key, _ = self._resolve_deprecated_lookup(
             section=section,
             key=key,
@@ -1206,21 +1204,21 @@ class AirflowConfigParser(ConfigParser):
             candidates.append((deprecated_section, deprecated_key))
 
         for sec, opt in candidates:
-            found, source = self._get_env_var_dynamic_source(sec, opt)
+            found, reader = self._get_env_var_dynamic_reader(sec, opt)
             if found:
-                return source
+                return reader
 
         for sec, opt in candidates:
             if super().has_option(sec, opt):
                 return None
 
         for sec, opt in candidates:
-            if (source := self._get_config_file_cmd_source(sec, opt)) is not None:
-                return source
+            if (cmd_reader := self._get_config_file_cmd_reader(sec, opt)) is not None:
+                return cmd_reader
 
         for sec, opt in candidates:
-            if (source := self._get_config_file_secret_source(sec, opt)) is not None:
-                return source
+            if (secret_reader := self._get_config_file_secret_reader(sec, opt)) is not None:
+                return secret_reader
 
         return None
 
@@ -1229,17 +1227,17 @@ class AirflowConfigParser(ConfigParser):
         env_var: str = self._env_var_name(section, key, team_name=team_name)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
-        _, source = self._get_env_var_dynamic_source(section, key, team_name=team_name)
-        if source is not None:
-            return source.read()
+        _, reader = self._get_env_var_dynamic_reader(section, key, team_name=team_name)
+        if reader is not None:
+            return reader()
         return None
 
     def _get_cmd_option(self, section: str, key: str):
         """Get config option from command execution."""
-        if (source := self._get_config_file_cmd_source(section, key)) is not None:
+        if (reader := self._get_config_file_cmd_reader(section, key)) is not None:
             fallback_key = f"{key}_cmd"
             try:
-                return source.read()
+                return reader()
             except AirflowConfigException:
                 raise
             except Exception as e:
@@ -1251,8 +1249,8 @@ class AirflowConfigParser(ConfigParser):
 
     def _get_secret_option(self, section: str, key: str) -> str | None:
         """Get Config option values from Secret Backend."""
-        if (source := self._get_config_file_secret_source(section, key)) is not None:
-            return source.read()
+        if (reader := self._get_config_file_secret_reader(section, key)) is not None:
+            return reader()
         return None
 
     def _get_environment_variables(

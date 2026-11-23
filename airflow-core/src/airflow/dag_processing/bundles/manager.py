@@ -34,6 +34,7 @@ from pydantic import BaseModel, ValidationError
 from sqlalchemy import and_, delete, exists, or_, select, update
 from sqlalchemy.orm import selectinload
 
+from airflow._shared.configuration.parser import get_dynamic_option_reader
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleParseContext
@@ -50,8 +51,6 @@ if TYPE_CHECKING:
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
-
-    from airflow._shared.configuration.parser import DynamicConfigSource
 
 log = logging.getLogger(__name__)
 
@@ -208,8 +207,8 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
     reconcilable: ClassVar[bool] = True
     _loadable: _BundleConfigSnapshot
 
-    def __init__(self, dynamic_source: DynamicConfigSource) -> None:
-        self._dynamic_source = dynamic_source
+    def __init__(self, read_raw: Callable[[], str | None]) -> None:
+        self._read_raw = read_raw
         self._last_read = 0.0
         self._unloadable: _BundleConfigSnapshot | None = None
         self._missed_at: dict[str, float] = {}
@@ -219,7 +218,7 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
         self._last_read = time.monotonic()
         # The first list is not checked, so a bundle class that cannot be imported fails the
         # managers as it does with a static list.
-        self._loadable = _create_bundle_config_snapshot(_read_bundle_config_list(self._dynamic_source))
+        self._loadable = _create_bundle_config_snapshot(_read_bundle_config_list(self._read_raw))
         return self._loadable
 
     def loadable(self) -> _BundleConfigSnapshot:
@@ -275,7 +274,7 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
         self._last_read = time.monotonic()
         self._unloadable = None
         try:
-            snapshot = _create_bundle_config_snapshot(_read_bundle_config_list(self._dynamic_source))
+            snapshot = _create_bundle_config_snapshot(_read_bundle_config_list(self._read_raw))
             if snapshot.configs == accepted.configs:
                 return
             for name, config in snapshot.configs.items():
@@ -293,9 +292,9 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
 
 @functools.cache
 def _get_bundle_config_source() -> _StaticBundleConfigSource:
-    if (dynamic_source := conf.get_dynamic_option_source("dag_processor", "dag_bundle_config_list")) is None:
+    if (read_raw := get_dynamic_option_reader(conf, "dag_processor", "dag_bundle_config_list")) is None:
         return _StaticBundleConfigSource()
-    return _ReloadingBundleConfigSource(dynamic_source)
+    return _ReloadingBundleConfigSource(read_raw)
 
 
 def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
@@ -322,11 +321,11 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
 
 
 def _read_bundle_config_list(
-    dynamic_source: DynamicConfigSource | None = None,
+    read_raw: Callable[[], str | None] | None = None,
 ) -> list[_ExternalBundleConfig]:
-    if dynamic_source is not None:
+    if read_raw is not None:
         # Normal config lookup can silently fall back to defaults when a secret is missing.
-        raw = dynamic_source.read()
+        raw = read_raw()
         if not raw or not raw.strip():
             raise _bundle_item_exc("The configured command or secret returned no value")
         try:
@@ -903,10 +902,6 @@ class DagBundlesManager(LoggingMixin):
             if (config := source.loadable().configs.get(name)) is not None:
                 return _build_internal_bundle_config(config)
         raise ValueError(f"Requested bundle '{name}' is not configured.")
-
-    def get_bundle_parse_context(self, name: str) -> BundleParseContext | None:
-        """Return the accepted settings to parse the files of bundle *name* with, or ``None`` for static config."""
-        return _get_bundle_config_source().parse_context(name, manager=lambda: self)
 
     def get_bundle(
         self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None

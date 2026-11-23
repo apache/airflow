@@ -34,9 +34,9 @@ import pytest
 from airflow_shared.configuration.exceptions import AirflowConfigException
 from airflow_shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
-    DynamicConfigSource,
     base_section_name,
     configure_parser_from_configuration_description,
+    get_dynamic_option_reader,
 )
 
 
@@ -1402,10 +1402,10 @@ existing_list = one,two,three
     )
     @patch.object(_SharedAirflowConfigParser, "_get_config_value_from_secret_backend", autospec=True)
     @patch("airflow_shared.configuration.parser.run_command", autospec=True)
-    def test_get_dynamic_option_source_precedence(
+    def test_get_dynamic_option_reader_precedence(
         self, mock_run_command, mock_secret_backend, monkeypatch, env, cfg, sensitive, expected
     ):
-        """get_dynamic_option_source matches get() precedence without reading the backend."""
+        """get_dynamic_option_reader matches get() precedence without reading the backend."""
         test_conf = AirflowConfigParser()
         key = "sensitive_key" if sensitive else "key1"
         if sensitive:
@@ -1418,46 +1418,38 @@ existing_list = one,two,three
         for env_key, env_val in env.items():
             monkeypatch.setenv(env_key, env_val)
 
-        source = test_conf.get_dynamic_option_source("test", key)
+        reader = get_dynamic_option_reader(test_conf, "test", key)
 
         mock_run_command.assert_not_called()
         mock_secret_backend.assert_not_called()
         if expected is None:
-            assert source is None
+            assert reader is None
+            return
+
+        assert reader is not None
+        kind, value = expected
+        if kind == "cmd":
+            mock_run_command.return_value = "from-cmd"
+            assert reader() == "from-cmd"
+            mock_run_command.assert_called_once_with(value)
+            mock_secret_backend.assert_not_called()
         else:
-            assert source == DynamicConfigSource(expected[0], expected[1], test_conf)
+            mock_secret_backend.return_value = None
+            assert reader() is None
+            mock_secret_backend.assert_called_once_with(test_conf, value)
+            mock_run_command.assert_not_called()
 
-    @patch.object(_SharedAirflowConfigParser, "_get_config_value_from_secret_backend", autospec=True)
     @patch("airflow_shared.configuration.parser.run_command", autospec=True)
-    def test_dynamic_config_source_read(self, mock_run_command, mock_secret_backend):
-        """DynamicConfigSource.read reads raw values from commands or secrets without defaults."""
-        test_conf = AirflowConfigParser()
-        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
-        test_conf._default_values.set("test", "sensitive_key", "default_sensitive")
-        test_conf.add_section("test")
-        test_conf.set("test", "sensitive_key_cmd", "echo hello")
-
-        mock_run_command.return_value = "from-cmd"
-        cmd_source = test_conf.get_dynamic_option_source("test", "sensitive_key")
-        assert cmd_source is not None
-        assert cmd_source.read() == "from-cmd"
-        mock_run_command.assert_called_once_with("echo hello")
-
-        test_conf.remove_option("test", "sensitive_key_cmd")
-        test_conf.set("test", "sensitive_key_secret", "path/to/secret")
-        mock_secret_backend.return_value = None
-        secret_source = test_conf.get_dynamic_option_source("test", "sensitive_key")
-        assert secret_source is not None
-        assert secret_source.read() is None
-        mock_secret_backend.assert_called_once_with(test_conf, "path/to/secret")
-
-    def test_get_dynamic_option_source_deprecated_option(self, monkeypatch):
-        """get_dynamic_option_source resolves deprecated options unless disabled."""
+    def test_get_dynamic_option_reader_deprecated_option(self, mock_run_command, monkeypatch):
+        """get_dynamic_option_reader resolves deprecated options unless disabled."""
         test_conf = AirflowConfigParser()
         test_conf.deprecated_options = {("test", "new_key"): ("old_sec", "old_key", "3.0")}
         test_conf.sensitive_config_values.update({("test", "new_key"), ("old_sec", "old_key")})
         monkeypatch.setenv("AIRFLOW__OLD_SEC__OLD_KEY_CMD", "legacy-cmd")
 
-        source = test_conf.get_dynamic_option_source("test", "new_key")
-        assert source == DynamicConfigSource("cmd", "legacy-cmd", test_conf)
-        assert test_conf.get_dynamic_option_source("test", "new_key", lookup_from_deprecated=False) is None
+        reader = get_dynamic_option_reader(test_conf, "test", "new_key")
+        assert reader is not None
+        mock_run_command.return_value = "legacy-output"
+        assert reader() == "legacy-output"
+        mock_run_command.assert_called_once_with("legacy-cmd")
+        assert get_dynamic_option_reader(test_conf, "test", "new_key", lookup_from_deprecated=False) is None
