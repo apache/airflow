@@ -62,5 +62,7 @@ integration is useful when an Airflow-managed agent needs Genie as a typed tool 
 Databricks connection, and when the caller needs the Genie space/conversation/message IDs and
 bounded query results in its response. Both paths still enforce Genie and Unity Catalog permissions.
 
-This hook handles consultations only. Resuming a consultation through a standalone Airflow task
-across worker failure is a separate feature and is not provided here.
+This hook handles consultations only. To ask Genie as a standalone Airflow task that reconnects to
+its message after a worker failure, use
+:class:`~airflow.providers.databricks.operators.genie.DatabricksGenieOperator`; see
+:ref:`howto/operator:DatabricksGenieOperator`.

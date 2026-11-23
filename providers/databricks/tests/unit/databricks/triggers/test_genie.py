@@ -58,7 +58,7 @@ def sleep():
         yield sleep
 
 
-async def events(trigger) -> list[dict]:
+async def collect_events(trigger) -> list[dict]:
     return [event.payload async for event in trigger.run()]
 
 
@@ -94,7 +94,7 @@ def test_invalid_polling_period(period):
 async def test_waits_for_terminal_status(hook, sleep, terminal):
     hook._a_do_api_call.side_effect = [{"status": "SUBMITTED"}, {"status": "ASKING_AI"}, {"status": terminal}]
 
-    assert await events(make_trigger()) == [{**IDS, "status": "success", "message_status": terminal}]
+    assert await collect_events(make_trigger()) == [{**IDS, "status": "success", "message_status": terminal}]
 
     hook._a_do_api_call.assert_has_calls([mock.call(("GET", ENDPOINT))] * 3)
     assert sleep.await_args_list == [mock.call(2), mock.call(2)]
@@ -105,14 +105,16 @@ async def test_restarted_trigger_polls_same_message(hook, sleep):
     hook._a_do_api_call.side_effect = [{"status": "EXECUTING_QUERY"}, {"status": "COMPLETED"}]
     restarted = DatabricksGenieMessageTrigger(**make_trigger().serialize()[1])
 
-    assert await events(restarted) == [{**IDS, "status": "success", "message_status": "COMPLETED"}]
+    assert await collect_events(restarted) == [{**IDS, "status": "success", "message_status": "COMPLETED"}]
 
 
 @pytest.mark.parametrize("response", [{"status": "SOMETHING_NEW"}, {}, ["not", "an", "object"]])
 @pytest.mark.asyncio
 async def test_unknown_status(hook, sleep, response):
     hook._a_do_api_call.return_value = response
-    assert await events(make_trigger()) == [{**IDS, "status": "error", "error_type": "invalid_response"}]
+    assert await collect_events(make_trigger()) == [
+        {**IDS, "status": "error", "error_type": "invalid_response"}
+    ]
     sleep.assert_not_called()
 
 
@@ -120,7 +122,7 @@ async def test_unknown_status(hook, sleep, response):
 @pytest.mark.asyncio
 async def test_api_error(hook, status_code):
     hook._a_do_api_call.side_effect = DatabricksApiError("boom", http_status_code=status_code)
-    assert await events(make_trigger()) == [
+    assert await collect_events(make_trigger()) == [
         {**IDS, "status": "error", "error_type": "api_error", "status_code": status_code}
     ]
 
@@ -128,7 +130,7 @@ async def test_api_error(hook, status_code):
 @pytest.mark.asyncio
 async def test_unexpected_error(hook):
     hook._a_do_api_call.side_effect = RuntimeError("private detail")
-    payloads = await events(make_trigger())
+    payloads = await collect_events(make_trigger())
     assert payloads == [{**IDS, "status": "error", "error_type": "unexpected_error"}]
 
 
@@ -139,7 +141,9 @@ async def test_unexpected_error(hook):
 @pytest.mark.asyncio
 async def test_refuses_cleartext_connection(hook, base):
     hook._endpoint_url.side_effect = lambda endpoint: f"{base}/{endpoint}"
-    assert await events(make_trigger()) == [{**IDS, "status": "error", "error_type": "insecure_connection"}]
+    assert await collect_events(make_trigger()) == [
+        {**IDS, "status": "error", "error_type": "insecure_connection"}
+    ]
     hook._a_do_api_call.assert_not_called()
 
 
@@ -147,7 +151,9 @@ async def test_refuses_cleartext_connection(hook, base):
 async def test_allows_loopback_http(hook):
     hook._endpoint_url.side_effect = lambda endpoint: f"http://127.0.0.1:8080/{endpoint}"
     hook._a_do_api_call.return_value = {"status": "COMPLETED"}
-    assert await events(make_trigger()) == [{**IDS, "status": "success", "message_status": "COMPLETED"}]
+    assert await collect_events(make_trigger()) == [
+        {**IDS, "status": "success", "message_status": "COMPLETED"}
+    ]
 
 
 @pytest.mark.asyncio
@@ -156,7 +162,7 @@ async def test_hook_configuration():
         "airflow.providers.databricks.triggers.genie.DatabricksGenieHook", autospec=True
     ) as hook_class:
         hook_class.return_value.__aenter__.side_effect = RuntimeError("stop")
-        assert await events(make_trigger(retry_limit=4, retry_delay=2)) == [
+        assert await collect_events(make_trigger(retry_limit=4, retry_delay=2)) == [
             {**IDS, "status": "error", "error_type": "unexpected_error"}
         ]
     hook_class.assert_called_once_with(

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 import time
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 from urllib.parse import quote, urlsplit
 
 import requests
@@ -82,6 +82,16 @@ _PENDING_STATUSES = frozenset(
         "SUBMITTED",
     }
 )
+GENIE_TERMINAL_STATUSES = frozenset({"COMPLETED", "FAILED", "CANCELLED", "QUERY_RESULT_EXPIRED"})
+
+
+class _PreparedRequest(NamedTuple):
+    """URL, headers, auth and transport options for one Genie call, resolved before anything is sent."""
+
+    url: str
+    headers: dict[str, str]
+    auth: AuthBase
+    requests_kwargs: dict[str, Any]
 
 
 class DatabricksGenieError(AirflowException):
@@ -159,13 +169,12 @@ class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
 
         deadline = time.monotonic() + (timeout if timeout is not None else self.timeout_seconds)
         space = quote(space_id, safe="")
+        body = {"content": prompt, "enable_visualization": False}
         if conversation_id is None:
             endpoint = f"spaces/{space}/start-conversation"
-            body = {"content": prompt, "enable_visualization": False}
         else:
             conversation = quote(conversation_id, safe="")
             endpoint = f"spaces/{space}/conversations/{conversation}/messages"
-            body = {"content": prompt, "enable_visualization": False}
 
         created = self._request("POST", endpoint, body=body, retry_read=False, deadline=deadline)
         resolved_conversation_id = created.get("conversation_id")
@@ -272,23 +281,17 @@ class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
         body: dict[str, Any] | None = None,
         retry_read: bool,
         deadline: float | None = None,
+        prepared: _PreparedRequest | None = None,
     ) -> dict[str, Any]:
-        """Call one Genie endpoint; only GET requests are eligible for transport retries."""
-        url = self._endpoint_url(f"api/2.0/genie/{endpoint}")
-        parsed_url = urlsplit(url)
-        is_loopback = parsed_url.hostname in {"localhost", "127.0.0.1", "::1"}
-        if parsed_url.scheme != "https" and not is_loopback:
-            raise DatabricksGenieError(
-                "Databricks Genie requires HTTPS so connection credentials are not sent in cleartext."
-            )
-        headers = {**self.user_agent_header, **self._get_aad_headers()}
-        # Pass _TokenAuth (not auth=None with a Bearer header) so requests does not
-        # apply a matching ~/.netrc entry and overwrite the token with Basic auth.
-        token = self._get_token()
-        if token:
-            auth: AuthBase = _TokenAuth(token)
-        else:
-            auth = HTTPBasicAuth(self._get_connection_attr("login"), self.databricks_conn.password)
+        """
+        Call one Genie endpoint; only GET requests are eligible for transport retries.
+
+        :param prepared: The result of :meth:`_prepare_request` for ``endpoint``, so a caller can resolve
+            the connection, the HTTPS check and credentials before it records that it is about to send.
+        """
+        url, headers, auth, requests_kwargs = (
+            prepared if prepared is not None else self._prepare_request(endpoint)
+        )
 
         def send() -> dict[str, Any]:
             response = requests.request(
@@ -299,7 +302,7 @@ class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
                 headers=headers,
                 timeout=self._bounded_timeout(deadline),
                 stream=True,
-                **self._get_requests_kwargs(),
+                **requests_kwargs,
             )
             try:
                 if not response.ok:
@@ -366,6 +369,26 @@ class DatabricksGenieHook(BaseDatabricksHook, BaseManagedAgentHook):
                 raise self._http_error(response.status_code) from exc
             raise
         raise AssertionError("retry loop must return or raise")
+
+    def _prepare_request(self, endpoint: str) -> _PreparedRequest:
+        """Resolve the URL, enforce HTTPS and fetch credentials for one Genie endpoint without sending."""
+        url = self._endpoint_url(f"api/2.0/genie/{endpoint}")
+        parsed_url = urlsplit(url)
+        is_loopback = parsed_url.hostname in {"localhost", "127.0.0.1", "::1"}
+        if parsed_url.scheme != "https" and not is_loopback:
+            raise DatabricksGenieError(
+                "Databricks Genie requires HTTPS so connection credentials are not sent in cleartext."
+            )
+        headers = {**self.user_agent_header, **self._get_aad_headers()}
+        # Pass _TokenAuth (not auth=None with a Bearer header) so requests does not
+        # apply a matching ~/.netrc entry and overwrite the token with Basic auth.
+        token = self._get_token()
+        auth: AuthBase
+        if token:
+            auth = _TokenAuth(token)
+        else:
+            auth = HTTPBasicAuth(self._get_connection_attr("login"), self.databricks_conn.password)
+        return _PreparedRequest(url, headers, auth, self._get_requests_kwargs())
 
     def _bounded_timeout(self, deadline: float | None) -> float:
         if deadline is None:

@@ -29,6 +29,7 @@ from urllib.parse import quote
 from airflow.providers.common.compat.sdk import AirflowFailException, BaseOperator, ResumableJobMixin, conf
 from airflow.providers.databricks.hooks.genie import (
     _PENDING_STATUSES,
+    GENIE_TERMINAL_STATUSES,
     DatabricksGenieError,
     DatabricksGenieHook,
     _truncate_result,
@@ -42,7 +43,6 @@ GenieMessageRef = dict[str, str]
 
 _NOT_FOUND = "NOT_FOUND"
 _STALE = "STALE"
-_TERMINAL_STATUSES = frozenset({"COMPLETED", "FAILED", "CANCELLED", "QUERY_RESULT_EXPIRED"})
 
 
 class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
@@ -50,8 +50,10 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
     Ask a Databricks Genie space one question and return a bounded, structured answer.
 
     The operator submits the question once, persists the Genie conversation and message IDs to task
-    state before waiting, then polls (or defers) until the message finishes. A retry after a worker
-    crash or timeout reconnects to the stored message instead of asking again.
+    state before waiting, then polls (or defers) until the message finishes. With durable execution
+    (the default on Airflow 3.3 and later), a retry after a worker crash or timeout reconnects to the
+    stored message instead of asking again. With ``durable=False``, or on older Airflow without the task
+    state store, every try asks again.
 
     Genie has no idempotency key, so a submission whose outcome is unknown (a timeout, a connection
     error or a 5xx response) cannot be told apart from one that was never received. The operator fails
@@ -71,7 +73,8 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
         ``conversation_id``. An empty string means ``None``. (templated)
     :param polling_period_seconds: Seconds between status checks. Defaults to ``5``.
     :param timeout: Maximum seconds to wait for the answer in one try. Timing out does not cancel the
-        message; the next try reconnects to it. Defaults to ``1800``.
+        message. With durable execution the next try reconnects to it; with ``durable=False``, or on
+        Airflow before 3.3, the next try asks again. Defaults to ``1800``.
     :param resubmit_unconfirmed: Ask the question again even though an earlier submission's outcome is
         unknown and may have created a message. Defaults to ``False``.
     :param databricks_retry_limit: Attempts for each Genie read. Submissions are never retried.
@@ -146,13 +149,19 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
     def _submission_key(self) -> str:
         return f"{self.external_id_key}_submission"
 
-    def _fingerprint(self) -> str:
+    def _compute_fingerprint(self) -> str:
         """Identify the question so a retry never reconnects to an answer for a different one."""
         material = "\x1f".join((self.space_id, self.conversation_id or "", self.question or ""))
         return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
-    def _task_state_store(self, context: Context) -> Any:
+    def _get_task_state_store(self, context: Context) -> Any:
         return context.get("task_state_store") if self.durable else None
+
+    def _describe_next_try(self, context: Context) -> str:
+        """Say what a retry does, since only durable execution or an explicit message_id reconnects."""
+        if self.message_id is not None or self._get_task_state_store(context) is not None:
+            return "The next try reconnects to the message."
+        return "The next try asks the question again, because durable execution is off or unavailable."
 
     def _validate(self) -> None:
         self.conversation_id = self.conversation_id or None
@@ -172,24 +181,33 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
             "space_id": self.space_id,
             "conversation_id": self.conversation_id,
             "message_id": self.message_id,
-            "fingerprint": self._fingerprint(),
+            "fingerprint": self._compute_fingerprint(),
         }
         self.log.info(
             "Attaching to Genie message %s in conversation %s", self.message_id, self.conversation_id
         )
-        if (store := self._task_state_store(context)) is not None:
+        if (store := self._get_task_state_store(context)) is not None:
             store.set(self.external_id_key, ref)
             store.delete(self._submission_key)
         return self.poll_until_complete(ref, context)
 
     def submit_job(self, context: Context) -> Any:
-        store = self._task_state_store(context)
+        space = quote(self.space_id, safe="")
+        if self.conversation_id is None:
+            endpoint = f"spaces/{space}/start-conversation"
+        else:
+            endpoint = f"spaces/{space}/conversations/{quote(self.conversation_id, safe='')}/messages"
+        # Resolve the connection, the HTTPS check and credentials first: if any of them fails, nothing
+        # was sent, so no marker may be written that would block the next try.
+        prepared = self.hook._prepare_request(endpoint)
+
+        store = self._get_task_state_store(context)
         if store is not None:
             marker = store.get(self._submission_key)
             if (
                 marker is not None
                 and not self.resubmit_unconfirmed
-                and (not isinstance(marker, dict) or marker.get("fingerprint") == self._fingerprint())
+                and (not isinstance(marker, dict) or marker.get("fingerprint") == self._compute_fingerprint())
             ):
                 raise AirflowFailException(
                     "An earlier try submitted this Genie question but Databricks never confirmed the "
@@ -197,19 +215,15 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
                     "conversation_id and message_id to attach to it, or set resubmit_unconfirmed=True "
                     "to ask again."
                 )
-            store.set(self._submission_key, {"fingerprint": self._fingerprint()})
+            store.set(self._submission_key, {"fingerprint": self._compute_fingerprint()})
 
-        space = quote(self.space_id, safe="")
-        if self.conversation_id is None:
-            endpoint = f"spaces/{space}/start-conversation"
-        else:
-            endpoint = f"spaces/{space}/conversations/{quote(self.conversation_id, safe='')}/messages"
         try:
             created = self.hook._request(
                 "POST",
                 endpoint,
                 body={"content": self.question, "enable_visualization": False},
                 retry_read=False,
+                prepared=prepared,
             )
         except DatabricksGenieError as err:
             if err.status_code is not None and err.status_code < 500:
@@ -230,7 +244,7 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
             "space_id": self.space_id,
             "conversation_id": conversation_id,
             "message_id": message_id,
-            "fingerprint": self._fingerprint(),
+            "fingerprint": self._compute_fingerprint(),
         }
         self.log.info("Asked Genie message %s in conversation %s", message_id, conversation_id)
         if store is not None:
@@ -239,17 +253,17 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
             store.delete(self._submission_key)
         return ref
 
-    def _message_path(self, ref: GenieMessageRef) -> str:
+    def _build_message_path(self, ref: GenieMessageRef) -> str:
         return (
             f"spaces/{quote(ref['space_id'], safe='')}/conversations/"
             f"{quote(ref['conversation_id'], safe='')}/messages/{quote(ref['message_id'], safe='')}"
         )
 
     def _get_message(self, ref: GenieMessageRef, deadline: float | None = None) -> dict[str, Any]:
-        return self.hook._request("GET", self._message_path(ref), retry_read=True, deadline=deadline)
+        return self.hook._request("GET", self._build_message_path(ref), retry_read=True, deadline=deadline)
 
     def get_job_status(self, external_id: Any, context: Context) -> str:
-        if not isinstance(external_id, dict) or external_id.get("fingerprint") != self._fingerprint():
+        if not isinstance(external_id, dict) or external_id.get("fingerprint") != self._compute_fingerprint():
             self.log.warning("Stored Genie message was for a different question; asking again")
             return _STALE
         try:
@@ -259,7 +273,7 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
                 return _NOT_FOUND
             raise
         status = message.get("status")
-        if status in _PENDING_STATUSES or status in _TERMINAL_STATUSES:
+        if status in _PENDING_STATUSES or status in GENIE_TERMINAL_STATUSES:
             return str(status)
         raise DatabricksGenieError(f"Genie returned an unknown message status: {status!r}.")
 
@@ -317,7 +331,7 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
             if remaining <= 0:
                 raise DatabricksGenieError(
                     f"Timed out after {self.timeout} seconds waiting for Genie message "
-                    f"{ref['message_id']}; the next try reconnects to it."
+                    f"{ref['message_id']}. {self._describe_next_try(context)}"
                 )
             time.sleep(min(self.polling_period_seconds, remaining))
             message = self._get_message(ref, deadline)
@@ -359,7 +373,7 @@ class DatabricksGenieOperator(ResumableJobMixin, BaseOperator):
             status_code = event.get("status_code")
             raise DatabricksGenieError(
                 f"Polling Genie message {ref['message_id']} failed ({event.get('error_type')}); "
-                "inspect the triggerer logs. The next try reconnects to the message.",
+                f"inspect the triggerer logs. {self._describe_next_try(context)}",
                 status_code=status_code if isinstance(status_code, int) else None,
             )
         return self.get_job_result(ref, context)

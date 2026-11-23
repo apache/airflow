@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.common.compat.sdk import AirflowFailException, TaskDeferred
+from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException, TaskDeferred
 from airflow.providers.databricks.hooks.genie import DatabricksGenieError, DatabricksGenieHook
 from airflow.providers.databricks.operators.genie import DatabricksGenieOperator
 from airflow.providers.databricks.triggers.genie import DatabricksGenieMessageTrigger
@@ -38,17 +38,18 @@ MESSAGE = f"spaces/space%2F1/conversations/{CONVERSATION_ID}/messages/{MESSAGE_I
 ATTACHMENT_RESULT = f"{MESSAGE}/attachments/attachment-1/query-result"
 KEY = DatabricksGenieOperator.external_id_key
 SUBMISSION_KEY = f"{KEY}_submission"
+PREPARED = mock.sentinel.prepared
 
 durable_only = pytest.mark.skipif(
     not AIRFLOW_V_3_3_PLUS, reason="task_state_store (durable execution) requires Airflow 3.3+"
 )
 
 
-def message(status: str, **fields) -> dict:
+def build_message(status: str, **fields) -> dict:
     return {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID, "status": status, **fields}
 
 
-COMPLETED = message(
+COMPLETED = build_message(
     "COMPLETED",
     attachments=[
         {"text": {"content": "There were 42 orders."}},
@@ -101,14 +102,22 @@ class FakeGenie:
         self.journal = journal
         self.responses: dict[tuple[str, str], list] = {}
         self.bodies: list = []
+        self.prepare_errors: list[BaseException] = []
 
     def add(self, method: str, endpoint: str, *responses) -> None:
         self.responses.setdefault((method, endpoint), []).extend(responses)
 
-    def __call__(self, hook, method, endpoint, *, body=None, retry_read, deadline=None):
+    def prepare(self, hook, endpoint):
+        self.journal.append(("prepare", endpoint))
+        if self.prepare_errors:
+            raise self.prepare_errors.pop(0)
+        return PREPARED
+
+    def __call__(self, hook, method, endpoint, *, body=None, retry_read, deadline=None, prepared=None):
         self.journal.append((method, endpoint))
         if method == "POST":
             assert retry_read is False
+            assert prepared is PREPARED
             self.bodies.append(body)
         else:
             assert retry_read is True
@@ -131,7 +140,10 @@ def journal():
 @pytest.fixture
 def genie(journal):
     fake = FakeGenie(journal)
-    with mock.patch.object(DatabricksGenieHook, "_request", autospec=True, side_effect=fake):
+    with (
+        mock.patch.object(DatabricksGenieHook, "_request", autospec=True, side_effect=fake),
+        mock.patch.object(DatabricksGenieHook, "_prepare_request", autospec=True, side_effect=fake.prepare),
+    ):
         yield fake
 
 
@@ -148,20 +160,20 @@ def make_operator(**kwargs) -> DatabricksGenieOperator:
     return DatabricksGenieOperator(task_id="ask_genie", polling_period_seconds=2, **kwargs)
 
 
-def stored_ref(**overrides) -> dict:
+def build_stored_ref(**overrides) -> dict:
     ref = {
         "space_id": SPACE_ID,
         "conversation_id": CONVERSATION_ID,
         "message_id": MESSAGE_ID,
-        "fingerprint": make_operator()._fingerprint(),
+        "fingerprint": make_operator()._compute_fingerprint(),
     }
     ref.update(overrides)
     return ref
 
 
-def answered(genie: FakeGenie, *statuses: str, post: str = START) -> None:
+def stub_answered(genie: FakeGenie, *statuses: str, post: str = START) -> None:
     genie.add("POST", post, {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID})
-    genie.add("GET", MESSAGE, *[message(status) for status in statuses], COMPLETED)
+    genie.add("GET", MESSAGE, *[build_message(status) for status in statuses], COMPLETED)
     genie.add("GET", ATTACHMENT_RESULT, QUERY_RESULT)
 
 
@@ -186,14 +198,15 @@ def test_invalid_request(genie, kwargs, match):
     assert genie.journal == []
 
 
-def test_template_fields():
-    assert set(DatabricksGenieOperator.template_fields) == {
-        "space_id",
-        "question",
-        "databricks_conn_id",
-        "conversation_id",
-        "message_id",
-    }
+def test_templated_conversation_id_selects_follow_up_endpoint(genie):
+    stub_answered(genie, post=FOLLOW_UP)
+    op = make_operator(conversation_id="{{ params.conversation }}")
+
+    op.render_template_fields(context={"params": {"conversation": CONVERSATION_ID}})
+
+    assert op.conversation_id == CONVERSATION_ID
+    assert op.execute({}) == EXPECTED_RESULT
+    assert genie.calls("POST") == [("POST", FOLLOW_UP)]
 
 
 def test_hook_configuration():
@@ -205,7 +218,7 @@ def test_hook_configuration():
 
 
 def test_asks_new_conversation_and_waits(genie, sleep):
-    answered(genie, "SUBMITTED", "EXECUTING_QUERY")
+    stub_answered(genie, "SUBMITTED", "EXECUTING_QUERY")
 
     assert make_operator(durable=False).execute({}) == EXPECTED_RESULT
 
@@ -217,13 +230,13 @@ def test_asks_new_conversation_and_waits(genie, sleep):
 
 @pytest.mark.parametrize("empty", ["", None])
 def test_empty_optional_ids_start_new_conversation(genie, empty):
-    answered(genie)
+    stub_answered(genie)
     make_operator(conversation_id=empty, message_id=empty, durable=False).execute({})
     assert genie.calls("POST") == [("POST", START)]
 
 
 def test_asks_follow_up_in_existing_conversation(genie):
-    answered(genie, post=FOLLOW_UP)
+    stub_answered(genie, post=FOLLOW_UP)
     assert make_operator(conversation_id=CONVERSATION_ID, durable=False).execute({}) == EXPECTED_RESULT
     assert genie.calls("POST") == [("POST", FOLLOW_UP)]
 
@@ -246,28 +259,28 @@ def test_accepts_message_id_under_id_key(genie):
 )
 def test_remote_terminal_failure(genie, status, match):
     genie.add("POST", START, {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID})
-    genie.add("GET", MESSAGE, message(status, error={"error": "no warehouse"}))
+    genie.add("GET", MESSAGE, build_message(status, error={"error": "no warehouse"}))
     with pytest.raises(DatabricksGenieError, match=match):
         make_operator(durable=False).execute({})
 
 
 def test_failed_message_without_detail(genie):
     genie.add("POST", START, {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID})
-    genie.add("GET", MESSAGE, message("FAILED", error="boom"))
+    genie.add("GET", MESSAGE, build_message("FAILED", error="boom"))
     with pytest.raises(DatabricksGenieError, match="could not answer message message-1: boom"):
         make_operator(durable=False).execute({})
 
 
 def test_synchronous_timeout(genie, sleep):
     genie.add("POST", START, {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID})
-    genie.add("GET", MESSAGE, message("ASKING_AI"))
+    genie.add("GET", MESSAGE, build_message("ASKING_AI"))
     with (
         mock.patch(
             "airflow.providers.databricks.operators.genie.time.monotonic",
             autospec=True,
             side_effect=[0, 5, 11],
         ),
-        pytest.raises(DatabricksGenieError, match="Timed out after 10 seconds .* reconnects to it"),
+        pytest.raises(DatabricksGenieError, match="Timed out after 10 seconds .* asks the question again"),
     ):
         make_operator(durable=False, timeout=10).execute({})
     sleep.assert_called_once_with(2)
@@ -275,7 +288,7 @@ def test_synchronous_timeout(genie, sleep):
 
 def test_result_is_bounded(genie):
     genie.add("POST", START, {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID})
-    genie.add("GET", MESSAGE, message("COMPLETED", attachments=[{"text": {"content": "x" * 200_000}}]))
+    genie.add("GET", MESSAGE, build_message("COMPLETED", attachments=[{"text": {"content": "x" * 200_000}}]))
 
     result = make_operator(durable=False).execute({})
 
@@ -286,7 +299,7 @@ def test_result_is_bounded(genie):
 
 def test_defers_with_ids_only(genie):
     genie.add("POST", START, {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID})
-    genie.add("GET", MESSAGE, message("SUBMITTED"))
+    genie.add("GET", MESSAGE, build_message("SUBMITTED"))
     op = make_operator(durable=False, deferrable=True, databricks_conn_id="genie", timeout=60)
 
     with pytest.raises(TaskDeferred) as deferred:
@@ -305,11 +318,11 @@ def test_defers_with_ids_only(genie):
     }
     assert deferred.value.method_name == "execute_complete"
     assert deferred.value.timeout.total_seconds() == 60
-    assert deferred.value.kwargs == {"ref": stored_ref()}
+    assert deferred.value.kwargs == {"ref": build_stored_ref()}
 
 
 def test_deferrable_does_not_defer_completed_message(genie):
-    answered(genie)
+    stub_answered(genie)
     assert make_operator(durable=False, deferrable=True).execute({}) == EXPECTED_RESULT
 
 
@@ -318,21 +331,21 @@ def test_execute_complete_fetches_result_on_worker(genie):
     genie.add("GET", ATTACHMENT_RESULT, QUERY_RESULT)
     event = {"status": "success", "conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID}
 
-    assert make_operator().execute_complete({}, event, ref=stored_ref()) == EXPECTED_RESULT
+    assert make_operator().execute_complete({}, event, ref=build_stored_ref()) == EXPECTED_RESULT
 
 
 def test_execute_complete_raises_for_failed_message(genie):
-    genie.add("GET", MESSAGE, message("CANCELLED"))
+    genie.add("GET", MESSAGE, build_message("CANCELLED"))
     event = {"status": "success", "conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID}
     with pytest.raises(DatabricksGenieError, match="ended with status CANCELLED"):
-        make_operator().execute_complete({}, event, ref=stored_ref())
+        make_operator().execute_complete({}, event, ref=build_stored_ref())
 
 
 def test_execute_complete_rejects_pending_message(genie):
-    genie.add("GET", MESSAGE, message("ASKING_AI"))
+    genie.add("GET", MESSAGE, build_message("ASKING_AI"))
     event = {"status": "success", "conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID}
     with pytest.raises(DatabricksGenieError, match="has not completed yet"):
-        make_operator().execute_complete({}, event, ref=stored_ref())
+        make_operator().execute_complete({}, event, ref=build_stored_ref())
 
 
 @pytest.mark.parametrize(("status_code", "expected"), [(503, 503), ("503", None), (None, None)])
@@ -344,8 +357,8 @@ def test_execute_complete_error_event(genie, status_code, expected):
         "error_type": "api_error",
         "status_code": status_code,
     }
-    with pytest.raises(DatabricksGenieError, match=r"failed \(api_error\)") as err:
-        make_operator().execute_complete({}, event, ref=stored_ref())
+    with pytest.raises(DatabricksGenieError, match=r"failed \(api_error\).*asks the question again") as err:
+        make_operator().execute_complete({}, event, ref=build_stored_ref())
     assert err.value.status_code == expected
     assert genie.journal == []
 
@@ -362,7 +375,7 @@ def test_execute_complete_error_event(genie, status_code, expected):
 )
 def test_execute_complete_invalid_event(genie, event):
     with pytest.raises(DatabricksGenieError, match="invalid event"):
-        make_operator().execute_complete({}, event, ref=stored_ref())
+        make_operator().execute_complete({}, event, ref=build_stored_ref())
 
 
 @pytest.mark.parametrize("status_code", [None, 500, 503])
@@ -401,36 +414,37 @@ class TestDurable:
         return op.execute({"ti": mock.Mock(spec=["stats_tags"], stats_tags={}), "task_state_store": store})
 
     def test_persists_ids_before_waiting(self, genie, journal):
-        answered(genie, "SUBMITTED")
+        stub_answered(genie, "SUBMITTED")
         store = FakeStore(journal)
 
         assert self.run(make_operator(), store) == EXPECTED_RESULT
 
         first_get = journal.index(("GET", MESSAGE))
         assert journal[:first_get] == [
+            ("prepare", START),
             ("set", SUBMISSION_KEY),
             ("POST", START),
             ("set", KEY),
             ("delete", SUBMISSION_KEY),
             ("set", KEY),
         ]
-        assert store.data == {KEY: stored_ref()}
+        assert store.data == {KEY: build_stored_ref()}
 
     def test_deferrable_persists_ids_before_deferring(self, genie, journal):
         genie.add("POST", START, {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID})
-        genie.add("GET", MESSAGE, message("SUBMITTED"))
+        genie.add("GET", MESSAGE, build_message("SUBMITTED"))
         store = FakeStore(journal)
 
         with pytest.raises(TaskDeferred):
             self.run(make_operator(deferrable=True), store)
 
-        assert store.data == {KEY: stored_ref()}
+        assert store.data == {KEY: build_stored_ref()}
 
     @pytest.mark.parametrize("status", ["SUBMITTED", "ASKING_AI", "EXECUTING_QUERY"])
     def test_reconnects_to_running_message(self, genie, journal, sleep, status):
-        genie.add("GET", MESSAGE, message(status), message(status), COMPLETED)
+        genie.add("GET", MESSAGE, build_message(status), build_message(status), COMPLETED)
         genie.add("GET", ATTACHMENT_RESULT, QUERY_RESULT)
-        store = FakeStore(journal, {KEY: stored_ref()})
+        store = FakeStore(journal, {KEY: build_stored_ref()})
 
         assert self.run(make_operator(), store) == EXPECTED_RESULT
 
@@ -438,19 +452,19 @@ class TestDurable:
         assert [entry for entry in journal if entry[0] in ("set", "delete")] == []
 
     def test_reconnect_defers_again(self, genie, journal):
-        genie.add("GET", MESSAGE, message("ASKING_AI"))
-        store = FakeStore(journal, {KEY: stored_ref()})
+        genie.add("GET", MESSAGE, build_message("ASKING_AI"))
+        store = FakeStore(journal, {KEY: build_stored_ref()})
 
         with pytest.raises(TaskDeferred) as deferred:
             self.run(make_operator(deferrable=True), store)
 
-        assert deferred.value.kwargs == {"ref": stored_ref()}
+        assert deferred.value.kwargs == {"ref": build_stored_ref()}
         assert genie.calls("POST") == []
 
     def test_completed_message_returns_answer_without_asking(self, genie, journal):
         genie.add("GET", MESSAGE, COMPLETED)
         genie.add("GET", ATTACHMENT_RESULT, QUERY_RESULT)
-        store = FakeStore(journal, {KEY: stored_ref()})
+        store = FakeStore(journal, {KEY: build_stored_ref()})
 
         assert self.run(make_operator(), store) == EXPECTED_RESULT
         assert genie.calls("POST") == []
@@ -458,27 +472,27 @@ class TestDurable:
     @pytest.mark.parametrize(
         ("stored", "first_response"),
         [
-            pytest.param(stored_ref(), message("FAILED"), id="failed"),
-            pytest.param(stored_ref(), message("CANCELLED"), id="cancelled"),
-            pytest.param(stored_ref(), DatabricksGenieError("gone", status_code=404), id="deleted"),
-            pytest.param(stored_ref(fingerprint="other"), None, id="other-question"),
+            pytest.param(build_stored_ref(), build_message("FAILED"), id="failed"),
+            pytest.param(build_stored_ref(), build_message("CANCELLED"), id="cancelled"),
+            pytest.param(build_stored_ref(), DatabricksGenieError("gone", status_code=404), id="deleted"),
+            pytest.param(build_stored_ref(fingerprint="other"), None, id="other-question"),
             pytest.param("legacy-id", None, id="unexpected-shape"),
         ],
     )
     def test_asks_again_when_stored_message_cannot_be_used(self, genie, journal, stored, first_response):
         if first_response is not None:
             genie.add("GET", MESSAGE, first_response)
-        answered(genie)
+        stub_answered(genie)
         store = FakeStore(journal, {KEY: stored})
 
         assert self.run(make_operator(), store) == EXPECTED_RESULT
 
         assert genie.calls("POST") == [("POST", START)]
-        assert store.data == {KEY: stored_ref()}
+        assert store.data == {KEY: build_stored_ref()}
 
     def test_stored_message_lookup_error_propagates(self, genie, journal):
         genie.add("GET", MESSAGE, DatabricksGenieError("denied", status_code=403))
-        store = FakeStore(journal, {KEY: stored_ref()})
+        store = FakeStore(journal, {KEY: build_stored_ref()})
 
         with pytest.raises(DatabricksGenieError, match="denied"):
             self.run(make_operator(), store)
@@ -487,7 +501,9 @@ class TestDurable:
     @pytest.mark.parametrize(
         ("payload", "match"),
         [
-            pytest.param(message("SOMETHING_NEW"), "unknown message status: 'SOMETHING_NEW'", id="unknown"),
+            pytest.param(
+                build_message("SOMETHING_NEW"), "unknown message status: 'SOMETHING_NEW'", id="unknown"
+            ),
             pytest.param(
                 {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID},
                 "unknown message status: None",
@@ -497,16 +513,16 @@ class TestDurable:
     )
     def test_unknown_or_missing_status_does_not_resubmit(self, genie, journal, payload, match):
         genie.add("GET", MESSAGE, payload)
-        store = FakeStore(journal, {KEY: stored_ref()})
+        store = FakeStore(journal, {KEY: build_stored_ref()})
 
         with pytest.raises(DatabricksGenieError, match=match):
             self.run(make_operator(), store)
         assert genie.calls("POST") == []
-        assert store.data == {KEY: stored_ref()}
+        assert store.data == {KEY: build_stored_ref()}
 
     def test_changed_question_does_not_reuse_answer(self, genie, journal):
         genie.add("POST", START, DatabricksGenieError("rejected", status_code=400))
-        store = FakeStore(journal, {KEY: stored_ref()})
+        store = FakeStore(journal, {KEY: build_stored_ref()})
 
         with pytest.raises(DatabricksGenieError, match="rejected"):
             self.run(make_operator(question="Something else?"), store)
@@ -514,28 +530,58 @@ class TestDurable:
         assert genie.calls("GET") == []
         assert genie.bodies == [{"content": "Something else?", "enable_visualization": False}]
 
+    def test_timeout_says_next_try_reconnects(self, genie, journal, sleep):
+        genie.add("POST", START, {"conversation_id": CONVERSATION_ID, "message_id": MESSAGE_ID})
+        genie.add("GET", MESSAGE, build_message("ASKING_AI"))
+        with (
+            mock.patch(
+                "airflow.providers.databricks.operators.genie.time.monotonic",
+                autospec=True,
+                side_effect=[0, 5, 11],
+            ),
+            pytest.raises(
+                DatabricksGenieError, match="Timed out after 10 seconds .* reconnects to the message"
+            ),
+        ):
+            self.run(make_operator(timeout=10), FakeStore(journal))
+
+    def test_failure_before_send_leaves_no_marker(self, genie, journal):
+        """A token endpoint failure happens before anything is sent, so the next try may submit."""
+        stub_answered(genie)
+        genie.prepare_errors.append(AirflowException("token endpoint unavailable"))
+        store = FakeStore(journal)
+
+        with pytest.raises(AirflowException, match="token endpoint unavailable"):
+            self.run(make_operator(), store)
+        assert store.data == {}
+        assert genie.calls("POST") == []
+
+        assert self.run(make_operator(), store) == EXPECTED_RESULT
+        assert genie.calls("POST") == [("POST", START)]
+        assert store.data == {KEY: build_stored_ref()}
+
     def test_unconfirmed_submission_blocks_next_try(self, genie, journal):
         genie.add("POST", START, DatabricksGenieError("unknown outcome", status_code=None))
         store = FakeStore(journal)
 
         with pytest.raises(AirflowFailException, match="unknown outcome"):
             self.run(make_operator(), store)
-        assert store.data == {SUBMISSION_KEY: {"fingerprint": make_operator()._fingerprint()}}
+        assert store.data == {SUBMISSION_KEY: {"fingerprint": make_operator()._compute_fingerprint()}}
 
         with pytest.raises(AirflowFailException, match="never confirmed the outcome"):
             self.run(make_operator(), store)
         assert genie.calls("POST") == [("POST", START)]
 
     def test_changed_question_ignores_submission_marker(self, genie, journal):
-        answered(genie)
-        store = FakeStore(journal, {SUBMISSION_KEY: {"fingerprint": make_operator()._fingerprint()}})
+        stub_answered(genie)
+        store = FakeStore(journal, {SUBMISSION_KEY: {"fingerprint": make_operator()._compute_fingerprint()}})
         op = make_operator(question="Something else?")
 
         assert self.run(op, store) == EXPECTED_RESULT
 
         assert genie.calls("POST") == [("POST", START)]
         assert genie.bodies == [{"content": "Something else?", "enable_visualization": False}]
-        assert store.data == {KEY: {**stored_ref(), "fingerprint": op._fingerprint()}}
+        assert store.data == {KEY: {**build_stored_ref(), "fingerprint": op._compute_fingerprint()}}
 
     def test_accepted_submission_without_ids_blocks_next_try(self, genie, journal):
         genie.add("POST", START, {"message_id": MESSAGE_ID})
@@ -546,11 +592,11 @@ class TestDurable:
         assert SUBMISSION_KEY in store.data
 
     def test_resubmit_unconfirmed_asks_again(self, genie, journal):
-        answered(genie)
+        stub_answered(genie)
         store = FakeStore(journal, {SUBMISSION_KEY: {"fingerprint": "x"}})
 
         assert self.run(make_operator(resubmit_unconfirmed=True), store) == EXPECTED_RESULT
-        assert store.data == {KEY: stored_ref()}
+        assert store.data == {KEY: build_stored_ref()}
 
     @pytest.mark.parametrize("status_code", [400, 403, 429])
     def test_rejected_submission_clears_marker(self, genie, journal, status_code):
@@ -564,18 +610,18 @@ class TestDurable:
     def test_attach_recovers_unconfirmed_submission(self, genie, journal):
         genie.add("GET", MESSAGE, COMPLETED)
         genie.add("GET", ATTACHMENT_RESULT, QUERY_RESULT)
-        other = stored_ref(message_id="older")
+        other = build_stored_ref(message_id="older")
         store = FakeStore(journal, {SUBMISSION_KEY: {"fingerprint": "x"}, KEY: other})
         op = make_operator(conversation_id=CONVERSATION_ID, message_id=MESSAGE_ID)
 
         assert self.run(op, store) == EXPECTED_RESULT
 
         assert genie.calls("POST") == []
-        assert store.data == {KEY: {**stored_ref(), "fingerprint": op._fingerprint()}}
+        assert store.data == {KEY: {**build_stored_ref(), "fingerprint": op._compute_fingerprint()}}
 
     def test_not_durable_ignores_store(self, genie, journal):
-        answered(genie)
-        store = FakeStore(journal, {KEY: stored_ref(), SUBMISSION_KEY: {"fingerprint": "x"}})
+        stub_answered(genie)
+        store = FakeStore(journal, {KEY: build_stored_ref(), SUBMISSION_KEY: {"fingerprint": "x"}})
 
         assert self.run(make_operator(durable=False), store) == EXPECTED_RESULT
 
@@ -583,6 +629,6 @@ class TestDurable:
         assert [entry for entry in journal if entry[0] in ("set", "delete")] == []
 
     def test_cached_result_is_not_fetched_twice(self, genie, journal):
-        answered(genie)
+        stub_answered(genie)
         self.run(make_operator(), FakeStore(journal))
         assert genie.calls("GET").count(("GET", ATTACHMENT_RESULT)) == 1

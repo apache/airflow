@@ -24,10 +24,12 @@ from typing import Any
 from urllib.parse import quote, urlsplit
 
 from airflow.providers.databricks.exceptions import DatabricksApiError
-from airflow.providers.databricks.hooks.genie import _PENDING_STATUSES, DatabricksGenieHook
+from airflow.providers.databricks.hooks.genie import (
+    _PENDING_STATUSES,
+    GENIE_TERMINAL_STATUSES,
+    DatabricksGenieHook,
+)
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-GENIE_TERMINAL_STATUSES = frozenset({"COMPLETED", "FAILED", "CANCELLED", "QUERY_RESULT_EXPIRED"})
 
 
 class DatabricksGenieMessageTrigger(BaseTrigger):
@@ -82,7 +84,7 @@ class DatabricksGenieMessageTrigger(BaseTrigger):
             },
         )
 
-    def _event(self, **fields: Any) -> TriggerEvent:
+    def _build_event(self, **fields: Any) -> TriggerEvent:
         return TriggerEvent(
             {"conversation_id": self.conversation_id, "message_id": self.message_id, **fields}
         )
@@ -103,17 +105,17 @@ class DatabricksGenieMessageTrigger(BaseTrigger):
                 url = urlsplit(hook._endpoint_url(f"api/{endpoint}"))
                 if url.scheme != "https" and url.hostname not in {"localhost", "127.0.0.1", "::1"}:
                     self.log.error("Databricks Genie requires HTTPS; refusing to poll %s", url.hostname)
-                    yield self._event(status="error", error_type="insecure_connection")
+                    yield self._build_event(status="error", error_type="insecure_connection")
                     return
                 while True:
                     message = await hook._a_do_api_call(("GET", endpoint))
                     status = message.get("status") if isinstance(message, dict) else None
                     if status in GENIE_TERMINAL_STATUSES:
-                        yield self._event(status="success", message_status=status)
+                        yield self._build_event(status="success", message_status=status)
                         return
                     if status not in _PENDING_STATUSES:
                         self.log.error("Genie returned an unknown message status: %r", status)
-                        yield self._event(status="error", error_type="invalid_response")
+                        yield self._build_event(status="error", error_type="invalid_response")
                         return
                     self.log.info(
                         "Genie message %s is %s; checking again in %s seconds",
@@ -124,7 +126,7 @@ class DatabricksGenieMessageTrigger(BaseTrigger):
                     await asyncio.sleep(self.polling_period_seconds)
         except DatabricksApiError as err:
             self.log.exception("Polling Genie message %s failed", self.message_id)
-            yield self._event(status="error", error_type="api_error", status_code=err.http_status_code)
+            yield self._build_event(status="error", error_type="api_error", status_code=err.http_status_code)
         except Exception:
             self.log.exception("Polling Genie message %s failed", self.message_id)
-            yield self._event(status="error", error_type="unexpected_error")
+            yield self._build_event(status="error", error_type="unexpected_error")

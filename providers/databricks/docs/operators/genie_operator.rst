@@ -47,18 +47,29 @@ never carries Genie output.
 
 ``timeout`` limits how long one try waits for the answer. Timing out does not cancel the message.
 
-Retries and resuming
---------------------
+Durable execution
+-----------------
 
 On Airflow 3.3 and later the operator is durable by default. It stores the conversation and message
-IDs in the task state store before it waits, so a retry after a worker crash, a timeout or a failed
-trigger reconnects to the same message instead of asking again:
+IDs in the :doc:`task state store <apache-airflow:core-concepts/task-state-store>` before it waits, so
+a retry after a worker crash, a timeout or a failed trigger reconnects to the same message instead of
+asking again. See :doc:`apache-airflow:core-concepts/resumable-tasks` for how resumable tasks work.
+On retry the operator checks the stored message:
 
 * A message that is still running is awaited again.
 * A completed message returns its answer without asking again.
 * A message that failed, was cancelled or whose result expired is asked again in a new message.
-* A stored message that no longer exists, or that was asked for a different space, conversation or
-  question, is asked again.
+* A stored message that no longer exists (Genie answers 404), or that was asked for a different
+  space, conversation or question, is asked again.
+
+Genie may also answer 403 for a message that does not exist, so it does not reveal which resources
+are there. The operator treats only 404 as a missing message, so a stored message that Genie hides
+behind a 403 fails the try instead of being asked again. Retrying or clearing the task fails the same
+way, because the stored IDs stay in the task state for that DAG run. First check that the connection
+can still read the Genie space and fix its permissions if it cannot. If access is fine, the stored
+message is gone. To recover that DAG run, either set ``conversation_id`` and ``message_id`` to attach
+to a message you know exists, which replaces the stored IDs, or set ``durable=False`` to ask again in
+a new message. A new DAG run starts with empty task state and is not affected.
 
 Set ``durable=False`` to ask again on every try. On Airflow versions before 3.3 there is no task state
 store, so every try asks again; the operator logs the IDs right after it submits the question so you
@@ -81,4 +92,6 @@ Cancellation
 ------------
 
 Genie has no API to cancel a chat message, so killing or timing out the task leaves the message
-running in Databricks. The next try reconnects to it.
+running in Databricks. With durable execution the next try reconnects to it. With ``durable=False``,
+or on Airflow before 3.3 where there is no task state store, the next try asks the question again in
+a new message.
