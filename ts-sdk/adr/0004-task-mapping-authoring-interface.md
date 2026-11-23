@@ -68,9 +68,11 @@ it returns: `undefined` pushes nothing, and `null` is a value it pushes, as `set
    decision 6): a mapped task has no one-instance reading outside an `expand`, so the type alone
    says which reading is meant. A branch target, in `then`, `else` or `case`, also takes a
    `MappedTaskRef`, since a branch runs or skips a mapped task as a whole, as it does in Python.
-5. **`map`, `zip` and `concat` are methods of a reference whose value has elements**: a `TaskRef`
-   to an array or a record, a `MappedTaskRef`, or a `concat` result. Each returns a source that only
-   `expand` and `expandKwargs` take, so ADR-0016 decision 4's rejected shapes do not compile:
+5. **`map`, `zip` and `concat` are methods of a reference whose value has elements**: a `TaskRef` to
+   an array or a record, or a `MappedTaskRef`. A `concat` result offers `map` and `concat`, and a
+   `zip` result only `map`, so this SDK leaves out Python's `a.concat(b).zip(c)` and
+   `a.zip(b).concat(c)` for now. Each returns a source that only `expand` and `expandKwargs` take,
+   so ADR-0016 decision 4's rejected shapes do not compile:
    - **`map` stays outermost.** A `map` result offers only `map`, and chained calls add callables to
      one wrapper.
    - **No `zip` inside a `zip`.** A `zip` result offers only `map`.
