@@ -45,7 +45,6 @@ from airflow.models.team import Team
 from airflow.sdk import DAG, BaseOperator
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
 from airflow.utils import cli, cli_action_loggers
-from airflow.utils.cli import _search_for_dag_file
 from airflow.utils.session import create_session
 
 from tests_common.test_utils import db
@@ -141,9 +140,6 @@ class TestCliUtil:
         """
         with fail_action_logger_callback():
             success_func(Namespace())
-
-    def test_process_subdir_path_with_placeholder(self):
-        assert os.path.join(settings.DAGS_FOLDER, "abc") == cli.process_subdir("DAGS_FOLDER/abc")
 
     def test_get_dags(self):
         dags = cli.get_dags(None, "test_example_bash_operator")
@@ -1148,22 +1144,6 @@ def success_func(_):
 @cli.action_cli(check_db=False)
 def returns_ran(_):
     return "ran"
-
-
-def test__search_for_dags_file():
-    dags_folder = settings.DAGS_FOLDER
-    assert _search_for_dag_file("") is None
-    assert _search_for_dag_file(None) is None
-    # if it's a file, and one can be find in subdir, should return full path
-    assert _search_for_dag_file("any/hi/test_example_bash_operator.py") == str(
-        Path(dags_folder) / "test_example_bash_operator.py"
-    )
-    # if a folder, even if exists, should return dags folder
-    existing_folder = Path(settings.DAGS_FOLDER, "subdir1")
-    assert existing_folder.exists()
-    assert _search_for_dag_file(existing_folder.as_posix()) is None
-    # when multiple files found, default to the dags folder
-    assert _search_for_dag_file("any/hi/__init__.py") is None
 
 
 def _mock_bundle(path: Path) -> mock.MagicMock:
