@@ -1110,6 +1110,7 @@ warn_unused_ignores = false
 plugins = [
     "airflow_mypy.plugins.decorators",
     "airflow_mypy.plugins.outputs",
+    "airflow_mypy.plugins.sqlalchemy_version",
 ]
 pretty = true
 show_error_codes = true
