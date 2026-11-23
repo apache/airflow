@@ -62,7 +62,7 @@
   },
   "triggers": {
     "columns": {
-      "dagsAffected": "DAGs betroffen",
+      "dagsAffected": "Dags betroffen",
       "failures": "Fehlgschlagen",
       "kind": "Typ",
       "lastError": "Letzter Fehler",
@@ -75,13 +75,13 @@
       "firstFailedAt": "Fehlgeschlagener Teil",
       "lastFailedAt": "Zuletzt Fehlgeschlagen um",
       "noReadableScheduledDags": "Keiner kann Lesen",
-      "scheduledDags": "Geplante DAG Läufe"
+      "scheduledDags": "Geplante Dag Läufe"
     },
     "filters": {
       "triggererHostname": "Benachrichtigender Hostname"
     },
     "forbidden": {
-      "description": "Benachrichtigungen werden Angezeigt für was sie ausgelöst wurden: Aufgaben von DAGs, DAG Läufe oder ein Bestand auf die sie schauen. Sie können keine sehen.",
+      "description": "Benachrichtigungen werden Angezeigt für was sie ausgelöst wurden: Aufgaben von Dags, Dag Läufe oder ein Bestand auf die sie schauen. Sie können keine sehen.",
       "title": "Keine Benachrichtigungen zu zeigen"
     },
     "kind": {
