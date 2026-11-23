@@ -255,10 +255,12 @@ type KwargsSource<TArgs> =
   | MapSource<TArgs>;
 
 /** A plain input also takes a mapped task, as a reduce, where the argument is a sequence. */
-type TaskInput<T> =
-  | TaskRef
-  | JsonCompatible<T>
-  | (T extends XComSequence<infer E> ? MappedTaskRef<E> : never);
+type TaskInputs<TArgs> = {
+  [K in keyof TArgs]:
+    | TaskRef
+    | JsonCompatible<TArgs[K]>
+    | (TArgs[K] extends XComSequence<infer E> ? MappedTaskRef<E> : never);
+};
 
 /** `never` for an argument type with no known keys, which turns every method below off. */
 type Keyed<TArgs> = string extends keyof TArgs ? never : TArgs;
