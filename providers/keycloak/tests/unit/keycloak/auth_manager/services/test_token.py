@@ -1032,9 +1032,15 @@ class TestDeviceCodeService:
             pytest.param(_keycloak_oauth_error("expired_token"), 400, "expired_token", id="expired"),
             pytest.param(_keycloak_oauth_error("invalid_grant"), 403, "Invalid device code", id="invalid"),
             pytest.param(
+                _keycloak_oauth_error("unauthorized_client"),
+                500,
+                "Keycloak refused the device code token request",
+                id="grant-off-in-keycloak",
+            ),
+            pytest.param(
                 KeycloakAuthenticationError("unauthorized", response_code=401),
-                403,
-                "Invalid device code",
+                500,
+                "Keycloak refused the device code token request",
                 id="client-auth-failed",
             ),
             pytest.param(
@@ -1046,10 +1052,17 @@ class TestDeviceCodeService:
         ],
     )
     @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.log", spec=logging.Logger)
     @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
     def test_create_token_from_device_code_keycloak_error(
-        self, mock_get_keycloak_client, mock_get_auth_manager, error, expected_status, expected_detail
+        self,
+        mock_get_keycloak_client,
+        mock_get_auth_manager,
+        mock_log,
+        error,
+        expected_status,
+        expected_detail,
     ):
         mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
         mock_get_keycloak_client.return_value.token.side_effect = error
@@ -1059,6 +1072,7 @@ class TestDeviceCodeService:
 
         assert (exc_info.value.status_code, exc_info.value.detail) == (expected_status, expected_detail)
         mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
+        assert mock_log.error.called is (expected_status == 500)
 
     @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "True"})
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")

@@ -365,7 +365,14 @@ def create_token_from_device_code(device_code: str, expiration_time_in_seconds: 
         error = _find_oauth_error(e)
         if error in DEVICE_CODE_CLIENT_ERRORS:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid device code")
+        if error == "invalid_grant":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid device code")
+        # Not the user's fault: e.g. a wrong client secret or the device grant turned off in Keycloak.
+        log.error("Keycloak refused the device code token request: %s", error or e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Keycloak refused the device code token request",
+        )
     with translate_keycloak_outage():
         return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
 
