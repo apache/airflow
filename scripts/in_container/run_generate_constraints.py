@@ -665,15 +665,15 @@ def build_pinned_provider_requirements(
             exit_on_pending_provider_candidates(pending)
     requirements = []
     for distribution, version in zip(distributions, newest_versions):
-        # Snowflake 6.20 caps SQLAlchemy below the version required on Python 3.15; 6.21 removes it.
-        # https://github.com/apache/airflow/issues/75118
+        # The published Snowflake 6.21.0 still caps SQLAlchemy below the version required on Python 3.15.
+        # https://github.com/apache/airflow/pull/76705 removes the cap for newer Python in provider sources.
         if (
             distribution == "apache-airflow-providers-snowflake"
             and Version(python_version).release >= (3, 15)
             and version is not None
-            and Version(version).release < (6, 21)
+            and Version(version) <= Version("6.21.0")
         ):
-            console.print(f"[yellow]Skipping {distribution}=={version}: Python 3.15 requires 6.21 or newer.")
+            console.print(f"[yellow]Skipping {distribution}=={version}: it caps SQLAlchemy below 2.1.")
             continue
         requirements.append(f"{distribution}=={version}" if version is not None else distribution)
     return requirements

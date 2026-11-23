@@ -75,7 +75,8 @@ dependencies = [
     "apache-airflow-providers-openlineage"
 ]
 "mssql-python" = [
-    "mssql-python>=1.15.0"
+    "mssql-python>=1.15.0",
+    "mssql-python>=1.16.0; python_version >= '3.15'",
 ]
 
 [dependency-groups]

@@ -374,8 +374,9 @@ class TestBuildPinnedProviderRequirements:
         [
             ("3.14", "6.20.0", ["apache-airflow-providers-snowflake==6.20.0"]),
             ("3.15", "6.20.0", []),
-            ("3.15", "6.21.0rc1", ["apache-airflow-providers-snowflake==6.21.0rc1"]),
-            ("3.15", "6.21.0", ["apache-airflow-providers-snowflake==6.21.0"]),
+            ("3.15", "6.21.0rc1", []),
+            ("3.15", "6.21.0", []),
+            ("3.15", "6.22.0rc1", ["apache-airflow-providers-snowflake==6.22.0rc1"]),
             ("3.15", None, ["apache-airflow-providers-snowflake"]),
         ],
     )
