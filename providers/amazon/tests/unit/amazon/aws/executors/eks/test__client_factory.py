@@ -355,15 +355,17 @@ def _reject(api_exception_cls, status=401):
 
 
 def _pods_response():
-    return mock.create_autospec(
+    response = mock.create_autospec(
         client.rest.RESTResponse,
         instance=True,
         status=200,
         data=b'{"items": []}',
         headers={"content-type": "application/json"},
         response=mock.sentinel.raw,
-        **{"getheader.return_value": "application/json"},
     )
+    # Python 3.11 create_autospec drops "getheader.return_value" passed as a keyword argument.
+    response.getheader.return_value = "application/json"
+    return response
 
 
 def _result_of(pods, api_exception_cls):
