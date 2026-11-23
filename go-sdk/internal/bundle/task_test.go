@@ -500,6 +500,35 @@ func (s *TaskSuite) TestPushesANilResult() {
 	}
 }
 
+// A nil slice or map result is Go's empty one, so it pushes an empty list or mapping, not null.
+func (s *TaskSuite) TestPushesANilCollectionResultAsEmpty() {
+	cases := map[string]struct {
+		fn   any
+		want any
+	}{
+		"nil slice": {
+			fn:   func(contexttest.Context) ([]string, error) { return nil, nil },
+			want: []string{},
+		},
+		"nil map": {
+			fn:   func(contexttest.Context) (map[string]int, error) { return nil, nil },
+			want: map[string]int{},
+		},
+	}
+	for name, tt := range cases {
+		s.Run(name, func() {
+			task, err := NewTaskFunction(tt.fn)
+			s.Require().NoError(err)
+
+			client := &recordingClient{}
+			s.Require().NoError(runTask(task, client, true, false))
+
+			// %v prints a nil and an empty slice alike, so the value itself is compared.
+			s.Equal(tt.want, client.values[sdk.XComReturnValueKey])
+		})
+	}
+}
+
 // A function that returns only an error has no result, so it pushes nothing.
 func (s *TaskSuite) TestErrorOnlyFunctionPushesNothing() {
 	task, err := NewTaskFunction(func(contexttest.Context) error { return nil })

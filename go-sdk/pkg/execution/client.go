@@ -25,7 +25,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -300,7 +299,7 @@ func (c *CoordinatorClient) PushXCom(
 	value any,
 ) error {
 	// Unlike a task state value, nil is allowed: it is pushed as JSON null.
-	encoded, _, err := validateJSONRepresentable(emptyIfNilCollection(value))
+	encoded, _, err := validateJSONRepresentable(value)
 	if err != nil {
 		return fmt.Errorf("cannot push XCom %q: %w", key, err)
 	}
@@ -520,20 +519,6 @@ func resolveExpiry(retention *time.Duration, now time.Time) (*genmodels.Time, er
 	default:
 		return genmodels.TimePtr(now.UTC().Add(r)), nil
 	}
-}
-
-// emptyIfNilCollection replaces a nil slice or map with an empty one. Go code
-// uses a nil slice as its empty slice, so a task that, say, filters out every
-// row means an empty list, not null.
-func emptyIfNilCollection(value any) any {
-	rv := reflect.ValueOf(value)
-	switch {
-	case rv.Kind() == reflect.Slice && rv.IsNil():
-		return reflect.MakeSlice(rv.Type(), 0, 0).Interface()
-	case rv.Kind() == reflect.Map && rv.IsNil():
-		return reflect.MakeMap(rv.Type()).Interface()
-	}
-	return value
 }
 
 // validateJSONRepresentable checks what the frame encoder actually emits, not

@@ -439,8 +439,8 @@ func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
 }
 
 // A nil value pushes null, so PushXCom must not inherit the task state store's
-// nil rule. A nil slice or map is Go's empty one, so it pushes an empty list or
-// mapping rather than null.
+// nil rule. Unlike a task's return value, an explicit nil slice or map is not
+// turned into an empty one.
 func TestCoordinatorClientPushXComNilValues(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -449,8 +449,8 @@ func TestCoordinatorClientPushXComNilValues(t *testing.T) {
 	}{
 		{name: "nil", value: nil, want: nil},
 		{name: "nil pointer", value: (*string)(nil), want: nil},
-		{name: "nil slice", value: []string(nil), want: []any{}},
-		{name: "nil map", value: map[string]int(nil), want: map[string]any{}},
+		{name: "nil slice", value: []string(nil), want: nil},
+		{name: "nil map", value: map[string]int(nil), want: nil},
 	}
 
 	for _, tc := range tests {

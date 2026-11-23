@@ -281,10 +281,24 @@ func pushReturnValue(ctx context.Context, value any, c sdk.XComClient) error {
 	if err != nil {
 		return fmt.Errorf("setting the return value XCom: %w", err)
 	}
-	if err := c.PushXCom(ctx, ti, sdk.XComReturnValueKey, value); err != nil {
+	if err := c.PushXCom(ctx, ti, sdk.XComReturnValueKey, emptyIfNilCollection(value)); err != nil {
 		return fmt.Errorf("setting the return value XCom: %w", err)
 	}
 	return nil
+}
+
+// emptyIfNilCollection replaces a nil slice or map with an empty one. Go code
+// uses a nil slice as its empty slice, so a task that, say, filters out every
+// row means an empty list, not null.
+func emptyIfNilCollection(value any) any {
+	rv := reflect.ValueOf(value)
+	switch {
+	case rv.Kind() == reflect.Slice && rv.IsNil():
+		return reflect.MakeSlice(rv.Type(), 0, 0).Interface()
+	case rv.Kind() == reflect.Map && rv.IsNil():
+		return reflect.MakeMap(rv.Type()).Interface()
+	}
+	return value
 }
 
 func (f *taskFunction) validateFn(

@@ -555,7 +555,7 @@ The ``sdk.Client``
        index. A map index reads one instance of a mapped task; one that selects no task instance reads ``nil``.
        See :ref:`go-sdk/types`.
    * - ``PushXCom(ctx, ti, key, value)``
-     - Publishes an XCom value. ``nil`` stores null; a nil slice or map is pushed as an empty one.
+     - Publishes an XCom value. ``nil``, including a nil slice or map, stores null.
    * - ``TaskStateStore()``
      - This task instance's key/value store. See :ref:`go-sdk/task-state-store`.
 
