@@ -1033,7 +1033,17 @@ class AsyncKubernetesHook(KubernetesHook):
                     self._client_cacheable = True
 
             return
-        self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
+
+        # As KubernetesHook._get_default_client: without configuration, a pod uses its service account
+        try:
+            async_config.load_incluster_config(client_configuration=self.client_configuration)
+        except async_config.ConfigException:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
+        else:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
+            self._is_in_cluster = True
+            self._client_cacheable = True
+            return
 
         await async_config.load_kube_config(
             client_configuration=self.client_configuration,
