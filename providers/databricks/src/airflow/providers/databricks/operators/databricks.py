@@ -307,14 +307,7 @@ _DICT_PARAM_FIELD_BY_TASK = {
     "run_job_task": "job_parameters",
 }
 
-# Per-task parameter slots that the Databricks API rejects when combined with the dict-shaped field
-# above. ``python_wheel_task.parameters`` (positional CLI arguments) is mutually exclusive with
-# ``python_wheel_task.named_parameters``, so a task that already carries one must not receive the other.
-_TASK_PARAM_SLOTS_CONFLICTING_WITH_DICT_PARAM_FIELD = {
-    "python_wheel_task": ("parameters",),
-}
-
-# Parameter slots in run-now payload that Databricks API rejects when combined with job_parameters
+# Parameter slots in a run-now payload (and in a ``run_job_task``) that Databricks API rejects when combined with job_parameters
 _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
     "notebook_params",
     "python_params",
@@ -323,6 +316,15 @@ _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
     "python_named_params",
     "dbt_commands",
 )
+
+# Per-task parameter slots that the Databricks API rejects when combined with the dict-shaped field
+# above. ``python_wheel_task.parameters`` (positional CLI arguments) is mutually exclusive with
+# ``python_wheel_task.named_parameters``, so a task that already carries one must not receive the other.
+# ``run_job_task.job_parameters`` can't be combined with the legacy ``*_params`` slots either.
+_TASK_PARAM_SLOTS_CONFLICTING_WITH_DICT_PARAM_FIELD = {
+    "python_wheel_task": ("parameters",),
+    "run_job_task": _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS,
+}
 
 
 def _get_forwardable_dag_params(params: Mapping[str, Any]) -> dict[str, Any]:
@@ -799,7 +801,9 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         are skipped because there is no canonical mapping from a key/value dict to a positional
         argument list. A ``python_wheel_task`` that already has positional ``parameters`` is also
         skipped, because the Databricks API rejects ``parameters`` together with
-        ``named_parameters``. Params whose value is ``None`` are skipped.
+        ``named_parameters``, and so is a ``run_job_task`` that already has a legacy parameter slot
+        (``python_params``, ``notebook_params``, ``jar_params``, ...), which can't be combined with
+        ``job_parameters``. Params whose value is ``None`` are skipped.
     """
 
     external_id_key = "databricks_run_id"

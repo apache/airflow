@@ -126,7 +126,9 @@ Tasks whose only parameter slot is ``List[str]`` (``spark_jar_task``, ``spark_py
 dict to a positional argument list — pass those parameters explicitly via the ``json``
 or ``tasks`` argument. A ``python_wheel_task`` that already has positional ``parameters`` is
 also skipped, because the Databricks API rejects ``parameters`` together with
-``named_parameters``.
+``named_parameters``. The same goes for a ``run_job_task`` that already has a legacy parameter
+slot (``python_params``, ``notebook_params``, ``jar_params``, ``python_named_params``, ...),
+which the Databricks API does not allow together with ``job_parameters``.
 
 Params whose value resolves to ``None`` are skipped, since Databricks has no value to
 receive for them.

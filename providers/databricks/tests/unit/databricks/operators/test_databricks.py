@@ -1706,34 +1706,83 @@ class TestDatabricksSubmitRunOperator:
         assert actual["notebook_task"]["base_parameters"] == {"explicit": "value"}
 
     @pytest.mark.parametrize(
-        ("parameters", "expected_named_parameters"),
+        ("task_type", "task_def", "dict_field", "expected_injected"),
         [
-            pytest.param(["--date", "2024-01-01"], None, id="positional-parameters-set"),
-            pytest.param([], {"env": "prod"}, id="positional-parameters-empty"),
+            pytest.param(
+                "python_wheel_task",
+                {"package_name": "my_package", "entry_point": "main", "parameters": ["--date", "2024-01-01"]},
+                "named_parameters",
+                None,
+                id="wheel-positional-parameters-set",
+            ),
+            pytest.param(
+                "python_wheel_task",
+                {"package_name": "my_package", "entry_point": "main", "parameters": []},
+                "named_parameters",
+                {"env": "prod"},
+                id="wheel-positional-parameters-empty",
+            ),
+            pytest.param(
+                "run_job_task",
+                {"job_id": "42", "python_params": ["--date", "2024-01-01"]},
+                "job_parameters",
+                None,
+                id="run-job-python-params-set",
+            ),
+            pytest.param(
+                "run_job_task",
+                {"job_id": "42", "notebook_params": {"date": "2024-01-01"}},
+                "job_parameters",
+                None,
+                id="run-job-notebook-params-set",
+            ),
+            pytest.param(
+                "run_job_task",
+                {"job_id": "42", "jar_params": ["2024-01-01"]},
+                "job_parameters",
+                None,
+                id="run-job-jar-params-set",
+            ),
+            pytest.param(
+                "run_job_task",
+                {"job_id": "42", "python_named_params": {"date": "2024-01-01"}},
+                "job_parameters",
+                None,
+                id="run-job-python-named-params-set",
+            ),
+            pytest.param(
+                "run_job_task",
+                {"job_id": "42", "python_params": []},
+                "job_parameters",
+                {"env": "prod"},
+                id="run-job-python-params-empty",
+            ),
+            pytest.param(
+                "run_job_task",
+                {"job_id": "42"},
+                "job_parameters",
+                {"env": "prod"},
+                id="run-job-no-legacy-params",
+            ),
         ],
     )
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
-    def test_submit_run_skips_param_injection_when_wheel_task_has_positional_parameters(
-        self, db_mock_class, parameters, expected_named_parameters
+    def test_submit_run_skips_param_injection_when_task_has_conflicting_parameters(
+        self, db_mock_class, task_type, task_def, dict_field, expected_injected
     ):
         """
-        ``python_wheel_task.parameters`` and ``python_wheel_task.named_parameters`` are mutually
-        exclusive in the Databricks API, so ``self.params`` must not be injected as
-        ``named_parameters`` when the user already passes positional ``parameters``
-        (regression test for GH-74095). An empty ``parameters`` list counts as unset.
+        The Databricks API rejects some per-task parameter slots together with the dict-shaped field
+        that ``self.params`` is injected into: ``python_wheel_task.parameters`` with ``named_parameters``
+        (regression test for GH-74095), and the legacy ``run_job_task`` slots (``python_params``,
+        ``notebook_params``, ``jar_params``, ``python_named_params``, ...) with ``job_parameters``.
+        Injection must be skipped for such a task. An empty slot counts as unset.
         """
+        original_task_def = copy.deepcopy(task_def)
         op = DatabricksSubmitRunOperator(
             durable=False,
             task_id=TASK_ID,
             tasks=[
-                {
-                    "task_key": "wheel",
-                    "python_wheel_task": {
-                        "package_name": "my_package",
-                        "entry_point": "main",
-                        "parameters": parameters,
-                    },
-                },
+                {"task_key": "conflicting", task_type: task_def},
                 {"task_key": "nb", "notebook_task": {"notebook_path": "/n1"}},
             ],
             params={"env": "prod"},
@@ -1745,9 +1794,11 @@ class TestDatabricksSubmitRunOperator:
         op.execute(None)
 
         actual = db_mock.submit_run.call_args.args[0]
-        wheel_task = actual["tasks"][0]["python_wheel_task"]
-        assert wheel_task.get("named_parameters") == expected_named_parameters
-        assert wheel_task["parameters"] == parameters
+        submitted_task_def = actual["tasks"][0][task_type]
+        assert submitted_task_def.get(dict_field) == expected_injected
+        # The user's own slots are passed through untouched.
+        for slot, value in original_task_def.items():
+            assert submitted_task_def[slot] == value
         # Other tasks in the same payload are still filled in.
         assert actual["tasks"][1]["notebook_task"]["base_parameters"] == {"env": "prod"}
 
