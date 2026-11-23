@@ -86,6 +86,10 @@ class TestXComOperations:
         result = task_sdk_client.xcoms.get("dag", "runid", task_id, XCOM_RETURN_KEY, map_index)
         assert result == XComResponse(key=XCOM_RETURN_KEY, value=expected)
 
+    def test_get_mapped_omitted(self, task_sdk_client):
+        result = task_sdk_client.xcoms.get("dag", "runid", "mapped", XCOM_RETURN_KEY)
+        assert result == XComSequenceSliceResponse(MAPPED_VALUES)
+
     def test_get_missing_key(self, task_sdk_client):
         result = task_sdk_client.xcoms.get("dag", "runid", "plain", "missing")
         assert result == XComResponse(key="missing", value=None)
