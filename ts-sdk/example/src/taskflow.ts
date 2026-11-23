@@ -119,10 +119,7 @@ export const report = withArgNames(
 export async function buildSummaryMessage() {
   // Nothing was passed to this task, so its upstream's output is read explicitly.
   const ctx = getContext();
-  const summary = await getClient().getXCom<Summary>({
-    key: "return_value",
-    taskId: "summarize",
-  });
+  const summary = await getClient().getXCom<Summary>({ taskId: "summarize" });
   if (summary === null) {
     throw new Error(`task ${ctx.taskId} has no summary to report`);
   }
