@@ -477,6 +477,12 @@ Its first parameter is an ``airflow.Context``, which gives it what Airflow provi
 that runs under ``context.WithoutCancel(actx)``. A helper that takes a plain ``context.Context`` gets the
 ``airflow.Context`` back with ``airflow.FromContext``.
 
+When the task runs past its ``execution_timeout``, ``Done()`` fires with ``sdk.ErrTaskTimeout`` as the cause, so
+``errors.Is(context.Cause(actx), sdk.ErrTaskTimeout)`` tells a timeout from Airflow stopping the task. The task then
+has ``[core] killed_task_cleanup_time`` to clean up and return. It fails with the timeout whatever it returns, and
+retries if it has retries. A value it returns after the timeout is not pushed as an XCom. A task that has not
+returned by then is reported as timed out and its process is stopped.
+
 ``Conf`` is a ``map[string]any`` whose values follow the :ref:`XCom type mapping <go-sdk/types>`. Use a map lookup
 or ``len`` to check for configuration entries, or :ref:`read the conf into a struct <go-sdk/dag-run-conf>` with
 typed fields.

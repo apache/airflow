@@ -386,18 +386,21 @@ func TestTriggerDagRunPollHonorsTheStatesOfTheTask(t *testing.T) {
 	assert.Equal(t, 4, len(supervisor.types())-2-1, "four polls after the link, trigger and run_id")
 }
 
+// sleepUntilCancelled sleeps for d, or until ctx is cancelled.
+func sleepUntilCancelled(ctx context.Context, d time.Duration) error {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
 func TestTriggerDagRunPollStopsWhenTheTaskIsCancelled(t *testing.T) {
 	triggerTestEnv(t, nil)
-	defaultTriggerEnv.sleep = func(ctx context.Context, d time.Duration) error {
-		timer := time.NewTimer(d)
-		defer timer.Stop()
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-timer.C:
-			return nil
-		}
-	}
+	defaultTriggerEnv.sleep = sleepUntilCancelled
 	supervisor := &triggerSupervisor{states: []string{"running"}}
 	poke := time.Hour
 	spec := bundle.TriggerSpec{DagID: "downstream", WaitForCompletion: true, PokeInterval: &poke}
@@ -417,6 +420,24 @@ func TestTriggerDagRunPollStopsWhenTheTaskIsCancelled(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the task kept sleeping after its context was cancelled")
 	}
+	assert.NotContains(t, supervisor.types(), "GetDagRunState")
+}
+
+// TestTriggerDagRunFailsAtItsExecutionTimeout pins that a TriggerDagRun task gets the same
+// execution_timeout as a task with a Go function.
+func TestTriggerDagRunFailsAtItsExecutionTimeout(t *testing.T) {
+	triggerTestEnv(t, nil)
+	defaultTriggerEnv.sleep = sleepUntilCancelled
+	supervisor := &triggerSupervisor{states: []string{"running"}}
+	poke := time.Hour
+	spec := bundle.TriggerSpec{DagID: "downstream", WaitForCompletion: true, PokeInterval: &poke}
+
+	result := runTriggerTask(t, spec, supervisor, func(details *genmodels.StartupDetails) {
+		details.TIContext.ShouldRetry = true
+		details.TIContext.ExecutionTimeout = 0.05
+	})
+
+	assertRetryTask(t, result, "task timed out after 0.05 seconds")
 	assert.NotContains(t, supervisor.types(), "GetDagRunState")
 }
 

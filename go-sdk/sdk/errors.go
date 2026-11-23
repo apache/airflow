@@ -44,3 +44,8 @@ var XComNotFound = errors.New("xcom not found")
 //
 // See the “Get“ method of [TaskStateStore] for an example
 var TaskStateNotFound = errors.New("task state not found")
+
+// ErrTaskTimeout is the cause of a task's context when the task runs past its execution_timeout.
+// Check errors.Is(context.Cause(ctx), ErrTaskTimeout) to tell a timeout from a shutdown of the task,
+// for example to decide what to clean up. A task that times out fails, whatever it returns.
+var ErrTaskTimeout = errors.New("task timed out")

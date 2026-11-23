@@ -35,6 +35,8 @@ Variables, Connections and XCom, and the identity of the task instance and its D
 [Context] is a context.Context, so pass it to a client call or to http.NewRequestWithContext,
 and select on actx.Done(), which fires when the supervisor asks the task to stop.
 Cleanup that must outlive that cancellation runs under context.WithoutCancel(actx).
+At the task's execution_timeout, actx.Done() fires with sdk.ErrTaskTimeout as the cause of the
+cancellation, and the task fails whatever it returns.
 
 A helper typed as a plain context.Context recovers the same surface with [FromContext].
 */
