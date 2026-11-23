@@ -218,6 +218,28 @@ type ElementOf<R> = R extends readonly (infer E)[]
     ? [K, V]
     : never;
 
+/** Marks a mapped task's element type, as the SDK's `RETURN_TYPE` marks a `TaskRef`'s value. */
+declare const ELEMENT_TYPE: unique symbol;
+
+/** A value with elements: an array or a record. */
+type HasElements = readonly unknown[] | Readonly<Record<string, unknown>>;
+
+/** Each `zip` source's element type, in order. */
+type ElementsOf<S extends readonly unknown[]> = {
+  [I in keyof S]: S[I] extends { readonly [RETURN_TYPE]?: infer R }
+    ? ElementOf<R>
+    : S[I] extends { readonly [ELEMENT_TYPE]?: infer E }
+      ? E
+      : S[I] extends ConcatSource<infer E>
+        ? E
+        : never;
+};
+
+/** Each `zip` source's element type, or the padding type where that source runs out. */
+type ElementsOrFill<S extends readonly unknown[], F> = {
+  [I in keyof S]: ElementsOf<[S[I]]>[0] | F;
+};
+
 /** What `zip` and `concat` take: something with elements of `T`. A `zip` or `map` result is not. */
 type Expandable<T = unknown> = TaskRef<readonly T[]> | MappedTaskRef<T> | ConcatSource<T>;
 
