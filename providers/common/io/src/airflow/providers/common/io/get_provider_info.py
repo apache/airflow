@@ -64,7 +64,7 @@ def get_provider_info():
                 "description": "Common IO configuration section",
                 "options": {
                     "xcom_objectstorage_path": {
-                        "description": "Path to a location on object storage where XComs can be stored in url format.\n",
+                        "description": "Path to a location on object storage where XComs can be stored in url format.\nMust include a URL scheme when ``xcom_objectstorage_threshold`` is 0 or higher;\nuse ``file:///path/to/xcom`` for local storage.\n",
                         "version_added": "1.3.0",
                         "type": "string",
                         "example": "s3://conn_id@bucket/path",
