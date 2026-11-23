@@ -26,7 +26,8 @@ from uuid import UUID, uuid4
 
 import pytest
 import time_machine
-from sqlalchemy import delete, event, select
+from sqlalchemy import Delete, delete, event, select
+from sqlalchemy.exc import OperationalError
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
 from airflow.jobs.job import Job
@@ -273,6 +274,41 @@ class TestEdgeExecutor:
             "edge_executor.sync.duration",
             tags=expected_tags,
         )
+
+    @pytest.mark.parametrize(
+        ("orig_args", "orig_attrs"),
+        [
+            pytest.param((1213, "Deadlock found when trying to get lock"), {}, id="mysql"),
+            pytest.param(("deadlock detected",), {"pgcode": "40P01"}, id="postgres"),
+        ],
+    )
+    def test_sync_survives_deadlock(self, orig_args, orig_attrs):
+        """A deadlock while purging is rolled back and left for the next heartbeat."""
+        executor = EdgeExecutor()
+        orig = Exception(*orig_args)
+        for name, value in orig_attrs.items():
+            setattr(orig, name, value)
+        session = MagicMock()
+
+        with patch.object(
+            EdgeExecutor, "_purge_jobs", side_effect=OperationalError("DELETE FROM edge_logs", {}, orig)
+        ):
+            executor.sync(session=session)
+
+        session.rollback.assert_called_once()
+        session.commit.assert_not_called()
+
+    def test_sync_reraises_other_database_errors(self):
+        """Only deadlocks are tolerated; any other database error still stops the sync."""
+        executor = EdgeExecutor()
+        session = MagicMock()
+        error = OperationalError("SELECT 1", {}, Exception(2013, "Lost connection to MySQL server"))
+
+        with patch.object(EdgeExecutor, "_purge_jobs", side_effect=error):
+            with pytest.raises(OperationalError):
+                executor.sync(session=session)
+
+        session.rollback.assert_not_called()
 
     @patch("airflow.providers.edge3.executors.edge_executor.EdgeExecutor.running_state")
     @patch("airflow.providers.edge3.executors.edge_executor.EdgeExecutor.success")
@@ -834,6 +870,57 @@ class TestEdgeExecutorMultiTeam:
             session.flush()
             assert session.scalars(select(EdgeJobModel)).all() == []
             assert session.scalars(select(EdgeLogsModel)).all() == []
+
+    def test_deleting_job_keeps_edge_job_out_of_the_logs_delete(self):
+        """The edge_logs DELETE has no edge_job subquery: its shared locks deadlock concurrent purges."""
+        with create_session() as session:
+            session.execute(delete(EdgeLogsModel))
+            job = EdgeJobModel(
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                map_index=-1,
+                try_number=1,
+                task_instance_id=str(UUID(int=1)),
+                state=TaskInstanceState.SUCCESS,
+                queue="default",
+                concurrency_slots=1,
+                command="mock",
+                last_update=timezone.utcnow() - timedelta(days=1),
+            )
+            session.add(job)
+            session.add(
+                EdgeLogsModel(
+                    dag_id="dag",
+                    task_id="task",
+                    run_id="run",
+                    map_index=-1,
+                    try_number=1,
+                    log_chunk_time=timezone.utcnow(),
+                    log_chunk_data="remove",
+                )
+            )
+            session.flush()
+            statements = []
+
+            def capture(execution):
+                statements.append(execution.statement)
+
+            event.listen(session, "do_orm_execute", capture)
+            try:
+                EdgeExecutor._delete_job(job, session)
+            finally:
+                event.remove(session, "do_orm_execute", capture)
+
+            logs_deletes = [
+                statement
+                for statement in statements
+                if isinstance(statement, Delete) and statement.table.name == EdgeLogsModel.__tablename__
+            ]
+            assert len(logs_deletes) == 1
+            assert EdgeJobModel.__tablename__ not in str(logs_deletes[0])
+            assert session.scalars(select(EdgeLogsModel)).all() == []
+            session.rollback()
 
 
 @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="ExecuteTypeBody union requires Airflow 3.3+")
