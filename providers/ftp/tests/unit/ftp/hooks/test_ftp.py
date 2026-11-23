@@ -120,6 +120,7 @@ class TestFTPHook:
             assert ftp_hook.get_size(path) == size
 
         self.conn_mock.size.assert_called_once_with(path)
+        self.conn_mock.assert_has_calls([mock.call.voidcmd("TYPE I"), mock.call.size(path)])
 
     def test_retrieve_file(self):
         _buffer = StringIO("buffer")
