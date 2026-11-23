@@ -848,17 +848,19 @@ class TestAwsBaseHook:
             mock_get.assert_called_once_with(idp_url, auth=mock_auth)
             mock_xpath.assert_called_once_with(xpath)
 
-        mocked_basic_session.assert_has_calls = [
-            mock.call().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
-            mock.call()
-            .client()
-            .assume_role_with_saml(
-                DurationSeconds=duration_seconds,
-                PrincipalArn=principal_arn,
-                RoleArn=role_arn,
-                SAMLAssertion=encoded_saml_assertion,
-            ),
-        ]
+        mocked_basic_session.assert_has_calls(
+            [
+                mock.call().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
+                mock.call()
+                .client()
+                .assume_role_with_saml(
+                    DurationSeconds=duration_seconds,
+                    PrincipalArn=principal_arn,
+                    RoleArn=role_arn,
+                    SAMLAssertion=encoded_saml_assertion,
+                ),
+            ]
+        )
 
     @mock_aws
     def test_expand_role(self):
