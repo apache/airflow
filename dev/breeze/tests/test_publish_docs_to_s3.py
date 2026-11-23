@@ -193,7 +193,7 @@ class TestPublishDocsToS3:
         overwrite,
         expected_source_dest_mapping,
     ):
-        mock_path_exists.side_effect = lambda path: str(path).endswith("/stable.txt")
+        mock_path_exists.return_value = True
         mock_doc_exists.return_value = doc_exists
         mock_get_all_eligible_docs.return_value = all_eligible_docs
         self.publish_docs_to_s3.overwrite = overwrite
