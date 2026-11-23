@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import os
+import shlex
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,6 +26,10 @@ from pathlib import Path
 import pytest
 
 HOOK = Path(__file__).resolve().parents[3] / "ci/prek/check_moved_docs_redirects.py"
+
+
+def test_hook_is_executable():
+    assert os.access(HOOK, os.X_OK)
 
 
 def run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -109,6 +115,16 @@ def test_move_with_existing_redirect_passes(repo: Path):
     assert result.returncode == 0
 
 
+def test_nested_move_without_redirect_fails(repo: Path):
+    (repo / "airflow-core/docs/nested").mkdir()
+    run_git(repo, "mv", "airflow-core/docs/old.rst", "airflow-core/docs/nested/new.rst")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 1
+    assert "Missing redirect for airflow-core/docs/old.rst" in result.stdout
+
+
 @pytest.mark.parametrize("change", ["non-doc-rename", "doc-deletion", "non-doc-tree"])
 def test_unrelated_changes_are_ignored(repo: Path, change: str):
     if change == "non-doc-rename":
@@ -167,12 +183,58 @@ def test_unstaged_redirect_does_not_cover_staged_move(repo: Path):
 
 def test_comment_or_missing_target_is_not_a_redirect(repo: Path):
     run_git(repo, "mv", "airflow-core/docs/old.rst", "airflow-core/docs/new.rst")
-    write_file(repo, "airflow-core/docs/redirects.txt", "# old.rst new.rst\nold.rst\n")
+    write_file(repo, "airflow-core/docs/redirects.txt", "# old.rst new.rst\nold.rst\nold.rst\tnew.rst\n")
     run_git(repo, "add", "airflow-core/docs/redirects.txt")
 
     result = run_hook(repo)
 
     assert result.returncode == 1
+
+
+def test_inline_comment_is_not_a_redirect_target(repo: Path):
+    run_git(repo, "mv", "airflow-core/docs/old.rst", "airflow-core/docs/new.rst")
+    write_file(repo, "airflow-core/docs/redirects.txt", "old.rst # TODO\n")
+    run_git(repo, "add", "airflow-core/docs/redirects.txt")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 1
+    assert "Missing redirect for airflow-core/docs/old.rst" in result.stdout
+
+
+@pytest.mark.parametrize(
+    ("redirects", "expected"),
+    [("old.rst new.rst\nold.rst\n", 1), ("old.rst\nold.rst new.rst\n", 0)],
+)
+def test_last_redirect_entry_wins(repo: Path, redirects: str, expected: int):
+    run_git(repo, "mv", "airflow-core/docs/old.rst", "airflow-core/docs/new.rst")
+    write_file(repo, "airflow-core/docs/redirects.txt", redirects)
+    run_git(repo, "add", "airflow-core/docs/redirects.txt")
+
+    result = run_hook(repo)
+
+    assert result.returncode == expected
+
+
+def test_git_show_failure_with_partial_output_fails_closed(repo: Path, tmp_path: Path):
+    run_git(repo, "mv", "airflow-core/docs/old.rst", "airflow-core/docs/new.rst")
+    real_git = shutil.which("git")
+    shim_dir = tmp_path / "bin"
+    shim_dir.mkdir()
+    shim = shim_dir / "git"
+    shim.write_text(
+        '#!/bin/sh\nif [ "$1" = "show" ] && [ "$2" = ":airflow-core/docs/redirects.txt" ]; then\n'
+        '    printf "old.rst new.rst\\n"\n    exit 128\nfi\n'
+        f'exec "{real_git}" "$@"\n',
+        encoding="utf-8",
+    )
+    shim.chmod(0o755)
+
+    result = run_hook(repo, env={"PATH": f"{shim_dir}{os.pathsep}{os.environ['PATH']}"})
+
+    assert result.returncode == 1
+    assert "redirects.txt" in result.stderr
+    assert result.stdout == ""
 
 
 def test_git_failure_fails_closed(tmp_path: Path):
@@ -201,11 +263,42 @@ def test_rename_with_spaces_is_detected(repo: Path):
     run_git(repo, "add", "airflow-core/docs/old page.rst")
     run_git(repo, "-c", "core.hooksPath=/dev/null", "commit", "-qm", "add page")
     run_git(repo, "mv", "airflow-core/docs/old page.rst", "airflow-core/docs/new page.rst")
+    shim_dir = repo / "bin"
+    shim_dir.mkdir()
+    show_marker = repo / "git-show-called"
+    shim = shim_dir / "git"
+    shim.write_text(
+        '#!/bin/sh\nif [ "$1" = show ]; then\n'
+        f"    : > {shlex.quote(str(show_marker))}\nfi\n"
+        f'exec "{shutil.which("git")}" "$@"\n',
+        encoding="utf-8",
+    )
+    shim.chmod(0o755)
 
-    result = run_hook(repo)
+    result = run_hook(repo, env={"PATH": f"{shim_dir}{os.pathsep}{os.environ['PATH']}"})
 
     assert result.returncode == 1
     assert "old page.rst" in result.stdout
+    assert "cannot be represented" in result.stdout
+    assert "Missing redirect" not in result.stdout
+    assert not show_marker.exists()
+
+
+def test_repo_root_ending_in_space(tmp_path: Path):
+    repo = tmp_path / "repo "
+    repo.mkdir()
+    run_git(repo, "init", "-q")
+    run_git(repo, "config", "user.email", "test@example.com")
+    run_git(repo, "config", "user.name", "Test")
+    write_file(repo, "airflow-core/docs/old.rst", "A page\n")
+    write_file(repo, "airflow-core/docs/redirects.txt", "old.rst new.rst\n")
+    run_git(repo, "add", ".")
+    run_git(repo, "-c", "core.hooksPath=/dev/null", "commit", "-qm", "initial")
+    run_git(repo, "mv", "airflow-core/docs/old.rst", "airflow-core/docs/new.rst")
+
+    result = run_hook(repo)
+
+    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.parametrize(("redirect_at_target", "expected"), [(False, 1), (True, 0)])

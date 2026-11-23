@@ -360,6 +360,7 @@ jobs:
         # A push is checked from the last tested commit of the branch, like its test selection: the
         # commits of earlier failed or cancelled push runs are checked again. `--from-ref` needs the
         # merge base, which the shallow fetch does not have, so the changed files are listed here.
+        # If the push base is unavailable, the moved-docs hook can only check the tested commit.
         shell: bash
         run: |
           set -euo pipefail
@@ -373,10 +374,12 @@ jobs:
             mapfile -t files < <(git diff --name-only --no-renames --diff-filter=d \
               "${PUSH_BASE_COMMIT}" "${GITHUB_SHA}")
             if (( ${#files[@]} > 0 )); then
-              prek "${prek_args[@]}" --files "${files[@]}"
+              PRE_COMMIT_FROM_REF="${PUSH_BASE_COMMIT}" PRE_COMMIT_TO_REF="${GITHUB_SHA}" \
+                prek "${prek_args[@]}" --files "${files[@]}"
             fi
           else
-            prek "${prek_args[@]}" --all-files
+            PRE_COMMIT_FROM_REF="${tested}^" PRE_COMMIT_TO_REF="${tested}" \
+              prek "${prek_args[@]}" --all-files
           fi
         env:
           PUSH_BASE_COMMIT: ${{ inputs.push-base-commit }}

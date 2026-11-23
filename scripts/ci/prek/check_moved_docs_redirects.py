@@ -39,11 +39,11 @@ def get_docs_root(path: Path) -> Path | None:
 def main() -> int:
     from_ref = os.environ.get("PRE_COMMIT_FROM_REF")
     to_ref = os.environ.get("PRE_COMMIT_TO_REF", "HEAD")
-    diff_range = [f"{from_ref}...{to_ref}"] if from_ref else ["--cached"]
+    diff_range = [f"{from_ref}..{to_ref}"] if from_ref else ["--cached"]
     try:
         root = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"], check=True, capture_output=True, text=True
-        ).stdout.strip()
+        ).stdout.rstrip("\n")
         changes = subprocess.run(
             ["git", "diff", "--name-status", "-z", "-M", "--diff-filter=R", *diff_range],
             cwd=root,
@@ -62,6 +62,11 @@ def main() -> int:
         if docs_root is None:
             continue
         redirects = docs_root / "redirects.txt"
+        old_url = old_path.relative_to(docs_root).as_posix()
+        if " " in old_url:
+            print(f"{old_name}: filenames with spaces cannot be represented in {redirects}")
+            missing = True
+            continue
         result = subprocess.run(
             ["git", "show", f"{to_ref if from_ref else ''}:{redirects.as_posix()}"],
             cwd=root,
@@ -69,11 +74,15 @@ def main() -> int:
             text=True,
             check=False,
         )
-        old_url = old_path.relative_to(docs_root).as_posix()
-        entries = (line.partition(" ") for line in result.stdout.splitlines() if not line.startswith("#"))
-        if not any(
-            source == old_url and target.strip() for source, separator, target in entries if separator
-        ):
+        if result.returncode and result.stdout:
+            print(f"Could not read {redirects}: git show exited with {result.returncode}", file=sys.stderr)
+            return 1
+        targets: dict[str, str] = {}
+        for line in result.stdout.splitlines():
+            if line.strip() and not line.startswith("#"):
+                source, separator, target = line.split(" #", 1)[0].rstrip().partition(" ")
+                targets[source] = target if separator else ""
+        if not targets.get(old_url, "").strip():
             print(f"Missing redirect for {old_name} -> {new_name} in {redirects} (source: {old_url})")
             missing = True
     return int(missing)
