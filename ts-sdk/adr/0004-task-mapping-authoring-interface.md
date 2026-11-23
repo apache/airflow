@@ -207,8 +207,18 @@ interface LoopMappedTaskRef<T = unknown> extends MappedTaskRef<T> {
  */
 interface TaskRef<TReturn> {
   map<U>(this: TaskRef<HasElements>, fn: MapCallable<ElementOf<TReturn>, U>): MapSource<U>;
-  zip<const S extends readonly Expandable[]>(this: TaskRef<HasElements>, ...others: S): ZipSource</* … */>;
-  concat(this: TaskRef<HasElements>, ...others: readonly Expandable<ElementOf<TReturn>>[]): ConcatSource<ElementOf<TReturn>>;
+  zip<const S extends readonly Expandable[]>(
+    this: TaskRef<HasElements>,
+    ...others: S
+  ): ZipSource<[ElementOf<TReturn>, ...ElementsOf<S>]>;
+  zip<const S extends readonly Expandable[], F extends JsonValue>(
+    this: TaskRef<HasElements>,
+    ...others: [...S, ZipOptions<F>]
+  ): ZipSource<[ElementOf<TReturn> | F, ...ElementsOrFill<S, F>]>;
+  concat(
+    this: TaskRef<HasElements>,
+    ...others: readonly Expandable<ElementOf<TReturn>>[]
+  ): ConcatSource<ElementOf<TReturn>>;
 }
 
 /** An array's element, or a record's `[key, value]` pair (ADR-0016, Authoring interface). */
