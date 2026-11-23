@@ -108,7 +108,7 @@ log: FilteringBoundLogger = structlog.get_logger(logger_name="callback_superviso
 
 # The set of messages that a callback subprocess can send to the supervisor: the requests a Dag
 # processor answers for the callbacks it runs, so a Dag or task callback has the same context on a
-# worker, plus asset alias resolution during context construction and MaskSecret for the secrets masker.
+# worker, plus asset alias resolution for the callback context and MaskSecret for the secrets masker.
 _CALLBACK_REQUEST_TYPES: tuple[type[BaseModel], ...] = (
     DeleteVariable,
     GetAssetsByAlias,

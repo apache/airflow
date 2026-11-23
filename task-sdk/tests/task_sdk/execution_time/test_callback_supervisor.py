@@ -70,6 +70,7 @@ from airflow.sdk.execution_time.callback_supervisor import (
     supervise_callback,
 )
 from airflow.sdk.execution_time.comms import (
+    AssetResult,
     AssetsByAliasResult,
     BundleInfo,
     ConnectionResult,
@@ -307,7 +308,7 @@ class TestCallbackHandleRequest:
     REQUEST_CASES = [
         RequestCase(
             message=GetAssetsByAlias(alias_name="inlet_alias"),
-            test_id="resolve_asset_alias_during_context_construction",
+            test_id="resolve_asset_alias_from_callback_context",
             client_mock=ClientMock(
                 method_path="assets.get_by_alias",
                 kwargs={"alias_name": "inlet_alias"},
@@ -927,7 +928,11 @@ class TestCallbackSubprocessStart:
         self.mock_super_start.call_args.kwargs["target"]()
 
         self.mock_super_start.assert_called_with(
-            id=uuid.UUID(base_start_kwargs["id"]), client=base_start_kwargs["client"], target=ANY, logger=None
+            id=uuid.UUID(base_start_kwargs["id"]),
+            client=base_start_kwargs["client"],
+            target=ANY,
+            new_process_group=True,
+            logger=None,
         )
 
         self.mock_execute_callback.assert_called_with(
@@ -950,7 +955,11 @@ class TestCallbackSubprocessStart:
         self.mock_super_start.call_args.kwargs["target"]()
 
         self.mock_super_start.assert_called_with(
-            id=uuid.UUID(adjusted_kwargs["id"]), client=adjusted_kwargs["client"], target=ANY, logger=None
+            id=uuid.UUID(adjusted_kwargs["id"]),
+            client=adjusted_kwargs["client"],
+            target=ANY,
+            new_process_group=True,
+            logger=None,
         )
 
         mock_bundle_setup["manager"].get_bundle.assert_called_once_with(
@@ -1226,19 +1235,26 @@ class TestCallbackSubprocessStart:
 def test_routed_callback_runs_in_a_fresh_interpreter(
     _upload_logs, _should_use_exec, tmp_path, monkeypatch, task_failure
 ):
+    # The spawned worker needs normal plugin initialization to build task template context.
+    monkeypatch.delenv("_AIRFLOW__AS_LIBRARY", raising=False)
     output_path = tmp_path / "callback-ran"
     (tmp_path / "dag.py").write_text(
         textwrap.dedent(
             f"""
             from pathlib import Path
-            from airflow.sdk import DAG, AssetAlias, BaseOperator, Variable
+            from airflow.sdk import DAG, Asset, AssetAlias, BaseOperator, Variable
 
             def callback(context):
                 value = Variable.get("callback_exec_test_value")
                 Path({str(output_path)!r}).write_text(context["run_id"] + ":" + value)
 
+            def task_callback(context):
+                asset = Asset(name="resolved-inlet", uri="s3://bucket/resolved")
+                assert context["asset_state_store"][asset] is not None
+                callback(context)
+
             with DAG(dag_id="test_dag", on_success_callback=callback):
-                BaseOperator(task_id="task", inlets=[AssetAlias("callback-inlet")], on_failure_callback=callback)
+                BaseOperator(task_id="task", inlets=[AssetAlias("callback-inlet")], on_failure_callback=task_callback)
             """
         )
     )
@@ -1260,7 +1276,9 @@ def test_routed_callback_runs_in_a_fresh_interpreter(
         key="callback_exec_test_value", value="from-supervisor"
     )
     client.assets = create_autospec(AssetOperations, instance=True)
-    client.assets.get_by_alias.return_value = AssetsByAliasResult(assets=[])
+    client.assets.get_by_alias.return_value = AssetsByAliasResult(
+        assets=[AssetResult(name="resolved-inlet", uri="s3://bucket/resolved", group="asset")]
+    )
     process = CallbackSubprocess.start(
         id=str(uuid.uuid4()),
         callback_path="",

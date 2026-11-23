@@ -2897,9 +2897,10 @@ class TestCallbackOperations:
             return httpx2.Response(503)
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
-        with pytest.raises(ServerResponseError):
+        with pytest.raises(httpx2.HTTPStatusError) as err:
             client.callbacks.heartbeat(callback_id, timeout=budget)
 
+        assert err.value.response.status_code == 503
         [request] = requests
         assert request.method == "PUT"
         assert request.url.path == f"/callbacks/{callback_id}/heartbeat"
