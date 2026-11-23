@@ -22,6 +22,8 @@ import contextlib
 import functools
 import inspect
 import json
+import os
+import warnings
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
@@ -34,6 +36,7 @@ import structlog
 from pydantic import AwareDatetime, TypeAdapter
 
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.secrets_backend.base import call_secrets_backend_method
 from airflow.sdk._shared.state import AssetScope
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
@@ -53,6 +56,7 @@ from airflow.sdk.exceptions import (
     AirflowNotFoundException,
     AirflowRuntimeError,
     AirflowSecretsBackendAccessDenied,
+    DeprecatedVariableNoneValueWarning,
     ErrorType,
 )
 from airflow.sdk.execution_time.comms import (
@@ -169,6 +173,33 @@ def _unwrap_external_ref(stored: dict) -> str | None:
     return stored.get(_EXTERNAL_STATE_REF_KEY)
 
 
+def _json_size_exceeds(value: JsonValue, limit: int) -> bool:
+    """
+    Whether ``len(json.dumps(value))`` exceeds ``limit``.
+
+    Encoding stops at the first piece that crosses the limit, so a large list or dict is never
+    encoded in full. Each string is still escaped whole before it is counted.
+    """
+    size = 0
+    for chunk in json.JSONEncoder().iterencode(value):
+        size += len(chunk)
+        if size > limit:
+            return True
+    return False
+
+
+def _warn_if_oversized(kind: str, key: str, stored: JsonValue) -> None:
+    limit = conf.getint("state_store", "max_value_storage_bytes")
+    if limit > 0 and _json_size_exceeds(stored, limit):
+        log.warning(
+            "%s state store value for key %r exceeds configured max_value_storage_bytes=%d. "
+            "Consider configuring [workers] state_store_backend to offload large payloads.",
+            kind,
+            key,
+            limit,
+        )
+
+
 T = TypeVar("T")
 
 
@@ -205,6 +236,22 @@ _preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
     "_preset_connections", default=None
 )
 
+# A plain global rather than a ContextVar, so threads started by task code see it too.
+# Also exported to the environment, so child interpreters such as virtualenv tasks can
+# restore it in reinit_supervisor_comms.
+_current_team_name: str | None = None
+_CURRENT_TEAM_NAME_ENV_VAR = "_AIRFLOW__CURRENT_TEAM_NAME"
+
+
+def set_current_team_name(team_name: str | None) -> None:
+    """Set the team that Connection and Variable lookups in this process and its children belong to."""
+    global _current_team_name
+    _current_team_name = team_name
+    if team_name:
+        os.environ[_CURRENT_TEAM_NAME_ENV_VAR] = team_name
+    else:
+        os.environ.pop(_CURRENT_TEAM_NAME_ENV_VAR, None)
+
 
 def _get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
@@ -218,7 +265,7 @@ def _get_connection(conn_id: str) -> Connection:
 
     # Check cache first (optional; only on dag processor)
     try:
-        uri = SecretCache.get_connection_uri(conn_id)
+        uri = SecretCache.get_connection_uri(conn_id, team_name=_current_team_name)
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
@@ -232,9 +279,11 @@ def _get_connection(conn_id: str) -> Connection:
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
-            conn = secrets_backend.get_connection(conn_id=conn_id)  # type: ignore[assignment]
+            conn = call_secrets_backend_method(
+                secrets_backend.get_connection, team_name=_current_team_name, conn_id=conn_id
+            )
             if conn:
-                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=_current_team_name)
                 _mask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
@@ -266,7 +315,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
     # Check cache first
     try:
-        uri = SecretCache.get_connection_uri(conn_id)
+        uri = SecretCache.get_connection_uri(conn_id, team_name=_current_team_name)
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
@@ -285,10 +334,14 @@ async def _async_get_connection(conn_id: str) -> Connection:
             # getattr avoids triggering AsyncMock coroutine creation under Python 3.13
             async_method = getattr(secrets_backend, "aget_connection", None)
             if async_method is not None:
-                maybe_awaitable = async_method(conn_id)
+                maybe_awaitable = call_secrets_backend_method(
+                    async_method, team_name=_current_team_name, conn_id=conn_id
+                )
                 conn = await maybe_awaitable if inspect.isawaitable(maybe_awaitable) else maybe_awaitable
             else:
-                conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+                conn = await sync_to_async(call_secrets_backend_method)(
+                    secrets_backend.get_connection, team_name=_current_team_name, conn_id=conn_id
+                )
 
             if conn:
                 # Use aget_uri if the returned connection object supports it (the SDK's own
@@ -300,7 +353,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
                     uri = await aget_uri()
                 else:
                     uri = await sync_to_async(conn.get_uri)()
-                SecretCache.save_connection_uri(conn_id, uri)
+                SecretCache.save_connection_uri(conn_id, uri, team_name=_current_team_name)
                 await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
@@ -360,7 +413,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
 
     # Check cache first
     try:
-        var_val = SecretCache.get_variable(key)
+        var_val = SecretCache.get_variable(key, team_name=_current_team_name)
         if var_val is not None:
             return _mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
@@ -371,10 +424,12 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
-            var_val = secrets_backend.get_variable(key=key)
+            var_val = call_secrets_backend_method(
+                secrets_backend.get_variable, team_name=_current_team_name, key=key
+            )
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
-                SecretCache.save_variable(key, var_val)
+                SecretCache.save_variable(key, var_val, team_name=_current_team_name)
                 return _mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -399,7 +454,7 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
 
     # Check cache first
     try:
-        var_val = SecretCache.get_variable(key)
+        var_val = SecretCache.get_variable(key, team_name=_current_team_name)
         if var_val is not None:
             return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
@@ -412,12 +467,19 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
         try:
             async_method = getattr(secrets_backend, "aget_variable", None)
             if async_method is not None:
-                var_val = await async_method(key=key)
+                var_val = await call_secrets_backend_method(
+                    async_method, team_name=_current_team_name, key=key
+                )
             else:
-                var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+                var_val = await asyncio.to_thread(
+                    call_secrets_backend_method,
+                    secrets_backend.get_variable,
+                    team_name=_current_team_name,
+                    key=key,
+                )
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
-                SecretCache.save_variable(key, var_val)
+                SecretCache.save_variable(key, var_val, team_name=_current_team_name)
                 return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -484,6 +546,13 @@ async def _async_get_variable_keys(prefix: str | None = None) -> list[str]:
     return all_keys
 
 
+_SET_VARIABLE_NONE_DEPRECATION = (
+    "Setting a Variable to None is deprecated and will be an error in a future release. "
+    "It stores the string 'None'. Pass that string explicitly to keep this behavior, "
+    "or use serialize_json=True to store a JSON null."
+)
+
+
 def _set_variable(key: str, value: Any, description: str | None = None, serialize_json: bool = False) -> None:
     # TODO: This should probably be moved to a separate module like `airflow.sdk.execution_time.comms`
     #   or `airflow.sdk.execution_time.variable`
@@ -502,7 +571,9 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
         if isinstance(secrets_backend, ExecutionAPISecretsBackend):
             continue
         try:
-            var_val = secrets_backend.get_variable(key=key)
+            var_val = call_secrets_backend_method(
+                secrets_backend.get_variable, team_name=_current_team_name, key=key
+            )
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
@@ -526,10 +597,14 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     except Exception as e:
         log.exception(e)
 
+    if value is None:
+        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, DeprecatedVariableNoneValueWarning, stacklevel=3)
+        value = str(value)  # Keep storing "None", as Airflow always has.
+
     SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 async def _async_set_variable(
@@ -555,7 +630,12 @@ async def _async_set_variable(
         if isinstance(secrets_backend, ExecutionAPISecretsBackend):
             continue
         try:
-            var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+            var_val = await asyncio.to_thread(
+                call_secrets_backend_method,
+                secrets_backend.get_variable,
+                team_name=_current_team_name,
+                key=key,
+            )
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
@@ -579,10 +659,14 @@ async def _async_set_variable(
     except Exception as e:
         log.exception(e)
 
+    if value is None:
+        warnings.warn(_SET_VARIABLE_NONE_DEPRECATION, DeprecatedVariableNoneValueWarning, stacklevel=3)
+        value = str(value)  # Keep storing "None", as Airflow always has.
+
     await SUPERVISOR_COMMS.asend(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 def _delete_variable(key: str) -> None:
@@ -599,7 +683,7 @@ def _delete_variable(key: str) -> None:
         assert isinstance(msg, OKResponse)
 
     # Invalidate cache after deleting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 async def _async_delete_variable(key: str) -> None:
@@ -616,7 +700,7 @@ async def _async_delete_variable(key: str) -> None:
         assert isinstance(msg, OKResponse)
 
     # Invalidate cache after deleting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 class ConnectionAccessor:
@@ -819,16 +903,7 @@ class TaskStateStoreAccessor:
 
         msg = SetTaskStateStore(ti_id=self._ti_id, key=key, value=stored, expires_at=expires_at)
 
-        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            serialized_size = len(json.dumps(stored))
-            if serialized_size > limit:
-                log.warning(
-                    "Task store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
-                    "Consider configuring [workers] state_store_backend to offload large payloads.",
-                    key,
-                    serialized_size,
-                    limit,
-                )
+        _warn_if_oversized("Task", key, stored)
 
         return msg
 
@@ -875,17 +950,6 @@ class TaskStateStoreAccessor:
         backend = _get_worker_state_store_backend()
         if backend is not None:
             await backend.aclear(self._scope)
-
-    def _clear_backend_only(self) -> None:
-        """
-        Clear external storage via the worker backend without sending a comms message.
-
-        Used by clear_on_success: the server already clears DB rows as part of SucceedTask,
-        so the comms round-trip is redundant.
-        """
-        backend = _get_worker_state_store_backend()
-        if backend is not None:
-            backend.clear(self._scope)
 
 
 class AssetStateStoreAccessor:
@@ -991,16 +1055,7 @@ class AssetStateStoreAccessor:
             ref = backend.serialize_asset_state_store_to_ref(value=value, key=key, scope=scope)
             stored = _wrap_external_ref(ref)
 
-        if (limit := conf.getint("state_store", "max_value_storage_bytes")) > 0:
-            serialized_size = len(json.dumps(stored))
-            if serialized_size > limit:
-                log.warning(
-                    "Asset store value for key %r is %d bytes, which exceeds configured max_value_storage_bytes=%d. "
-                    "Consider configuring [workers] state_store_backend to offload large payloads.",
-                    key,
-                    serialized_size,
-                    limit,
-                )
+        _warn_if_oversized("Asset", key, stored)
 
         msg: ToSupervisor
         if self._name:

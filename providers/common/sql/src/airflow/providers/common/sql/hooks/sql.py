@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar, cast, overloa
 from urllib.parse import urlparse
 
 import sqlparse
-from deprecated import deprecated
 from methodtools import lru_cache
 from more_itertools import chunked
 
@@ -45,7 +44,6 @@ except ImportError:
     NoSuchModuleError = Exception  # type: ignore[misc,assignment]
 
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import (
     AirflowException,
@@ -396,6 +394,41 @@ class DbApiHook(BaseHook):
         columns = self.inspector.get_columns(table_name, schema=schema)
         return [{"name": col["name"], "type": str(col["type"])} for col in columns]
 
+    def get_table_comment(self, table_name: str, schema: str | None = None) -> str | None:
+        """
+        Return the table comment using SQLAlchemy Inspector.
+
+        :param table_name: Name of the table.
+        :param schema: Optional schema/namespace name.
+        :return: The comment, or ``None`` when the table has none or the dialect cannot report comments.
+        """
+        try:
+            comment = self.inspector.get_table_comment(table_name, schema=schema)
+        except NotImplementedError:
+            return None
+        return comment.get("text") or None
+
+    def get_table_columns_with_comments(
+        self, table_name: str, schema: str | None = None
+    ) -> list[dict[str, str]]:
+        """
+        Return column names and types for a table, plus each column's comment where one exists.
+
+        Same as :meth:`get_table_schema`, except that a column carries a ``comment`` key
+        only when the dialect reports a non-empty comment for it.
+
+        :param table_name: Name of the table.
+        :param schema: Optional schema/namespace name.
+        :return: List of dicts with ``name`` and ``type`` keys, and ``comment`` when present.
+        """
+        result: list[dict[str, str]] = []
+        for col in self.inspector.get_columns(table_name, schema=schema):
+            column = {"name": col["name"], "type": str(col["type"])}
+            if comment := col.get("comment"):
+                column["comment"] = comment
+            result.append(column)
+        return result
+
     @cached_property
     def dialect_name(self) -> str:
         if make_url is not None:
@@ -449,41 +482,6 @@ class DbApiHook(BaseHook):
 
         self.log.debug("reserved words for '%s': %s", dialect_name, result)
         return result
-
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        **kwargs,
-    ) -> PandasDataFrame:
-        """
-        Execute the sql and returns a pandas dataframe.
-
-        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
-        :param parameters: The parameters to render the SQL query with.
-        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
-        """
-        return self.get_df(sql, parameters, df_type="pandas", **kwargs)
-
-    @deprecated(
-        reason="Replaced by function `get_df_by_chunks`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df_by_chunks(
-        self,
-        sql,
-        parameters: list | tuple | Mapping[str, Any] | None = None,
-        *,
-        chunksize: int,
-        **kwargs,
-    ) -> Generator[PandasDataFrame, None, None]:
-        return self.get_df_by_chunks(sql, parameters, chunksize=chunksize, df_type="pandas", **kwargs)
 
     @overload
     def get_df(

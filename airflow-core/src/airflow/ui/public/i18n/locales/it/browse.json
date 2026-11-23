@@ -10,12 +10,96 @@
       "eventType": "Tipo di Evento"
     }
   },
+  "dagBundles": {
+    "active": "Attivo",
+    "columns": {
+      "active": "Attivo",
+      "importErrors": "Errori di importazione",
+      "lastRefreshed": "Ultimo aggiornamento",
+      "name": "Nome",
+      "version": "Versione"
+    },
+    "detail": {
+      "status": "Stato"
+    },
+    "files": {
+      "columns": {
+        "file": "File",
+        "lastParsed": "Ultima analisi",
+        "parseDuration": "Durata dell'analisi"
+      },
+      "file_many": "File",
+      "file_one": "File",
+      "file_other": "File",
+      "file_zero": "Nessun file",
+      "importErrorForbidden": "Non hai il permesso di leggere questo errore di importazione.",
+      "importErrorGone": "Questo errore di importazione non è più registrato. Probabilmente è stato corretto da una nuova analisi.",
+      "neverParsed": "Mai",
+      "showImportError_many": "Vedi {{count, number}} di errori",
+      "showImportError_one": "Vedi errore",
+      "showImportError_other": "Vedi {{count, number}} errori",
+      "showImportError_zero": "Nessun errore"
+    },
+    "inactive": "Inattivo",
+    "neverRefreshed": "Mai",
+    "notRefreshedYet": "Non ancora aggiornato",
+    "notVersioned": "Senza versione"
+  },
+  "deadlines": {
+    "columns": {
+      "alertName": "Nome dell'avviso",
+      "deadlineTime": "Ora della scadenza",
+      "status": "Stato"
+    },
+    "deadline_many": "Scadenze",
+    "deadline_one": "Scadenza",
+    "deadline_other": "Scadenze",
+    "deadline_zero": "Nessuna scadenza",
+    "filters": {
+      "status": "Stato",
+      "statusOptions": {
+        "all": "Tutte",
+        "missed": "Non rispettate",
+        "pending": "In sospeso"
+      }
+    },
+    "title": "Scadenze"
+  },
   "xcom": {
+    "add": {
+      "error": "Impossibile aggiungere l'XCom",
+      "errorTitle": "Errore",
+      "success": "XCom aggiunto",
+      "successTitle": "XCom aggiunto",
+      "title": "Aggiungi XCom"
+    },
     "columns": {
       "dag": "Dag",
       "key": "Chiave",
+      "timestamp": "Timestamp",
       "value": "Valore"
     },
-    "title": "XCom"
+    "delete": {
+      "error": "Impossibile eliminare l'XCom",
+      "errorTitle": "Errore",
+      "success": "XCom eliminato",
+      "successTitle": "XCom eliminato",
+      "title": "Elimina XCom",
+      "warning": "Eliminare questo XCom? L'azione non può essere annullata."
+    },
+    "edit": {
+      "error": "Impossibile aggiornare l'XCom",
+      "errorTitle": "Errore",
+      "success": "XCom aggiornato",
+      "successTitle": "XCom aggiornato",
+      "title": "Modifica XCom"
+    },
+    "entry_many": "Voci XCom",
+    "entry_one": "Voce XCom",
+    "entry_other": "Voci XCom",
+    "entry_zero": "Nessuna voce XCom",
+    "key": "Chiave",
+    "title": "XCom",
+    "value": "Valore"
   }
 }

@@ -90,9 +90,9 @@ def test_weekday_hourly_across_weekend_dst(
         pytest.param(
             "America/Havana",
             "0 * * * 0",
-            pendulum.datetime(2026, 10, 26, 3, 0, tz="UTC"),
+            pendulum.datetime(2025, 10, 27, 3, 0, tz="UTC"),
             # Sun 00:00 -04:00, first of the folded hour
-            pendulum.datetime(2026, 11, 1, 4, 0, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 4, 0, tz="UTC"),
             id="havana-target-in-fold-hour",
         ),
         pytest.param(
@@ -112,9 +112,9 @@ def test_weekday_hourly_across_weekend_dst(
         pytest.param(
             "America/Havana",
             "0 * * * 0",
-            pendulum.datetime(2027, 3, 13, 4, 0, tz="UTC"),
+            pendulum.datetime(2025, 3, 8, 4, 0, tz="UTC"),
             # Sun 00:00 is skipped by the spring-forward gap, so the next tick is the following hour
-            pendulum.datetime(2027, 3, 14, 5, 0, tz="UTC"),
+            pendulum.datetime(2025, 3, 9, 5, 0, tz="UTC"),
             id="havana-next-target-in-gap",
         ),
         pytest.param(
@@ -167,10 +167,10 @@ def test_weekday_hourly_across_weekend_dst(
         ),
         pytest.param(
             "America/Havana",
-            "0 * 1 3,11 *",
-            pendulum.datetime(2026, 3, 2, 4, 0, tz="UTC"),
+            "0 * 2 3,11 *",
+            pendulum.datetime(2025, 3, 3, 4, 0, tz="UTC"),
             # Sun 00:00 -04:00, the earlier of the two midnights; both ends of the span are -05:00
-            pendulum.datetime(2026, 11, 1, 4, 0, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 4, 0, tz="UTC"),
             id="havana-next-sparse-cron-target-in-fold",
         ),
         pytest.param(
@@ -218,25 +218,25 @@ def test_get_next_across_dst(
         pytest.param(
             "America/Havana",
             "0 * * * 0",
-            pendulum.datetime(2026, 11, 1, 5, 0, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 5, 0, tz="UTC"),
             # Sun 00:00 -04:00, the earlier of the two midnights
-            pendulum.datetime(2026, 11, 1, 4, 0, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 4, 0, tz="UTC"),
             id="havana-prev-fold-twin",
         ),
         pytest.param(
             "America/Havana",
             "0,30 * * * 0",
-            pendulum.datetime(2026, 11, 1, 5, 0, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 5, 0, tz="UTC"),
             # Sun 00:30 -04:00 comes after Sun 00:00 -04:00 but before the later Sun 00:00 -05:00
-            pendulum.datetime(2026, 11, 1, 4, 30, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 4, 30, tz="UTC"),
             id="havana-prev-half-hour-fold",
         ),
         pytest.param(
             "America/Havana",
             "0 * * * 0",
-            pendulum.datetime(2026, 3, 8, 5, 0, tz="UTC"),
+            pendulum.datetime(2025, 3, 9, 5, 0, tz="UTC"),
             # Sat 23:00 is one wall-clock hour back but not a tick; the previous Sun 00:00 is a week earlier
-            pendulum.datetime(2026, 3, 2, 4, 0, tz="UTC"),
+            pendulum.datetime(2025, 3, 3, 4, 0, tz="UTC"),
             id="havana-prev-gap-at-one-hour",
         ),
         pytest.param(
@@ -249,19 +249,19 @@ def test_get_next_across_dst(
         ),
         pytest.param(
             "America/Havana",
-            "0 * 1 3,11 *",
-            pendulum.datetime(2026, 11, 1, 5, 0, tz="UTC"),
+            "0 * 2 3,11 *",
+            pendulum.datetime(2025, 11, 2, 5, 0, tz="UTC"),
             # Sun 00:00 -04:00, the first pass of current's own wall time; both ends are -05:00
-            pendulum.datetime(2026, 11, 1, 4, 0, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 4, 0, tz="UTC"),
             id="havana-prev-sparse-cron-fold-twin",
         ),
         pytest.param(
             "America/Havana",
             "0,30 * * * 6",
-            pendulum.datetime(2026, 11, 1, 5, 0, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 5, 0, tz="UTC"),
             # current is Sun 00:00 -05:00, the second pass of the fall-back fold; only Saturday has ticks,
             # so the answer is Sat 23:30 -04:00
-            pendulum.datetime(2026, 11, 1, 3, 30, tz="UTC"),
+            pendulum.datetime(2025, 11, 2, 3, 30, tz="UTC"),
             id="havana-prev-day-boundary-fold",
         ),
     ],
@@ -283,8 +283,8 @@ def test_get_prev_across_dst(
         ),
         pytest.param(
             pendulum.timezone("America/Havana"),
-            datetime.datetime(2026, 11, 1, 0, 0),
-            [pendulum.datetime(2026, 11, 1, 4, 0, tz="UTC"), pendulum.datetime(2026, 11, 1, 5, 0, tz="UTC")],
+            datetime.datetime(2025, 11, 2, 0, 0),
+            [pendulum.datetime(2025, 11, 2, 4, 0, tz="UTC"), pendulum.datetime(2025, 11, 2, 5, 0, tz="UTC")],
             id="havana-fold",
         ),
         pytest.param(

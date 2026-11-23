@@ -107,7 +107,7 @@ describe("public API", () => {
     Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.Bundle"), { value: true });
     const detached = Bundle.prototype.serve;
     await expect(detached.call(foreign as unknown as Bundle)).rejects.toThrow(
-      /different copy of apache-airflow-ts-sdk/,
+      /different copy of @apache-airflow\/ts-sdk/,
     );
   });
 
@@ -270,7 +270,9 @@ describe("public API", () => {
       expectTypeOf<TaskFunction<{ regionCode: string }, number>>().toEqualTypeOf<
         (args: { regionCode: string }) => number | Promise<number>
       >();
-      expectTypeOf<typeof getContext>().toEqualTypeOf<() => TaskContext>();
+      expectTypeOf<typeof getContext>().toEqualTypeOf<
+        <TConf = Readonly<Record<string, JsonValue>>>() => TaskContext<TConf>
+      >();
       expectTypeOf<typeof getClient>().toEqualTypeOf<() => TaskClient>();
       for (const name of ["TaskHandlerArgs", "runInTaskScope", "TaskScope"]) {
         expect(name in sdk).toBe(false);
@@ -331,7 +333,7 @@ describe("public API", () => {
     // A group is a scope and an edge endpoint, and nests the same way at
     // every depth.
     expectTypeOf<Extract<keyof TaskGroupRef, string>>().toEqualTypeOf<
-      "dagId" | "groupId" | "task" | "taskGroup" | "before" | "after"
+      "dagId" | "groupId" | "task" | "taskGroup" | "if" | "switch" | "before" | "after"
     >();
     expectTypeOf<TaskGroupRef["groupId"]>().toEqualTypeOf<string>();
     expectTypeOf<TaskGroupRef["taskGroup"]>().toEqualTypeOf<
@@ -407,22 +409,23 @@ describe("public API", () => {
       readonly runId: string;
       readonly tryNumber: number;
       readonly mapIndex: number;
+      readonly conf: Readonly<Record<string, JsonValue>>;
       readonly signal: AbortSignal;
     }>();
     expectTypeOf<GetXComOpts>().toEqualTypeOf<{
-      key: string;
-      dagId?: string;
-      runId?: string;
-      taskId?: string;
+      key?: string;
+      dagId?: string | null;
+      runId?: string | null;
+      taskId: string;
       mapIndex?: number | null;
       includePriorDates?: boolean;
     }>();
     expectTypeOf<SetXComOpts>().toEqualTypeOf<{
-      key: string;
+      key?: string;
       value: SetXComOpts["value"];
-      dagId?: string;
-      runId?: string;
-      taskId?: string;
+      dagId?: string | null;
+      runId?: string | null;
+      taskId?: string | null;
       mapIndex?: number | null;
     }>();
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{

@@ -117,7 +117,7 @@ prek hook regenerate it.
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 
-*Min. Airflow version: 3.4.0 · supervisor schema: 2026-10-30*
+*Min. Airflow version: 3.5.0 · supervisor schema: 2027-02-28*
 
 | Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
 |---|---|---|---|---|---|
@@ -133,6 +133,7 @@ prek hook regenerate it.
 | **Task runtime** |  |  |  |  |  |
 | capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | slog records streamed over the logs socket |
 | capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | PushXCom / GetXCom |
+| capability: `custom-xcom-backend` | MAY | ✓ | 3.5.0 | 1.0.0 | the supervisor runs the configured [core] xcom_backend |
 | capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 | GetConnection |
 | capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `self-contained-bundle` | MUST | ✓ | 3.4.0 | 1.0.0 | AFBNDL01 native binary via airflow-go-pack |

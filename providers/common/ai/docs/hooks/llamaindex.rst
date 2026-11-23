@@ -93,7 +93,7 @@ The hook reads credentials from the Airflow connection of type ``llamaindex``:
   an OpenAI-compatible proxy that accepts OpenAI's exact model names (e.g.
   an internal gateway) -- not Ollama or vLLM (see above).
 - **extra** JSON --
-  ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}`` --
+  ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-6.1-sol"}`` --
   default model identifiers stored on the connection.
 
 Parameters
@@ -125,7 +125,7 @@ Parameters
        input. Only pass trusted values.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["llm_model"]``)
-     - LLM model name, e.g. ``gpt-5``. Required when calling ``get_llm()``.
+     - LLM model name, e.g. ``gpt-6.1-sol``. Required when calling ``get_llm()``.
 
 .. seealso::
    `llama_index.embeddings.openai.OpenAIEmbedding <https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai/>`__
@@ -142,3 +142,9 @@ That extra installs ``llama-index-core``, ``llama-index-embeddings-openai``,
 and ``llama-index-llms-openai`` -- enough to back the hook's default
 OpenAI return values. For other LlamaIndex vendor packages, install
 their integration package separately.
+
+``llama-index-llms-openai`` caps ``openai`` below 3, while this provider's ``openai`` extra
+needs ``openai`` 3, so the two extras cannot be installed in one environment. For the same
+reason the ``llamaindex`` extra fails to install with a constraints file that pins
+``openai`` 3 or later: build the worker image without the constraints file for this step,
+or with a copy of it that pins ``openai`` below 3.

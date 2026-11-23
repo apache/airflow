@@ -32,7 +32,7 @@ Node.js. There are two ways to use it:
 
 Both use the same task API and the same build tool, and one bundle can serve both.
 
-The SDK is the ``apache-airflow-ts-sdk`` npm package (ESM-only). It is in **beta**, and its API may change.
+The SDK is the ``@apache-airflow/ts-sdk`` npm package (ESM-only). Its API may change.
 
 .. warning::
 
@@ -60,12 +60,43 @@ Prerequisites
 * The ``apache-airflow-task-sdk`` package, installed with Airflow, provides
   :class:`~airflow.sdk.coordinators.node.NodeCoordinator`, which runs the TypeScript code. No other Python
   package is needed.
-* In your TypeScript project, install the SDK, and ``esbuild`` to build the bundle:
+* A TypeScript project with the SDK installed (see :ref:`typescript-sdk/create-project`).
 
-  .. code-block:: bash
+.. _typescript-sdk/create-project:
 
-      npm install apache-airflow-ts-sdk
-      npm install --save-dev esbuild
+Create a project
+----------------
+
+There is no project template, so start from an empty npm project. The SDK is ESM-only and the Dag file uses
+top-level ``await``, so the project has to be an ES module. Install the SDK, ``esbuild`` to build the bundle,
+and TypeScript to type check the Dag:
+
+.. code-block:: bash
+
+    mkdir my-dags && cd my-dags
+    npm init -y
+    npm pkg set type=module
+    npm install @apache-airflow/ts-sdk
+    npm install --save-dev esbuild typescript @types/node
+
+Add a ``tsconfig.json`` that resolves modules the way Node.js does:
+
+.. code-block:: json
+
+    {
+      "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "strict": true,
+        "noEmit": true,
+        "types": ["node"]
+      },
+      "include": ["src"]
+    }
+
+``airflow-ts-pack`` builds the bundle without type checking it, so a Dag with a type error still builds. Run
+``npx tsc`` before building to catch mistakes such as a misspelled task input.
 
 .. _typescript-sdk/quick-start:
 
@@ -79,7 +110,7 @@ Declare a Dag in ``src/main.ts``:
 
 .. code-block:: typescript
 
-    import { Bundle, Dag } from "apache-airflow-ts-sdk";
+    import { Bundle, Dag } from "@apache-airflow/ts-sdk";
 
     const dag = new Dag("ts_hello", { schedule: "@daily", queue: "typescript" });
 
@@ -92,10 +123,11 @@ Declare a Dag in ``src/main.ts``:
 
     await new Bundle(dag).serve();
 
-Build it into a single file:
+Type check it, then build it into a single file:
 
 .. code-block:: bash
 
+    npx tsc
     npx airflow-ts-pack src/main.ts --outdir dist
 
 Make sure ``dist/bundle.min.mjs`` is in a Dag bundle, for example the default ``dags-folder`` bundle, which
@@ -124,7 +156,7 @@ the Dag and gives it its inputs, so the calls you write are the dependencies:
 
 .. code-block:: typescript
 
-    import { Dag } from "apache-airflow-ts-sdk";
+    import { Dag } from "@apache-airflow/ts-sdk";
 
     const dag = new Dag("ts_etl");
 
@@ -249,7 +281,7 @@ the code, just as the label sits between them in the graph:
 
 .. code-block:: typescript
 
-    import { Label } from "apache-airflow-ts-sdk";
+    import { Label } from "@apache-airflow/ts-sdk";
 
     checked.before(Label.of("rows found").on(processed), Label.of("no rows").on(notified));
     cleaned.after(Label.of("always").on(loaded));      // loaded >> Label("always") >> cleaned
@@ -274,8 +306,8 @@ to label the branches of ``dag.if`` or ``dag.switch`` (see below):
 Task groups
 ~~~~~~~~~~~
 
-``dag.taskGroup(groupId)`` opens a group with the same ``task`` and ``taskGroup`` methods as the Dag. Every id
-declared in it is prefixed with the group's, as in Python:
+``dag.taskGroup(groupId)`` opens a group with the same ``task``, ``taskGroup``, ``if`` and ``switch`` methods
+as the Dag. Every id declared in it is prefixed with the group's, as in Python:
 
 .. code-block:: typescript
 
@@ -351,7 +383,7 @@ Triggering another Dag
 
 .. code-block:: typescript
 
-    import { triggerDagRun } from "apache-airflow-ts-sdk";
+    import { triggerDagRun } from "@apache-airflow/ts-sdk";
 
     const triggered = dag.task(
       "trigger_downstream",
@@ -416,11 +448,11 @@ on a ``Bundle``:
 
 .. code-block:: typescript
 
-    import { Bundle, getClient, TaskHandler } from "apache-airflow-ts-sdk";
+    import { Bundle, getClient, TaskHandler } from "@apache-airflow/ts-sdk";
 
     export async function buildMessage() {
       const client = getClient();
-      const upstream = await client.getXCom<string>({ key: "return_value", taskId: "python_start" });
+      const upstream = await client.getXCom<string>({ taskId: "python_start" });
       const greeting = await client.getVariable("typescript_example_greeting");
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
@@ -520,9 +552,10 @@ Two functions give it what it needs while it runs:
      - Returns
    * - ``getContext()``
      - The task's context (a ``TaskContext``): ``dagId``, ``taskId`` (including any task group prefix),
-       ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), and ``signal``, an ``AbortSignal``
-       that fires when Airflow stops the task. Pass ``signal`` to ``fetch()``, timers, or any other API that
-       accepts one, so the task can stop cleanly.
+       ``runId``, ``tryNumber``, ``mapIndex`` (``-1`` for an unmapped task), ``conf`` (the Dag run's
+       conf, ``{}`` when the run has none), and ``signal``, an ``AbortSignal`` that fires when Airflow stops the task.
+       Pass ``signal`` to ``fetch()``, timers, or any other API that accepts one, so the task can stop cleanly.
+       ``getContext<T>()`` types ``conf`` as ``T``, as ``getXCom<T>`` does for an XCom value.
    * - ``getClient()``
      - A ``TaskClient`` for Airflow Variables, Connections, XComs and the task state store.
 
@@ -558,12 +591,15 @@ The ``TaskClient``
        exist.
    * - ``getConnectionOrThrow(connId)``
      - Same, but throws ``ConnectionNotFoundError``, like Python's ``BaseHook.get_connection``.
-   * - ``getXCom<T>({ key, ... })``
-     - An XCom value, or ``null`` when it does not exist. ``dagId``, ``runId``, ``taskId`` and ``mapIndex``
-       default to the current task; pass ``taskId`` to read an upstream task's XCom. See
-       :ref:`typescript-sdk/types`.
-   * - ``setXCom({ key, value, ... })``
-     - Publishes an XCom value.
+   * - ``getXCom<T>({ taskId, ... })``
+     - The XCom value ``taskId`` pushed, or ``null`` when it does not exist. ``key`` defaults to
+       ``return_value``, and ``dagId`` and ``runId`` to the current task's. For a mapped task, it is the values
+       of all its instances in an array ordered by map index; pass ``mapIndex`` to read one instance. A map
+       index that selects no task instance reads ``null``. See :ref:`typescript-sdk/types`.
+   * - ``setXCom({ value, ... })``
+     - Publishes an XCom value. ``key`` defaults to ``return_value``, and ``dagId``, ``runId`` and ``taskId``
+       to the current task's. ``mapIndex`` defaults to the current task's own map index when the target is the
+       current task, and to the unmapped value otherwise.
    * - ``taskStateStore``
      - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
@@ -587,7 +623,7 @@ for the full concept, including the equivalent Python API.
 
 .. code-block:: typescript
 
-    import { getClient, NEVER_EXPIRE } from "apache-airflow-ts-sdk";
+    import { getClient, NEVER_EXPIRE } from "@apache-airflow/ts-sdk";
 
     export async function runSparkJob() {
       const store = getClient().taskStateStore;
@@ -608,7 +644,7 @@ counted from the time of the write:
 
 * A number retains the key for that many seconds from now; ``retention: 0`` expires the key
   immediately.
-* ``NEVER_EXPIRE`` (imported from ``apache-airflow-ts-sdk``) stores the key with no expiry, regardless of
+* ``NEVER_EXPIRE`` (imported from ``@apache-airflow/ts-sdk``) stores the key with no expiry, regardless of
   the deployment default.
 * When ``retention`` is omitted the runtime reads ``AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS``,
   which the coordinator sets from ``[state_store] default_retention_days``. A value of ``0`` there means the
@@ -687,13 +723,13 @@ XComs are stored as JSON, so a value read with ``getXCom`` arrives as the matchi
 Human-in-the-loop tasks
 -----------------------
 
-``approval`` and ``hitl``, from ``apache-airflow-ts-sdk/hitl``, make a task that waits for a person, as Python's
+``approval`` and ``hitl``, from ``@apache-airflow/ts-sdk/hitl``, make a task that waits for a person, as Python's
 ``ApprovalOperator`` and ``HITLOperator`` do. Pass one to ``dag.task`` in place of a handler. Options are the
 Python keyword arguments in camelCase:
 
 .. code-block:: typescript
 
-    import { approval } from "apache-airflow-ts-sdk/hitl";
+    import { approval } from "@apache-airflow/ts-sdk/hitl";
 
     const signOff = dag.task(
       "sign_off",
@@ -745,7 +781,7 @@ file, and Airflow refuses to run a bundle whose content was changed after it was
   The name must end in ``.min.mjs``.
 
 ``--outdir`` and ``--outfile`` cannot be used together. ``esbuild`` must be installed before you build; the
-runtime install of ``apache-airflow-ts-sdk`` does not need it.
+runtime install of ``@apache-airflow/ts-sdk`` does not need it.
 
 The bundle's code is minified, with license banners of bundled dependencies kept. The Airflow UI's **Code**
 view shows the file each Dag is declared in, as you wrote it.
@@ -859,6 +895,6 @@ Limitations
   run when the Dag processor reads them.
 * **Some CLI commands do not take a Dag declared in TypeScript.** ``airflow dags test``, ``tasks test`` and
   ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
-* **Beta.** The API may change in incompatible ways between releases.
+* **Experimental.** The API may change in incompatible ways between releases.
 * **One Node.js process per task instance.** Tasks cannot share in-process state; use XComs or an external
   store.

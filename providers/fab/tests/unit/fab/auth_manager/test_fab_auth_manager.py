@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import time
-from contextlib import ExitStack, contextmanager, suppress
+from contextlib import ExitStack, asynccontextmanager, contextmanager, suppress
 from itertools import chain
 from typing import TYPE_CHECKING
 from unittest import mock
@@ -26,12 +27,13 @@ from urllib.parse import urlencode
 
 import pytest
 from flask import g
-from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
+from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.fab.www.app import create_app
@@ -41,7 +43,7 @@ from airflow.utils.db import resetdb
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.test_utils import create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_role, create_user, delete_role, delete_user
 
 with suppress(ImportError):
     from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -55,7 +57,7 @@ from airflow.providers.common.compat.security.permissions import (
     RESOURCE_ASSET_ALIAS,
     RESOURCE_BACKFILL,
 )
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+from airflow.providers.fab.auth_manager.fab_auth_manager import DAG_BUNDLES_ACCESS_VIEW, FabAuthManager
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
@@ -67,6 +69,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_CONFIG,
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
+    RESOURCE_DAG_BUNDLE,
     RESOURCE_DAG_RUN,
     RESOURCE_DOCS,
     RESOURCE_JOB,
@@ -239,6 +242,152 @@ class TestFabAuthManager:
             result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
 
         assert user.get_id() == result.get_id()
+
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "async-test")
+        auth_manager_with_appbuilder.cache.clear()
+
+        result = await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
+
+        assert result.get_id() == user.get_id()
+        with assert_queries_count(0):
+            result = await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
+
+        assert result.get_id() == user.get_id()
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_session_async", autospec=True)
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async_coalesces_concurrent_cache_misses(
+        self, mock_create_session_async, auth_manager_with_appbuilder
+    ):
+        user_id = 99996
+        user = Mock(spec=["id", "is_active"])
+        user.id = user_id
+        user.is_active = True
+        query_result = Mock(spec=["one_or_none"])
+        query_result.one_or_none.return_value = user
+        query_started = asyncio.Event()
+        release_query = asyncio.Event()
+        session = MagicMock(spec=["scalars"])
+
+        async def scalars(*args, **kwargs):
+            query_started.set()
+            await release_query.wait()
+            return query_result
+
+        session.scalars = mock.AsyncMock(side_effect=scalars)
+        auth_manager_with_appbuilder.cache.pop(user_id, None)
+
+        @asynccontextmanager
+        async def create_session():
+            yield session
+
+        mock_create_session_async.side_effect = create_session
+        first_request = asyncio.create_task(
+            auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
+        )
+        await query_started.wait()
+        second_request = asyncio.create_task(
+            auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
+        )
+        await asyncio.sleep(0)
+
+        session.scalars.assert_awaited_once()
+        release_query.set()
+
+        first_result, second_result = await asyncio.gather(first_request, second_request)
+
+        assert first_result is user
+        assert second_result is user
+        mock_create_session_async.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async_rejects_unknown_user(self, auth_manager_with_appbuilder):
+        with pytest.raises(ValueError, match="User with id 99999 not found"):
+            await auth_manager_with_appbuilder.deserialize_user_async({"sub": "99999"})
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("active", [False, None])
+    async def test_deserialize_user_async_rejects_inactive_user(
+        self, flask_app, auth_manager_with_appbuilder, active
+    ):
+        user = create_user(flask_app, f"async-inactive-{active}")
+        user.active = active
+        auth_manager_with_appbuilder.session.commit()
+        auth_manager_with_appbuilder.cache.clear()
+
+        with pytest.raises(ValueError, match=f"User with id {user.id} is not active"):
+            await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
+
+    @pytest.mark.skipif(
+        not hasattr(BaseAuthManager, "deserialize_user_async"),
+        reason="This Airflow version has no async user deserialization hook",
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @mock.patch.object(FabAuthManager, "deserialize_user")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_uses_async_deserialization(
+        self, mock_deserialize_user, mock_get_token_validator, flask_app, auth_manager_with_appbuilder
+    ):
+        user = create_user(flask_app, "jwt-async-test")
+        auth_manager_with_appbuilder.cache.clear()
+        mock_get_token_validator.return_value.avalidated_claims = mock.AsyncMock(
+            return_value={"sub": str(user.id)}
+        )
+
+        result = await auth_manager_with_appbuilder.get_user_from_token("token")
+
+        assert result.get_id() == user.get_id()
+        mock_deserialize_user.assert_not_called()
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_uses_synchronous_deserialization_override(
+        self, mock_get_token_validator
+    ):
+        user = mock.sentinel.user
+
+        class CustomFabAuthManager(FabAuthManager):
+            def deserialize_user(self, token):
+                assert token == {"sub": "42"}
+                return user
+
+        mock_get_token_validator.return_value.avalidated_claims = mock.AsyncMock(return_value={"sub": "42"})
+
+        result = await CustomFabAuthManager(None).get_user_from_token("token")
+
+        assert result is user
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_session_async")
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async_propagates_db_error_without_retry(
+        self, mock_create_session_async, auth_manager_with_appbuilder
+    ):
+        user_id = 99996
+        failed_session = MagicMock()
+        failed_session.scalars = mock.AsyncMock(
+            side_effect=OperationalError("connection dropped", None, Exception())
+        )
+        auth_manager_with_appbuilder.cache.pop(user_id, None)
+
+        @asynccontextmanager
+        async def create_session():
+            yield failed_session
+
+        mock_create_session_async.side_effect = create_session
+        with pytest.raises(OperationalError):
+            await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
+
+        assert user_id not in auth_manager_with_appbuilder.cache
+        failed_session.scalars.assert_awaited_once()
+        mock_create_session_async.assert_called_once_with()
 
     def test_deserialize_user_rejects_inactive_user(self, flask_app, auth_manager_with_appbuilder):
         """A token naming a deactivated account must not resolve to a user."""
@@ -438,6 +587,11 @@ class TestFabAuthManager:
             ["", ""],
             ["test", ""],
             ["", "test"],
+            ["test", "\x00"],
+            ["test", "\x00" * 64],
+            ["test", 123],
+            ["test", ["password"]],
+            [123, "test"],
         ],
     )
     def test_create_token_wrong_values(self, username, password, auth_manager_with_appbuilder):
@@ -445,6 +599,33 @@ class TestFabAuthManager:
             auth_manager_with_appbuilder.create_token(
                 headers={}, body={"username": username, "password": password}
             )
+
+    @pytest.mark.parametrize("auth_type", [AUTH_OAUTH, AUTH_REMOTE_USER])
+    def test_create_token_other_auth_types(self, auth_type, auth_manager_with_appbuilder):
+        security_manager = Mock(spec=FabAirflowSecurityManagerOverride)
+        security_manager.auth_type = auth_type
+        auth_manager_with_appbuilder.security_manager = security_manager
+
+        result = auth_manager_with_appbuilder.create_token(
+            headers={}, body={"username": "username", "password": "password"}
+        )
+
+        assert result is None
+        security_manager.auth_user_db.assert_not_called()
+        security_manager.auth_user_ldap.assert_not_called()
+
+    def test_create_token_ldap_does_not_fall_back_to_db(self, auth_manager_with_appbuilder):
+        security_manager = Mock()
+        security_manager.auth_type = AUTH_LDAP
+        security_manager.auth_user_ldap.return_value = None
+        auth_manager_with_appbuilder.security_manager = security_manager
+
+        result = auth_manager_with_appbuilder.create_token(
+            headers={}, body={"username": "username", "password": "password"}
+        )
+
+        assert result is None
+        security_manager.auth_user_db.assert_not_called()
 
     @pytest.mark.parametrize(
         ("api_name", "method", "user_permissions", "expected_result"),
@@ -825,6 +1006,15 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_DOCS)],
                 False,
             ),
+            # Dag bundles are their own resource, not a side effect of reading every Dag
+            *(
+                [
+                    (DAG_BUNDLES_ACCESS_VIEW, [(ACTION_CAN_READ, RESOURCE_DAG_BUNDLE)], True),
+                    (DAG_BUNDLES_ACCESS_VIEW, [(ACTION_CAN_READ, RESOURCE_DAG)], False),
+                ]
+                if DAG_BUNDLES_ACCESS_VIEW is not None
+                else []
+            ),
         ],
     )
     def test_is_authorized_view(self, access_view, user_permissions, expected_result, auth_manager):
@@ -904,21 +1094,19 @@ class TestFabAuthManager:
                 if hasattr(MenuItem, "DEADLINES")
                 else []
             ),
-            # Dag bundle visibility rides on Dag access, so the menu entry is mapped onto
-            # RESOURCE_DAG. The mapping is load-bearing rather than cosmetic: unmapped items fall
-            # back to the enum value as a resource name, and "Dag Bundles" is not a FAB resource,
-            # so dropping the mapping would silently hide the entry for every FAB deployment.
+            # The menu entry follows the bundle resource where Airflow has the bundles view, and Dag
+            # access on Airflow 3.4.0, which has only the menu item.
             *(
                 [
                     (
                         [MenuItem.DAG_BUNDLES],
-                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
-                        [MenuItem.DAG_BUNDLES],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG_BUNDLE)],
+                        [MenuItem.DAG_BUNDLES] if DAG_BUNDLES_ACCESS_VIEW is not None else [],
                     ),
                     (
                         [MenuItem.DAG_BUNDLES],
-                        [(ACTION_CAN_ACCESS_MENU, "Dag Bundles")],
-                        [],
+                        [(ACTION_CAN_ACCESS_MENU, RESOURCE_DAG)],
+                        [] if DAG_BUNDLES_ACCESS_VIEW is not None else [MenuItem.DAG_BUNDLES],
                     ),
                 ]
                 if hasattr(MenuItem, "DAG_BUNDLES")
@@ -1016,8 +1204,16 @@ class TestFabAuthManager:
             ),
         ],
     )
+    @pytest.mark.parametrize("as_public_user", [False, True], ids=["db-user", "public-user"])
     def test_get_authorized_dag_ids(
-        self, method, user_permissions, expected_results, auth_manager_with_appbuilder, flask_app, dag_maker
+        self,
+        method,
+        user_permissions,
+        expected_results,
+        as_public_user,
+        auth_manager_with_appbuilder,
+        flask_app,
+        dag_maker,
     ):
         with dag_maker("test_dag1"):
             EmptyOperator(task_id="task1")
@@ -1034,20 +1230,64 @@ class TestFabAuthManager:
         dag_maker.session.commit()
         dag_maker.session.close()
 
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+
+        if as_public_user:
+            delete_role(flask_app, "test")
+            create_role(flask_app, "test", user_permissions)
+            with conf_vars({("fab", "auth_role_public"): "test"}):
+                user = auth_manager_with_appbuilder.build_public_user()
+        else:
+            user = create_user(
+                flask_app,
+                username="username",
+                role_name="test",
+                permissions=user_permissions,
+            )
+
+        try:
+            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
+        finally:
+            delete_user(flask_app, "username")
+            delete_role(flask_app, "test")
+
+        assert results == expected_results
+
+    def test_get_authorized_dag_ids_reads_cached_user_permissions(
+        self, auth_manager_with_appbuilder, flask_app, dag_maker
+    ):
+        for dag_id in ("test_dag1", "test_dag2"):
+            with dag_maker(dag_id):
+                EmptyOperator(task_id="task")
+            if AIRFLOW_V_3_1_PLUS:
+                sync_dag_to_db(dag_maker.dag)
+        dag_maker.session.commit()
+        dag_maker.session.close()
+
+        security_manager = auth_manager_with_appbuilder.security_manager
+        security_manager.sync_perm_for_dag("test_dag1")
+        security_manager.sync_perm_for_dag("test_dag2")
         user = create_user(
             flask_app,
             username="username",
             role_name="test",
-            permissions=user_permissions,
+            permissions=[(ACTION_CAN_READ, "DAG:test_dag1")],
         )
+        try:
+            # Load the permissions as deserialize_user's cached user would hold them.
+            assert user.perms == {(ACTION_CAN_READ, "DAG:test_dag1")}
+            security_manager.add_permission_to_role(
+                security_manager.find_role("test"),
+                security_manager.get_permission(ACTION_CAN_READ, "DAG:test_dag2"),
+            )
 
-        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
-        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method="GET")
+        finally:
+            delete_user(flask_app, "username")
+            delete_role(flask_app, "test")
 
-        results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
-        assert results == expected_results
-
-        delete_user(flask_app, "username")
+        assert results == {"test_dag1"}
 
     def test_get_authorized_pools(self, auth_manager):
         session = Mock()
@@ -1255,7 +1495,7 @@ class TestDeserializeUserSessionCleanup:
         user.id = 99996
         original_exc = OperationalError("connection dropped", None, Exception())
         retry_query_result = Mock()
-        retry_query_result.one.return_value = user
+        retry_query_result.one_or_none.return_value = user
 
         mock_session = MagicMock(spec=["scalars", "remove"])
         mock_session.scalars.side_effect = [original_exc, retry_query_result]

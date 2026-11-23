@@ -43,6 +43,7 @@ from airflow.api_fastapi.core_api.services.public.task_coordinates import (
     resolve_task_scope,
 )
 from airflow.configuration import conf
+from airflow.exceptions import DagRunNotFound
 from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance as TI
@@ -284,7 +285,7 @@ def set_task_state_store(
     expires_at = _resolve_expires_at(body.expires_at)
     try:
         _get_db_backend().set(scope, key, json.dumps(body.value), expires_at=expires_at, session=session)
-    except ValueError as e:
+    except DagRunNotFound as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
@@ -324,7 +325,7 @@ def patch_task_state_store(
         _get_db_backend().set(
             scope, key, json.dumps(body.value), expires_at=existing.expires_at, session=session
         )
-    except ValueError as e:
+    except DagRunNotFound as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 

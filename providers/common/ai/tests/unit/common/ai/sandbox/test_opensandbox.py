@@ -430,6 +430,21 @@ class TestCreate:
         assert backend._sandboxes == {}
 
     @mock.patch("opensandbox.SandboxSync.create", autospec=True)
+    def test_unenforced_policy_with_a_ports_only_rule_reports_what_is_allowed(self, create):
+        # opensandbox 1.2 accepts a rule with ports and no target, which matches any address.
+        ports_only = NetworkRule.model_construct(action="allow", target=None, ports=[443])
+        create.return_value = _created(
+            NetworkPolicy(
+                defaultAction="deny", egress=[NetworkRule(action="allow", target="pypi.org"), ports_only]
+            )
+        )
+        backend = OpenSandboxBackend()
+        backend._connection_config = mock.sentinel.connection_config
+
+        with pytest.raises(SandboxTerminalError, match=r"default 'deny' with allow \['None', 'pypi.org'\]"):
+            backend.create(spec=SandboxSpec(allow_egress_to=["pypi.org"]))
+
+    @mock.patch("opensandbox.SandboxSync.create", autospec=True)
     def test_open_network_needs_no_read_back(self, create):
         create.return_value = _created()
         backend = OpenSandboxBackend()

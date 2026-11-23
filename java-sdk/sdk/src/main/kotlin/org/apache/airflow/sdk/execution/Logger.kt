@@ -27,8 +27,18 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import java.io.FileDescriptor
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.PrintStream
+import java.time.Duration
 import java.time.Instant
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import kotlin.reflect.KClass
 
 // Adapted from Python logging.
@@ -184,11 +194,14 @@ internal data class LogMessage(
  *
  * This is a thin wrapper around [LogSender] that our own code can
  * use instead of needing to go through a "real" logging provider.
+ *
+ * With [waitsForRoom] set to false, this logger never waits for room in [LogSender].
  */
 internal class Logger(
   val name: String,
+  private val waitsForRoom: Boolean = true,
 ) {
-  constructor(cls: KClass<*>) : this(cls.java.typeName)
+  constructor(cls: KClass<*>, waitsForRoom: Boolean = true) : this(cls.java.typeName, waitsForRoom)
 
   fun debug(
     message: String,
@@ -216,48 +229,210 @@ internal class Logger(
     arguments: Map<String, Any>,
   ) {
     if (!Log.isEnabledForLevel(level, name)) return
-    LogSender.send(LogMessage(event, arguments, name, level))
+    LogSender.send(LogMessage(event, arguments, name, level), waitsForRoom)
   }
 }
 
+// This object's lock keeps send, configure and detachAndFlush from losing or reordering lines.
 internal object LogSender {
+  internal const val PENDING_CHARS = 8 * 1024 * 1024
+
   private var writer: ByteWriteChannel? = null
+
+  // Kept after detachAndFlush clears writer, so a later call can cancel the channel an earlier one is stuck on.
+  private var configured: ByteWriteChannel? = null
   internal val messages: ConcurrentLinkedDeque<LogMessage> = ConcurrentLinkedDeque()
 
+  // Set by detachAndFlush. Nothing writes LogSender.messages after that call, so send prints lines to errors instead.
+  private var detached = false
+
+  // Only the sender thread writes, so a caller's runBlocking cannot run the task under this object's lock.
+  private val pending = LinkedBlockingQueue<() -> Unit>()
+
+  // One permit per queued character. Fair, so short lines cannot keep taking room a long line waits for.
+  private val room = Semaphore(PENDING_CHARS, true)
+
+  // Not System.err, which a logging bridge can route back here and whose lock a waiting caller can hold.
+  @Volatile
+  internal var errors = PrintStream(FileOutputStream(FileDescriptor.err), true)
+
+  private var failedChannel: ByteWriteChannel? = null
+
+  // Printing a report when a line fails could stall the lines already queued, so wait for an empty queue or a flush.
+  private val reports = ArrayList<String>()
+
+  @Volatile
+  private var finishedAt = System.nanoTime()
+
+  private val sender =
+    thread(name = "Airflow log sender", isDaemon = true) {
+      while (true) {
+        try {
+          val task =
+            pending.poll() ?: run {
+              printReports()
+              pending.take()
+            }
+          task.invoke()
+        } catch (e: Throwable) {
+          // If the sender thread ended, flush would wait forever, and so would every caller that waits for room.
+        }
+      }
+    }
+
+  @Synchronized
   fun configure(channel: ByteWriteChannel) {
     writer = channel
+    configured = channel
+    detached = false
     if (!channel.isClosedForWrite) {
       while (messages.isNotEmpty()) {
-        sendTo(channel, messages.removeFirst())
+        // Don't wait for room: these messages are already in memory, and waiting would block the serving thread.
+        queueLine(channel, buildLine(messages.removeFirst()), chars = 0)
       }
     }
   }
 
-  fun send(message: LogMessage) {
-    val channel = writer
-    if (channel == null || channel.isClosedForWrite) {
-      messages.addLast(message)
-    } else {
-      sendTo(channel, message)
+  fun send(
+    message: LogMessage,
+    waitForRoom: Boolean = true,
+  ) {
+    val detachedNow =
+      synchronized(this) {
+        when {
+          isQueuing() -> false
+          detached -> true
+          else -> {
+            messages.addLast(message)
+            return
+          }
+        }
+      }
+    if (detachedNow) {
+      printAfterDetach(message)
+      return
     }
+    // Build the line now, so that it shows the arguments as they were when the caller logged them.
+    val line = buildLine(message)
+    // Only the sender thread gives back room, so it never waits. A line over the limit asks for all the room.
+    val chars = if (waitForRoom && Thread.currentThread() !== sender) minOf(line.length, PENDING_CHARS) else 0
+    // Wait before locking, or a logging sender thread can deadlock. A fair semaphore makes acquire(0) wait too.
+    if (chars > 0) room.acquireUninterruptibly(chars)
+    val detachedWhileWaiting =
+      synchronized(this) {
+        val channel = writer
+        if (channel == null || channel.isClosedForWrite) {
+          // Queuing stopped while this caller waited for room.
+          room.release(chars)
+          if (!detached) messages.addLast(message)
+          detached
+        } else {
+          queueLine(channel, line, chars)
+          false
+        }
+      }
+    if (detachedWhileWaiting) printAfterDetach(message, line)
   }
 
+  // The supervisor logs the JVM's stderr at ERROR level, so drop lines below WARNING.
+  private fun printAfterDetach(
+    message: LogMessage,
+    line: String? = null,
+  ) {
+    if (message.level.value >= Level.WARNING.value) errors.print(line ?: buildLine(message))
+  }
+
+  /**
+   * Waits for the queued lines and their failure reports, and returns true.
+   * Returns false instead once no line finishes for [idleTimeout].
+   */
+  fun flush(idleTimeout: Duration? = null): Boolean {
+    val written = CompletableFuture<Unit>()
+    pending.add {
+      try {
+        printReports()
+      } finally {
+        written.complete(Unit)
+      }
+    }
+    if (idleTimeout == null) {
+      written.join()
+      return true
+    }
+    val started = System.nanoTime()
+    while (!written.isDone) {
+      // Count idle time from this call if the last line finished before it.
+      val last = finishedAt.let { if (it - started > 0) it else started }
+      val left = idleTimeout.toNanos() - (System.nanoTime() - last)
+      if (left <= 0) return false
+      written.copy().completeOnTimeout(Unit, left, TimeUnit.NANOSECONDS).join()
+    }
+    return true
+  }
+
+  /**
+   * Stops queuing lines for the configured channel and waits as [flush] does.
+   * If that wait gives up, cancels the channel and returns false.
+   */
+  fun detachAndFlush(idleTimeout: Duration? = null): Boolean {
+    val channel =
+      synchronized(this) {
+        writer = null
+        detached = true
+        configured
+      }
+    if (flush(idleTimeout)) return true
+    // Otherwise the stuck line and every line behind it keep their room, and callers waiting for room hang.
+    channel?.cancel(IOException("Stopped waiting after no log line was written for ${idleTimeout?.toMillis()} ms"))
+    // Queued lines now fail at once. Give the sender thread a moment to report why before the JVM can exit.
+    flush(Duration.ofSeconds(1))
+    return false
+  }
+
+  @Synchronized
   internal fun reset() {
     writer = null
+    configured = null
+    detached = false
     messages.clear()
   }
 
-  private fun sendTo(
-    writer: ByteWriteChannel,
-    message: LogMessage,
-  ) {
+  private fun isQueuing(): Boolean = writer?.isClosedForWrite == false
+
+  private fun buildLine(message: LogMessage): String {
     val map = message.arguments.toMutableMap()
     map["event"] = message.event
     map["level"] = message.level.name.lowercase()
     map["logger"] = message.logger
     map["timestamp"] = message.timestamp.toString()
-    // TODO: Can this be done asynchronously instead?
-    runBlocking { writer.writeString("${map.toJsonElement()}\n") }
+    return "${map.toJsonElement()}\n"
+  }
+
+  private fun queueLine(
+    writer: ByteWriteChannel,
+    line: String,
+    chars: Int,
+  ) {
+    pending.add {
+      val failure =
+        try {
+          runBlocking { writer.writeString(line) }
+          null
+        } catch (e: Throwable) {
+          e
+        } finally {
+          finishedAt = System.nanoTime()
+          room.release(chars)
+        }
+      if (failure != null && failedChannel !== writer) {
+        failedChannel = writer
+        reports.add("Cannot send a log line to the supervisor: $failure")
+      }
+    }
+  }
+
+  private fun printReports() {
+    while (reports.isNotEmpty()) errors.println(reports.removeAt(0))
   }
 }
 

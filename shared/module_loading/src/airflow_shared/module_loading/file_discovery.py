@@ -174,6 +174,9 @@ def _find_path_from_directory(
                 # evaluation order of patterns is important with negation
                 # so that later patterns can override earlier patterns
 
+        # Kubernetes volume internals; the visible entries are symlinks through "..data" to the same files
+        if "..data" in dirs:
+            dirs[:] = [subdir for subdir in dirs if not subdir.startswith("..")]
         dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
         # explicit loop for infinite recursion detection since we are following symlinks in this walk
         for sd in dirs:

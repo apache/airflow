@@ -1,4 +1,5 @@
 [
+    {"eventType": "START", "job": {"name": "openlineage_manual_lineage_dag"}},
     {
         "eventType": "START",
         "run": {
@@ -1655,164 +1656,14 @@
             }
         }
     },
-    {
-        "eventType": "START",
-        "eventTime": "{{ is_datetime(result) }}",
-        "inputs": [],
-        "outputs": [],
-        "run": {
-            "runId": "{{ is_uuid(result) }}",
-            "facets": {
-                "parent": {
-                    "job": {
-                        "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_with_explicit_task_instance",
-                        "facets": {
-                            "jobType": {
-                                "processingType": "BATCH",
-                                "integration": "AIRFLOW",
-                                "jobType": "TASK"
-                            }
-                        }
-                    },
-                    "run": {
-                        "runId": "{{ is_uuid(result) }}"
-                    },
-                    "root": {
-                        "job": {
-                            "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}",
-                            "facets": {
-                                "jobType": {
-                                    "processingType": "BATCH",
-                                    "integration": "AIRFLOW",
-                                    "jobType": "DAG"
-                                }
-                            }
-                        },
-                        "run": {
-                            "runId": "{{ is_uuid(result) }}"
-                        }
-                    },
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
-                },
-                "externalQuery": {
-                    "externalQueryId": "qid-explicit-ti",
-                    "source": "snowflake://example-acct",
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ExternalQueryRunFacet.json\\#\\/\\$defs\\/ExternalQueryRunFacet$\") }}"
-                },
-                "tags": {
-                    "tags": [
-                        {
-                            "key": "openlineage_client_version",
-                            "source": "OPENLINEAGE_CLIENT",
-                            "value": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}"
-                        }
-                    ],
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/TagsRunFacet.json\\#\\/\\$defs\\/TagsRunFacet\") }}"
-                }
-            }
-        },
-        "job": {
-            "namespace": "{{ result is string }}",
-            "name": "openlineage_manual_lineage_dag.query_with_explicit_task_instance.manual_query.1",
-            "facets": {
-                "jobType": {
-                    "integration": "AIRFLOW",
-                    "jobType": "QUERY",
-                    "processingType": "BATCH",
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
-                },
-                "sql": {
-                    "query": "SELECT now()",
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/SQLJobFacet.json\\#\\/\\$defs\\/SQLJobFacet$\") }}"
-                }
-            }
-        }
-    },
-    {
-        "eventType": "COMPLETE",
-        "eventTime": "{{ is_datetime(result) }}",
-        "inputs": [],
-        "outputs": [],
-        "run": {
-            "runId": "{{ is_uuid(result) }}",
-            "facets": {
-                "parent": {
-                    "job": {
-                        "namespace": "{{ result is string }}",
-                        "name": "openlineage_manual_lineage_dag.query_with_explicit_task_instance",
-                        "facets": {
-                            "jobType": {
-                                "processingType": "BATCH",
-                                "integration": "AIRFLOW",
-                                "jobType": "TASK"
-                            }
-                        }
-                    },
-                    "run": {
-                        "runId": "{{ is_uuid(result) }}"
-                    },
-                    "root": {
-                        "job": {
-                            "name": "openlineage_manual_lineage_dag",
-                            "namespace": "{{ result is string }}",
-                            "facets": {
-                                "jobType": {
-                                    "processingType": "BATCH",
-                                    "integration": "AIRFLOW",
-                                    "jobType": "DAG"
-                                }
-                            }
-                        },
-                        "run": {
-                            "runId": "{{ is_uuid(result) }}"
-                        }
-                    },
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ParentRunFacet.json\\#\\/\\$defs\\/ParentRunFacet$\") }}"
-                },
-                "externalQuery": {
-                    "externalQueryId": "qid-explicit-ti",
-                    "source": "snowflake://example-acct",
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/ExternalQueryRunFacet.json\\#\\/\\$defs\\/ExternalQueryRunFacet$\") }}"
-                },
-                "tags": {
-                    "tags": [
-                        {
-                            "key": "openlineage_client_version",
-                            "source": "OPENLINEAGE_CLIENT",
-                            "value": "{{ regex_match(result, \"^[\\d]+\\.[\\d]+\\.[\\d]+.*\") }}"
-                        }
-                    ],
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/TagsRunFacet.json\\#\\/\\$defs\\/TagsRunFacet\") }}"
-                }
-            }
-        },
-        "job": {
-            "namespace": "{{ result is string }}",
-            "name": "openlineage_manual_lineage_dag.query_with_explicit_task_instance.manual_query.1",
-            "facets": {
-                "jobType": {
-                    "integration": "AIRFLOW",
-                    "jobType": "QUERY",
-                    "processingType": "BATCH",
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/JobTypeJobFacet.json\\#\\/\\$defs\\/JobTypeJobFacet\") }}"
-                },
-                "sql": {
-                    "query": "SELECT now()",
-                    "_producer": "{{ regex_match(result, \"^https:\\/\\/github.com/apache/airflow/tree/providers-openlineage\\/[\\d]+\\.[\\d]+\\.[\\d]+.*$\") }}",
-                    "_schemaURL": "{{ regex_match(result, \"^https:\\/\\/openlineage.io\\/spec\\/facets\\/[\\d-]+\\/SQLJobFacet.json\\#\\/\\$defs\\/SQLJobFacet$\") }}"
-                }
-            }
-        }
-    }
+    {"eventType": "START", "job": {"name": "openlineage_manual_lineage_dag.query_minimal"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "running"}}}}},
+    {"eventType": "COMPLETE", "job": {"name": "openlineage_manual_lineage_dag.query_minimal"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "success"}}}}},
+    {"eventType": "START", "job": {"name": "openlineage_manual_lineage_dag.query_maximal"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "running"}}}}},
+    {"eventType": "COMPLETE", "job": {"name": "openlineage_manual_lineage_dag.query_maximal"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "success"}}}}},
+    {"eventType": "START", "job": {"name": "openlineage_manual_lineage_dag.query_multiple_in_one_task"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "running"}}}}},
+    {"eventType": "COMPLETE", "job": {"name": "openlineage_manual_lineage_dag.query_multiple_in_one_task"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "success"}}}}},
+    {"eventType": "START", "job": {"name": "openlineage_manual_lineage_dag.query_isolated_task"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "running"}}}}},
+    {"eventType": "COMPLETE", "job": {"name": "openlineage_manual_lineage_dag.query_isolated_task"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "success"}}}}},
+    {"eventType": "START", "job": {"name": "openlineage_manual_lineage_dag.query_with_explicit_job_name"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "running"}}}}},
+    {"eventType": "COMPLETE", "job": {"name": "openlineage_manual_lineage_dag.query_with_explicit_job_name"}, "run": {"facets": {"airflow": {"taskInstance": {"try_number": 1, "state": "success"}}}}}
 ]

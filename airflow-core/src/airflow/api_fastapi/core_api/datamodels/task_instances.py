@@ -110,6 +110,11 @@ class TaskInstanceResponse(OmitsMissingRegion, BaseModel):
         ),
     )
 
+    retry_at: datetime | None = Field(
+        default=None,
+        description="When a task instance waiting to be retried becomes due. Only set in the up_for_retry state.",
+    )
+
     @field_validator("state_reason", mode="after")
     @classmethod
     def redact_state_reason(cls, v: str | None) -> str | None:
@@ -267,6 +272,12 @@ class ClearTaskInstancesBody(StrictBaseModel):
     dag_run_id: str | None = None
     include_upstream: bool = False
     include_downstream: bool = False
+    include_dependent_dags: bool | None = Field(
+        default=None,
+        description="Also clear the tasks in other Dags that the cleared tasks recorded as external "
+        "clear targets (for example through ``ExternalTaskMarker``), with their downstream tasks. "
+        "If not specified, follows ``include_downstream``.",
+    )
     include_future: bool = False
     include_past: bool = False
     run_on_latest_version: bool | None = Field(

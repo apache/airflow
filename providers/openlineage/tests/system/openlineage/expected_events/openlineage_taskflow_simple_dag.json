@@ -141,7 +141,11 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "running",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,
@@ -259,7 +263,11 @@
                         "start_date": "{{ is_datetime(result) }}"
                     },
                     "taskInstance": {
-                        "try_number": "{{ result is number }}"
+                        "try_number": "{{ result is number }}",
+                        "max_tries": 0,
+                        "state": "success",
+                        "id": "{{ is_uuid(result) }}",
+                        "map_index": null
                     },
                     "task": {
                         "depends_on_past": false,

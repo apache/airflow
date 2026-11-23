@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -78,7 +77,7 @@ apache-airflow-providers-keycloak package
 ``Keycloak Provider``
 
 
-Release: 0.11.2
+Release: 0.13.0
 
 Provider package
 ----------------
@@ -103,7 +102,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0.0``
 ``apache-airflow-providers-common-compat``  ``>=1.18.0``
-``python-keycloak``                         ``>=5.0.0``
+``python-keycloak``                         ``>=5.12.0``
 ==========================================  ==================
 
 Downloading official packages
@@ -112,5 +111,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-keycloak 0.11.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.11.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.11.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.11.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-keycloak 0.11.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.11.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.11.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.11.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-keycloak 0.13.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.13.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.13.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.13.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-keycloak 0.13.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.13.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.13.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_keycloak-0.13.0-py3-none-any.whl.sha512>`__)

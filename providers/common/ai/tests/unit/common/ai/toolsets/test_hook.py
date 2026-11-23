@@ -30,7 +30,7 @@ import pytest
 from pydantic_ai import Agent, DeferredToolRequests
 from pydantic_ai._run_context import RunContext
 from pydantic_ai.exceptions import ModelRetry
-from pydantic_ai.messages import ModelResponse, RetryPromptPart, TextPart, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_core import ValidationError
 
@@ -47,6 +47,8 @@ from airflow.providers.common.ai.utils.tool_definition import (
     _SUPPORTS_RETURN_SCHEMA,
     serialize_for_llm,
 )
+
+from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
     from decimal import Decimal
@@ -559,8 +561,8 @@ class TestHookToolsetEncodedArgs:
         attempts = iter([bad, good])
 
         def model(messages, info):
-            retried = [p for m in messages for p in m.parts if isinstance(p, RetryPromptPart)]
-            returned = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            retried = [p for m in messages for p in m.parts if is_tool_retry(p)]
+            returned = [p for m in messages for p in m.parts if is_tool_result(p)]
             if returned:
                 return ModelResponse(parts=[TextPart(f"{retried[0].content} | {returned[0].content}")])
             return ModelResponse(parts=[ToolCallPart(method_name, next(attempts), tool_call_id="c")])
@@ -780,6 +782,75 @@ class TestParseParamDocs:
         assert result["name"] == "The name of the thing."
         assert result["count"] == "How many items."
 
+    def test_sphinx_last_param_stops_at_dedented_text(self):
+        # Shaped like S3Hook.list_keys, whose example block followed apply_wildcard into its description.
+        docstring = """List keys.
+
+        :param prefix: a key prefix
+        :param apply_wildcard: whether to treat '*' as a wildcard.
+
+        **Example**: Returns the matching keys:
+
+        .. code-block:: python
+
+            hook.list_keys(prefix="data/*", apply_wildcard=True)
+
+        :return: a list of matched keys
+        """
+        result = _parse_param_docs(docstring)
+        assert result == {"prefix": "a key prefix", "apply_wildcard": "whether to treat '*' as a wildcard."}
+
+    def test_sphinx_continuation_line_starting_with_a_role(self):
+        # Shaped like BigQueryHook.create_routine, whose description was cut off at "Either a".
+        docstring = """Create a routine.
+
+        :param routine: The routine to create. Either a
+            :class:`~google.cloud.bigquery.routine.Routine` instance or a dict.
+        :param routine_id: The routine identifier.
+        """
+        result = _parse_param_docs(docstring)
+        assert result["routine"] == (
+            "The routine to create. Either a :class:`~google.cloud.bigquery.routine.Routine` instance or a dict."
+        )
+        assert result["routine_id"] == "The routine identifier."
+
+    def test_sphinx_description_continues_after_a_blank_line(self):
+        # Shaped like S3Hook.copy_object, whose source_bucket_key has an indented second paragraph.
+        docstring = """Copy an object.
+
+        :param source_bucket_key: The key of the source object.
+
+            It can be either full s3:// style url or relative path from root level.
+        :param dest_bucket_key: The key of the object to copy to.
+        """
+        assert _parse_param_docs(docstring) == {
+            "source_bucket_key": (
+                "The key of the source object. "
+                "It can be either full s3:// style url or relative path from root level."
+            ),
+            "dest_bucket_key": "The key of the object to copy to.",
+        }
+
+    def test_sphinx_param_without_description_is_left_out(self):
+        # Shaped like GKEHook._append_label, whose val was described as ":return: The cluster proto ...".
+        docstring = """Append a label.
+
+        :param key: The key label
+        :param val:
+        :return: The cluster proto updated with new label
+        """
+        assert _parse_param_docs(docstring) == {"key": "The key label"}
+
+    def test_empty_sphinx_param_does_not_hide_google_args(self):
+        docstring = """Read records.
+
+        Args:
+            path: Path to read.
+
+        :param undocumented:
+        """
+        assert _parse_param_docs(docstring) == {"path": "Path to read."}
+
     def test_google_style(self):
         docstring = """Do something.
 
@@ -931,8 +1002,8 @@ class TestHookToolsetPinnedArguments:
         attempts = iter([{"bucket": "payroll", "prefix": "x"}, {"prefix": "x"}])
 
         def model(messages, info):
-            retried = [p for m in messages for p in m.parts if isinstance(p, RetryPromptPart)]
-            returned = [p for m in messages for p in m.parts if isinstance(p, ToolReturnPart)]
+            retried = [p for m in messages for p in m.parts if is_tool_retry(p)]
+            returned = [p for m in messages for p in m.parts if is_tool_result(p)]
             if returned:
                 return ModelResponse(parts=[TextPart(str(retried[0].content))])
             return ModelResponse(parts=[ToolCallPart("list_keys", next(attempts), tool_call_id="c")])

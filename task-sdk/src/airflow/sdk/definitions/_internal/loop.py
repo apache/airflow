@@ -133,6 +133,8 @@ def _find_loop(group: TaskGroup | None) -> LoopTaskGroup | None:
     return None
 
 
+# TODO: Share these loop checks between Python and language SDK Dags;
+# tracked at https://github.com/apache/airflow/issues/76903
 def check_expansions_over_loop_tasks(dag: Any) -> None:
     """
     Raise if a mapped task or task group expands over a loop task without being in that loop.

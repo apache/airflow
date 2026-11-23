@@ -136,6 +136,30 @@ describe("Details state reason row", () => {
   });
 });
 
+describe("Details retry at row", () => {
+  beforeEach(() => {
+    i18n.addResourceBundle("en", "common", commonLocale, true, true);
+  });
+
+  it("shows when a try waiting to be retried becomes due", () => {
+    renderDetails(buildTaskInstance({ retry_at: "2026-10-29T12:00:30Z", state: "up_for_retry" }));
+
+    const row = screen.getByText(i18n.t("common:taskInstance.retryAt")).closest("tr");
+
+    expect(row).not.toBeNull();
+    expect(within(row as HTMLElement).getByTestId("time-display")).toHaveAttribute(
+      "datetime",
+      "2026-10-29T12:00:30Z",
+    );
+  });
+
+  it("omits the row when the try has no retry_at", () => {
+    renderDetails(buildTaskInstance({ retry_at: null, state: "up_for_retry" }));
+
+    expect(screen.queryByText(i18n.t("common:taskInstance.retryAt"))).not.toBeInTheDocument();
+  });
+});
+
 describe("Details loop context", () => {
   beforeEach(() => {
     i18n.addResourceBundle("en", "common", commonLocale, true, true);

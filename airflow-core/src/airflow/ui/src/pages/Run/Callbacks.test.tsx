@@ -46,6 +46,7 @@ const { useDeadlinesServiceGetCallbackLogs, useDeadlinesServiceGetDeadlines } =
   await import("openapi/queries");
 
 beforeAll(() => {
+  Object.defineProperty(HTMLElement.prototype, "clientHeight", { value: 20 });
   Object.defineProperty(HTMLElement.prototype, "offsetHeight", { value: 20 });
   Object.defineProperty(HTMLElement.prototype, "offsetWidth", { value: 800 });
 });
@@ -138,5 +139,31 @@ describe("Callbacks", () => {
     fireEvent.click(expandedLogsButton as HTMLElement);
 
     expect(screen.queryByTestId("table-sub-row")).not.toBeInTheDocument();
+  });
+
+  it("links a running async callback to its trigger", () => {
+    const [syncCallback, asyncCallback] = deadlines as [DeadlineResponse, DeadlineResponse];
+
+    vi.mocked(useDeadlinesServiceGetDeadlines).mockReturnValue({
+      data: { deadlines: [syncCallback, { ...asyncCallback, callback_trigger_id: 12 }], total_entries: 2 },
+      error: null,
+      isFetching: false,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useDeadlinesServiceGetDeadlines>);
+
+    render(
+      <BaseWrapper>
+        <MemoryRouter initialEntries={["/dags/my_dag/runs/run_1/callbacks"]}>
+          <TimezoneProvider>
+            <Routes>
+              <Route element={<Callbacks />} path="/dags/:dagId/runs/:runId/callbacks" />
+            </Routes>
+          </TimezoneProvider>
+        </MemoryRouter>
+      </BaseWrapper>,
+    );
+
+    expect(screen.getByRole("link", { name: "12" })).toHaveAttribute("href", "/triggers/12");
+    expect(screen.getAllByRole("link")).toHaveLength(1);
   });
 });

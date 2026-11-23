@@ -19,7 +19,7 @@
 
 # Developing the Airflow TypeScript SDK
 
-Contributor and release-manager reference for `apache-airflow-ts-sdk`. See
+Contributor and release-manager reference for `@apache-airflow/ts-sdk`. See
 [`README.md`](README.md) for the user-facing package documentation.
 
 ## Building and testing
@@ -122,7 +122,7 @@ so both release paths share a single configuration pinned to a single GitHub
 environment:
 
 ```bash
-npm trust github apache-airflow-ts-sdk \
+npm trust github @apache-airflow/ts-sdk \
   --repo apache/airflow \
   --file ts-sdk-release.yml \
   --environment ts-sdk-npm-release \
@@ -130,16 +130,16 @@ npm trust github apache-airflow-ts-sdk \
   --allow-publish
 ```
 
-Confirm it with `npm trust list apache-airflow-ts-sdk`. A second `npm trust
+Confirm it with `npm trust list @apache-airflow/ts-sdk`. A second `npm trust
 github` for the same package is rejected, so replace an outdated configuration
 with `npm trust revoke` first.
 
 Because the registry cannot express "stage only" and "publish only" as separate
 relationships, what separates the two paths is the GitHub environment gate
 rather than an npm-side permission split. Require reviewers and prevent
-self-review on `ts-sdk-npm-release`, restrict its deployment tags to
-`ts-sdk/*`, and protect those tags from updates and deletion with a repository
-ruleset. The pinned `--environment` claim means a workflow edit that drops the
+self-review on `ts-sdk-npm-release`, and restrict its deployment tags to
+`ts-sdk/*`. The "Protect language SDK release tags" ruleset in `.asf.yaml`
+keeps those tags from being updated or deleted by anyone but committers. The pinned `--environment` claim means a workflow edit that drops the
 gate loses the ability to publish at all.
 
 Create and push a `ts-sdk/<version>` tag whose version exactly matches
@@ -148,8 +148,8 @@ names the source commit that produced the tarball. The tag must already exist
 on `apache/airflow` before the dispatch below can reference it as `--ref`:
 
 ```bash
-git tag ts-sdk/1.0.0-beta1 <commit-sha>
-git push upstream ts-sdk/1.0.0-beta1
+git tag ts-sdk/1.0.0 <commit-sha>
+git push upstream ts-sdk/1.0.0
 ```
 
 The commit you tag must be on `main` or on a core release branch (`vX-Y-test`
@@ -160,10 +160,10 @@ change there first, then tag that branch's commit.
 To submit the package to npm's private staging area for review, run:
 
 ```bash
-gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta1 \
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0 \
   -f release_type=staged \
-  -f tag=ts-sdk/1.0.0-beta1 \
-  -f npm_tag=beta
+  -f tag=ts-sdk/1.0.0 \
+  -f npm_tag=latest
 ```
 
 The publish job calls `npm stage publish` only after the unprivileged build job
@@ -172,7 +172,7 @@ until a maintainer reviews and approves it with 2FA. The following commands
 require npm 11.15 or later:
 
 ```bash
-npm stage list apache-airflow-ts-sdk
+npm stage list @apache-airflow/ts-sdk
 npm stage view <stage-id>
 npm stage download <stage-id>
 npm stage approve <stage-id>
@@ -186,14 +186,14 @@ that is already staged; approve or reject that staged version instead.
 To publish directly without npm's staging review, trigger the formal path:
 
 ```bash
-gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0-beta1 \
+gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/1.0.0 \
   -f release_type=formal \
-  -f tag=ts-sdk/1.0.0-beta1 \
-  -f npm_tag=beta
+  -f tag=ts-sdk/1.0.0 \
+  -f npm_tag=latest
 ```
 
 Use `latest` for stable releases. A prerelease may only use the channel derived
-from its own prerelease identifier (`1.0.0-beta1` → `beta`) or `next` —
+from its own prerelease identifier (`1.0.0-beta2` → `beta`) or `next` —
 `scripts/validate-release-inputs.mjs` rejects any other tag. The workflow also
 rejects a dispatch that would move the selected npm dist-tag backward as of
 when it runs. For a staged release, the dist-tag only actually moves later, at
@@ -202,3 +202,115 @@ in the order they were requested so the dist-tag does not regress. Both
 publication paths use short-lived npm OIDC credentials and automatically
 publish provenance. After verifying the trusted-publisher setup, disable
 token-based publishing and revoke obsolete npm automation tokens.
+
+## Calling a release vote
+
+Every release needs a `[VOTE]` on `dev@airflow.apache.org`. The vote is
+formally on the signed source package in `dist/dev`; the npm package is the
+convenience binary.
+
+The release candidate is tagged `ts-sdk/<VERSION>-rc<N>` with `package.json`
+set to the same `<VERSION>-rc<N>`, then published with the `formal` workflow
+above using the `rc` dist-tag, so reviewers can install it with `npm install`.
+
+Put the signed source package in the dist dev area as
+`ts-sdk/<VERSION>-rc<N>/apache-airflow-ts-sdk-<VERSION>-src.tar.gz`, with its
+`.asc` signature and `.sha512` checksum.
+
+### Vote email template
+
+```text
+Subject: [VOTE] Release Apache Airflow TypeScript SDK <VERSION> based on <VERSION>-rc<N>
+
+Hi,
+
+I would like to call a vote to release Apache Airflow TypeScript SDK <VERSION>,
+based on release candidate <VERSION>-rc<N>.
+
+Changes since <the last release>: <a one-line description>
+
+The release candidate contains the following npm package:
+
+- @apache-airflow/ts-sdk
+
+Git information:
+
+- Tag: ts-sdk/<VERSION>-rc<N>
+- Commit: <full-commit-sha>
+- https://github.com/apache/airflow/releases/tag/ts-sdk%2F<VERSION>-rc<N>
+
+Source release, signatures and checksums:
+https://dist.apache.org/repos/dist/dev/airflow/ts-sdk/<VERSION>-rc<N>/
+
+Convenience binary (published on npm under the rc dist-tag):
+https://www.npmjs.com/package/@apache-airflow/ts-sdk/v/<VERSION>-rc<N>
+
+To try the release candidate in a project:
+
+    npm install @apache-airflow/ts-sdk@<VERSION>-rc<N>
+
+KEYS file (public keys used to sign the release):
+https://downloads.apache.org/airflow/KEYS
+
+Please review and vote. The vote will remain open for at least 72 hours, until <YYYY-MM-DD HH:MM UTC>, or until the necessary number of binding votes is reached.
+
+[ ] +1 Release this package as Apache Airflow TypeScript SDK <VERSION>
+[ ] +0 No opinion
+[ ] -1 Do not release, because ...
+
+Only votes from Airflow PMC members are binding, but everyone is welcome and encouraged to test the release and vote.
+
+The verification process for PMC members and contributors can be found in:
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-pmc-members
+https://github.com/apache/airflow/blob/main/dev/README_RELEASE_LANGUAGE_SDKS.md#verify-the-release-candidate-by-contributors
+
+For more details on ASF release verification, see: https://www.apache.org/info/verification.html
+
+Best,
+<your name>
+```
+
+Pre-send checklist:
+
+* `npm view @apache-airflow/ts-sdk@<VERSION>-rc<N> version` prints
+  `<VERSION>-rc<N>`.
+* `Changes since <the last release>` and the vote deadline are filled in.
+* The RC commit passes the
+  [commit check](../dev/README_RELEASE_LANGUAGE_SDKS.md#check-the-release-candidate-commit).
+* Run `grep '<' email.txt` on the rendered email and confirm **no output** —
+  any match means a template placeholder was left unfilled.
+
+### After a successful vote
+
+Follow [After a successful vote](../dev/README_RELEASE_LANGUAGE_SDKS.md#after-a-successful-vote)
+in the shared release doc. Its "Publish the binaries" step for TypeScript is:
+
+1. **Publish** the final tag to npm with the formal path on the `latest`
+   dist-tag (or the prerelease channel, for a prerelease):
+
+   ```bash
+   gh workflow run ts-sdk-release.yml --repo apache/airflow --ref ts-sdk/<VERSION> \
+     -f release_type=formal \
+     -f tag=ts-sdk/<VERSION> \
+     -f npm_tag=latest
+   ```
+
+   Approve the `ts-sdk-npm-release` deployment when the workflow asks for it.
+
+2. **Remove** the `rc` dist-tag, which still points at the last candidate.
+   This needs a maintainer's npm 2FA:
+
+   ```bash
+   npm dist-tag rm @apache-airflow/ts-sdk rc
+   npm view @apache-airflow/ts-sdk dist-tags
+   ```
+
+### If the vote fails
+
+Follow [If the vote fails](../dev/README_RELEASE_LANGUAGE_SDKS.md#if-the-vote-fails)
+in the shared release doc. For TypeScript, also deprecate the candidate on
+npm so nobody keeps using it:
+
+```bash
+npm deprecate @apache-airflow/ts-sdk@<VERSION>-rc<N> "Release vote failed; use a later release candidate"
+```

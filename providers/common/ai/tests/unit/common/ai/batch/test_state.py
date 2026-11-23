@@ -16,16 +16,21 @@
 # under the License.
 from __future__ import annotations
 
+import hashlib
 import json
+import uuid
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
 from airflow.providers.common.ai.batch import state as state_module
 from airflow.providers.common.ai.batch.state import (
+    SCHEMA_VERSION,
     BatchStateRecord,
     compute_fingerprint,
     compute_identity_key,
+    compute_identity_key_for_context,
     compute_output_schema_digest,
     delete_state,
     read_state,
@@ -52,6 +57,54 @@ class TestComputeIdentityKey:
         a = compute_identity_key(dag_id="d", task_id="t", run_id="r", map_index=0)
         b = compute_identity_key(dag_id="d", task_id="t", run_id="r", map_index=1)
         assert a != b
+
+    def test_key_outside_a_loop_is_unchanged(self):
+        """Batches already in flight when the provider is upgraded must still be found."""
+        key = compute_identity_key(dag_id="d", task_id="t", run_id="r", map_index=-1)
+        assert key == hashlib.sha256(b"d\x00t\x00r\x00-1").hexdigest()
+
+    def test_loop_iterations_get_distinct_keys(self):
+        base = dict(dag_id="d", task_id="t", run_id="r", map_index=-1, loop_region_id="region-a")
+        iteration_1 = compute_identity_key(**base, loop_index=1)
+        assert iteration_1 != compute_identity_key(**base, loop_index=2)
+        assert iteration_1 == compute_identity_key(**base, loop_index=1), "retries share a key"
+        assert iteration_1 != compute_identity_key(dag_id="d", task_id="t", run_id="r", map_index=-1)
+
+    def test_loop_trajectories_get_distinct_keys(self):
+        """A rerun that replaces later iterations starts a new trajectory and must not reattach."""
+        base = dict(dag_id="d", task_id="t", run_id="r", map_index=-1, loop_index=3)
+        assert compute_identity_key(**base, loop_region_id="region-a") != compute_identity_key(
+            **base, loop_region_id="region-b"
+        )
+
+
+class TestComputeIdentityKeyForContext:
+    @staticmethod
+    def _context(*, map_index=-1, loop=None):
+        ti = SimpleNamespace(dag_id="d", task_id="t", run_id="r", map_index=map_index)
+        context = {"ti": ti, "task_instance": ti}
+        if loop is not None:
+            context["loop"] = loop
+        return context
+
+    def test_outside_a_loop(self):
+        assert compute_identity_key_for_context(self._context()) == compute_identity_key(
+            dag_id="d", task_id="t", run_id="r", map_index=-1
+        )
+
+    def test_missing_map_index_counts_as_unmapped(self):
+        assert compute_identity_key_for_context(self._context(map_index=None)) == compute_identity_key(
+            dag_id="d", task_id="t", run_id="r", map_index=-1
+        )
+
+    def test_inside_a_loop_uses_the_trajectory_and_iteration(self):
+        region_id = uuid.uuid4()
+        loop = SimpleNamespace(region_id=region_id, index=2)
+        assert compute_identity_key_for_context(
+            self._context(map_index=1, loop=loop)
+        ) == compute_identity_key(
+            dag_id="d", task_id="t", run_id="r", map_index=1, loop_region_id=str(region_id), loop_index=2
+        )
 
 
 class TestComputeFingerprint:
@@ -156,7 +209,7 @@ class TestPhaseAAndPhaseBWrites:
         )
         record = read_state(result_path, "k1")
         assert record == BatchStateRecord(
-            schema_version=1,
+            schema_version=SCHEMA_VERSION,
             key="k1",
             input_fingerprint="fp1",
             output_schema_digest="sd1",
@@ -170,6 +223,51 @@ class TestPhaseAAndPhaseBWrites:
             request_count=12345,
             submitted_at="2026-09-11T04:00:00+00:00",
         )
+
+    def test_provider_handle_round_trips(self, result_path):
+        write_submitted(
+            result_path,
+            key="k3",
+            input_fingerprint="fp1",
+            output_schema_digest="sd1",
+            intent_at=None,
+            adapter="anthropic",
+            llm_conn_id="my_anthropic",
+            model_id="anthropic:claude-sonnet-4-5",
+            output_type_ref=None,
+            batch_id="msgbatch_1",
+            provider_input_ref=None,
+            request_count=1,
+            submitted_at="2026-09-11T04:00:00+00:00",
+            provider_handle='{"id": "msgbatch_1"}',
+        )
+
+        assert read_state(result_path, "k3").provider_handle == '{"id": "msgbatch_1"}'
+
+    def test_a_version_1_record_reads_with_no_handle(self, result_path):
+        write_submitted(
+            result_path,
+            key="k4",
+            input_fingerprint="fp1",
+            output_schema_digest="sd1",
+            intent_at=None,
+            adapter="anthropic",
+            llm_conn_id="my_anthropic",
+            model_id="anthropic:claude-sonnet-4-5",
+            output_type_ref=None,
+            batch_id="msgbatch_1",
+            provider_input_ref=None,
+            request_count=1,
+            submitted_at="2026-09-11T04:00:00+00:00",
+        )
+        path = result_path / "_airflow_batch_state" / "k4.json"
+        data = json.loads(path.read_text())
+        data["schema_version"] = 1
+        del data["provider_handle"]
+        path.write_text(json.dumps(data))
+
+        legacy = read_state(result_path, "k4")
+        assert (legacy.schema_version, legacy.provider_handle, legacy.batch_id) == (1, None, "msgbatch_1")
 
     def test_write_submitted_allows_null_intent_at(self, result_path):
         """A fresh (non-orphan-recovered) submit still has a real intent_at; this covers the

@@ -19,14 +19,14 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
@@ -80,7 +80,7 @@ def _format_kwargs_for_display(kwargs: dict | None) -> Any:
     return format_encoded_value_for_display(kwargs) if kwargs else ""
 
 
-class CallbackType(str, Enum):
+class CallbackType(StrEnum):
     """
     Types of Callbacks.
 
@@ -146,6 +146,10 @@ class Callback(Base, BaseWorkload):
 
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
+    processor_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    processor_claim_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     # Return value of the callback if successful, otherwise exception details
     output: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -159,6 +163,15 @@ class Callback(Base, BaseWorkload):
     # Used for callbacks of type CallbackType.TRIGGERER
     trigger_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("trigger.id"), nullable=True)
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
+
+    __table_args__ = (
+        Index(
+            "idx_callback_trigger_id",
+            trigger_id,
+            postgresql_where=trigger_id.is_not(None),
+            sqlite_where=trigger_id.is_not(None),
+        ),
+    )
 
     def __init__(self, priority_weight: int = 1, prefix: str = "", **kwargs):
         """
@@ -266,6 +279,10 @@ class TriggererCallback(Callback):
         if self.bundle_name and conf.getboolean("core", "multi_team"):
             team_name = DagBundleModel.get_team_name(self.bundle_name, session=session)
 
+        if self.id is None:
+            # Not flushed yet; the trigger records which callback it runs for.
+            self.id = uuid6.uuid7()
+        dag_run = ((self.data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
         # The kwargs stay encoded: the triggerer decodes them when it creates the CallbackTrigger.
         self.trigger = Trigger.from_serialized_kwargs(
             classpath=qualname(CallbackTrigger),
@@ -274,6 +291,8 @@ class TriggererCallback(Callback):
                 "callback_kwargs": encode_queued_callback_kwargs(self.data["kwargs"] or {}),
             },
             queue=self.data.get("queue"),
+            dag_id=self.get_dag_id() or dag_run.get("dag_id"),
+            used_by_ref={"callback_id": str(self.id)},
         )
         self.trigger.team_name = team_name
         super().queue(session=session)

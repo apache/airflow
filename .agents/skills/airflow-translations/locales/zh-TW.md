@@ -158,20 +158,36 @@ word order:
 "title": "標記 {{類型}} 為 {{狀態}}"
 ```
 
-## Terminology Reference
+## Translation Workflow
 
-The established zh-TW translations are defined in the existing locale files.
-Before translating, **read the existing zh-TW JSON files** to learn the
-established terminology:
+Work through these steps in order before settling on a wording.
 
-```
-airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/
-```
+1. **Understand the string.** Decide what it denotes: an action, an object, a
+   status, or a field value. What it denotes decides the wording. A state or
+   field name should be checked against its backend definition rather than
+   guessed from the label.
 
-Use the translations found in these files as the authoritative glossary. When
-translating a term, check how it has been translated elsewhere in the locale
-to maintain consistency. If a term has not been translated yet, refer to the
-English source in `en/` and apply the rules in this document.
+2. **Find where it is used.** Follow the key from the `en/` locale file to the
+   component that renders it, and note how it is shown — a button, a heading, a
+   tooltip, a filter option, or a state label. Check the commit that added the
+   string to `en/`; it usually carries the component change as well. If the key
+   is composed at runtime from a prefix and a variable, search for the prefix
+   and work out which values the variable can take; the component tests often
+   render one of them. If the key does not appear in the UI at all, fall back
+   to the neighboring keys.
+
+3. **Reuse existing zh-TW wording.** Search the locale files under
+   `airflow-core/src/airflow/ui/public/i18n/locales/zh-TW/` for the same or
+   similar terms; they are the authoritative glossary.
+
+4. **Translate from the English source** in `en/`, the primary reference for
+   meaning.
+
+5. **Compare with the other locales.** Check how the same key was translated
+   in the other `locales/` folders. A different approach there is not a reason
+   to switch on its own, but it is a reason to think again: go back to the
+   English string and decide whether the difference points at something you
+   missed.
 
 ### Additional Terminology
 

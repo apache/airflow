@@ -23,9 +23,11 @@ import io.ktor.utils.io.ByteChannel
 import io.ktor.utils.io.exhausted
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.TaskStateStore
 import org.apache.airflow.sdk.execution.comm.GetVariable
@@ -43,8 +45,10 @@ import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import org.apache.airflow.sdk.Client as PublicClient
 
 fun byteArrayFromHexString(hexString: String): ByteArray =
@@ -183,24 +187,30 @@ class CommsTest {
     return out.toByteArray()
   }
 
-  private fun notFoundResponseFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packNil()
-      packer.packMapHeader(3)
-      packer.packString("type")
-      packer.packString("ErrorResponse")
-      packer.packString("error")
-      packer.packString("TASK_STORE_NOT_FOUND")
-      packer.packString("detail")
-      packer.packMapHeader(1)
-      packer.packString("key")
-      packer.packString("job_id")
+  // An ErrorResponse carrying a typed `error` code and a one-entry `detail`, as the supervisor sends it.
+  private fun typedErrorFrame(
+    error: String,
+    detailKey: String,
+    detailValue: String,
+  ): (Int) -> ByteArray =
+    { id ->
+      val out = ByteArrayOutputStream()
+      MessagePack.newDefaultPacker(out).use { packer ->
+        packer.packArrayHeader(3)
+        packer.packInt(id)
+        packer.packNil()
+        packer.packMapHeader(3)
+        packer.packString("type")
+        packer.packString("ErrorResponse")
+        packer.packString("error")
+        packer.packString(error)
+        packer.packString("detail")
+        packer.packMapHeader(1)
+        packer.packString(detailKey)
+        packer.packString(detailValue)
+      }
+      out.toByteArray()
     }
-    return out.toByteArray()
-  }
 
   private fun taskStateStoreResultFrame(id: Int): ByteArray {
     val out = ByteArrayOutputStream()
@@ -282,25 +292,6 @@ class CommsTest {
     return Triple(requests.single().rawBody as Map<*, *>, outcome.getOrNull(), outcome.exceptionOrNull())
   }
 
-  private fun dagRunExistsResponseFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packNil()
-      packer.packMapHeader(3)
-      packer.packString("type")
-      packer.packString("ErrorResponse")
-      packer.packString("error")
-      packer.packString("DAGRUN_ALREADY_EXISTS")
-      packer.packString("detail")
-      packer.packMapHeader(1)
-      packer.packString("dag_id")
-      packer.packString("downstream")
-    }
-    return out.toByteArray()
-  }
-
   private fun dagRunStateResultFrame(id: Int): ByteArray {
     val out = ByteArrayOutputStream()
     MessagePack.newDefaultPacker(out).use { packer ->
@@ -341,6 +332,90 @@ class CommsTest {
   private suspend fun ByteChannel.readOneRequest() {
     val prefix = readByteArray(4)
     readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+  }
+
+  @Test
+  @DisplayName("Should deliver a reply while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun deliversReplyWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    // The code that reads replies logs a warning for the stray frame below. The WARNING threshold keeps debug lines
+    // off, so the calling thread logs nothing.
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.WARNING)
+    val logs = ByteChannel(autoFlush = true)
+    val waiting = blockLogRoom(logs)
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    try {
+      val result =
+        runBlocking {
+          toClient.writeFrame(responseFrame(99, key = "stray"))
+          toClient.writeFrame(responseFrame(0, key = "return_value"))
+          withTimeoutOrNull(10_000) { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+        }
+      Assertions.assertEquals("return_value", result?.key, "the reply should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      releaseLogRoom(logs, waiting)
+      Log.namedThresholds = savedNamed
+    }
+  }
+
+  @Test
+  @DisplayName("Should deliver a reply, and log it at debug level, while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun deliversReplyWithDebugLogWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.DEBUG)
+    LogSender.reset()
+    val logs = ByteChannel(autoFlush = true)
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    var waiting: Thread? = null
+    try {
+      val result =
+        runBlocking {
+          val reply = async(Dispatchers.IO) { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+          // The calling thread logs the request before LogSender has a channel, so that line needs no room.
+          fromClient.readOneRequest()
+          waiting = blockLogRoom(logs)
+          toClient.writeFrame(responseFrame(0, key = "return_value"))
+          withTimeoutOrNull(10_000) { reply.await() }.also { if (it == null) reply.cancel() }
+        }
+      Assertions.assertEquals("return_value", result?.key, "the reply should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      waiting?.let { releaseLogRoom(logs, it) }
+      Log.namedThresholds = savedNamed
+    }
+  }
+
+  @Test
+  @DisplayName("Should read the first frame, and log it at debug level, while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun readsFirstFrameWithDebugLogWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.DEBUG)
+    val logs = ByteChannel(autoFlush = true)
+    val waiting = blockLogRoom(logs)
+    val toClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, ByteChannel(autoFlush = true))
+    try {
+      val frame = CompletableFuture<IncomingFrame>()
+      // A separate thread reads the frame, so that the test can fail with its own assertion message if the read waits
+      // for room.
+      thread { frame.complete(runBlocking { comm.readMessage() }) }
+      runBlocking { toClient.writeFrame(responseFrame(7, key = "first")) }
+
+      val read = runCatching { frame.get(10, TimeUnit.SECONDS) }.getOrNull()
+      Assertions.assertEquals(7, read?.id, "the first frame should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      releaseLogRoom(logs, waiting)
+      Log.namedThresholds = savedNamed
+    }
   }
 
   @Test
@@ -491,7 +566,7 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun triggerDagRunReportsAnExistingRun() {
     val (_, alreadyExists, failure) =
-      transportRoundTrip(::dagRunExistsResponseFrame) {
+      transportRoundTrip(typedErrorFrame("DAGRUN_ALREADY_EXISTS", "dag_id", "downstream")) {
         it.triggerDagRun("downstream", "run", null, null, null, false, null)
       }
 
@@ -523,6 +598,31 @@ class CommsTest {
     Assertions.assertEquals(true, paused)
     Assertions.assertEquals("GetDag", body["type"])
     Assertions.assertEquals("downstream", body["dag_id"])
+  }
+
+  @Test
+  @DisplayName("getVariable returns null on VARIABLE_NOT_FOUND instead of raising")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getVariableReturnsNullWhenNotFound() {
+    var value: Any? = "unset"
+    val (body, failure) =
+      roundTrip(typedErrorFrame("VARIABLE_NOT_FOUND", "key", "optional_setting")) {
+        value = it.getVariable("optional_setting")
+      }
+
+    Assertions.assertNull(failure, "getVariable should return normally on VARIABLE_NOT_FOUND, got $failure")
+    Assertions.assertEquals("GetVariable", body["type"])
+    Assertions.assertEquals("optional_setting", body["key"])
+    Assertions.assertNull(value)
+  }
+
+  @Test
+  @DisplayName("getVariable raises ApiError for any other error response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getVariableRaisesApiErrorOnOtherErrors() {
+    val (_, failure) = roundTrip(::errorResponseFrame) { it.getVariable("optional_setting") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
   }
 
   @Test
@@ -569,6 +669,20 @@ class CommsTest {
     Assertions.assertInstanceOf(ApiError::class.java, failure)
   }
 
+  @Test
+  @DisplayName("getXCom sends a null map index, which the server resolves by the task's definition")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getXComSendsNullMapIndex() {
+    val (body, failure) =
+      roundTrip({ responseFrame(it) }) {
+        it.getXCom(dagId = "dag", runId = "run", taskId = "upstream")
+      }
+
+    Assertions.assertNull(failure, "getXCom should return normally on XComResult, got $failure")
+    Assertions.assertEquals("GetXCom", body["type"])
+    Assertions.assertNull(body["map_index"])
+  }
+
   private val tiId: UUID = UUID.fromString("0199a5d6-1c2e-7c6a-9c1e-7a2f7f0d1e42")
 
   private fun currentTaskInstance() = StartupDetails().also { it.ti = TaskInstance().also { ti -> ti.id = tiId } }
@@ -592,7 +706,10 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun taskStateStoreGetReturnsNullWhenNotFound() {
     var value: Any? = "unset"
-    val (_, failure) = roundTrip(::notFoundResponseFrame, currentTaskInstance()) { value = it.taskStateStore.get("job_id") }
+    val (_, failure) =
+      roundTrip(typedErrorFrame("TASK_STORE_NOT_FOUND", "key", "job_id"), currentTaskInstance()) {
+        value = it.taskStateStore.get("job_id")
+      }
 
     Assertions.assertNull(failure, "get should return normally on TASK_STORE_NOT_FOUND, got $failure")
     Assertions.assertNull(value)

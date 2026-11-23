@@ -776,7 +776,9 @@ class TestExecutorLoader:
         ],
     )
     @conf_vars(TEAM_EXECUTORS_CONFIG)
-    @patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database")
+    # A dotted path, not patch.object: other tests reload executor_loader, and a decorator binds the
+    # class object at import time, so the patch would land on a class the test no longer calls.
+    @patch("airflow.executors.executor_loader.ExecutorLoader._validate_teams_exist_in_database")
     def test_resolve_executor_name(self, _, executor, team_name, expected):
         name = executor_loader.ExecutorLoader.resolve_executor_name(executor, team_name)
         assert (name.alias or name.module_path, name.team_name) == expected
@@ -790,7 +792,7 @@ class TestExecutorLoader:
         ],
     )
     @conf_vars(TEAM_EXECUTORS_CONFIG)
-    @patch.object(executor_loader.ExecutorLoader, "_validate_teams_exist_in_database")
+    @patch("airflow.executors.executor_loader.ExecutorLoader._validate_teams_exist_in_database")
     def test_resolve_executor_name_no_match(self, _, executor, team_name):
         with pytest.raises(UnknownExecutorException):
             executor_loader.ExecutorLoader.resolve_executor_name(executor, team_name)
