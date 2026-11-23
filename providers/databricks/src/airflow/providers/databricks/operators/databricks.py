@@ -307,7 +307,8 @@ _DICT_PARAM_FIELD_BY_TASK = {
     "run_job_task": "job_parameters",
 }
 
-# Parameter slots in a run-now payload (and in a ``run_job_task``) that Databricks API rejects when combined with job_parameters
+# Parameter slots in a run-now payload (and in a ``run_job_task``) that Databricks API rejects when
+# combined with job_parameters
 _RUN_NOW_PARAM_SLOTS_CONFLICTING_WITH_JOB_PARAMETERS = (
     "notebook_params",
     "python_params",
