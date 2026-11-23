@@ -197,8 +197,7 @@ func (f *taskFunction) call(
 		}
 		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
 	}
-	// A function that returns only an error has no result to push. Any other result is pushed, so a
-	// nil pointer or nil interface stores null.
+	// A function that returns only an error has no result to push.
 	if len(retValues) > 1 {
 		return pushReturnValue(ctx, retValues[0].Interface(), sdkClient)
 	}
