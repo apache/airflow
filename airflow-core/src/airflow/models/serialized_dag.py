@@ -43,6 +43,7 @@ from airflow.models.asset import (
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagcode import DagCode
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
@@ -644,6 +645,19 @@ class SerializedDagModel(Base):
 
         :returns: Boolean indicating if the DAG was written to the DB
         """
+        if bundle_version is not None:
+            current_bundle_version = session.scalar(
+                select(DagBundleModel.version).where(DagBundleModel.name == bundle_name)
+            )
+            if current_bundle_version is not None and current_bundle_version != bundle_version:
+                log.debug(
+                    "Skipping writing serialized DAG (%s): bundle version %s does not match current version %s",
+                    dag.dag_id,
+                    bundle_version,
+                    current_bundle_version,
+                )
+                return False
+
         if _prefetched is None:
             _prefetched = cls._prefetch_dag_write_metadata([dag.dag_id], session=session).get(
                 dag.dag_id, DagWriteMetadata(last_updated=None, dag_hash=None, dag_version=None)

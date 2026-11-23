@@ -35,6 +35,7 @@ from airflow.dag_processing.dagbag import DagBag
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetModel
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline_alert import DeadlineAlert as DAM
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.providers.standard.operators.bash import BashOperator
@@ -779,6 +780,90 @@ class TestSerializedDagModel:
 
         assert did_write is False
         assert session.scalar(select(func.count()).select_from(DagVersion)) == 1
+
+    def test_write_dag_rejects_stale_bundle_version_when_content_changes(self, session):
+        """A late parse result from an older bundle version must not replace the latest DAG."""
+        session.add(DagBundleModel(name="repro_bundle", version="v2"))
+        session.flush()
+        session.add(
+            DagModel(
+                dag_id="late_result_dag",
+                fileloc="/tmp/late_result_dag.py",
+                bundle_name="repro_bundle",
+                bundle_version="v2",
+            )
+        )
+        session.flush()
+
+        with DAG(dag_id="late_result_dag", schedule=None) as dag_v2:
+            EmptyOperator(task_id="new_task")
+        with DAG(dag_id="late_result_dag", schedule=None) as dag_v1:
+            EmptyOperator(task_id="old_task")
+
+        assert (
+            SDM.write_dag(
+                LazyDeserializedDAG.from_dag(dag_v2),
+                bundle_name="repro_bundle",
+                bundle_version="v2",
+                min_update_interval=0,
+                session=session,
+            )
+            is True
+        )
+
+        # Late v1 parse arrives after v2 has already been published.
+        assert (
+            SDM.write_dag(
+                LazyDeserializedDAG.from_dag(dag_v1),
+                bundle_name="repro_bundle",
+                bundle_version="v1",
+                min_update_interval=0,
+                session=session,
+            )
+            is False
+        )
+
+        session.flush()
+        latest = DagVersion.get_latest_version("late_result_dag", session=session)
+        assert latest is not None
+        assert latest.version_number == 1
+        assert latest.bundle_version == "v2"
+        latest_serdag = SDM.get("late_result_dag", session=session)
+        assert latest_serdag is not None
+        assert sorted(latest_serdag.dag.task_ids) == ["new_task"]
+
+    def test_write_dag_rejects_stale_bundle_version_when_hash_unchanged(self, dag_maker, session):
+        """A late parse with identical content must not downgrade bundle_version in place."""
+        with dag_maker("test_dag_stale_bundle_same_hash", bundle_name="bundleA") as dag:
+            EmptyOperator(task_id="task1")
+        dag_maker.create_dagrun(run_id="test_run")
+
+        bundle = session.scalar(select(DagBundleModel).where(DagBundleModel.name == "bundleA"))
+        bundle.version = "v2"
+        session.flush()
+
+        assert (
+            SDM.write_dag(
+                LazyDeserializedDAG.from_dag(dag),
+                bundle_name="bundleA",
+                bundle_version="v2",
+                session=session,
+            )
+            is True
+        )
+
+        assert (
+            SDM.write_dag(
+                LazyDeserializedDAG.from_dag(dag),
+                bundle_name="bundleA",
+                bundle_version="v1",
+                session=session,
+            )
+            is False
+        )
+
+        latest = DagVersion.get_latest_version(dag.dag_id, session=session)
+        assert latest.bundle_version == "v2"
 
     def test_hash_method_removes_fileloc_and_remains_consistent(self):
         """Test that the hash method removes fileloc before hashing."""
