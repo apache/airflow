@@ -30,6 +30,10 @@ Changelog
     has no URL scheme (for example ``/tmp/task-state``). Before, large values were written but reading them back
     failed with ``JSONDecodeError``. Set the path to a URL such as ``s3://conn_id@bucket/task-state``, or
     ``file:///path/to/task-state`` for local storage.
+    ``XComObjectStorageBackend`` now raises ``ValueError`` when it has to write a value to object storage
+    and ``[common.io] xcom_objectstorage_path`` has no URL scheme (for example ``""`` or ``/tmp/xcom``).
+    Before, the write succeeded but reads returned the file path instead of the value. Set the path to a
+    URL such as ``s3://conn_id@bucket/path``, or ``file:///path/to/xcom`` for local storage.
 
 1.11.1
 ......
