@@ -28,6 +28,7 @@ import { useDagServiceGetDagDetails } from "openapi/queries";
 
 import { RadioCardItem, RadioCardRoot } from "src/system-components";
 
+import { AllowYamlObjectInput } from "src/context/AllowYamlObjectInput";
 import { useTimezone } from "src/context/timezone";
 import { useDagParams } from "src/queries/useDagParams";
 import { useParamStore } from "src/queries/useParamStore";
@@ -217,7 +218,7 @@ const TriggerDAGForm = ({
   };
 
   return (
-    <>
+    <AllowYamlObjectInput.Provider value>
       <ErrorAlert error={errors.date ?? error} />
       <VStack alignItems="stretch" gap={2} pt={4}>
         {isPartitioned ? undefined : (
@@ -352,7 +353,7 @@ const TriggerDAGForm = ({
           </Button>
         </HStack>
       </Box>
-    </>
+    </AllowYamlObjectInput.Provider>
   );
 };
 

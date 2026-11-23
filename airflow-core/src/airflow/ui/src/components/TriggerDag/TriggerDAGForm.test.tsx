@@ -28,6 +28,7 @@ import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TriggerDAGForm from "./TriggerDAGForm";
+import type { DagRunTriggerParams } from "./types";
 
 const dagParams = vi.hoisted(() => ({
   paramsDict: {
@@ -115,6 +116,65 @@ describe("TriggerDAGForm", () => {
   beforeEach(() => {
     useDagParamsMock.mockReturnValue(dagParams);
     togglePauseMock.mockClear();
+  });
+
+  it("submits a nested YAML object and blocks invalid input until the field is corrected", async () => {
+    useDagParamsMock.mockReturnValue({
+      paramsDict: {
+        ...dagParams.paramsDict,
+        settings: { description: null, schema: { type: "object" }, value: { enabled: false } },
+      },
+    });
+    const onSubmitTrigger = vi.fn<(params: DagRunTriggerParams) => void>();
+
+    render(
+      <TriggerDAGForm
+        dagId="manual_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={onSubmitTrigger}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+    const format = await screen.findByRole("combobox", { name: "flexibleForm.objectInputFormat" });
+
+    expect(format).toHaveValue("json");
+    fireEvent.change(format, { target: { value: "yaml" } });
+
+    const editor = screen.getByRole("textbox", { name: "settings" });
+    const submit = screen.getByTestId("trigger-dag-submit");
+
+    expect(editor).toHaveValue("enabled: false\n");
+    fireEvent.change(editor, { target: { value: "a: [" } });
+    expect(editor).toHaveValue("a: [");
+    expect(submit).toBeDisabled();
+    fireEvent.change(screen.getByDisplayValue("Hello"), { target: { value: "Updated" } });
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+    expect(onSubmitTrigger).not.toHaveBeenCalled();
+
+    fireEvent.change(editor, { target: { value: "- a\n- b" } });
+    expect(screen.getByText(/validationErrorYamlObject/u)).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(editor, { target: { value: "limit: .inf" } });
+    expect(screen.getByText(/validationErrorYamlNumber/u)).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(editor, { target: { value: "a:\n  b: c" } });
+    expect(submit).toBeEnabled();
+    fireEvent.change(format, { target: { value: "json" } });
+    expect(
+      screen.getByDisplayValue('{\n  "a": {\n    "b": "c"\n  }\n}', { normalizer: (text) => text }),
+    ).toBeInTheDocument();
+    fireEvent.click(submit);
+    await waitFor(() => expect(onSubmitTrigger).toHaveBeenCalledOnce());
+    const submitted: unknown = JSON.parse(onSubmitTrigger.mock.calls[0]?.[0].conf ?? "{}");
+
+    expect(submitted).toHaveProperty("settings.a.b", "c");
+    expect(submitted).toHaveProperty("message", "Updated");
   });
 
   it.each([

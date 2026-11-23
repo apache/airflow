@@ -96,6 +96,7 @@
   },
   "flexibleForm": {
     "durationPlaceholder": "Enter Duration in ISO 8601 format",
+    "objectInputFormat": "Input format for {{name}}",
     "placeholder": "Select Value",
     "placeholderArray": "Add a value and press Enter",
     "placeholderExamples": "Start typing to see options",
@@ -105,7 +106,9 @@
     "validationErrorArrayNotNumbers": "All elements in the array must be numbers.",
     "validationErrorArrayNotObject": "All elements in the array must be objects.",
     "validationErrorDuration": "Invalid ISO 8601 duration format",
-    "validationErrorRequired": "This field is required"
+    "validationErrorRequired": "This field is required",
+    "validationErrorYamlNumber": "Use finite numbers in the run configuration.",
+    "validationErrorYamlObject": "Enter a YAML mapping for this object parameter."
   },
   "graph": {
     "directionDown": "Top to Bottom",

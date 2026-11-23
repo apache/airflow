@@ -73,6 +73,7 @@ describe("FieldObject", () => {
     render(<FieldObject name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
 
     expect(screen.getByLabelText("JSON editor")).toHaveValue("{}");
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("renders the existing value for an object param that has one", () => {

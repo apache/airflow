@@ -90,7 +90,7 @@ export const FlexibleForm = ({
   const { paramsDict: params, setDisabled, setInitialParamDict, setParamsDict } = useParamStore(namespace);
   const processedSections = new Map();
   const [sectionError, setSectionError] = useState<Map<string, boolean>>(new Map());
-  const [hasValidationError, setHasValidationError] = useState(false);
+  const [invalidFields, setInvalidFields] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // Initialize paramsDict and initialParamDict when modal opens
@@ -115,19 +115,29 @@ export const FlexibleForm = ({
     const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
 
     setSectionError(newSectionError);
-    setError(hasValidationError || newSectionError.size > 0);
-  }, [params, flexibleFormDefaultSection, setError, hasValidationError]);
+    setError(Object.keys(params).some((name) => invalidFields.has(name)) || newSectionError.size > 0);
+  }, [params, flexibleFormDefaultSection, setError, invalidFields]);
 
   useEffect(() => {
     setDisabled(disabled ?? false);
   }, [disabled, setDisabled]);
 
-  const onUpdate = (_value?: string, error?: unknown) => {
-    const newSectionError = computeSectionErrors(params, flexibleFormDefaultSection);
+  const onUpdate = (name: string, error?: unknown) => {
+    setInvalidFields((previous) => {
+      if (previous.has(name) === Boolean(error)) {
+        return previous;
+      }
 
-    setHasValidationError(Boolean(error));
-    setSectionError(newSectionError);
-    setError(Boolean(error) || newSectionError.size > 0);
+      const next = new Set(previous);
+
+      if (Boolean(error)) {
+        next.add(name);
+      } else {
+        next.delete(name);
+      }
+
+      return next;
+    });
   };
 
   return Object.keys(params).length > 0 ? (
@@ -162,7 +172,12 @@ export const FlexibleForm = ({
                     (currentSection === flexibleFormDefaultSection && !Boolean(param.schema.section)),
                 )
                 .map(([name]) => (
-                  <Row key={name} name={name} namespace={namespace} onUpdate={onUpdate} />
+                  <Row
+                    key={name}
+                    name={name}
+                    namespace={namespace}
+                    onUpdate={(_value, error) => onUpdate(name, error)}
+                  />
                 ))}
             </Stack>
           </FlatSection>
