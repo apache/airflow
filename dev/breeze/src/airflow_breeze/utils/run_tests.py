@@ -497,7 +497,7 @@ def convert_test_type_to_pytest_args(
                     )
                     / "tests"
                 )
-                if provider_path.is_dir():
+                if (AIRFLOW_ROOT_PATH / provider_path).is_dir():
                     providers_to_test.append(provider_path.as_posix())
                 else:
                     console_print(

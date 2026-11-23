@@ -210,6 +210,15 @@ def test_pytest_args_for_regular_test_types(
     )
 
 
+def test_pytest_args_for_provider_outside_checkout(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    assert convert_test_type_to_pytest_args(
+        test_group=GroupOfTests.PROVIDERS,
+        test_type="Providers[standard]",
+    ) == ["providers/standard/tests"]
+
+
 def test_pytest_args_for_missing_provider():
     with pytest.raises(SystemExit):
         convert_test_type_to_pytest_args(
