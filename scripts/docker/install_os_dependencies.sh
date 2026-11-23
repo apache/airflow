@@ -173,7 +173,9 @@ zlib1g-dev \
                 DEV_APT_DEPS+="lcov libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
 liblzma-dev libncurses5-dev libreadline6-dev libsqlite3-dev libzstd-dev lzma lzma-dev tk-dev uuid-dev"
             else
-                DEV_APT_DEPS+="lcov libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
+                # No lcov: CPython only uses it for coverage reports, and on trixie it depends on
+                # Debian's python3, which the system Python check below rejects.
+                DEV_APT_DEPS+="libbluetooth-dev libbz2-dev libdb-dev libgdbm-compat-dev libgdbm-dev \
 liblzma-dev libncurses-dev libreadline-dev libsqlite3-dev libzstd-dev tk-dev uuid-dev"
             fi
         fi
@@ -515,6 +517,11 @@ function hold_hardened_python() {
     fi
 }
 
+function get_system_python_packages() {
+    dpkg -l | awk '$1 == "ii" && ($2 ~ /^libpython3\.[0-9]+/ ||
+        $2 ~ /^python3(\.[0-9]+)?(-minimal)?(:[^ ]+)?$/) {print $2}'
+}
+
 function check_no_system_python() {
     # Python - from the hardened base image or compiled from sources - must stay the only Python in the
     # image. A system Python pulled in as a dependency of an apt package shares its shared libraries
@@ -539,14 +546,19 @@ function check_no_system_python() {
         echo
         exit 1
     fi
-    if dpkg -l | grep -E '^ii  libpython3\.[0-9]+' >/dev/null; then
+    local system_python_packages
+    system_python_packages=$(get_system_python_packages)
+    if [[ -n "${1:-}" ]]; then
+        system_python_packages=$(grep -Fvx -f <(printf '%s\n' "$1") <<< "${system_python_packages}" || true)
+    fi
+    if [[ -n "${system_python_packages}" ]]; then
         echo
         echo "ERROR! System python is installed by one of the previous steps"
         echo
         echo "Please make sure that no python packages are installed by default. Displaying the reason why libpython is installed:"
         echo
         apt-get install -yqq aptitude >/dev/null
-        aptitude why "$(dpkg -l | grep -E '^ii  libpython3\.[0-9]+' | head -1 | awk '{print $2}')"
+        aptitude why "${system_python_packages%%$'\n'*}"
         echo
         exit 1
     else
@@ -801,7 +813,8 @@ function install_rustup() {
     chmod +x /tmp/rustup-init
     # Building wheels from source needs only rustc and cargo. The default profile also adds
     # rust-docs, clippy and rustfmt, which add tens of thousands of files to the image.
-    /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    # Updating a toolchain in a pinned Docker layer can require copying across OverlayFS layers.
+    RUSTUP_PERMIT_COPY_RENAME=1 /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
     rm -f /tmp/rustup-init
 }
 
@@ -835,9 +848,14 @@ if [[ "${INSTALLATION_TYPE}" == "RUNTIME" ]]; then
     install_docker_cli
     apt_clean
 else
+    # A pinned development layer may already contain libraries from tools installed after the guard.
+    base_python_libraries=""
+    if [[ -f "${OS_DEPENDENCIES_MARKER}" ]]; then
+        base_python_libraries=$(get_system_python_packages | awk '/^libpython3\./')
+    fi
     get_dev_apt_deps
     install_debian_dev_dependencies
-    check_no_system_python
+    check_no_system_python "${base_python_libraries}"
     if [[ "${AIRFLOW_IMAGE_FLAVOR}" == "hardened" ]]; then
         link_python
         hold_hardened_python

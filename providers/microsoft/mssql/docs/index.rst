@@ -105,6 +105,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.12.0``
 ``pymssql``                                 ``>=2.3.5; python_version < "3.14"``
 ``pymssql``                                 ``>=2.3.13; python_version >= "3.14"``
+``pymssql``                                 ``>=2.4.1; python_version >= "3.15"``
 ``methodtools``                             ``>=0.4.7``
 ==========================================  ======================================
 
@@ -138,12 +139,12 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-microsoft-mssql[openlineage]
 
 
-================  ========================================
+================  ============================================================================
 Extra             Dependencies
-================  ========================================
+================  ============================================================================
 ``openlineage``   ``apache-airflow-providers-openlineage``
-``mssql-python``  ``mssql-python>=1.15.0``
-================  ========================================
+``mssql-python``  ``mssql-python>=1.15.0``, ``mssql-python>=1.16.0; python_version >= '3.15'``
+================  ============================================================================
 
 Downloading official packages
 -----------------------------

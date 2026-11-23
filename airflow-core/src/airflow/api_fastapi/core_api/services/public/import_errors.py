@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import select
 
@@ -57,7 +57,7 @@ def get_readable_import_error_files(
             DagModel.relative_fileloc.in_(filenames),
         )
     ):
-        dag_ids_by_file.setdefault(relative_fileloc, set()).add(dag_id)
+        dag_ids_by_file.setdefault(cast("str", relative_fileloc), set()).add(dag_id)
 
     readable: set[str] = set()
     if dag_ids_by_file:

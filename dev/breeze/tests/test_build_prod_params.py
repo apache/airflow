@@ -112,3 +112,87 @@ def test_base_image_without_a_pinned_digest_uses_the_tag():
     build_args = _build_args(BuildCiParams(python="3.99"))
 
     assert build_args["BASE_IMAGE"] == "ghcr.io/apache/airflow/base/python:3.99-debian13-dev"
+
+
+WITHOUT_HARDENED_IMAGES = "airflow_breeze.params.common_build_params.PYTHON_VERSIONS_WITHOUT_HARDENED_IMAGES"
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param(BuildCiParams(python="3.12"), id="ci"),
+        pytest.param(BuildProdParams(python="3.12", image_flavor="hardened"), id="prod"),
+        pytest.param(BuildCiParams(python="3.15"), id="ci-new-python"),
+        pytest.param(BuildProdParams(python="3.15"), id="prod-new-python"),
+    ],
+)
+@mock.patch(WITHOUT_HARDENED_IMAGES, ["3.12", "3.15"])
+def test_image_falls_back_to_legacy_without_hardened_image(params):
+    build_args = _build_args(params)
+
+    assert params.resolved_image_flavor == "legacy"
+    assert build_args["BASE_IMAGE"] == "debian:trixie-slim"
+    assert build_args["AIRFLOW_IMAGE_FLAVOR"] == "legacy"
+    assert build_args["AIRFLOW_PYTHON_VERSION"] == LEGACY_PYTHON_VERSIONS.get(
+        params.python, ALL_PYTHON_VERSION_TO_PATCHLEVEL_VERSION[params.python]
+    )
+    assert "CI_OS_DEPS_IMAGE" not in build_args
+    assert "DEV_OS_DEPS_IMAGE" not in build_args
+    assert "RUNTIME_OS_DEPS_IMAGE" not in build_args
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param(BuildCiParams(python="3.12", python_image="my-registry/python:x"), id="ci"),
+        pytest.param(BuildProdParams(python="3.12", python_image="my-registry/python:x"), id="prod"),
+    ],
+)
+@mock.patch(WITHOUT_HARDENED_IMAGES, ["3.12"])
+def test_explicit_python_image_disables_the_legacy_fallback(params):
+    assert params.resolved_image_flavor == "hardened"
+    assert _build_args(params)["BASE_IMAGE"] == "my-registry/python:x"
+
+
+@pytest.mark.parametrize(
+    ("params", "expected_prefix"),
+    [
+        pytest.param(
+            BuildCiParams(python="3.12", github_actions="true"),
+            "::warning title=Legacy CI image for Python 3.12::No hardened",
+            id="ci-github-actions",
+        ),
+        pytest.param(
+            BuildProdParams(python="3.12", github_actions="true"),
+            "::warning title=Legacy PROD image for Python 3.12::No hardened",
+            id="prod-github-actions",
+        ),
+        pytest.param(
+            BuildCiParams(python="3.12", github_actions="false"), "[warning]No hardened", id="local"
+        ),
+    ],
+)
+@mock.patch(WITHOUT_HARDENED_IMAGES, ["3.12"])
+@mock.patch("airflow_breeze.params.common_build_params.get_console", autospec=True)
+def test_warning_when_hardened_image_unavailable(mock_get_console, params, expected_prefix):
+    params.warn_if_hardened_image_unavailable()
+
+    printed = mock_get_console.return_value.print.call_args.args[0]
+    assert printed.startswith(expected_prefix)
+    assert "debian:trixie-slim" in printed
+    assert "\n" not in printed
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        pytest.param(BuildCiParams(python="3.12"), id="hardened-image-available"),
+        pytest.param(BuildProdParams(python="3.13", image_flavor="legacy"), id="legacy-chosen-explicitly"),
+    ],
+)
+@mock.patch(WITHOUT_HARDENED_IMAGES, ["3.15"])
+@mock.patch("airflow_breeze.params.common_build_params.get_console", autospec=True)
+def test_no_warning_when_hardened_image_is_available(mock_get_console, params):
+    params.warn_if_hardened_image_unavailable()
+
+    mock_get_console.assert_not_called()

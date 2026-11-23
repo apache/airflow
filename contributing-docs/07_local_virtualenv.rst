@@ -216,6 +216,25 @@ command - or alternatively running ``uv run`` in the provider directory.:
 Note that the ``uv sync`` command will automatically synchronize all dependencies needed for your provider
 and its development dependencies.
 
+uv uses the intersection of all workspace members' Python requirements. If a different provider excludes
+the Python version you want to use, check the lock with a workspace-compatible interpreter and install
+your provider's locked dependencies in a separate environment. The export includes editable paths for the
+provider and its local dependencies. For example, run these commands from the repository root to develop
+the Standard provider on Python 3.14:
+
+.. code:: bash
+
+    uv lock --check --python 3.13
+    requirements_file=$(mktemp)
+    uv export --frozen --package apache-airflow-providers-standard --output-file "$requirements_file"
+    uv venv --no-project --python 3.14 .venv-standard
+    uv pip sync --python .venv-standard/bin/python "$requirements_file"
+    rm "$requirements_file"
+    source .venv-standard/bin/activate
+
+Use the activated environment to run the provider's tools and tests. Plain ``uv run`` in the checkout
+still uses the workspace's Python requirements.
+
 Creating and installing Airflow with other build-frontends
 ----------------------------------------------------------
 
