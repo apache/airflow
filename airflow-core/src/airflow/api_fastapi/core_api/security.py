@@ -179,6 +179,8 @@ async def get_optional_user(
     try:
         return await get_user(request, _oauth_token=None, bearer_credentials=bearer_credentials)
     except HTTPException as error:
+        # Missing or expired credentials raise 401, while an invalid JWT raises 403; both
+        # are unauthenticated here so invalid cookies are redirected and cleared.
         if error.status_code not in {status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN}:
             raise
         return None
