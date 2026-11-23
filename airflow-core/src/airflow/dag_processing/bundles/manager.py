@@ -125,6 +125,27 @@ class _BundleConfigSnapshot(NamedTuple):
     team_names: dict[str, str | None]
 
 
+def _find_changed_bundle(adopted: _BundleConfigSnapshot, candidate: _BundleConfigSnapshot) -> str | None:
+    if candidate is adopted:
+        return None
+    return next(
+        (
+            name
+            for name in adopted.configs.keys() & candidate.configs.keys()
+            if adopted.configs[name] != candidate.configs[name]
+        ),
+        None,
+    )
+
+
+def _bundle_definition_changed(name: str) -> AirflowConfigException:
+    return _bundle_item_exc(
+        f"Configuration for bundle '{name}' has changed. Rejecting the entire "
+        "configuration list and keeping the last accepted list. "
+        "Revert this entry or use a new bundle name."
+    )
+
+
 def _create_bundle_config_snapshot(bundle_config_list: list[_ExternalBundleConfig]) -> _BundleConfigSnapshot:
     """Validate the configured Dag bundles, without importing their classes."""
     team_names = {cfg.name: cfg.team_name for cfg in bundle_config_list}
@@ -277,14 +298,8 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
             snapshot = _create_bundle_config_snapshot(_read_bundle_config_list(self._read_raw))
             if snapshot.configs == accepted.configs:
                 return
-            for name, config in snapshot.configs.items():
-                existing = adopted.configs.get(name)
-                if existing is not None and existing != config:
-                    raise _bundle_item_exc(
-                        f"Configuration for bundle '{name}' has changed. Rejecting the entire "
-                        "configuration list and keeping the last accepted list. "
-                        "Revert this entry or use a new bundle name."
-                    )
+            if (changed := _find_changed_bundle(adopted, snapshot)) is not None:
+                raise _bundle_definition_changed(changed)
             self._accepted = snapshot
         except Exception:
             log.exception("Could not reload Dag bundle configuration; keeping the last accepted list")
@@ -299,14 +314,15 @@ def _get_bundle_config_source() -> _StaticBundleConfigSource:
 
 def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
     bundles = {}
-    for item in config_list:
+    for index, item in enumerate(config_list, start=1):
         if not isinstance(item, dict):
             raise _bundle_item_exc(f"Expected dict but got {item.__class__}")
 
         try:
             cfg = _ExternalBundleConfig(**item)
         except ValidationError as e:
-            raise _bundle_item_exc(f"Item {item} failed validation: {e}")
+            fields = ", ".join(str(error["loc"][0]) for error in e.errors(include_input=False))
+            raise _bundle_item_exc(f"Bundle entry {index} failed validation: {fields}") from None
 
         if cfg.name == _example_dag_bundle_name:
             raise AirflowConfigException(
@@ -325,7 +341,10 @@ def _read_bundle_config_list(
 ) -> list[_ExternalBundleConfig]:
     if read_raw is not None:
         # Normal config lookup can silently fall back to defaults when a secret is missing.
-        raw = read_raw()
+        try:
+            raw = read_raw()
+        except Exception:
+            raise _bundle_item_exc("Could not read the configured command or secret") from None
         if not raw or not raw.strip():
             raise _bundle_item_exc("The configured command or secret returned no value")
         try:
@@ -517,16 +536,18 @@ class DagBundlesManager(LoggingMixin):
 
         :meta private:
         """
-        self._snapshot = _get_bundle_config_source().loadable()
+        self._set_config(_get_bundle_config_source().loadable())
+
+    def _set_config(self, snapshot: _BundleConfigSnapshot) -> None:
         selected = [
             config
-            for name, config in self._snapshot.configs.items()
+            for name, config in snapshot.configs.items()
             if self._bundle_names is None or name in self._bundle_names
         ]
-        if self._bundle_config.keys() == {config.name for config in selected}:
-            return
-        self._bundle_config = {config.name: _build_internal_bundle_config(config) for config in selected}
-        self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config.keys()))
+        if self._bundle_config.keys() != {config.name for config in selected}:
+            self._bundle_config = {config.name: _build_internal_bundle_config(config) for config in selected}
+            self.log.info("DAG bundles loaded: %s", ", ".join(self._bundle_config))
+        self._snapshot = snapshot
 
     @provide_session
     def sync_bundles_to_db(
@@ -665,8 +686,9 @@ class DagBundlesManager(LoggingMixin):
             bundle.active = False
             bundle.teams = []
             self.log.warning("DAG bundle %s is no longer found in config and has been disabled", name)
-            session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
-            self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
+            if bundle_instances is None:
+                session.execute(delete(ParseImportError).where(ParseImportError.bundle_name == name))
+                self.log.info("Deleted import errors for bundle %s which is no longer configured", name)
 
     def reassign_dags_with_unconfigured_bundles(self) -> int:
         """
@@ -951,8 +973,13 @@ class DagBundlesManager(LoggingMixin):
         """Refresh this manager's bundle configuration from the process source when due."""
         # The Dag processor adopts a list only after writing it to the database, so a bundle the
         # database rejected, such as one with a missing team, can still be corrected.
-        _get_bundle_config_source().refresh(self._snapshot)
-        self.parse_config()
+        source = _get_bundle_config_source()
+        source.refresh(self._snapshot)
+        snapshot = source.loadable()
+        if (changed := _find_changed_bundle(self._snapshot, snapshot)) is not None:
+            self.log.warning("%s", _bundle_definition_changed(changed))
+            return
+        self._set_config(snapshot)
 
     def get_all_bundle_names(self) -> Iterable[str]:
         """

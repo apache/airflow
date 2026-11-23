@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Final, cast
 
 from airflow.sdk._shared.module_loading import import_string
-from airflow.sdk.execution_time.coordinator import CoordinatorManager, get_coordinator_manager
+from airflow.sdk.execution_time.coordinator import _get_coordinator_manager_for_parsing
 from airflow.sdk.importers.base import (
     AbstractDagImporter,
     DagImportError,
@@ -39,6 +39,7 @@ if TYPE_CHECKING:
 
     from airflow.dag_processing.bundles.base import BaseDagBundle  # noqa: SDK002
     from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
+    from airflow.sdk.execution_time.coordinator import CoordinatorManager
     from airflow.sdk.importers import DagImporterRegistry
     from airflow.sdk.importers.base import DagDefinition
 
@@ -98,7 +99,7 @@ class CoordinatorDagImporter(AbstractDagImporter[FilesystemDagDefinition]):
         :raises InvalidCoordinatorError: when no single coordinator can parse them, or the one that can
             cannot be imported or called with its kwargs. Other errors from building it propagate.
         """
-        manager = get_coordinator_manager()
+        manager = _get_coordinator_manager_for_parsing()
         key = manager.get_dag_parsing_coordinator_key(self.coordinator_classpath, self.bundle_name)
         return cast("SubprocessCoordinator", manager.get_coordinator(key))
 

@@ -1438,18 +1438,3 @@ existing_list = one,two,three
             assert reader() is None
             mock_secret_backend.assert_called_once_with(test_conf, value)
             mock_run_command.assert_not_called()
-
-    @patch("airflow_shared.configuration.parser.run_command", autospec=True)
-    def test_get_dynamic_option_reader_deprecated_option(self, mock_run_command, monkeypatch):
-        """get_dynamic_option_reader resolves deprecated options unless disabled."""
-        test_conf = AirflowConfigParser()
-        test_conf.deprecated_options = {("test", "new_key"): ("old_sec", "old_key", "3.0")}
-        test_conf.sensitive_config_values.update({("test", "new_key"), ("old_sec", "old_key")})
-        monkeypatch.setenv("AIRFLOW__OLD_SEC__OLD_KEY_CMD", "legacy-cmd")
-
-        reader = get_dynamic_option_reader(test_conf, "test", "new_key")
-        assert reader is not None
-        mock_run_command.return_value = "legacy-output"
-        assert reader() == "legacy-output"
-        mock_run_command.assert_called_once_with("legacy-cmd")
-        assert get_dynamic_option_reader(test_conf, "test", "new_key", lookup_from_deprecated=False) is None

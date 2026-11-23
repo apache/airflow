@@ -31,7 +31,10 @@ from airflow.sdk._shared.module_loading.file_discovery import find_path_from_dir
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.types import NOTSET, is_arg_set
 from airflow.sdk.exceptions import AirflowConfigException
-from airflow.sdk.execution_time.coordinator import get_coordinator_manager
+from airflow.sdk.execution_time.coordinator import (
+    _get_coordinator_manager_for_parsing,
+    get_coordinator_manager,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterable, Iterator
@@ -493,7 +496,7 @@ class DagImporterRegistry:
         from airflow.sdk.coordinators._dag_importer import build_coordinator_dag_importers
 
         try:
-            manager = get_coordinator_manager()
+            manager = _get_coordinator_manager_for_parsing()
         except Exception:
             log.exception(
                 "Cannot load the [sdk] coordinators configuration; Dag bundle %r gets no coordinator "

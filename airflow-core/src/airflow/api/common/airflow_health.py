@@ -25,12 +25,17 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
+from airflow.dag_processing.bundles.manager import (
+    _get_bundle_config_source,
+    get_configured_bundle_team_names,
+)
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -126,15 +131,26 @@ def _dag_processor_instance_health(job: Job) -> dict[str, Any]:
 # behind forever and a restarted replica adds a second one. The denominator is therefore taken from
 # the declared work partition instead, which is unaffected by how replicas come and go:
 #
-# * Dag processor -- the bundles in ``[dag_processor] dag_bundle_config_list``.
+# * Dag processor -- the declared bundles, or the reconciled active bundles when reload is enabled.
 # * Triggerer -- the team scopes those bundles declare, since a triggerer only picks up triggers for
 #   its own team (see ``Trigger.ids_for_triggerer``).
 # * Scheduler -- schedulers are symmetric, so there is no partition and no partial state to report.
 
 
 def _configured_bundle_teams() -> dict[str, str | None]:
-    """Map every configured Dag bundle to the team owning it, empty when the config is unreadable."""
+    """Get bundle coverage without running a deployment command or secrets lookup on a health request."""
     try:
+        if _get_bundle_config_source().reconcilable:
+            with create_session() as session:
+                return dict(
+                    session.execute(
+                        select(DagBundleModel.name, Team.name)
+                        .outerjoin(DagBundleModel.teams)
+                        .where(DagBundleModel.active.is_(True))
+                    )
+                    .tuples()
+                    .all()
+                )
         return get_configured_bundle_team_names()
     except Exception:
         # A health probe must not fail on malformed bundle config; callers fall back to liveness only.

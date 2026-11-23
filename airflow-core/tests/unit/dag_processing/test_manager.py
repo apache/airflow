@@ -1411,14 +1411,10 @@ class TestDagFileProcessorManager:
         versioned_file = _get_versioned_file_info("callbacks.py")
 
         manager._file_queue = OrderedDict.fromkeys([versioned_file])
-        manager._callback_to_execute[versioned_file] = [
-            mock.create_autospec(DagCallbackRequest, instance=True)
-        ]
 
         manager.purge_removed_files_from_queue(present=set())
 
         assert manager._file_queue == OrderedDict()
-        assert not manager._callback_to_execute
 
     def test_terminate_orphan_processes_keeps_versioned_callback_processor_when_unversioned_file_is_present(
         self,

@@ -22,6 +22,7 @@ import json
 import os
 from contextlib import nullcontext
 from pathlib import Path
+from traceback import format_exception
 from unittest import mock
 from unittest.mock import patch
 
@@ -2483,18 +2484,74 @@ def test_periodic_sync_batches_bundle_team_queries(clear_db, session, bundle_cou
 
 @pytest.mark.db_test
 @conf_vars({("core", "load_examples"): "False"})
-def test_periodic_sync_deletes_import_errors_only_for_deactivated_bundles(clear_db, session):
-    inactive = DagBundleModel(name="inactive-bundle")
-    inactive.active = False
-    session.add_all([inactive, DagBundleModel(name="removed-bundle")])
+def test_periodic_sync_defers_import_errors_to_bounded_cleanup(clear_db, session):
+    removed = DagBundleModel(name="removed-bundle")
+    active = DagBundleModel(name=BASIC_BUNDLE_CONFIG[0]["name"])
+    session.add_all([removed, active])
     session.add_all(
-        ParseImportError(bundle_name=name, filename="dag.py", stacktrace="error")
-        for name in ("inactive-bundle", "removed-bundle")
+        ParseImportError(bundle_name=removed.name, filename=f"dag_{index}.py", stacktrace="error")
+        for index in range(501)
     )
+    session.add(ParseImportError(bundle_name=active.name, filename="dag.py", stacktrace="error"))
     session.flush()
     with conf_vars({("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG)}):
         DagBundlesManager().sync_bundles_to_db(bundle_instances={}, session=session)
-    assert session.scalars(select(ParseImportError.bundle_name)).all() == ["inactive-bundle"]
+        assert removed.active is False
+        session.flush()
+        assert session.scalar(select(func.count()).select_from(ParseImportError)) == 502
+        processor = DagFileProcessorManager(max_runs=1)
+        processor._clear_inactive_bundle_import_errors(session=session)
+        assert sorted(session.scalars(select(ParseImportError.bundle_name))) == sorted(
+            [active.name, removed.name]
+        )
+        processor._clear_inactive_bundle_import_errors(session=session)
+    assert session.scalars(select(ParseImportError.bundle_name)).all() == [active.name]
+
+
+@pytest.mark.parametrize("command_failed", [False, True], ids=["invalid-entry", "command-error"])
+@mock.patch("airflow._shared.configuration.parser.run_command", autospec=True)
+def test_reload_error_does_not_log_sensitive_config(
+    mock_command, dynamic_bundle_config, caplog, command_failed
+):
+    mock_command.return_value = json.dumps(BASIC_BUNDLE_CONFIG)
+    manager = DagBundlesManager()
+    value = "fake-reload-credential"
+    if command_failed:
+        mock_command.side_effect = AirflowConfigException(f"Command stdout: {value}")
+    else:
+        mock_command.return_value = json.dumps([{"name": "broken", "kwargs": {"password": value}}])
+    _expire_bundle_config_snapshot()
+    manager.refresh()
+
+    assert list(manager.get_all_bundle_names()) == [BASIC_BUNDLE_CONFIG[0]["name"]]
+    error = next(
+        event["exc_info"][1]
+        for event in caplog
+        if event["event"] == "Could not reload Dag bundle configuration; keeping the last accepted list"
+    )
+    assert value not in "".join(format_exception(error))
+
+
+@pytest.mark.parametrize("poll_due", [False, True])
+def test_refresh_rejects_cached_candidate_that_changes_adopted_bundle(dynamic_bundle_config, poll_due):
+    adopted = DagBundlesManager()
+    dynamic_bundle_config.write_text("[]")
+    _expire_bundle_config_snapshot()
+    _get_bundle_config_source().refresh()
+    observer = DagBundlesManager()
+    assert list(observer.get_all_bundle_names()) == []
+
+    changed = {**BASIC_BUNDLE_CONFIG[0], "kwargs": {"refresh_interval": 2}}
+    dynamic_bundle_config.write_text(json.dumps([changed, *SECOND_BUNDLE_CONFIG]))
+    _expire_bundle_config_snapshot()
+    observer.refresh()
+    assert observer.get_bundle(changed["name"]).refresh_interval == 2
+    if poll_due:
+        _expire_bundle_config_snapshot()
+    adopted.refresh()
+
+    assert list(adopted.get_all_bundle_names()) == [changed["name"]]
+    assert adopted.get_bundle(changed["name"]).refresh_interval == 1
 
 
 @pytest.mark.parametrize("multi_team", [False, True])

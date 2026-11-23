@@ -547,9 +547,27 @@ class TestLangSDKDagFileProcessorProcess:
 
 
 @pytest.mark.parametrize("use_exec", [False, True], ids=["fork", "fresh_interpreter"])
+@conf_vars({("dag_processor", "dag_bundle_config_list"): None})
 def test_native_parser_uses_accepted_importers_when_source_is_unavailable(
     use_exec, tmp_path, monkeypatch, mocker
 ):
+    bundle_list = tmp_path / "bundles.json"
+    bundle_list.write_text(
+        json.dumps(
+            [
+                {
+                    "name": "testing",
+                    "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                    "kwargs": {"path": str(tmp_path)},
+                }
+            ]
+        )
+    )
+    coordinators = json.loads(conf.get("sdk", "coordinators"))
+    coordinators["fake"]["kwargs"]["task_handler_bundle_name"] = "testing"
+    monkeypatch.setenv("AIRFLOW__SDK__COORDINATORS", json.dumps(coordinators))
+    monkeypatch.setenv("AIRFLOW__SDK__QUEUE_TO_COORDINATOR", json.dumps({"native": "fake"}))
+    monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST_CMD", f"cat {bundle_list}")
     config = BundleParseContext(
         importers=[
             {
@@ -568,8 +586,7 @@ def test_native_parser_uses_accepted_importers_when_source_is_unavailable(
     )
     monkeypatch.setattr(supervisor, "_should_use_exec", lambda: use_exec)
     monkeypatch.setenv("PYTHONPATH", os.pathsep.join(sys.path))
-    monkeypatch.setenv("AIRFLOW__SDK__COORDINATORS", conf.get("sdk", "coordinators"))
-    monkeypatch.setenv("AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST", "invalid JSON")
+    bundle_list.write_text("")
     runtime = (
         "import os, socket, sys\n"
         "os.environ['_AIRFLOW__AS_LIBRARY'] = '1'\n"

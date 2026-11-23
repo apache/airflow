@@ -43,7 +43,7 @@ import attrs
 import httpx2
 import structlog
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
@@ -651,7 +651,19 @@ class DagFileProcessorManager(LoggingMixin):
                 if stat.last_finish_time
             }
             self.deactivate_stale_dags(last_parsed=last_parsed)
+            if not self.bundle_names_to_parse and _get_bundle_config_source().reconcilable:
+                self._clear_inactive_bundle_import_errors()
             self._last_deactivate_stale_dags_time = time.monotonic()
+
+    @provide_session
+    def _clear_inactive_bundle_import_errors(self, *, session: Session = NEW_SESSION) -> None:
+        inactive_bundles = select(DagBundleModel.name).where(DagBundleModel.active.is_(False))
+        inactive_error = ParseImportError.bundle_name.in_(inactive_bundles)
+        ids = session.scalars(
+            select(ParseImportError.id).where(inactive_error).order_by(ParseImportError.id).limit(500)
+        ).all()
+        if ids:
+            session.execute(delete(ParseImportError).where(ParseImportError.id.in_(ids), inactive_error))
 
     def _cleanup_stale_bundle_versions(self):
         if self.stale_bundle_cleanup_interval <= 0:
@@ -669,7 +681,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def cleanup_stale_bundle_versions(self) -> None:
         """Clean up stale DAG bundle version usage records."""
-        if self.api_client is not None:
+        if self.api_client is not None or _get_bundle_config_source().reconcilable:
             manager = BundleUsageTrackingManager()
             for bundle in self._dag_bundles:
                 if bundle.supports_versioning:
@@ -1838,9 +1850,6 @@ class DagFileProcessorManager(LoggingMixin):
             file: None for file in self._files_awaiting_source if file.presence_key in present_keys
         }
         self._priority_files = {file for file in self._priority_files if file.presence_key in present_keys}
-        for file in list(self._callback_to_execute):
-            if file.presence_key not in present_keys:
-                del self._callback_to_execute[file]
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
         self._record_files_awaiting_source()
 
