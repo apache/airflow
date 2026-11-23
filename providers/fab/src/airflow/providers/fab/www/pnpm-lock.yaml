@@ -23,6 +23,7 @@ overrides:
   js-yaml@>=4.0.0 <4.3.1: '>=4.3.1'
   nanoid@<3.3.16: '>=3.3.16'
   nanoid@<3.3.17: '>=3.3.17'
+  iconv-lite: ^0.7.3
 
 importers:
 
@@ -1296,8 +1297,8 @@ packages:
   hookified@2.2.0:
     resolution: {integrity: sha512-p/LgFzRN5FeoD3DLS6bkUapeye6E4SI6yJs6KetENd18S+FBthqYq2amJUWpt5z0EQwwHemidjY5OqJGEKm5uA==}
 
-  iconv-lite@0.6.3:
-    resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
+  iconv-lite@0.7.3:
+    resolution: {integrity: sha512-IKXpvIzjnC9XTAUbVBcMfGS0EPaIXtW6v+zr+RRp+hqULEpo0owZax6wyRwPOJbWbzjYspQwusTsfVr0ifh4uQ==}
     engines: {node: '>=0.10.0'}
 
   icss-utils@5.1.0:
@@ -3440,7 +3441,7 @@ snapshots:
 
   hookified@2.2.0: {}
 
-  iconv-lite@0.6.3:
+  iconv-lite@0.7.3:
     dependencies:
       safer-buffer: 2.1.2
 
@@ -3609,7 +3610,7 @@ snapshots:
 
   needle@3.3.1:
     dependencies:
-      iconv-lite: 0.6.3
+      iconv-lite: 0.7.3
       sax: 1.4.4
 
   node-releases@2.0.60: {}
