@@ -1837,6 +1837,9 @@ apiServer:
   #   cpu: 100m
   #   memory: 128Mi
 
+  # Grace period for API server to finish after SIGTERM is sent from Kubernetes
+  terminationGracePeriodSeconds: 30
+
   # Add custom annotations to the `apiServer` ConfigMap
   configMapAnnotations: {}
 

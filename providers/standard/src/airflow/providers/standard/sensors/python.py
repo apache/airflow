@@ -20,8 +20,12 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import BaseSensorOperator, PokeReturnValue, context_merge
-from airflow.utils.operator_helpers import determine_kwargs
+from airflow.providers.common.compat.sdk import (
+    BaseSensorOperator,
+    PokeReturnValue,
+    context_merge,
+    determine_kwargs,
+)
 
 if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Context

@@ -248,6 +248,7 @@ class TestAzureDataFactoryTrigger:
             "end_time": AZ_PIPELINE_END_TIME,
             "wait_for_termination": True,
             "check_interval": 60,
+            "cancel_on_error": True,
         }
 
     @pytest.mark.asyncio
@@ -369,15 +370,24 @@ class TestAzureDataFactoryTrigger:
         assert expected == actual
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize(("cancel_on_error", "cancel_calls"), [(True, 1), (False, 0)])
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.cancel_pipeline_run")
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
     async def test_azure_data_factory_trigger_run_exception(
-        self, mock_pipeline_run_status, mock_cancel_pipeline_run
+        self, mock_pipeline_run_status, mock_cancel_pipeline_run, cancel_on_error, cancel_calls
     ):
         """Assert that run catch exception if Azure API throw exception"""
         mock_pipeline_run_status.side_effect = Exception("Test exception")
+        trigger = AzureDataFactoryTrigger(
+            run_id=AZ_PIPELINE_RUN_ID,
+            resource_group_name=AZ_RESOURCE_GROUP_NAME,
+            factory_name=AZ_FACTORY_NAME,
+            azure_data_factory_conn_id=AZ_DATA_FACTORY_CONN_ID,
+            end_time=AZ_PIPELINE_END_TIME,
+            cancel_on_error=cancel_on_error,
+        )
 
-        task = [i async for i in self.TRIGGER.run()]
+        task = [i async for i in trigger.run()]
         response = TriggerEvent(
             {
                 "status": "error",
@@ -387,7 +397,7 @@ class TestAzureDataFactoryTrigger:
         )
         assert len(task) == 1
         assert response in task
-        mock_cancel_pipeline_run.assert_called_once()
+        assert mock_cancel_pipeline_run.call_count == cancel_calls
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
