@@ -28,7 +28,6 @@ import threading
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
-from concurrent.futures import Future
 from contextlib import ExitStack, suppress
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
@@ -456,7 +455,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # Daemon thread per check, not a pool: only one check is ever in flight per executor, and a
         # hung check can't block process exit the way a pool worker would.
-        self._executor_health_check_futures: dict[str, tuple[Future, float]] = {}
+        self._executor_health_check_threads: dict[str, tuple[threading.Thread, float]] = {}
         # A probe that ignores its timeout would otherwise occupy its slot forever.
         self._executor_health_check_stall_after_intervals = 3
         self._stalled_health_checks: set[str] = set()
@@ -512,17 +511,17 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         pile up work or block this (or any other) scheduler tick.
 
         ``get_health()`` is passed a timeout, but an implementation that ignores it can still leave its
-        future pending forever. Once a pending future is a few intervals old, it's reported as stalled:
-        the scheduler records UNHEALTHY itself, since a check that hasn't answered isn't still-healthy,
-        and logs and emits a metric so the stall is visible. If the stuck call does eventually return,
-        its result overwrites this one.
+        check thread running forever. Once a running check is a few intervals old, it's reported as
+        stalled: the scheduler records UNHEALTHY itself, since a check that hasn't answered isn't
+        still-healthy, and logs and emits a metric so the stall is visible. If the stuck call does
+        eventually return, its result overwrites this one.
         """
         for executor in self.executors:
             key = _executor_health_key(executor)
             if key not in self._executor_health_keys:
                 continue
-            future, started = self._executor_health_check_futures.get(key, (None, 0.0))
-            if future is not None and not future.done():
+            thread, started = self._executor_health_check_threads.get(key, (None, 0.0))
+            if thread is not None and thread.is_alive():
                 stall_after = (
                     self._executor_health_check_interval * self._executor_health_check_stall_after_intervals
                 )
@@ -547,40 +546,45 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                 continue
             self._stalled_health_checks.discard(key)
-            future = Future()
-            threading.Thread(
-                target=self._run_executor_health_check_and_resolve,
-                args=(executor, key, future),
+            thread = threading.Thread(
+                target=self._run_executor_health_check,
+                args=(executor, key),
                 name=f"executor-health-check-{key}",
                 daemon=True,
-            ).start()
-            self._executor_health_check_futures[key] = (future, time.monotonic())
+            )
+            thread.start()
+            self._executor_health_check_threads[key] = (thread, time.monotonic())
 
-    def _run_executor_health_check_and_resolve(
-        self, executor: BaseExecutor, key: str, future: Future
-    ) -> None:
-        """Run one executor's health check and resolve its tracking future, even if it raises."""
-        try:
-            self._run_executor_health_check(executor, key)
-        finally:
-            future.set_result(None)
+    def _join_executor_health_check_threads(self) -> None:
+        """
+        Wait for any in-flight executor health check before this scheduler's ExecutorJob rows are closed.
+
+        Without this, a check thread still running when ``_end_executor_jobs`` closes those rows would
+        go on to call ``_get_or_create_executor_job`` afterwards, find no open row, and insert a fresh
+        RUNNING one -- bringing a row back to life right after the scheduler declared it stopped. Bounded
+        by the same timeout passed to ``get_health()``, so an implementation that ignores it can delay
+        shutdown but not hang it; that one case still risks the race, same as before this existed.
+        """
+        for thread, _ in self._executor_health_check_threads.values():
+            thread.join(timeout=self._executor_health_check_timeout)
 
     def _run_executor_health_check(self, executor: BaseExecutor, key: str) -> None:
         """Run one executor's get_health() off the scheduler thread and record an explicit result."""
         try:
             healthy = executor.get_health(timeout=self._executor_health_check_timeout)
         except NotImplementedError:
-            healthy = None
+            result = HealthCheckResult.UNKNOWN
         except Exception:
             self.log.exception("Health check for executor %s raised an exception", key)
-            healthy = False
-        if healthy is None:
-            result = HealthCheckResult.UNKNOWN
-        elif healthy:
-            result = HealthCheckResult.HEALTHY
-        else:
-            self.log.warning("Executor %s reported itself unhealthy", key)
             result = HealthCheckResult.UNHEALTHY
+        else:
+            if healthy is None:
+                result = HealthCheckResult.UNKNOWN
+            elif healthy:
+                result = HealthCheckResult.HEALTHY
+            else:
+                self.log.warning("Executor %s reported itself unhealthy", key)
+                result = HealthCheckResult.UNHEALTHY
         try:
             self._record_executor_health_result(key, executor.team_name, result)
         except Exception:
@@ -2220,6 +2224,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor.end()
                 except Exception:
                     self.log.exception("Exception when executing Executor.end on %s", executor)
+
+            try:
+                self._join_executor_health_check_threads()
+            except Exception:
+                self.log.exception("Failed to join in-flight executor health check threads")
 
             try:
                 self._end_executor_jobs(executor_jobs_state)

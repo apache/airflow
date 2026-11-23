@@ -737,31 +737,17 @@ class TestConfiguredExecutorKeys:
         ]
         assert _configured_executor_keys() == set()
 
+    @pytest.mark.parametrize("alias", [None, "Celery"])
     @patch("airflow.api.common.airflow_health.ExecutorLoader.import_executor_cls")
     @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
     def test_includes_an_executor_that_overrides_get_health(
-        self, mock_get_executor_names, mock_import_executor_cls
+        self, mock_get_executor_names, mock_import_executor_cls, alias
     ):
+        """The key must agree with the scheduler side whether or not the executor has an alias."""
         names = [
             ExecutorName(
                 module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
-                alias="Celery",
-            )
-        ]
-        mock_get_executor_names.return_value = names
-        mock_import_executor_cls.return_value = (_HealthCheckingExecutor, None)
-
-        assert _configured_executor_keys() == {repr(names[0])}
-
-    @patch("airflow.api.common.airflow_health.ExecutorLoader.import_executor_cls")
-    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
-    def test_module_path_configured_executor_has_no_alias_but_still_matches(
-        self, mock_get_executor_names, mock_import_executor_cls
-    ):
-        """The key must agree with the scheduler side even when the executor has no alias at all."""
-        names = [
-            ExecutorName(
-                module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
+                alias=alias,
             )
         ]
         mock_get_executor_names.return_value = names
@@ -799,30 +785,27 @@ class TestExecutorInstanceHealthDisplayName:
         yield
         _configured_executor_names.cache_clear()
 
+    @pytest.mark.parametrize(
+        ("alias", "expected"),
+        [
+            ("Celery", "Celery"),
+            (None, f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}"),
+        ],
+    )
     @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
-    def test_reports_alias_when_the_key_matches_a_configured_executor(self, mock_get_executor_names):
+    def test_reports_alias_or_module_path_depending_on_what_is_configured(
+        self, mock_get_executor_names, alias, expected
+    ):
         name = ExecutorName(
             module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
-            alias="Celery",
+            alias=alias,
         )
         job = _executor(alive=True, executor=repr(name))
         mock_get_executor_names.return_value = [name]
 
         instance = _executor_instance_health(job)
 
-        assert instance["executor"] == "Celery"
-
-    @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")
-    def test_reports_module_path_when_the_configured_executor_has_no_alias(self, mock_get_executor_names):
-        name = ExecutorName(
-            module_path=f"{_HealthCheckingExecutor.__module__}.{_HealthCheckingExecutor.__qualname__}",
-        )
-        job = _executor(alive=True, executor=repr(name))
-        mock_get_executor_names.return_value = [name]
-
-        instance = _executor_instance_health(job)
-
-        assert instance["executor"] == name.module_path
+        assert instance["executor"] == expected
 
     @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names", return_value=[])
     def test_falls_back_to_the_raw_key_when_nothing_configured_matches(self, mock_get_executor_names):

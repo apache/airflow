@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import threading
 import time
-from concurrent.futures import Future
+from unittest import mock
 
 import pytest
 from sqlalchemy import select
@@ -141,6 +142,17 @@ def test_run_executor_health_check_records_result(session, result, expected):
     assert job.health_check_result == expected
 
 
+def test_run_executor_health_check_does_not_log_reported_itself_unhealthy_when_it_raised(session):
+    executor = _StubExecutor(result=RuntimeError("boom"))
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
+
+    with mock.patch.object(runner.log, "warning") as mock_warning:
+        runner._run_executor_health_check(executor, key)
+
+    assert mock_warning.call_args_list == []
+
+
 @conf_vars({("scheduler", "executor_health_check_interval"): "10.0"})
 def test_run_executor_health_check_passes_half_the_configured_interval_as_timeout(session):
     executor = _StubExecutor(result=True)
@@ -216,9 +228,11 @@ def test_check_executor_health_records_unhealthy_when_a_check_stalls(session):
     runner = _make_runner(executor, session)
     key = _executor_health_key(executor)
 
-    pending: Future = Future()
+    block_forever = threading.Event()
+    stuck = threading.Thread(target=block_forever.wait, daemon=True)
+    stuck.start()
     runner._executor_health_check_interval = 0.01
-    runner._executor_health_check_futures[key] = (pending, time.monotonic() - 10)
+    runner._executor_health_check_threads[key] = (stuck, time.monotonic() - 10)
 
     runner._check_executor_health()
 
@@ -226,6 +240,40 @@ def test_check_executor_health_records_unhealthy_when_a_check_stalls(session):
     assert job is not None
     assert job.health_check_result == HealthCheckResult.UNHEALTHY
     assert key in runner._stalled_health_checks
+
+    block_forever.set()
+    stuck.join()
+
+
+def test_join_executor_health_check_threads_prevents_a_row_reappearing_after_shutdown(session):
+    """A check still running when the scheduler shuts down must not revive a row after it is closed."""
+    executor = _StubExecutor()
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
+
+    runner._touch_executor_heartbeats(session=session)
+    session.commit()
+
+    release = threading.Event()
+
+    def delayed_check():
+        release.wait()
+        runner._run_executor_health_check(executor, key)
+
+    thread = threading.Thread(target=delayed_check, daemon=True)
+    thread.start()
+    runner._executor_health_check_threads[key] = (thread, time.monotonic())
+
+    threading.Timer(0.05, release.set).start()
+    runner._join_executor_health_check_threads()
+    runner._end_executor_jobs(JobState.SUCCESS, session=session)
+    session.commit()
+
+    rows = session.scalars(
+        select(Job).where(Job.job_type == EXECUTOR_JOB_TYPE, Job.owner_job_id == runner.job.id)
+    ).all()
+    assert len(rows) == 1
+    assert rows[0].end_date is not None
 
 
 def test_end_executor_jobs_closes_this_scheduler_rows_with_the_given_state(session):
