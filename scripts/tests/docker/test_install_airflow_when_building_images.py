@@ -38,12 +38,8 @@ def image_scripts(tmp_path: Path) -> Path:
     scripts = tmp_path / "scripts"
     scripts.mkdir()
     source = INSTALLER.read_text(encoding="utf-8")
-    work_dir_line = 'local work_dir="/tmp/ci-install-set"'
-    # A replacement that silently matched nothing would send every test to one shared directory.
-    assert source.count(work_dir_line) == 1
     assert source.count("\ncommon::get_colors\n") == 1
     source = source.split("\ncommon::get_colors\n", 1)[0]
-    source = source.replace(work_dir_line, f'local work_dir="{tmp_path}/work"')
     (scripts / INSTALLER.name).write_text(source, encoding="utf-8")
     (scripts / "common.sh").write_text("set -euo pipefail\n", encoding="utf-8")
     (scripts / HELPER.name).write_text(HELPER.read_text(encoding="utf-8"), encoding="utf-8")
@@ -54,6 +50,7 @@ def _build_environment(bin_dir: Path) -> dict[str, str]:
     environment = {
         **os.environ,
         "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "TMPDIR": str(bin_dir.parent),
         "PACKAGING_TOOL_CMD": "uv",
         "AIRFLOW_FALLBACK_NO_CONSTRAINTS_INSTALLATION": "false",
         "UPGRADE_RANDOM_INDICATOR_STRING": "",

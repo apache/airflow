@@ -84,9 +84,9 @@ function prepare_filtered_install_set() {
 # a lock that no longer matches the manifests is re-resolved first when fallback is allowed, and fails
 # the build otherwise. Without the check, a dependency added without relocking would only surface when
 # `uv pip check` finds it missing after the install.
-function install_workspace_without_excluded_providers() {
+function install_workspace_without_excluded_providers() (
     local allow_relock="${1:-}"
-    local work_dir="/tmp/ci-install-set"
+    local work_dir
     local python_bin
     local lock_status=0
     # uv sync --frozen checks every download against the lock's sha256; uv pip install checks only the
@@ -99,7 +99,8 @@ function install_workspace_without_excluded_providers() {
     local -a member_dirs=()
     local -a editable_args=()
     local member_dir
-    mkdir -p "${work_dir}"
+    work_dir=$(mktemp -d)
+    trap 'rm -rf -- "${work_dir}"' EXIT
     # The PROD build stage puts the base interpreter (/usr/python/bin) ahead of the venv on PATH, so
     # `command -v python3` would point the install at the base interpreter instead of ${VIRTUAL_ENV}.
     # The CI image sets no VIRTUAL_ENV and keeps resolving python3 from PATH.
@@ -110,7 +111,8 @@ function install_workspace_without_excluded_providers() {
     echo
     if [[ ${allow_relock} == "allow-relock" ]]; then
         set -x
-        uv lock --check --no-python-downloads --no-managed-python || lock_status=$?
+        # uv may need a different interpreter for the workspace than for the filtered install.
+        UV_PYTHON= uv lock --check || lock_status=$?
         set +x
     fi
     # uv lock --check exits 1 for a lock that does not match the manifests and 2 when it cannot check at
@@ -134,7 +136,7 @@ function install_workspace_without_excluded_providers() {
         echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv lock, then filtered install).${COLOR_RESET}"
         echo
         set -x
-        uv lock --no-python-downloads --no-managed-python
+        UV_PYTHON= uv lock
         set +x
     fi
     set -x
@@ -152,7 +154,7 @@ function install_workspace_without_excluded_providers() {
         --no-binary lxml --no-binary xmlsec "${editable_args[@]}"
     uv pip check --python "${python_bin}"
     set +x
-}
+)
 
 function install_from_sources() {
     local extra_sync_flags
@@ -190,7 +192,7 @@ function install_from_sources() {
         echo
         if has_providers_excluded_for_python; then
             set -x
-            uv lock --resolution highest --no-python-downloads --no-managed-python
+            UV_PYTHON= uv lock --resolution highest
             set +x
             install_workspace_without_excluded_providers
             return

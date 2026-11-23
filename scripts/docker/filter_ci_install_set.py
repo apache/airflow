@@ -74,19 +74,20 @@ def pad_release(release: tuple[int, ...], length: int) -> tuple[int, ...]:
 
 def is_python_version_allowed(requires_python: str, python_version: tuple[int, ...]) -> bool:
     """Evaluate ``requires-python`` for ``python_version`` as PEP 440 does, for the clauses Breeze writes."""
+    allowed = True
     for clause in (clause.strip() for clause in requires_python.split(",")):
         if lower_bound := LOWER_BOUND_CLAUSE.fullmatch(clause):
             release = parse_release(lower_bound["release"])
             length = max(len(release), len(python_version))
             if pad_release(python_version, length) < pad_release(release, length):
-                return False
+                allowed = False
         elif exclusion := EXCLUSION_CLAUSE.fullmatch(clause):
             prefix = parse_release(exclusion["release"])
             if pad_release(python_version, len(prefix))[: len(prefix)] == prefix:
-                return False
+                allowed = False
         else:
             raise ValueError(f"Unsupported requires-python clause {clause!r}")
-    return True
+    return allowed
 
 
 def split_members(root: Path, python_version: tuple[int, ...]) -> tuple[dict[str, Path], set[str]]:

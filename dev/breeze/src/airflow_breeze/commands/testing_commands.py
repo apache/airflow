@@ -24,6 +24,8 @@ from collections.abc import Generator
 from datetime import datetime
 from functools import cache
 from multiprocessing.pool import Pool
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from time import sleep
 
 import click
@@ -1038,17 +1040,31 @@ def airflowctl_integration_tests(
 @click.argument("extra_pytest_args", nargs=-1, type=click.Path(path_type=str))
 def airflow_ctl_tests(python: str, parallelism: int, extra_pytest_args: tuple):
     parallelism_args = ["-n", str(parallelism)] if parallelism > 1 else []
-    test_command = [
-        "uv",
-        "run",
-        "--python",
-        python,
-        "pytest",
-        "--color=yes",
-        *parallelism_args,
-        *extra_pytest_args,
-    ]
-    result = run_command(test_command, cwd=AIRFLOW_CTL_ROOT_PATH, check=False)
+    with TemporaryDirectory(prefix="airflow-ctl-tests-") as work_dir:
+        requirements = str(Path(work_dir) / "requirements.txt")
+        venv = Path(work_dir) / "venv"
+        test_python = str(venv / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python"))
+        # The workspace resolver may reject an interpreter that Airflow CTL itself supports.
+        run_command(
+            ["uv", "export", "--package", "apache-airflow-ctl", "--output-file", requirements, "--quiet"],
+            cwd=AIRFLOW_ROOT_PATH,
+            env={"UV_PYTHON": ""},
+        )
+        run_command(["uv", "venv", "--no-project", "--python", python, str(venv)])
+        run_command(
+            ["uv", "pip", "sync", "--python", test_python, requirements],
+            cwd=AIRFLOW_ROOT_PATH,
+        )
+        test_command = [test_python, "-m", "pytest", "--color=yes", *parallelism_args, *extra_pytest_args]
+        result = run_command(
+            test_command,
+            cwd=AIRFLOW_CTL_ROOT_PATH,
+            env={
+                "VIRTUAL_ENV": str(venv),
+                "PATH": f"{Path(test_python).parent}{os.pathsep}{os.environ['PATH']}",
+            },
+            check=False,
+        )
     if result.returncode != 0:
         console_print(
             f"[error]airflowctl tests failed with return code {result.returncode}.[/]\n"
