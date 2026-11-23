@@ -1713,7 +1713,7 @@ function install_workspace_without_excluded_providers() (
     if [[ ${allow_relock} == "allow-relock" ]]; then
         set -x
         # uv may need a different interpreter for the workspace than for the filtered install.
-        UV_PYTHON= uv lock --check || lock_status=$?
+        UV_PYTHON='' uv lock --check || lock_status=$?
         set +x
     fi
     # uv lock --check exits 1 for a lock that does not match the manifests and 2 when it cannot check at
@@ -1737,7 +1737,7 @@ function install_workspace_without_excluded_providers() (
         echo "${COLOR_BLUE}Falling back to re-resolving dependencies (uv lock, then filtered install).${COLOR_RESET}"
         echo
         set -x
-        UV_PYTHON= uv lock
+        UV_PYTHON='' uv lock
         set +x
     fi
     set -x
@@ -1793,7 +1793,7 @@ function install_from_sources() {
         echo
         if has_providers_excluded_for_python; then
             set -x
-            UV_PYTHON= uv lock --resolution highest
+            UV_PYTHON='' uv lock --resolution highest
             set +x
             install_workspace_without_excluded_providers
             return
