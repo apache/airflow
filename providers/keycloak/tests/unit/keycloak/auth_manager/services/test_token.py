@@ -32,12 +32,12 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.services.token import (
+    _find_oauth_error,
     create_client_credentials_token,
     create_jwt_federated_token,
     create_token_for,
     create_token_from_authorization_code,
     create_token_from_device_code,
-    find_oauth_error,
     is_cli_loopback_redirect_uri,
     refresh_cli_token,
     start_device_authorization,
@@ -946,7 +946,7 @@ class TestDeviceCodeService:
         ],
     )
     def test_find_oauth_error(self, error, expected):
-        assert find_oauth_error(error) == expected
+        assert _find_oauth_error(error) == expected
 
     @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "True"})
     @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")

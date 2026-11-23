@@ -324,7 +324,7 @@ def _require_cli_device_code_enabled() -> None:
         )
 
 
-def find_oauth_error(error: KeycloakError) -> str | None:
+def _find_oauth_error(error: KeycloakError) -> str | None:
     """Return the RFC 6749 ``error`` code of a Keycloak error response, or ``None``."""
     try:
         body = json.loads(error.response_body or b"")
@@ -343,7 +343,7 @@ def start_device_authorization() -> dict:
             return client.device(scope="openid")
     except KeycloakError as e:
         # Usually the Keycloak client does not have the OAuth 2.0 Device Authorization Grant turned on.
-        log.error("Keycloak refused the device authorization request: %s", find_oauth_error(e) or e)
+        log.error("Keycloak refused the device authorization request: %s", _find_oauth_error(e) or e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Keycloak refused the device authorization request",
@@ -362,7 +362,7 @@ def create_token_from_device_code(device_code: str, expiration_time_in_seconds: 
         with translate_keycloak_outage():
             tokens = client.token(grant_type=DEVICE_CODE_GRANT_TYPE, device_code=device_code, scope="openid")
     except KeycloakError as e:
-        error = find_oauth_error(e)
+        error = _find_oauth_error(e)
         if error in DEVICE_CODE_CLIENT_ERRORS:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid device code")
