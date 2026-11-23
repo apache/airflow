@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
+from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, cast
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from jwt import ExpiredSignatureError, InvalidTokenError
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.concurrency import run_in_threadpool
+from starlette.datastructures import MutableHeaders
 
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
@@ -32,8 +34,19 @@ from airflow.providers.keycloak.auth_manager.constants import (
     COOKIE_NAME_ACCESS_TOKEN,
     COOKIE_NAME_REFRESH_TOKEN,
 )
-from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
-from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_1_8_PLUS
+from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
+from airflow.providers.keycloak.version_compat import (
+    AIRFLOW_V_3_1_7_PLUS,
+    AIRFLOW_V_3_1_8_PLUS,
+    AIRFLOW_V_3_4_1_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
+
+if AIRFLOW_V_3_1_7_PLUS:
+    from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
+else:
+    # AuthManagerRefreshTokenExpiredException was added in Airflow v3.1.7
+    AuthManagerRefreshTokenExpiredException = None  # type: ignore[assignment,misc]
 
 if AIRFLOW_V_3_1_8_PLUS:
     from airflow.api_fastapi.app import get_cookie_path
@@ -45,15 +58,198 @@ else:
 
 # The core route that revokes the Airflow JWT sent with the request, relative to the root path.
 LOGOUT_PATH = "/api/v2/auth/logout"
+if AIRFLOW_V_3_4_PLUS:
+    from airflow.api_fastapi.auth.middlewares.refresh_token import UNAUTHENTICATED_PATHS
+else:
+    # Unauthenticated endpoints that never read the user, so resolving it there would only cost a
+    # JWT decode and a revocation lookup on every health check and UI boot.
+    UNAUTHENTICATED_PATHS = frozenset(["/api/v2/monitor/health", "/api/v2/version"])
+
+if AIRFLOW_V_3_4_1_PLUS:
+    from airflow.api_fastapi.app import request_cookie_is_secure
+else:
+
+    def request_cookie_is_secure(request: Request) -> bool:
+        return request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+
 
 if TYPE_CHECKING:
-    from fastapi import Request, Response
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-    from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
+    from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
     from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
+if KeycloakAuthManager._middleware_handles_cookies():
+    from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware  # pyright: ignore[reportAssignmentType]
+else:
+    # Backport for v3.3.0-v3.4.0
+    class JWTRefreshMiddleware(metaclass=ABCMeta):  # type: ignore[no-redef]
+        """Backport of JWTRefreshMiddleware."""
 
-class KeycloakJWTMiddleware(BaseHTTPMiddleware):
+        def __init__(self, app: ASGIApp, skip_path_prefixes: tuple[str, ...] = ()) -> None:
+            self.app = app
+            self.skip_path_prefixes = skip_path_prefixes
+
+        async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+            if scope["type"] != "http" or self._is_skipped(scope):
+                await self.app(scope, receive, send)
+                return
+
+            request = Request(scope)
+            current_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
+            if current_token is None:
+                await self.app(scope, receive, send)
+                return
+
+            new_user = None
+            session_invalidated = False
+            try:
+                new_user, current_user = await self.refresh_user(request)
+                if user := (new_user or current_user):
+                    # Stamp the trust sentinel alongside the user so `get_user()`
+                    # can distinguish this trusted assignment from a stray write
+                    # by unrelated middleware.
+                    request.state.user = user
+                    request.state.user_authenticated_via = getattr(
+                        core_api_security,
+                        "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
+                        None,
+                    )
+            except (HTTPException, AuthManagerRefreshTokenExpiredException):
+                # Receive a HTTPException when the Airflow token is expired
+                # Receive a AuthManagerRefreshTokenExpiredException when the potential underlying refresh
+                # token used by the auth manager is expired
+                session_invalidated = True
+
+            if session_invalidated or new_user is not None:
+                extra_cookies = self.get_extra_cookies(request, new_user)
+                token_cookie, cleanup_cookies = self.build_cookie_headers(
+                    request, await self.generate_new_user_token(request, new_user), extra_cookies
+                )
+            else:
+                token_cookie, cleanup_cookies = (None, [])
+            response_started = False
+
+            async def send_with_cookies(message: Message) -> None:
+                nonlocal response_started
+                if message["type"] == "http.response.start":
+                    response_started = True
+                    headers = MutableHeaders(scope=message)
+                    route_cookies = headers.getlist("set-cookie")
+                    route_set_token = any(
+                        value.startswith(f"{COOKIE_NAME_JWT_TOKEN}=") for value in route_cookies
+                    )
+                    del headers["set-cookie"]
+                    # The route owns the token it sets: never send ours, so a refreshed token can't outlive a logout.
+                    cookie_values = (
+                        cleanup_cookies
+                        if route_set_token or not token_cookie
+                        else [token_cookie, *cleanup_cookies]
+                    )
+                    # Ours go first: for the same cookie name and path the later Set-Cookie wins, so the
+                    # cookies set by the route itself take precedence.
+                    for value in [*cookie_values, *route_cookies]:
+                        headers.append("set-cookie", value)
+                await send(message)
+
+            try:
+                await self.app(scope, receive, send_with_cookies)
+            except HTTPException as exc:
+                if response_started:
+                    raise
+                # An HTTPException escaping the inner middlewares is returned as a response
+                response = JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+                await response(scope, receive, send)
+
+        def _is_skipped(self, scope: Scope) -> bool:
+            path = scope["path"].removeprefix(scope.get("root_path", ""))
+            return path in UNAUTHENTICATED_PATHS or path.startswith(self.skip_path_prefixes)
+
+        @staticmethod
+        def build_cookie_headers(
+            request: Request, new_token: str, extra_cookies: dict[str, str]
+        ) -> tuple[str, list[str]]:
+            """
+            Return the ``Set-Cookie`` value of the token and those clearing stale token cookies.
+
+            Any cookies with a nil value ("") will be cleared with Max-Age=0
+
+            :param request: FastAPI Request
+            :param new_token: New Airflow JWT token
+            :param extra_cookies: Additional cookie values to set
+            """
+            cookie_path = get_cookie_path()
+            secure = request_cookie_is_secure(request)
+            # Only used to render the Set-Cookie header values
+            response = Response()
+            response.set_cookie(
+                COOKIE_NAME_JWT_TOKEN,
+                new_token,
+                path=cookie_path,
+                httponly=True,
+                secure=secure,
+                samesite="lax",
+                max_age=0 if new_token == "" else None,
+            )
+            # Clear any stale _token cookie at root path "/".
+            # Older Airflow instances may have set the cookie there;
+            # without this, the root-path cookie keeps being sent on
+            # every request, causing an infinite redirect loop.
+            if cookie_path != "/":
+                response.delete_cookie(
+                    key=COOKIE_NAME_JWT_TOKEN,
+                    path="/",
+                    httponly=True,
+                    secure=secure,
+                    samesite="lax",
+                )
+            # Add any additional cookies required
+            for cookie, value in extra_cookies.items():
+                response.set_cookie(
+                    cookie,
+                    value,
+                    path=cookie_path,
+                    httponly=True,
+                    secure=secure,
+                    samesite="lax",
+                    max_age=0 if value == "" else None,
+                )
+            token_cookie, *cleanup_cookies = (
+                value.decode("latin-1") for key, value in response.raw_headers if key == b"set-cookie"
+            )
+            return token_cookie, cleanup_cookies
+
+        @staticmethod
+        @abstractmethod
+        def get_extra_cookies(request: Request, new_user: BaseUser | None) -> dict[str, str]:
+            """
+            Get extra cookies from the request context to set in a new token response.
+
+            Setting a cookie to "" will cause it to be cleared by build_cookie_headers(). A cookie with the
+            same name and path set by the route itself takes precedence over the one returned here.
+            """
+            ...
+
+        @staticmethod
+        @abstractmethod
+        async def generate_new_user_token(request: Request, new_user: BaseUser | None) -> str:
+            """Generate a new Airflow JWT token from the user model."""
+            ...
+
+        @staticmethod
+        @abstractmethod
+        async def refresh_user(request: Request) -> tuple[BaseUser | None, BaseUser | None]:
+            """
+            Refresh the logged in user using the current JWT Token.
+
+            If the user is not authenticated, return ``None, None``
+
+            :param request: FastAPI Request
+            """
+            ...
+
+
+class KeycloakJWTMiddleware(JWTRefreshMiddleware):
     """
     Attach the Keycloak JWT tokens to the user.
 
@@ -62,189 +258,65 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
     attempt to refresh it using the refresh token.
     """
 
-    async def dispatch(self, request: Request, call_next):
+    @staticmethod
+    def get_extra_cookies(request: Request, new_user: BaseUser | None) -> dict[str, str]:
+        if new_user and not KeycloakJWTMiddleware._is_logout(request):  # Don't issue a new token on logout
+            user = cast("KeycloakAuthManagerUser", new_user)
+            return {
+                COOKIE_NAME_ACCESS_TOKEN: user.access_token,
+                COOKIE_NAME_REFRESH_TOKEN: user.refresh_token or "",
+            }
+        return {COOKIE_NAME_ACCESS_TOKEN: "", COOKIE_NAME_REFRESH_TOKEN: ""}
+
+    @staticmethod
+    async def refresh_user(request: Request):
         user = None
-        new_token = None
-        new_user = None
-        session_invalidated = False
+        jwt_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN, "")
+        access_token = request.cookies.get(COOKIE_NAME_ACCESS_TOKEN)
+        if not jwt_token:
+            # User is not logged into Airflow.
+            return None, None
+        if not access_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="User is not logged into Keycloak."
+            )
         try:
-            try:
-                new_user, current_user = await self._refresh_user(request)
-                user = new_user or current_user
-            except (
-                AuthManagerRefreshTokenExpiredException,
-                HTTPException,
-            ):
-                new_token = ""
-                # The session ends here and the response clears the Airflow JWT. Hide it
-                # from the inner middlewares and the route too: resolving it again without
-                # the Keycloak tokens yields no user, which ``get_user`` would hand to the
-                # authorization checks instead of answering 401. The logout route needs no
-                # user and revokes the JWT it receives, so it keeps it.
-                if not self._is_logout(request):
-                    self._drop_cookie(request, COOKIE_NAME_JWT_TOKEN)
-
-            if user is not None:
-                request.state.user = user
-
-                user_injected = getattr(
-                    core_api_security,
-                    "USER_INJECTED_BY_TRUSTED_MIDDLEWARE",
-                    None,
-                )
-                if user_injected is not None:
-                    request.state.user_authenticated_via = user_injected
-
-            response = await call_next(request)
-
-            if new_token == "" and getattr(request.state, "jwt_token_issued", False):
-                new_token = None
-
-            if new_user and not await self._is_jwt_still_valid(request):
-                # The Airflow JWT sent with the request was invalidated while the request was
-                # handled (e.g. by the logout route). Do not replace it with a freshly signed
-                # one -- that would keep the session alive -- and clear the session cookies.
-                new_user = None
-                session_invalidated = True
-
-            if new_user or new_token is not None or session_invalidated:
-                secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-                cookie_path = get_cookie_path()
-                if new_token == "":
-                    response.set_cookie(
-                        COOKIE_NAME_JWT_TOKEN,
-                        new_token,
-                        path=cookie_path,
-                        httponly=True,
-                        secure=secure,
-                        samesite="lax",
-                        max_age=0,
-                    )
-                    if cookie_path != "/":
-                        response.set_cookie(
-                            COOKIE_NAME_JWT_TOKEN,
-                            "",
-                            path="/",
-                            httponly=True,
-                            secure=secure,
-                            samesite="lax",
-                            max_age=0,
-                        )
-                else:
-                    response = await self._set_new_token(new_user, secure, response, cookie_path)
-
-        except HTTPException as exc:
-            # If any HTTPException is raised during user resolution or refresh, return it as response
-            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-
-        return response
-
-    @classmethod
-    async def _set_new_token(
-        cls,
-        new_user: KeycloakAuthManagerUser | None,
-        secure: bool,
-        response: Response,
-        cookie_path: str | None = None,
-    ) -> Response:
-        """
-        Set Cookies in the response based on a new JWT token and a new user model.
-
-        :param new_user: User model for the JWT token
-        :param secure: HTTP secure property for cookies
-        :param response: FastAPI response object to set the cookies on
-        :param cookie_path: Path for cookies in the response
-        """
-        if cookie_path is None:
-            cookie_path = get_cookie_path()
-        if new_user:
-            # If we created a new user, serialize it and set it as a cookie
-            new_token = get_auth_manager().generate_jwt(new_user)
-        else:
-            new_token = ""
-        response.set_cookie(
-            COOKIE_NAME_JWT_TOKEN,
-            new_token,
-            path=cookie_path,
-            httponly=True,
-            secure=secure,
-            samesite="lax",
-            max_age=0 if new_token == "" else None,
-        )
-        if new_user:
-            # Update keycloak token cookies
-            response.set_cookie(
-                COOKIE_NAME_ACCESS_TOKEN,
-                new_user.access_token,
-                path=cookie_path,
-                secure=secure,
-                samesite="lax",
-                httponly=True,
+            refresh_token = request.cookies.get(COOKIE_NAME_REFRESH_TOKEN)
+            auth_manager = cast("KeycloakAuthManager", get_auth_manager())
+            base_user = cast(
+                "KeycloakAuthManagerUser",
+                await auth_manager.get_user_from_token(jwt_token, should_return_user=True),
             )
-            if new_user.refresh_token:
-                response.set_cookie(
-                    COOKIE_NAME_REFRESH_TOKEN,
-                    new_user.refresh_token,
-                    path=cookie_path,
-                    secure=secure,
-                    samesite="lax",
-                    httponly=True,
-                )
-            else:
-                # No refresh token
-                response.set_cookie(
-                    COOKIE_NAME_REFRESH_TOKEN,
-                    "",
-                    path=cookie_path,
-                    secure=secure,
-                    samesite="lax",
-                    httponly=True,
-                    max_age=0,
-                )
-        else:
-            # User is not populated, clear cookies for login
-            response.set_cookie(
-                COOKIE_NAME_ACCESS_TOKEN,
-                "",
-                path=cookie_path,
-                secure=secure,
-                samesite="lax",
-                httponly=True,
-                max_age=0,
-            )
-            response.set_cookie(
-                COOKIE_NAME_REFRESH_TOKEN,
-                "",
-                path=cookie_path,
-                secure=secure,
-                samesite="lax",
-                httponly=True,
-                max_age=0,
-            )
-        # Clear any stale _token cookie at root path "/".
-        # Older Airflow instances may have set the cookie there;
-        # without this, the root-path cookie keeps being sent on
-        # every request, causing an infinite redirect loop.
-        if cookie_path != "/":
-            response.set_cookie(
-                key=COOKIE_NAME_JWT_TOKEN,
-                path="/",
-                httponly=True,
-                secure=secure,
-                samesite="lax",
-                max_age=0,
-            )
-        return response
+            user = KeycloakAuthManager._attach_keycloak_tokens(base_user, access_token, refresh_token)
+        except ExpiredSignatureError:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
+        except InvalidTokenError:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
+        if KeycloakJWTMiddleware._is_logout(request):
+            # On logout return the user as new_user without refreshing to allow the Keycloak
+            # Cookies to be cleared by get_extra_cookies().
+            return user, user
+        return await run_in_threadpool(get_auth_manager().refresh_user, user=user), user
+
+    @staticmethod
+    async def generate_new_user_token(request, new_user):
+        is_logout = KeycloakJWTMiddleware._is_logout(request)
+        if not new_user or is_logout:
+            # Clear JWTs on logout / Invalid user.
+            if not is_logout:
+                KeycloakJWTMiddleware._drop_cookie(request, COOKIE_NAME_JWT_TOKEN)
+            return ""
+        return get_auth_manager().generate_jwt(new_user)
 
     @staticmethod
     def _is_logout(request: Request) -> bool:
-        """Tell whether the request is for the core logout route."""
+        """Determine whether the request is for the core logout route."""
         scope = request.scope
         return scope["path"].removeprefix(scope.get("root_path", "")) == LOGOUT_PATH
 
     @staticmethod
     def _drop_cookie(request: Request, name: str) -> None:
-        """Remove a cookie from the request that the inner middlewares and the route receive."""
+        """Remove a cookie from the request so that the inner middlewares and the route do not receive it."""
         prefix = f"{name}=".encode("latin-1")
         headers = []
         for key, value in request.scope["headers"]:
@@ -255,51 +327,3 @@ class KeycloakJWTMiddleware(BaseHTTPMiddleware):
             if kept.strip():
                 headers.append((key, kept.strip()))
         request.scope["headers"] = headers
-
-    @staticmethod
-    async def _is_jwt_still_valid(request: Request) -> bool:
-        """
-        Check whether the Airflow JWT sent with the request is still accepted.
-
-        It was valid when the request came in, so it is rejected now only if it was revoked
-        while the request was handled. Expiry in the meantime is not treated as revocation:
-        the refreshed session replaces the token anyway.
-        """
-        jwt_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
-        if not jwt_token:
-            return True
-        auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-        try:
-            await auth_manager.get_user_from_token(
-                jwt_token,
-                request.cookies.get(COOKIE_NAME_ACCESS_TOKEN),
-                request.cookies.get(COOKIE_NAME_REFRESH_TOKEN),
-            )
-        except ExpiredSignatureError:
-            return True
-        except InvalidTokenError:
-            return False
-        return True
-
-    @staticmethod
-    async def _refresh_user(
-        request: Request,
-    ) -> tuple[KeycloakAuthManagerUser | None, KeycloakAuthManagerUser | None]:
-        jwt_token = request.cookies.get(COOKIE_NAME_JWT_TOKEN)
-        access_token = request.cookies.get(COOKIE_NAME_ACCESS_TOKEN)
-        refresh_token = request.cookies.get(COOKIE_NAME_REFRESH_TOKEN)
-        if not jwt_token:
-            # User is not logged into Airflow
-            return None, None
-        if not access_token:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="User is not logged into Keycloak."
-            )
-        auth_manager = cast("KeycloakAuthManager", get_auth_manager())
-        try:
-            user = await auth_manager.get_user_from_token(jwt_token, access_token, refresh_token)
-        except ExpiredSignatureError:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token Expired")
-        except InvalidTokenError:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
-        return get_auth_manager().refresh_user(user=user), user

@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import array
 import errno
 import logging
 import multiprocessing
@@ -34,7 +33,6 @@ from airflow import DeprecatedImportWarning
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
-    import fcntl
     import pty
     import termios
     import tty
@@ -256,11 +254,7 @@ def execute_interactive(cmd: list[str], **kwargs) -> None:
                 proc.send_signal(sig)
 
             def _sigwinch(sig, frame):
-                # On Py3.11+ we could use termios.tcgetwinsize/tcsetwinsize instead
-                buf = array.array("h", [0, 0, 0, 0])
-
-                fcntl.ioctl(pty.STDOUT_FILENO, termios.TIOCGWINSZ, buf, True)
-                fcntl.ioctl(secondary_fd, termios.TIOCSWINSZ, buf)
+                termios.tcsetwinsize(secondary_fd, termios.tcgetwinsize(pty.STDOUT_FILENO))
 
             # Set the initial size too
             _sigwinch(signal.SIGWINCH, None)

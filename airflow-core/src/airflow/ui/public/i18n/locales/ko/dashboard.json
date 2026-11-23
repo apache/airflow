@@ -73,7 +73,7 @@
   "stats": {
     "activeDags": "활성 Dags",
     "failedDags": "실패한 Dags",
-    "failingTriggers": "실패한 트리거",
+    "failingTriggers": "실패 중인 트리거",
     "queuedDags": "대기 중인 Dags",
     "requiredActions": "필수 작업",
     "runningDags": "실행 중인 Dags",
