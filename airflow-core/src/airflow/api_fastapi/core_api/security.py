@@ -53,7 +53,7 @@ from airflow.api_fastapi.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
+from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.core_api.base import OrmClause
 from airflow.api_fastapi.core_api.datamodels.assets import CreateAssetEventsBody
 from airflow.api_fastapi.core_api.datamodels.common import (
@@ -83,9 +83,9 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
+from airflow.utils.session import create_session_async
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.sql import Select
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -701,16 +701,13 @@ def permitted_pool_filter_factory(
 ReadablePoolsFilterDep = Annotated[PermittedPoolFilter, Depends(permitted_pool_filter_factory("GET"))]
 
 
-def requires_access_pool(
-    method: ResourceMethod,
-) -> Callable[[Request, BaseUser, AsyncSession], Coroutine[Any, Any, None]]:
+def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
     async def inner(
         request: Request,
         user: GetUserDep,
-        session: AsyncSessionDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
-        for team_name in await _collect_teams_to_check(method, request, "pool_name", session=session):
+        for team_name in await _collect_teams_to_check(method, request, "pool_name"):
 
             def _callback(tn: str | None = team_name) -> bool:
                 return get_auth_manager().is_authorized_pool(
@@ -810,14 +807,13 @@ ReadableConnectionsFilterDep = Annotated[
 
 def requires_access_connection(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser, AsyncSession], Coroutine[Any, Any, None]]:
+) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
     async def inner(
         request: Request,
         user: GetUserDep,
-        session: AsyncSessionDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
-        for team_name in await _collect_teams_to_check(method, request, "connection_id", session=session):
+        for team_name in await _collect_teams_to_check(method, request, "connection_id"):
 
             def _callback(tn: str | None = team_name) -> bool:
                 return get_auth_manager().is_authorized_connection(
@@ -964,14 +960,13 @@ ReadableVariablesFilterDep = Annotated[
 
 def requires_access_variable(
     method: ResourceMethod,
-) -> Callable[[Request, BaseUser, AsyncSession], Coroutine[Any, Any, None]]:
+) -> Callable[[Request, BaseUser], Coroutine[Any, Any, None]]:
     async def inner(
         request: Request,
         user: GetUserDep,
-        session: AsyncSessionDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
-        for team_name in await _collect_teams_to_check(method, request, "variable_key", session=session):
+        for team_name in await _collect_teams_to_check(method, request, "variable_key"):
 
             def _callback(tn: str | None = team_name) -> bool:
                 return get_auth_manager().is_authorized_variable(
@@ -1428,52 +1423,51 @@ async def _collect_teams_to_check(
     method: ResourceMethod,
     request: Request,
     resource_param: str,
-    *,
-    session: AsyncSession,
 ) -> set[str | None]:
     """Collect validated team names from existing resource (DB) and/or request body."""
     if not conf.getboolean("core", "multi_team"):
         return {None}
     teams: set[str | None] = set()
-    if method != "POST":
-        resource_id = request.path_params.get(resource_param)
-        team_column, resource_column = TEAM_SCOPED_RESOURCES[resource_param]
-        teams.add(
-            await session.scalar(select(team_column).where(resource_column == resource_id))
-            if resource_id
-            else None
-        )
-    if method in ("POST", "PUT"):
-        body: Any = None
-        # ``POST /connections/defaults`` declares no body model, so FastAPI parses nothing for it
-        # and the read below is its only parse: a bodyless request there names no team and must
-        # still be served. Every other route arriving here declares a body, which FastAPI has
-        # already parsed and cached by the time this dependency runs.
-        if await request.body():
-            try:
-                body = await request.json()
-            except Exception as e:
-                # Broad because ``json.loads`` also raises UnicodeDecodeError, a bare ValueError
-                # (a number over ``int_max_str_digits``) and RecursionError, none of them
-                # JSONDecodeError. Fail closed: a body that cannot be read may carry a
-                # ``team_name``, so reject it rather than treat it as naming no team.
+    async with create_session_async() as session:
+        if method != "POST":
+            resource_id = request.path_params.get(resource_param)
+            team_column, resource_column = TEAM_SCOPED_RESOURCES[resource_param]
+            teams.add(
+                await session.scalar(select(team_column).where(resource_column == resource_id))
+                if resource_id
+                else None
+            )
+        if method in ("POST", "PUT"):
+            body: Any = None
+            # ``POST /connections/defaults`` declares no body model, so FastAPI parses nothing for it
+            # and the read below is its only parse: a bodyless request there names no team and must
+            # still be served. Every other route arriving here declares a body, which FastAPI has
+            # already parsed and cached by the time this dependency runs.
+            if await request.body():
+                try:
+                    body = await request.json()
+                except Exception as e:
+                    # Broad because ``json.loads`` also raises UnicodeDecodeError, a bare ValueError
+                    # (a number over ``int_max_str_digits``) and RecursionError, none of them
+                    # JSONDecodeError. Fail closed: a body that cannot be read may carry a
+                    # ``team_name``, so reject it rather than treat it as naming no team.
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Request body is not valid JSON",
+                    ) from e
+            raw = body.get("team_name") if isinstance(body, dict) else None
+            if raw is not None and not isinstance(raw, str):
+                # Fail closed: reject non-string team_name before authz / DB lookup.
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Request body is not valid JSON",
-                ) from e
-        raw = body.get("team_name") if isinstance(body, dict) else None
-        if raw is not None and not isinstance(raw, str):
-            # Fail closed: reject non-string team_name before authz / DB lookup.
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="'team_name' must be a string",
-            )
-        if raw and not await session.scalar(select(exists().where(Team.name == raw))):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Team {raw!r} does not exist",
-            )
-        teams.add(raw)
+                    detail="'team_name' must be a string",
+                )
+            if raw and not await session.scalar(select(exists().where(Team.name == raw))):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Team {raw!r} does not exist",
+                )
+            teams.add(raw)
     return teams
 
 

@@ -125,6 +125,15 @@ class TestFastApiSecurity:
         ):
             create_app()
 
+    @pytest.fixture
+    def lookup_session(self):
+        lookup_session = Mock(spec=AsyncSession)
+        with patch(
+            "airflow.api_fastapi.core_api.security.create_session_async", autospec=True
+        ) as create_session_async:
+            create_session_async.return_value.__aenter__.return_value = lookup_session
+            yield lookup_session
+
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_resolve_user_from_token(self, mock_get_auth_manager):
         token_str = "test-token"
@@ -882,7 +891,7 @@ class TestFastApiSecurity:
         [None, "team1"],
     )
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection(self, mock_get_auth_manager, team_name):
+    async def test_requires_access_connection(self, mock_get_auth_manager, team_name, lookup_session):
         auth_manager = Mock()
         auth_manager.is_authorized_connection.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -891,11 +900,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = team_name
+        lookup_session.scalar.return_value = team_name
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_connection("GET")(fastapi_request, user, session)
+            await requires_access_connection("GET")(fastapi_request, user)
 
         auth_manager.is_authorized_connection.assert_called_once_with(
             method="GET",
@@ -905,7 +913,7 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection_team_from_body(self, mock_get_auth_manager):
+    async def test_requires_access_connection_team_from_body(self, mock_get_auth_manager, lookup_session):
         """When connection doesn't exist yet (POST), team_name is read from request body."""
         auth_manager = Mock()
         auth_manager.is_authorized_connection.return_value = True
@@ -915,11 +923,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = "team1"
+        lookup_session.scalar.return_value = "team1"
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_connection("POST")(fastapi_request, user, session)
+            await requires_access_connection("POST")(fastapi_request, user)
 
         auth_manager.is_authorized_connection.assert_called_once_with(
             method="POST",
@@ -929,7 +936,9 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection_put_checks_both_teams(self, mock_get_auth_manager):
+    async def test_requires_access_connection_put_checks_both_teams(
+        self, mock_get_auth_manager, lookup_session
+    ):
         """PUT checks both existing team (from DB) and new team (from body)."""
         auth_manager = Mock()
         auth_manager.is_authorized_connection.return_value = True
@@ -939,11 +948,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.side_effect = ["old-team", "new-team"]
+        lookup_session.scalar.side_effect = ["old-team", "new-team"]
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_connection("PUT")(fastapi_request, user, session)
+            await requires_access_connection("PUT")(fastapi_request, user)
 
         assert auth_manager.is_authorized_connection.call_count == 2
         auth_manager.is_authorized_connection.assert_any_call(
@@ -959,19 +967,20 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection_post_invalid_team_returns_400(self, mock_get_auth_manager):
+    async def test_requires_access_connection_post_invalid_team_returns_400(
+        self, mock_get_auth_manager, lookup_session
+    ):
         """POST with a team_name that doesn't exist raises 400."""
         fastapi_request = Mock()
         fastapi_request.path_params = {}
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = None
+        lookup_session.scalar.return_value = None
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_connection("POST")(fastapi_request, user, session)
+                await requires_access_connection("POST")(fastapi_request, user)
 
         assert exc_info.value.status_code == 400
         assert "nonexistent" in exc_info.value.detail
@@ -980,7 +989,7 @@ class TestFastApiSecurity:
     @pytest.mark.parametrize("method", ["POST", "PUT"])
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_connection_body_parse_failure_returns_400(
-        self, mock_get_auth_manager, method
+        self, mock_get_auth_manager, method, lookup_session
     ):
         """If the request body cannot be parsed, fail closed with 400 before any authz check."""
         auth_manager = Mock()
@@ -991,12 +1000,11 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(side_effect=JSONDecodeError("expecting value", "", 0))
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = None
+        lookup_session.scalar.return_value = None
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_connection(method)(fastapi_request, user, session)
+                await requires_access_connection(method)(fastapi_request, user)
 
         assert exc_info.value.status_code == 400
         auth_manager.is_authorized_connection.assert_not_called()
@@ -1014,7 +1022,7 @@ class TestFastApiSecurity:
     )
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_connection_body_parse_failure_other_than_jsondecodeerror(
-        self, mock_get_auth_manager, parse_error, method
+        self, mock_get_auth_manager, parse_error, method, lookup_session
     ):
         """``json.loads`` raises these three besides JSONDecodeError; each must fail closed."""
         auth_manager = Mock()
@@ -1025,19 +1033,20 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"<unparsable>")
         fastapi_request.json = AsyncMock(side_effect=parse_error)
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = None
+        lookup_session.scalar.return_value = None
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_connection(method)(fastapi_request, user, session)
+                await requires_access_connection(method)(fastapi_request, user)
 
         assert exc_info.value.status_code == 400
         auth_manager.is_authorized_connection.assert_not_called()
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_connection_empty_body_names_no_team(self, mock_get_auth_manager):
+    async def test_requires_access_connection_empty_body_names_no_team(
+        self, mock_get_auth_manager, lookup_session
+    ):
         """``POST /connections/defaults`` declares no body model, so a bodyless request reaches
         here unparsed: it names no team and must be authorized, not rejected as unparsable."""
         auth_manager = Mock()
@@ -1048,10 +1057,9 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
-        session = Mock(spec=AsyncSession)
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_connection("POST")(fastapi_request, user, session)
+            await requires_access_connection("POST")(fastapi_request, user)
 
         fastapi_request.json.assert_not_called()
         auth_manager.is_authorized_connection.assert_called_once()
@@ -1062,10 +1070,7 @@ class TestFastApiSecurity:
     @pytest.mark.parametrize("bad_team_name", [123, ["x"], {"name": "x"}, True])
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_connection_non_string_team_name_returns_400(
-        self,
-        mock_get_auth_manager,
-        bad_team_name,
-        method,
+        self, mock_get_auth_manager, bad_team_name, method, lookup_session
     ):
         """Non-string team_name in the body must be rejected with 400 before authz / DB lookup."""
         auth_manager = Mock()
@@ -1076,12 +1081,11 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": bad_team_name})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = None
+        lookup_session.scalar.return_value = None
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_connection(method)(fastapi_request, user, session)
+                await requires_access_connection(method)(fastapi_request, user)
 
         assert exc_info.value.status_code == 400
         assert "team_name" in exc_info.value.detail
@@ -1185,7 +1189,7 @@ class TestFastApiSecurity:
         [None, "team1"],
     )
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_variable(self, mock_get_auth_manager, team_name):
+    async def test_requires_access_variable(self, mock_get_auth_manager, team_name, lookup_session):
         auth_manager = Mock()
         auth_manager.is_authorized_variable.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -1194,11 +1198,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = team_name
+        lookup_session.scalar.return_value = team_name
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_variable("GET")(fastapi_request, user, session)
+            await requires_access_variable("GET")(fastapi_request, user)
 
         auth_manager.is_authorized_variable.assert_called_once_with(
             method="GET",
@@ -1208,7 +1211,7 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_variable_team_from_body(self, mock_get_auth_manager):
+    async def test_requires_access_variable_team_from_body(self, mock_get_auth_manager, lookup_session):
         """When variable doesn't exist yet (POST), team_name is read from request body."""
         auth_manager = Mock()
         auth_manager.is_authorized_variable.return_value = True
@@ -1218,11 +1221,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = "team1"
+        lookup_session.scalar.return_value = "team1"
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_variable("POST")(fastapi_request, user, session)
+            await requires_access_variable("POST")(fastapi_request, user)
 
         auth_manager.is_authorized_variable.assert_called_once_with(
             method="POST",
@@ -1232,7 +1234,9 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_variable_put_checks_both_teams(self, mock_get_auth_manager):
+    async def test_requires_access_variable_put_checks_both_teams(
+        self, mock_get_auth_manager, lookup_session
+    ):
         """PUT checks both existing team (from DB) and new team (from body)."""
         auth_manager = Mock()
         auth_manager.is_authorized_variable.return_value = True
@@ -1242,11 +1246,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.side_effect = ["old-team", "new-team"]
+        lookup_session.scalar.side_effect = ["old-team", "new-team"]
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_variable("PUT")(fastapi_request, user, session)
+            await requires_access_variable("PUT")(fastapi_request, user)
 
         assert auth_manager.is_authorized_variable.call_count == 2
         auth_manager.is_authorized_variable.assert_any_call(
@@ -1262,19 +1265,20 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_variable_post_invalid_team_returns_400(self, mock_get_auth_manager):
+    async def test_requires_access_variable_post_invalid_team_returns_400(
+        self, mock_get_auth_manager, lookup_session
+    ):
         """POST with a team_name that doesn't exist raises 400."""
         fastapi_request = Mock()
         fastapi_request.path_params = {}
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = None
+        lookup_session.scalar.return_value = None
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_variable("POST")(fastapi_request, user, session)
+                await requires_access_variable("POST")(fastapi_request, user)
 
         assert exc_info.value.status_code == 400
         assert "nonexistent" in exc_info.value.detail
@@ -1351,7 +1355,7 @@ class TestFastApiSecurity:
         [None, "team1"],
     )
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_pool(self, mock_get_auth_manager, team_name):
+    async def test_requires_access_pool(self, mock_get_auth_manager, team_name, lookup_session):
         auth_manager = Mock()
         auth_manager.is_authorized_pool.return_value = True
         mock_get_auth_manager.return_value = auth_manager
@@ -1360,11 +1364,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = team_name
+        lookup_session.scalar.return_value = team_name
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_pool("GET")(fastapi_request, user, session)
+            await requires_access_pool("GET")(fastapi_request, user)
 
         auth_manager.is_authorized_pool.assert_called_once_with(
             method="GET",
@@ -1374,7 +1377,7 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_pool_team_from_body(self, mock_get_auth_manager):
+    async def test_requires_access_pool_team_from_body(self, mock_get_auth_manager, lookup_session):
         """When pool doesn't exist yet (POST), team_name is read from request body."""
         auth_manager = Mock()
         auth_manager.is_authorized_pool.return_value = True
@@ -1384,11 +1387,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "team1"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = "team1"
+        lookup_session.scalar.return_value = "team1"
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_pool("POST")(fastapi_request, user, session)
+            await requires_access_pool("POST")(fastapi_request, user)
 
         auth_manager.is_authorized_pool.assert_called_once_with(
             method="POST",
@@ -1398,7 +1400,7 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_pool_put_checks_both_teams(self, mock_get_auth_manager):
+    async def test_requires_access_pool_put_checks_both_teams(self, mock_get_auth_manager, lookup_session):
         """PUT checks both existing team (from DB) and new team (from body)."""
         auth_manager = Mock()
         auth_manager.is_authorized_pool.return_value = True
@@ -1408,11 +1410,10 @@ class TestFastApiSecurity:
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "new-team"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.side_effect = ["old-team", "new-team"]
+        lookup_session.scalar.side_effect = ["old-team", "new-team"]
 
         with conf_vars({("core", "multi_team"): "True"}):
-            await requires_access_pool("PUT")(fastapi_request, user, session)
+            await requires_access_pool("PUT")(fastapi_request, user)
 
         assert auth_manager.is_authorized_pool.call_count == 2
         auth_manager.is_authorized_pool.assert_any_call(
@@ -1428,19 +1429,20 @@ class TestFastApiSecurity:
 
     @pytest.mark.db_test
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_pool_post_invalid_team_returns_400(self, mock_get_auth_manager):
+    async def test_requires_access_pool_post_invalid_team_returns_400(
+        self, mock_get_auth_manager, lookup_session
+    ):
         """POST with a team_name that doesn't exist raises 400."""
         fastapi_request = Mock()
         fastapi_request.path_params = {}
         fastapi_request.body = AsyncMock(return_value=b"{}")
         fastapi_request.json = AsyncMock(return_value={"team_name": "nonexistent"})
         user = Mock()
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = None
+        lookup_session.scalar.return_value = None
 
         with conf_vars({("core", "multi_team"): "True"}):
             with pytest.raises(HTTPException) as exc_info:
-                await requires_access_pool("POST")(fastapi_request, user, session)
+                await requires_access_pool("POST")(fastapi_request, user)
 
         assert exc_info.value.status_code == 400
         assert "nonexistent" in exc_info.value.detail
