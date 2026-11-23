@@ -461,18 +461,46 @@ class TestGetTriggers:
         assert last_page.json()["triggers"] == []
         assert last_page.json()["total_entries"] == len(visible_ids)
 
+    @pytest.mark.parametrize(
+        ("authorized_dags", "authorized_assets", "visible_names"),
+        [
+            pytest.param(
+                {"dag_sensor"},
+                set(),
+                {"sensor", "callback"},
+                id="hide-task-and-watcher",
+            ),
+            pytest.param(
+                set(),
+                {"failing_asset"},
+                {"failing"},
+                id="hide-task-and-callback",
+            ),
+            pytest.param(
+                {"dag_sensor"},
+                {"failing_asset"},
+                {"sensor", "callback", "failing"},
+                id="mixed-visible-categories",
+            ),
+        ],
+    )
     @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
     @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
     def test_pagination_skips_hidden_task_callback_and_watcher_triggers(
-        self, mock_dag_ids, mock_assets, test_client, triggers
+        self,
+        mock_dag_ids,
+        mock_assets,
+        test_client,
+        triggers,
+        authorized_dags,
+        authorized_assets,
+        visible_names,
     ):
-        mock_dag_ids.return_value = {"dag_sensor"}
-        mock_assets.return_value = {triggers["failing_asset"].id}
+        mock_dag_ids.return_value = authorized_dags
+        mock_assets.return_value = {triggers[name].id for name in authorized_assets}
 
         expected_ids = {
-            triggers["sensor"].id,
-            triggers["callback"].trigger.id,
-            triggers["failing"].id,
+            triggers[name].trigger.id if name == "callback" else triggers[name].id for name in visible_names
         }
 
         for order_by in ("id", "-id", "created_date", "-created_date"):
