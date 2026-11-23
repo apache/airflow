@@ -263,7 +263,12 @@ type TaskInput<T> =
 /** `never` for an argument type with no known keys, which turns every method below off. */
 type Keyed<TArgs> = string extends keyof TArgs ? never : TArgs;
 
-interface TaskFactory<TArgs extends object, TReturn> {
+/** A task with no arguments keeps its plain call; there is nothing to expand. */
+type TaskFactory<TArgs extends object | void = void, TReturn = unknown> = [TArgs] extends [void]
+  ? () => TaskRef<TReturn>
+  : MappableTaskFactory<TArgs & object, TReturn>;
+
+interface MappableTaskFactory<TArgs extends object, TReturn> {
   (inputs: TaskInputs<TArgs>): TaskRef<TReturn>;
   expand(inputs: ExpandInputs<Keyed<TArgs>>): MappedTaskRef<NonNullable<TReturn>>;
   expandKwargs(source: KwargsSource<Keyed<TArgs>>): MappedTaskRef<NonNullable<TReturn>>;
