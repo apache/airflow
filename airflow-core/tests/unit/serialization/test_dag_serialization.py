@@ -3666,6 +3666,26 @@ def test_dag_param_in_partial_kwargs_round_trips(param_kwargs):
     )
 
 
+def test_dag_param_in_partial_kwargs_keeps_dag_hash_stable():
+    """Two parses of the same Dag must give the same hash, or every parse creates a new Dag version."""
+    from airflow.sdk import task
+
+    def create_dag():
+        with DAG("test-dag", schedule=None, start_date=datetime(2020, 1, 1)) as dag:
+
+            @task
+            def add(value, offset):
+                return value + offset
+
+            add.partial(offset=dag.param("offset", 10)).expand(value=[1, 2, 3])
+        return dag
+
+    # Keep both Dags alive so their DagParam objects cannot share a memory address.
+    first_dag, second_dag = create_dag(), create_dag()
+
+    assert LazyDeserializedDAG.from_dag(first_dag).hash == LazyDeserializedDAG.from_dag(second_dag).hash
+
+
 def test_python_callable_name_uses_qualname_exclude_module():
     """Test python_callable_name is stable across bundle version changes."""
     from airflow.providers.standard.operators.python import PythonOperator
