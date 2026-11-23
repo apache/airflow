@@ -56,10 +56,10 @@ it returns: `undefined` pushes nothing, and `null` is a value it pushes, as `set
 3. **`expandKwargs` spreads each instance's object into the handler's arguments.** The task writes
    ADR-0016's `kwargs` entry, so a key the object leaves out takes the handler's own default, as it
    does in an unmapped call that leaves the key out. A key that `partial` also sets fails the
-   instance, as Python's `mapping already partial` does. `tsc` checks the objects of a literal list against the handler's
-   type. Objects an upstream builds are checked only as far as that upstream's return type goes:
-   their keys exist only at run time, and the runtime has no parameter list to check them against,
-   so a key the handler does not take is passed on with the rest.
+   instance, as Python's `mapping already partial` does. `tsc` checks the objects of a literal list
+   against the handler's type. Objects an upstream builds are checked only as far as that upstream's
+   return type goes: their keys exist only at run time, and the runtime has no parameter list to
+   check them against, so a key the handler does not take is passed on with the rest.
 4. **A mapped task returns a `MappedTaskRef<T>`, which is not a `TaskRef`.** It carries `before`
    and `after` like any node, and goes into a later `expand` for one instance per upstream instance
    with a non-`null` result. Passed anywhere else, as a plain input or through `partial`, it is
@@ -371,7 +371,9 @@ interface MappableTaskFactory<TArgs extends object, TReturn> {
 /** What `partial` returns. Only expanding it calls the task. */
 interface PartialTask<TRest, TReturn> {
   /** `never` once `partial` has taken every argument, so `expand({})` does not compile. */
-  expand(inputs: keyof TRest extends never ? never : ExpandInputs<TRest>): MappedTaskRef<NonNullable<TReturn>>;
+  expand(
+    inputs: keyof TRest extends never ? never : ExpandInputs<TRest>,
+  ): MappedTaskRef<NonNullable<TReturn>>;
   expandKwargs(source: KwargsSource<TRest>): MappedTaskRef<NonNullable<TReturn>>;
 }
 
