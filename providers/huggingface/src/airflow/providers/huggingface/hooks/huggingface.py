@@ -212,8 +212,8 @@ class HuggingFaceHook(BaseHook):
         title = getattr(commit, "title", "") or ""
         return re.search(r"\(part\b.*\)\s*$", title, re.IGNORECASE) is None
 
-    @staticmethod
-    def _marker_matches(commit: Any, marker: str) -> bool:
+    @classmethod
+    def _marker_matches(cls, commit: Any, marker: str) -> bool:
         """Whether the commit carries the marker and has completed in full."""
         # GitCommitInfo carries title/message/commit_id; CommitInfo carries
         # commit_message/commit_description/oid.
@@ -225,7 +225,7 @@ class HuggingFaceHook(BaseHook):
         )
         if not any(marker in (field or "") for field in fields):
             return False
-        return HuggingFaceHook._commit_is_complete(commit)
+        return cls._commit_is_complete(commit)
 
     def find_commit_by_marker(
         self,

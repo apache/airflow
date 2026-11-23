@@ -424,3 +424,18 @@ async def test_afind_commit_by_marker_empty_commits_returns_none(connection_env,
 
     hook = HuggingFaceHook(None)
     assert await hook.afind_commit_by_marker("org/data", "marker") is None
+
+
+def test_find_commit_by_marker_honours_subclass_commit_is_complete():
+    class SubclassHook(HuggingFaceHook):
+        @staticmethod
+        def _commit_is_complete(commit):
+            return True
+
+    marker = "airflow-artifact-sha256:abc:target:def"
+    partial = git_commit_info("a" * 40, f"Publish [{marker}] (part 00001-of-00002)")
+    with patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api_type:
+        api_type.return_value.list_repo_commits.return_value = [partial]
+        commit = SubclassHook(None).find_commit_by_marker("org/data", marker)
+
+    assert commit is partial
