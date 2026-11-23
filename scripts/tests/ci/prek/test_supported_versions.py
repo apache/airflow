@@ -69,3 +69,22 @@ class TestUpdateStableVersionInReadme:
 
         with pytest.raises(RuntimeError, match="not found in README.md"):
             hook.update_stable_version_in_readme(text, "3.3.2")
+
+
+def test_latest_published_version_is_current_patch_of_newest_line() -> None:
+    assert hook.get_latest_published_airflow_version() == hook.SUPPORTED_VERSIONS[0][1]
+
+
+def test_generated_constant_files_match_renderer() -> None:
+    version = hook.get_latest_published_airflow_version()
+    docs_py = hook.DOCS_PY_PATH.read_text()
+
+    assert (
+        hook.PYTHON_CONSTANT_START
+        + hook.render_python_latest_published_airflow_version(version)
+        + hook.PYTHON_CONSTANT_END
+        in docs_py
+    )
+    assert hook.TS_CONSTANT_PATH.read_text() == hook.render_typescript_latest_published_airflow_version(
+        version
+    )
