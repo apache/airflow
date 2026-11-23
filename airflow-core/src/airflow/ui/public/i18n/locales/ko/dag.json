@@ -85,8 +85,8 @@
     "upcomingCount_other": "예정된 데드라인 {{count, number}}건"
   },
   "extraLinks": "추가 링크",
-  "failingWatcherTriggers_one": "실패한 Watcher 트리거 {{count, number}}개",
-  "failingWatcherTriggers_other": "실패한 Watcher 트리거 {{count, number}}개",
+  "failingWatcherTriggers_one": "실패 중인 Watcher 트리거 {{count, number}}개",
+  "failingWatcherTriggers_other": "실패 중인 Watcher 트리거 {{count, number}}개",
   "grid": {
     "buttons": {
       "newerRuns": "최신 실행",
