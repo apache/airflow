@@ -97,8 +97,8 @@ func NewPositionalTaskFunction(fn any) (Task, error) {
 
 // DecideFunc takes the result of the function of a task from NewPositionalBranchFunction. It
 // returns value, which the task pushes as its return_value XCom, and the task_ids of the tasks to
-// skip. When value is a nil pointer, the task does not push the return_value XCom. A non-nil error
-// fails the task.
+// skip. value is always pushed: a nil pointer or nil interface stores null, and a nil slice or map
+// is pushed as an empty one. A non-nil error fails the task.
 type DecideFunc func(result any) (value any, skipped []string, err error)
 
 // NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
