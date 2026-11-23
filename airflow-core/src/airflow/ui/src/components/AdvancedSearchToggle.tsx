@@ -25,6 +25,9 @@ import { IconButton, Tooltip } from "src/system-components";
 export type AdvancedSearchToggleProps = {
   readonly enabled: boolean;
   readonly onToggle: (enabled: boolean) => void;
+  // For the "addon" variant: whether this toggle is the last addon, owning the pill's
+  // rounded right corner. False when another addon (e.g. the match-mode toggle) follows.
+  readonly roundedRight?: boolean;
   readonly size?: "2xs" | "sm" | "xs";
   // "standalone" → free-floating IconButton next to a SearchBar.
   // "addon"      → flush right addon inside a rounded pill input, mirroring the label on the left.
@@ -34,6 +37,7 @@ export type AdvancedSearchToggleProps = {
 export const AdvancedSearchToggle = ({
   enabled,
   onToggle,
+  roundedRight = true,
   size = "sm",
   variant = "standalone",
 }: AdvancedSearchToggleProps) => {
@@ -59,7 +63,7 @@ export const AdvancedSearchToggle = ({
           aria-pressed={enabled}
           as="button"
           bg={enabled ? "colorPalette.solid" : "gray.muted"}
-          borderRightRadius="full"
+          borderRightRadius={roundedRight ? "full" : undefined}
           color={enabled ? "colorPalette.contrast" : "colorPalette.fg"}
           colorPalette={enabled ? "brand" : "gray"}
           cursor="pointer"
