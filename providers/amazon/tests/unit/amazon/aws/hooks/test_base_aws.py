@@ -1118,7 +1118,7 @@ class TestAwsBaseHook:
             region_name=method_region_name,
             config=mock.ANY,
         )
-        assert mock_session_factory_instance.create_session.assert_called_once
+        mock_session_factory_instance.create_session.assert_called_once()
         assert session == MOCK_BOTO3_SESSION
 
     @pytest.mark.parametrize("verify", [None, "path/to/cert/hook-bundle.pem", False])
