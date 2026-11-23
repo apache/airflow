@@ -272,5 +272,5 @@ Reference
 
 For further information, look at:
 
-* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/spanner/index.html>`__
+* `Client Library Documentation <https://cloud.google.com/python/docs/reference/spanner/latest>`__
 * `Product Documentation <https://cloud.google.com/spanner/docs/>`__

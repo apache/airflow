@@ -663,8 +663,27 @@ class TestCreateBackfill(TestBackfillEndpoint):
                     == "Dag has tasks for which depends_on_past=True. You must set reprocess behavior to reprocess completed or reprocess failed."
                 )
 
-    def test_create_backfill_database_locked(self, session, dag_maker, test_client):
-        """SQLite 'database is locked' during backfill creation returns HTTP 503."""
+    @pytest.mark.parametrize(
+        ("orig", "expected_detail"),
+        [
+            pytest.param(
+                sqlite3.OperationalError("database is locked"),
+                "Backfill creation could not acquire a database lock because another transaction holds it. "
+                "Retry the request. SQLite does not support concurrent writers; use PostgreSQL or MySQL.",
+                id="sqlite",
+            ),
+            pytest.param(
+                mock.Mock(
+                    spec=["sqlstate", "args"], sqlstate="55P03", args=("could not obtain lock on row",)
+                ),
+                "Backfill creation could not acquire a database lock because another transaction holds it. "
+                "Retry the request.",
+                id="postgres",
+            ),
+        ],
+    )
+    def test_create_backfill_database_locked(self, session, dag_maker, test_client, orig, expected_detail):
+        """A database lock error during backfill creation returns HTTP 503."""
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
         session.scalars(select(DagModel)).all()
@@ -684,15 +703,12 @@ class TestCreateBackfill(TestBackfillEndpoint):
 
         with mock.patch(
             "airflow.api_fastapi.core_api.routes.public.backfills._create_backfill",
-            side_effect=OperationalError(
-                "statement", "params", sqlite3.OperationalError("database is locked")
-            ),
+            side_effect=OperationalError("statement", "params", orig),
         ):
             response = test_client.post("/backfills", json=data)
 
-        # OperationalError with "database is locked" should return 503
         assert response.status_code == 503
-        assert "database is locked" in response.json()["detail"].lower()
+        assert response.json()["detail"] == expected_detail
 
     def test_create_backfill_cleans_up_orphan_on_lock_error(self, session, dag_maker):
         """The partial Backfill row is removed when the cleanup runs after a lock error."""
@@ -1176,7 +1192,10 @@ class TestCreateBackfillDryRun(TestBackfillEndpoint):
             response = test_client.post("/backfills/dry_run", json=data)
 
         assert response.status_code == 503
-        assert "database is locked" in response.json()["detail"].lower()
+        assert response.json()["detail"] == (
+            "Backfill dry-run could not acquire a database lock because another transaction holds it. "
+            "Retry the request. SQLite does not support concurrent writers; use PostgreSQL or MySQL."
+        )
 
     @pytest.mark.parametrize(
         ("reprocess_behavior", "expected_dates"),

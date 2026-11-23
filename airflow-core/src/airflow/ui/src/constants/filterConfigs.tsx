@@ -229,7 +229,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.BEFORE,
       icon: <MdDateRange />,
-      label: translate("common:logicalDate"),
+      label: translate("browse:auditLog.columns.when"),
       startKey: SearchParamsKeys.AFTER,
       type: FilterTypes.DATERANGE,
     },
@@ -406,6 +406,27 @@ export const useFilterConfigs = () => {
       label: translate("common:dagRun.partitionKey"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.PARTITION_STATUS]: {
+      icon: <MdCheckCircle />,
+      label: translate("common:state"),
+      options: [
+        {
+          label: (
+            <StateBadge state="success">{translate("assets:partitions.status.materialized")}</StateBadge>
+          ),
+          value: "materialized",
+        },
+        {
+          label: <StateBadge state="running">{translate("assets:partitions.status.in_progress")}</StateBadge>,
+          value: "in_progress",
+        },
+        {
+          label: <StateBadge state="failed">{translate("common:states.failed")}</StateBadge>,
+          value: "failed",
+        },
+      ],
+      type: FilterTypes.MULTISELECT,
     },
     [SearchParamsKeys.PAUSED]: {
       fromSearchParams: pausedStateFromSearchParams,

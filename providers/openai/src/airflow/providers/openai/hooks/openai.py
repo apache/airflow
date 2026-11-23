@@ -72,7 +72,7 @@ from airflow.providers.openai.exceptions import (
 #: methods wrapping it warn and point at the Responses and Conversations APIs (``create_response`` /
 #: ``create_conversation``); the removal date is stated once, in the reason string below.
 _ASSISTANTS_DEPRECATION_REASON = (
-    "The OpenAI Assistants API is deprecated and will be removed by OpenAI on 2026-08-26. "
+    "The OpenAI Assistants API is deprecated and was removed by OpenAI on 2026-08-26. "
     "Use the Responses API (create_response) and Conversations API (create_conversation) instead. "
     "See https://platform.openai.com/docs/guides/migrate-to-responses."
 )
@@ -199,7 +199,13 @@ class OpenAIHook(BaseHook):
         """Return an OpenAI connection object."""
         return self.get_conn()
 
-    def get_conn(self) -> OpenAI:
+    @overload
+    def get_conn(self, *, async_client: Literal[False] = False) -> OpenAI: ...
+
+    @overload
+    def get_conn(self, *, async_client: Literal[True]) -> AsyncOpenAI: ...
+
+    def get_conn(self, *, async_client: bool = False) -> OpenAI | AsyncOpenAI:
         """
         Return an OpenAI connection object.
 
@@ -209,9 +215,15 @@ class OpenAIHook(BaseHook):
         * ``"api_key"`` -- use the API key from the connection password (or ``openai_client_kwargs``).
         * ``"workload_identity"`` -- exchange a short-lived identity token for API access using the
           OpenAI client's workload identity support. See :meth:`_build_workload_identity`.
+
+        :param async_client: Return an ``AsyncOpenAI`` instead, for sync code that passes one to
+            an async library. The connection lookup blocks, so in async code use :meth:`aget_conn`.
+            Each call builds a new client. An async client is tied to the event loop it first
+            runs in, so use it inside one loop and get a new client for each ``asyncio.run`` call.
         """
         conn = self.get_connection(self.conn_id)
-        return OpenAI(**self._client_kwargs(conn, conn.extra_dejson))
+        client_class = AsyncOpenAI if async_client else OpenAI
+        return client_class(**self._client_kwargs(conn, conn.extra_dejson))
 
     async def aget_conn(self) -> AsyncOpenAI:
         """
@@ -316,7 +328,7 @@ class OpenAIHook(BaseHook):
             | ChatCompletionToolMessageParam
             | ChatCompletionFunctionMessageParam
         ],
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-6-luna",
         **kwargs: Any,
     ) -> list[ChatCompletionMessage]:
         """
@@ -328,7 +340,7 @@ class OpenAIHook(BaseHook):
         response = self.conn.chat.completions.create(model=model, messages=messages, **kwargs)
         return response.choices
 
-    def create_response(self, input: Any, model: str = "gpt-4o-mini", **kwargs: Any) -> Response:
+    def create_response(self, input: Any, model: str = "gpt-6-luna", **kwargs: Any) -> Response:
         """
         Create a model response using the Responses API.
 
@@ -340,7 +352,7 @@ class OpenAIHook(BaseHook):
     def parse_response(
         self,
         input: Any,
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-6-luna",
         *,
         text_format: type[_TextFormatT],
         **kwargs: Any,
@@ -416,7 +428,7 @@ class OpenAIHook(BaseHook):
         return self.conn.conversations.delete(conversation_id)
 
     @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def create_assistant(self, model: str = "gpt-4o-mini", **kwargs: Any) -> Assistant:
+    def create_assistant(self, model: str = "gpt-6-luna", **kwargs: Any) -> Assistant:
         """
         Create an OpenAI assistant using the given model.
 
