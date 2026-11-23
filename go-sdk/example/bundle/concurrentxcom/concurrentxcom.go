@@ -60,7 +60,7 @@ func PullXComsConcurrently(actx airflow.Context) (any, error) {
 	}
 
 	pull := func(key string) (any, error) {
-		v, err := client.GetXCom(actx, ti.DagID, ti.RunID, ti.TaskID, nil, key, nil)
+		v, err := client.GetXCom(actx, ti.DagID, ti.RunID, ti.TaskID, ti.MapIndex, key, nil)
 		if err != nil {
 			return nil, err
 		}

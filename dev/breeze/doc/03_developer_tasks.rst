@@ -82,7 +82,7 @@ supports Sqlite, MySQL and Postgres as backends - MySQL and Postgres are support
 
 You can choose which backend to use by adding ``--backend`` flag and additionally you can select version
 of the backend, if you want to start a different version of backend (for example for ``--backend postgres``
-you can specify ``--postgres-version 13`` to start Postgres 13). The ``--help`` command in breeze commands
+you can specify ``--postgres-version 15`` to start Postgres 15). The ``--help`` command in breeze commands
 will show you which backends are supported and which versions are available for each backend.
 
 The choice you made for backend and version are ``sticky`` - the last used selection is cached in the
@@ -95,7 +95,7 @@ last selected backend and version.
   used via ``BACKEND_VERSION`` environment variable. This is used mostly in CI where we have common way of
   running tests for all backends and we want to specify different parameters. In order to override the
   backend version, it has to be a valid version for the backend you are using. For example if you set
-  ``BACKEND_VERSION`` to ``13`` and you are using ``--backend postgres``, Postgres 13 will be used, but
+  ``BACKEND_VERSION`` to ``15`` and you are using ``--backend postgres``, Postgres 15 will be used, but
   if you set ``BACKEND_VERSION`` to ``8.0`` and you are using ``--backend postgres``, the last used Postgres
   version will be used.
 
