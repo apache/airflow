@@ -431,7 +431,9 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 "session_parameters": session_parameters,
                 **hook_params,
             }
-        super().__init__(conn_id=snowflake_conn_id, **kwargs)  # pragma: no cover
+        super().__init__(
+            conn_id=snowflake_conn_id, cancel_on_kill=cancel_on_kill, **kwargs
+        )  # pragma: no cover
 
     @cached_property
     def _hook(self):
