@@ -126,9 +126,10 @@ def test_split_members_keeps_a_provider_without_requires_python(workspace: Path)
     assert excluded == {"apache-airflow-providers-cassandra"}
 
 
-def test_split_members_names_the_manifest_and_clause_it_cannot_evaluate(workspace: Path):
+@pytest.mark.parametrize("minimum", [">=3.11", ">=3.15"])
+def test_split_members_names_the_manifest_and_clause_it_cannot_evaluate(workspace: Path, minimum: str):
     _write_manifest(
-        workspace / "providers" / "kafka", "apache-airflow-providers-apache-kafka", ">=3.11,<3.15"
+        workspace / "providers" / "kafka", "apache-airflow-providers-apache-kafka", f"{minimum},<3.15"
     )
 
     with pytest.raises(ValueError, match=r"providers/kafka/pyproject\.toml.*'<3\.15'"):
