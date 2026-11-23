@@ -28,11 +28,19 @@ from airflow.exceptions import TaskNotFound
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagrun import DagRun
     from airflow.models.task_coordinates import SchedulingTI, TaskCoordinateResolver
     from airflow.models.taskinstance import TaskInstance
+
+
+@attr.define
+class _FinishedTIIndex:
+    source: list[SchedulingTI] | None = None
+    by_task_id: dict[str, list[SchedulingTI]] = attr.ib(factory=dict)
 
 
 @attr.define
@@ -182,6 +190,18 @@ class DepContext:
     task mid-pass adds task instances but not skip decisions, so it never needs invalidating.
     """
 
+    finished_tis_index: _FinishedTIIndex = attr.ib(factory=_FinishedTIIndex, repr=False)
+    """
+    Per-pass index of :attr:`finished_tis` by task id, read through :meth:`get_finished_tis_by_task_id`,
+    so a dependency reads the finished task instances of its own upstream task ids instead of
+    scanning the whole list for every task instance it evaluates.
+
+    The index is rebuilt whenever the list it was built from is not the current ``finished_tis``. A
+    context created without ``finished_tis`` relies on that: each ``UP_FOR_RESCHEDULE`` copy of it
+    fetches its own list. ``init=True`` for the same reasons as :attr:`upstream_task_id_counts`. Code
+    that changes ``finished_tis`` in place must call :meth:`invalidate_finished_tis_index`.
+    """
+
     def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[SchedulingTI]:
         """
         Ensure finished_tis is populated if it's currently None, which allows running tasks without dag_run.
@@ -202,6 +222,24 @@ class DepContext:
         else:
             finished_tis = self.finished_tis
         return finished_tis
+
+    def get_finished_tis_by_task_id(
+        self, dag_run: DagRun, *, session: Session
+    ) -> Mapping[str, list[SchedulingTI]]:
+        """Return the finished task instances of the run by task id, see :attr:`finished_tis_index`."""
+        finished_tis = self.ensure_finished_tis(dag_run, session=session)
+        index = self.finished_tis_index
+        if index.source is not finished_tis:
+            by_task_id: dict[str, list[SchedulingTI]] = {}
+            for finished_ti in finished_tis:
+                by_task_id.setdefault(finished_ti.task_id, []).append(finished_ti)
+            index.source = finished_tis
+            index.by_task_id = by_task_id
+        return index.by_task_id
+
+    def invalidate_finished_tis_index(self) -> None:
+        """Drop the index of :attr:`finished_tis` after the list was changed in place."""
+        self.finished_tis_index.source = None
 
     def invalidate_upstream_task_id_counts(self) -> None:
         """

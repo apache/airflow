@@ -26,7 +26,7 @@ from airflow.ti_deps.deps.prev_dagrun_dep import is_past_depends_met
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Mapping
 
     from sqlalchemy.orm import Session
 
@@ -64,12 +64,12 @@ class NotPreviouslySkippedDep(BaseTIDep):
     IS_TASK_DEP = True
 
     def _get_dep_statuses(self, ti, dep_context, *, session):
-        finished_tis = dep_context.ensure_finished_tis(ti.get_dagrun(session=session), session=session)
+        finished_tis_by_task_id = dep_context.get_finished_tis_by_task_id(
+            ti.get_dagrun(session=session), session=session
+        )
 
         # An unexpanded placeholder (map index -1) keeps the direct-upstream lookup below.
         mapped_group = ti.task.get_closest_mapped_task_group() if ti.map_index >= 0 else None
-
-        finished_task_ids = {t.task_id for t in finished_tis}
 
         for parent in ti.task.get_direct_relatives(upstream=True):
             if parent.inherits_from_skipmixin:
@@ -77,7 +77,7 @@ class NotPreviouslySkippedDep(BaseTIDep):
                     # Read below from the per-pass memo, together with the rest of the group.
                     continue
 
-                if parent.task_id not in finished_task_ids:
+                if parent.task_id not in finished_tis_by_task_id:
                     # This can happen if the parent task has not yet run.
                     continue
 
@@ -122,7 +122,9 @@ class NotPreviouslySkippedDep(BaseTIDep):
         # worker leaves skipping those downstream task instances to this dep because they may
         # not be expanded yet. ShortCircuitOperator lists every task it skips, not only its
         # direct downstream, so honour any decision of the same group for this map index.
-        decisions = _mapped_group_skip_decisions(ti, mapped_group, finished_tis, dep_context, session)
+        decisions = _mapped_group_skip_decisions(
+            ti, mapped_group, finished_tis_by_task_id, dep_context, session
+        )
         upstream_task_ids = ti.task.upstream_task_ids
         for parent_task_id, succeeded, prev_result in decisions.get(ti.map_index, ()):
             is_direct_parent = parent_task_id in upstream_task_ids
@@ -212,7 +214,7 @@ def _shares_map_indexes(task, mapped_group: SerializedMappedTaskGroup) -> bool:
 def _mapped_group_skip_decisions(
     ti: TaskInstance,
     mapped_group: SerializedMappedTaskGroup,
-    finished_tis: list[SchedulingTI],
+    finished_tis_by_task_id: Mapping[str, list[SchedulingTI]],
     dep_context: DepContext,
     session: Session,
 ) -> dict[int, list[tuple[str, bool, dict]]]:
@@ -228,7 +230,9 @@ def _mapped_group_skip_decisions(
         if t.inherits_from_skipmixin and _shares_map_indexes(t, mapped_group)
     }
     finished_states = {
-        (t.task_id, t.map_index): t.state for t in finished_tis if t.task_id in skipmixin_task_ids
+        (t.task_id, t.map_index): t.state
+        for task_id in skipmixin_task_ids
+        for t in finished_tis_by_task_id.get(task_id, ())
     }
     if finished_states:
         query = XComModel.get_many(
