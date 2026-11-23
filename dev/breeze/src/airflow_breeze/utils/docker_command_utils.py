@@ -126,8 +126,8 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
 ]
 
 # ``uv.lock`` is deliberately absent above: it is mounted from ``mount-uv-lock.yml``, which
-# ShellParams skips for ``--force-lowest-dependencies`` so that the lowest-direct ``uv sync``
-# run in the container cannot write its re-resolved lock back over the host's.
+# ShellParams skips for ``--force-lowest-dependencies`` so that resolution in the container
+# cannot write its updated lock back over the host's.
 
 DOCKER_INFO_TIMEOUT = 30
 

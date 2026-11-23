@@ -435,7 +435,7 @@ class ShellParams:
                 # The whole worktree is bound here, so uv.lock cannot be left out of the mount.
                 console_print(
                     "\n[warning]--force-lowest-dependencies with --mount-sources all will rewrite "
-                    "your uv.lock: the lowest-direct `uv sync` writes its re-resolved lock through "
+                    "your uv.lock: dependency resolution writes the updated lock through "
                     "the mounted worktree. Use the default --mount-sources selected to keep it "
                     "untouched, or restore it afterwards with `git checkout -- uv.lock`.[/]\n"
                 )

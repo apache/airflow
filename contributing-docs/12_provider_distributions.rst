@@ -163,9 +163,9 @@ Redistributable Client headers and ``MQ_FILE_PATH`` set at build time). First ch
 raising the lower bound to a release that ships wheels avoids the build — a download at test
 time makes the job depend on the upstream host being reachable. Bundling such SDKs in the base image has licence,
 maintenance, and image-size costs that the project does not want to pay on every CI run.
-The lowest-direct-dependency provider tests still ``uv sync`` every extra of the provider inside the
-provider directory, so simply mocking the package in tests is not enough — the sync itself
-must succeed first. Use the per-provider pre-extras-install manifest:
+The lowest-direct-dependency provider tests install the provider's selected extras before running
+the tests. Mocking the SDK in a test does not remove the need to install it. Use the per-provider
+pre-extras-install manifest:
 
 1. **Keep the package under ``[project.optional-dependencies]``** on the provider so end users
    still install it with ``pip install apache-airflow-providers-<id>[<extra>]``. **Do not add it
@@ -173,7 +173,7 @@ must succeed first. Use the per-provider pre-extras-install manifest:
 
 2. **Register the provider** in ``PROVIDERS_NEEDING_PRE_EXTRAS_INSTALL`` in
    ``scripts/docker/entrypoint_ci.sh``. The hook runs immediately before
-   ``check_force_lowest_dependencies`` calls ``uv sync`` with every extra of that provider. The
+   ``check_force_lowest_dependencies`` resolves and installs the selected extras for the provider. The
    list is explicit on purpose so maintainers see when a new provider takes on this shape of
    cost, and so the surface for "drive-by privileged code" stays small.
 

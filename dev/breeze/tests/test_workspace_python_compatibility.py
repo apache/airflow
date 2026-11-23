@@ -62,11 +62,12 @@ def strict_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[P
         wheel.writestr("pytest-1.0.dist-info/RECORD", "")
 
     workspace = tmp_path / "workspace"
-    for package in ("ctl", "provider"):
+    for package in ("ctl", "provider", "airflow-core", "providers/eligible"):
         (workspace / package).mkdir(parents=True)
     (workspace / "pyproject.toml").write_text(
         '[project]\nname = "fixture-root"\nversion = "1.0"\nrequires-python = ">=3.11,!=3.15.*"\n'
-        '[tool.uv.workspace]\nmembers = ["ctl", "provider"]\n[dependency-groups]\nci-image = []\n'
+        '[tool.uv.workspace]\nmembers = [".", "ctl", "provider", "airflow-core", "providers/eligible"]\n'
+        "[dependency-groups]\nci-image = []\n"
     )
     (workspace / "ctl" / "pyproject.toml").write_text(
         '[project]\nname = "apache-airflow-ctl"\nversion = "1.0"\nrequires-python = ">=3.11"\n'
@@ -76,6 +77,14 @@ def strict_workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[P
         '[project]\nname = "apache-airflow-providers-fixture"\nversion = "1.0"\n'
         'requires-python = ">=3.11,!=3.14.*"\n'
     )
+    for package, name in (
+        ("airflow-core", "apache-airflow-core"),
+        ("providers/eligible", "apache-airflow-providers-eligible"),
+    ):
+        (workspace / package / "pyproject.toml").write_text(
+            f'[project]\nname = "{name}"\nversion = "1.0"\nrequires-python = ">=3.11"\n'
+            f'[project.optional-dependencies]\ntest = ["pytest @ {wheel_path.as_uri()}"]\n'
+        )
     subprocess.run([uv, "lock", "--python", str(resolver_python)], cwd=workspace, check=True)
     monkeypatch.setenv("UV_PYTHON", str(target_python))
     return workspace, uv, target_python
@@ -91,6 +100,61 @@ def test_airflow_ctl_tests_uses_target_in_a_strict_workspace(strict_workspace, m
     stdout, stderr = capfd.readouterr()
     assert result.exit_code == 0, (result.output, stderr)
     assert "pytest fixture on (3, 14)" in stdout
+
+
+@pytest.mark.parametrize(
+    ("test_type", "mode", "entrypoint_function"),
+    (
+        ("Core", "lowest-direct", "check_force_lowest_dependencies"),
+        ("Providers[eligible]", "lowest-direct", "check_force_lowest_dependencies"),
+        ("Core", "highest", "check_upgrade_sqlalchemy"),
+    ),
+    ids=("lowest-core", "lowest-provider", "latest-sqlalchemy"),
+)
+def test_ci_dependency_modes_use_the_target_interpreter(
+    strict_workspace, tmp_path, monkeypatch, test_type, mode, entrypoint_function
+):
+    workspace, uv, target_python = strict_workspace
+    venv = tmp_path / "target"
+    subprocess.run([uv, "venv", "--no-project", "--python", str(target_python), str(venv)], check=True)
+    monkeypatch.setenv("PATH", f"{venv / 'bin'}{os.pathsep}{os.environ['PATH']}")
+    monkeypatch.setenv("AIRFLOW_SOURCES", str(workspace))
+    monkeypatch.setenv("FORCE_LOWEST_DEPENDENCIES", "true")
+    monkeypatch.setenv("UPGRADE_SQLALCHEMY", "true")
+    monkeypatch.setenv("TEST_TYPE", test_type)
+    for color in ("BLUE", "RED", "RESET", "YELLOW"):
+        monkeypatch.setenv(f"COLOR_{color}", "")
+
+    docker_scripts = AIRFLOW_ROOT_PATH / "scripts" / "docker"
+    (workspace / "scripts" / "docker").mkdir(parents=True)
+    shutil.copy(docker_scripts / "filter_ci_install_set.py", workspace / "scripts" / "docker")
+    entrypoint = (docker_scripts / "entrypoint_ci.sh").read_text()
+    functions = entrypoint.split("\nfunction check_upgrade_sqlalchemy", 1)[1].split(
+        "\nfunction check_airflow_python_client_installation", 1
+    )[0]
+    command = (
+        "function /opt/airflow/scripts/in_container/is_provider_excluded.py() { return 0; }\n"
+        "function sleep() { :; }\n"
+        "function check_upgrade_sqlalchemy" + functions + "\n"
+        "function reinstall_shared_distributions() { :; }\n" + entrypoint_function
+    )
+    result = subprocess.run(
+        ["bash", "-euo", "pipefail", "-c", command],
+        cwd=workspace,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    if mode == "lowest-direct":
+        assert 'resolution-mode = "lowest-direct"' in (workspace / "uv.lock").read_text()
+    else:
+        assert "apache-airflow-providers-fixture; kept members:" in result.stderr
+    pytest_result = subprocess.run(
+        [str(venv / "bin" / "python"), "-m", "pytest"], capture_output=True, text=True, check=True
+    )
+    assert "pytest fixture on (3, 14)" in pytest_result.stdout
 
 
 @pytest.mark.parametrize("upgrade", (False, True))
@@ -134,4 +198,4 @@ def test_filtered_image_resolves_for_a_strict_workspace(strict_workspace, tmp_pa
     installs = [line for line in result.stdout.splitlines() if line.startswith("pip ")]
     assert len(installs) == 3
     assert all(f"--python {tmp_path / 'python3'}" in line for line in installs)
-    assert not any("/provider" in line for line in installs)
+    assert all(str(workspace / "provider") not in shlex.split(line) for line in installs)

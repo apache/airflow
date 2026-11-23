@@ -17,10 +17,8 @@
 ---
 services:
   airflow:
-    # Kept out of local.yml so that it can be skipped: `uv sync` rewrites uv.lock in place, and
-    # with --force-lowest-dependencies it re-resolves the whole graph, so mounting the host file
-    # would silently replace the contributor's lock with a lowest-direct resolution. Without the
-    # mount the container falls back to the uv.lock baked into the CI image and writes there.
+    # Kept out of local.yml so that --force-lowest-dependencies can write the lowest-direct
+    # resolution to the container's lockfile without replacing the contributor's lock.
     volumes:
       - type: bind
         source: ../../../uv.lock

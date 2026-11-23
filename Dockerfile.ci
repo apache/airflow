@@ -2184,15 +2184,25 @@ function check_boto_upgrade() {
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "boto3" "botocore" "urllib3!=2.6.0"
 }
 
-function check_upgrade_sqlalchemy() {
+function check_upgrade_sqlalchemy() (
     if [[ "${UPGRADE_SQLALCHEMY=}" != "true" ]]; then
         return
     fi
     echo
     echo "${COLOR_BLUE}Upgrading sqlalchemy to the latest version to run tests with it${COLOR_RESET}"
     echo
-    uv sync --all-packages --resolution highest --no-python-downloads --no-managed-python
-}
+    local packages
+    packages=$(mktemp) || return
+    trap 'rm -f -- "${packages}"' EXIT
+    python3 "${AIRFLOW_SOURCES}/scripts/docker/filter_ci_install_set.py" \
+        --root "${AIRFLOW_SOURCES}" --packages "${packages}" || return
+    local -a package_args=()
+    local package
+    while IFS= read -r package; do
+        package_args+=(--package "${package}")
+    done < "${packages}"
+    sync_workspace_dependencies --resolution highest "${package_args[@]}"
+)
 
 function check_downgrade_sqlalchemy() {
     if [[ ${DOWNGRADE_SQLALCHEMY=} != "true" ]]; then
@@ -2244,13 +2254,13 @@ function check_run_tests() {
 
 function reinstall_shared_distributions() {
     # The shared distributions under shared/<name>/ are workspace members that are not
-    # transitively required by airflow-core or any provider, so the lowest-direct
-    # `uv sync` above wipes them out from the environment. Re-install them with
+    # transitively required by airflow-core or any provider. Exact synchronization removes
+    # them from the environment. Re-install them with
     # --no-deps so that the `airflow_shared.*` namespace used by devel-common test
     # utils resolves at test collection time without disturbing the lowest-direct
     # resolution that was just applied.
     echo
-    echo "${COLOR_BLUE}Re-installing shared distributions (airflow_shared.*) after uv sync${COLOR_RESET}"
+    echo "${COLOR_BLUE}Re-installing shared distributions (airflow_shared.*)${COLOR_RESET}"
     echo
     # shellcheck disable=SC2046
     uv pip install --no-deps $(ls -d /opt/airflow/shared/*/)
@@ -2286,6 +2296,19 @@ function run_pre_extras_install_if_registered() {
     done
 }
 
+function sync_workspace_dependencies() (
+    local requirements
+    requirements=$(mktemp) || return
+    trap 'rm -f -- "${requirements}"' EXIT
+    cd "${AIRFLOW_SOURCES}" || return
+
+    # The resolver may need a different interpreter from the Python running the tests.
+    UV_PYTHON='' uv export --output-file "${requirements}" --quiet "$@" || return
+    # Build lxml and xmlsec against the same system libxml2.
+    uv pip sync --python "$(command -v python3)" --no-python-downloads --no-managed-python \
+        --no-binary lxml --no-binary xmlsec "${requirements}"
+)
+
 function check_force_lowest_dependencies() {
     if [[ ${FORCE_LOWEST_DEPENDENCIES=} != "true" ]]; then
         return
@@ -2318,16 +2341,13 @@ function check_force_lowest_dependencies() {
                 extra_flags+=(--extra "${extra}")
             fi
         done < <(python -c 'import tomllib; print("\n".join(tomllib.load(open("pyproject.toml", "rb"))["project"].get("optional-dependencies", {})))')
-        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
-        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
-        # See https://bugs.launchpad.net/lxml/+bug/2110068
-
         local sync_successful="false"
         for attempt in 1 2 3; do
             echo "Attempt ${attempt} of syncing to lowest dependencies"
             set -x
-            if UV_LOCK_TIMEOUT=200 uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec \
-                "${extra_flags[@]}" --no-python-downloads --no-managed-python; then
+            if UV_LOCK_TIMEOUT=200 sync_workspace_dependencies --resolution lowest-direct \
+                --package "apache-airflow-providers-${provider_id//./-}" \
+                "${extra_flags[@]}"; then
                 set +x
                 sync_successful="true"
                 break
@@ -2346,11 +2366,7 @@ function check_force_lowest_dependencies() {
         echo "${COLOR_BLUE}Forcing dependencies to lowest versions for Airflow.${COLOR_RESET}"
         echo
         cd "${AIRFLOW_SOURCES}/airflow-core"
-        # --no-binary  is needed in order to avoid libxml and xmlsec using different version of libxml2
-        # (binary lxml embeds its own libxml2, while xmlsec uses system one).
-        # See https://bugs.launchpad.net/lxml/+bug/2110068
-        uv sync --resolution lowest-direct --no-binary-package lxml --no-binary-package xmlsec --all-extras \
-            --no-python-downloads --no-managed-python
+        sync_workspace_dependencies --resolution lowest-direct --package apache-airflow-core --all-extras
     fi
     reinstall_shared_distributions
 }
