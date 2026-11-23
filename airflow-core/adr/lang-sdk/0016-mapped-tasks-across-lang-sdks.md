@@ -542,6 +542,7 @@ The supervisor answers `ApplyMap` the way it answers an XCom backend request, on
 Only a stub TaskHandler with an `apply_map` binding starts the sidecar for this.
 
 With `.expandKwargs(rows.map(toKwargs))` the callables build each instance's dict, and each parameter takes its `kwarg` from it.
+A `spread` binding has no parameter name, so a Dag definition's runtime finds its callables as its task's one `expand_kwargs()` input.
 `toKwargs` runs once per instance: a runtime reuses the result across parameters, and the sidecar does the same across `ApplyMap` requests.
 
 A `map()` callable may skip its instance, as a Python one does by raising `AirflowSkipException`.

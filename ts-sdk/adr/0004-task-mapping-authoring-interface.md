@@ -76,9 +76,10 @@ it returns: `undefined` pushes nothing, and `null` is a value it pushes, as `set
    - **No `zip` inside a `zip`.** A `zip` result offers only `map`.
    - **No whole-argument use.** Neither a plain input nor `partial` takes a source.
 6. **A `map` callable is a synchronous function of one element**: `(element: T) => U`, with `U` not
-   a promise. It runs in the consumer's runtime, found by the argument's name (ADR-0016, *map()*), so
-   an anonymous arrow function is fine. It skips its instance by throwing `SkipError`, a new export,
-   the TypeScript equivalent of `AirflowSkipException`. It is serialized as `fn.toString()`.
+   a promise. It runs in the consumer's runtime, found by the argument's name, or for `expandKwargs`
+   as the task's one source (ADR-0016, *map()*), so an anonymous arrow function is fine. It skips
+   its instance by throwing `SkipError`, a new export, the TypeScript equivalent of
+   `AirflowSkipException`. It is serialized as `fn.toString()`.
 7. **`zip` fills with `padding`, JavaScript's name for it.** `{ padding: v }` makes the zip as long
    as its longest source, with `v` standing in for the missing items, as `Iterator.zip`'s `padding`
    does; without it, the zip is as long as its shortest. It is one value for every source, as
