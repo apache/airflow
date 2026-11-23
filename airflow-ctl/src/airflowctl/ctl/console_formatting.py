@@ -90,7 +90,7 @@ class AirflowConsole(Console):
         output = tabulate(rows, tablefmt="plain", headers=list(data[0]))
         self.print(output, markup=False)
 
-    def _normalize_data(self, value: Any, output: str) -> list | str | dict | None:
+    def _normalize_data(self, value: Any, output: str) -> list | str | dict | int | float | bool | None:
         if isinstance(value, (tuple, list)):
             if output == "table":
                 return ",".join(str(self._normalize_data(x, output)) for x in value)
@@ -99,6 +99,8 @@ class AirflowConsole(Console):
             return {k: self._normalize_data(v, output) for k, v in value.items()}
         if value is None:
             return None
+        if output in ("json", "yaml") and isinstance(value, (bool, int, float, str)):
+            return value
         return str(value)
 
     def print_as(

@@ -71,8 +71,8 @@ def test_console_width_is_not_forced_when_tty(monkeypatch):
     ("value", "output", "expected"),
     [
         ((1, 2), "table", "1,2"),
-        ([1, 2], "json", ["1", "2"]),
-        ({"a": 1}, "json", {"a": "1"}),
+        ([1, 2], "json", [1, 2]),
+        ({"a": 1}, "json", {"a": 1}),
         ({"a": 1}, "table", "{'a': 1}"),
         (None, "json", None),
     ],
@@ -80,6 +80,54 @@ def test_console_width_is_not_forced_when_tty(monkeypatch):
 def test_normalize_data(value, output, expected):
     console = console_formatting.AirflowConsole(record=True)
     assert console._normalize_data(value, output) == expected
+
+
+@pytest.mark.parametrize("output", ["json", "yaml"])
+def test_normalize_data_preserves_scalar_types_for_json_and_yaml(output):
+    console = console_formatting.AirflowConsole(record=True)
+    data = {
+        "int_val": 128,
+        "float_val": 3.14,
+        "bool_true": True,
+        "bool_false": False,
+        "str_val": "default_pool",
+        "none_val": None,
+        "nested_list": [10, 20.5, True, "item"],
+        "nested_dict": {"inner_int": 42, "inner_bool": False},
+    }
+    normalized = console._normalize_data(data, output)
+
+    assert normalized["int_val"] == 128
+    assert type(normalized["int_val"]) is int
+
+    assert normalized["float_val"] == 3.14
+    assert type(normalized["float_val"]) is float
+
+    assert normalized["bool_true"] is True
+    assert normalized["bool_false"] is False
+
+    assert normalized["str_val"] == "default_pool"
+    assert type(normalized["str_val"]) is str
+
+    assert normalized["none_val"] is None
+
+    assert normalized["nested_list"] == [10, 20.5, True, "item"]
+    assert type(normalized["nested_list"][0]) is int
+    assert type(normalized["nested_list"][1]) is float
+    assert type(normalized["nested_list"][2]) is bool
+    assert type(normalized["nested_list"][3]) is str
+
+    assert normalized["nested_dict"] == {"inner_int": 42, "inner_bool": False}
+    assert type(normalized["nested_dict"]["inner_int"]) is int
+    assert type(normalized["nested_dict"]["inner_bool"]) is bool
+
+
+@pytest.mark.parametrize("output", ["table", "plain"])
+def test_normalize_data_converts_scalars_to_strings_for_table_and_plain(output):
+    console = console_formatting.AirflowConsole(record=True)
+    assert console._normalize_data(128, output) == "128"
+    assert console._normalize_data(False, output) == "False"
+    assert console._normalize_data(3.14, output) == "3.14"
 
 
 def test_print_as_raises_for_unknown_output():
@@ -101,7 +149,7 @@ def test_print_as_uses_mapper(monkeypatch):
 
     console.print_as([1, 2], output="json", mapper=lambda value: {"value": value})
 
-    renderer_mock.assert_called_once_with([{"value": "1"}, {"value": "2"}])
+    renderer_mock.assert_called_once_with([{"value": 1}, {"value": 2}])
 
 
 def test_print_as_normalizes_dict_data(monkeypatch):
@@ -111,7 +159,7 @@ def test_print_as_normalizes_dict_data(monkeypatch):
 
     console.print_as([{"a": 1, "b": None}], output="json")
 
-    renderer_mock.assert_called_once_with([{"a": "1", "b": None}])
+    renderer_mock.assert_called_once_with([{"a": 1, "b": None}])
 
 
 def test_print_as_table_prints_no_data_for_empty_input(monkeypatch):
