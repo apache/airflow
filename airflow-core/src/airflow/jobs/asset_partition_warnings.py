@@ -48,7 +48,7 @@ class AssetPartitionWaitMonitor:
 
     def check(self) -> None:
         # Validate before reconciling: invalid configuration must not clear existing warnings.
-        configured = conf.getjson("scheduler", "pending_partitioned_dag_run_timeout")
+        configured = conf.getjson("scheduler", "pending_partitioned_dag_run_timeout", fallback={})
         if not isinstance(configured, dict):
             raise ValueError(
                 "pending_partitioned_dag_run_timeout must be a JSON object of consumer Dag IDs to seconds"
