@@ -426,6 +426,123 @@ async def test_afind_commit_by_marker_empty_commits_returns_none(connection_env,
     assert await hook.afind_commit_by_marker("org/data", "marker") is None
 
 
+@requires_async_session
+@pytest.mark.parametrize(
+    ("revision", "expected_path"),
+    [
+        (None, "/api/datasets/org/data"),
+        ("release 1", "/api/datasets/org/data/revision/release%201"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_aget_dataset_info_sends_http_request(revision, expected_path, connection_env, mocker):
+    http = _async_http()
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return http.Response(200, json={"id": "org/data", "private": False})
+
+    mocker.patch(
+        "airflow.providers.huggingface.hooks.huggingface.get_async_session",
+        side_effect=_mock_async_session(handler),
+    )
+
+    hook = HuggingFaceHook("huggingface_test")
+    info = await hook.aget_dataset_info("org/data", revision=revision)
+
+    assert info.id == "org/data"
+    assert info.private is False
+    assert len(requests) == 1
+    request = requests[0]
+    assert request.method == "GET"
+    assert request.url.raw_path.decode().split("?")[0] == expected_path
+    assert request.headers["authorization"] == "Bearer test-secret"
+
+
+@requires_async_session
+@pytest.mark.asyncio
+async def test_afind_commit_by_marker_sends_http_requests(connection_env, mocker):
+    http = _async_http()
+    marker = "huggingface-stream-publish:target"
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        path = request.url.raw_path.decode()
+        if path == "/api/datasets/org/data/refs?include_prs=1":
+            return http.Response(
+                200,
+                json={"pullRequests": [{"name": "7", "ref": "refs/pr/7", "targetCommit": "deadbeef"}]},
+            )
+        if path.startswith("/api/datasets/org/data/commits/main"):
+            return http.Response(200, json=[])
+        if path.startswith("/api/datasets/org/data/commits/refs%2Fpr%2F7"):
+            return http.Response(200, json=[_commit_payload("c" * 40, f"Stream [{marker}]")])
+        raise AssertionError(f"unexpected request {path}")
+
+    mocker.patch(
+        "airflow.providers.huggingface.hooks.huggingface.get_async_session",
+        side_effect=_mock_async_session(handler),
+    )
+
+    hook = HuggingFaceHook("huggingface_test")
+    commit = await hook.afind_commit_by_marker("org/data", marker, include_pull_requests=True)
+
+    assert commit is not None
+    assert commit.commit_id == "c" * 40
+    assert commit.title == f"Stream [{marker}]"
+    assert commit.created_at == datetime(2026, 1, 1, tzinfo=UTC)
+    assert [request.url.raw_path.decode() for request in requests] == [
+        "/api/datasets/org/data/refs?include_prs=1",
+        "/api/datasets/org/data/commits/main",
+        "/api/datasets/org/data/commits/refs%2Fpr%2F7",
+    ]
+    assert {request.headers["authorization"] for request in requests} == {"Bearer test-secret"}
+
+
+@requires_async_session
+@pytest.mark.parametrize(
+    ("status", "headers", "expected"),
+    [
+        pytest.param(401, {}, None, id="missing-or-private-repo"),
+        pytest.param(404, {"X-Error-Code": "RevisionNotFound"}, None, id="missing-revision"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_afind_commit_by_marker_maps_hub_errors_from_http(status, headers, expected, mocker):
+    http = _async_http()
+
+    def handler(request):
+        return http.Response(status, headers=headers, json={"error": "missing"})
+
+    mocker.patch(
+        "airflow.providers.huggingface.hooks.huggingface.get_async_session",
+        side_effect=_mock_async_session(handler),
+    )
+
+    hook = HuggingFaceHook(None)
+    assert await hook.afind_commit_by_marker("org/data", "marker", revision="missing") is expected
+
+
+@requires_async_session
+@pytest.mark.asyncio
+async def test_aget_dataset_info_surfaces_hub_http_errors(mocker):
+    http = _async_http()
+
+    def handler(request):
+        return http.Response(404, headers={"X-Error-Code": "RevisionNotFound"}, json={"error": "missing"})
+
+    mocker.patch(
+        "airflow.providers.huggingface.hooks.huggingface.get_async_session",
+        side_effect=_mock_async_session(handler),
+    )
+
+    hook = HuggingFaceHook(None)
+    with pytest.raises(RevisionNotFoundError):
+        await hook.aget_dataset_info("org/data", revision="missing")
+
+
 def test_find_commit_by_marker_honours_subclass_commit_is_complete():
     class SubclassHook(HuggingFaceHook):
         @staticmethod
