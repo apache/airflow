@@ -29,16 +29,19 @@
 #
 # Usage (from the repo root, with the chosen RC version):
 #
-#   CLIENT_VERSION=3.2.2rc1 breeze shell --load-example-dags --backend sqlite \
-#       "bash dev/verify_python_client_rc.sh"
+#   breeze shell --load-example-dags --backend sqlite \
+#       "CLIENT_VERSION=3.2.2rc1 bash dev/verify_python_client_rc.sh"
+#
+# Set CLIENT_VERSION / CLIENT_WHEEL inside the quoted command: breeze shell
+# forwards only a fixed list of environment variables into the container, so a
+# host-side CLIENT_VERSION=... prefix never reaches this script.
 #
 # By default the client is installed from PyPI (the RC is published there with
-# the rcN suffix). To test the exact SVN artifact instead, mount/copy the wheel
-# into the repo (it is available under /opt/airflow inside the container) and
-# point CLIENT_WHEEL at it:
+# the rcN suffix). To test the exact SVN artifact instead, copy the wheel into
+# ./dist (mounted at /dist inside the container) and point CLIENT_WHEEL at it:
 #
-#   CLIENT_WHEEL=/opt/airflow/dist/apache_airflow_client-3.2.2-py3-none-any.whl \
-#       breeze shell --load-example-dags "bash dev/verify_python_client_rc.sh"
+#   breeze shell --load-example-dags --backend sqlite \
+#       "CLIENT_WHEEL=/dist/apache_airflow_client-3.2.2-py3-none-any.whl bash dev/verify_python_client_rc.sh"
 set -uo pipefail
 
 cd /opt/airflow || exit 1

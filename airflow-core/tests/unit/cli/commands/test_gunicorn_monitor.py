@@ -555,7 +555,7 @@ class TestCreateGunicornApp:
 
     def test_airflow_uvicorn_worker_config(self):
         """AirflowUvicornWorker disables uvicorn's access log and log_config override."""
-        from uvicorn.workers import UvicornWorker
+        from uvicorn_worker import UvicornWorker
 
         from airflow.api_fastapi.gunicorn_app import AirflowUvicornWorker
 

@@ -116,6 +116,27 @@ class TestAthenaHook:
         mock_conn.return_value.start_query_execution.assert_called_with(**expected_call_params)
         assert result == MOCK_DATA["query_execution_id"]
 
+    @pytest.mark.parametrize(
+        "extra_kwargs",
+        [
+            pytest.param({}, id="omitted"),
+            pytest.param({"result_configuration": {}}, id="empty-dict"),
+        ],
+    )
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_run_query_omits_unset_result_configuration(self, mock_conn, extra_kwargs):
+        mock_conn.return_value.start_query_execution.return_value = MOCK_QUERY_EXECUTION
+        self.athena.run_query(
+            query=MOCK_DATA["query"],
+            query_context=mock_query_context,
+            **extra_kwargs,
+        )
+        mock_conn.return_value.start_query_execution.assert_called_with(
+            QueryString=MOCK_DATA["query"],
+            QueryExecutionContext=mock_query_context,
+            WorkGroup=MOCK_DATA["workgroup"],
+        )
+
     @mock.patch.object(AthenaHook, "log")
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_query_log_query(self, mock_conn, log):
@@ -245,6 +266,36 @@ class TestAthenaHook:
         mock_conn.return_value.get_query_execution.return_value = MOCK_QUERY_EXECUTION_OUTPUT
         result = self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
         assert result == "s3://test_bucket/test.csv"
+
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_get_output_location_managed_query_results(self, mock_conn):
+        mock_conn.return_value.get_query_execution.return_value = {
+            "QueryExecution": {
+                "QueryExecutionId": MOCK_DATA["query_execution_id"],
+                "ManagedQueryResultsConfiguration": {"Enabled": True},
+            }
+        }
+        assert self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"]) is None
+
+    @pytest.mark.parametrize(
+        "query_execution",
+        [
+            pytest.param({"QueryExecutionId": MOCK_DATA["query_execution_id"]}, id="no-result-config"),
+            pytest.param(
+                {
+                    "QueryExecutionId": MOCK_DATA["query_execution_id"],
+                    "ManagedQueryResultsConfiguration": {"Enabled": False},
+                    "ResultConfiguration": {},
+                },
+                id="managed-results-disabled",
+            ),
+        ],
+    )
+    @mock.patch.object(AthenaHook, "get_conn")
+    def test_hook_get_output_location_raises_without_managed_query_results(self, mock_conn, query_execution):
+        mock_conn.return_value.get_query_execution.return_value = {"QueryExecution": query_execution}
+        with pytest.raises(KeyError):
+            self.athena.get_output_location(query_execution_id=MOCK_DATA["query_execution_id"])
 
     @pytest.mark.parametrize(
         "query_execution_id", [pytest.param("", id="empty-string"), pytest.param(None, id="none")]

@@ -46,6 +46,7 @@ Structured output
 
 Set ``output_type`` to a Pydantic ``BaseModel`` subclass and the model instance is pushed to
 XCom unchanged, so downstream tasks can type-hint the class and use attribute access.
+Inside a list of types (``[MyModel, int]``) the model is pushed as a ``dict`` instead.
 :doc:`../structured_output` explains the XCom deserialization rules, the cross-Dag gap and
 ``serialize_output``.
 
@@ -286,7 +287,7 @@ Parameters
 - ``fallback_conn_ids``: Connection IDs to fail over to, in order, when the primary
   provider is unavailable. Overrides the list in the connection's extra; an explicit
   ``[]`` disables a chain configured there. See :doc:`../provider_fallback`.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the connection's extra field.
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic ``BaseModel``
   for structured output.

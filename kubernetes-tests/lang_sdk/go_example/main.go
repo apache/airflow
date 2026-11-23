@@ -24,11 +24,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"reflect"
 	"runtime"
 	"time"
 
 	"github.com/apache/airflow/go-sdk/airflow"
+	"github.com/apache/airflow/go-sdk/sdk"
 )
 
 // Must match the dag_id of the Python stub Dag and the Java/TypeScript bundles.
@@ -60,12 +63,43 @@ func goExtract(actx airflow.Context) (any, error) {
 }
 
 // goTransform reads the my_variable Airflow variable through the coordinator,
-// exercising a GetVariable round-trip over the Execution API.
+// exercising a GetVariable round-trip over the Execution API, and the result of the
+// mapped python_fanout task, which is every instance's value in a list.
 func goTransform(actx airflow.Context) error {
 	val, err := actx.Client().GetVariable(actx, "my_variable")
 	if err != nil {
 		return err
 	}
 	actx.Logger().InfoContext(actx, "go_transform obtained variable", "my_variable", val)
+
+	ti := actx.TaskInstance()
+	fanout, err := actx.Client().GetXCom(
+		actx, ti.DagID, ti.RunID, "python_fanout", nil, sdk.XComReturnValueKey, nil,
+	)
+	if err != nil {
+		return err
+	}
+	values, ok := fanout.([]any)
+	if !ok || len(values) != 3 {
+		return fmt.Errorf("python_fanout result is %#v, want []any{1, 2, 3}", fanout)
+	}
+	for i, v := range values {
+		if n, ok := asInt64(v); !ok || n != int64(i+1) {
+			return fmt.Errorf("python_fanout result is %#v, want []any{1, 2, 3}", fanout)
+		}
+	}
 	return nil
+}
+
+// asInt64 returns v as an int64 if it is an integer. An integer XCom value arrives
+// as a Go integer type whose width depends on the value.
+func asInt64(v any) (int64, bool) {
+	switch n := reflect.ValueOf(v); {
+	case n.CanInt():
+		return n.Int(), true
+	case n.CanUint():
+		return int64(n.Uint()), true
+	default:
+		return 0, false
+	}
 }

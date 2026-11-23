@@ -59,6 +59,10 @@ class DatabricksApiError(AirflowException):
         self.error_code = error_code
 
 
+class DatabricksDeltaTableError(AirflowException):
+    """Raised when a Delta table cannot be read or its version cannot be determined."""
+
+
 class DatabricksGenieError(DatabricksApiError):
     """
     Raised when a Databricks Genie request fails or returns a result that cannot be used.

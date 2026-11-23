@@ -30,7 +30,8 @@ from airflow.sdk.bases.xcom import (
     BaseXCom,
     XComCoordinate,
     _current_trigger_ti,
-    _is_legacy_xcom_backend,
+    is_legacy_xcom_backend,
+    is_stored_through_backend,
 )
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
@@ -101,9 +102,30 @@ class TestBaseXCom:
 
         purge.assert_not_called()
         assert mock_supervisor_comms.send.call_args_list == [
-            mock.call(GetXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
+            mock.call(GetXCom(key="key", task_id="task", dag_id="dag", run_id="run", map_index=-1)),
             mock.call(DeleteXCom(key="key", task_id="task", dag_id="dag", run_id="run")),
         ]
+
+    def test_get_one_without_map_index_loads_each_of_a_mapped_tasks_values(self, mock_supervisor_comms):
+        """A mapped task's values are answered as a slice, and loaded one by one."""
+        mock_supervisor_comms.send.return_value = XComSequenceSliceResult(root=["a", "b"])
+
+        result = StoreXCom.get_one(key="key", task_id="task", dag_id="dag", run_id="run")
+
+        assert result == ["loaded a", "loaded b"]
+        mock_supervisor_comms.send.assert_called_once_with(
+            GetXCom(key="key", task_id="task", dag_id="dag", run_id="run", map_index=None)
+        )
+
+    @pytest.mark.asyncio
+    async def test_aget_one_without_map_index_loads_each_of_a_mapped_tasks_values(
+        self, mock_supervisor_comms
+    ):
+        mock_supervisor_comms.asend = mock.AsyncMock(return_value=XComSequenceSliceResult(root=["a", "b"]))
+
+        result = await StoreXCom.aget_one(key="key", task_id="task", dag_id="dag", run_id="run")
+
+        assert result == ["loaded a", "loaded b"]
 
     @pytest.mark.asyncio
     async def test_aget_one_returns_value(self, mock_supervisor_comms):
@@ -360,7 +382,19 @@ class StoreMixin:
     ],
 )
 def test_is_legacy_xcom_backend(backend, expected):
-    assert _is_legacy_xcom_backend(backend) is expected
+    assert is_legacy_xcom_backend(backend) is expected
+
+
+@pytest.mark.parametrize(
+    ("key", "expected"),
+    [
+        pytest.param("return_value", True, id="task-value"),
+        pytest.param("skipmixin_key", False, id="skipmixin-key"),
+        pytest.param("my_link_key", True, id="link-not-at-the-start"),
+    ],
+)
+def test_is_stored_through_backend(key, expected):
+    assert is_stored_through_backend(key) is expected
 
 
 class TestStoreAndLoadValue:

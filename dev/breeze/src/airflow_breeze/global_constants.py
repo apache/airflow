@@ -571,8 +571,8 @@ PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
-ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
-CURRENT_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
+ALLOWED_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
+CURRENT_POSTGRES_VERSIONS = ["15", "16", "17", "18"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 
 USE_MYSQL_INNOVATION_RELEASE = True
@@ -915,7 +915,7 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.11",
         "airflow-version": "2.11.1",
-        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git keycloak informatica modal opensearch",
+        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git huggingface keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {

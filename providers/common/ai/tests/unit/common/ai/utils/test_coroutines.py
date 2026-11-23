@@ -20,6 +20,8 @@ import asyncio
 import threading
 from contextvars import ContextVar
 
+import pytest
+
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 
 _value: ContextVar[str] = ContextVar("value", default="unset")
@@ -49,3 +51,12 @@ class TestRunCoroutineSync:
             return run_coroutine_sync(_read_value())
 
         assert asyncio.run(caller()) == "caller"
+
+    def test_an_error_from_the_coroutine_is_not_chained_onto_the_loop_probe(self):
+        async def fails() -> None:
+            raise ValueError("bad request")
+
+        with pytest.raises(ValueError, match="bad request") as raised:
+            run_coroutine_sync(fails())
+
+        assert raised.value.__context__ is None

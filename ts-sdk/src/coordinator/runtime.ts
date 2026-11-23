@@ -37,7 +37,7 @@
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
 import { resolveArgs, type BoundArgs } from "./arg-binding.js";
-import { createCoordinatorClient, type CoordinatorClient } from "./client.js";
+import { createCoordinatorClient, XCOM_RETURN_KEY, type CoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
@@ -425,7 +425,7 @@ async function runHandler(
     // `getClient()` work at any depth without the handler being handed either.
     const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
     if (result !== undefined) {
-      await client.setXCom({ key: "return_value", value: result as JsonValue });
+      await client.setXCom({ key: XCOM_RETURN_KEY, value: result as JsonValue });
     }
     // SucceedTask MUST include task_outlets and outlet_events as
     // empty lists, since the Execution API's TISuccessStatePayload
