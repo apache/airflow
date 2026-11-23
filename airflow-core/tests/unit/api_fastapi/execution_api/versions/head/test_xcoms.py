@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 import re
 import urllib.parse
-from datetime import timedelta
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -1466,6 +1465,7 @@ class TestXComsGetOmittedMapIndex:
             pytest.param("mapped", {"map_index": 3}, None, id="mapped-past-end"),
             pytest.param("mapped", {"map_index": -1}, None, id="mapped-minus-one"),
             pytest.param("mapped", {"offset": -1}, "mapped 2", id="mapped-offset"),
+            pytest.param("mapped", {"include_prior_dates": True}, None, id="mapped-prior-dates"),
             pytest.param("empty", {}, [], id="mapped-to-none"),
             pytest.param("group.inner", {}, ["inner 0", "inner 1"], id="mapped-group-all"),
             pytest.param("group.inner", {"map_index": 1}, "inner 1", id="mapped-group-one"),
@@ -1481,30 +1481,6 @@ class TestXComsGetOmittedMapIndex:
         else:
             assert response.status_code == 200
             assert response.json() == {"key": XCOM_RETURN_KEY, "value": expected}
-
-    def test_mapped_task_with_prior_dates_reads_what_the_slice_reads(
-        self, client, dag_maker, session, dag_run
-    ):
-        earlier_run = dag_maker.create_dagrun(
-            run_id="earlier", logical_date=dag_run.logical_date - timedelta(days=1)
-        )
-        for ti in earlier_run.get_task_instances(session=session):
-            if ti.task_id == "mapped":
-                session.add(
-                    XComModelV2(
-                        key=XCOM_RETURN_KEY, value=f"earlier {ti.region_index}", task_instance_id=ti.id
-                    )
-                )
-        session.commit()
-
-        response = self.get(client, "mapped", include_prior_dates=True)
-        sliced = client.get(
-            f"/execution/xcoms/dag/runid/mapped/{XCOM_RETURN_KEY}/slice", params={"include_prior_dates": True}
-        )
-
-        assert response.status_code == 200
-        assert response.json()["value"] == sliced.json()
-        assert {"mapped 0", "mapped 2"} <= set(response.json()["value"])
 
     @pytest.mark.parametrize(
         ("same_run_caller", "status_code"),

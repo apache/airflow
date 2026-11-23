@@ -109,10 +109,11 @@ class AddCallbackStateEndpoint(VersionChange):
 
 class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
     """
-    Resolve an omitted ``map_index`` on Get XCom by how the producing task is defined.
+    Resolve an omitted XCom ``map_index`` by the producing task's definition.
 
-    An unmapped task still reads map index -1, and a mapped task now returns the values of all its
-    instances as a list. Older clients keep reading -1 for an omitted ``map_index``.
+    A mapped task now returns the values of all its instances as a list, except
+    with ``include_prior_dates``. An unmapped task still reads map index -1, as
+    do older clients.
     """
 
     description = __doc__

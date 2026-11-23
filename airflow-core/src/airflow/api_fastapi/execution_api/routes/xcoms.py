@@ -170,7 +170,7 @@ _ResolverDep = Annotated[TaskCoordinateResolver, Depends(_get_resolver)]
 
 
 def _get_calling_ti(token: ExecutionToken, *, session: Session) -> TaskInstance | None:
-    """Return the task instance making the request, or None for a caller that is not a task."""
+    """Return the requesting task instance, or None for any other caller."""
     if token.claims.scope != "execution":
         return None
     return session.get(TaskInstance, token.id)
@@ -415,7 +415,7 @@ def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
 def _read_xcom_slice(
     xcom_read: _XComRead, *, start: int | None, stop: int | None, step: int | None, session: Session
 ) -> list[JsonValue]:
-    """Read the values of a sequence read in its order, sliced like a Python sequence."""
+    """Return a sequence read's values in order, sliced like a Python list."""
     entity = xcom_entity(xcom_read.statement)
     query = xcom_read.statement.order_by(None)
     ascending, descending = xcom_read.get_order(entity), xcom_read.get_order(entity, descending=True)
@@ -590,14 +590,16 @@ def _resolve_omitted_map_index(
     """
     Return the map index to read for an omitted one, or None for every instance.
 
-    The producing task's definition in the Dag version its run uses decides: a
-    mapped operator, or a task in a mapped task group, is mapped however many
-    instances it expanded to. A caller in the same run reads by its own Dag
-    version, as reads of a given map index do. A task that cannot be found
-    reads -1, so the read reports it as not found.
+    A mapped operator, or a task in a mapped task group, reads every instance,
+    however many it expanded to. The task is looked up in the Dag version its
+    run uses, or the caller's own if the caller is in the same run, as reads of
+    a given map index do.
+
+    Everything else reads -1: an unmapped task, one that cannot be found, a read
+    with ``offset`` or ``include_prior_dates``, and older API versions.
     """
-    if params.offset is not None:
-        return -1  # None reads a mapped task's list.
+    if params.offset is not None or params.include_prior_dates:
+        return -1
     if not ResolveOmittedXComMapIndexByTaskDefinition.is_applied:
         return -1
     if caller is not None and (caller.dag_id, caller.run_id) == (dag_id, run_id):
