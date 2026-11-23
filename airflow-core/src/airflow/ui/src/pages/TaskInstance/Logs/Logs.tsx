@@ -39,6 +39,7 @@ import { SearchParamsKeys } from "src/constants/searchParams";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
 import { useTaskInstanceView } from "src/hooks/useTaskInstanceView";
+import { useDefaultLogSources } from "src/hooks/useUserSettings";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
@@ -84,6 +85,7 @@ export const Logs = () => {
   const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>(LOG_SHOW_TIMESTAMP_KEY, true);
   const [showSource, setShowSource] = useLocalStorage<boolean>(LOG_SHOW_SOURCE_KEY, false);
   const [showLogLevel, setShowLogLevel] = useLocalStorage<boolean>(LOG_SHOW_LOG_LEVEL_KEY, true);
+  const [defaultSourceFilters] = useDefaultLogSources();
   const [fullscreen, setFullscreen] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -95,6 +97,7 @@ export const Logs = () => {
   } = useLogs(
     {
       dagId,
+      defaultSourceFilters,
       historical,
       logLevelFilters,
       showLogLevel,
@@ -113,7 +116,7 @@ export const Logs = () => {
     showLogLevel,
     showSource,
     showTimestamp,
-    sourceFilters,
+    sourceFilters: parsedData.sourceFilters ?? [],
     translate,
   });
 
@@ -266,6 +269,7 @@ export const Logs = () => {
     showLogLevel,
     showSource,
     showTimestamp,
+    sourceFilters: parsedData.sourceFilters,
     sourceOptions: parsedData.sources,
     taskInstance,
     toggleExpanded,

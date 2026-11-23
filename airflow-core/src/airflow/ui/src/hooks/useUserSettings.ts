@@ -27,6 +27,7 @@ import {
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DAGS_LIST_SHOW_RECENT_TASKS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
+  DEFAULT_LOG_SOURCES_KEY,
   DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
@@ -79,6 +80,9 @@ export const useMarkTaskInstanceDefaultOptions = () =>
 /** Tab shown first when a task instance is opened without an explicit tab in the URL. */
 export const useDefaultTaskInstanceTab = () =>
   useLocalStorage<DefaultTaskInstanceTab>(DEFAULT_TASK_INSTANCE_TAB_KEY, "logs");
+
+/** Log sources a task log is filtered to when its URL carries no source selection. */
+export const useDefaultLogSources = () => useLocalStorage<Array<string>>(DEFAULT_LOG_SOURCES_KEY, []);
 
 /** Page the app root ("/") lands on: the dashboard or the Dags list. */
 export const useDefaultLandingPage = () =>

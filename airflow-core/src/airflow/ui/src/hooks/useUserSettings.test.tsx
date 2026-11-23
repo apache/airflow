@@ -26,6 +26,7 @@ import {
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
   DEFAULT_LANDING_PAGE_KEY,
+  DEFAULT_LOG_SOURCES_KEY,
   DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
@@ -38,6 +39,7 @@ import {
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
   useDefaultLandingPage,
+  useDefaultLogSources,
   useDefaultMatchAnywhere,
   useDefaultTaskInstanceTab,
   useMarkTaskInstanceDefaultOptions,
@@ -245,5 +247,24 @@ describe("useMarkTaskInstanceDefaultOptions", () => {
     expect(JSON.parse(localStorage.getItem(MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY) ?? "[]")).toEqual([
       "downstream",
     ]);
+  });
+});
+
+describe("useDefaultLogSources", () => {
+  it("defaults to no sources", () => {
+    const { result } = renderHook(() => useDefaultLogSources());
+
+    expect(result.current[0]).toEqual([]);
+  });
+
+  it("persists the chosen sources", () => {
+    const { result } = renderHook(() => useDefaultLogSources());
+
+    act(() => {
+      result.current[1](["task"]);
+    });
+
+    expect(result.current[0]).toEqual(["task"]);
+    expect(JSON.parse(localStorage.getItem(DEFAULT_LOG_SOURCES_KEY) ?? "[]")).toEqual(["task"]);
   });
 });

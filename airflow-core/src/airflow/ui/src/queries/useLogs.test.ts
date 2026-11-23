@@ -146,3 +146,27 @@ describe("parseLogs log groups", () => {
     expect(headers([msg("::group::Post Execute")])).toEqual(["Post Execute"]);
   });
 });
+
+describe("parseLogs default sources", () => {
+  const data = [
+    { ...msg("bundle loaded"), logger: "airflow.dag_processing" },
+    { ...msg("hello from the task"), logger: "task" },
+  ];
+  const parse = (defaultSourceFilters: Array<string>, sourceFilters?: Array<string>) => {
+    const parsed = parseLogs({ data, defaultSourceFilters, sourceFilters, translate, tryNumber: 1 });
+
+    return { lines: parsed.parsedLogs?.length, sourceFilters: parsed.sourceFilters };
+  };
+
+  it("filters to a default source the log contains", () => {
+    expect(parse(["task"])).toEqual({ lines: 1, sourceFilters: ["task"] });
+  });
+
+  it("shows every line when the log lacks the default source", () => {
+    expect(parse(["task.stderr"])).toEqual({ lines: 2, sourceFilters: [] });
+  });
+
+  it("lets all sources override the default", () => {
+    expect(parse(["task"], ["all"])).toEqual({ lines: 2, sourceFilters: [] });
+  });
+});

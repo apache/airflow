@@ -20,7 +20,7 @@ import { describe, it, expect } from "vitest";
 
 import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
 
-import { isUserCodeFrame, parseStreamingLogContent } from "./logs";
+import { isUserCodeFrame, parseStreamingLogContent, resolveSourceFilters } from "./logs";
 
 describe("isUserCodeFrame", () => {
   it.each([
@@ -122,5 +122,30 @@ describe("parseStreamingLogContent", () => {
     expect(parseStreamingLogContent(data)).toEqual([
       { level: "info", message: "log message", timestamp: "2024-01-01" },
     ]);
+  });
+});
+
+describe("resolveSourceFilters", () => {
+  const available = ["task", "task.stdout"];
+
+  it.each([
+    {
+      defaults: ["task"],
+      expected: ["task.stdout"],
+      name: "a selection over the defaults",
+      selected: ["task.stdout"],
+    },
+    { defaults: ["task"], expected: [], name: "all sources over the defaults", selected: ["all"] },
+    { defaults: ["task"], expected: ["task"], name: "the defaults without a selection", selected: [] },
+    { defaults: ["task", "other"], expected: ["task"], name: "only the defaults the log has", selected: [] },
+    {
+      defaults: ["other"],
+      expected: [],
+      name: "no filter when the log has none of the defaults",
+      selected: [],
+    },
+    { defaults: undefined, expected: [], name: "no filter without defaults", selected: undefined },
+  ])("uses $name", ({ defaults, expected, selected }) => {
+    expect(resolveSourceFilters({ available, defaults, selected })).toEqual(expected);
   });
 });

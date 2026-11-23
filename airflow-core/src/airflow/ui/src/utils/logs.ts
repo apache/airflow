@@ -30,6 +30,25 @@ export enum LogLevel {
   CRITICAL = "critical",
 }
 
+export const ALL_LOG_SOURCES = "all";
+
+/** An explicit selection wins; otherwise the saved defaults that the log actually contains. */
+export const resolveSourceFilters = ({
+  available,
+  defaults = [],
+  selected = [],
+}: {
+  available: Array<string>;
+  defaults?: Array<string>;
+  selected?: Array<string>;
+}): Array<string> => {
+  if (selected.includes(ALL_LOG_SOURCES)) {
+    return [];
+  }
+
+  return selected.length > 0 ? selected : defaults.filter((source) => available.includes(source));
+};
+
 export const logLevelColorMapping = {
   [LogLevel.DEBUG]: "gray",
   [LogLevel.INFO]: "green",
