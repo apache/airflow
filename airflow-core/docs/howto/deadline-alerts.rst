@@ -568,10 +568,14 @@ followed by a more urgent escalation if the Dag is still running.
   needs. It still works but is deprecated and will be removed in Airflow 4.0 — declare the keyword-only
   parameters your ``_evaluate_with()`` needs instead.
 * **Database Access**: Use the ``session`` parameter for read-only Airflow database queries if needed.
-  The session is separate from the scheduler's own and is discarded after the reference is evaluated.
-  On PostgreSQL and MySQL it is read-only, so writing through it or locking rows (``SELECT ... FOR UPDATE``)
-  raises an error and the alert is skipped. Do not do either: the scheduler holds locks on the Dag's rows
+  When a Dag run is created, the session is separate from the scheduler's own and is discarded after the
+  reference is evaluated. It is read-only on PostgreSQL, MySQL and SQLite, so writing through it or
+  locking rows (``SELECT ... FOR UPDATE``) raises an error and the alert is skipped. Do not do either: the scheduler holds locks on the Dag's rows
   while it creates the Dag run, so a write or a row lock would wait for the scheduler, which in turn waits
   for your reference. Do not open another session either (for example with ``provide_session`` or
   ``create_session``), because that returns the scheduler's session and a ``commit()`` or ``rollback()``
   on it fails the Dag run creation.
+
+  When Task Instances are cleared, references anchored to the time the Dag run was queued are
+  re-evaluated on the session of the clearing request, with the full Dag run. That session is not isolated,
+  so the same rules apply, and a ``commit()`` or ``rollback()`` on it makes the clear fail.
