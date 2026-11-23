@@ -263,8 +263,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options kube_config_path, "
-                "kube_config, in_cluster, config_dict are mutually exclusive. "
+                "Invalid connection configuration. Options config_file/kube_config_path, "
+                "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
 
@@ -632,13 +632,14 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         """
         Get job with status of specified name and namespace.
 
+        Reads the Job object rather than the ``jobs/status`` subresource: both return the same ``status``,
+        but RBAC checks subresources separately, so this only needs ``get`` on ``jobs``.
+
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job_status(
-            name=job_name, namespace=namespace, pretty=True
-        )
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
         """
@@ -935,7 +936,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
-        kubeconfig_path = await self._get_field("kube_config_path")
+        kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))
         kubeconfig = await self._get_field("kube_config")
 
         num_selected_configuration = sum(
@@ -944,7 +945,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options kube_config_path, "
+                "Invalid connection configuration. Options config_file/kube_config_path, "
                 "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
@@ -1344,12 +1345,14 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         Get job's status object.
 
+        Reads the Job object, see :meth:`KubernetesHook.get_job_status`.
+
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
         async with self.get_conn() as connection:
             v1_api = async_client.BatchV1Api(connection)
-            job: V1Job = await v1_api.read_namespaced_job_status(
+            job: V1Job = await v1_api.read_namespaced_job(
                 name=name,
                 namespace=namespace,
             )

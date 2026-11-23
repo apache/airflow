@@ -20,9 +20,11 @@ import asyncio
 import concurrent.futures
 import contextvars
 import functools
+import math
 import re
+import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload
 
 import pydantic_ai
 from pydantic_ai import Agent
@@ -32,6 +34,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider_class
 from typing_extensions import ParamSpec
 
+from airflow.providers.common.ai.hooks.ollama import OllamaBackend
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
 from airflow.providers.common.compat.module_loading import import_string
@@ -44,6 +47,32 @@ pydantic_ai.BANNER_ENABLED = False
 OutputT = TypeVar("OutputT")
 P = ParamSpec("P")
 R = TypeVar("R")
+
+
+class ModelReadinessBackend(Protocol):
+    """
+    Server-specific half of :meth:`PydanticAIHook.ensure_model_ready`.
+
+    Any object with this method works; it does not need to subclass this class.
+
+    ``load`` returns once the model is available, waiting at most *timeout* seconds, and raises
+    ``TimeoutError`` when it exceeds *timeout*. See :ref:`self_hosted_models_readiness_backend`.
+    """
+
+    def load(self, *, timeout: float) -> None: ...
+
+
+class ModelReadinessBackendFactory(Protocol):
+    """
+    Builds the :class:`ModelReadinessBackend` for :meth:`PydanticAIHook.ensure_model_ready`.
+
+    Called with the ``model_name`` without its provider prefix and the connection host as
+    ``base_url`` (``None`` when the connection has no host). ``OllamaBackend`` is one.
+    See :ref:`self_hosted_models_readiness_backend`.
+    """
+
+    def __call__(self, *, model_name: str, base_url: str | None) -> ModelReadinessBackend: ...
+
 
 # Sentinel distinguishing "caller did not pass ``instrument``" from an explicit
 # ``instrument=None`` / ``instrument=False`` (which mean "do not instrument, and
@@ -147,13 +176,13 @@ class PydanticAIHook(BaseHook):
     Connection fields:
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
-        - **extra** JSON: ``{"model": "openai:gpt-5",
+        - **extra** JSON: ``{"model": "openai:gpt-6.1-sol",
           "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``; add
           ``"model_provider": "openai-chat"`` to resolve bare model names on this connection
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
     :param model_id: Model identifier. A name whose segment before the first ``:``
-        is itself a pydantic-ai provider (e.g. ``"openai:gpt-5"``) pins the
+        is itself a pydantic-ai provider (e.g. ``"openai:gpt-6.1-sol"``) pins the
         platform and is used verbatim -- a plain ``:`` alone is not enough, since
         some vendors' native model ids contain one of their own (e.g. Bedrock's
         version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"``, which is still a
@@ -207,6 +236,7 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
+        self._logged_explicit_credentials = False
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
@@ -219,7 +249,19 @@ class PydanticAIHook(BaseHook):
         :raises ValueError: if the connection's type is registered to a hook that is not a
             ``PydanticAIHook``.
         """
-        conn = cls.get_connection(conn_id)
+        return cls.get_hook_for_connection(cls.get_connection(conn_id), hook_params)
+
+    @classmethod
+    def get_hook_for_connection(cls, conn: Connection, hook_params: dict | None = None):
+        """
+        Return the hook for an already-fetched ``conn``, built with ``hook_params``.
+
+        Does what :meth:`get_hook` does after its lookup, so a caller that holds the
+        connection does not fetch it a second time.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
         hooks = _get_registered_hooks()
         # Resolved from the registry rather than from ``cls.conn_type`` or the subclasses
         # imported so far: operators call this on the base class, and a subclass from another
@@ -235,9 +277,9 @@ class PydanticAIHook(BaseHook):
         ):
             expected_types = sorted(conn_type for conn_type in hooks if conn_type.startswith("pydanticai"))
             raise ValueError(
-                f"Connection {conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
+                f"Connection {conn.conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
                 f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
-                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
+                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-6.1-sol') in Model."
             )
         # The check above guarantees a ``PydanticAIHook``. Seeding saves the second fetch of
         # this same connection its first ``get_conn`` would make.
@@ -269,7 +311,7 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5"}',
+                "extra": '{"model": "openai:gpt-6.1-sol"}',
             },
         }
 
@@ -374,6 +416,30 @@ class PydanticAIHook(BaseHook):
             FallbackModel(model, *fallback_models, fallback_on=(ModelAPIError,)) if fallback_models else model
         )
         return self._model
+
+    def get_primary_model(self, model_id: str | None = None) -> Model:
+        """
+        Return the concrete ``Model`` for this connection, without the fallback chain.
+
+        :meth:`get_conn` wraps the primary model in a ``FallbackModel`` when fallback
+        connections are configured. A caller that needs the provider's own model class
+        (for the batch methods on ``Model``, which a ``FallbackModel`` does not have) uses
+        this instead. Every call builds a new model, so one model is never shared across
+        event loops.
+
+        :param model_id: Model to build instead of this hook's own. Resolved the same way
+            as the hook's ``model_id``: a bare name takes this connection's platform.
+        """
+        return self._resolve_own_model(model_id=model_id)
+
+    async def aget_primary_model(self, model_id: str | None = None) -> Model:
+        """
+        Return the concrete ``Model`` for this connection, for use inside an async task.
+
+        The async counterpart of :meth:`get_primary_model`; the resolution runs on the hook's
+        own worker thread for the reason given in :meth:`aget_conn`.
+        """
+        return await _run_off_loop(self.get_primary_model, model_id)
 
     async def aget_conn(self) -> Model:
         """
@@ -492,6 +558,7 @@ class PydanticAIHook(BaseHook):
     def _resolve_own_model(
         self,
         *,
+        model_id: str | None = None,
         forwarded_model_id: str | None = None,
         forwarded_from_conn_id: str | None = None,
         forwarded_model_provider: str | None = None,
@@ -499,6 +566,7 @@ class PydanticAIHook(BaseHook):
         """
         Resolve the ``Model`` for this hook's own connection, ignoring any fallback chain.
 
+        :param model_id: Model to resolve instead of the one this hook configures.
         :param forwarded_model_id: The primary connection's configured model name,
             forwarded down a fallback chain by :meth:`_resolve_fallback_models` --
             see that method's docstring for when a name is eligible to forward. A
@@ -516,7 +584,7 @@ class PydanticAIHook(BaseHook):
         # Read up front, so a bad ``model_provider`` in the extra fails even when the model name pins its own.
         model_provider = self._get_model_provider()
 
-        model_name: str | KnownModelName | None = self._get_configured_model_name()
+        model_name: str | KnownModelName | None = model_id or self._get_configured_model_name()
         forwarded = False
         if (
             not model_name
@@ -527,10 +595,7 @@ class PydanticAIHook(BaseHook):
             model_name = forwarded_model_id
             forwarded = True
         if not model_name:
-            raise ValueError(
-                f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
-                "hook or the Model field on the connection."
-            )
+            raise self._build_missing_model_error()
         model_name = self._qualify_model_name(
             model_name,
             forwarded_from_conn_id=forwarded_from_conn_id if forwarded else None,
@@ -542,11 +607,14 @@ class PydanticAIHook(BaseHook):
         provider_kwargs = self._get_provider_kwargs(api_key, base_url, extra)
         if provider_kwargs:
             _kwargs = provider_kwargs  # capture for closure
-            self.log.info(
+            # Batch polling builds a model per call; the first line says it, the rest would only repeat it.
+            log_credentials = self.log.debug if self._logged_explicit_credentials else self.log.info
+            log_credentials(
                 "Using explicit credentials for provider with model '%s': %s",
                 model_name,
                 list(provider_kwargs),
             )
+            self._logged_explicit_credentials = True
 
             def _provider_factory(pname: str) -> Any:
                 try:
@@ -561,6 +629,76 @@ class PydanticAIHook(BaseHook):
             return infer_model(model_name, provider_factory=_provider_factory)
 
         return infer_model(model_name)
+
+    def _build_missing_model_error(self) -> ValueError:
+        return ValueError(
+            f"No model specified for connection '{self.llm_conn_id}'. Set model_id on the "
+            "hook or the Model field on the connection."
+        )
+
+    def _build_readiness_backend(
+        self, model_name: str, backend_factory: ModelReadinessBackendFactory | None
+    ) -> ModelReadinessBackend:
+        """
+        Build the readiness backend for the provider-prefixed *model_name*.
+
+        *backend_factory* is called with the unprefixed ``model_name`` and the connection's
+        ``base_url``; without it only Ollama has a built-in backend.
+        """
+        provider_prefix, sep, rest = model_name.partition(":")
+        if backend_factory is None and provider_prefix != "ollama":
+            raise NotImplementedError(
+                f"ensure_model_ready has no built-in readiness backend for '{model_name}' on "
+                f"connection '{self.llm_conn_id}'; only Ollama is built in. Pass backend_factory= a "
+                "callable taking model_name= and base_url= that returns an object with load(); "
+                "OllamaBackend is available for a model that Ollama serves."
+            )
+        conn, _ = self._get_conn_and_extra()
+        base_url = conn.host or None
+        unprefixed_name = rest if sep else model_name
+        if backend_factory is not None:
+            return backend_factory(model_name=unprefixed_name, base_url=base_url)
+        return OllamaBackend(base_url, unprefixed_name)
+
+    def ensure_model_ready(
+        self,
+        *,
+        timeout: float = 300.0,
+        backend_factory: ModelReadinessBackendFactory | None = None,
+    ) -> None:
+        """
+        Block until this connection's local model is loaded, asking the server to load it if needed.
+
+        Opt-in, blocks the worker slot, and loads only this hook's own connection. Details and
+        limits: :ref:`self_hosted_models_ensure_model_ready`.
+
+        :param timeout: Seconds to wait for the load request, passed to the backend as is.
+        :param backend_factory: Callable that takes the keyword arguments ``model_name`` (the
+            resolved name without its provider prefix) and ``base_url`` (the connection host, or
+            ``None``) and returns an object with ``load()`` (see ModelReadinessBackend). When
+            given, the model prefix and connection host checks are skipped; a missing model still
+            raises ``ValueError``. See :ref:`self_hosted_models_readiness_backend`.
+        :raises ValueError: If *timeout* is not a positive finite number or no model is configured;
+            also from the default ``OllamaBackend`` when neither the connection host nor the
+            ``OLLAMA_BASE_URL`` environment variable is set.
+        :raises NotImplementedError: If *backend_factory* is not given and the model's provider
+            prefix has no built-in backend (only ``ollama`` has one).
+        :raises TimeoutError: If a request times out.
+        :raises httpx2.TransportError: If a request cannot reach the server.
+        :raises httpx2.HTTPStatusError: If the server answers with an error status. The default
+            ``OllamaBackend`` words the message with the model name and the server's error text.
+        """
+        if not math.isfinite(timeout) or timeout <= 0:
+            raise ValueError(f"timeout must be positive and finite, got {timeout}.")
+        if not (configured_name := self._get_configured_model_name()):
+            raise self._build_missing_model_error()
+        model_name = self._qualify_model_name(configured_name)
+        backend = self._build_readiness_backend(model_name, backend_factory)
+
+        started = time.monotonic()
+        self.log.info("Loading model '%s' for connection '%s'", model_name, self.llm_conn_id)
+        backend.load(timeout=timeout)
+        self.log.info("Model '%s' is ready after %.1f seconds", model_name, time.monotonic() - started)
 
     def _get_fallback_conn_ids(self) -> list[str]:
         """
@@ -598,7 +736,7 @@ class PydanticAIHook(BaseHook):
         ``model`` in ``extra`` uses that instead, but a fallback with none falls
         back to the forwarded name, qualified with *its own* platform prefix.
         Only a *bare* forwarded name is usable this way -- a forwarded name that
-        already pins a platform (e.g. ``"openai:gpt-5"``) names a model of the
+        already pins a platform (e.g. ``"openai:gpt-6.1-sol"``) names a model of the
         primary's provider, not this fallback's, so it is not applied; that
         fallback still raises "no model specified" unless its own ``extra`` sets
         a ``model``. Whether a name already pins a platform is decided by

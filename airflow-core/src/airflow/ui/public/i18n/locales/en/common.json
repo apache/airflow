@@ -31,6 +31,7 @@
     "deadlines": "Deadlines",
     "jobs": "Jobs",
     "requiredActions": "Required Actions",
+    "triggers": "Triggers",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "Collapse all extra JSON",
@@ -197,6 +198,7 @@
     },
     "save": "Save"
   },
+  "moreTabs": "More",
   "nav": {
     "admin": "Admin",
     "assets": "Assets",
@@ -260,6 +262,7 @@
     "asset_triggered": "Asset Triggered",
     "backfill": "Backfill",
     "manual": "Manual",
+    "operator_triggered": "Operator Triggered",
     "scheduled": "Scheduled"
   },
   "scroll": {
@@ -439,6 +442,7 @@
   "switchDag": "Switch $t(dag_one)",
   "switchDagRun": "Switch $t(dagRun_one)",
   "switchMapIndex": "Switch $t(mapIndex)",
+  "switchTask": "Switch $t(task_one)",
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
@@ -609,6 +613,8 @@
     "tokenShownOnce": "This token will only be shown once. Copy it now."
   },
   "total": "Total {{state}}",
+  "trigger_one": "Trigger",
+  "trigger_other": "Triggers",
   "triggered": "Triggered",
   "tryNumber": "Try Number",
   "unpause": "Unpause",

@@ -1,0 +1,20 @@
+``xcom_pull`` without a map index returns every instance's values for a mapped task
+
+``ti.xcom_pull(task_ids=..., map_indexes=None)`` on a mapped task used to look only for an unmapped
+value, find none, and return the default. It now returns a list of the mapped instances' values, in
+map index order, as pulling the task's ``XComArg`` from outside its mapped task group does. The
+default is still returned with ``include_prior_dates=True``. Pass ``map_indexes=-1`` to keep reading
+only an unmapped value.
+
+``getXCom`` in the Go, Java and TypeScript SDKs behaves the same way when no map index is given.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

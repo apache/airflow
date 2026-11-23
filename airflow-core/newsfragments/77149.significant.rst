@@ -1,0 +1,1 @@
+PostgreSQL 14 is no longer supported. Upgrade the metadata database to PostgreSQL 15 or later before upgrading Airflow.

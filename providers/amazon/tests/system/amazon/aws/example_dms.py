@@ -68,7 +68,7 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, print_and_delete_log_group_task
 from system.amazon.aws.utils.ec2 import get_default_vpc_id
 
 DAG_ID = "example_dms"
@@ -350,23 +350,6 @@ def delete_dms_assets(
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def print_and_delete_dms_task_logs(log_group_name: str):
-    """
-    Copy the DMS task logs into this task's log, then delete their CloudWatch log group.
-
-    Runs after the replication instance is deleted, so DMS has finished shipping the task logs.
-    """
-    logs_client = boto3.client("logs")
-    try:
-        for page in logs_client.get_paginator("filter_log_events").paginate(logGroupName=log_group_name):
-            for event in page["events"]:
-                print(event["message"])
-        logs_client.delete_log_group(logGroupName=log_group_name)
-    except logs_client.exceptions.ResourceNotFoundException:
-        print(f"Log group {log_group_name} does not exist, DMS wrote no task logs.")
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_security_group(
     security_group_id: str, security_group_name: str, existing_security_group: str | None = None
 ):
@@ -479,7 +462,7 @@ with DAG(
         },
     )
     # [END howto_operator_dms_create_task]
-    # Kept out of the docs snippet; print_and_delete_dms_task_logs collects these logs in teardown.
+    # Kept out of the docs snippet; print_and_delete_log_group_task collects these logs in teardown.
     create_task.create_task_kwargs["ReplicationTaskSettings"] = json.dumps(
         {
             **json.loads(create_task.create_task_kwargs["ReplicationTaskSettings"]),
@@ -633,7 +616,8 @@ with DAG(
         # TEST TEARDOWN
         delete_task,
         delete_assets,
-        print_and_delete_dms_task_logs(f"dms-tasks-{dms_replication_instance_name}"),
+        # Runs after delete_assets removes the replication instance, so DMS has finished shipping the logs.
+        print_and_delete_log_group_task(f"dms-tasks-{dms_replication_instance_name}"),
         delete_db_instance,
         delete_parameter_group,
         delete_security_group(create_sg, security_group_name, security_group),

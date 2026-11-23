@@ -844,6 +844,25 @@ def test_get_conn_with_openai_client_kwargs(mock_client):
     )
 
 
+def test_get_conn_async_client_builds_a_real_async_openai(create_connection_without_db):
+    """The kwargs reach the real ``AsyncOpenAI`` constructor, which validates them."""
+    create_connection_without_db(
+        Connection(
+            conn_id="openai_async_client",
+            conn_type="openai",
+            password="api_key",
+            extra={"openai_client_kwargs": {"base_url": "https://gateway.example/v1", "timeout": 7}},
+        )
+    )
+
+    client = OpenAIHook(conn_id="openai_async_client").get_conn(async_client=True)
+
+    assert isinstance(client, AsyncOpenAI)
+    assert str(client.base_url) == "https://gateway.example/v1/"
+    assert client.timeout == 7
+    assert client.api_key == "api_key"
+
+
 def _make_workload_identity_conn(conn_id, extra):
     conn = Connection(
         conn_id=conn_id,

@@ -503,6 +503,11 @@ ARG_SHUT_DOWN_LOGGING = Arg(
 ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
 ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
 ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
+ARG_KEEP_TASK_STATE = Arg(
+    ("--keep-task-state",),
+    help="Keep the task state store entries of cleared tasks so they resume from them",
+    action="store_true",
+)
 ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
 ARG_DAG_REGEX = Arg(
     ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
@@ -550,7 +555,7 @@ ARG_DB_DRY_RUN = Arg(
 )
 ARG_DB_SKIP_ARCHIVE = Arg(
     ("--skip-archive",),
-    help="Don't preserve purged records in an archive table.",
+    help="Delete purged records directly without creating an archive table.",
     action="store_true",
 )
 ARG_DB_EXPORT_FORMAT = Arg(
@@ -1270,6 +1275,7 @@ DAGS_COMMANDS = (
             ARG_PARTITION_DATE_END,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_KEEP_TASK_STATE,
             ARG_YES,
             ARG_VERBOSE,
         ),
@@ -1517,6 +1523,7 @@ TASKS_COMMANDS = (
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_KEEP_TASK_STATE,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
         ),

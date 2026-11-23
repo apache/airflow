@@ -224,7 +224,7 @@ class OpenAIResponseOperator(BaseOperator):
         self,
         conn_id: str,
         input_text: str | list[Any],
-        model: str = "gpt-4o-mini",
+        model: str = "gpt-6-luna",
         response_kwargs: dict | None = None,
         *,
         max_output_tokens: int | str | None = None,
