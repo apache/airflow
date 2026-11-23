@@ -475,3 +475,44 @@ class TestRenderedTaskInstanceFields:
         ti.state = None
         # rerun the old run. this shouldn't fail
         dag_maker.run_ti(task.task_id, dr)
+
+
+@pytest.mark.parametrize("setting", ["True", "False"])
+def test_get_serialized_template_fields_respects_key_sorting(monkeypatch, setting):
+    from types import SimpleNamespace
+
+    from airflow.models.renderedtifields import get_serialized_template_fields
+
+    monkeypatch.setenv("AIRFLOW__CORE__RENDERED_TEMPLATE_FIELDS_SORT_KEYS", setting)
+
+    nested = {
+        "z_first": "first",
+        "a_second": "second",
+        "m_third": "third",
+    }
+    payload = {
+        "z_first": "first",
+        "a_second": "second",
+        "m_nested": nested,
+    }
+    task = SimpleNamespace(
+        template_fields=("payload",),
+        template_fields_renderers={"payload.m_nested": "json"},
+        payload=payload,
+    )
+
+    result = get_serialized_template_fields(task)
+
+    outer_keys = ["z_first", "a_second", "m_nested"]
+    nested_keys = ["z_first", "a_second", "m_third"]
+
+    if setting == "True":
+        outer_keys = sorted(outer_keys)
+        nested_keys = sorted(nested_keys)
+
+    assert list(result["payload"]) == outer_keys
+    assert list(result["payload"]["m_nested"]) == nested_keys
+    assert list(result["payload.m_nested"]) == nested_keys
+
+    assert list(payload) == ["z_first", "a_second", "m_nested"]
+    assert list(nested) == ["z_first", "a_second", "m_third"]

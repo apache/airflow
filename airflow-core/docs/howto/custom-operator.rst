@@ -274,6 +274,32 @@ Currently available lexers:
   - yaml
 
 If you use a non-existing lexer then the value of the template field will be rendered as a pretty-printed object.
+Dictionary key ordering
+^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, dictionary keys in rendered template fields are sorted alphabetically,
+including keys in nested dictionaries.
+
+To preserve dictionary insertion order, set
+``[core] rendered_template_fields_sort_keys`` to ``False``:
+
+.. code-block:: ini
+
+    [core]
+    rendered_template_fields_sort_keys = False
+
+Alternatively, set the environment variable:
+
+.. code-block:: bash
+
+    export AIRFLOW__CORE__RENDERED_TEMPLATE_FIELDS_SORT_KEYS=False
+
+Apply the setting to the environment where tasks execute. Restart the affected
+Airflow processes after changing their configuration.
+
+This setting applies when rendered template fields are prepared for storage.
+It does not reorder fields already stored for previous task attempts or change
+Dag serialization.
 
 Limitations
 ^^^^^^^^^^^
