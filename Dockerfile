@@ -907,7 +907,8 @@ function install_rustup() {
     chmod +x /tmp/rustup-init
     # Building wheels from source needs only rustc and cargo. The default profile also adds
     # rust-docs, clippy and rustfmt, which add tens of thousands of files to the image.
-    /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
+    # Updating a toolchain in a pinned Docker layer can require copying across OverlayFS layers.
+    RUSTUP_PERMIT_COPY_RENAME=1 /tmp/rustup-init -y --profile minimal --default-toolchain "${RUSTUP_DEFAULT_TOOLCHAIN}"
     rm -f /tmp/rustup-init
 }
 
