@@ -122,8 +122,7 @@ it returns: `undefined` pushes nothing, and `null` is a value it pushes, as `set
     `MappedTaskRef`.
 13. **`triggerRule: "always"` is rejected on a task that expands over an upstream's output**, when
     the Dag is read, as Python rejects it: `always` runs the task even when that upstream failed and
-    left nothing to expand over. The check covers `expandKwargs` over a reference, and
-    an upstream inside a literal list.
+    left nothing to expand over. The check covers `expandKwargs` over a reference.
 14. **Three things are not mapped, each behind its own capability flag** (ADR-0016, decision 4):
     - **Task groups.** `dag.taskGroup(id)` takes no inputs, so there is nothing to expand. A later ADR
       designs groups that take inputs, together with ADR-0016's rules for them: no `expand` inside a
