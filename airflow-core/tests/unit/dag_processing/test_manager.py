@@ -318,7 +318,12 @@ def _statement_breakdown(counts: Counter[tuple[str, str]]) -> str:
 # lapsed it rewrites it, which costs two more statements per Dag and nothing extra per call. The
 # per-call price is a file that parsed cleanly: one reporting import errors also looks up whichever
 # of them are already recorded.
-FIXED_PER_CALL = 9
+#
+# Ten of the nineteen are the two DagModel lookups a call makes (``add_dags``, then the refetch after
+# the asset sync): ``find_orm_dags`` loads the five one-to-many collections with ``selectinload``,
+# one SELECT per collection, where the single eager-joined SELECT it replaces multiplied rows per
+# Dag instead (#72393). The rows dropped, the statements went up.
+FIXED_PER_CALL = 19
 UNCHANGED_PER_DAG = 3
 REWRITE_PER_DAG = 5
 # A file that failed to parse and so defines no Dags. Two of the five are import_error SELECTs: the

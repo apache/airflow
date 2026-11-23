@@ -574,7 +574,11 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(6):
+        # ``find_orm_dags`` loads the five one-to-many collections with ``selectinload``, so each of
+        # the two lookups a bulk write makes -- inside ``add_dags``, then the refetch after the asset
+        # sync -- is one SELECT for the Dags plus one per collection. Trading a joined cartesian row
+        # set for those extra SELECTs is the point of #72393, so the budgets below carry them.
+        with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -591,14 +595,14 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(9):
+        with assert_queries_count(19):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
-        with assert_queries_count(9):
+        with assert_queries_count(19):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         # Adding tags
         for dag in dags:
             dag.tags.add("test-dag2")
-        with assert_queries_count(10):
+        with assert_queries_count(20):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -617,7 +621,7 @@ class TestDag:
         # Removing tags
         for dag in dags:
             dag.tags.remove("test-dag")
-        with assert_queries_count(10):
+        with assert_queries_count(20):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -636,7 +640,7 @@ class TestDag:
         # Removing all tags
         for dag in dags:
             dag.tags = set()
-        with assert_queries_count(10):
+        with assert_queries_count(20):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -659,7 +663,7 @@ class TestDag:
             for i in range(1)
         ]
 
-        with assert_queries_count(6):
+        with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0"} == {row[0] for row in session.execute(select(DagModel.dag_id)).all()}
@@ -671,9 +675,9 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(8):
+        with assert_queries_count(18):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
-        with assert_queries_count(8):
+        with assert_queries_count(18):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
 
     def test_bulk_write_to_db_multiple_dags(self, testing_dag_bundle):
@@ -688,7 +692,7 @@ class TestDag:
             for i in range(4)
         ]
 
-        with assert_queries_count(6):
+        with assert_queries_count(10):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
         with create_session() as session:
             assert {"dag-bulk-sync-0", "dag-bulk-sync-1", "dag-bulk-sync-2", "dag-bulk-sync-3"} == {
@@ -705,9 +709,9 @@ class TestDag:
                 assert row[0] is not None
 
         # Re-sync should do fewer queries
-        with assert_queries_count(9):
+        with assert_queries_count(19):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
-        with assert_queries_count(9):
+        with assert_queries_count(19):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
 
     @pytest.mark.parametrize("interval", [None, "@daily"])
