@@ -34,10 +34,11 @@ from collections.abc import Callable, Generator, Iterable
 from configparser import ConfigParser, NoOptionError, NoSectionError
 from contextlib import contextmanager
 from copy import deepcopy
+from dataclasses import dataclass, field
 from enum import Enum
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, TYPE_CHECKING, Any, TypeVar, overload
+from typing import IO, TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 from .exceptions import AirflowConfigException
 
@@ -128,6 +129,21 @@ class ValueNotFound:
 
 
 VALUE_NOT_FOUND_SENTINEL = ValueNotFound()
+
+
+@dataclass(frozen=True)
+class DynamicConfigSource:
+    """A configured ``_cmd`` or ``_secret`` source for a sensitive option."""
+
+    kind: Literal["cmd", "secret"]
+    value: str
+    _parser: AirflowConfigParser = field(repr=False, compare=False)
+
+    def read(self) -> str | None:
+        """Read the current raw value from the command or secrets backend without falling back to defaults."""
+        if self.kind == "cmd":
+            return run_command(self.value)
+        return self._parser._get_config_value_from_secret_backend(self.value)
 
 
 @overload
@@ -1140,50 +1156,103 @@ class AirflowConfigParser(ConfigParser):
         team_component: str = f"{team_name.upper()}___" if team_name else ""
         return f"{ENV_VAR_PREFIX}{team_component}{section.replace('.', '_').upper()}__{key.upper()}"
 
+    def _get_env_var_dynamic_source(
+        self, section: str, key: str, team_name: str | None = None
+    ) -> tuple[bool, DynamicConfigSource | None]:
+        """Return ``(found, dynamic_source)`` for an option's environment variable lookup."""
+        env_var = self._env_var_name(section, key, team_name=team_name)
+        if env_var in os.environ:
+            return True, None
+        if (section, key) in self.sensitive_config_values:
+            if (env_var_cmd := f"{env_var}_CMD") in os.environ:
+                return True, DynamicConfigSource("cmd", os.environ[env_var_cmd], self)
+            if (env_var_secret := f"{env_var}_SECRET") in os.environ:
+                return True, DynamicConfigSource("secret", os.environ[env_var_secret], self)
+        return False, None
+
+    def _get_config_file_cmd_source(self, section: str, key: str) -> DynamicConfigSource | None:
+        fallback_key = f"{key}_cmd"
+        if (section, key) in self.sensitive_config_values and super().has_option(section, fallback_key):
+            return DynamicConfigSource("cmd", super().get(section, fallback_key), self)
+        return None
+
+    def _get_config_file_secret_source(self, section: str, key: str) -> DynamicConfigSource | None:
+        fallback_key = f"{key}_secret"
+        if (section, key) in self.sensitive_config_values and super().has_option(section, fallback_key):
+            return DynamicConfigSource("secret", super().get(section, fallback_key), self)
+        return None
+
+    def get_dynamic_option_source(
+        self,
+        section: str,
+        key: str,
+        *,
+        lookup_from_deprecated: bool = True,
+    ) -> DynamicConfigSource | None:
+        """
+        Return the configured ``_cmd`` or ``_secret`` source for an option, if it wins precedence.
+
+        Follows the same lookup precedence as :meth:`get` without executing commands or querying
+        secrets backends. Returns ``None`` when the option is supplied as a literal value, uses a
+        default, is unset, or is not marked sensitive.
+        """
+        section, key, deprecated_section, deprecated_key, _ = self._resolve_deprecated_lookup(
+            section=section,
+            key=key,
+            lookup_from_deprecated=lookup_from_deprecated,
+        )
+        candidates = [(section, key)]
+        if deprecated_section and deprecated_key:
+            candidates.append((deprecated_section, deprecated_key))
+
+        for sec, opt in candidates:
+            found, source = self._get_env_var_dynamic_source(sec, opt)
+            if found:
+                return source
+
+        for sec, opt in candidates:
+            if super().has_option(sec, opt):
+                return None
+
+        for sec, opt in candidates:
+            if (source := self._get_config_file_cmd_source(sec, opt)) is not None:
+                return source
+
+        for sec, opt in candidates:
+            if (source := self._get_config_file_secret_source(sec, opt)) is not None:
+                return source
+
+        return None
+
     def _get_env_var_option(self, section: str, key: str, team_name: str | None = None):
         """Get config option from environment variable."""
         env_var: str = self._env_var_name(section, key, team_name=team_name)
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
-        # alternatively AIRFLOW__{SECTION}__{KEY}_CMD (for a command)
-        env_var_cmd = env_var + "_CMD"
-        if env_var_cmd in os.environ:
-            # if this is a valid command key...
-            if (section, key) in self.sensitive_config_values:
-                return run_command(os.environ[env_var_cmd])
-        # alternatively AIRFLOW__{SECTION}__{KEY}_SECRET (to get from Secrets Backend)
-        env_var_secret_path = env_var + "_SECRET"
-        if env_var_secret_path in os.environ:
-            # if this is a valid secret path...
-            if (section, key) in self.sensitive_config_values:
-                return self._get_config_value_from_secret_backend(os.environ[env_var_secret_path])
+        _, source = self._get_env_var_dynamic_source(section, key, team_name=team_name)
+        if source is not None:
+            return source.read()
         return None
 
     def _get_cmd_option(self, section: str, key: str):
         """Get config option from command execution."""
-        fallback_key = key + "_cmd"
-        if (section, key) in self.sensitive_config_values:
-            if super().has_option(section, fallback_key):
-                command = super().get(section, fallback_key)
-                try:
-                    cmd_output = run_command(command)
-                except AirflowConfigException as e:
-                    raise e
-                except Exception as e:
-                    raise AirflowConfigException(
-                        f"Cannot run the command for the config section [{section}]{fallback_key}_cmd."
-                        f" Please check the {fallback_key} value."
-                    ) from e
-                return cmd_output
+        if (source := self._get_config_file_cmd_source(section, key)) is not None:
+            fallback_key = f"{key}_cmd"
+            try:
+                return source.read()
+            except AirflowConfigException:
+                raise
+            except Exception as e:
+                raise AirflowConfigException(
+                    f"Cannot run the command for the config section [{section}]{fallback_key}_cmd."
+                    f" Please check the {fallback_key} value."
+                ) from e
         return None
 
     def _get_secret_option(self, section: str, key: str) -> str | None:
         """Get Config option values from Secret Backend."""
-        fallback_key = key + "_secret"
-        if (section, key) in self.sensitive_config_values:
-            if super().has_option(section, fallback_key):
-                secrets_path = super().get(section, fallback_key)
-                return self._get_config_value_from_secret_backend(secrets_path)
+        if (source := self._get_config_file_secret_source(section, key)) is not None:
+            return source.read()
         return None
 
     def _get_environment_variables(

@@ -22,7 +22,8 @@ from __future__ import annotations
 __all__ = [
     "AirflowConfigException",
     "AirflowConfigParser",
+    "DynamicConfigSource",
 ]
 
 from .exceptions import AirflowConfigException
-from .parser import AirflowConfigParser
+from .parser import AirflowConfigParser, DynamicConfigSource

@@ -70,7 +70,7 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
-    is_bundle_config_reload_enabled,
+    _get_bundle_config_source,
 )
 from airflow.dag_processing.claims import get_available_work_filter
 from airflow.dag_processing.collection import is_source_discovery_failed, update_dag_parsing_results_in_db
@@ -507,7 +507,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def before_run(self) -> None:
         """Set up state required before the parsing loop starts. Default implementation; override to customize."""
-        if self.api_client is not None and is_bundle_config_reload_enabled():
+        if self.api_client is not None and _get_bundle_config_source().reconcilable:
             raise AirflowConfigException(
                 "Reloading dag_bundle_config_list through a command or secret is not supported "
                 "with an HTTP-backed Dag processor. Use a literal bundle configuration or a "
@@ -540,10 +540,15 @@ class DagFileProcessorManager(LoggingMixin):
     def _get_importer_registry(self, bundle_name: str) -> DagImporterRegistry:
         if bundle_name in self._bundle_importer_registries:
             return self._bundle_importer_registries[bundle_name]
-        if not is_bundle_config_reload_enabled():
+        if (
+            parse_context := _get_bundle_config_source().parse_context(
+                bundle_name, manager=lambda: self._dag_bundle_manager
+            )
+        ) is None:
             return get_importer_registry(bundle_name)
-        importers = self._dag_bundle_manager.get_bundle_parse_context(bundle_name).importers
-        registry = DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=importers)
+        registry = DagImporterRegistry.from_config(
+            bundle_name=bundle_name, bundle_importers=parse_context.importers
+        )
         self._bundle_importer_registries[bundle_name] = registry
         return registry
 
@@ -1471,18 +1476,22 @@ class DagFileProcessorManager(LoggingMixin):
             self._add_new_files_to_queue(known_files=known_files)
 
     def _reconcile_bundles(self, known_files: dict[str, set[DagFileInfo]]) -> None:
-        if self.api_client is not None or not is_bundle_config_reload_enabled():
+        if self.api_client is not None or not _get_bundle_config_source().reconcilable:
             return
         try:
             dag_bundle_manager = copy(self._dag_bundle_manager)
-            bundle_names = set(dag_bundle_manager.get_all_bundle_names())
+            dag_bundle_manager.refresh()
+            configured_names = set(dag_bundle_manager.get_all_bundle_names())
         except Exception:
             self.log.exception("Could not load Dag bundles; keeping the current bundles")
             return
 
         loaded_bundles = {bundle.name: bundle for bundle in self._dag_bundles}
-        if self.bundle_names_to_parse:
-            bundle_names.intersection_update(self.bundle_names_to_parse)
+        bundle_names = (
+            configured_names & set(self.bundle_names_to_parse)
+            if self.bundle_names_to_parse
+            else configured_names
+        )
         removed_names = loaded_bundles.keys() - bundle_names
         bundle_instances: dict[str, BaseDagBundle] = {}
         for name in sorted(bundle_names - loaded_bundles.keys()):
@@ -1502,6 +1511,19 @@ class DagFileProcessorManager(LoggingMixin):
             return
 
         self._dag_bundle_manager = dag_bundle_manager
+        purged_callbacks = [
+            file
+            for file in self._callback_to_execute
+            if file.bundle_name in removed_names or file.bundle_name not in configured_names
+        ]
+        for file in purged_callbacks:
+            del self._callback_to_execute[file]
+            self._file_queue.pop(file, None)
+            self._files_awaiting_source.pop(file, None)
+            self._priority_files.discard(file)
+        if purged_callbacks and not removed_names:
+            stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
+            self._record_files_awaiting_source()
         if not removed_names and not bundle_instances:
             return
         loaded_bundles.update(bundle_instances)
@@ -1816,6 +1838,9 @@ class DagFileProcessorManager(LoggingMixin):
             file: None for file in self._files_awaiting_source if file.presence_key in present_keys
         }
         self._priority_files = {file for file in self._priority_files if file.presence_key in present_keys}
+        for file in list(self._callback_to_execute):
+            if file.presence_key not in present_keys:
+                del self._callback_to_execute[file]
         stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
         self._record_files_awaiting_source()
 
@@ -2345,16 +2370,24 @@ class DagFileProcessorManager(LoggingMixin):
 
     def _create_process(
         self, dag_file: DagFileInfo, *, source: DagParseSource
-    ) -> BaseDagFileProcessorProcess:
+    ) -> BaseDagFileProcessorProcess | None:
         id = uuid7()
 
         callback_to_execute_for_file = self._callback_to_execute.pop(dag_file, [])
+        try:
+            bundle_config = _get_bundle_config_source().parse_context(
+                dag_file.bundle_name, manager=lambda: self._dag_bundle_manager
+            )
+        except ValueError:
+            self.log.warning(
+                "Skipping %s because bundle %s is no longer configured",
+                dag_file.rel_path,
+                dag_file.bundle_name,
+            )
+            return None
         logger, logger_filehandle = self._get_logger_for_dag_file(dag_file)
         subprocess_logs_to_stdout = conf.get("logging", "dag_processor_log_target") == "stdout"
 
-        bundle_config = None
-        if is_bundle_config_reload_enabled():
-            bundle_config = self._dag_bundle_manager.get_bundle_parse_context(dag_file.bundle_name)
         is_claimed = self._get_claiming_importer(dag_file.absolute_path, dag_file.bundle_name) is not None
         importer_registry = self._bundle_importer_registries.get(dag_file.bundle_name)
 
@@ -2450,6 +2483,9 @@ class DagFileProcessorManager(LoggingMixin):
                 continue
             has_callbacks = file in self._callback_to_execute
             processor = self._create_process(file, source=source)
+            if processor is None:
+                self._priority_files.discard(file)
+                continue
             if has_callbacks and file in self._priority_files:
                 # Callback execution cannot satisfy a request for a fresh ordinary parse.
                 self._files_awaiting_source[file] = None

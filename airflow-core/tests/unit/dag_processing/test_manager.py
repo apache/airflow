@@ -74,7 +74,11 @@ from airflow.dag_processing.bundles.base import (
     DagBundleRefreshError,
 )
 from airflow.dag_processing.bundles.local import LocalDagBundle
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _get_bundle_config_source
+from airflow.dag_processing.bundles.manager import (
+    DagBundlesManager,
+    _get_bundle_config_source,
+    _StaticBundleConfigSource,
+)
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
@@ -396,7 +400,9 @@ class TestDagFileProcessorManager:
         clear_db_dag_bundles()
 
     @mock.patch(
-        "airflow.dag_processing.manager.is_bundle_config_reload_enabled", autospec=True, return_value=False
+        "airflow.dag_processing.manager._get_bundle_config_source",
+        autospec=True,
+        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=False),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_static_config_does_not_poll(self, mock_manager, mock_source):
@@ -405,9 +411,9 @@ class TestDagFileProcessorManager:
 
     @pytest.mark.parametrize("filtered", [False, True])
     @mock.patch(
-        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
+        "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=True,
+        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
@@ -436,6 +442,7 @@ class TestDagFileProcessorManager:
 
         processor._reconcile_bundles(known_files=known_files)
 
+        bundles.refresh.assert_called_once_with()
         bundles.get_all_bundle_names.assert_called_once_with()
         assert processor._dag_bundles == [added, retained]
         assert known_files == {"retained": set()}
@@ -451,7 +458,9 @@ class TestDagFileProcessorManager:
         mock_removed.assert_called_once_with(processor, known_files=known_files)
 
     @mock.patch(
-        "airflow.dag_processing.manager.is_bundle_config_reload_enabled", autospec=True, return_value=True
+        "airflow.dag_processing.manager._get_bundle_config_source",
+        autospec=True,
+        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_removal_clears_pending_parses_before_readding_bundle(
@@ -477,6 +486,7 @@ class TestDagFileProcessorManager:
         manager._pending_publications[file] = mock.create_autospec(PendingDagPublication, instance=True)
         manager._file_queue[file] = None
         manager._files_awaiting_source[file] = None
+        manager._callback_to_execute[file] = [mock.create_autospec(DagCallbackRequest, instance=True)]
         known_files = {bundle.name: {file}}
 
         manager._reconcile_bundles(known_files)
@@ -487,6 +497,7 @@ class TestDagFileProcessorManager:
         assert not manager._pending_publications
         assert not manager._file_queue
         assert not manager._files_awaiting_source
+        assert not manager._callback_to_execute
         assert not manager._bundle_parse_sources
         assert not manager._bundles_waiting_for_refresh
         assert not manager._bundles_needing_refresh
@@ -500,9 +511,9 @@ class TestDagFileProcessorManager:
         assert manager._get_dispatch_source(file) is None
 
     @mock.patch(
-        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
+        "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=True,
+        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_retries_failed_construction(self, mock_manager, mock_source, tmp_path):
@@ -522,9 +533,9 @@ class TestDagFileProcessorManager:
         ]
 
     @mock.patch(
-        "airflow.dag_processing.manager.is_bundle_config_reload_enabled",
+        "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=True,
+        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_retries_template_persistence_after_sync_failure(
@@ -548,7 +559,9 @@ class TestDagFileProcessorManager:
         ]
 
     @mock.patch(
-        "airflow.dag_processing.manager.is_bundle_config_reload_enabled", autospec=True, return_value=True
+        "airflow.dag_processing.manager._get_bundle_config_source",
+        autospec=True,
+        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
@@ -727,6 +740,134 @@ class TestDagFileProcessorManager:
                 "bundle-a"
             )
         assert len(runs.read_text().splitlines()) == 1
+
+    @pytest.mark.parametrize("filtered_out", [False, True], ids=["in-scope", "out-of-scope-callback"])
+    @mock.patch.object(DagBundlesManager, "sync_bundles_to_db", autospec=True)
+    @mock.patch.object(DagFileProcessorProcess, "start", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_reconcile_removal_purges_queued_callbacks_without_crashing(
+        self, mock_logger, mock_start, mock_sync, tmp_path, filtered_out
+    ):
+        retained_path = tmp_path / "retained"
+        removed_path = tmp_path / "removed"
+        retained_path.mkdir()
+        removed_path.mkdir()
+        retained_config = {
+            "name": "retained",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(retained_path)},
+        }
+        removed_config = {
+            "name": "removed",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(removed_path)},
+        }
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text(json.dumps([retained_config, removed_config]))
+        mock_logger.return_value = (structlog.get_logger(), mock.Mock(spec=["close"]))
+        mock_start.side_effect = lambda *args, **kwargs: self.mock_processor()[0]
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+                ("dag_processor", "bundle_refresh_check_interval"): "0",
+            }
+        ):
+            processor = DagFileProcessorManager(
+                max_runs=1, bundle_names_to_parse=["retained"] if filtered_out else None
+            )
+            processor.load_dag_bundles()
+            removed_file = DagFileInfo(
+                bundle_name="removed",
+                bundle_path=removed_path,
+                rel_path=Path("dag.py"),
+                bundle_version="v1" if filtered_out else None,
+            )
+            retained_file = DagFileInfo(
+                bundle_name="retained",
+                bundle_path=retained_path,
+                rel_path=Path("dag.py"),
+            )
+            removed_cb = mock.create_autospec(DagCallbackRequest, instance=True)
+            retained_cb = mock.create_autospec(DagCallbackRequest, instance=True)
+            processor._callback_to_execute[removed_file] = [removed_cb]
+            processor._callback_to_execute[retained_file] = [retained_cb]
+            processor._file_queue = OrderedDict.fromkeys([removed_file, retained_file])
+            known_files = {"retained": {retained_file}}
+            if not filtered_out:
+                known_files["removed"] = {removed_file}
+
+            config_file.write_text(json.dumps([retained_config]))
+            processor._reconcile_bundles(known_files=known_files)
+
+            assert removed_file not in processor._callback_to_execute
+            assert removed_file not in processor._file_queue
+
+            processor._start_new_processes()
+
+            assert list(processor._processors) == [retained_file]
+            mock_start.assert_called_once()
+            assert mock_start.call_args.kwargs["bundle_name"] == "retained"
+            assert mock_start.call_args.kwargs["callbacks"] == [retained_cb]
+
+    @mock.patch.object(DagFileProcessorProcess, "start", autospec=True)
+    @mock.patch.object(DagFileProcessorManager, "_get_logger_for_dag_file", autospec=True)
+    def test_start_new_processes_skips_queued_callback_for_unconfigured_bundle(
+        self, mock_logger, mock_start, tmp_path, caplog
+    ):
+        retained_path = tmp_path / "retained"
+        retained_path.mkdir()
+        retained_config = {
+            "name": "retained",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(retained_path)},
+        }
+        config_file = tmp_path / "bundles.json"
+        config_file.write_text(json.dumps([retained_config]))
+        mock_logger.return_value = (structlog.get_logger(), mock.Mock(spec=["close"]))
+        mock_start.side_effect = lambda *args, **kwargs: self.mock_processor()[0]
+
+        with conf_vars(
+            {
+                ("dag_processor", "dag_bundle_config_list"): None,
+                ("dag_processor", "dag_bundle_config_list_cmd"): f"cat {config_file}",
+                ("dag_processor", "bundle_refresh_check_interval"): "60",
+            }
+        ):
+            processor = DagFileProcessorManager(max_runs=1)
+            processor.load_dag_bundles()
+            removed_file = DagFileInfo(
+                bundle_name="removed",
+                bundle_path=tmp_path / "removed",
+                rel_path=Path("dag.py"),
+                bundle_version="v1",
+            )
+            retained_file = DagFileInfo(
+                bundle_name="retained",
+                bundle_path=retained_path,
+                rel_path=Path("dag.py"),
+            )
+            retained_cb = mock.create_autospec(DagCallbackRequest, instance=True)
+            processor._callback_to_execute[removed_file] = [
+                mock.create_autospec(DagCallbackRequest, instance=True)
+            ]
+            processor._callback_to_execute[retained_file] = [retained_cb]
+            processor._priority_files.add(removed_file)
+            processor._file_queue = OrderedDict.fromkeys([removed_file, retained_file])
+
+            processor._start_new_processes()
+
+        assert list(processor._processors) == [retained_file]
+        assert removed_file not in processor._callback_to_execute
+        assert removed_file not in processor._priority_files
+        mock_logger.assert_called_once_with(processor, retained_file)
+        mock_start.assert_called_once()
+        assert mock_start.call_args.kwargs["bundle_name"] == "retained"
+        assert {
+            "event": "Skipping dag.py because bundle removed is no longer configured",
+            "log_level": "warning",
+        } in caplog
 
     @pytest.mark.parametrize("bundle_names_to_parse", [None, ["bundle-a", "bundle-b"]])
     @pytest.mark.parametrize("remove_all", [False, True])
@@ -1270,10 +1411,14 @@ class TestDagFileProcessorManager:
         versioned_file = _get_versioned_file_info("callbacks.py")
 
         manager._file_queue = OrderedDict.fromkeys([versioned_file])
+        manager._callback_to_execute[versioned_file] = [
+            mock.create_autospec(DagCallbackRequest, instance=True)
+        ]
 
         manager.purge_removed_files_from_queue(present=set())
 
         assert manager._file_queue == OrderedDict()
+        assert not manager._callback_to_execute
 
     def test_terminate_orphan_processes_keeps_versioned_callback_processor_when_unversioned_file_is_present(
         self,

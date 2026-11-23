@@ -34,6 +34,7 @@ import pytest
 from airflow_shared.configuration.exceptions import AirflowConfigException
 from airflow_shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
+    DynamicConfigSource,
     base_section_name,
     configure_parser_from_configuration_description,
 )
@@ -1331,3 +1332,132 @@ existing_list = one,two,three
             test_conf.load_providers_configuration()
         assert test_conf._use_providers_configuration is True
         assert "configuration_description" not in test_conf.__dict__
+
+    @pytest.mark.parametrize(
+        ("env", "cfg", "sensitive", "expected"),
+        [
+            pytest.param(
+                {
+                    "AIRFLOW__TEST__SENSITIVE_KEY": "literal",
+                    "AIRFLOW__TEST__SENSITIVE_KEY_CMD": "env-cmd",
+                },
+                {"sensitive_key_cmd": "cfg-cmd"},
+                True,
+                None,
+                id="env-literal-overrides-cmd",
+            ),
+            pytest.param(
+                {
+                    "AIRFLOW__TEST__SENSITIVE_KEY_CMD": "env-cmd",
+                    "AIRFLOW__TEST__SENSITIVE_KEY_SECRET": "env-secret",
+                },
+                {"sensitive_key": "cfg-literal", "sensitive_key_cmd": "cfg-cmd"},
+                True,
+                ("cmd", "env-cmd"),
+                id="env-cmd-overrides-secret-and-cfg",
+            ),
+            pytest.param(
+                {"AIRFLOW__TEST__SENSITIVE_KEY_SECRET": "env-secret"},
+                {"sensitive_key": "cfg-literal", "sensitive_key_cmd": "cfg-cmd"},
+                True,
+                ("secret", "env-secret"),
+                id="env-secret-overrides-cfg",
+            ),
+            pytest.param(
+                {},
+                {"sensitive_key": "cfg-literal", "sensitive_key_cmd": "cfg-cmd"},
+                True,
+                None,
+                id="cfg-literal-overrides-cmd",
+            ),
+            pytest.param(
+                {},
+                {"sensitive_key_cmd": "cfg-cmd", "sensitive_key_secret": "cfg-secret"},
+                True,
+                ("cmd", "cfg-cmd"),
+                id="cfg-cmd-overrides-secret",
+            ),
+            pytest.param(
+                {},
+                {"sensitive_key_secret": "cfg-secret"},
+                True,
+                ("secret", "cfg-secret"),
+                id="cfg-secret",
+            ),
+            pytest.param(
+                {},
+                {},
+                True,
+                None,
+                id="unset-sensitive",
+            ),
+            pytest.param(
+                {"AIRFLOW__TEST__KEY1_CMD": "env-cmd"},
+                {"key1_secret": "cfg-secret"},
+                False,
+                None,
+                id="non-sensitive-ignored",
+            ),
+        ],
+    )
+    @patch.object(_SharedAirflowConfigParser, "_get_config_value_from_secret_backend", autospec=True)
+    @patch("airflow_shared.configuration.parser.run_command", autospec=True)
+    def test_get_dynamic_option_source_precedence(
+        self, mock_run_command, mock_secret_backend, monkeypatch, env, cfg, sensitive, expected
+    ):
+        """get_dynamic_option_source matches get() precedence without reading the backend."""
+        test_conf = AirflowConfigParser()
+        key = "sensitive_key" if sensitive else "key1"
+        if sensitive:
+            test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+            test_conf._default_values.set("test", "sensitive_key", "default_sensitive")
+        for opt, val in cfg.items():
+            if not test_conf.has_section("test"):
+                test_conf.add_section("test")
+            test_conf.set("test", opt, val)
+        for env_key, env_val in env.items():
+            monkeypatch.setenv(env_key, env_val)
+
+        source = test_conf.get_dynamic_option_source("test", key)
+
+        mock_run_command.assert_not_called()
+        mock_secret_backend.assert_not_called()
+        if expected is None:
+            assert source is None
+        else:
+            assert source == DynamicConfigSource(expected[0], expected[1], test_conf)
+
+    @patch.object(_SharedAirflowConfigParser, "_get_config_value_from_secret_backend", autospec=True)
+    @patch("airflow_shared.configuration.parser.run_command", autospec=True)
+    def test_dynamic_config_source_read(self, mock_run_command, mock_secret_backend):
+        """DynamicConfigSource.read reads raw values from commands or secrets without defaults."""
+        test_conf = AirflowConfigParser()
+        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+        test_conf._default_values.set("test", "sensitive_key", "default_sensitive")
+        test_conf.add_section("test")
+        test_conf.set("test", "sensitive_key_cmd", "echo hello")
+
+        mock_run_command.return_value = "from-cmd"
+        cmd_source = test_conf.get_dynamic_option_source("test", "sensitive_key")
+        assert cmd_source is not None
+        assert cmd_source.read() == "from-cmd"
+        mock_run_command.assert_called_once_with("echo hello")
+
+        test_conf.remove_option("test", "sensitive_key_cmd")
+        test_conf.set("test", "sensitive_key_secret", "path/to/secret")
+        mock_secret_backend.return_value = None
+        secret_source = test_conf.get_dynamic_option_source("test", "sensitive_key")
+        assert secret_source is not None
+        assert secret_source.read() is None
+        mock_secret_backend.assert_called_once_with(test_conf, "path/to/secret")
+
+    def test_get_dynamic_option_source_deprecated_option(self, monkeypatch):
+        """get_dynamic_option_source resolves deprecated options unless disabled."""
+        test_conf = AirflowConfigParser()
+        test_conf.deprecated_options = {("test", "new_key"): ("old_sec", "old_key", "3.0")}
+        test_conf.sensitive_config_values.update({("test", "new_key"), ("old_sec", "old_key")})
+        monkeypatch.setenv("AIRFLOW__OLD_SEC__OLD_KEY_CMD", "legacy-cmd")
+
+        source = test_conf.get_dynamic_option_source("test", "new_key")
+        assert source == DynamicConfigSource("cmd", "legacy-cmd", test_conf)
+        assert test_conf.get_dynamic_option_source("test", "new_key", lookup_from_deprecated=False) is None

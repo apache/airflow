@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 from airflow.dag_processing.bundles.base import unpack_bundle_version  # noqa: SDK002
 from airflow.dag_processing.bundles.manager import (  # noqa: SDK002
     DagBundlesManager,
-    is_bundle_config_reload_enabled,
+    _get_bundle_config_source,
 )
 from airflow.sdk.api.datamodels._generated import BundleInfo
 from airflow.sdk.exceptions import AirflowException
@@ -53,10 +53,9 @@ __all__ = [
 
 def get_bundle_importer_registry(bundle_name: str) -> DagImporterRegistry:
     """Use accepted bundle settings for worker importer discovery when reload is enabled."""
-    if not is_bundle_config_reload_enabled():
+    if (parse_context := _get_bundle_config_source().parse_context(bundle_name)) is None:
         return get_importer_registry(bundle_name)
-    importers = DagBundlesManager().get_bundle_parse_context(bundle_name).importers
-    return DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=importers)
+    return DagImporterRegistry.from_config(bundle_name=bundle_name, bundle_importers=parse_context.importers)
 
 
 def initialize_pinned_bundle(target: BundleInfo, logger: FilteringBoundLogger) -> BaseDagBundle:

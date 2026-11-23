@@ -24,11 +24,10 @@ import os
 import time
 import warnings
 from collections import defaultdict
-from configparser import ConfigParser
 from contextlib import nullcontext
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, cast
+from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, cast
 
 from itsdangerous import URLSafeSerializer
 from pydantic import BaseModel, ValidationError
@@ -36,7 +35,7 @@ from sqlalchemy import and_, delete, exists, or_, select, update
 from sqlalchemy.orm import selectinload
 
 from airflow._shared.module_loading import import_string
-from airflow.configuration import conf, run_command
+from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleParseContext
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
@@ -51,6 +50,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
+
+    from airflow._shared.configuration.parser import DynamicConfigSource
 
 log = logging.getLogger(__name__)
 
@@ -138,24 +139,6 @@ def _create_bundle_config_snapshot(bundle_config_list: list[_ExternalBundleConfi
     )
 
 
-def _get_bundle_config_reload_option() -> tuple[str, str] | None:
-    section, key = "dag_processor", "dag_bundle_config_list"
-    env_key = "AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST"
-    if env_key in os.environ:
-        return None
-    for suffix in ("cmd", "secret"):
-        env_option = f"{env_key}_{suffix.upper()}"
-        if env_option in os.environ:
-            return suffix, os.environ[env_option]
-    if ConfigParser.has_option(conf, section, key):
-        return None
-    for suffix in ("cmd", "secret"):
-        option = f"{key}_{suffix}"
-        if ConfigParser.has_option(conf, section, option):
-            return suffix, ConfigParser.get(conf, section, option)
-    return None
-
-
 def _build_internal_bundle_config(config: _ExternalBundleConfig) -> _InternalBundleConfig:
     if config.team_name and not conf.getboolean("core", "multi_team"):
         raise AirflowConfigException(
@@ -173,6 +156,8 @@ def _build_internal_bundle_config(config: _ExternalBundleConfig) -> _InternalBun
 
 class _StaticBundleConfigSource:
     """The bundle configuration of this process, read from ``dag_bundle_config_list`` on first use."""
+
+    reconcilable: ClassVar[bool] = False
 
     @functools.cached_property
     def _accepted(self) -> _BundleConfigSnapshot:
@@ -197,6 +182,19 @@ class _StaticBundleConfigSource:
     def refresh_for_missing(self, name: str) -> None:
         """Read the list again for a bundle *name* that is not loadable, unless it missed recently."""
 
+    def parse_context(
+        self,
+        name: str,
+        *,
+        manager: Callable[[], DagBundlesManager] | None = None,
+    ) -> BundleParseContext | None:
+        """
+        Return the accepted parse settings for *name*, or ``None`` for static configuration.
+
+        Static configuration lets parsing processes and workers read configuration directly as before.
+        """
+        return None
+
 
 class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
     """
@@ -207,10 +205,11 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
     as a whole.
     """
 
+    reconcilable: ClassVar[bool] = True
     _loadable: _BundleConfigSnapshot
 
-    def __init__(self, reload_option: tuple[str, str]) -> None:
-        self._reload_option = reload_option
+    def __init__(self, dynamic_source: DynamicConfigSource) -> None:
+        self._dynamic_source = dynamic_source
         self._last_read = 0.0
         self._unloadable: _BundleConfigSnapshot | None = None
         self._missed_at: dict[str, float] = {}
@@ -220,7 +219,7 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
         self._last_read = time.monotonic()
         # The first list is not checked, so a bundle class that cannot be imported fails the
         # managers as it does with a static list.
-        self._loadable = _create_bundle_config_snapshot(_read_bundle_config_list(self._reload_option))
+        self._loadable = _create_bundle_config_snapshot(_read_bundle_config_list(self._dynamic_source))
         return self._loadable
 
     def loadable(self) -> _BundleConfigSnapshot:
@@ -256,12 +255,27 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
             if name not in self.loadable().configs:
                 self._missed_at[name] = now
 
+    def parse_context(
+        self,
+        name: str,
+        *,
+        manager: Callable[[], DagBundlesManager] | None = None,
+    ) -> BundleParseContext | None:
+        if manager is not None:
+            config = manager()._get_bundle_config(name)
+            return BundleParseContext(importers=deepcopy(config.importers), team_name=config.team_name)
+        if name not in self.loadable().configs:
+            self.refresh_for_missing(name)
+        if (external := self.loadable().configs.get(name)) is not None:
+            return BundleParseContext(importers=deepcopy(external.importers), team_name=external.team_name)
+        raise ValueError(f"Requested bundle '{name}' is not configured.")
+
     def _read(self, adopted: _BundleConfigSnapshot) -> None:
         accepted = self._accepted
         self._last_read = time.monotonic()
         self._unloadable = None
         try:
-            snapshot = _create_bundle_config_snapshot(_read_bundle_config_list(self._reload_option))
+            snapshot = _create_bundle_config_snapshot(_read_bundle_config_list(self._dynamic_source))
             if snapshot.configs == accepted.configs:
                 return
             for name, config in snapshot.configs.items():
@@ -279,14 +293,9 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
 
 @functools.cache
 def _get_bundle_config_source() -> _StaticBundleConfigSource:
-    if (reload_option := _get_bundle_config_reload_option()) is None:
+    if (dynamic_source := conf.get_dynamic_option_source("dag_processor", "dag_bundle_config_list")) is None:
         return _StaticBundleConfigSource()
-    return _ReloadingBundleConfigSource(reload_option)
-
-
-def is_bundle_config_reload_enabled() -> bool:
-    """Return whether this process reads the bundle configuration again from a command or secrets backend."""
-    return isinstance(_get_bundle_config_source(), _ReloadingBundleConfigSource)
+    return _ReloadingBundleConfigSource(dynamic_source)
 
 
 def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
@@ -312,11 +321,12 @@ def _parse_bundle_config(config_list) -> list[_ExternalBundleConfig]:
     return list(bundles.values())
 
 
-def _read_bundle_config_list(reload_option: tuple[str, str] | None = None) -> list[_ExternalBundleConfig]:
-    if reload_option is not None:
+def _read_bundle_config_list(
+    dynamic_source: DynamicConfigSource | None = None,
+) -> list[_ExternalBundleConfig]:
+    if dynamic_source is not None:
         # Normal config lookup can silently fall back to defaults when a secret is missing.
-        kind, value = reload_option
-        raw = run_command(value) if kind == "cmd" else conf._get_config_value_from_secret_backend(value)
+        raw = dynamic_source.read()
         if not raw or not raw.strip():
             raise _bundle_item_exc("The configured command or secret returned no value")
         try:
@@ -894,10 +904,9 @@ class DagBundlesManager(LoggingMixin):
                 return _build_internal_bundle_config(config)
         raise ValueError(f"Requested bundle '{name}' is not configured.")
 
-    def get_bundle_parse_context(self, name: str) -> BundleParseContext:
-        """Return the accepted settings to parse the files of bundle *name* with."""
-        config = self._get_bundle_config(name)
-        return BundleParseContext(importers=deepcopy(config.importers), team_name=config.team_name)
+    def get_bundle_parse_context(self, name: str) -> BundleParseContext | None:
+        """Return the accepted settings to parse the files of bundle *name* with, or ``None`` for static config."""
+        return _get_bundle_config_source().parse_context(name, manager=lambda: self)
 
     def get_bundle(
         self, name: str, version: str | None = None, version_data: dict[str, Any] | None = None
@@ -943,16 +952,19 @@ class DagBundlesManager(LoggingMixin):
                 # Skip this bundle and continue with others
                 continue
 
-    def get_all_bundle_names(self) -> Iterable[str]:
-        """
-        Get all bundle names, refreshing dynamic configuration when due.
-
-        :return: sorted list of bundle names.
-        """
+    def refresh(self) -> None:
+        """Refresh this manager's bundle configuration from the process source when due."""
         # The Dag processor adopts a list only after writing it to the database, so a bundle the
         # database rejected, such as one with a missing team, can still be corrected.
         _get_bundle_config_source().refresh(self._snapshot)
         self.parse_config()
+
+    def get_all_bundle_names(self) -> Iterable[str]:
+        """
+        Get all bundle names.
+
+        :return: sorted list of bundle names.
+        """
         return sorted(self._bundle_config.keys())
 
     def view_url(self, name: str, version: str | None = None) -> str | None:
