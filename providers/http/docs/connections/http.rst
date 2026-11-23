@@ -68,6 +68,14 @@ Use DNS SRV Lookup (optional)
 
 Extra (optional)
     Specify headers and default requests parameters in json format.
+    For ``HttpAsyncHook``, Extra headers are sent on the first request and on
+    redirects that stay on the same origin. They are not forwarded when a
+    redirect leaves that origin (hostname change, port change, or scheme change
+    other than default-port ``http`` → ``https``). Connection BasicAuth and
+    caller ``Authorization`` / ``Cookie`` follow aiohttp's origin rules. If you
+    need Extra headers sent to a redirected host, point the connection at the
+    final host or set ``allow_redirects=False`` and make the second request
+    explicitly.
     Following default requests parameters are taken into account:
 
     * ``stream``

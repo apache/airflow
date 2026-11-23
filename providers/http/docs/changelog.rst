@@ -27,6 +27,16 @@
 Changelog
 ---------
 
+.. warning::
+  ``HttpAsyncHook`` sends Extra headers from the HTTP Connection on the first
+  request and on redirects that stay on the same origin. They are not
+  forwarded when a redirect leaves that origin (hostname change, port change,
+  or scheme change other than default-port ``http`` → ``https``). Connection
+  BasicAuth and caller ``Authorization`` / ``Cookie`` follow aiohttp's origin
+  rules. If you relied on forwarding Extra headers across hosts, point the
+  connection at the final host or set ``allow_redirects=False`` and make the
+  second request explicitly.
+
 6.4.0
 .....
 
