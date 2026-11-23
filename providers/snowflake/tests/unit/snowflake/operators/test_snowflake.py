@@ -907,6 +907,13 @@ class TestSnowflakeSqlApiOperatorDurable:
         mock_execute_query.assert_not_called()
         context["ti"].xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
 
+    def test_submit_job_rejects_empty_query_ids(self, mock_execute_query):
+        operator = self._make_operator()
+        mock_execute_query.return_value = []
+
+        with pytest.raises(RuntimeError, match="No Snowflake SQL API query IDs returned"):
+            operator.submit_job(context={})
+
     def test_resubmits_when_stored_query_in_terminal_error(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
     ):
@@ -1005,22 +1012,21 @@ class TestSnowflakeSqlApiOperatorDurable:
             operator.get_job_status(["uuid1"], context={})
 
     @pytest.mark.parametrize(
-        "statuses",
+        ("statuses", "message"),
         [
-            ["unknown"],
-            ["success", "unknown"],
-            ["running", "unknown"],
-            [],
+            (["unknown"], "Unexpected Snowflake SQL API query statuses"),
+            (["success", "unknown"], "Unexpected Snowflake SQL API query statuses"),
+            (["running", "unknown"], "Unexpected Snowflake SQL API query statuses"),
+            ([], "No Snowflake SQL API query statuses returned"),
         ],
     )
-    def test_get_job_status_rejects_unexpected_statuses(self, mock_get_sql_api_query_status, statuses):
+    def test_get_job_status_rejects_unexpected_statuses(
+        self, mock_get_sql_api_query_status, statuses, message
+    ):
         operator = self._make_operator()
         mock_get_sql_api_query_status.side_effect = [{"status": status} for status in statuses]
 
-        with pytest.raises(
-            RuntimeError,
-            match="Unexpected Snowflake SQL API|No Snowflake SQL API query statuses returned",
-        ):
+        with pytest.raises(RuntimeError, match=message):
             operator.get_job_status(
                 [f"uuid{i}" for i in range(len(statuses))],
                 context={},
@@ -1220,6 +1226,17 @@ class TestSnowflakeNotebookOperator:
             operator.execute(create_context(operator))
 
         assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger)
+
+    def test_execute_deferrable_rejects_empty_query_ids(self, mock_execute_query):
+        operator = SnowflakeSqlApiOperator(
+            task_id="test_snowflake_sql_api",
+            sql="SELECT 1",
+            deferrable=True,
+        )
+        mock_execute_query.return_value = []
+
+        with pytest.raises(RuntimeError, match="No Snowflake SQL API query IDs returned"):
+            operator.execute(context={})
 
     def test_execute_polling_success(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output

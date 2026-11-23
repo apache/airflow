@@ -457,6 +457,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         self.query_ids = self._hook.execute_query(
             self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
         )
+
+        if not self.query_ids:
+            raise RuntimeError("No Snowflake SQL API query IDs returned")
+
         self.log.info("List of query ids %s", self.query_ids)
 
         if self.do_xcom_push:
@@ -533,6 +537,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         self.query_ids = self._hook.execute_query(
             self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
         )
+
+        if not self.query_ids:
+            raise RuntimeError("No Snowflake SQL API query IDs returned")
+
         self.log.info("List of query ids %s", self.query_ids)
         return cast("JsonValue", self.query_ids)
 
@@ -548,6 +556,9 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 raise
         if "error" in statuses:
             return "error"
+
+        # An unknown status may still represent an active query.
+        # Fail rather than risk resubmitting the SQL on reconnect.
         if any(status not in {"success", "running"} for status in statuses):
             raise RuntimeError(f"Unexpected Snowflake SQL API query statuses: {statuses}")
         if "running" in statuses:
