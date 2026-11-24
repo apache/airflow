@@ -217,8 +217,9 @@ the operator's ``on_kill()`` callback, for example on an execution timeout while
 worker is waiting for completion. Set ``stop_task_on_kill=False`` to let the ECS task
 continue running independently. Local log fetching is stopped in either case.
 
-This option only controls ``on_kill()``. It does not change cancellation after the
-operator has deferred or guarantee cleanup after an abrupt worker failure.
+This option only controls ``on_kill()``. In deferrable mode, killing the Airflow task
+does not stop the ECS task, regardless of this option. It also does not guarantee
+cleanup after an abrupt worker failure.
 ``stop_task_on_failure`` separately controls cleanup when the ECS waiter fails after
 this execution starts an ECS task. To preserve the external task in both cases, set
 both options to ``False``.
