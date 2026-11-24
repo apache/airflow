@@ -17,12 +17,13 @@
  * under the License.
  */
 
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -41,6 +42,8 @@ const GOLDEN_BUNDLE = fileURLToPath(new URL("fixtures/bundle-v1.min.mjs", import
 const NOISY_ENTRY = fileURLToPath(new URL("fixtures/noisy-entry.ts", import.meta.url));
 const EMPTY_ENTRY = fileURLToPath(new URL("fixtures/empty-entry.ts", import.meta.url));
 const SDK_INDEX = fileURLToPath(new URL("../../src/index.ts", import.meta.url));
+const TS_SDK_DIR = fileURLToPath(new URL("../..", import.meta.url));
+const CLI_MAIN = path.join(TS_SDK_DIR, "src/cli/main.ts");
 
 // Shaped like what airflow-ts-pack ships: a code region nobody could read, and a source region
 // that needs escaping. Real esbuild output is not used here because the assertion is byte-exact
@@ -659,6 +662,32 @@ describe("runPack", () => {
     expect(existsSync(path.join(outdir, "bundle.min.mjs"))).toBe(true);
   });
 
+  it("passes on only the last MiB of a working bundle's stderr", async () => {
+    outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
+    const entry = path.join(outdir, "noisy-entry.ts");
+    writeFileSync(
+      entry,
+      [
+        `import { Bundle, Dag } from ${JSON.stringify(SDK_INDEX)};`,
+        'process.stderr.write("x".repeat(1_100_000) + "\\nlast warning\\n");',
+        'const noisyDag = new Dag("noisy_dag");',
+        'noisyDag.task("solo", async () => undefined)();',
+        "await new Bundle(noisyDag).serve();",
+      ].join("\n"),
+    );
+    const stderr = captureStderr();
+
+    await runPack([entry, "--outdir", outdir]);
+
+    const omitted = 1_100_000 + "\nlast warning\n".length - 1024 * 1024;
+    expect(stderr()).toMatch(
+      new RegExp(
+        `^\\[first ${omitted} bytes of the bundle's stderr omitted\\]\\nx+\\nlast warning\\n$`,
+      ),
+    );
+    expect(stderr().length).toBeLessThan(1024 * 1024 + 100);
+  });
+
   it("reports the end of stderr from a bundle that fails without an error line", async () => {
     outdir = mkdtempSync(path.join(tmpdir(), "ts-pack-"));
     const entry = path.join(outdir, "exit-entry.ts");
@@ -972,5 +1001,42 @@ describe("runPack", () => {
         expect(content).toContain('new Dag("reports_dag")');
       }
     }
+  });
+});
+
+describe("airflow-ts-pack", () => {
+  let cliDir: string;
+
+  afterEach(() => {
+    if (cliDir) rmSync(cliDir, { recursive: true, force: true });
+  });
+
+  // On macOS a piped stderr is written asynchronously, so exiting straight away dropped the
+  // error printed after a bundle's long warnings. Under tsx the drop does not happen, so run
+  // the CLI bundled, with plain node.
+  it("keeps the error after a bundle's long warnings when stderr is a pipe", async () => {
+    cliDir = mkdtempSync(path.join(TS_SDK_DIR, ".cli-test-"));
+    const cli = path.join(cliDir, "main.mjs");
+    await build({
+      entryPoints: [CLI_MAIN],
+      outfile: cli,
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      packages: "external",
+      logLevel: "silent",
+    });
+    const entry = path.join(cliDir, "warns-without-serving.ts");
+    writeFileSync(entry, 'console.warn("w".repeat(500_000));');
+
+    const result = spawnSync(process.execPath, [cli, entry, "--outdir", cliDir], {
+      cwd: TS_SDK_DIR,
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("w".repeat(500_000));
+    expect(result.stderr.trimEnd()).toMatch(/^Bundle produced no --airflow-metadata output$/m);
   });
 });

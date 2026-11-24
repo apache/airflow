@@ -30,8 +30,10 @@ import {
   mkdtempSync,
   openSync,
   readFileSync,
+  readSync,
   realpathSync,
   rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { readFile as readFileAsync } from "node:fs/promises";
@@ -55,6 +57,8 @@ const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
 const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 const STDERR_TAIL_CHARS = 2000; // stderr opens with the whole minified line
+// The stderr file has no size cap, so read no more than its end.
+const STDERR_READ_LIMIT_BYTES = 1024 * 1024;
 const ESM_REQUIRE_BANNER =
   'import{createRequire as __airflowCreateRequire}from"node:module";' +
   "const require=__airflowCreateRequire(import.meta.url);";
@@ -140,10 +144,13 @@ function readBundleManifest(bundlePath: string): BundleManifest {
       maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
     });
     // Still pass on what a working bundle logs, such as warnings from user code.
-    const logged = readFileSync(stderrPath, "utf-8");
-    if (logged) process.stderr.write(logged);
+    const { text, skippedBytes } = readEnd(stderrPath, STDERR_READ_LIMIT_BYTES);
+    if (skippedBytes > 0) {
+      process.stderr.write(`[first ${skippedBytes} bytes of the bundle's stderr omitted]\n`);
+    }
+    if (text) process.stderr.write(text);
   } catch (error) {
-    const stderr = readFileSync(stderrPath, "utf-8");
+    const stderr = readEnd(stderrPath, STDERR_READ_LIMIT_BYTES).text;
     const reported = stderr
       .split("\n")
       .reverse()
@@ -191,6 +198,19 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     }
   }
   return manifest;
+}
+
+function readEnd(filePath: string, limit: number): { text: string; skippedBytes: number } {
+  const size = statSync(filePath).size;
+  const skippedBytes = Math.max(0, size - limit);
+  const fd = openSync(filePath, "r");
+  try {
+    const buffer = Buffer.alloc(size - skippedBytes);
+    const read = readSync(fd, buffer, 0, buffer.length, skippedBytes);
+    return { text: buffer.subarray(0, read).toString("utf-8"), skippedBytes };
+  } finally {
+    closeSync(fd);
+  }
 }
 
 // The document is checked before anything is read off it: JSON.parse also yields
