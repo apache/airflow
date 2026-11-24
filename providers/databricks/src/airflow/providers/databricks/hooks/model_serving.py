@@ -119,9 +119,11 @@ class _DatabricksServingAuth(httpx2.Auth):
     ``auth_flow`` inline on the event loop. ``auth_flow`` itself is kept for sync ``httpx2.Client``
     callers, which have no event loop to block.
 
-    A token fetch that still cannot reach the token endpoint after its retries raises
+    A token fetch that keeps failing after the hook's own retries, which cover requests to the
+    Databricks token endpoint and to the Azure instance metadata service, raises
     ``httpx2.ConnectError`` so that ``fallback_conn_ids`` can fail over. Any other failure, such as
-    missing credentials or a rejected secret, keeps its original exception.
+    missing credentials, a rejected secret, or an error raised by an Azure or AWS credential library,
+    keeps its original exception.
     ``PydanticAIDatabricksHook._get_provider_kwargs`` already raises such an error when
     the model is built, on any openai version. One that first appears while a request is being sent
     fails the task only with ``openai>=3.15.0``: earlier versions catch every exception raised while

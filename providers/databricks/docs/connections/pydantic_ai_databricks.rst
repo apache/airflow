@@ -87,12 +87,14 @@ Model
 Fallback Connections
     Other connection IDs to fail over to, in order, while this provider is unavailable. Stored in
     ``extra["fallback_conn_ids"]``. Entries may name any ``pydanticai`` connection type, so one
-    chain can span vendors. Fail-over also happens when the Databricks token endpoint cannot be
-    reached or keeps failing after its retries; a configuration error, such as unset or rejected
-    credentials, does not fail over and fails the task. A configuration error found when the model is
-    built, including one in a fallback connection, fails the task with any ``openai`` version. One
-    that first appears while the task is running fails it only with ``openai>=3.15.0``; with an
-    earlier version it also fails over to the next connection. See
+    chain can span vendors. Fail-over also happens when a request to the Databricks token endpoint
+    keeps failing after its retries, as in OAuth service principal and federated token exchange, or
+    when requests to the Azure instance metadata service keep failing after their retries. A failure
+    while an Azure or AWS credential library fetches a token, and a configuration error such as unset
+    or rejected credentials, does not fail over and fails the task. A configuration error found when
+    the model is built, including one in a fallback connection, fails the task with any ``openai``
+    version. One that first appears while the task is running fails it only with
+    ``openai>=3.15.0``; with an earlier version it also fails over to the next connection. See
     :doc:`apache-airflow-providers-common-ai:provider_fallback`.
 
 Databricks Connection ID
