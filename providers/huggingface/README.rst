@@ -53,7 +53,7 @@ Requirements
 PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=3.0,<4``
-``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``datasets``                                ``>=5.0.0``
 ``dill``                                    ``>=0.3.8``
 ``huggingface-hub``                         ``>=0.24``
