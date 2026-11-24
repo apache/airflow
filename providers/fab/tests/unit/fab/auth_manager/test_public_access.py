@@ -58,3 +58,13 @@ def test_legacy_auth_role_public_grants_its_role_to_anonymous_requests(tmp_path)
     with run_api_server(tmp_path, webserver_config="AUTH_ROLE_PUBLIC = 'Viewer'\n") as (_, client):
         assert client.get("/api/v2/pools").status_code == 200
         assert client.delete("/api/v2/pools/default_pool").status_code == 403
+
+
+def test_anonymous_requests_are_denied_after_the_public_role_is_deleted(tmp_path):
+    # The API server creates the public role at startup, so it is missing only once deleted, for
+    # example through DELETE /auth/fab/v1/roles/{name}, which calls the same security manager method.
+    with run_api_server(tmp_path, webserver_config="", auth_role_public="Guests") as (auth_manager, client):
+        with auth_manager.flask_app.app_context():
+            auth_manager.security_manager.delete_role("Guests")
+
+        assert client.get("/api/v2/pools").status_code == 403

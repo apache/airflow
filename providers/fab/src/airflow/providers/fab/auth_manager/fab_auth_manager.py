@@ -223,6 +223,7 @@ class FabAuthManager(BaseAuthManager[User]):
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
     _flask_app_lock = threading.Lock()
+    _missing_public_role: str | None = None
 
     @classmethod
     def evict_cached_user(cls, user_id: int) -> None:
@@ -474,10 +475,22 @@ class FabAuthManager(BaseAuthManager[User]):
 
         user = AnonymousUser()
         role = session.scalar(select(Role).where(Role.name == public_role_name))
-        if role is not None:
-            # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
-            # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
-            # the lifetime of a single FastAPI authorization check.
+        # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
+        # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
+        # the lifetime of a single FastAPI authorization check.
+        if role is None:
+            # Every anonymous request builds the public user, health checks included, so warn once
+            # until the role exists again.
+            if self._missing_public_role != public_role_name:
+                log.warning(
+                    "The public role %r does not exist, so anonymous users get no permissions",
+                    public_role_name,
+                )
+                self._missing_public_role = public_role_name
+            user._roles = set()
+            user._perms = set()
+        else:
+            self._missing_public_role = None
             user._roles = {role}
             user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
         return user
