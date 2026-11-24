@@ -19,18 +19,39 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 
-from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_DAG_ID, _AIRFLOW_PARSING_CONTEXT_TASK_ID
+from airflow.sdk.definitions.context import (
+    _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME,
+    _AIRFLOW_PARSING_CONTEXT_DAG_ID,
+    _AIRFLOW_PARSING_CONTEXT_TASK_ID,
+)
 
 
 @contextmanager
-def _airflow_parsing_context_manager(dag_id: str | None = None, task_id: str | None = None):
+def _airflow_parsing_context_manager(
+    dag_id: str | None = None, task_id: str | None = None, bundle_name: str | None = None
+):
     old_dag_id = os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID)
     old_task_id = os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID)
+    old_bundle_name = os.environ.get(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME)
+
     if dag_id is not None:
         os.environ[_AIRFLOW_PARSING_CONTEXT_DAG_ID] = dag_id
     if task_id is not None:
         os.environ[_AIRFLOW_PARSING_CONTEXT_TASK_ID] = task_id
-    yield
+    if bundle_name is not None:
+        os.environ[_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME] = bundle_name
+
+    try:
+        yield
+    finally:
+        # dag_id/task_id intentionally keep their historical behaviour of staying set when there was no
+        # previous value; bundle_name is fully restored so it never leaks past the parse it describes.
+        if bundle_name is not None:
+            if old_bundle_name is None:
+                os.environ.pop(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, None)
+            else:
+                os.environ[_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME] = old_bundle_name
+
     if old_task_id is not None:
         os.environ[_AIRFLOW_PARSING_CONTEXT_TASK_ID] = old_task_id
     if old_dag_id is not None:

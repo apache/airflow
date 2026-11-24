@@ -952,10 +952,10 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
 
 
 @pytest.mark.parametrize(
-    ("use_startup", "expected_dag_id", "expected_task_id"),
+    ("use_startup", "expected_dag_id", "expected_task_id", "expected_bundle_name"),
     [
-        pytest.param(True, "expected_dag", "my_task", id="startup"),
-        pytest.param(False, None, None, id="parse"),
+        pytest.param(True, "expected_dag", "my_task", "my-bundle", id="startup"),
+        pytest.param(False, None, None, None, id="parse"),
     ],
 )
 @mock.patch("airflow.sdk.execution_time.task_runner.get_listener_manager")
@@ -968,12 +968,14 @@ def test_bundle_initialize_parsing_context(
     use_startup,
     expected_dag_id,
     expected_task_id,
+    expected_bundle_name,
     make_ti_context,
     tmp_path: Path,
     monkeypatch,
 ):
     from airflow.sdk import get_parsing_context
     from airflow.sdk.definitions.context import (
+        _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME,
         _AIRFLOW_PARSING_CONTEXT_DAG_ID,
         _AIRFLOW_PARSING_CONTEXT_TASK_ID,
     )
@@ -986,6 +988,7 @@ def test_bundle_initialize_parsing_context(
         ctx = get_parsing_context()
         captured["dag_id"] = ctx.dag_id
         captured["task_id"] = ctx.task_id
+        captured["bundle_name"] = ctx.bundle_name
 
     mock_bundle.initialize.side_effect = capture_parsing_context
     mock_manager = mock_manager_cls.return_value
@@ -1014,13 +1017,19 @@ def test_bundle_initialize_parsing_context(
 
     monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_DAG_ID, raising=False)
     monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_TASK_ID, raising=False)
+    monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, raising=False)
 
     if use_startup:
         startup(what)
     else:
         parse(what, mock.Mock())
 
-    assert captured == {"dag_id": expected_dag_id, "task_id": expected_task_id}
+    assert captured == {
+        "dag_id": expected_dag_id,
+        "task_id": expected_task_id,
+        "bundle_name": expected_bundle_name,
+    }
+    assert _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME not in os.environ
     mock_bundle.initialize.assert_called_once()
 
 

@@ -213,3 +213,19 @@ of the context are set to ``None``.
 
       with DAG(dag_id=dag_id, ...):
           ...
+
+The context also has a ``bundle_name`` field holding the name of the Dag bundle the file is being parsed from. It is
+set both when the Dag File Processor parses the file and when a task re-parses its Dag file before execution, and is
+``None`` outside of those parses. For example, you can use it to pass the bundle name to triggers created at parse
+time, which otherwise have no way to know which bundle they came from:
+
+.. code-block:: python
+
+  from airflow.sdk import Asset, AssetWatcher, get_parsing_context
+
+  bundle_name = get_parsing_context().bundle_name
+
+  asset = Asset(
+      "my_asset",
+      watchers=[AssetWatcher(name="my_watcher", trigger=MyTrigger(bundle_name=bundle_name))],
+  )

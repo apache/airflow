@@ -854,6 +854,26 @@ def test_parse_file_task_group_cycle_warning(tmp_path):
     ]
 
 
+def test_parse_file_sets_bundle_name_in_parsing_context(tmp_path, monkeypatch):
+    from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME
+
+    monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, raising=False)
+    dag_file = tmp_path / "bundle_name_dag.py"
+    dag_file.write_text(
+        "from airflow.sdk import DAG, get_parsing_context\n"
+        "\n"
+        "dag = DAG(f'from_{get_parsing_context().bundle_name}', schedule=None)\n"
+    )
+
+    result = _parse_file(
+        DagFileParseRequest(file=str(dag_file), bundle_path=tmp_path, bundle_name="my-bundle"),
+        log=structlog.get_logger(),
+    )
+
+    assert [dag.dag_id for dag in result.serialized_dags] == ["from_my-bundle"]
+    assert _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME not in os.environ
+
+
 def test_callback_processing_does_not_update_timestamps():
     """Callback processing should not update last_finish_time to prevent stale DAG detection."""
     stat = process_parse_results(

@@ -176,15 +176,20 @@ class AirflowParsingContext(NamedTuple):
     If these values are not None, they will contain the specific Dag and Task ID that Airflow is requesting to
     execute. You can use these for optimizing dynamically generated Dag files.
 
+    ``bundle_name`` is the name of the Dag bundle the file is being parsed from. It is set both when the
+    Dag processor parses the file and when a task re-parses its Dag file before execution.
+
     You can obtain the current values via :py:func:`.get_parsing_context`.
     """
 
     dag_id: str | None
     task_id: str | None
+    bundle_name: str | None = None
 
 
 _AIRFLOW_PARSING_CONTEXT_DAG_ID = "_AIRFLOW_PARSING_CONTEXT_DAG_ID"
 _AIRFLOW_PARSING_CONTEXT_TASK_ID = "_AIRFLOW_PARSING_CONTEXT_TASK_ID"
+_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME = "_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME"
 
 
 def get_parsing_context() -> AirflowParsingContext:
@@ -192,6 +197,7 @@ def get_parsing_context() -> AirflowParsingContext:
     return AirflowParsingContext(
         dag_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_DAG_ID),
         task_id=os.environ.get(_AIRFLOW_PARSING_CONTEXT_TASK_ID),
+        bundle_name=os.environ.get(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME),
     )
 
 
