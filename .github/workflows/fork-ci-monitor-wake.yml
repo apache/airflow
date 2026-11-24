@@ -1,0 +1,95 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+# Starts fork-ci-monitor.yml when a pull request gated to fork CI (AIP-120) is pushed, instead of
+# waiting for its schedule. Never checks out pull request code; see "Monitor workflow" in
+# dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md.
+name: "Fork CI monitor wake-up"
+on:  # yamllint disable-line rule:truthy
+  workflow_run:  # zizmor: ignore[dangerous-triggers]
+    workflows: ["Tests (AMD)"]
+    # Comes right after the push, also for a run held for approval, which GitHub creates already
+    # completed as `action_required`.
+    types: [requested]
+permissions: {}
+jobs:
+  wake:
+    name: "Start the fork CI monitor for a gated pull request"
+    runs-on: ["ubuntu-slim"]
+    if: >-
+      github.repository == 'apache/airflow' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name != github.repository
+    timeout-minutes: 5
+    permissions:
+      # Reading the creation time of the triggering run, which the gate uses for a pilot's older
+      # pull request, and dispatching the monitor.
+      actions: write
+      contents: read
+      pull-requests: read
+    steps:
+      - name: "Checkout gate configuration from main"
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            .github/fork-ci-gate.toml
+            dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+          sparse-checkout-cone-mode: false
+      - name: "Find the pull request to main"
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        # Pull requests to other branches are left to the schedule.
+        run: |
+          set -euo pipefail
+          # The sha is put into a jq filter below.
+          [[ "${HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo "Unexpected head sha: ${HEAD_SHA}"; exit 1; }
+          gh api -X GET --paginate "repos/${REPO}/pulls" \
+            -f state=open -f base=main -f per_page=100 -f head="${HEAD_REPOSITORY%%/*}:${HEAD_BRANCH}" \
+            --jq ".[] | select(.head.sha == \"${HEAD_SHA}\")" \
+            | jq -rs '.[0] // empty | "number=\(.number)", "head-repo=\(.head.repo.full_name)",
+              "author=\(.user.login)", "author-association=\(.author_association)",
+              "created-at=\(.created_at)"' >> "${GITHUB_OUTPUT}"
+      # The inputs of the gate step in ci-amd.yml, which the triggering run's gate job decides from.
+      - name: "Decide whether the pull request is gated"
+        id: gate
+        if: steps.pr.outputs.number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE_CONFIG: .github/fork-ci-gate.toml
+          GATE_SCRIPT: dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          PR_HEAD_REPO: ${{ steps.pr.outputs.head-repo }}
+          PR_AUTHOR: ${{ steps.pr.outputs.author }}
+          PR_AUTHOR_ASSOCIATION: ${{ steps.pr.outputs.author-association }}
+          PR_CREATED_AT: ${{ steps.pr.outputs.created-at }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: GITHUB_EVENT_NAME=pull_request GITHUB_RUN_ID="${RUN_ID}" python3 "${GATE_SCRIPT}"
+      - name: "Start the fork CI monitor"
+        if: steps.gate.outputs.project-ci == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: gh workflow run fork-ci-monitor.yml --repo "${REPO}" --ref main
