@@ -81,6 +81,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks",
                     "airflow.providers.databricks.operators.agent",
+                    "airflow.providers.databricks.operators.data_quality",
                 ],
             },
             {
@@ -123,6 +124,7 @@ def get_provider_info():
                     "airflow.providers.databricks.hooks.databricks",
                     "airflow.providers.databricks.hooks.databricks_base",
                     "airflow.providers.databricks.hooks.agent",
+                    "airflow.providers.databricks.hooks.data_quality",
                 ],
             },
             {
