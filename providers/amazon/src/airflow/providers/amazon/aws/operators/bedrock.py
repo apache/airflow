@@ -756,15 +756,15 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
         super().__init__(**kwargs)
 
         if not role_arn:
-            raise AirflowException("role_arn is required to create a Bedrock Knowledge Base.")
+            raise ValueError("role_arn is required to create a Bedrock Knowledge Base.")
 
         if knowledge_base_config is None:
             if not embedding_model_arn or not storage_config:
-                raise AirflowException(
+                raise ValueError(
                     "embedding_model_arn and storage_config are required when knowledge_base_config is not provided."
                 )
         elif knowledge_base_config.get("type") == "VECTOR" and not storage_config:
-            raise AirflowException("storage_config is required for VECTOR knowledge bases.")
+            raise ValueError("storage_config is required for VECTOR knowledge bases.")
 
         self.name = name
         self.role_arn = role_arn

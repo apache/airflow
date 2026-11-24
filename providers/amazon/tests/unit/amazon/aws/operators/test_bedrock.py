@@ -27,7 +27,6 @@ import pytest
 from botocore.exceptions import ClientError, WaiterError
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import (
     BedrockAgentCoreControlHook,
     BedrockAgentCoreHook,
@@ -659,7 +658,7 @@ class TestBedrockCreateKnowledgeBaseOperator:
         )
 
     def test_role_arn_is_required(self):
-        with pytest.raises(AirflowException, match="role_arn is required"):
+        with pytest.raises(ValueError, match="role_arn is required"):
             BedrockCreateKnowledgeBaseOperator(
                 task_id="missing_role",
                 name=self.KNOWLEDGE_BASE_ID,
@@ -676,7 +675,7 @@ class TestBedrockCreateKnowledgeBaseOperator:
     )
     def test_vector_configuration_requires_embedding_and_storage(self, embedding_model_arn, storage_config):
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match="embedding_model_arn and storage_config are required",
         ):
             BedrockCreateKnowledgeBaseOperator(
@@ -689,7 +688,7 @@ class TestBedrockCreateKnowledgeBaseOperator:
 
     def test_custom_vector_configuration_requires_storage(self):
         """Custom VECTOR configurations should require storage_config."""
-        with pytest.raises(AirflowException, match="storage_config is required for VECTOR"):
+        with pytest.raises(ValueError, match="storage_config is required for VECTOR"):
             BedrockCreateKnowledgeBaseOperator(
                 task_id="missing_custom_vector_storage",
                 name=self.KNOWLEDGE_BASE_ID,
