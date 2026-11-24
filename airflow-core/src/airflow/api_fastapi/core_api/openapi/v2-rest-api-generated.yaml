@@ -1104,6 +1104,66 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/v2/assets/{asset_id}/watchers/{watcher_name}:
+    patch:
+      tags:
+      - Asset
+      summary: Patch Asset Watcher
+      description: Pause or resume an asset watcher.
+      operationId: patch_asset_watcher
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: asset_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Asset Id
+      - name: watcher_name
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Watcher Name
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssetWatcherPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssetWatcherResponse'
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/v2/backfills:
     get:
       tags:
@@ -1846,7 +1906,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
   /api/v2/connections:
     get:
       tags:
@@ -4512,7 +4572,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
     patch:
       tags:
       - DAG
@@ -4639,7 +4699,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
   /api/v2/dags/{dag_id}/details:
     get:
       tags:
@@ -13303,6 +13363,16 @@ components:
         \ entry.\n\n``TASK`` \u2014 written by a task via the execution API.\n``WATCHER``\
         \ \u2014 written by a ``BaseEventTrigger`` (no task instance).\n``API`` \u2014\
         \ written directly through the Core API (e.g. manual admin write)."
+    AssetWatcherPatchBody:
+      properties:
+        is_paused:
+          type: boolean
+          title: Is Paused
+      type: object
+      required:
+      - is_paused
+      title: AssetWatcherPatchBody
+      description: Payload for pausing or resuming an asset watcher.
     AssetWatcherResponse:
       properties:
         name:
@@ -13320,12 +13390,16 @@ components:
         status:
           $ref: '#/components/schemas/TriggerStatus'
           description: Status of the watcher's trigger, as in `GET /triggers`.
+        is_paused:
+          type: boolean
+          title: Is Paused
       type: object
       required:
       - name
       - trigger_id
       - created_date
       - status
+      - is_paused
       title: AssetWatcherResponse
       description: Asset watcher serializer for responses.
     AsyncConnectionTestResponse:
@@ -19858,6 +19932,9 @@ components:
         watcher_name:
           type: string
           title: Watcher Name
+        is_paused:
+          type: boolean
+          title: Is Paused
         scheduled_dag_ids:
           items:
             type: string
@@ -19872,6 +19949,7 @@ components:
       - asset_name
       - asset_uri
       - watcher_name
+      - is_paused
       - scheduled_dag_ids
       title: TriggerAssetWatcherReferenceResponse
       description: An asset watcher a trigger serves.
@@ -20152,6 +20230,7 @@ components:
       - running
       - failing
       - orphaned
+      - paused
       title: TriggerStatus
       description: How a trigger is doing, worked out the same way for every kind
         from its row and its triggerer's heartbeat.

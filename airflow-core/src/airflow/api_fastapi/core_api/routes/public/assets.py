@@ -66,6 +66,8 @@ from airflow.api_fastapi.core_api.datamodels.assets import (
     AssetEventCollectionResponse,
     AssetEventResponse,
     AssetResponse,
+    AssetWatcherPatchBody,
+    AssetWatcherResponse,
     CreateAssetEventsBody,
     MaterializeAssetBody,
     QueuedEventCollectionResponse,
@@ -964,3 +966,52 @@ def delete_dag_asset_queued_event(
                 f"Queued event with dag_id: `{dag_id}` and asset_id: `{asset_id}`", partition_key
             ),
         )
+
+
+@assets_router.patch(
+    "/assets/{asset_id}/watchers/{watcher_name}",
+    responses=create_openapi_http_exception_doc([status.HTTP_404_NOT_FOUND]),
+    dependencies=[
+        Depends(requires_access_asset(method="PUT")),
+        Depends(action_logging()),
+    ],
+)
+def patch_asset_watcher(
+    asset_id: int,
+    watcher_name: str,
+    patch_body: AssetWatcherPatchBody,
+    session: SessionDep,
+) -> AssetWatcherResponse:
+    """Pause or resume an asset watcher."""
+    watcher = session.scalar(
+        select(AssetWatcherModel)
+        .where(
+            AssetWatcherModel.asset_id == asset_id,
+            AssetWatcherModel.name == watcher_name,
+        )
+        .options(joinedload(AssetWatcherModel.trigger))
+    )
+    if watcher is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Asset watcher with asset_id: {asset_id} and name: '{watcher_name}' was not found",
+        )
+
+    watcher.is_paused = patch_body.is_paused
+
+    if patch_body.is_paused and watcher.trigger is not None:
+        all_watchers = session.scalars(
+            select(AssetWatcherModel).where(AssetWatcherModel.trigger_id == watcher.trigger_id)
+        ).all()
+        if all(w.is_paused for w in all_watchers):
+            watcher.trigger.triggerer_id = None
+
+    session.flush()
+
+    return AssetWatcherResponse(
+        name=watcher.name,
+        trigger_id=watcher.trigger_id,
+        created_date=watcher.trigger.created_date,
+        status=watcher.trigger.status(),
+        is_paused=watcher.is_paused,
+    )

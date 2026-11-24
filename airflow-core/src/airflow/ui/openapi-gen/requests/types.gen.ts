@@ -222,6 +222,13 @@ export type AssetStateStoreResponse = {
 export type AssetStateStoreWriterKind = 'task' | 'watcher' | 'api';
 
 /**
+ * Payload for pausing or resuming an asset watcher.
+ */
+export type AssetWatcherPatchBody = {
+    is_paused: boolean;
+};
+
+/**
  * Asset watcher serializer for responses.
  */
 export type AssetWatcherResponse = {
@@ -235,6 +242,7 @@ export type AssetWatcherResponse = {
      * Status of the watcher's trigger, as in `GET /triggers`.
      */
     status: TriggerStatus;
+    is_paused: boolean;
 };
 
 /**
@@ -2692,6 +2700,7 @@ export type TriggerAssetWatcherReferenceResponse = {
     asset_name: string;
     asset_uri: string;
     watcher_name: string;
+    is_paused: boolean;
     /**
      * The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.
      */
@@ -2810,7 +2819,7 @@ export type TriggerResponse = {
 /**
  * How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat.
  */
-export type TriggerStatus = 'pending' | 'running' | 'failing' | 'orphaned';
+export type TriggerStatus = 'pending' | 'running' | 'failing' | 'orphaned' | 'paused';
 
 /**
  * The task instance a trigger runs for.
@@ -4064,6 +4073,14 @@ export type DeleteDagAssetQueuedEventData = {
 };
 
 export type DeleteDagAssetQueuedEventResponse = void;
+
+export type PatchAssetWatcherData = {
+    assetId: number;
+    requestBody: AssetWatcherPatchBody;
+    watcherName: string;
+};
+
+export type PatchAssetWatcherResponse = AssetWatcherResponse;
 
 export type GetAssetsUiData = {
     dagIds?: Array<(string)>;
@@ -6558,6 +6575,33 @@ export type $OpenApiTs = {
             };
         };
     };
+    '/api/v2/assets/{asset_id}/watchers/{watcher_name}': {
+        patch: {
+            req: PatchAssetWatcherData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetWatcherResponse;
+                /**
+                 * Unauthorized
+                 */
+                401: HTTPExceptionResponse;
+                /**
+                 * Forbidden
+                 */
+                403: HTTPExceptionResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
     '/ui/assets': {
         get: {
             req: GetAssetsUiData;
@@ -7007,7 +7051,7 @@ export type $OpenApiTs = {
                  */
                 409: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Entity
+                 * Unprocessable Content
                  */
                 422: HTTPExceptionResponse;
             };
@@ -7891,7 +7935,7 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Entity
+                 * Unprocessable Content
                  */
                 422: HTTPExceptionResponse;
             };
@@ -7953,7 +7997,7 @@ export type $OpenApiTs = {
                  */
                 409: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Entity
+                 * Unprocessable Content
                  */
                 422: HTTPExceptionResponse;
             };
@@ -10671,7 +10715,7 @@ export type $OpenApiTs = {
                  */
                 404: HTTPExceptionResponse;
                 /**
-                 * Unprocessable Entity
+                 * Unprocessable Content
                  */
                 422: HTTPExceptionResponse;
             };

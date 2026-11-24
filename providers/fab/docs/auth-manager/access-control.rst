@@ -284,6 +284,10 @@ Stable API Permissions
      - PUT
      - Assets.can_edit
      - Op
+   * - ``/api/v2/assets/{asset_id}/watchers/{watcher_name}``
+     - PATCH
+     - Assets.can_edit
+     - Op
    * - ``/api/v2/auth/cli/metadata``
      - GET
      - None

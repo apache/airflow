@@ -2,7 +2,7 @@
 
 import { UseMutationOptions, UseQueryOptions, useMutation, useQuery } from "@tanstack/react-query";
 import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagParsingService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
-import { AssetStateStoreBody, BackfillPostBody, BulkBody_BulkDAGBody_, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, TriggerKind, TriggerStatus, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
+import { AssetStateStoreBody, AssetWatcherPatchBody, BackfillPostBody, BulkBody_BulkDAGBody_, BulkBody_BulkDAGRunBody_, BulkBody_BulkTaskInstanceBody_, BulkBody_ConnectionBody_, BulkBody_PoolBody_, BulkBody_VariableBody_, BulkDAGRunClearBody, ClearPartitionsBody, ClearTaskInstancesBody, ConnectionBody, ConnectionTestRequestBody, CreateAssetEventsBody, DAGPatchBody, DAGRunClearBody, DAGRunPatchBody, DAGRunsBatchBody, DagRunState, DagSchedulingState, GenerateTokenBody, MaterializeAssetBody, PatchTaskInstanceBody, PoolBody, PoolPatchBody, ReprocessBehavior, TaskInstancesBatchBody, TaskStateStoreBody, TaskStateStorePatchBody, TriggerDAGRunPostBody, TriggerKind, TriggerStatus, UpdateHITLDetailPayload, VariableBody, XComCreateBody, XComUpdateBody } from "../requests/types.gen";
 import * as Common from "./common";
 /**
 * Get Assets
@@ -3100,6 +3100,25 @@ export const useDagParsingServiceReparseDagFile = <TData = Common.DagParsingServ
 }, TContext>, "mutationFn">) => useMutation<TData, TError, {
   fileToken: string;
 }, TContext>({ mutationFn: ({ fileToken }) => DagParsingService.reparseDagFile({ fileToken }) as unknown as Promise<TData>, ...options });
+/**
+* Patch Asset Watcher
+* Pause or resume an asset watcher.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.watcherName
+* @param data.requestBody
+* @returns AssetWatcherResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetServicePatchAssetWatcher = <TData = Common.AssetServicePatchAssetWatcherMutationResult, TError = unknown, TContext = unknown>(options?: Omit<UseMutationOptions<TData, TError, {
+  assetId: number;
+  requestBody: AssetWatcherPatchBody;
+  watcherName: string;
+}, TContext>, "mutationFn">) => useMutation<TData, TError, {
+  assetId: number;
+  requestBody: AssetWatcherPatchBody;
+  watcherName: string;
+}, TContext>({ mutationFn: ({ assetId, requestBody, watcherName }) => AssetService.patchAssetWatcher({ assetId, requestBody, watcherName }) as unknown as Promise<TData>, ...options });
 /**
 * Patch Connection
 * Update a connection entry.

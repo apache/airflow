@@ -113,6 +113,14 @@ class AssetStateStoreWriterKind(str, Enum):
     API = "api"
 
 
+class AssetWatcherPatchBody(BaseModel):
+    """
+    Payload for pausing or resuming an asset watcher.
+    """
+
+    is_paused: Annotated[bool, Field(title="Is Paused")]
+
+
 class AsyncConnectionTestResponse(BaseModel):
     """
     Response returned when polling for the status of an enqueued connection test.
@@ -1657,6 +1665,7 @@ class TriggerAssetWatcherReferenceResponse(BaseModel):
     asset_name: Annotated[str, Field(title="Asset Name")]
     asset_uri: Annotated[str, Field(title="Asset Uri")]
     watcher_name: Annotated[str, Field(title="Watcher Name")]
+    is_paused: Annotated[bool, Field(title="Is Paused")]
     scheduled_dag_ids: Annotated[
         list[str],
         Field(
@@ -1735,6 +1744,7 @@ class TriggerStatus(str, Enum):
     RUNNING = "running"
     FAILING = "failing"
     ORPHANED = "orphaned"
+    PAUSED = "paused"
 
 
 class TriggerTaskInstanceReferenceResponse(BaseModel):
@@ -2017,6 +2027,7 @@ class AssetWatcherResponse(BaseModel):
     status: Annotated[
         TriggerStatus, Field(description="Status of the watcher's trigger, as in `GET /triggers`.")
     ]
+    is_paused: Annotated[bool, Field(title="Is Paused")]
 
 
 class BackfillDagRunResponse(BaseModel):

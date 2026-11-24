@@ -17,7 +17,9 @@
  * under the License.
  */
 import { useTranslation } from "react-i18next";
+import { MdPause } from "react-icons/md";
 
+import { Badge } from "@chakra-ui/react";
 import type { TaskInstanceState, TriggerStatus } from "openapi/requests/types.gen";
 
 import { Tooltip } from "src/system-components";
@@ -26,7 +28,7 @@ import { StateBadge, type Props as StateBadgeProps } from "src/components/StateB
 
 // Drawn in the colour and icon of the task state that reads the same, so a failing trigger looks
 // like a failed task and a running one like a running task, in light and dark mode alike.
-const taskStates: Record<TriggerStatus, TaskInstanceState> = {
+const taskStates: Partial<Record<TriggerStatus, TaskInstanceState>> = {
   failing: "failed",
   // Its triggerer stopped sending heartbeats; another triggerer picks it up again.
   orphaned: "up_for_retry",
@@ -37,6 +39,7 @@ const taskStates: Record<TriggerStatus, TaskInstanceState> = {
 const labelKeys: Record<TriggerStatus, string> = {
   failing: "browse:triggers.status.failing",
   orphaned: "browse:triggers.status.orphaned",
+  paused: "browse:triggers.status.paused",
   pending: "common:states.pending",
   running: "common:states.running",
 };
@@ -46,6 +49,28 @@ export const TriggerStatusBadge = ({
   ...rest
 }: { readonly status: TriggerStatus } & Omit<StateBadgeProps, "state">) => {
   const { t: translate } = useTranslation(["browse", "common"]);
+
+  if (status === "paused") {
+    const badge = (
+      <Badge
+        borderRadius="full"
+        colorPalette="gray"
+        data-testid="trigger-status-badge"
+        fontSize="sm"
+        px={2}
+        py={1}
+        variant="solid"
+        {...rest}
+      >
+        <MdPause />
+        {translate(labelKeys[status])}
+      </Badge>
+    );
+
+    return (
+      <Tooltip content={translate("browse:triggers.statusHint.paused")}>{badge}</Tooltip>
+    );
+  }
 
   const badge = (
     <StateBadge data-testid="trigger-status-badge" state={taskStates[status]} {...rest}>

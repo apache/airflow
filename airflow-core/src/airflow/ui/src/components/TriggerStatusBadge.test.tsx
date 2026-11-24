@@ -46,4 +46,12 @@ describe("TriggerStatusBadge", () => {
     expect(screen.queryByText(/triggers\.statusHint/u)).not.toBeInTheDocument();
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
+
+  it("explains on hover that a paused trigger is paused", async () => {
+    render(<TriggerStatusBadge status="paused" />, { wrapper: Wrapper });
+
+    fireEvent.pointerEnter(screen.getByTestId("trigger-status-badge"), { pointerType: "mouse" });
+
+    expect(await screen.findByText("triggers.statusHint.paused")).toBeInTheDocument();
+  });
 });

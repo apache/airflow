@@ -194,6 +194,7 @@ def _build_response(
                 asset_name=watcher.asset.name,
                 asset_uri=watcher.asset.uri,
                 watcher_name=watcher.name,
+                is_paused=watcher.is_paused,
                 scheduled_dag_ids=scheduled_dag_ids.get(watcher.asset_id, []),
             )
             for watcher in sorted(trigger.asset_watchers, key=lambda w: (w.asset_id, w.name))

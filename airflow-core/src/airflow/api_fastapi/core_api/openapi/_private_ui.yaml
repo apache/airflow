@@ -2688,7 +2688,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPExceptionResponse'
-          description: Unprocessable Entity
+          description: Unprocessable Content
   /ui/grid/loop-history/{dag_id}/{group_id}:
     get:
       tags:
@@ -3478,12 +3478,16 @@ components:
         status:
           $ref: '#/components/schemas/TriggerStatus'
           description: Status of the watcher's trigger, as in `GET /triggers`.
+        is_paused:
+          type: boolean
+          title: Is Paused
       type: object
       required:
       - name
       - trigger_id
       - created_date
       - status
+      - is_paused
       title: AssetWatcherResponse
       description: Asset watcher serializer for responses.
     AuthenticatedMeResponse:
@@ -6793,6 +6797,7 @@ components:
       - running
       - failing
       - orphaned
+      - paused
       title: TriggerStatus
       description: How a trigger is doing, worked out the same way for every kind
         from its row and its triggerer's heartbeat.

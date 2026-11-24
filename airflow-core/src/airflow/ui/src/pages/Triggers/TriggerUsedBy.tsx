@@ -16,12 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Text, VStack } from "@chakra-ui/react";
+import { HStack, Text, VStack } from "@chakra-ui/react";
 
 import type { TriggerDetailResponse } from "openapi/requests/types.gen";
 
 import { RouterLink } from "src/system-components";
 
+import { TogglePauseWatcher } from "src/components/TogglePauseWatcher";
 import { getTaskInstanceLink } from "src/utils/links";
 
 /** Links to what the trigger is used by: its task instance, its callback's Dag run, or its assets. */
@@ -54,11 +55,18 @@ export const TriggerUsedBy = ({ trigger }: { readonly trigger: TriggerDetailResp
   }
 
   return watchers.length ? (
-    <VStack align="start" gap={0}>
+    <VStack align="start" gap={1}>
       {watchers.map((watcher) => (
-        <RouterLink key={`${watcher.asset_id}-${watcher.watcher_name}`} to={`/assets/${watcher.asset_id}`}>
-          {`${watcher.asset_name} / ${watcher.watcher_name}`}
-        </RouterLink>
+        <HStack gap={2} key={`${watcher.asset_id}-${watcher.watcher_name}`}>
+          <TogglePauseWatcher
+            assetId={watcher.asset_id}
+            isPaused={watcher.is_paused}
+            watcherName={watcher.watcher_name}
+          />
+          <RouterLink to={`/assets/${watcher.asset_id}`}>
+            {`${watcher.asset_name} / ${watcher.watcher_name}`}
+          </RouterLink>
+        </HStack>
       ))}
     </VStack>
   ) : undefined;

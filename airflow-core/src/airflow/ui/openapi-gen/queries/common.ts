@@ -1380,6 +1380,7 @@ export type BackfillServiceCancelBackfillMutationResult = Awaited<ReturnType<typ
 export type AssetStateStoreServiceSetAssetStateStoreMutationResult = Awaited<ReturnType<typeof AssetStateStoreService.setAssetStateStore>>;
 export type TaskStateStoreServiceSetTaskStateStoreMutationResult = Awaited<ReturnType<typeof TaskStateStoreService.setTaskStateStore>>;
 export type DagParsingServiceReparseDagFileMutationResult = Awaited<ReturnType<typeof DagParsingService.reparseDagFile>>;
+export type AssetServicePatchAssetWatcherMutationResult = Awaited<ReturnType<typeof AssetService.patchAssetWatcher>>;
 export type ConnectionServicePatchConnectionMutationResult = Awaited<ReturnType<typeof ConnectionService.patchConnection>>;
 export type ConnectionServiceBulkConnectionsMutationResult = Awaited<ReturnType<typeof ConnectionService.bulkConnections>>;
 export type DagRunServicePatchDagRunMutationResult = Awaited<ReturnType<typeof DagRunService.patchDagRun>>;
