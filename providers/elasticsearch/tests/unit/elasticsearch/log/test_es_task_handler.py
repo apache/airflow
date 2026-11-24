@@ -42,6 +42,7 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
     VALID_ES_CONFIG_KEYS,
     ElasticsearchRemoteLogIO,
     ElasticsearchTaskHandler,
+    _build_candidate_log_ids,
     _build_log_fields,
     _build_log_query,
     _clean_date,
@@ -104,6 +105,13 @@ class _MockTI:
     try_number: int = 1
     map_index: int = -1
     id: UUID = dataclasses.field(default_factory=uuid4)
+
+
+@pytest.mark.parametrize("configured_template", ["{unknown_field}", "{", "{}"])
+def test_candidate_log_ids_skip_a_configured_template_that_fails_to_render(configured_template):
+    ti = _MockTI()
+
+    assert _build_candidate_log_ids("pinned-{dag_id}", configured_template, ti, 1) == [f"pinned-{ti.dag_id}"]
 
 
 def get_ti(dag_id, task_id, run_id, logical_date, create_task_instance):
@@ -187,10 +195,11 @@ def _assert_missing_log_message(logs):
         assert logs[0].event.endswith("may have been removed.")
         assert logs[0].event
         assert re.match(expected_pattern, logs[0].event) is not None
-    else:
-        assert len(logs) == 1
-        assert len(logs[0]) == 1
-        assert re.match(expected_pattern, logs[0][0][1]) is not None
+        return logs[0].event
+    assert len(logs) == 1
+    assert len(logs[0]) == 1
+    assert re.match(expected_pattern, logs[0][0][1]) is not None
+    return logs[0][0][1]
 
 
 class TestElasticsearchTaskHandler:
@@ -570,13 +579,92 @@ class TestElasticsearchTaskHandler:
         assert self.es_task_handler._render_log_id(ti, self.TRY_NUM) == expected
 
     @pytest.mark.db_test
+    def test_render_log_id_does_not_render_the_configured_template(self, ti):
+        self.es_task_handler.log_id_template = "{unknown_field}"
+        logical_date = ti.get_dagrun().logical_date
+        expected = f"{self.DAG_ID}-{self.TASK_ID}-{logical_date.isoformat()}-{self.TRY_NUM}"
+        assert self.es_task_handler._render_log_id(ti, self.TRY_NUM) == expected
+
+    @pytest.mark.db_test
     def test_remote_log_io_read_uses_pinned_template(self, ti):
         with mock.patch.object(self.es_task_handler.io, "_es_read", return_value=None) as mock_es_read:
             self.es_task_handler.io.read("", ti)
 
         logical_date = ti.get_dagrun().logical_date
         expected = f"{self.DAG_ID}-{self.TASK_ID}-{logical_date.isoformat()}-{self.TRY_NUM}"
-        mock_es_read.assert_called_once_with(expected, 0, ti, source_includes=mock.ANY)
+        assert mock_es_read.call_args_list[0].args == (expected, 0, ti)
+
+    @pytest.mark.db_test
+    def test_read_falls_back_to_configured_template_when_pinned_finds_nothing(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
+        self.es_task_handler.log_id_template = "conf-{dag_id}-{try_number}"
+        configured_log_id = f"conf-{self.DAG_ID}-{self.TRY_NUM}"
+        logical_date = ti.get_dagrun().logical_date
+        pinned_log_id = f"{self.DAG_ID}-{self.TASK_ID}-{logical_date.isoformat()}-{self.TRY_NUM}"
+        response = _make_es_response(
+            self.es_task_handler.io, {**self.base_log_source, "log_id": configured_log_id}
+        )
+
+        def es_read(log_id, offset, ti, **kwargs):
+            return response if log_id == configured_log_id else None
+
+        with mock.patch.object(self.es_task_handler.io, "_es_read", side_effect=es_read) as mock_es_read:
+            logs, metadatas = self.es_task_handler.read(ti, self.TRY_NUM, {"offset": 0})
+
+        assert [c.args[0] for c in mock_es_read.call_args_list] == [pinned_log_id, configured_log_id]
+        _assert_log_events(
+            logs, metadatas, expected_events=[self.test_message], expected_sources=["http://localhost:9200"]
+        )
+        assert _metadata_from_result(metadatas)["log_id"] == configured_log_id
+
+    @pytest.mark.db_test
+    def test_read_skips_configured_template_when_pinned_has_logs(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
+        self.es_task_handler.log_id_template = "conf-{dag_id}-{try_number}"
+        pinned_log_id, _ = self.es_task_handler._render_log_ids(ti, self.TRY_NUM)
+        response = _make_es_response(
+            self.es_task_handler.io, {**self.base_log_source, "log_id": pinned_log_id}
+        )
+
+        with mock.patch.object(self.es_task_handler.io, "_es_read", return_value=response) as mock_es_read:
+            _, metadatas = self.es_task_handler.read(ti, self.TRY_NUM, {"offset": 0})
+
+        assert [c.args[0] for c in mock_es_read.call_args_list] == [pinned_log_id]
+        assert _metadata_from_result(metadatas)["log_id"] == pinned_log_id
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("stored", "expected_queries"),
+        [
+            pytest.param("configured", ["configured"], id="stored-candidate-is-reused"),
+            pytest.param("unrelated", ["pinned", "configured"], id="unknown-id-is-ignored"),
+        ],
+    )
+    def test_read_continues_with_the_log_id_stored_in_metadata(self, ti, stored, expected_queries):
+        ti.state = TaskInstanceState.SUCCESS
+        self.es_task_handler.log_id_template = "conf-{dag_id}-{try_number}"
+        pinned, configured = self.es_task_handler._render_log_ids(ti, self.TRY_NUM)
+        log_ids = {"pinned": pinned, "configured": configured, "unrelated": "some-other-log-id"}
+
+        with mock.patch.object(self.es_task_handler.io, "_es_read", return_value=None) as mock_es_read:
+            self.es_task_handler.read(ti, self.TRY_NUM, {"offset": 5, "log_id": log_ids[stored]})
+
+        assert [c.args[0] for c in mock_es_read.call_args_list] == [log_ids[q] for q in expected_queries]
+
+    @pytest.mark.db_test
+    def test_read_missing_message_names_every_searched_log_id(self, ti):
+        ti.state = TaskInstanceState.SUCCESS
+        self.es_task_handler.log_id_template = "conf-{dag_id}-{try_number}"
+        pinned, configured = self.es_task_handler._render_log_ids(ti, self.TRY_NUM)
+        start_time = pendulum.now().add(seconds=-6)
+
+        with mock.patch.object(self.es_task_handler.io, "_es_read", return_value=None):
+            logs, _ = self.es_task_handler.read(
+                ti, self.TRY_NUM, {"offset": 0, "last_log_timestamp": str(start_time)}
+            )
+
+        message = _assert_missing_log_message(logs)
+        assert message.startswith(f"*** Log {pinned} or {configured} not found in Elasticsearch")
 
     def test_clean_date(self):
         clean_logical_date = _clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
@@ -948,6 +1036,56 @@ class TestElasticsearchRemoteLogIO:
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Elasticsearch" in log_messages[0]
 
+    @patch(
+        "airflow.providers.elasticsearch.log.es_task_handler._resolve_log_id_template",
+        autospec=True,
+        return_value=("pinned-{dag_id}", None),
+    )
+    def test_read_missing_message_names_every_searched_log_id(self, _mock_resolve, ti):
+        pinned = _render_log_id("pinned-{dag_id}", ti, ti.try_number)
+        configured = _render_log_id(self.elasticsearch_io.log_id_template, ti, ti.try_number)
+
+        with patch.object(self.elasticsearch_io, "_es_read", return_value=None):
+            _, log_messages = self.elasticsearch_io.read("", ti)
+
+        assert log_messages[0].startswith(f"*** Log {pinned} or {configured} not found in Elasticsearch")
+
+    @patch(
+        "airflow.providers.elasticsearch.log.es_task_handler._resolve_log_id_template",
+        autospec=True,
+        return_value=("pinned-{dag_id}", None),
+    )
+    def test_read_skips_configured_template_when_pinned_has_logs(self, _mock_resolve, ti):
+        pinned = _render_log_id("pinned-{dag_id}", ti, ti.try_number)
+        response = _make_es_response(self.elasticsearch_io, {"event": "hello", "log_id": pinned, "offset": 1})
+
+        with patch.object(self.elasticsearch_io, "_es_read", return_value=response) as mock_es_read:
+            self.elasticsearch_io.read("", ti)
+
+        mock_es_read.assert_called_once()
+
+    def test_es_read_first_hit_propagates_errors_outside_the_search(self, ti):
+        self.elasticsearch_io.client = Mock()
+        self.elasticsearch_io.index_patterns_callable = "nonexistent_module.get_index_patterns"
+
+        with pytest.raises(ImportError):
+            self.elasticsearch_io._es_read_first_hit(["pinned", "configured"], 0, ti)
+
+        self.elasticsearch_io.client.search.assert_not_called()
+
+    def test_es_read_first_hit_propagates_missing_index(self, ti):
+        self.elasticsearch_io.client = Mock()
+        self.elasticsearch_io.client.search.side_effect = elasticsearch.exceptions.NotFoundError(
+            404,
+            "IndexMissingException[[missing] missing]",
+            {},
+        )
+
+        with pytest.raises(elasticsearch.exceptions.NotFoundError):
+            self.elasticsearch_io._es_read_first_hit(["pinned", "configured"], 0, ti)
+
+        self.elasticsearch_io.client.search.assert_called_once()
+
     def test_upload_returns_early_when_ti_is_none(self, tmp_json_file):
         self.elasticsearch_io.upload(tmp_json_file, ti=None)
 
@@ -991,6 +1129,31 @@ class TestElasticsearchRemoteLogIO:
         log_entries = [json.loads(line) for line in capsys.readouterr().out.strip().splitlines()]
         assert log_entries
         assert all(entry["log_id"] == expected_log_id for entry in log_entries)
+
+    @patch("airflow.providers.elasticsearch.log.es_task_handler.AIRFLOW_V_3_4_PLUS", False)
+    def test_read_finds_logs_uploaded_without_ti_context_after_a_template_change(
+        self, tmp_json_file, ti, capsys
+    ):
+        """An older writer stamps the configured template; the reader of a run pinned to another finds it."""
+        self.elasticsearch_io.write_to_es = False
+        self.elasticsearch_io.upload(tmp_json_file, ti)
+        docs = [json.loads(line) for line in capsys.readouterr().out.strip().splitlines()]
+        assert all("ti_id" not in doc for doc in docs)
+
+        def es_read(log_id, offset, ti, **kwargs):
+            matching = [doc for doc in docs if doc["log_id"] == log_id]
+            return _make_es_response(self.elasticsearch_io, *matching) if matching else None
+
+        with (
+            patch(
+                "airflow.providers.elasticsearch.log.es_task_handler._resolve_log_id_template",
+                return_value=("pinned-{dag_id}", None),
+            ),
+            patch.object(self.elasticsearch_io, "_es_read", side_effect=es_read),
+        ):
+            _, log_messages = self.elasticsearch_io.read("", ti)
+
+        assert [json.loads(m)["event"] for m in log_messages] == ["start", "processing", "end"]
 
     def test_upload_falls_back_to_configured_template_without_ti_context(self, tmp_json_file, ti, capsys):
         self.elasticsearch_io.write_to_es = False

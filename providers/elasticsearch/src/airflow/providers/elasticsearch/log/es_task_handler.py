@@ -278,6 +278,33 @@ def _resolve_log_id_template(
         return default_template, None
 
 
+def _build_candidate_log_ids(
+    pinned_template: str,
+    configured_template: str,
+    ti: TaskInstance | TaskInstanceKey | RuntimeTI,
+    try_number: int,
+    *,
+    dag_run: Any = None,
+    json_format: bool = False,
+) -> list[str]:
+    """
+    Render the pinned log id, then the configured one when it differs and renders.
+
+    Readers try the ids in order. Writers without the pinned template (older SDKs, or tasks running while
+    the template changed) use the configured one, so readers try it after the pinned one.
+    """
+    log_ids = [_render_log_id(pinned_template, ti, try_number, dag_run=dag_run, json_format=json_format)]
+    try:
+        configured_log_id = _render_log_id(
+            configured_template, ti, try_number, dag_run=dag_run, json_format=json_format
+        )
+    except Exception:
+        return log_ids
+    if configured_log_id not in log_ids:
+        log_ids.append(configured_log_id)
+    return log_ids
+
+
 def _get_ti_id_fields(ti: TaskInstance | TaskInstanceKey) -> dict[str, str]:
     # Before 3.4 a try can reuse the previous try's id, so only log_id identifies it.
     if not AIRFLOW_V_3_4_PLUS:
@@ -478,6 +505,18 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         extra_fields = self.json_fields if self.json_format and not AIRFLOW_V_3_0_PLUS else []
         return self.io._get_source_includes(extra_fields=extra_fields)
 
+    def _render_log_ids(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> list[str]:
+        """Render the Dag-run-pinned log id, then the configured one when it differs."""
+        log_id_template, dag_run = _resolve_log_id_template(ti, self.log_id_template)
+        return _build_candidate_log_ids(
+            log_id_template,
+            self.log_id_template,
+            ti,
+            try_number,
+            dag_run=dag_run,
+            json_format=self.json_format,
+        )
+
     def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         log_id_template, dag_run = _resolve_log_id_template(ti, self.log_id_template)
         return _render_log_id(log_id_template, ti, try_number, dag_run=dag_run, json_format=self.json_format)
@@ -512,10 +551,16 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             metadata["offset"] = 0
 
         offset = metadata["offset"]
-        log_id = self._render_log_id(ti, try_number)
-        response = self.io._es_read(log_id, offset, ti, source_includes=self._get_es_source_includes())
+        log_ids = self._render_log_ids(ti, try_number)
+        # Later pages stay on the log id that matched, so they do not mix in another stream.
+        if metadata.get("log_id") in log_ids:
+            log_ids = [metadata["log_id"]]  # type: ignore[typeddict-item]
+        searched_log_ids, response = self.io._es_read_first_hit(
+            log_ids, offset, ti, source_includes=self._get_es_source_includes()
+        )
         # TODO: Can we skip group logs by host ?
-        if response is not None and response.hits:
+        if response is not None:
+            metadata["log_id"] = searched_log_ids[-1]  # type: ignore[typeddict-unknown-key]
             logs_by_host = self.io._group_logs_by_host(response)
             next_offset = attrgetter(self.offset_field)(response[-1])
         else:
@@ -545,7 +590,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             if int(next_offset) == 0 and cur_ts.diff(last_log_ts).in_seconds() > 5:
                 metadata["end_of_log"] = True
                 missing_log_message = (
-                    f"*** Log {log_id} not found in Elasticsearch. "
+                    f"*** Log {' or '.join(searched_log_ids)} not found in Elasticsearch. "
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
@@ -931,24 +976,23 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
             # Logs are keyed by task instance, and ``upload`` skips logs without one.
             return [], []
         log_id_template, dag_run = _resolve_log_id_template(ti, self.log_id_template)
-        log_id = _render_log_id(
+        log_ids = _build_candidate_log_ids(
             log_id_template,
+            self.log_id_template,
             ti,
             ti.try_number,
             dag_run=dag_run,
             json_format=self.json_format,
         )
-        self.log.info("Reading log %s from Elasticsearch", log_id)
-        offset = 0
-        response = self._es_read(log_id, offset, ti, source_includes=self._get_source_includes())
-        if response is not None and response.hits:
-            logs_by_host = self._group_logs_by_host(response)
-        else:
-            logs_by_host = None
+        self.log.info("Reading log %s from Elasticsearch", " or ".join(log_ids))
+        searched_log_ids, response = self._es_read_first_hit(
+            log_ids, 0, ti, source_includes=self._get_source_includes()
+        )
+        logs_by_host = self._group_logs_by_host(response) if response is not None else None
 
         if logs_by_host is None:
             missing_log_message = (
-                f"*** Log {log_id} not found in Elasticsearch. "
+                f"*** Log {' or '.join(searched_log_ids)} not found in Elasticsearch. "
                 "If your task started recently, please wait a moment and reload this page. "
                 "Otherwise, the logs for this task instance may have been removed."
             )
@@ -966,6 +1010,29 @@ class ElasticsearchRemoteLogIO(LoggingMixin):  # noqa: D101
                 message.append(json.dumps(filtered))
 
         return header, message
+
+    def _es_read_first_hit(
+        self,
+        log_ids: list[str],
+        offset: int | str,
+        ti: RuntimeTI,
+        *,
+        source_includes: Iterable[str] | None = None,
+    ) -> tuple[list[str], ElasticSearchResponse | None]:
+        """
+        Search ``log_ids`` in order until one has logs.
+
+        Return the ids searched and the response for the last of them, which is None when no id had logs.
+
+        :meta private:
+        """
+        searched_log_ids: list[str] = []
+        for log_id in log_ids:
+            searched_log_ids.append(log_id)
+            response = self._es_read(log_id, offset, ti, source_includes=source_includes)
+            if response is not None and response.hits:
+                return searched_log_ids, response
+        return searched_log_ids, None
 
     def _es_read(
         self,
