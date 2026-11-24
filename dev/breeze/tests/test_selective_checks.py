@@ -6419,6 +6419,25 @@ def test_image_rebuild_check_files_select_the_image_build_time_check():
         )
 
 
+@pytest.mark.parametrize(
+    ("generated_file", "expected"),
+    [
+        pytest.param("generated/known_unspecced_mocks.txt", False, id="prek-allowlist"),
+        pytest.param("generated/provider_metadata.json", True, id="other-generated-file"),
+    ],
+)
+def test_image_build_time_check_ignores_prek_allowlists(generated_file, expected):
+    checks = SelectiveChecks(
+        files=("airflow-core/tests/unit/models/test_dag.py", generated_file),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+
+    assert checks.ci_image_build is True
+    assert checks.run_image_build_time_check is expected
+
+
 TASK_SDK_SOURCE = "task-sdk/src/airflow/sdk/bases/operator.py"
 
 

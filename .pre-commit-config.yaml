@@ -1912,6 +1912,7 @@ repos:
         entry: ./scripts/ci/prek/check_unspecced_mocks.py
         language: python
         pass_filenames: true
+        require_serial: true
         files: ^(airflow-core|airflow-ctl|airflow-ctl-tests|airflow-e2e-tests|chart|dev|devel-common|docker-tests|kubernetes-tests|performance|providers|scripts|shared|task-sdk|task-sdk-integration-tests)/(.*/)?tests/.*\.py$
       - id: check-no-new-airflow-core-utils-modules
         name: Check that no new modules are added under airflow-core/src/airflow/utils

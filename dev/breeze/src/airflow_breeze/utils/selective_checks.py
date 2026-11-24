@@ -698,14 +698,15 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
         # The CI image is built from these before the sources are copied in; any other change reuses the
         # cached layers, so the build-time check has nothing new to measure. Breeze's FILES_FOR_REBUILD_CHECK
         # are these or ENVIRONMENT_FILES. The build first regenerates the provider dependencies with the
-        # prek script, which is not an ENVIRONMENT_FILES match.
+        # prek script, which is not an ENVIRONMENT_FILES match. Only prek hooks read the
+        # generated/known_*.txt allowlists.
         FileGroupForCi.IMAGE_BUILD_FILES: [
             r"^scripts/ci/prek/(common_prek_utils|update_providers_dependencies)\.py$",
             r"^Dockerfile",
             r"^\.dockerignore$",
             r"^scripts/docker/",
             r".*hatch_build\.py$",
-            r"^generated/",
+            r"^generated/(?!known_[^/]*\.txt$)",
             r"^uv\.lock$",
             r".*pyproject\.toml$",
         ],

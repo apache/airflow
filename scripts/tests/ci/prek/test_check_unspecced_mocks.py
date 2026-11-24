@@ -89,6 +89,32 @@ class TestUnspeccedMockAllowlistManager:
                 "mock.patch.object(Variable, 'get', new_callable=MagicMock)",
                 id="patch.object-new_callable-mock-class",
             ),
+            pytest.param("MagicMock(spec=None)", id="MagicMock-spec-None"),
+            pytest.param("MagicMock(spec_set=None)", id="MagicMock-spec_set-None"),
+            pytest.param("MagicMock(None)", id="MagicMock-positional-spec-None"),
+            pytest.param("mock.patch('airflow.models.Variable.get', spec=None)", id="patch-spec-None"),
+            pytest.param(
+                "mock.patch('airflow.models.Variable.get', autospec=False)", id="patch-autospec-False"
+            ),
+            pytest.param(
+                "mock.patch('airflow.models.Variable.get', new=mock.DEFAULT)", id="patch-new-DEFAULT"
+            ),
+            pytest.param(
+                "mock.patch('airflow.models.Variable.get', DEFAULT)", id="patch-positional-new-DEFAULT"
+            ),
+            pytest.param(
+                "mock.patch('airflow.models.Variable.get', DEFAULT, None)",
+                id="patch-positional-spec-None",
+            ),
+            pytest.param(
+                "mock.patch('airflow.models.Variable.get', new_callable=None)", id="patch-new_callable-None"
+            ),
+            pytest.param(
+                "mock.patch.object(Variable, 'get', autospec=None)", id="patch.object-autospec-None"
+            ),
+            pytest.param(
+                "mock.patch.object(Variable, 'get', mock.DEFAULT)", id="patch.object-positional-new-DEFAULT"
+            ),
         ],
     )
     def test_mock_without_spec_is_counted(self, count_violations, code):
@@ -109,7 +135,15 @@ class TestUnspeccedMockAllowlistManager:
                 "mock.patch('airflow.models.Variable.get', new_callable=PropertyMock)",
                 id="patch-new_callable",
             ),
+            pytest.param("mock.patch('airflow.models.Variable.get', new=None)", id="patch-new-None"),
             pytest.param("mock.patch('airflow.models.Variable.get', get)", id="patch-positional-new"),
+            pytest.param(
+                "mock.patch('airflow.models.Variable.get', DEFAULT, Variable)",
+                id="patch-positional-spec",
+            ),
+            pytest.param(
+                "mock.patch('airflow.models.Variable.get', Priority.DEFAULT)", id="patch-new-enum-DEFAULT"
+            ),
             pytest.param("mock.patch('airflow.models.Variable.get', **kwargs)", id="patch-kwargs-unpacked"),
             pytest.param("mock.patch.object(Variable, 'get', autospec=True)", id="patch.object-autospec"),
             pytest.param("mock.patch.object(Variable, 'get', get)", id="patch.object-positional-new"),
@@ -123,9 +157,6 @@ class TestUnspeccedMockAllowlistManager:
     )
     def test_mock_with_spec_or_other_call_is_not_counted(self, count_violations, code):
         assert count_violations(code) == 0
-
-    def test_syntax_error_returns_no_violations(self, count_violations):
-        assert count_violations("MagicMock(\n") == 0
 
     def test_invalid_utf8_is_still_counted(self, tmp_path):
         path = tmp_path / "invalid_utf8.py"
@@ -169,15 +200,25 @@ class TestUnspeccedMockAllowlistManager:
             "providers/amazon/tests/unit/amazon/test_hook.py",
         ]
 
-    def test_new_violation_in_allowlisted_file_fails(self, create_fake_repo, tmp_path):
+    @pytest.mark.parametrize(
+        "create",
+        [
+            pytest.param(
+                lambda path: path.write_text(
+                    'hook = mock.MagicMock()\nget = mock.patch("airflow.models.Variable.get")\n'
+                ),
+                id="new-violation",
+            ),
+            pytest.param(lambda path: path.write_text("hook = mock.MagicMock(\n"), id="syntax-error"),
+            pytest.param(lambda path: path.mkdir(), id="unreadable"),
+        ],
+    )
+    def test_allowlisted_file_fails_and_keeps_entry(self, monkeypatch, tmp_path, create):
+        monkeypatch.setattr(hook, "REPO_ROOT", tmp_path)
         rel = "airflow-core/tests/unit/models/test_variable.py"
-        path = create_fake_repo(
-            rel,
-            """\
-            hook = mock.MagicMock()
-            get = mock.patch("airflow.models.Variable.get")
-            """,
-        )
+        path = tmp_path / rel
+        path.parent.mkdir(parents=True)
+        create(path)
         manager = UnspeccedMockAllowlistManager(tmp_path / "allowlist.txt")
         manager.save({rel: 1})
 

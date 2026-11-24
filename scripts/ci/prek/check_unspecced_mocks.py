@@ -30,8 +30,14 @@ violation is a call that creates a mock without a spec:
 * ``Mock``, ``MagicMock``, ``AsyncMock``, ``NonCallableMock`` or
   ``NonCallableMagicMock`` without ``spec``/``spec_set`` or a positional spec.
 * ``patch`` or ``patch.object`` without ``spec``, ``spec_set``, ``autospec``,
-  ``new`` or ``new_callable``, and without a positional ``new``. A
+  ``new`` or ``new_callable``, given by keyword or by position. A
   ``new_callable`` that is itself a mock class still counts.
+
+An argument set to its "no spec" value counts as missing: ``None`` or ``False``
+for ``spec``, ``spec_set`` and ``autospec``, ``DEFAULT`` for ``new``, and
+``None`` for ``new_callable``. Calls are matched by name, so ``patch`` called
+through a renamed module (``async_mock.patch(...)``) and a mock class imported
+under another name (``MagicMock as MM``) are not counted.
 
 All *existing* violations are recorded in ``generated/known_unspecced_mocks.txt``
 as ``relative/path::N`` entries (one per file), where ``N`` is the maximum
@@ -47,6 +53,8 @@ Default (files passed by prek/pre-commit):
     automatically and the hook exits with a non-zero code so that pre-commit
     reports the modified allowlist – just stage
     ``generated/known_unspecced_mocks.txt`` and re-run.
+
+    A file that cannot be read or parsed fails the hook and leaves its entry unchanged.
 
 ``--all-files``:
     Walk every ``.py`` file in a ``tests`` directory under the project roots
@@ -99,19 +107,32 @@ _PROJECT_ROOTS = (
 
 _EXCLUDED_DIRS = frozenset({".build", "node_modules", "site-packages"})
 
-_MOCK_CLASSES = frozenset({"Mock", "MagicMock", "AsyncMock", "NonCallableMock", "NonCallableMagicMock"})
+_DEFAULT_NAMES = frozenset(
+    {
+        "DEFAULT",
+        "mock.DEFAULT",
+        "unittest.mock.DEFAULT",
+        "mocker.DEFAULT",
+        "sentinel.DEFAULT",
+        "mock.sentinel.DEFAULT",
+    }
+)
 
-_PATCH_SPEC_OR_NEW_KEYWORDS = frozenset({"spec", "spec_set", "autospec", "new", "new_callable"})
+_MOCK_CLASSES = frozenset({"Mock", "MagicMock", "AsyncMock", "NonCallableMock", "NonCallableMagicMock"})
 
 
 class _SpecRule(NamedTuple):
-    spec_keywords: frozenset[str]
-    min_args_for_spec: int
+    target_arg_count: int
+    positional_params: tuple[str, ...]
+    spec_params: frozenset[str]
 
 
-_MOCK_CLASS_RULE = _SpecRule(frozenset({"spec", "spec_set"}), 1)
-_PATCH_RULE = _SpecRule(_PATCH_SPEC_OR_NEW_KEYWORDS, 2)
-_PATCH_OBJECT_RULE = _SpecRule(_PATCH_SPEC_OR_NEW_KEYWORDS, 3)
+_PATCH_PARAMS = ("new", "spec", "create", "spec_set", "autospec", "new_callable")
+_PATCH_SPEC_OR_NEW_PARAMS = frozenset(_PATCH_PARAMS) - {"create"}
+
+_MOCK_CLASS_RULE = _SpecRule(0, ("spec",), frozenset({"spec", "spec_set"}))
+_PATCH_RULE = _SpecRule(1, _PATCH_PARAMS, _PATCH_SPEC_OR_NEW_PARAMS)
+_PATCH_OBJECT_RULE = _SpecRule(2, _PATCH_PARAMS, _PATCH_SPEC_OR_NEW_PARAMS)
 
 
 def _get_dotted_name(node: ast.expr) -> str | None:
@@ -136,37 +157,38 @@ def _get_spec_rule(name: str) -> _SpecRule | None:
     return None
 
 
-def _new_callable_is_mock_class(call: ast.Call) -> bool:
-    """Whether ``new_callable=`` names a mock class, which builds a mock without a spec."""
-    for keyword in call.keywords:
-        if keyword.arg == "new_callable":
-            name = _get_dotted_name(keyword.value)
-            return name is not None and name.split(".")[-1] in _MOCK_CLASSES
-    return False
+def _is_none_or_false(value: ast.expr) -> bool:
+    return isinstance(value, ast.Constant) and (value.value is None or value.value is False)
+
+
+def _is_named(value: ast.expr, names: frozenset[str]) -> bool:
+    name = _get_dotted_name(value)
+    return name is not None and name.split(".")[-1] in names
+
+
+def _is_spec_or_new_argument(param: str, value: ast.expr) -> bool:
+    if param == "new":
+        return _get_dotted_name(value) not in _DEFAULT_NAMES
+    if param == "new_callable":
+        return not (_is_none_or_false(value) or _is_named(value, _MOCK_CLASSES))
+    return not _is_none_or_false(value)
 
 
 def _is_unspecced(call: ast.Call, rule: _SpecRule) -> bool:
-    keyword_names = {keyword.arg for keyword in call.keywords}
-    unpacks_kwargs = None in keyword_names
-    if _new_callable_is_mock_class(call) and not keyword_names & {"spec", "spec_set", "autospec"}:
-        keyword_names.discard("new_callable")
-    return (
-        not unpacks_kwargs
-        and not keyword_names & rule.spec_keywords
-        and len(call.args) < rule.min_args_for_spec
+    if any(keyword.arg is None for keyword in call.keywords):
+        return False
+    arguments = dict(zip(rule.positional_params, call.args[rule.target_arg_count :]))
+    arguments.update((keyword.arg, keyword.value) for keyword in call.keywords if keyword.arg)
+    return not any(
+        param in rule.spec_params and _is_spec_or_new_argument(param, value)
+        for param, value in arguments.items()
     )
 
 
 def _iter_unspecced_mock_calls(path: Path) -> Iterator[tuple[ast.Call, str]]:
     """Yield each call in *path* that creates a mock without a spec, with its dotted name."""
-    try:
-        source = path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return
-    try:
-        tree = ast.parse(source, str(path))
-    except SyntaxError:
-        return
+    source = path.read_text(encoding="utf-8", errors="replace")
+    tree = ast.parse(source, str(path))
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
@@ -184,6 +206,16 @@ class UnspeccedMockAllowlistManager(AllowlistManager):
 
     def iter_files(self) -> Iterable[Path]:
         return _iter_test_files()
+
+    def check(self, files: list[Path], allowlist: dict[str, int]) -> int:
+        try:
+            return super().check(files, allowlist)
+        except (OSError, SyntaxError) as error:
+            console.print(
+                f"[red]Cannot check[/red] [cyan]{error.filename}[/cyan]: {error}. "
+                "Fix it and re-run; the allowlist was not changed."
+            )
+            return 1
 
     def count_occurrences(self, path: Path) -> int:
         return sum(1 for _ in _iter_unspecced_mock_calls(path))
