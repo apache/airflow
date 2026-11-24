@@ -58,7 +58,7 @@ except ImportError:
     # Airflow versions without CLI login discovery never call ``get_cli_login_methods``.
     CliLoginMethods = None  # type: ignore[assignment,misc]
 from airflow.cli.cli_config import CLICommand
-from airflow.providers.common.compat.sdk import AirflowException, conf
+from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.cache import single_flight
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY,
@@ -70,6 +70,10 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
     CONF_TEAM_LEVEL_AUTHORIZATION_KEY,
+)
+from airflow.providers.keycloak.auth_manager.exceptions import (
+    KeycloakAuthorizationRequestError,
+    KeycloakUnexpectedResponseError,
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
@@ -577,10 +581,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
                     "Keycloak authorization resource is missing; denying access. Response: %s", resp.text
                 )
                 return False
-            raise AirflowException(
+            raise KeycloakAuthorizationRequestError(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
-        raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
+        raise KeycloakUnexpectedResponseError(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     def filter_authorized_dag_ids(
         self,
@@ -818,10 +822,10 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             if error.get("error") == "invalid_grant":
                 log.debug("Received invalid_grant from Keycloak: %s", resp.text)
                 return set()
-            raise AirflowException(
+            raise KeycloakAuthorizationRequestError(
                 f"Request not recognized by Keycloak. {error.get('error')}. {error.get('error_description')}"
             )
-        raise AirflowException(f"Unexpected error: {resp.status_code} - {resp.text}")
+        raise KeycloakUnexpectedResponseError(f"Unexpected error: {resp.status_code} - {resp.text}")
 
     def _get_teams(self) -> set[str]:
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)

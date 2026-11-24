@@ -61,11 +61,6 @@ else:
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowProviderDeprecationWarning
-
-try:
-    from airflow.providers.common.compat.sdk import AirflowException
-except ModuleNotFoundError:
-    from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager import cache as cache_module
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
@@ -75,6 +70,10 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
     CONF_TEAM_LEVEL_AUTHORIZATION_KEY,
+)
+from airflow.providers.keycloak.auth_manager.exceptions import (
+    KeycloakAuthorizationRequestError,
+    KeycloakUnexpectedResponseError,
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     RESOURCE_ID_ATTRIBUTE_NAME,
@@ -612,10 +611,8 @@ class TestKeycloakAuthManager:
                     )
                 )
 
-            with pytest.raises(AirflowException) as e:
+            with pytest.raises(KeycloakUnexpectedResponseError, match="Unexpected error"):
                 getattr(auth_manager, function)(method="GET", user=user)
-
-            assert "Unexpected error" in str(e.value)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @conf_vars({("core", "multi_team"): "True"})
@@ -673,10 +670,11 @@ class TestKeycloakAuthManager:
                     )
                 )
 
-            with pytest.raises(AirflowException) as e:
+            with pytest.raises(
+                KeycloakAuthorizationRequestError,
+                match="Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET",
+            ):
                 getattr(auth_manager, function)(method="GET", user=user)
-
-            assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
 
     @pytest.mark.parametrize(
         ("method", "access_entity", "details", "permission", "attributes"),
@@ -1123,10 +1121,12 @@ class TestKeycloakAuthManager:
         assert set(result) == expected
 
     @pytest.mark.parametrize(
-        "status_code",
-        [400, 500],
+        ("status_code", "expected_exception"),
+        [(400, KeycloakAuthorizationRequestError), (500, KeycloakUnexpectedResponseError)],
     )
-    def test_filter_authorized_menu_items_with_failure(self, status_code, auth_manager, user):
+    def test_filter_authorized_menu_items_with_failure(
+        self, status_code, expected_exception, auth_manager, user
+    ):
         resp = Mock()
         resp.status_code = status_code
         resp.text = json.dumps({})
@@ -1134,7 +1134,7 @@ class TestKeycloakAuthManager:
 
         menu_items = [MenuItem.ASSETS, MenuItem.CONNECTIONS]
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             auth_manager.filter_authorized_menu_items(menu_items, user=user)
 
         token_url = auth_manager._get_token_url("server_url", "realm")
