@@ -441,6 +441,28 @@ class TestModelRequestFingerprint:
         assert high is not None
         assert low != high
 
+    def test_a_stamped_chain_leaves_out_which_chain_a_response_came_from(self):
+        """An agent stamps its own chain's id on every response it replays, so an edited chain differs only there."""
+
+        def history(model_id: str) -> list:
+            return [
+                ModelRequest(parts=[UserPromptPart("go")]),
+                ModelResponse(parts=[TextPart("hi")], model_id=model_id),
+                ModelRequest(parts=[UserPromptPart("next")]),
+            ]
+
+        old = history("fallback:a,b")
+        new = history("fallback:a,c")
+        params = ModelRequestParameters()
+
+        assert fingerprint_model_request(
+            "m", old, None, params, exclude_response_model_id=True
+        ) == fingerprint_model_request("m", new, None, params, exclude_response_model_id=True)
+        assert fingerprint_model_request("m", old, None, params) != fingerprint_model_request(
+            "m", new, None, params
+        )
+        assert fingerprint_model_request("m", old, None, params) == _json_mode_reference("m", old, params)
+
 
 class TestToolCallFingerprint:
     def test_stable_for_identical_call(self):

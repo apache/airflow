@@ -273,6 +273,13 @@ Task store can expose in-progress metrics for observability — row counts, stat
 
 The ``progress`` key is visible through the REST API and the Airflow UI while the task is running.
 
+.. note::
+
+   Keys starting with ``__airflow_`` are written by Airflow itself, for example the record behind
+   the durable execution banner on the task logs page. The list endpoint of the REST API and the
+   Task State Store tab hide them; pass ``include_reserved=true`` to the list endpoint to include
+   them. Do not start your own keys with this prefix, or they will be hidden too.
+
 
 Sync vs. deferrable tasks
 -------------------------

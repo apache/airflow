@@ -83,6 +83,7 @@ if TYPE_CHECKING:
     from kubernetes import client
     from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
+    from urllib3.response import HTTPResponse
 
     from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
@@ -648,8 +649,7 @@ class KubernetesExecutor(BaseExecutor):
                     PodReconciliationError,
                     ApiException,
                     PodMutationHookException,
-                    *TRANSIENT_CONNECTION_ERRORS,
-                ) as e:
+                ) + TRANSIENT_CONNECTION_ERRORS as e:
                     if self._handle_pod_publish_error(task, e):
                         # Rate limited: stop creating further pods this loop.
                         break
@@ -1084,8 +1084,9 @@ class KubernetesExecutor(BaseExecutor):
                 raise RuntimeError("Cannot find pod for ti %s", ti)
             if len(pod_list) > 1:
                 raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
+            pod_metadata = cast("k8s.V1ObjectMeta", pod_list[0].metadata)
             res = client.read_namespaced_pod_log(
-                name=pod_list[0].metadata.name,
+                name=cast("str", pod_metadata.name),
                 namespace=namespace,
                 container="base",
                 follow=False,
@@ -1093,7 +1094,7 @@ class KubernetesExecutor(BaseExecutor):
                 _preload_content=False,
             )
 
-            log_iter = iter(res)
+            log_iter = iter(cast("HTTPResponse", res))
             first_line = next(log_iter, None)
             if first_line is not None:
                 log_streams.append(self._create_log_stream(chain([first_line], log_iter)))
@@ -1112,7 +1113,7 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
             scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
             tis_to_flush_by_key = {ti.key: ti for ti in tis if ti.queued_by_job_id}
-            kube_client: client.CoreV1Api = self.kube_client
+            kube_client = cast("client.CoreV1Api", self.kube_client)
             for scheduler_job_id in scheduler_job_ids:
                 scheduler_job_id_safe_label = self._make_safe_label_value(str(scheduler_job_id))
                 # We will look for any pods owned by the no-longer-running scheduler,
@@ -1204,8 +1205,10 @@ class KubernetesExecutor(BaseExecutor):
             self.log.warning("Cannot find pod for ti %s", ti)
             return
 
-        self.kube_scheduler.patch_pod_revoked(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
-        self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
+        metadata = cast("k8s.V1ObjectMeta", pod.metadata)
+        pod_name, namespace = cast("str", metadata.name), cast("str", metadata.namespace)
+        self.kube_scheduler.patch_pod_revoked(pod_name=pod_name, namespace=namespace)
+        self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
 
     def adopt_launched_task(
         self,
@@ -1223,8 +1226,10 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
-        self.log.info("attempting to adopt pod %s", pod.metadata.name)
-        ti_key = annotations_to_key(pod.metadata.annotations)
+        pod_metadata = cast("k8s.V1ObjectMeta", pod.metadata)
+        pod_name, namespace = cast("str", pod_metadata.name), cast("str", pod_metadata.namespace)
+        self.log.info("attempting to adopt pod %s", pod_name)
+        ti_key = annotations_to_key(cast("dict[str, str]", pod_metadata.annotations))
         if ti_key not in tis_to_flush_by_key:
             self.log.error("attempting to adopt taskinstance which was not specified by database: %s", ti_key)
             return
@@ -1235,19 +1240,17 @@ class KubernetesExecutor(BaseExecutor):
             if self.supports_task_instance_uuid:
                 task_id = self._task_instance_id_from_pod(pod, kube_client)
                 if task_id is None or task_id != tis_to_flush_by_key[ti_key].id:
-                    self.log.warning(
-                        "Cannot adopt pod %s without a matching task instance UUID", pod.metadata.name
-                    )
+                    self.log.warning("Cannot adopt pod %s without a matching task instance UUID", pod_name)
                     return
                 key = self.get_task_key(tis_to_flush_by_key[ti_key])
                 metadata["annotations"] = {TASK_INSTANCE_ID_ANNOTATION: str(key)}
             kube_client.patch_namespaced_pod(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
+                name=pod_name,
+                namespace=namespace,
                 body={"metadata": metadata},
             )
         except ApiException as e:
-            self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            self.log.info("Failed to adopt pod %s. Reason: %s", pod_name, e)
             return
 
         del tis_to_flush_by_key[ti_key]

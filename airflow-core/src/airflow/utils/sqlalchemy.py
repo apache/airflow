@@ -462,7 +462,7 @@ def deserialize_pod_dict(pod_dict: dict) -> V1Pod:
     from kubernetes.client.api_client import ApiClient
     from kubernetes.client.models.v1_pod import V1Pod
 
-    return ApiClient(configuration=Configuration())._ApiClient__deserialize_model(pod_dict, V1Pod)
+    return ApiClient(configuration=Configuration())._ApiClient__deserialize_model(pod_dict, V1Pod)  # type: ignore[attr-defined]
 
 
 def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:

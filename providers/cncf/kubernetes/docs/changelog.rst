@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+.. note::
+
+    This provider now requires ``kubernetes>=37.0.0,<38.0.0``. Kubernetes models use
+    Pydantic validation and keyword-only constructors. Update positional arguments
+    such as ``V1LocalObjectReference("secret")`` to ``V1LocalObjectReference(name="secret")``.
+    Resource quantities, labels and annotations must use string values, and Boolean
+    fields in pod templates must use YAML booleans. Models no longer accept
+    ``local_vars_configuration``. See the
+    `Kubernetes client migration notes <https://github.com/kubernetes-client/python/blob/v37.0.0/CHANGELOG.md>`_
+    for other changes affecting direct client usage.
+
 11.1.0
 ......
 

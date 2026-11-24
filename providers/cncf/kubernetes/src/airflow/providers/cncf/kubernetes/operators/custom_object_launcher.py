@@ -23,6 +23,7 @@ import time
 from copy import deepcopy
 from datetime import datetime as dt
 from functools import cached_property
+from typing import cast
 
 import tenacity
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
@@ -283,12 +284,15 @@ class CustomObjectLauncher(LoggingMixin):
             if code_path:
                 self.body["spec"]["mainApplicationFile"] = code_path
             self.log.debug("Spark Job Creation Request Submitted")
-            self.spark_obj_spec = self.custom_obj_api.create_namespaced_custom_object(
-                group=self.api_group,
-                version=self.api_version,
-                namespace=self.namespace,
-                plural=self.plural,
-                body=self.body,
+            self.spark_obj_spec = cast(
+                "dict",
+                self.custom_obj_api.create_namespaced_custom_object(
+                    group=self.api_group,
+                    version=self.api_version,
+                    namespace=cast("str", self.namespace),
+                    plural=self.plural,
+                    body=self.body,
+                ),
             )
             self.log.debug("Spark Job Creation Response: %s", self.spark_obj_spec)
 

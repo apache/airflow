@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class TriggerRule(str, Enum):
+class TriggerRule(StrEnum):
     """Class with task's trigger rules."""
 
     ALL_SUCCESS = "all_success"
@@ -46,6 +46,3 @@ class TriggerRule(str, Enum):
     def all_triggers(cls) -> set[str]:
         """Return all trigger rules."""
         return set(cls.__members__.values())
-
-    def __str__(self) -> str:
-        return self.value
