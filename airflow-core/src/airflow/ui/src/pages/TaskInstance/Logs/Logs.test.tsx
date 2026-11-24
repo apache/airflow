@@ -17,10 +17,13 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { AppWrapper } from "src/utils/AppWrapper";
+import i18n from "src/i18n/config";
+import { AppWrapper, createAppRouter } from "src/utils/AppWrapper";
+
+import dagLocale from "../../../../public/i18n/locales/en/dag.json";
 
 const ITEM_HEIGHT = 20;
 
@@ -94,10 +97,10 @@ const selectSetting = async (testId: string) => {
   fireEvent.click(await screen.findByTestId(testId));
 };
 
-const renderLogSourceTask = async () => {
-  render(
-    <AppWrapper initialEntries={["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source"]} />,
-  );
+const logSourcePath = "/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source";
+
+const renderLogSourceTask = async (search = "") => {
+  render(<AppWrapper initialEntries={[`${logSourcePath}${search}`]} />);
   await waitForLogs();
 
   return screen.getByTestId("virtualized-list");
@@ -306,6 +309,84 @@ describe("Task log search", () => {
     await waitForLogs();
 
     expect(screen.getByTestId("log-search-input")).toBeInTheDocument();
+  });
+
+  it("seeds the search query from the url, so it outlives the unmount a tab change causes", async () => {
+    await renderLogSourceTask("?log_search=running");
+
+    expect(screen.getByTestId("log-search-input")).toHaveValue("running");
+  });
+
+  it("writes the search query to the url and removes it when cleared", async () => {
+    const router = createAppRouter([logSourcePath]);
+
+    render(<AppWrapper router={router} />);
+    await waitForLogs();
+
+    fireEvent.change(screen.getByTestId("log-search-input"), { target: { value: "running state" } });
+    await waitFor(() =>
+      expect(new URLSearchParams(router.state.location.search).get("log_search")).toBe("running state"),
+    );
+
+    fireEvent.change(screen.getByTestId("log-search-input"), { target: { value: "" } });
+    await waitFor(() => expect(router.state.location.search).not.toContain("log_search"));
+  });
+
+  it("puts a search typed just before leaving on the tab links", async () => {
+    render(<AppWrapper initialEntries={[logSourcePath]} />);
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+
+    fireEvent.change(searchInput, { target: { value: "running" } });
+    // A real click blurs the focused input on mousedown, before the link navigates. The short timeout
+    // keeps the 200ms debounce from writing the url on its own.
+    fireEvent.blur(searchInput);
+    await waitFor(
+      () =>
+        expect(document.querySelector(`a[href^="${logSourcePath}/xcom"]`)?.getAttribute("href")).toContain(
+          "log_search=running",
+        ),
+      { timeout: 100 },
+    );
+  });
+
+  it("keeps the selected match when the debounced url write lands", async () => {
+    // Load only the counter's string so it renders as "2 of N" instead of its key.
+    i18n.addResource("en", "dag", "logs.search.matchCount", dagLocale.logs.search.matchCount);
+    const router = createAppRouter([logSourcePath]);
+
+    render(<AppWrapper router={router} />);
+    await waitForLogs();
+
+    const searchInput = screen.getByTestId("log-search-input");
+    const matchCount = () => screen.getByRole("button", { name: /previous match/iu }).previousElementSibling;
+
+    fireEvent.change(searchInput, { target: { value: "state" } });
+    fireEvent.keyDown(searchInput, { key: "Enter" });
+    const afterEnter = matchCount()?.textContent;
+
+    await waitFor(() => expect(router.state.location.search).toContain("log_search=state"));
+    // Let the page re-render from the new url before reading the counter again.
+    await act(() => Promise.resolve());
+
+    expect(afterEnter).toMatch(/^2 of /u);
+    expect(matchCount()?.textContent).toBe(afterEnter);
+  });
+
+  it("follows the url search query on back navigation", async () => {
+    const router = createAppRouter(
+      [`${logSourcePath}?log_search=running`, `${logSourcePath}?log_search=state`],
+      1,
+    );
+
+    render(<AppWrapper router={router} />);
+    await waitForLogs();
+    expect(screen.getByTestId("log-search-input")).toHaveValue("state");
+
+    await act(() => router.navigate(-1));
+
+    expect(screen.getByTestId("log-search-input")).toHaveValue("running");
   });
 
   it("typing in the search input enables navigation buttons for a known term", async () => {
