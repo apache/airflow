@@ -23,7 +23,7 @@ import { NEVER_EXPIRE } from "../../src/sdk/client-types.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskClient } from "../../src/sdk/client.js";
-import type { GetXComOpts, SetXComOpts } from "../../src/sdk/client-types.js";
+import type { DeleteXComOpts, GetXComOpts } from "../../src/sdk/client-types.js";
 import type { TaskContext } from "../../src/sdk/task.js";
 
 const RETENTION_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
@@ -53,18 +53,16 @@ function client(frames: { body: unknown; error?: unknown }[]) {
 
 const MAPPED_CTX: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
 
-type XComOpts = Pick<SetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
-
 /** Each XCom call that takes a target, with the reply the supervisor gives it. */
 const XCOM_CALLS = [
   [
     "getXCom",
     { type: "XComResult", key: "k", value: null },
     // getXCom requires a taskId; a case may still override it.
-    (c: TaskClient, o: XComOpts) => c.getXCom({ taskId: "up", ...o } as GetXComOpts),
+    (c: TaskClient, o: DeleteXComOpts) => c.getXCom({ taskId: "up", ...o } as GetXComOpts),
   ],
-  ["setXCom", null, (c: TaskClient, o: XComOpts) => c.setXCom({ ...o, value: 1 })],
-  ["deleteXCom", null, (c: TaskClient, o: XComOpts) => c.deleteXCom(o)],
+  ["setXCom", null, (c: TaskClient, o: DeleteXComOpts) => c.setXCom({ ...o, value: 1 })],
+  ["deleteXCom", null, (c: TaskClient, o: DeleteXComOpts) => c.deleteXCom(o)],
 ] as const;
 
 /** Captures the request bodies sent, answering each one with `reply`. */
@@ -403,8 +401,8 @@ describe("client is bound to TaskContext", () => {
 });
 
 describe.each([
-  ["setXCom", (c: TaskClient, o: XComOpts) => c.setXCom({ ...o, value: 1 })],
-  ["deleteXCom", (c: TaskClient, o: XComOpts) => c.deleteXCom(o)],
+  ["setXCom", (c: TaskClient, o: DeleteXComOpts) => c.setXCom({ ...o, value: 1 })],
+  ["deleteXCom", (c: TaskClient, o: DeleteXComOpts) => c.deleteXCom(o)],
 ] as const)("%s map index default", (_name, call) => {
   it.each([
     ["the running task", {}, 3],
@@ -416,7 +414,7 @@ describe.each([
     ["another task with mapIndex 0", { taskId: "extract", mapIndex: 0 }, 0],
     ["the running task with mapIndex null", { mapIndex: null }, null],
     ["the running task with null target ids", { dagId: null, taskId: null, runId: null }, 3],
-  ] as [string, Omit<XComOpts, "key">, number | null][])(
+  ] as [string, Omit<DeleteXComOpts, "key">, number | null][])(
     "from a mapped task targeting %s sends map_index %s",
     async (_label, target, expected) => {
       const { client: c, sent } = recordingClient(null, MAPPED_CTX);
@@ -445,7 +443,7 @@ describe("XCom key and map index guards", () => {
       async (_label, opts, errorType) => {
         const { client: c, sent } = recordingClient(reply);
 
-        await expect(call(c, opts as XComOpts)).rejects.toThrow(errorType);
+        await expect(call(c, opts as DeleteXComOpts)).rejects.toThrow(errorType);
 
         expect(sent).toHaveLength(0);
       },

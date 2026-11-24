@@ -113,8 +113,8 @@ export interface TaskClient {
    * and a target task that does not exist both succeed, so a resolved promise
    * is not proof that an XCom was removed.
    *
-   * @throws `TypeError` when `key` is not a string, or `mapIndex` is not a number or `null`.
-   * @throws `RangeError` when `key` is empty, or `mapIndex` is not an integer.
+   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is an empty string, or `mapIndex` is not an integer.
    */
   deleteXCom(opts: DeleteXComOpts): Promise<void>;
 
