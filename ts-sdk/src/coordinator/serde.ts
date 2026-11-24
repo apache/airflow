@@ -80,9 +80,6 @@ interface TypeEncoded {
 const TASK_TYPE = "TypeScriptOperator";
 const TASK_MODULE = "airflow.sdk.coordinators.node";
 
-/** Core finds a loop's gate by this name, whatever language the gate runs in (ADR-0017 decision 2). */
-const LOOP_GATE_TASK_TYPE = "LoopGateOperator";
-
 /**
  * Marks the tasks this SDK serialized, as the Java SDK marks its own.
  *
@@ -250,7 +247,7 @@ function serializeTask(
 ): SerializedValue {
   const data: Record<string, SerializedValue> = {
     task_id: taskId,
-    task_type: record.loopGate ? LOOP_GATE_TASK_TYPE : TASK_TYPE,
+    task_type: record.operator?.taskType ?? TASK_TYPE,
     _task_module: TASK_MODULE,
     language: TASK_LANGUAGE,
     // Python's operator serializer always emits this — its list value never
@@ -270,8 +267,11 @@ function serializeTask(
   };
   const label = `task "${taskId}" of Dag "${dagId}"`;
   if (record.operator) {
-    // Names the provider operator it mirrors, so the UI labels it as one.
-    data["_operator_name"] = record.operator.operatorName;
+    // Names the provider operator it mirrors, so the UI labels it as one. Python leaves it out
+    // when it is the task type.
+    if (record.operator.operatorName !== data["task_type"]) {
+      data["_operator_name"] = record.operator.operatorName;
+    }
     Object.assign(data, record.operator.serialize?.(label));
   }
   const bindings = serializeArgBindings(inputs, label);

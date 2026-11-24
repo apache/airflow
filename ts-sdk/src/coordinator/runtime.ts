@@ -54,11 +54,8 @@ import {
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
-import type {
-  LoopContext as WireLoopContext,
-  LoopDecisionPayload,
-} from "../generated/supervisor.js";
-import { createLoopSource, toLoopDecisionPayload } from "./loop-context.js";
+import type { LoopDecisionPayload } from "../generated/supervisor.js";
+import { createLoopSource } from "./loop-context.js";
 import { getArgNames } from "../sdk/arg-names.js";
 import {
   bundleDags,
@@ -71,7 +68,7 @@ import { finalizeDag, getAllIterationsArgNames, type Dag } from "../sdk/dag.js";
 import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
 import { computeRelativeFileloc, serializeDag } from "./serde.js";
 import { buildOperatorContext, runOperator } from "./operator-runner.js";
-import type { OperatorOutcome } from "../sdk/operator.js";
+import type { OperatorContext, OperatorOutcome } from "../sdk/operator.js";
 import {
   runInTaskScope,
   type TaskContext,
@@ -392,16 +389,13 @@ async function handleTask(
   if (task.kind === BundleTaskKind.HANDLER) {
     return runHandler(details, task.fn, scope, client, logs, allIterationsArgs);
   }
-  if (task.kind === BundleTaskKind.LOOP_GATE) {
-    return runLoopGate(details, task, scope, client, logs, allIterationsArgs);
-  }
 
   // How an operator ends the task as a failure: log the reason, then report the task
   // as failed (or for retry, if it has retries left). Each operator gets this, and the
   // catch below uses it for any error an operator throws.
-  const fail = (message: string) => {
+  const fail: OperatorContext["fail"] = (message, options) => {
     logs.error("Task failed", { task_id: ctx.taskId, error: message });
-    return buildFailureResponse(details, message);
+    return buildFailureResponse(details, message, options);
   };
   try {
     switch (task.kind) {
@@ -421,7 +415,13 @@ async function handleTask(
         );
     }
   } catch (err) {
-    return fail((err as Error).message ?? String(err));
+    const message = (err as Error).message ?? String(err);
+    logs.error("Task failed", {
+      task_id: ctx.taskId,
+      error: message,
+      stack: (err as Error).stack ?? null,
+    });
+    return buildFailureResponse(details, message);
   }
 }
 
@@ -459,92 +459,6 @@ async function bindArgs(
     });
     return buildFailureResponse(details, message);
   }
-}
-
-/**
- * Run a loop's gate: decide whether another iteration follows, and send core the decision.
- *
- * The gate pushes no return value. Core creates the next iteration in the same transaction that
- * accepts the decision (ADR-0017 decision 5). A `stop` of false at the last iteration fails the gate
- * here without a retry, as Python does, and the decision goes with the failure so its reason is kept.
- */
-async function runLoopGate(
-  details: StartupDetails,
-  gate: { readonly fn: TaskFunction; readonly hasUntil: boolean },
-  scope: TaskScope,
-  client: CoordinatorClient,
-  logs: LogChannel,
-  allIterationsArgs?: ReadonlySet<string>,
-): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
-  const { ctx } = scope;
-  const loop = details.ti_context.loop;
-  if (loop == null) {
-    const message =
-      `Task "${ctx.taskId}" is the gate of a loop, but Airflow ran it with no loop context; ` +
-      "the Dag version it ran against does not declare the loop";
-    logs.error("Task failed", { task_id: ctx.taskId, error: message });
-    return buildFailureResponse(details, message, { retry: false });
-  }
-  if (!gate.hasUntil) {
-    return succeedGate(loop, { stop: loop.index >= loop.max_iterations }, ctx.taskId, logs);
-  }
-  const bound = await bindArgs(details, gate.fn, scope, client, logs, allIterationsArgs);
-  if (!("args" in bound)) return bound;
-  let returned: unknown;
-  try {
-    returned = await runInTaskScope(scope, () => gate.fn(bound.args as never));
-  } catch (err) {
-    const message = (err as Error).message ?? String(err);
-    logs.error("Task failed", {
-      task_id: ctx.taskId,
-      error: message,
-      stack: (err as Error).stack ?? null,
-      bound_args: bound.names,
-    });
-    return buildFailureResponse(details, message);
-  }
-  let decision: LoopDecisionPayload;
-  try {
-    decision = toLoopDecisionPayload(returned);
-  } catch (err) {
-    // The handler would return the same value again, so a retry cannot help, as Python's
-    // AirflowFailException for a malformed LoopDecision has it.
-    const message = (err as Error).message;
-    logs.error("Task failed", { task_id: ctx.taskId, error: message });
-    return buildFailureResponse(details, message, { retry: false });
-  }
-  if (!decision.stop && loop.index >= loop.max_iterations) {
-    // Python raises LoopMaxIterationsExceeded, an AirflowFailException, which is never retried. The
-    // message only reaches the task log, where the supervisor masks the reason as Python's redact does.
-    const reason = decision.reason === undefined ? "" : `: ${decision.reason}`;
-    const message = `Loop condition remained false at max_iterations=${loop.max_iterations}${reason}`;
-    logs.error("Task failed", { task_id: ctx.taskId, error: message });
-    return buildFailureResponse(details, message, { retry: false, loopDecision: decision });
-  }
-  return succeedGate(loop, decision, ctx.taskId, logs);
-}
-
-/** Log a gate's decision and send it to core on the gate's success. */
-function succeedGate(
-  loop: WireLoopContext,
-  decision: LoopDecisionPayload,
-  taskId: string,
-  logs: LogChannel,
-): RuntimeSucceedTask {
-  // The reason is left out: this runtime cannot redact it, and the supervisor masks it on its way
-  // to the UI, where it is shown next to the iteration.
-  logs.info(`Loop iteration ${loop.index}: ${decision.stop ? "stop" : "continue"}`, {
-    task_id: taskId,
-    index: loop.index,
-    max_iterations: loop.max_iterations,
-  });
-  return {
-    type: "SucceedTask",
-    end_date: new Date().toISOString(),
-    task_outlets: [],
-    outlet_events: [],
-    loop_decision: decision,
-  };
 }
 
 /** Run the author's handler: bind its arguments, call it, push what it returns. */

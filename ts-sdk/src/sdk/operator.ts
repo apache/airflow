@@ -34,6 +34,7 @@ import type {
   StartupDetails,
 } from "../coordinator/protocol.js";
 import { brand, hasBrand } from "./brand.js";
+import type { LoopDecisionPayload } from "../generated/supervisor.js";
 import type { JsonValue } from "./client-types.js";
 import type { Dag } from "./dag.js";
 import type { TaskContext } from "./task.js";
@@ -46,6 +47,11 @@ export type OperatorOutcome =
   | RuntimeDeferTask
   | RuntimeAwaitInputTask;
 
+/** What a loop's gate sends core when it ends. */
+export interface OperatorEndOptions {
+  readonly loopDecision?: LoopDecisionPayload;
+}
+
 /** What the SDK hands an operator at run time. Operators only read it. */
 export interface OperatorContext {
   readonly details: StartupDetails;
@@ -57,10 +63,16 @@ export interface OperatorContext {
   runInScope<T>(fn: () => T): T;
   /** Bind the task's declared inputs, applying the `withArgNames` renames of `argNames`. */
   resolveArgs(argNames?: ReadonlyMap<string, string>): Promise<object>;
-  /** Push `value` under `return_value` when it is given, then succeed. */
-  succeed(value?: JsonValue): Promise<RuntimeSucceedTask>;
-  /** Fail, or hand the task back for retry when it has retries left. */
-  fail(message: string): RuntimeRetryTask | RuntimeTaskState;
+  /** Push `value` under `return_value` when it is given, then succeed, sending `loopDecision` if any. */
+  succeed(value?: JsonValue, options?: OperatorEndOptions): Promise<RuntimeSucceedTask>;
+  /**
+   * Fail, or hand the task back for retry when it has retries left and `retry` is not false. A
+   * `loopDecision` goes with the failure.
+   */
+  fail(
+    message: string,
+    options?: OperatorEndOptions & { readonly retry?: false },
+  ): RuntimeRetryTask | RuntimeTaskState;
   /** Skip `taskIds`, as `SkipMixin.skip` does. */
   skip(taskIds: readonly string[]): Promise<void>;
   /** Park in `awaiting_input`. The next run calls `executeComplete`. `timeout` is in seconds. */
@@ -102,6 +114,8 @@ export interface Operator<TArgs extends object | void = void, TResult = unknown>
   readonly [OPERATOR_TYPES]?: (args: TArgs) => TResult;
   /** @internal `_operator_name` the UI shows: the Python operator this mirrors. */
   readonly operatorName: string;
+  /** @internal The serialized `task_type`, for a task core finds by its type, as it does a loop's gate. */
+  readonly taskType?: string;
   /** @internal Whether it may skip its downstream, as `SkipMixin` marks a Python operator. */
   readonly canSkipDownstream?: boolean;
   /** @internal An operator has no handler name to take a task id from, so `dag.task` requires one. */

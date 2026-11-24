@@ -17,24 +17,14 @@
  * under the License.
  */
 
-// What a task in a loop reads about it, and what a loop's gate sends back.
+// What a task in a loop reads about it.
 // Core counts the iterations and scopes every XCom read; the runtime only
 // relays them. See airflow-core/adr/lang-sdk/0017-task-loops-across-lang-sdks.md.
 
 import { RETURN_VALUE_KEY, type CoordinatorClient } from "./client.js";
 import { LazyXComSequence } from "./xcom-sequence.js";
-import type {
-  LoopContext as WireLoopContext,
-  LoopDecisionPayload,
-} from "../generated/supervisor.js";
-import type { LoopContext, LoopDecision } from "../sdk/loop.js";
-
-/**
- * A lone surrogate has no UTF-8 encoding, so a reason holding one would leave the supervisor unable
- * to decode the frame. A NUL, which core refuses to store, is checked apart from this, since the
- * linter rejects a control character in a regular expression.
- */
-const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+import type { LoopContext as WireLoopContext } from "../generated/supervisor.js";
+import type { LoopContext } from "../sdk/loop.js";
 
 /**
  * Internal: what `getLoop()` resolves to for a task in `loop`, built on the first call.
@@ -84,41 +74,4 @@ async function readPrevious(loop: WireLoopContext, client: CoordinatorClient): P
     previousIteration: true,
   });
   return entry.value;
-}
-
-/**
- * Internal: what a loop's gate sends core, from what its `until` handler returned.
- *
- * Throws, naming the problem, for a value core would refuse: one the supervisor could not even
- * decode would leave the gate without an answer. A `stop` of false at the last iteration is valid
- * here; the runtime fails the gate for it.
- */
-export function toLoopDecisionPayload(returned: unknown): LoopDecisionPayload {
-  if (typeof returned === "boolean") return { stop: returned };
-  if (typeof returned !== "object" || returned === null || Array.isArray(returned)) {
-    throw new Error(
-      `A loop's until handler must return a boolean or { stop, reason }, not ${describe(returned)}`,
-    );
-  }
-  const { stop, reason } = returned as Partial<LoopDecision>;
-  if (typeof stop !== "boolean") {
-    throw new Error(`The stop of a loop decision must be a boolean, not ${describe(stop)}`);
-  }
-  if (reason === undefined || reason === null || reason === "") return { stop };
-  if (typeof reason !== "string") {
-    throw new Error(`The reason of a loop decision must be a string, not ${describe(reason)}`);
-  }
-  // No length check: the supervisor cuts a reason to core's limit and warns in the task log.
-  if (reason.includes("\u0000") || LONE_SURROGATE.test(reason)) {
-    throw new Error(
-      "The reason of a loop decision cannot hold a NUL character or a lone surrogate",
-    );
-  }
-  return { stop, reason };
-}
-
-function describe(value: unknown): string {
-  if (value === null || value === undefined) return String(value);
-  if (Array.isArray(value)) return "an array";
-  return typeof value === "object" ? "an object" : `the ${typeof value} ${String(value)}`;
 }

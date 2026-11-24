@@ -802,7 +802,7 @@ describe("coordinator runtime integration", () => {
     let observed: unknown = "<unset>";
     testDag.task("state_store_client", async () => {
       observed = await getClient().taskStateStore.get("k");
-    });
+    })();
 
     const responder: Responder = (msgType) => {
       if (msgType === "GetTaskStateStore") {

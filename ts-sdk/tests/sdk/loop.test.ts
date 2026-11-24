@@ -86,18 +86,21 @@ function buildRefine(): { dag: Dag; refine: TaskGroupRef } {
 }
 
 describe("TaskGroupRef.loop", () => {
-  it("declares the gate as a task of the group, named after its handler", () => {
+  it("adds the gate as a task of the group once the Dag is read, named after its handler", () => {
     const { dag } = buildRefine();
+    expect(getDagTaskRecords(dag).has("refine.accurateEnough")).toBe(false);
 
+    finalizeDag(dag);
     expect(getDagLoops(dag).get("refine")).toEqual({
       groupId: "refine",
       maxIterations: 10,
       hasUntil: true,
       gateTaskId: "refine.accurateEnough",
     });
-    expect(getDagTaskRecords(dag).get("refine.accurateEnough")!.loopGate).toEqual({
-      groupId: "refine",
+    expect(getDagTaskRecords(dag).get("refine.accurateEnough")!.operator).toMatchObject({
+      taskType: "LoopGateOperator",
     });
+    expect([...getDagTaskRecords(dag).keys()].at(-1)).toBe("refine.accurateEnough");
     expect(getAllIterationsArgNames(dag, "report")).toEqual(new Set(["history"]));
     expect(getAllIterationsArgNames(dag, "refine.evaluate")).toEqual(new Set());
   });
@@ -121,6 +124,7 @@ describe("TaskGroupRef.loop", () => {
     expect(gate["queue"]).toBe("typescript");
     // Core finds a gate by Python's gate operator name; every other task keeps the SDK's own.
     expect(gate["task_type"]).toBe("LoopGateOperator");
+    expect(gate).not.toHaveProperty("_operator_name");
     const evaluate = (serialized["tasks"] as { __var: Json }[]).find(
       ({ __var: task }) => task["task_id"] === "refine.evaluate",
     )!.__var;
@@ -236,6 +240,7 @@ describe("TaskGroupRef.loop", () => {
       },
     );
 
+    finalizeDag(dag);
     const record = getDagTaskRecords(dag).get("g.enough")!;
     expect(record.spec).toEqual({ taskId: "enough", retries: 3 });
   });
@@ -260,13 +265,15 @@ describe("TaskGroupRef.loop", () => {
     it("for a handler named like a body task, one past the highest number in use", () => {
       const dag = new Dag("ts_gate_named_like_a_task");
       const group = dag.taskGroup("g");
-      group.task("check", async () => 1);
+      const first = group.task("check", async () => 1)();
       const leaf = group.task("check__1", async () => 1)();
+      first.before(leaf);
       async function check({ value }: { value: number }) {
         return value > 0;
       }
       group.loop(check, { value: leaf }, { maxIterations: 2 });
 
+      finalizeDag(dag);
       expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.check__2");
     });
 
@@ -274,8 +281,9 @@ describe("TaskGroupRef.loop", () => {
       const dag = new Dag("ts_gate_taskid_clash");
       const group = dag.taskGroup("g");
       group.task("leaf", async () => 1)();
+      group.loop({ maxIterations: 2, taskId: "leaf" });
 
-      expect(() => group.loop({ maxIterations: 2, taskId: "leaf" })).toThrow(
+      expect(() => finalizeDag(dag)).toThrow(
         'Task "g.leaf" is already registered for Dag "ts_gate_taskid_clash"',
       );
     });
@@ -284,8 +292,9 @@ describe("TaskGroupRef.loop", () => {
       const dag = new Dag("ts_gate_taskid_late_clash");
       const group = dag.taskGroup("g");
       group.loop({ maxIterations: 2, taskId: "leaf" });
+      group.task("leaf", async () => 1)();
 
-      expect(() => group.task("leaf", async () => 1)).toThrow(
+      expect(() => finalizeDag(dag)).toThrow(
         'Task "g.leaf" is already registered for Dag "ts_gate_taskid_late_clash"',
       );
     });
@@ -298,7 +307,9 @@ describe("TaskGroupRef.loop", () => {
         return true;
       }
 
-      expect(() => group.loop(check, {}, { maxIterations: 2 })).toThrow(
+      group.loop(check, {}, { maxIterations: 2 });
+
+      expect(() => finalizeDag(dag)).toThrow(
         'Task "g.check" is already registered for Dag "ts_gate_named_like_a_group"',
       );
     });
@@ -318,7 +329,7 @@ describe("TaskGroupRef.loop", () => {
       expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.check__2");
       const gate = getDagTaskRecords(dag).get("g.check__2")!;
       expect(gate.task.taskId).toBe("g.check__2");
-      expect(gate.loopGate).toEqual({ groupId: "g" });
+      expect(gate.operator).toMatchObject({ taskType: "LoopGateOperator" });
       expect(groupObject(serialized, "g")["loop"]).toMatchObject({
         terminal_task_id: "g.check__1",
         gate_task_id: "g.check__2",
@@ -327,19 +338,18 @@ describe("TaskGroupRef.loop", () => {
     });
 
     it("but not onto a group of the loop, which Python rejects as a duplicate", () => {
-      const dag = new Dag("ts_gate_moved_onto_a_group");
+      const dag = new Dag("ts_gate_numbered_onto_a_group");
       const group = dag.taskGroup("g");
       async function check() {
         return true;
       }
       group.loop(check, {}, { maxIterations: 2 });
       group.taskGroup("check__1");
+      group.task("check", async () => 1)();
 
-      expect(() => group.task("check", async () => 1)).toThrow(
-        'The gate of Loop "g" was moved to "g.check__1" because a body task took its ID "g.check": ' +
-          'Task "g.check__1" is already registered for Dag "ts_gate_moved_onto_a_group"',
+      expect(() => finalizeDag(dag)).toThrow(
+        'Task "g.check__1" is already registered for Dag "ts_gate_numbered_onto_a_group"',
       );
-      expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.check");
     });
 
     it("but not for a task outside the loop that takes it, which Python rejects as a duplicate", () => {
@@ -349,11 +359,27 @@ describe("TaskGroupRef.loop", () => {
         return true;
       }
       group.loop(check, {}, { maxIterations: 2 });
+      dag.task("check", async () => 1)();
 
-      expect(() => dag.task("check", async () => 1)).toThrow(
+      expect(() => finalizeDag(dag)).toThrow(
         'Task "check" is already registered for Dag "ts_gate_late_outside"',
       );
     });
+  });
+
+  it("checks the gate's inputs and options at the loop() call", () => {
+    const group = new Dag("ts_gate_checked_early").taskGroup("g");
+    const leaf = group.task("leaf", async () => 1)();
+    async function check() {
+      return true;
+    }
+
+    expect(() => group.loop(check, leaf as never, { maxIterations: 2 })).toThrow(
+      'Task "g.check" of Dag "ts_gate_checked_early" takes one object naming its inputs',
+    );
+    expect(() => group.loop(check, {}, { maxIterations: 2, colour: "red" } as never)).toThrow(
+      'Unknown option "colour" in the spec for Dag "ts_gate_checked_early" task "g.check"',
+    );
   });
 
   it.each([
@@ -376,6 +402,7 @@ describe("TaskGroupRef.loop", () => {
     const leaf = group.task("leaf", async () => 1)();
     group.loop(({ value }: { value: number }) => value > 0, { value: leaf }, { maxIterations: 2 });
 
+    finalizeDag(dag);
     expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.__loop_gate");
   });
 
@@ -390,15 +417,16 @@ describe("TaskGroupRef.loop", () => {
     Object.defineProperty(until, "name", { value: name });
     group.loop(until, { value: leaf } as never, { maxIterations: 2 });
 
+    finalizeDag(dag);
     expect(getDagLoops(dag).get("g")!.gateTaskId).toBe("g.__loop_gate");
   });
 
-  it("dispatches the gate to the runtime as a loop gate", () => {
+  it("dispatches the gate to the runtime as an operator", () => {
     const { dag } = buildRefine();
 
     expect(getBundleTask(new Bundle(dag), "ts_refine", "refine.accurateEnough")).toMatchObject({
-      kind: "loopGate",
-      hasUntil: true,
+      kind: "operator",
+      operator: { operatorName: "LoopGateOperator", taskType: "LoopGateOperator" },
     });
     expect(getBundleTask(new Bundle(dag), "ts_refine", "refine.improve")).toMatchObject({
       kind: "handler",

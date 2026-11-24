@@ -29,6 +29,7 @@ import { argv } from "node:process";
 import { parse, type ScalarTag } from "yaml";
 
 import { serializeDag } from "../../src/coordinator/serde.js";
+import { finalizeDag } from "../../src/sdk/dag.js";
 import {
   DAG_SCHEMA_FIELDS,
   SERIALIZATION_VERSION,
@@ -205,6 +206,13 @@ if (testDags === undefined || output === undefined) {
 const { dags } = parse(readFileSync(testDags, "utf-8"), { customTags: TAGS }) as {
   dags: DagCase[];
 };
+/** Read the Dag, as the runtime does before serializing it, which adds each loop's gate. */
+function readDag(dagCase: DagCase): Dag {
+  const dag = buildDag(dagCase);
+  finalizeDag(dag);
+  return dag;
+}
+
 // compare.py leaves fileloc out, as it names the file a Dag was declared in, so any bundle path
 // does. Airflow still needs one to load the Dag.
 const serialized = Object.fromEntries(
@@ -212,7 +220,7 @@ const serialized = Object.fromEntries(
     dagCase.dag_id,
     {
       __version: SERIALIZATION_VERSION,
-      dag: serializeDag(buildDag(dagCase), "/bundles/app/bundle.mjs", "bundle.mjs"),
+      dag: serializeDag(readDag(dagCase), "/bundles/app/bundle.mjs", "bundle.mjs"),
     },
   ]),
 );

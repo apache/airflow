@@ -20,7 +20,7 @@
 // The bundle: what a TypeScript bundle process provides, and how it serves it.
 
 import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
-import { Dag, finalizeDag, getDagLoops, getDagTaskRecords, isDag } from "./dag.js";
+import { Dag, finalizeDag, getDagTaskRecords, isDag } from "./dag.js";
 import { getTaskHandlerFunction, isTaskHandler, TaskHandler } from "./task-handler.js";
 import type { Operator } from "./operator.js";
 import type { TaskFunction } from "./task.js";
@@ -215,19 +215,12 @@ export function validateOwnBundle(value: unknown, accessor: string): asserts val
 /**
  * Internal: what kind of task the runtime is to run, and what it needs to run it.
  *
- * A `handler` runs the author's function; `dag` is absent for a handler of a Python Dag's task. A
- * `loopGate` decides whether its loop runs again, with the author's `until` handler or, without
- * one, by counting. An `operator` is one the SDK runs itself, with no handler: its options come
- * from the factory the task was declared with.
+ * A `handler` runs the author's function; `dag` is absent for a handler of a Python Dag's task. An
+ * `operator` is one the SDK runs itself, such as a loop's gate: its options come from the factory
+ * the task was declared with.
  */
 export type BundleTask =
   | { readonly kind: typeof BundleTaskKind.HANDLER; readonly fn: TaskFunction; readonly dag?: Dag }
-  | {
-      readonly kind: typeof BundleTaskKind.LOOP_GATE;
-      readonly fn: TaskFunction;
-      readonly hasUntil: boolean;
-      readonly dag: Dag;
-    }
   | {
       readonly kind: typeof BundleTaskKind.OPERATOR;
       readonly operator: Operator<never, unknown>;
@@ -237,7 +230,6 @@ export type BundleTask =
 /** Internal: the kinds of {@link BundleTask}. */
 export const BundleTaskKind = {
   HANDLER: "handler",
-  LOOP_GATE: "loopGate",
   OPERATOR: "operator",
 } as const;
 
@@ -253,14 +245,12 @@ export function getBundleTask(
     const fn = taskHandlersOf(bundle).get(dagId)?.get(taskId);
     return fn === undefined ? undefined : { kind: BundleTaskKind.HANDLER, fn };
   }
-  // A Dag declared in TypeScript: the task's record says what runs it.
+  // A Dag declared in TypeScript: the task's record says what runs it. A loop's gate is only added
+  // when the Dag is read.
+  finalizeDag(dag);
   const record = getDagTaskRecords(dag).get(taskId);
   if (record === undefined) return undefined;
   if (record.operator) return { kind: BundleTaskKind.OPERATOR, operator: record.operator, dag };
-  if (record.loopGate) {
-    const { hasUntil } = getDagLoops(dag).get(record.loopGate.groupId)!;
-    return { kind: BundleTaskKind.LOOP_GATE, fn: record.fn, hasUntil, dag };
-  }
   return { kind: BundleTaskKind.HANDLER, fn: record.fn, dag };
 }
 

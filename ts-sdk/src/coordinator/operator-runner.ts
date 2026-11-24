@@ -28,7 +28,6 @@ import type {
   RuntimeSucceedTask,
   StartupDetails,
 } from "./protocol.js";
-import type { JsonValue } from "../sdk/client-types.js";
 import { isPlainRecord, skipTasks, type Dag } from "../sdk/dag.js";
 import { getBooleanEnv } from "../sdk/env.js";
 import type { Operator, OperatorContext, OperatorOutcome } from "../sdk/operator.js";
@@ -98,7 +97,7 @@ export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext
       });
       return bound.args;
     },
-    async succeed(value?: JsonValue): Promise<RuntimeSucceedTask> {
+    async succeed(value, { loopDecision } = {}): Promise<RuntimeSucceedTask> {
       if (value !== undefined) await client.setXCom({ key: RETURN_VALUE_KEY, value });
       // The Execution API's TISuccessStatePayload validator rejects null for
       // `task_outlets` and `outlet_events`, so both are empty lists.
@@ -107,6 +106,7 @@ export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext
         end_date: new Date().toISOString(),
         task_outlets: [],
         outlet_events: [],
+        ...(loopDecision !== undefined && { loop_decision: loopDecision }),
       };
     },
     skip: (taskIds) => skipTasks(client, taskIds),

@@ -175,7 +175,8 @@ interface LoopContext {
 
 - **A fixed-count loop's gate only counts.** `loop({ maxIterations })` emits `has_until: false`, and its
   gate runs on a worker and ends the loop once `index` reaches `maxIterations` (ADR-0017 decision 4).
-- **The gate is an ordinary task.** `LoopOptions` takes `TaskSpec` fields such as `queue` and
+- **The gate is an operator the SDK runs**, as HITL and `triggerDagRun` tasks are. It calls the
+  `until` handler when there is one. `LoopOptions` takes `TaskSpec` fields such as `queue` and
   `retries`, which land on the gate. It rejects `triggerRule`, `dependsOnPast`, `startDate` and
   `endDate`, which would change when the gate runs. The gate's id defaults to the handler's function
   name under the group's prefix. A fixed-count loop has no handler to take a name from, so its gate is
@@ -183,9 +184,11 @@ interface LoopContext {
   the Dag processor rejects a gate serialized under any other type.
 - **A gate whose id is taken is numbered as Python numbers it.** If a task already has the id, the
   gate gets a `__1` style suffix, the number `get_unique_task_id` gives it. Python picks the id once
-  the body exists, so a body task declared after `loop()` that takes the gate's id moves the gate on
-  instead of failing. Only tasks count, so a handler named like a child group fails as a duplicate
-  id, as in Python. An id the author gave in `taskId` is used as it is.
+  the body exists, so the SDK adds the gate when the Dag is read. It counts the tasks Python's gate
+  would have seen: those declared before `loop()`, the body, and the gates of earlier loops. A task
+  outside the loop declared after `loop()` that takes the gate's id fails as a duplicate, and so
+  does a handler named like a child group, as in Python. An id the author gave in `taskId` is used
+  as it is.
 - **A gate that still says to continue at `maxIterations` fails without a retry**, as Python's does.
   This departs from [ADR-0017](../../airflow-core/adr/lang-sdk/0017-task-loops-across-lang-sdks.md)
   ("What an SDK runtime does", step 4), where the SDK sends the continue and core rejects it. Core

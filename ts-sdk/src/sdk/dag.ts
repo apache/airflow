@@ -33,6 +33,7 @@ import { brand, DUPLICATE_COPY_HINT, hasBrand } from "./brand.js";
 import type { JsonValue } from "./client-types.js";
 import { buildDagGraph } from "./dag-graph.js";
 import type { UntilCallable } from "./loop.js";
+import { createLoopGate } from "./loop-gate.js";
 import type { XComSequence } from "./xcom-sequence.js";
 import { getCurrentModuleSource } from "./module-source.js";
 import { isOperator, isOwnOperator, type Operator } from "./operator.js";
@@ -727,15 +728,7 @@ export type TaskRecord = {
   readonly spec: TaskSpec;
   /** Whether this task decides which of its downstream tasks to skip. */
   readonly canSkipDownstream?: boolean;
-  /** Set on the gate task of a loop: the loop it decides for. */
-  readonly loopGate?: LoopGate;
 } & TaskBody;
-
-/** Which loop a gate task decides for. */
-export interface LoopGate {
-  /** Group ID of the loop, a key of {@link getDagLoops}. */
-  readonly groupId: string;
-}
 
 /** Internal: one loop of a Dag, keyed by its group. */
 export interface LoopRecord {
@@ -746,6 +739,18 @@ export interface LoopRecord {
   readonly hasUntil: boolean;
   /** The task that runs after each iteration and decides whether another follows. */
   readonly gateTaskId: string;
+}
+
+/** What `loop()` was called with. Its gate is added once the body exists, as Python adds it. */
+interface LoopDeclaration {
+  readonly maxIterations: number;
+  readonly until: UntilCallable<never> | undefined;
+  readonly inputs: unknown;
+  readonly gateSpec: TaskOptions;
+  /** The gate's id the author gave, used as it is, or the name it takes, numbered if taken. */
+  readonly gateId: { readonly given: string } | { readonly name: string };
+  /** The tasks declared before `loop()`, which Python's gate numbering sees besides the body. */
+  readonly declaredBefore: ReadonlySet<string>;
 }
 
 /** What the gate of a loop with no handler is called, as Python names it. */
@@ -854,11 +859,10 @@ export class Dag {
   // The one reference each group was handed out as, so an edge endpoint can be
   // checked by identity the way a task's is.
   readonly #groupRefs = new Map<string, TaskGroupRef>();
-  // Keyed by the loop's group ID.
+  // Both keyed by the loop's group ID, in the order loop() was called. A loop has its record once
+  // the Dag is read and its gate added.
+  readonly #loopDeclarations = new Map<string, LoopDeclaration>();
   readonly #loops = new Map<string, LoopRecord>();
-  // The name each loop's gate took from its handler, by group ID. A gate whose author gave a taskId
-  // is not here, since that id is used as it is.
-  readonly #gateNames = new Map<string, string>();
   // Each body task's reference to the one a loop's all() returned for it.
   readonly #allIterationRefs = new WeakMap<TaskRef, TaskRef>();
   #finalized = false;
@@ -1255,7 +1259,6 @@ export class Dag {
           `${operator.executionTimeoutAlternative} instead`,
       );
     }
-    this.#moveGateOff(groupId, taskId);
     this.#reserveNodeId(taskId, "Task");
     const task = this.#createTaskRef(taskId);
     if (groupId !== undefined) this.#groups.get(groupId)!.taskIds.push(taskId);
@@ -1451,7 +1454,7 @@ export class Dag {
           "loading",
       );
     }
-    if (this.#loops.has(groupId)) {
+    if (this.#loopDeclarations.has(groupId)) {
       throw new Error(`${label} was already declared; call loop() once per task group`);
     }
     const [first] = args;
@@ -1494,29 +1497,25 @@ export class Dag {
     // handler that has no name Airflow accepts, or for no handler at all. A `taskId` the author
     // gave is used as it is, so a clash with it is theirs to fix.
     const named = readFunctionName(until);
-    const gateName =
-      named !== undefined && LOOP_GATE_NAME.test(named) ? named : DEFAULT_LOOP_GATE_ID;
-    const gateId =
-      typeof gateSpec["taskId"] === "string" ? undefined : this.#getUniqueGateId(groupId, gateName);
-    const handler = until ?? (async () => undefined);
-    const factory = (
-      gateId === undefined
-        ? this.#addTask(groupId, handler, gateSpec as TaskOptions)
-        : this.#addTask(groupId, gateId, handler, gateSpec as TaskOptions)
-    ) as (inputs?: unknown) => TaskRef;
-    const gate = until === undefined ? factory() : factory(args[1]);
-    const record = this.#tasks.get(gate.taskId)!;
-    this.#tasks.set(gate.taskId, { ...record, loopGate: { groupId } });
-    if (gateId !== undefined) this.#gateNames.set(groupId, gateName);
-    this.#loops.set(
-      groupId,
-      Object.freeze({
-        groupId,
-        maxIterations,
-        hasUntil: until !== undefined,
-        gateTaskId: gate.taskId,
-      }),
-    );
+    const givenId = gateSpec["taskId"];
+    const gateId: LoopDeclaration["gateId"] =
+      typeof givenId === "string"
+        ? { given: givenId }
+        : {
+            name: named !== undefined && LOOP_GATE_NAME.test(named) ? named : DEFAULT_LOOP_GATE_ID,
+          };
+    // Checked now, so a mistake in them is reported at this call rather than when the Dag is read.
+    const shownId = this.#childId(groupId, "given" in gateId ? gateId.given : gateId.name);
+    this.#taskSpecOf(shownId, gateSpec as TaskOptions);
+    if (until !== undefined) this.#checkInputs(shownId, this.#inputsByName(shownId, args[1]));
+    this.#loopDeclarations.set(groupId, {
+      maxIterations,
+      until,
+      inputs: args[1],
+      gateSpec: gateSpec as TaskOptions,
+      gateId,
+      declaredBefore: new Set(this.#tasks.keys()),
+    });
     const placed: LoopRef = {
       dagId: this.dagId,
       groupId,
@@ -1536,11 +1535,47 @@ export class Dag {
   }
 
   /**
-   * `taskId`, or `taskId__N` with N one past the highest in use when a task of `groupId` already
-   * has it, as Python's `get_unique_task_id` names the gate of a loop.
+   * Add each loop's gate after its body, as Python's `create_loop` does once the body exists. A
+   * gate numbered as `get_unique_task_id` numbers it counts what Python's would have seen: the tasks
+   * declared before `loop()`, the body, and the gates of the loops declared earlier.
    */
-  #getUniqueGateId(groupId: string, taskId: string): string {
-    const taken = [...this.#tasks.keys()];
+  #addLoopGates(): void {
+    for (const [groupId, loop] of this.#loopDeclarations) {
+      // Added on an earlier read that failed a later check.
+      if (this.#loops.has(groupId)) continue;
+      const { until, gateSpec, gateId } = loop;
+      const gate = createLoopGate(until);
+      let factory;
+      if ("given" in gateId) {
+        factory = this.#addTask(groupId, gate, gateSpec);
+      } else {
+        const gateTaskIds = new Set([...this.#loops.values()].map((other) => other.gateTaskId));
+        const seen = (id: string) =>
+          loop.declaredBefore.has(id) ||
+          gateTaskIds.has(id) ||
+          this.#findEnclosingLoop(id) === groupId;
+        const taskId = this.#getUniqueGateId(groupId, gateId.name, seen);
+        factory = this.#addTask(groupId, taskId, gate, gateSpec);
+      }
+      const { taskId } = (factory as (inputs?: unknown) => TaskRef)(loop.inputs);
+      this.#loops.set(
+        groupId,
+        Object.freeze({
+          groupId,
+          maxIterations: loop.maxIterations,
+          hasUntil: until !== undefined,
+          gateTaskId: taskId,
+        }),
+      );
+    }
+  }
+
+  /**
+   * `taskId`, or `taskId__N` with N one past the highest in use when a task `seen` of `groupId`
+   * already has it, as Python's `get_unique_task_id` names the gate of a loop.
+   */
+  #getUniqueGateId(groupId: string, taskId: string, seen: (id: string) => boolean): string {
+    const taken = [...this.#tasks.keys()].filter(seen);
     const fullId = this.#childId(groupId, taskId);
     if (!taken.includes(fullId)) return taskId;
     const numbered = /__\d+$/;
@@ -1552,47 +1587,14 @@ export class Dag {
     return `${taskId.replace(numbered, "")}__${Math.max(0, ...numbers) + 1}`;
   }
 
-  /**
-   * Move a gate named after its handler off `taskId`, an id a body task declared after `loop()` is
-   * about to take. Python picks the gate's id once the body exists, so the gate gets the id it
-   * would have had if the body had been declared first.
-   */
-  #moveGateOff(groupId: string | undefined, taskId: string): void {
-    if (groupId === undefined) return;
-    for (const [loopId, gateName] of this.#gateNames) {
-      const loop = this.#loops.get(loopId)!;
-      const inLoop = groupId === loopId || this.#findEnclosingLoop(groupId) === loopId;
-      if (loop.gateTaskId !== taskId || !inLoop) continue;
-      const movedTo = this.#childId(loopId, this.#getUniqueGateId(loopId, gateName));
-      try {
-        this.#reserveNodeId(movedTo, "Task");
-      } catch (error) {
-        throw new Error(
-          `The gate of Loop "${loopId}" was moved to "${movedTo}" because a body task took its ID ` +
-            `"${taskId}": ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error },
-        );
-      }
-      renameKey(this.#tasks, taskId, movedTo, (record) => ({
-        ...record,
-        task: this.#createTaskRef(movedTo),
-      }));
-      renameKey(this.#inputs, taskId, movedTo);
-      const gateGroup = this.#groups.get(loopId)!;
-      gateGroup.taskIds[gateGroup.taskIds.indexOf(taskId)] = movedTo;
-      this.#loops.set(loopId, Object.freeze({ ...loop, gateTaskId: movedTo }));
-      return;
-    }
-  }
-
   /** The loop holding `nodeId`, a task or a group nested in the loop, if any. */
   #findEnclosingLoop(nodeId: string): string | undefined {
-    if (this.#loops.size === 0) return undefined;
+    if (this.#loopDeclarations.size === 0) return undefined;
     let groupId = this.#groups.has(nodeId)
       ? this.#groups.get(nodeId)!.parentGroupId
       : this.#findTaskGroupId(nodeId);
     while (groupId !== undefined) {
-      if (this.#loops.has(groupId)) return groupId;
+      if (this.#loopDeclarations.has(groupId)) return groupId;
       groupId = this.#groups.get(groupId)!.parentGroupId;
     }
     return undefined;
@@ -1945,6 +1947,7 @@ export class Dag {
 
   #finalize(): void {
     if (this.#finalized) return;
+    this.#addLoopGates();
     for (const [taskId, branches] of this.#conditions) {
       if (branches.whenTrue === undefined) {
         throw new Error(
@@ -1987,20 +1990,6 @@ const GROUP_ID_MAX_LENGTH = 200;
 
 function formatPath(path: readonly string[]): string {
   return path.map((id) => `"${id}"`).join(" -> ");
-}
-
-/** Rename `from` to `to` in `map`, keeping its place in the insertion order. */
-function renameKey<V>(
-  map: Map<string, V>,
-  from: string,
-  to: string,
-  update?: (value: V) => V,
-): void {
-  const entries = [...map].map(([key, value]): [string, V] =>
-    key === from ? [to, update === undefined ? value : update(value)] : [key, value],
-  );
-  map.clear();
-  for (const [key, value] of entries) map.set(key, value);
 }
 
 /** The shortest path along `edges` from `start` back to `start`, or `undefined` when there is none. */
