@@ -15,3 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 airflow-core/src/airflow/api_fastapi/auth/managers/base_auth_manager.py::BaseAuthManager.get_user_from_token
+# Dag-aware coordinate resolution offloads: a cold Dag cache can deserialize a Dag. Ordinary lookups
+# use async DB I/O, and the read-only preflight returns its connection before waiting for the worker.
+airflow-core/src/airflow/api_fastapi/execution_api/routes/xcoms.py::_resolve_xcom_coordinates
+# JSON encoding can be CPU-heavy for large XComs. These reads return their async connection before
+# waiting for rendering; Cadwyn's subsequent decode/encode still runs on the event loop.
+airflow-core/src/airflow/api_fastapi/execution_api/routes/xcoms.py::get_mapped_xcom_by_index
+airflow-core/src/airflow/api_fastapi/execution_api/routes/xcoms.py::get_mapped_xcom_by_slice
+airflow-core/src/airflow/api_fastapi/execution_api/routes/xcoms.py::get_xcom
