@@ -49,6 +49,7 @@ from airflow.sdk import DAG, timezone
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 
 from tests_common.test_utils.config import conf_vars
+from unit.dag_processing.requested_work_helpers import create_manager
 
 
 @pytest.mark.db_test
@@ -106,7 +107,7 @@ def test_failed_parse_publishes_an_error_and_ages_out_prior_dags(
         return receipt
 
     client.publish_parse_result.side_effect = publish
-    manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
+    manager = create_manager(max_runs=1, api_client=client, processor_timeout=10)
     manager._dispatch_sequence = 2
     time_machine.shift(manager.stale_dag_threshold + 1)
     file = DagFileInfo(bundle_name=bundle_name, rel_path=Path("a.py"))
@@ -183,7 +184,7 @@ def test_timeout_does_not_publish_for_callbacks_or_obsolete_sources(clock, sessi
     clock.monotonic.return_value = 100.0
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     client.get_bundles.return_value = []
-    manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
+    manager = create_manager(max_runs=1, api_client=client, processor_timeout=10)
     file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"))
     processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
     processor.id = uuid7()
@@ -216,7 +217,7 @@ def test_failed_parse_with_unrepresentable_diagnostic_does_not_stop_other_files(
     clock.monotonic.return_value = 100.0
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     client.get_bundles.return_value = []
-    manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
+    manager = create_manager(max_runs=1, api_client=client, processor_timeout=10)
     long_file, short_file = [
         DagFileInfo(bundle_name="testing", rel_path=Path(path))
         for path in ("directory/" * 110 + "a.py", "b.py")
@@ -259,7 +260,7 @@ def test_startup_catalog_read_waits_out_an_unavailable_api():
     client.get_bundles.return_value = [
         DagBundleStateResponse(name="a", version=None, last_refreshed=None, revision=None, team_name=None)
     ]
-    manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_names_to_parse=["a"])
+    manager = create_manager(max_runs=1, api_client=client, bundle_names_to_parse=["a"])
 
     manager.sync_bundles()
 
@@ -277,7 +278,7 @@ def test_only_the_parsing_loop_retries_without_waiting(before_run, run_parsing_l
         for phase in (before_run, run_parsing_loop, after_run):
             phase.side_effect = lambda _: retries_at_once.append(client._retry_without_waiting.get())
 
-        DagFileProcessorManager(max_runs=1, api_client=client).run()
+        create_manager(max_runs=1, api_client=client).run()
 
     assert retries_at_once == [False, True, False]
 
@@ -302,7 +303,7 @@ def test_failed_parse_is_reported_at_once_as_an_unavailable_result(
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     clock.monotonic.return_value = 100.0
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    manager = DagFileProcessorManager(max_runs=1, api_client=client, processor_timeout=10)
+    manager = create_manager(max_runs=1, api_client=client, processor_timeout=10)
     file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"))
     manager._file_stats[file] = DagFileStat(num_dags=1, last_finish_time=timezone.utcnow())
     processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
@@ -335,7 +336,7 @@ def test_failed_parse_is_reported_at_once_as_an_unavailable_result(
 def test_retired_registration_stops_publication():
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     client.publish_parse_result.side_effect = DagProcessorRegistrationRetired("Restart required")
-    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    manager = create_manager(max_runs=1, api_client=client)
     for name in ("a.py", "b.py"):
         file = DagFileInfo(bundle_name="testing", rel_path=Path(name))
         manager._pending_publications[file] = PendingDagPublication(

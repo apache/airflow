@@ -1566,6 +1566,11 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
     _loop_thread_id: int | None = attrs.field(default=None, repr=False)
     _reader_task: asyncio.Task | None = attrs.field(default=None, repr=False)
 
+    @property
+    def has_pending_requests(self) -> bool:
+        """Include interrupted requests until their matching replies arrive."""
+        return bool(self._pending)
+
     async def _aread_frame(self):
         try:
             len_bytes = await self._async_reader.readexactly(4)
@@ -1583,15 +1588,14 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
             while True:
                 frame = await self._aread_frame()
                 future = self._pending.pop(frame.id, None)
-                if future is not None and not future.done():
-                    future.set_result(frame)
-                else:
+                if future is None:
                     self.log.warning("Got response for unknown request frame", frame_id=frame.id)
+                elif not future.done():
+                    future.set_result(frame)
         finally:
             for fut in self._pending.values():
                 if not fut.done():
                     fut.cancel("Reader loop exited")
-            self._pending.clear()
 
     async def start_reader(self) -> None:
         self._loop = asyncio.get_running_loop()
@@ -1632,14 +1636,15 @@ class TriggerCommsDecoder(CommsDecoder[ToTriggerRunner, ToTriggerSupervisor]):
             body=msg.model_dump(),
             ti_id=trigger_ti.id if trigger_ti else None,
         )
+        frame_bytes = frame.as_bytes()
         future: asyncio.Future = current_loop.create_future()
         self._pending[frame.id] = future
         try:
-            self._async_writer.write(frame.as_bytes())
-            return self._from_frame(await future)
+            self._async_writer.write(frame_bytes)
         except BaseException:
             self._pending.pop(frame.id, None)
             raise
+        return self._from_frame(await future)
 
 
 class TriggerRunner:

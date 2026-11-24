@@ -47,6 +47,7 @@ def get_bundle() -> VersionBundle:
         AddRetryReasonToTaskState,
     )
     from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
+        AddCallbackContextToDagFileParseRequest,
         AddExecutionTimeoutToSupervisorTIRunContext,
         AddExternalClearTargetToSucceedTask,
         AddXComBackendErrorType,
@@ -57,6 +58,7 @@ def get_bundle() -> VersionBundle:
         HeadVersion(),
         Version(
             "2027-02-28",
+            AddCallbackContextToDagFileParseRequest,
             AddExecutionTimeoutToSupervisorTIRunContext,
             AddExternalClearTargetToSucceedTask,
             MakeSupervisorVariableValueNonNullable,

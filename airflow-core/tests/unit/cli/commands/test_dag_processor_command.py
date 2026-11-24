@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import os
 from unittest import mock
 
@@ -24,6 +25,11 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_processor_command
+from airflow.dag_processing.api_requested_work import ExecutionAPIWorkSource
+from airflow.dag_processing.manager import DagFileProcessorManager
+from airflow.exceptions import AirflowConfigException
+from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
+from airflow.jobs.job import Job
 
 from tests_common.test_utils.config import conf_vars
 
@@ -64,6 +70,7 @@ class TestDagProcessorCommand:
     def test_start_job(self, mock_runner):
         """Ensure that DagProcessorJobRunner is started"""
         mock_runner.return_value.job_type = "DagProcessorJob"
+        mock_runner.return_value.processor.api_client = None
         args = self.parser.parse_args(["dag-processor"])
         dag_processor_command.dag_processor(args)
         mock_runner.return_value._execute.assert_called()
@@ -72,6 +79,7 @@ class TestDagProcessorCommand:
     @mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner")
     def test_bundle_names_passed(self, mock_runner, configure_testing_dag_bundle):
         mock_runner.return_value.job_type = "DagProcessorJob"
+        mock_runner.return_value.processor.api_client = None
         args = self.parser.parse_args(["dag-processor", "--bundle-name", "testing"])
         with configure_testing_dag_bundle(os.devnull):
             dag_processor_command.dag_processor(args)
@@ -108,6 +116,7 @@ class TestDagProcessorCommand:
     @pytest.mark.usefixtures("dag_bundles_with_teams")
     def test_job_records_the_teams_owning_the_parsed_bundles(self, _, mock_runner):
         mock_runner.return_value.job_type = "DagProcessorJob"
+        mock_runner.return_value.processor.api_client = None
         args = self.parser.parse_args(
             ["dag-processor", "--bundle-name", "bundle_a", "--bundle-name", "bundle_b"]
         )
@@ -121,6 +130,7 @@ class TestDagProcessorCommand:
     @mock.patch("airflow.utils.cli.DagBundlesManager", autospec=True)
     def test_bundle_validation_runs_with_server_context(self, mock_manager_cls, mock_runner, monkeypatch):
         mock_runner.return_value.job_type = "DagProcessorJob"
+        mock_runner.return_value.processor.api_client = None
         captured_ctx = {}
 
         mock_bundle = mock.MagicMock()
@@ -158,6 +168,7 @@ class TestDagProcessorCommand:
     def test_memray_traces_the_job_and_not_the_parent_process(self, mock_runner, mock_daemon_option):
         """The callback runs on the far side of the daemon fork, so the tracer has to start there."""
         mock_runner.return_value.job_type = "DagProcessorJob"
+        mock_runner.return_value.processor.api_client = None
         memray = mock.MagicMock()
 
         with mock.patch.dict("sys.modules", {"memray": memray}):
@@ -166,3 +177,246 @@ class TestDagProcessorCommand:
 
             mock_daemon_option.call_args.kwargs["callback"]()
             memray.Tracker.assert_called_once()
+
+    @conf_vars(
+        {
+            ("dag_processor", "use_execution_api"): "True",
+            ("dag_processor", "execution_api_token_file"): "/run/processor.jwt",
+        }
+    )
+    @mock.patch("airflow.cli.commands.dag_processor_command.run_command_with_daemon_option", autospec=True)
+    @mock.patch("airflow.dag_processing.api_client.DagProcessorAPIClient", autospec=True)
+    @mock.patch.object(DagProcessorJobRunner, "run_with_api", autospec=True)
+    @mock.patch("airflow.cli.commands.dag_processor_command.run_job", autospec=True)
+    @mock.patch(
+        "airflow.cli.commands.dag_processor_command.DagFileProcessorManager",
+        autospec=True,
+        side_effect=DagFileProcessorManager,
+    )
+    @mock.patch("airflow.cli.hot_reload.run_with_reloader", autospec=True)
+    @pytest.mark.parametrize("reload", [False, True], ids=["daemon", "hot-reload"])
+    def test_api_manager_dependencies_are_created_in_the_child_callback(
+        self,
+        reloader,
+        manager_class,
+        run_job,
+        run_with_api,
+        client_class,
+        daemon,
+        configure_testing_dag_bundle,
+        reload,
+    ):
+        with configure_testing_dag_bundle(os.devnull):
+            args = self.parser.parse_args(
+                ["dag-processor", "--bundle-name", "testing", *(["--dev"] if reload else [])]
+            )
+            dag_processor_command.dag_processor(args)
+            client_class.assert_not_called()
+            manager_class.assert_not_called()
+            callback = reloader.call_args.args[0] if reload else daemon.call_args.kwargs["callback"]
+            callback()
+        assert client_class.call_args.kwargs["token_file"] == "/run/processor.jwt"
+        assert client_class.call_args.kwargs["bundle_names"] == ["testing"]
+        run_with_api.assert_called_once()
+        runner, client = run_with_api.call_args.args
+        assert client is client_class.return_value.__enter__.return_value
+        manager_class.assert_called_once()
+        assert manager_class.call_args.kwargs["api_client"] is client
+        source = manager_class.call_args.kwargs["work_source"]
+        assert isinstance(source, ExecutionAPIWorkSource)
+        assert source.client is client
+        assert runner.processor.work_source is source
+        assert runner.processor.api_client is client
+        client_class.return_value.__exit__.assert_called_once()
+        run_job.assert_not_called()
+
+    @conf_vars(
+        {
+            ("dag_processor", "use_execution_api"): "True",
+            ("dag_processor", "execution_api_token_file"): "/run/processor.jwt",
+        }
+    )
+    @mock.patch("airflow.utils.cli.validate_dag_bundle_arg", autospec=True)
+    @mock.patch("airflow.dag_processing.api_client.DagProcessorAPIClient", autospec=True)
+    @mock.patch("airflow.cli.commands.dag_processor_command.run_command_with_daemon_option", autospec=True)
+    def test_api_bundle_validation_does_not_construct_bundles(
+        self, daemon, client_class, validate, configure_testing_dag_bundle
+    ):
+        with configure_testing_dag_bundle(os.devnull):
+            dag_processor_command.dag_processor(
+                self.parser.parse_args(["dag-processor", "--bundle-name", "testing"])
+            )
+            with pytest.raises(SystemExit, match="Bundles not found: missing"):
+                dag_processor_command.dag_processor(
+                    self.parser.parse_args(["dag-processor", "--bundle-name", "missing"])
+                )
+        daemon.assert_called_once()
+        client_class.assert_not_called()
+        validate.assert_not_called()
+
+    @conf_vars(
+        {
+            ("dag_processor", "use_execution_api"): "True",
+            ("dag_processor", "execution_api_token_file"): "/run/processor.jwt",
+            ("core", "load_examples"): "False",
+        }
+    )
+    @mock.patch("airflow.dag_processing.api_client.DagProcessorAPIClient", autospec=True)
+    @mock.patch.object(
+        DagProcessorJobRunner, "run_with_api", autospec=True, side_effect=RuntimeError("failed")
+    )
+    def test_api_client_closes_on_failure(self, run_with_api, client_class, configure_testing_dag_bundle):
+        with configure_testing_dag_bundle(os.devnull), pytest.raises(RuntimeError, match="failed"):
+            dag_processor_command._run_dag_processor_job(self.parser.parse_args(["dag-processor"]))
+        assert client_class.call_args.kwargs["bundle_names"] == ["testing"]
+        client_class.return_value.__exit__.assert_called_once()
+
+
+@pytest.mark.parametrize("entrypoint", ["command", "job"])
+@conf_vars(
+    {("dag_processor", "use_execution_api"): "True", ("dag_processor", "execution_api_token_file"): ""}
+)
+@mock.patch("airflow.cli.commands.dag_processor_command._start_dag_processor", autospec=True)
+@mock.patch("airflow.cli.commands.dag_processor_command._run_with_action_log", autospec=True)
+@mock.patch("airflow.cli.commands.dag_processor_command.run_job", autospec=True)
+def test_api_mode_without_credentials_fails_before_database_startup(run_job, action_log, start, entrypoint):
+    if entrypoint == "command":
+        run = dag_processor_command.dag_processor
+        argument = cli_parser.get_parser().parse_args(["dag-processor"])
+    else:
+        run = dag_processor_command._run_dag_processor_job
+        argument = cli_parser.get_parser().parse_args(["dag-processor"])
+    with pytest.raises(AirflowConfigException, match="use_execution_api requires a credential"):
+        run(argument)
+    run_job.assert_not_called()
+    action_log.assert_not_called()
+    start.assert_not_called()
+
+
+@conf_vars(
+    {
+        ("dag_processor", "use_execution_api"): "False",
+        ("dag_processor", "execution_api_token_file"): "/run/processor.jwt",
+    }
+)
+@mock.patch("airflow.dag_processing.api_client.DagProcessorAPIClient", autospec=True)
+@mock.patch("airflow.cli.commands.dag_processor_command.run_job", autospec=True)
+@mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner", autospec=True)
+def test_token_file_alone_does_not_select_api_mode(runner_class, run_job, client):
+    runner = runner_class.return_value
+    runner.job = mock.create_autospec(Job, instance=True)
+    runner.processor = mock.create_autospec(DagFileProcessorManager, instance=True)
+    runner.processor.api_client = None
+    dag_processor_command._run_dag_processor_job(cli_parser.get_parser().parse_args(["dag-processor"]))
+    run_job.assert_called_once_with(job=runner.job, execute_callable=runner._execute)
+    client.assert_not_called()
+    runner.run_with_api.assert_not_called()
+
+
+@pytest.mark.parametrize("api_mode", [False, True])
+@pytest.mark.parametrize("verbose", [False, True])
+@mock.patch("airflow.cli.commands.dag_processor_command._start_dag_processor", autospec=True)
+@mock.patch("airflow.utils.cli.cli_action_loggers.on_pre_execution", autospec=True)
+@mock.patch("airflow.utils.cli.cli_action_loggers.on_post_execution", autospec=True)
+@mock.patch("airflow.utils.db.check_and_run_migrations", autospec=True)
+@mock.patch("airflow.utils.db.synchronize_log_template", autospec=True)
+def test_verbose_logging_in_both_modes(
+    sync_log_template,
+    check_migrations,
+    on_post_execution,
+    on_pre_execution,
+    start,
+    api_mode,
+    verbose,
+    monkeypatch,
+):
+    root_logger = logging.getLogger()
+    original_level = root_logger.level
+    handler = logging.NullHandler(level=logging.INFO)
+    monkeypatch.setattr(root_logger, "handlers", [handler])
+    root_logger.setLevel(logging.INFO)
+    try:
+        with conf_vars(
+            {
+                ("dag_processor", "use_execution_api"): str(api_mode),
+                ("dag_processor", "execution_api_token_file"): "/run/processor.jwt",
+            }
+        ):
+            args = cli_parser.get_parser().parse_args(["dag-processor", *(["--verbose"] if verbose else [])])
+            dag_processor_command.dag_processor(args)
+
+        expected_level = logging.DEBUG if verbose else logging.INFO
+        assert root_logger.level == expected_level
+        assert handler.level == expected_level
+        start.assert_called_once_with(args)
+        if api_mode:
+            on_pre_execution.assert_not_called()
+            on_post_execution.assert_not_called()
+            check_migrations.assert_not_called()
+            sync_log_template.assert_not_called()
+        else:
+            on_pre_execution.assert_called_once()
+            on_post_execution.assert_called_once()
+    finally:
+        root_logger.setLevel(original_level)
+
+
+@pytest.mark.parametrize("api_mode", [False, True])
+@mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
+@mock.patch.object(DagProcessorJobRunner, "_execute", autospec=True)
+def test_catalog_command_uses_database_without_starting_a_processor(execute, sync, api_mode):
+    args = cli_parser.get_parser().parse_args(["dag-processor-sync-bundles"])
+    with conf_vars({("dag_processor", "use_execution_api"): str(api_mode)}):
+        args.func(args)
+    sync.assert_called_once()
+    assert sync.call_args.args[0].api_client is None
+    execute.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("command", "expected_event"),
+    [("dag-processor", "dag_processor"), ("dag-processor-sync-bundles", "dag_processor_sync_bundles")],
+)
+@mock.patch("airflow.utils.cli.cli_action_loggers.on_pre_execution", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
+@mock.patch("airflow.cli.commands.dag_processor_command.DagProcessorJobRunner", autospec=True)
+def test_action_log_keeps_the_command_name(mock_runner, sync, on_pre_execution, command, expected_event):
+    mock_runner.return_value.job = mock.create_autospec(Job, instance=True)
+    mock_runner.return_value.processor = mock.create_autospec(DagFileProcessorManager, instance=True)
+    mock_runner.return_value.processor.api_client = None
+    args = cli_parser.get_parser().parse_args([command])
+    args.func(args)
+    assert on_pre_execution.call_args.kwargs["sub_command"] == expected_event
+
+
+@pytest.mark.parametrize(
+    ("flags", "deactivate_missing"), [([], True), (["--keep-unconfigured-bundles"], False)]
+)
+@mock.patch.object(DagFileProcessorManager, "sync_bundles", autospec=True)
+def test_catalog_provisioning_keeps_unconfigured_bundles_only_when_asked(sync, flags, deactivate_missing):
+    args = cli_parser.get_parser().parse_args(["dag-processor-sync-bundles", *flags])
+    args.func(args)
+    sync.assert_called_once_with(mock.ANY, deactivate_missing=deactivate_missing)
+
+
+@pytest.mark.parametrize("api_mode", [False, True])
+@pytest.mark.parametrize("token_file", ["", "/run/processor.jwt"])
+@pytest.mark.parametrize(("flag", "readiness"), [("--check-health", False), ("--check-ready", True)])
+@mock.patch("airflow.cli.commands.dag_processor_command._start_dag_processor", autospec=True)
+@mock.patch("airflow.cli.commands.dag_processor_command.check_processor_health", autospec=True)
+def test_health_probes_run_only_in_api_mode(check_health, start, flag, readiness, api_mode, token_file):
+    args = cli_parser.get_parser().parse_args(["dag-processor", flag])
+    with conf_vars(
+        {
+            ("dag_processor", "use_execution_api"): str(api_mode),
+            ("dag_processor", "execution_api_token_file"): token_file,
+        }
+    ):
+        if api_mode:
+            assert dag_processor_command.dag_processor(args) is check_health.return_value
+            check_health.assert_called_once_with(readiness=readiness)
+        else:
+            with pytest.raises(SystemExit, match="Local health probes require Dag processor API mode"):
+                dag_processor_command.dag_processor(args)
+            check_health.assert_not_called()
+    start.assert_not_called()

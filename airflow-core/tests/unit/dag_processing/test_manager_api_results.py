@@ -24,8 +24,10 @@ import pytest
 from uuid6 import uuid7
 
 from airflow.dag_processing.api_client import DagProcessorAPIClient
-from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager
+from airflow.dag_processing.manager import DagFileInfo
 from airflow.dag_processing.processor import DagFileParsingResult, DagFileProcessorProcess, DagParseSource
+
+from unit.dag_processing.requested_work_helpers import create_manager
 
 
 @pytest.mark.parametrize("outcome", ["parsed", "callback", "failed", "stale", "stale_failure"])
@@ -35,7 +37,7 @@ def test_api_result_collection_does_not_create_database_session(
 ):
     time_machine.move_to("2026-10-05T12:00:00Z", tick=False)
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
-    manager = DagFileProcessorManager(max_runs=1, api_client=client)
+    manager = create_manager(max_runs=1, api_client=client)
     file = DagFileInfo(bundle_name="testing", rel_path=Path("a.py"), bundle_path=tmp_path)
     processor = mock.create_autospec(DagFileProcessorProcess, instance=True)
     processor.id = uuid7()

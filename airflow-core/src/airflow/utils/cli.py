@@ -60,6 +60,14 @@ def _check_cli_args(args):
         )
 
 
+def set_verbose_logging() -> None:
+    """Enable debug output for the root logger and its handlers."""
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    for handler in root_logger.handlers:
+        handler.setLevel(logging.DEBUG)
+
+
 def action_cli(func=None, check_db=True):
     def action_logging(f: T) -> T:
         """
@@ -97,12 +105,8 @@ def action_cli(func=None, check_db=True):
             _check_cli_args(args)
             metrics = _build_metrics(f.__name__, args[0])
             cli_action_loggers.on_pre_execution(**metrics)
-            verbose = getattr(args[0], "verbose", False)
-            root_logger = logging.getLogger()
-            if verbose:
-                root_logger.setLevel(logging.DEBUG)
-                for handler in root_logger.handlers:
-                    handler.setLevel(logging.DEBUG)
+            if getattr(args[0], "verbose", False):
+                set_verbose_logging()
             try:
                 # Check and run migrations if necessary
                 if check_db:
