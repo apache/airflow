@@ -39,6 +39,7 @@ except ImportError:
 
 
 if TYPE_CHECKING:
+    from kubernetes.client import V1PodStatus
     from pydantic import JsonValue
     from requests.auth import AuthBase
 
@@ -97,7 +98,7 @@ class _KubernetesSparkSubmitBackend(_SparkSubmitDeploymentBackend):
         try:
             client = kube_client.get_kube_client()
             pod = client.read_namespaced_pod(pod_name, namespace)
-            return pod.status.phase or "Pending"
+            return cast("V1PodStatus", pod.status).phase or "Pending"
         except kube_client.ApiException as e:
             if e.status == 404:
                 return "NotFound"

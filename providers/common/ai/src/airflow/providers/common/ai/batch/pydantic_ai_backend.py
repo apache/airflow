@@ -44,7 +44,7 @@ from contextlib import AsyncExitStack, aclosing, asynccontextmanager, closing, s
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, cast
 
-from pydantic import TypeAdapter
+from pydantic import BaseModel, JsonValue, TypeAdapter
 from pydantic_ai.exceptions import (
     ModelAPIError,
     ModelHTTPError,
@@ -73,6 +73,7 @@ from pydantic_ai.models.batch import (
 from pydantic_ai.output import OutputObjectDefinition
 from pydantic_ai.settings import ModelSettings
 from pydantic_ai.tools import ToolDefinition
+from pydantic_core import to_json
 
 from airflow.providers.common.ai.batch.base import (
     BatchAdapter,
@@ -95,14 +96,16 @@ from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 if TYPE_CHECKING:
     from pydantic_ai.models import Model
+    from pydantic_ai.models.openai import OpenAIResponsesModel
 
-    from airflow.providers.common.ai.batch.base import BatchRequest
+    from airflow.providers.common.ai.batch.base import BatchRequest, BatchStatus
     from airflow.providers.common.ai.batch.output_schema import OutputSpec
     from airflow.sdk import Connection
 
 log = get_task_logger()
 
 T = TypeVar("T")
+L = TypeVar("L", bound=BaseModel)
 
 _BATCH_ADAPTER: TypeAdapter[Batch] = TypeAdapter(Batch)
 
@@ -147,6 +150,13 @@ _MANAGED_KEYS = frozenset(
 #: pydantic-ai's status for a request that never ran, as this provider names it.
 _UNRUN_STATUS: dict[str, Literal["cancelled", "expired"]] = {"canceled": "cancelled", "expired": "expired"}
 
+#: The error codes of a request an OpenAI batch ended before running, and the status pydantic-ai gives each.
+#: Mirrors ``_UNRUN_STATUSES`` in pydantic-ai's OpenAI batch module.
+_OPENAI_UNRUN_STATUSES: dict[str, Literal["expired", "canceled"]] = {
+    "batch_expired": "expired",
+    "batch_cancelled": "canceled",
+}
+
 #: Gemini documents no request limit, and the ABC wants an int.
 _NO_REQUEST_LIMIT = 2**63 - 1
 
@@ -168,6 +178,99 @@ class _ResultsContext:
 
     model: Model
     parameters: ModelRequestParameters
+
+
+class _OpenAILineResponse(BaseModel):
+    status_code: int
+    body: JsonValue
+
+
+class _OpenAILineError(BaseModel):
+    code: str | None = None
+    message: str | None = None
+
+
+class _OpenAIOutputLine(BaseModel):
+    """A line of an OpenAI batch's output or error file."""
+
+    custom_id: str
+    response: _OpenAILineResponse | None = None
+    error: _OpenAILineError | None = None
+
+
+class _OpenAIInputLine(BaseModel):
+    custom_id: str
+
+
+def _openai_result(line: _OpenAIOutputLine) -> BatchResult:
+    """Mirror of ``_to_result`` in pydantic-ai's OpenAI batch module."""
+    if (response := line.response) is not None:
+        if 200 <= response.status_code < 300:
+            return BatchResult(
+                custom_id=line.custom_id, status="succeeded", body=to_json(response.body).decode()
+            )
+        return BatchResult(custom_id=line.custom_id, status="errored", body=response.model_dump_json())
+    error = line.error or _OpenAILineError()
+    if status := _OPENAI_UNRUN_STATUSES.get(error.code or ""):
+        return BatchResult(custom_id=line.custom_id, status=status)
+    body = _OpenAILineResponse(status_code=500, body={"error": error.model_dump(mode="json")})
+    return BatchResult(custom_id=line.custom_id, status="errored", body=body.model_dump_json())
+
+
+def _openai_unrun_result(details: Mapping[str, Any], custom_id: str, line_number: int) -> BatchResult:
+    """Mirror of ``_unrun_result`` in pydantic-ai's OpenAI batch module."""
+    if details["status"] == "failed":
+        # The input file failed validation, so the batch ran none of its requests. A request gets the errors of its
+        # own line and those of no line; when they're all about other lines, it gets them all, which name them.
+        errors = details.get("errors", [])
+        own = [
+            error
+            for error in errors
+            if not isinstance(error, Mapping) or error.get("line") in (line_number, None)
+        ]
+        body = _OpenAILineResponse(status_code=400, body={"errors": own or errors})
+        return BatchResult(custom_id=custom_id, status="errored", body=body.model_dump_json())
+    return BatchResult(
+        custom_id=custom_id, status="expired" if details["status"] == "expired" else "canceled"
+    )
+
+
+async def _split_lines(chunks: AsyncIterator[bytes]) -> AsyncGenerator[bytes, None]:
+    r"""
+    Yield the lines of a byte stream, split on ``\n`` only.
+
+    ``str.splitlines`` also splits on U+2028, U+0085 and the like, which JSON allows unescaped inside
+    a string, so it can cut a result line in two. A partial line is kept until the rest of it arrives.
+    """
+    pending = b""
+    async for chunk in chunks:
+        pending += chunk
+        *lines, pending = pending.split(b"\n")
+        for line in lines:
+            yield line
+    if pending:
+        yield pending
+
+
+def _parse_line(line_type: type[L], raw: bytes, *, file_id: str, line_number: int) -> L | None:
+    """
+    Return the parsed line, or ``None`` for one that is blank or unreadable.
+
+    The provider serves the same bytes on every retry, so a line that cannot be parsed would fail the
+    landing every time. Skipping it leaves the request missing from the merge, which counts it.
+    """
+    try:
+        if not raw.strip():
+            raise ValueError("the line is blank")
+        return line_type.model_validate_json(raw.decode())
+    except ValueError as e:
+        log.warning(
+            "Skipping unreadable line of an OpenAI batch file",
+            file_id=file_id,
+            line_number=line_number,
+            error=str(e),
+        )
+        return None
 
 
 def _stream(source: AsyncGenerator[T, None]) -> Generator[T, None, None]:
@@ -255,15 +358,28 @@ def _typed_settings(settings_type: type) -> frozenset[str]:
 
 
 def _error_body(error: ModelHTTPError) -> Mapping[str, Any]:
-    """Return the ``error`` object of an HTTP error's body, which carries the provider's own type and message."""
+    """
+    Return the object of an HTTP error's body that carries the provider's own type, code and message.
+
+    Anthropic and Gemini nest it under ``error``. OpenAI's batch decoder has already unwrapped it, so
+    the body is the object itself.
+    """
     body = error.body
-    inner = body.get("error") if isinstance(body, Mapping) else None
-    return inner if isinstance(inner, Mapping) else {}
+    if not isinstance(body, Mapping):
+        return {}
+    inner = body.get("error")
+    return inner if isinstance(inner, Mapping) else body
 
 
 def _reason(error: ModelHTTPError) -> str:
     """Return the provider's own explanation of an HTTP error; pydantic-ai's message wraps it in status and model."""
     return str(_error_body(error).get("message") or error.message)
+
+
+def _error_code(error: ModelHTTPError) -> str | int:
+    """Return the provider's own code for an HTTP error, or its status when the provider sent none."""
+    body = _error_body(error)
+    return error.provider_error_code or body.get("type") or body.get("code") or error.status_code
 
 
 def _error_info(status: str, message: str, provider_code: str | int | None = None) -> dict[str, Any]:
@@ -312,6 +428,8 @@ class PydanticAIBatchAdapter(BatchAdapter):
     conn_types = frozenset({"pydanticai"})
     #: ``True`` when a key that is not a typed setting is passed to the provider as a raw request field.
     accepts_raw_params: ClassVar[bool] = True
+    #: The key of the batch's ``provider_details`` that names the uploaded input file.
+    input_file_key: ClassVar[str] = "input_file"
     # pydantic-ai fixes the completion window of the provider batch APIs it drives.
     supports_completion_window = False
 
@@ -670,7 +788,7 @@ class PydanticAIBatchAdapter(BatchAdapter):
         self._handle = _BATCH_ADAPTER.dump_json(batch).decode()
         return SubmitResult(
             batch_id=batch.id,
-            provider_input_ref=(batch.provider_details or {}).get("input_file"),
+            provider_input_ref=(batch.provider_details or {}).get(self.input_file_key),
             handle=self._handle,
         )
 
@@ -778,10 +896,11 @@ class PydanticAIBatchAdapter(BatchAdapter):
                 PydanticAIBatchRequest(custom_id=custom_id, messages=[], model_request_parameters=parameters),
             )
         except ModelAPIError as e:
-            provider_code = None
             if isinstance(e, ModelHTTPError):
-                provider_code = _error_body(e).get("type") or e.status_code
-            return _failed(custom_id, index, "errored", _error_info(result.status, e.message, provider_code))
+                info = _error_info(result.status, _reason(e), _error_code(e))
+            else:
+                info = _error_info(result.status, e.message)
+            return _failed(custom_id, index, "errored", info)
         details = response.provider_details or {}
         return RawResultItem(
             custom_id=custom_id,
@@ -807,6 +926,187 @@ class PydanticAIBatchAdapter(BatchAdapter):
         if response.text:
             return ExtractedOutput(kind="json_text", text=response.text)
         return ExtractedOutput(kind="absent")
+
+
+class OpenAIBatchAdapter(PydanticAIBatchAdapter):
+    """
+    Batch adapter for OpenAI's Batch API, on the Responses API (``/v1/responses``).
+
+    pydantic-ai batches only its Responses model, so an ``openai-chat:`` model id is built as the
+    ``openai:`` model of the same name and logged. Azure OpenAI has no adapter. A batch's group
+    includes the model, so every request must use the same one. Raw Responses fields in
+    ``request_params`` (``user``, ``metadata``, ...) go through ``extra_body``, so use Responses
+    names: ``openai_reasoning_effort`` or ``reasoning={"effort": ...}``, not ``reasoning_effort``.
+    A Chat Completions parameter that has a Responses equivalent fails before submission.
+
+    A batch gateway that implements ``/v1/files`` and ``/v1/batches`` for ``/v1/responses`` works
+    through the connection's ``host``; one that implements those only for ``/v1/chat/completions``
+    does not.
+    """
+
+    name = "openai"
+    #: OpenAI's documented limit: 50,000 requests or 200 MB, whichever is reached first.
+    max_requests = 50_000
+    max_payload_bytes = 200_000_000
+    allows_per_request_model = False
+    input_file_key = "input_file_id"
+
+    #: Job statuses that end a batch, as the status this provider reports. A job that expired or was
+    #: cancelled still yields a row per request, and those rows carry the counts.
+    _ENDED_STATUSES: ClassVar[dict[str, BatchStatus]] = {
+        "failed": "failed",
+        "expired": "expired",
+        "cancelled": "cancelled",
+    }
+
+    #: Chat Completions parameters the Responses API does not take, with the typed setting that
+    #: does the same. Sent as raw fields, they would fail every request of the batch at OpenAI.
+    _CHAT_COMPLETIONS_RENAMES: ClassVar[dict[str, str]] = {
+        "reasoning_effort": "openai_reasoning_effort",
+        "verbosity": "openai_text_verbosity",
+        "logprobs": "openai_logprobs",
+    }
+
+    @classmethod
+    def _settings_type(cls) -> type:
+        # Heavy third-party SDK: importing the OpenAI model module imports ``openai``.
+        from pydantic_ai.models.openai import OpenAIResponsesModelSettings
+
+        return OpenAIResponsesModelSettings
+
+    def _build_settings(
+        self,
+        model: Model,
+        *layers: Mapping[str, Any] | None,
+        max_tokens: int,
+    ) -> tuple[ModelSettings, set[str]]:
+        for layer in layers:
+            for key in sorted((layer or {}).keys() & self._CHAT_COMPLETIONS_RENAMES.keys()):
+                raise LLMBatchInputError(
+                    f"{key!r} is a Chat Completions parameter, and batches run on the Responses API; "
+                    f"use {self._CHAT_COMPLETIONS_RENAMES[key]!r}."
+                )
+        return super()._build_settings(model, *layers, max_tokens=max_tokens)
+
+    @staticmethod
+    def _responses_model_id(model_id: str) -> str:
+        """Return ``model_id`` with pydantic-ai's Chat Completions prefix swapped for the Responses one."""
+        prefix, sep, bare = model_id.partition(":")
+        return f"openai:{bare}" if sep and prefix == "openai-chat" else model_id
+
+    async def _amodel(self, model_id: str) -> Model:
+        return await super()._amodel(self._responses_model_id(model_id))
+
+    async def _encode(
+        self, stack: AsyncExitStack, requests: list[BatchRequest], **kwargs: Any
+    ) -> tuple[Model, str, list[EncodedBatchRequest]]:
+        # Logged here, which only validating and submitting reach, not on every poll, cancel and landing.
+        for model_id in sorted({self._model_id or "", *(request.get("model") or "" for request in requests)}):
+            if (responses_id := self._responses_model_id(model_id)) != model_id:
+                log.info(
+                    "Batches run on the OpenAI Responses API; using openai:<model> in place of openai-chat:<model>",
+                    model=responses_id.partition(":")[2],
+                )
+        return await super()._encode(stack, requests, **kwargs)
+
+    async def acancel_batch(self, batch_id: str) -> None:
+        if self._handle or not self._model_id:
+            await super().acancel_batch(batch_id)
+            return
+        # A batch an earlier version of this provider recorded has no handle, but cancelling takes only its id.
+        async with await self._amodel(self._model_id) as model:
+            # Heavy third-party SDK: importing the OpenAI model module imports ``openai``.
+            from pydantic_ai.models.openai import OpenAIResponsesModel
+
+            if not isinstance(model, OpenAIResponsesModel):
+                await super().acancel_batch(batch_id)
+                return
+            await model.client.batches.cancel(batch_id)
+
+    async def _stream_results(self, model: Model, batch: Batch) -> AsyncGenerator[BatchResult, None]:
+        # Heavy third-party SDK: importing the OpenAI model module imports ``openai``.
+        from pydantic_ai.models.openai import OpenAIResponsesModel
+
+        if not isinstance(model, OpenAIResponsesModel) or model.batch_max_requests is None:
+            # Not a model pydantic-ai batches through: its collect raises the right error.
+            async for collected in super()._stream_results(model, batch):
+                yield collected
+            return
+        # ``batch_status`` has already checked the credentials and the group, as ``batch_results`` would.
+        # The handle of an ended batch names its final files, as it does for pydantic-ai's own collect.
+        details = batch.provider_details or {}
+        # Only the ids seen are kept, to find the requests the batch never ran.
+        seen: set[str] = set()
+        for file_id in (details.get("output_file_id"), details.get("error_file_id")):
+            if file_id:
+                async with aclosing(self._file_lines(model, file_id)) as lines:
+                    line_number = 0
+                    async for raw in lines:
+                        line_number += 1
+                        if (
+                            line := _parse_line(
+                                _OpenAIOutputLine, raw, file_id=file_id, line_number=line_number
+                            )
+                        ) is None:
+                            continue
+                        result = _openai_result(line)
+                        seen.add(result.custom_id)
+                        yield result
+        if details["status"] != "completed":
+            # The output and error files have no line for a request the batch didn't run, so the input file lists them.
+            input_file_id = details["input_file_id"]
+            async with aclosing(self._file_lines(model, input_file_id)) as lines:
+                line_number = 0
+                async for raw in lines:
+                    line_number += 1
+                    input_line = _parse_line(
+                        _OpenAIInputLine, raw, file_id=input_file_id, line_number=line_number
+                    )
+                    if input_line is not None and input_line.custom_id not in seen:
+                        yield _openai_unrun_result(details, input_line.custom_id, line_number)
+
+    @staticmethod
+    async def _file_lines(model: OpenAIResponsesModel, file_id: str) -> AsyncGenerator[bytes, None]:
+        """Yield a file's lines as they arrive; the response is closed when the iteration ends or is closed."""
+        async with model.client.files.with_streaming_response.content(file_id) as response:
+            async with aclosing(_split_lines(response.iter_bytes())) as lines:
+                async for line in lines:
+                    yield line
+
+    async def _unrecorded_batch(self, model: Model, batch_id: str) -> Batch:
+        """
+        Refuse a batch an earlier version of this provider submitted, which cannot be read back.
+
+        That version created OpenAI batches against ``/v1/chat/completions``. pydantic-ai decodes
+        only Responses output, so the results of such a batch cannot be read.
+        """
+        raise LLMBatchStateReadError(
+            f"Batch {batch_id!r} was submitted by an earlier version of this provider to the Chat "
+            "Completions endpoint, and this version reads only Responses API batches. Let it finish or "
+            "cancel it at OpenAI, then delete this task's batch state file under the result path's "
+            "'_airflow_batch_state' directory so a retry submits a new batch."
+        )
+
+    async def _describe(self, model: Model, batch: Batch) -> BatchState:
+        # ``ended`` covers every terminal job status, so the outcome is in the job's own status.
+        job_status = (batch.provider_details or {}).get("status")
+        if batch.status == "ended" and job_status in self._ENDED_STATUSES:
+            status = self._ENDED_STATUSES[job_status]
+            message = self._failure_message(batch) if status == "failed" else None
+            return BatchState(status=status, counts=None, error_message=message)
+        return await super()._describe(model, batch)
+
+    @staticmethod
+    def _failure_message(batch: Batch) -> str:
+        """Describe a job OpenAI rejected before running it, from the validation errors on the handle."""
+        message = f"OpenAI batch {batch.id} failed before processing."
+        reasons = []
+        for error in (batch.provider_details or {}).get("errors", []):
+            if not isinstance(error, Mapping):
+                continue
+            where = f"line {error['line']}: " if error.get("line") is not None else ""
+            reasons.append(f"{where}{error.get('message') or error.get('code') or 'unknown error'}")
+        return f"{message} {'; '.join(reasons)}" if reasons else message
 
 
 class AnthropicBatchAdapter(PydanticAIBatchAdapter):

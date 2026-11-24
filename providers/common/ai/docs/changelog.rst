@@ -26,40 +26,76 @@ Changelog
 ---------
 
 .. note::
-  ``@task.llm_batch`` now runs Anthropic batches through pydantic-ai's ``Model.batch_*`` methods and
-  adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex ``google-cloud:``
-  model id is refused with the fix in the message). This raises the ``pydantic-ai-slim`` floor to
-  2.66.0 and the ``anthropic`` extra's ``anthropic`` floor to 1.15.0, and adds ``google-genai`` to the
-  ``google`` extra.
+  **Durable replay of a fallback chain**
 
-  What changes for an existing Anthropic task:
+  A recorded model step through a ``fallback_conn_ids`` chain now replays after the chain is
+  edited, as long as the connection that answered it is still in the chain and at least one
+  fallback connection remains; with a single connection the hook passes the bare model
+  instead of a chain, so every step runs live. A step answered by a connection that was
+  removed from the chain, or whose ``model`` changed, runs live. The step also needs the
+  connection that answered it to remain in the chain under the same ID, so two connections
+  serving the same model are told apart; renaming a connection runs its steps live, while
+  changing its host or credentials does not. A response the model left suspended is resumed
+  by pydantic-ai on the first connection in the chain that serves its model, which need not
+  be the one that answered it. The fingerprint of a chain request no longer lists the
+  connections, so the first retry after upgrading a task whose durable journal holds steps
+  recorded through a chain by an earlier version runs every step live, tools included. A
+  ``FallbackModel`` built outside the hook keeps the earlier behaviour: its steps replay
+  while the chain is unchanged, and run live once it is edited.
+  See :doc:`recovery`.
+
+.. note::
+  ``@task.llm_batch`` now runs OpenAI and Anthropic batches through pydantic-ai's ``Model.batch_*``
+  methods and adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex
+  ``google-cloud:`` model id is refused with the fix in the message). This raises the
+  ``pydantic-ai-slim`` floor to 2.66.0, the ``openai`` extra's ``openai`` floor to 3.31.0 and the
+  ``anthropic`` extra's ``anthropic`` floor to 1.15.0, and adds ``google-genai`` to the ``google``
+  extra.
+
+  What changes for an existing task:
 
   - ``request_params`` and a request's ``params`` keep working. The sampling settings (``temperature``,
-    ``top_p``, ``top_k``, ``stop_sequences``) and ``anthropic_*`` settings are typed, and every other
-    key is still sent as a Messages field. A setting the model would silently drop, such as ``seed``,
-    now fails before submission, and a key the operator manages (``model``, ``messages``, ...) is
-    ignored with a warning.
-  - Structured output uses the model's native JSON-schema output instead of a forced tool call, except
-    for models without it and for schemas Anthropic's strict mode refuses (more than 24 optional fields,
-    more than 16 union-typed fields, or a recursive type), which still go through a forced tool call.
+    ``top_p``, ...) and the provider-prefixed settings (``openai_*``,
+    ``anthropic_*``) are typed, and every other key is still sent as a request field. A setting the
+    model would silently drop (``seed`` on Anthropic; ``seed``, ``top_k``, ``frequency_penalty``,
+    ``presence_penalty``, ``logit_bias`` and ``stop_sequences`` on OpenAI) now fails before
+    submission, and a key the operator manages (``model``, ``messages``, ``input``, ...) is ignored
+    with a warning. A Chat Completions key has to be written the Responses way on OpenAI, for example
+    ``openai_reasoning_effort`` instead of ``reasoning_effort``; ``reasoning_effort``, ``verbosity``
+    and ``logprobs`` fail before submission with the setting to use.
+  - OpenAI batches run on the Responses API (``/v1/responses``) instead of Chat Completions, because
+    pydantic-ai batches only its Responses model. An ``openai-chat:`` model id is built as
+    ``openai:`` and logged. A gateway that implements batches only for ``/v1/chat/completions`` stops
+    working; whether LiteLLM implements them for ``/v1/responses`` has not been verified. Azure OpenAI
+    still has no adapter.
+  - Structured output uses the model's native JSON-schema output instead of a forced tool call or
+    ``response_format``, except for models without it and, on Anthropic, for schemas its strict mode
+    refuses (more than 24 optional fields, more than 16 union-typed fields, or a recursive type), which
+    still go through a forced tool call.
   - Creating a batch is not retried by the SDK: pydantic-ai sends it with ``max_retries=0`` because
-    creating a batch is not idempotent, where the earlier adapter used the SDK's default of two retries.
+    creating a batch is not idempotent, where the earlier adapters used the SDK's default of two retries.
     A 429 or 529 on create now fails the attempt, so it costs an Airflow task retry, or raises
     ``LLMBatchOrphanedIntentError`` with ``on_orphaned_intent='fail'``.
   - A cancelled batch is recognized from its landed results, because Anthropic reports it as ended.
-  - The state file records pydantic-ai's batch handle (state version 2). A batch that an earlier
-    version of this provider submitted and is still running is re-attached; its state file is left as it is. An
-    outdated batch from an earlier version that was recorded under a different connection cannot be
-    cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
-  - Anthropic results are streamed, so landing a batch holds only a small buffer of responses in
-    memory. Gemini results are still read through pydantic-ai, which downloads a batch's results in
-    one call, so a Gemini batch holds all of its response bodies in memory at once. Rows are still written one at a time. For a large Gemini batch,
-    size workers for it or split the input across mapped task instances with ``.expand()``.
+  - OpenAI no longer recovers a batch whose submit response was never recorded by reading the batch's
+    metadata. Like Anthropic and Gemini, it falls through to ``on_orphaned_intent``, whose default
+    ``"resubmit"`` submits a new batch.
+  - ``completion_window`` is ignored by every built-in adapter, and a value other than ``"24h"`` now logs
+    a warning.
+  - The state file records pydantic-ai's batch handle (state version 2). An Anthropic batch that an
+    earlier version of this provider submitted and is still running is re-attached; its state file is
+    left as it is. An OpenAI batch from an earlier version cannot be: it was created against Chat
+    Completions and its results cannot be read. The task fails with ``LLMBatchStateReadError``
+    naming the batch; let it finish or cancel it at OpenAI, delete the task's state file and retry.
+    An outdated batch from an earlier version that was recorded under a different connection cannot
+    be cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
+  - Anthropic and OpenAI results are streamed, so landing a batch holds only a small buffer of
+    responses in memory. Gemini results are still read through pydantic-ai, which downloads a batch's
+    results in one call, so a Gemini batch holds all of its response bodies in memory at once. Rows are still written one at a time. For a large
+    Gemini batch, size workers for it or split the input across mapped task instances with ``.expand()``.
   - A task that was deferred by an earlier version of this provider and is still waiting when you
     upgrade cannot poll its batch: the trigger reports an error naming the cause, and the task's retry
     re-attaches to the batch.
-  - ``completion_window`` is ignored by Anthropic and Gemini, and a value other than ``"24h"`` now logs a
-    warning.
 
   A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
 

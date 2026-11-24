@@ -97,6 +97,7 @@
       "downstream": "Nachfolgende",
       "existingTasks": "Bestehende Tasks bereinigen",
       "future": "Zukünftige",
+      "includeDependentDags": "Bereinigen von Tasks in abhängigen Dags",
       "keepTaskState": "Aufgabenstatus beim Neuversuch beibehalten",
       "laterIterations": "Spätere Iterationen",
       "onlyFailed": "Nur fehlgeschlagene Tasks bereinigen",

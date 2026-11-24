@@ -1774,6 +1774,15 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run agent framework tests when the lock file changes",
         ),
         pytest.param(
+            ("uv.lock",),
+            {
+                "run-task-sdk-tests": "true",
+                "ci-image-build": "true",
+                "providers-test-types-list-as-strings-in-json": "[]",
+            },
+            id="Run Task SDK tests without all provider tests when the lock file changes",
+        ),
+        pytest.param(
             ("providers/common/ai/docs/frameworks/strands.rst",),
             {"run-agent-framework-tests": "false"},
             id="Skip agent framework tests for a common.ai docs-only change",
@@ -2847,7 +2856,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['14']",
+                    "postgres-versions": "['15']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -2881,7 +2890,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "mysql-versions": "['8.0', '8.4']",
-                    "postgres-versions": "['14', '15', '16', '17', '18']",
+                    "postgres-versions": "['15', '16', '17', '18', '19']",
                     "python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "kubernetes-versions": ALL_KUBERNETES_VERSIONS_AS_LIST,
@@ -2915,7 +2924,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['14']",
+                    "postgres-versions": "['15']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -2949,7 +2958,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['14']",
+                    "postgres-versions": "['15']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -2986,7 +2995,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-versions": "false",
                     "default-python-version": f"{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}",
                     "mysql-versions": "['8.4']",
-                    "postgres-versions": "['18']",
+                    "postgres-versions": "['19']",
                     "python-versions": f"['{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}']",
                     "python-versions-list-as-string": f"{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}",
                     "kubernetes-versions": f"['{ALLOWED_KUBERNETES_VERSIONS[-1]}']",
@@ -4098,6 +4107,24 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         )
     )
     assert_outputs_are_printed({"has-migrations": str(has_migrations).lower()}, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("files", "skipped"),
+    [
+        pytest.param(("uv.lock",), False, id="lock file changed"),
+        pytest.param(("airflow-core/src/airflow/models/dag.py",), True, id="no Task SDK or lock file change"),
+    ],
+)
+def test_mypy_task_sdk_skipped(files: tuple[str, ...], skipped: bool):
+    skip_prek_hooks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    ).skip_prek_hooks
+
+    assert ("mypy-task-sdk" in skip_prek_hooks.split(",")) is skipped
 
 
 @pytest.mark.parametrize(

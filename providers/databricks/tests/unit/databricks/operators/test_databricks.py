@@ -60,6 +60,7 @@ from airflow.providers.databricks.triggers.databricks import (
 )
 from airflow.providers.databricks.utils import databricks as utils
 
+from tests_common.test_utils.task_state import get_non_reserved_task_state_writes
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_5_PLUS
 
 DATE = "2017-04-20"
@@ -2160,7 +2161,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.submit_run.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_run_id", RUN_ID)]
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2177,7 +2178,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.submit_run.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2194,7 +2195,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.submit_run.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks._handle_databricks_operator_execution")
@@ -2258,7 +2259,7 @@ class TestDatabricksSubmitRunOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.submit_run.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_run_id", RUN_ID)]
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2277,7 +2278,7 @@ class TestDatabricksSubmitRunOperatorDurable:
 
         op.execute(self._context(task_store))
         db_mock.submit_run.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_run_id", RUN_ID)]
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -2311,7 +2312,7 @@ class TestDatabricksSubmitRunOperatorDurable:
 
         db_mock.submit_run.assert_called_once()
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_durable_true_submits_fresh_missing_task_state_store(self, db_mock_class):
@@ -3541,7 +3542,7 @@ class TestDatabricksRunNowOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.run_now.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_run_now_id", RUN_ID)]
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -3556,7 +3557,7 @@ class TestDatabricksRunNowOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.run_now.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -3571,7 +3572,7 @@ class TestDatabricksRunNowOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.run_now.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -3645,7 +3646,7 @@ class TestDatabricksRunNowOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.run_now.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_run_now_id", RUN_ID)]
         assert op.run_id == RUN_ID
 
     @pytest.mark.parametrize(
@@ -3685,7 +3686,7 @@ class TestDatabricksRunNowOperatorDurable:
 
         db_mock.repair_run.assert_called_once_with({"run_id": RUN_ID, "rerun_all_failed_tasks": True})
         db_mock.run_now.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         assert op.run_id == RUN_ID
 
     @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
@@ -3761,7 +3762,7 @@ class TestDatabricksRunNowOperatorDurable:
 
         db_mock.repair_run.assert_not_called()
         db_mock.run_now.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_run_now_id", RUN_ID)]
 
     @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -3798,7 +3799,7 @@ class TestDatabricksRunNowOperatorDurable:
         op.execute(self._context(task_store))
 
         db_mock.run_now.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_run_now_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_run_now_id", RUN_ID)]
         assert op.run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -3828,7 +3829,7 @@ class TestDatabricksRunNowOperatorDurable:
 
         db_mock.run_now.assert_called_once()
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_durable_true_submits_fresh_missing_task_state_store(self, db_mock_class):
@@ -3889,6 +3890,31 @@ class TestDatabricksRunNowOperatorDurable:
 
 
 class TestDatabricksSQLStatementsOperator:
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook", autospec=True)
+    def test_execute_renders_statement_and_parameters(self, mock_hook):
+        op = DatabricksSQLStatementsOperator(
+            task_id=TASK_ID,
+            statement="SELECT {{ params.expression }} WHERE event_date = :event_date",
+            warehouse_id=WAREHOUSE_ID,
+            parameters=[{"name": "event_date", "value": "{{ ds }}", "type": "DATE"}],
+            wait_for_termination=False,
+            include_airflow_query_tags=False,
+        )
+        op.render_template_fields(context={"ds": DATE, "params": {"expression": "COUNT(*)"}})
+
+        op.execute(None)
+
+        mock_hook.return_value.post_sql_statement.assert_called_once_with(
+            {
+                "statement": "SELECT COUNT(*) WHERE event_date = :event_date",
+                "warehouse_id": WAREHOUSE_ID,
+                "catalog": None,
+                "schema": None,
+                "parameters": [{"name": "event_date", "value": DATE, "type": "DATE"}],
+                "wait_timeout": "0s",
+            }
+        )
+
     def test_init(self):
         """
         Test the initializer.
@@ -5531,7 +5557,7 @@ class TestDatabricksTaskBaseOperatorDurable:
 
         op.execute({"ti": ti, "task_state_store": task_store})
 
-        task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_task_run_id", RUN_ID)]
         op.monitor_databricks_job.assert_called_once()
         assert ti.xcom_push.call_count == 2
         ti.xcom_push.assert_any_call(key="run_id", value=RUN_ID)
@@ -5549,7 +5575,7 @@ class TestDatabricksTaskBaseOperatorDurable:
         with pytest.raises(DatabricksApiError):
             op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
 
-        task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_task_run_id", RUN_ID)]
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_reconnects_to_active_run_without_resubmitting(self, db_mock_class, make_operator):
@@ -5564,7 +5590,7 @@ class TestDatabricksTaskBaseOperatorDurable:
         op.execute({"ti": ti, "task_state_store": task_store})
 
         db_mock.submit_run.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         op.monitor_databricks_job.assert_called_once()
         assert op.databricks_run_id == RUN_ID
         # A crash-recovered attempt still has to publish the run link downstream.
@@ -5599,7 +5625,7 @@ class TestDatabricksTaskBaseOperatorDurable:
         op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
 
         db_mock.submit_run.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_task_run_id", RUN_ID)]
         assert op.databricks_run_id == RUN_ID
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -5616,7 +5642,7 @@ class TestDatabricksTaskBaseOperatorDurable:
         op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
 
         db_mock.submit_run.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_task_run_id", RUN_ID)]
 
     @mock.patch("airflow.providers.databricks.operators.databricks.time.sleep")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
@@ -5635,7 +5661,7 @@ class TestDatabricksTaskBaseOperatorDurable:
         op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
 
         db_mock.submit_run.assert_called_once()
-        task_store.set.assert_called_once_with("databricks_task_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [call("databricks_task_run_id", RUN_ID)]
 
     @mock.patch(
         "airflow.providers.databricks.operators.databricks.DatabricksTaskBaseOperator._get_current_databricks_task"
@@ -5654,7 +5680,7 @@ class TestDatabricksTaskBaseOperatorDurable:
         stored_when_deferred = []
 
         def record_then_defer(*args, **kwargs):
-            stored_when_deferred.append(task_store.set.call_args)
+            stored_when_deferred.append(get_non_reserved_task_state_writes(task_store)[-1])
             raise TaskDeferred(trigger=MagicMock(), method_name="execute_complete")
 
         op.defer = record_then_defer
@@ -5675,7 +5701,7 @@ class TestDatabricksTaskBaseOperatorDurable:
 
         db_mock_class.return_value.submit_run.assert_called_once()
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     def test_default_args_durable_reaches_operator(self, make_operator):
         assert make_operator(default_args={"durable": False}).durable is False
@@ -5699,7 +5725,7 @@ class TestDatabricksTaskBaseOperatorDurable:
         op.execute({"ti": MagicMock(stats_tags={}), "task_state_store": task_store})
 
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         db_mock_class.return_value.submit_run.assert_not_called()
         op.monitor_databricks_job.assert_called_once()
         assert op.databricks_run_id == RUN_ID

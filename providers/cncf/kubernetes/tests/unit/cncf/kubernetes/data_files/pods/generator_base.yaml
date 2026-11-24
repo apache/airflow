@@ -46,7 +46,7 @@ spec:
   securityContext:
     fsGroup: 2000
     runAsUser: 1000
-  hostNetwork: False,
+  hostNetwork: true
   imagePullSecrets:
     - name: pull_secret_a
     - name: pull_secret_b

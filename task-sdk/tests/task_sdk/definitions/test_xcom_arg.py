@@ -482,6 +482,22 @@ class TestPlainXComArgResolveMappedGroup:
         assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0
 
 
+class TestPlainXComArgResolveUnmapped:
+    """An unmapped upstream is pulled at map index -1, sparing the server a lookup of how it is defined."""
+
+    def test_resolve_outside_a_mapped_task_group_pulls_minus_one(self):
+        operator = mock.MagicMock()
+        operator.is_mapped = False
+        operator.task_id = "upstream"
+        operator.dag_id = "test_dag"
+        operator.get_closest_mapped_task_group.return_value = None
+        ti = mock.MagicMock()
+        ti.xcom_pull.return_value = "value"
+
+        assert PlainXComArg(operator=operator, key="test").resolve({"ti": ti}) == "value"
+        assert ti.xcom_pull.call_args.kwargs["map_indexes"] == -1
+
+
 class TestPlainXComArgResolveLoopTask:
     @pytest.fixture
     def dag(self):
