@@ -26,15 +26,15 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     },
     "./coordinator": {
       "types": "./dist/coordinator/index.d.ts",
-      "import": "./dist/coordinator/index.js"
+      "default": "./dist/coordinator/index.js"
     },
     "./hitl": {
       "types": "./dist/hitl/index.d.ts",
-      "import": "./dist/hitl/index.js"
+      "default": "./dist/hitl/index.js"
     }
   },
   "files": [

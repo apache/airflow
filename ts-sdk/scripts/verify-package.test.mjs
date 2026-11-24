@@ -21,6 +21,7 @@ import { describe, expect, it } from "vitest";
 import {
   REQUIRED_ROOT_EXPORTS,
   buildImportScript,
+  buildRequireScript,
   collectEntryPoints,
   collectExportSubpaths,
   diffPackagedFiles,
@@ -31,10 +32,10 @@ import {
 const PACKAGE_JSON = {
   name: "@apache-airflow/ts-sdk",
   exports: {
-    ".": { types: "./dist/index.d.ts", import: "./dist/index.js" },
+    ".": { types: "./dist/index.d.ts", default: "./dist/index.js" },
     "./coordinator": {
       types: "./dist/coordinator/index.d.ts",
-      import: "./dist/coordinator/index.js",
+      default: "./dist/coordinator/index.js",
     },
   },
   bin: { "airflow-ts-pack": "./dist/cli/main.js" },
@@ -161,5 +162,20 @@ describe("buildImportScript", () => {
     expect(
       () => new Function(`return async () => {${buildImportScript(PACKAGE_JSON)}}`),
     ).not.toThrow();
+  });
+});
+
+describe("buildRequireScript", () => {
+  it("requires every exports subpath before asserting the root entrypoints", () => {
+    const script = buildRequireScript(PACKAGE_JSON);
+    expect(script).toContain('require("@apache-airflow/ts-sdk");');
+    expect(script).toContain('require("@apache-airflow/ts-sdk/coordinator");');
+    for (const name of REQUIRED_ROOT_EXPORTS) {
+      expect(script).toContain(name);
+    }
+  });
+
+  it("produces a script body that parses", () => {
+    expect(() => new Function("require", buildRequireScript(PACKAGE_JSON))).not.toThrow();
   });
 });
