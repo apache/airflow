@@ -66,8 +66,8 @@ Extra (optional)
       Password field. The same connection works for ``SnowflakeHook``, ``SnowflakeSqlApiHook``,
       ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type. See `Snowflake PAT documentation <https://docs.snowflake.com/en/user-guide/programmatic-access-tokens>`_.
     * ``workload_identity_provider``: The cloud whose workload identity is used as the Snowflake credential.
-      One of ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. When ``authenticator`` is not set, setting this
-      selects the ``WORKLOAD_IDENTITY`` authenticator. With
+      One of ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. When neither ``authenticator`` nor a private key
+      is set, setting this selects the ``WORKLOAD_IDENTITY`` authenticator. With
       Workload Identity Federation no long-lived secret (password, key-pair or PAT) is stored; the workload's
       cloud identity is the credential. Requires ``snowflake-connector-python>=3.17.0`` and the workload to
       run on the matching cloud. ``AWS``, ``AZURE`` and ``GCP`` fetch the identity token from the cloud's

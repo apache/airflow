@@ -602,7 +602,12 @@ class SnowflakeHook(DbApiHook):
 
         conn_config["workload_identity_provider"] = workload_identity_provider
 
-        if not (self.authenticator or self._get_field(extra_dict, "authenticator")):
+        # Key-pair auth relies on the default authenticator, and a configured private key takes
+        # precedence over WIF here as in the REST hooks.
+        has_private_key = self._get_field(extra_dict, "private_key_file") or self._get_field(
+            extra_dict, "private_key_content"
+        )
+        if not (has_private_key or self.authenticator or self._get_field(extra_dict, "authenticator")):
             conn_config["authenticator"] = "WORKLOAD_IDENTITY"
 
         token = self._get_field(extra_dict, "token")

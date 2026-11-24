@@ -2293,6 +2293,32 @@ class TestPytestSnowflakeHook:
         assert conn_params["authenticator"] == expected
 
     @pytest.mark.parametrize(
+        ("key_field", "use_path"),
+        [
+            pytest.param("private_key_file", True, id="private-key-file"),
+            pytest.param("private_key_content", False, id="private-key-content"),
+            pytest.param("extra__snowflake__private_key_file", True, id="backcompat-prefix-private-key-file"),
+        ],
+    )
+    def test_get_conn_params_private_key_takes_precedence_over_workload_identity(
+        self, key_field, use_path, unencrypted_temporary_private_key: Path
+    ):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["password"] = None
+        connection_kwargs["extra"]["workload_identity_provider"] = "GCP"
+        connection_kwargs["extra"][key_field] = (
+            str(unencrypted_temporary_private_key)
+            if use_path
+            else unencrypted_temporary_private_key.read_text()
+        )
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_static_conn_params
+
+        assert conn_params["authenticator"] == "snowflake"
+        assert "private_key" in conn_params
+
+    @pytest.mark.parametrize(
         ("extra", "expected"),
         [
             pytest.param({"authenticator": ""}, "snowflake", id="blank-form-field-uses-default"),

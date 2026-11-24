@@ -124,8 +124,8 @@ class SnowflakeCortexAgentHook(SnowflakeHook, BaseManagedAgentHook):
        taking precedence over WIF. Configure ``private_key_file`` or ``private_key_content``
        (optionally with a passphrase in ``password``), as on ``SnowflakeHook``.
     4. Workload Identity Federation (WIF): when no private key is configured, set
-       ``authenticator`` to ``WORKLOAD_IDENTITY`` and ``workload_identity_provider`` to
-       ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``.
+       ``workload_identity_provider`` to ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``;
+       ``authenticator`` then defaults to ``WORKLOAD_IDENTITY``.
 
     The resolved token is cached and renewed the same way as ``SnowflakeSqlApiHook`` -- see
     ``SnowflakeRestTokenProvider``, one instance per hook, so a long-running agent reuses the

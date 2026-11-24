@@ -28,6 +28,7 @@ from botocore.stub import Stubber
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from airflow.models import Connection
 from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils._rest_auth import (
@@ -236,6 +237,19 @@ class TestSnowflakeRestTokenProvider:
         ):
             provider.get_token()
         fetch.assert_not_called()
+
+    @mock.patch(FETCH_TOKEN.format("gcp"), autospec=True, return_value="gcp-credential")
+    def test_get_token_workload_identity_inferred_from_provider(self, fetch):
+        conn = Connection(
+            conn_type="snowflake",
+            login="user",
+            extra={"account": "airflow", "workload_identity_provider": "GCP"},
+        )
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=conn.get_uri()):
+            token = SnowflakeRestTokenProvider(SnowflakeHook(snowflake_conn_id="test_conn")).get_token()
+
+        assert token.token_type == "WORKLOAD_IDENTITY_FEDERATION"
+        fetch.assert_called_once_with()
 
     @mock.patch.object(SnowflakeHook, "_get_conn_params", autospec=True)
     def test_get_token_workload_identity_oidc_token(self, mock_conn_params):
