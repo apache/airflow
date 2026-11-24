@@ -126,10 +126,11 @@ def _read_from_object_storage(path: ObjectStoragePath) -> str | None:
 
 
 def _is_storage_ref(value: str) -> bool:
+    base_path = _get_base_path()
     try:
         if not urlsplit(value).scheme:
             return False
-        return ObjectStoragePath(value).is_relative_to(_get_base_path())
+        return ObjectStoragePath(value).is_relative_to(base_path)
     except Exception:
         return False
 
