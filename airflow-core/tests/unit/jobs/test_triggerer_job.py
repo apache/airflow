@@ -3268,6 +3268,37 @@ class TestTriggerRunner:
         mock_trigger.on_kill.assert_awaited_once()
         mock_trigger.cleanup.assert_awaited_once()
 
+    def test_run_trigger_logs_warning_when_cleanup_raises(self, session, cap_structlog) -> None:
+        """Exceptions raised by cleanup() are logged as warnings with traceback and do not propagate."""
+        trigger_runner = TriggerRunner()
+        trigger_runner.triggers = {
+            1: {"task": MagicMock(spec=asyncio.Task), "is_watcher": False, "name": "mock_name", "events": 0}
+        }
+        mock_trigger = MagicMock(spec=BaseTrigger)
+
+        async def _empty_run():
+            if False:
+                yield
+
+        mock_trigger.run = _empty_run
+        mock_trigger.task_instance = MagicMock()
+        mock_trigger.task_instance.map_index = -1
+        mock_trigger.cleanup = AsyncMock(side_effect=RuntimeError("cleanup failed"))
+
+        asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
+
+        mock_trigger.cleanup.assert_awaited_once()
+        assert {
+            "event": "cleanup() raised an exception",
+            "log_level": "warning",
+            "name": "mock_name",
+        } in cap_structlog
+        assert {
+            "event": "trigger completed",
+            "log_level": "info",
+            "name": "mock_name",
+        } in cap_structlog
+
     def test_run_trigger_routes_shared_stream_trigger_through_manager(self, session) -> None:
         """A BaseEventTrigger that opts into a shared stream consumes filter_shared_stream()."""
         from airflow.triggers.base import BaseEventTrigger, TriggerEvent
