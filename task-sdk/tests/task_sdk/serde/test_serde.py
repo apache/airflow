@@ -345,6 +345,14 @@ class TestSerDe:
 
         assert deserialize(encoded) == k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo", labels={"a": "1"}))
 
+    def test_kubernetes_resource_requirements(self):
+        expected = k8s.V1ResourceRequirements(requests={"cpu": "1"})
+
+        encoded = serialize(expected)
+        assert encoded[DATA] == {"requests": {"cpu": "1"}}
+        assert deserialize(encoded) == expected
+        assert deserialize({**encoded, DATA: {"requests": {"cpu": 1}}}) == expected
+
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "airflow.*",

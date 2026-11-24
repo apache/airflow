@@ -88,15 +88,17 @@ def deserialize(cls: type, version: int, data: dict) -> Any:
 
 
 def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> dict:
-    # kubernetes<37 stored numeric quantities/labels and string booleans that the
-    # pydantic models of kubernetes>=37 reject in strict mode.
+    # kubernetes<37 stored numeric quantities/labels, string booleans and fields since
+    # removed, all of which the pydantic models of kubernetes>=37 reject.
     for err in error.errors():
         *path, key = err["loc"]
         parent: Any = data
         for part in path:
             parent = parent[part]
         value = parent[key]
-        if err["type"] == "string_type" and isinstance(value, bool):
+        if err["type"] == "extra_forbidden":
+            del parent[key]
+        elif err["type"] == "string_type" and isinstance(value, bool):
             parent[key] = str(value).lower()
         elif err["type"] == "string_type" and isinstance(value, (int, float)):
             parent[key] = str(value)

@@ -494,6 +494,26 @@ class TestSerializers:
             ),
         )
 
+    def test_kubernetes_deserialize_drops_removed_fields(self):
+        from airflow.sdk.serde.serializers.kubernetes import deserialize
+
+        # kubernetes 36 wrote "resources" here; kubernetes 37 replaced it with "mapping".
+        data = {
+            "status": {
+                "nodeAllocatableResourceClaimStatuses": [{"resourceClaimName": "x", "resources": ["cpu"]}]
+            }
+        }
+
+        pod = deserialize(k8s.V1Pod, 1, data)
+
+        assert pod == k8s.V1Pod(
+            status=k8s.V1PodStatus(
+                node_allocatable_resource_claim_statuses=[
+                    k8s.V1NodeAllocatableResourceClaimStatus(resource_claim_name="x")
+                ]
+            )
+        )
+
     @pytest.mark.parametrize(
         "data",
         [
