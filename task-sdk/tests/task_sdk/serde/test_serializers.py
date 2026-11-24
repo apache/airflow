@@ -48,6 +48,19 @@ from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_ma
 
 PENDULUM3 = version.parse(metadata.version("pendulum")).major == 3
 
+# Kubernetes API wire format (camelCase, unset fields omitted) stored in XComs for a V1Pod.
+K8S_V1POD_DATA = {
+    "metadata": {"name": "foo", "namespace": "bar"},
+    "spec": {"containers": [{"image": "bar", "name": "foo"}]},
+}
+
+
+def build_k8s_v1pod() -> k8s.V1Pod:
+    return k8s.V1Pod(
+        metadata=k8s.V1ObjectMeta(name="foo", namespace="bar"),
+        spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="foo", image="bar")]),
+    )
+
 
 class CustomTZ(datetime.tzinfo):
     name = "My/Custom"
@@ -189,24 +202,12 @@ class TestSerializers:
         assert deserialize(serialize(decimal.Decimal(expr))) == decimal.Decimal(expected)
 
     def test_encode_k8s_v1pod(self):
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="foo",
-                namespace="bar",
-            ),
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(
-                        name="foo",
-                        image="bar",
-                    )
-                ]
-            ),
-        )
-        assert serialize(pod)[DATA] == {
-            "metadata": {"name": "foo", "namespace": "bar"},
-            "spec": {"containers": [{"image": "bar", "name": "foo"}]},
-        }
+        assert serialize(build_k8s_v1pod())[DATA] == K8S_V1POD_DATA
+
+    @patch("airflow.sdk.serde._extra_allowed", {qualname(k8s.V1Pod)})
+    def test_decode_k8s_v1pod(self):
+        encoded = {CLASSNAME: qualname(k8s.V1Pod), VERSION: 1, DATA: K8S_V1POD_DATA}
+        assert deserialize(encoded) == build_k8s_v1pod()
 
     def test_bignum_serialize_non_decimal(self):
         from airflow.sdk.serde.serializers.bignum import serialize

@@ -231,7 +231,9 @@ def serialize(o: object, depth: int = 0) -> U | None:
         qn = "builtins.tuple"
         classname = qn
 
-    if is_pydantic_model(o):
+    # A serializer registered for the exact class takes precedence over the generic Pydantic one,
+    # e.g. kubernetes models are Pydantic models (client >= 37) but must keep the API wire format.
+    if qn not in _serializers and is_pydantic_model(o):
         # to match the generic Pydantic serializer and deserializer in _serializers and _deserializers
         qn = PYDANTIC_MODEL_QUALNAME
         # the actual Pydantic model class to encode
