@@ -90,6 +90,7 @@ from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
+from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.retry_policy import (
     ExceptionRetryPolicy,
@@ -220,6 +221,14 @@ from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 if TYPE_CHECKING:
     from kgb import SpyAgency
 import time_machine
+
+
+@pytest.fixture(autouse=True)
+def _isolated_bundle_name_env():
+    # startup() deliberately leaves the parsing context bundle_name set, so undo it per test.
+    with mock.patch.dict(os.environ):
+        os.environ.pop(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, None)
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -958,7 +967,6 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         pytest.param(False, None, None, None, id="parse"),
     ],
 )
-@mock.patch.dict(os.environ)
 @mock.patch("airflow.sdk.execution_time.task_runner.get_listener_manager")
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
 @mock.patch("airflow.sdk.execution_time.bundles.DagBundlesManager")
@@ -976,7 +984,6 @@ def test_bundle_initialize_parsing_context(
 ):
     from airflow.sdk import get_parsing_context
     from airflow.sdk.definitions.context import (
-        _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME,
         _AIRFLOW_PARSING_CONTEXT_DAG_ID,
         _AIRFLOW_PARSING_CONTEXT_TASK_ID,
     )
@@ -1018,7 +1025,6 @@ def test_bundle_initialize_parsing_context(
 
     monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_DAG_ID, raising=False)
     monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_TASK_ID, raising=False)
-    monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, raising=False)
 
     if use_startup:
         startup(what)

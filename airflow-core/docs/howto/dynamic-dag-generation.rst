@@ -195,7 +195,7 @@ a single Dag object (when executing the task).
 context. The context is an :py:class:`~airflow.utils.dag_parsing_context.AirflowParsingContext` and
 when only a single Dag/task is needed, it contains ``dag_id`` and ``task_id`` fields set.
 When "full" parsing is needed (for example in Dag File Processor), ``dag_id`` and ``task_id``
-of the context are set to ``None``.
+of the context are set to ``None``. The context also has a ``bundle_name`` field, described below.
 
 
 .. code-block:: python
@@ -214,10 +214,18 @@ of the context are set to ``None``.
       with DAG(dag_id=dag_id, ...):
           ...
 
-The context also has a ``bundle_name`` field holding the name of the Dag bundle the file is being parsed from. It is
-set both when the Dag File Processor parses the file and when a task re-parses its Dag file before execution and,
-like ``dag_id`` and ``task_id``, it stays set while the task runs. For example, you can use it to pass the bundle name
-to triggers created at parse time, which otherwise have no way to know which bundle they came from:
+The ``bundle_name`` field holds the configured name of the Dag bundle the file is being parsed from (not the
+bundle version). It is set when the Dag File Processor parses the file (including when it runs Dag callbacks)
+and when a task re-parses its Dag file before execution. Like ``dag_id`` and ``task_id``, it is not unset once
+parsing finishes, so it is still available while the task runs.
+
+It is ``None`` everywhere else, including ``airflow dags test``, ``airflow dags reserialize``, ``DAG.test()``
+and a plain ``DagBag`` in your own scripts or tests. Airflow versions that predate this field do not have the
+attribute at all, so code that must run on them should use ``getattr(get_parsing_context(), "bundle_name", None)``.
+
+For example, you can use it to pass the bundle name to triggers created at parse time, which otherwise have
+no way to know which bundle they came from. ``MyEventTrigger`` below stands for your own subclass of
+``BaseEventTrigger`` (see :doc:`/authoring-and-scheduling/event-scheduling`):
 
 .. code-block:: python
 
@@ -234,3 +242,9 @@ to triggers created at parse time, which otherwise have no way to know which bun
           )
       ],
   )
+
+.. warning::
+
+  In this example, the bundle name becomes part of the trigger's arguments. If the same file is also serialized
+  through a path where ``bundle_name`` is ``None`` (such as ``airflow dags reserialize``), the stored trigger
+  and Dag version change until the Dag File Processor parses the file again.

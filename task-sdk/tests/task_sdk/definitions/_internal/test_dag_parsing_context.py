@@ -53,3 +53,12 @@ def test_context_manager_sets_bundle_name(previous, expected_after):
         assert get_parsing_context().bundle_name == "my-bundle"
 
     assert get_parsing_context().bundle_name == expected_after
+
+
+def test_context_manager_without_bundle_name_keeps_existing_value():
+    os.environ[_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME] = "outer-bundle"
+
+    with _airflow_parsing_context_manager(dag_id="my_dag"):
+        assert get_parsing_context().bundle_name == "outer-bundle"
+
+    assert get_parsing_context().bundle_name == "outer-bundle"
