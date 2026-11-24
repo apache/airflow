@@ -159,6 +159,7 @@ export const DAG_FIELDS = [
   // The schema declares a bare array with no item type, so it cannot say this.
   { key: "tags", tsType: "readonly string[]", schemaType: "string[]" },
   { key: "dag_display_name" },
+  { key: "display_folder" },
   { key: "doc_md" },
   { key: "max_active_tasks" },
   { key: "max_active_runs" },

@@ -328,6 +328,7 @@ _DIFF_V1_DAG_FIELD_CATEGORIES: dict[str, DiffCategory] = {
     # Decides whether a run pins a bundle version, so it changes which code later runs execute
     # and whether triggering a historical version is allowed at all.
     "disable_bundle_versioning": "task",
+    "display_folder": "metadata",
     "doc_md": "metadata",
     "edge_info": "metadata",
     "end_date": "schedule",

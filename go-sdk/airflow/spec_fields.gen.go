@@ -25,6 +25,7 @@ var dagSpecFields = map[string]schemaField{
 	"DagrunTimeout":               {key: "dagrun_timeout"},
 	"Description":                 {key: "description"},
 	"DisableBundleVersioning":     {key: "disable_bundle_versioning"},
+	"DisplayFolder":               {key: "display_folder"},
 	"DocMD":                       {key: "doc_md"},
 	"EndDate":                     {key: "end_date"},
 	"FailFast":                    {key: "fail_fast", schemaDefault: false},

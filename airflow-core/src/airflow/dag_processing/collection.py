@@ -976,6 +976,7 @@ class DagModelOperation(NamedTuple):
             elif dag.dag_display_name != dag.dag_id:
                 dm._dag_display_property_value = dag.dag_display_name
             dm.description = dag.description
+            dm.display_folder = dag.display_folder
 
             # These "is not None" checks are because a LazySerializedDag object does not
             # provide the default value if the user doesn't provide an explicit value.

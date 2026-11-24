@@ -205,6 +205,23 @@ def _convert_tags(tags: Collection[str] | None) -> MutableSet[str]:
     return set(tags or [])
 
 
+def _convert_display_folder(folder: str | None) -> str | None:
+    """Normalize a Dag display folder into a ``/``-separated path relative to the bundle root."""
+    if folder is None:
+        return None
+    if not isinstance(folder, str):
+        raise TypeError(f"Dag display_folder must be a string, got {type(folder).__name__}")
+    normalized = folder.strip("/")
+    segments = normalized.split("/")
+    if not normalized or any(segment.strip() in ("", ".", "..") for segment in segments):
+        raise ValueError(
+            f"Invalid Dag display_folder {folder!r}: use non-empty '/'-separated names without '.' or '..'"
+        )
+    if len(normalized) > 2000:
+        raise ValueError(f"Dag display_folder must be at most 2000 characters, got {len(normalized)}")
+    return normalized
+
+
 def _convert_access_control(access_control):
     if access_control is None:
         return None
@@ -442,6 +459,8 @@ class DAG:
     :param allowed_run_types: An optional list or single DagRunType specifying which run types are
         permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
     :param dag_display_name: The display name of the Dag which appears on the UI.
+    :param display_folder: The folder the Dag is grouped under on the Dags page, as a ``/``-separated
+        path such as ``team_a/etl``. Defaults to the directory of the Dag file within its bundle.
     :param rerun_with_latest_version: If True, cleared or rerun tasks will use the latest
         available bundle version. If False, they use the original bundle version. If None
         (default), inherits from the global config ``[core] rerun_with_latest_version``.
@@ -558,6 +577,7 @@ class DAG:
         default=attrs.Factory(_default_dag_display_name, takes_self=True),
         validator=attrs.validators.instance_of(str),
     )
+    display_folder: str | None = attrs.field(default=None, converter=_convert_display_folder)
 
     task_dict: dict[str, Operator] = attrs.field(factory=dict, init=False)
 
@@ -1683,6 +1703,7 @@ if TYPE_CHECKING:
         fail_fast: bool = False,
         allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
         dag_display_name: str | None = None,
+        display_folder: str | None = None,
         disable_bundle_versioning: bool = False,
         rerun_with_latest_version: bool | None = None,
     ) -> Callable[[Callable], Callable[..., DAG]]:

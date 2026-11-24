@@ -22,7 +22,7 @@ from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, status
-from sqlalchemy import and_, false, func, literal, select, union_all
+from sqlalchemy import and_, false, func, literal, or_, select, union_all
 from sqlalchemy.orm import aliased, defaultload
 
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
@@ -390,11 +390,11 @@ def get_dag_folders(
     """
     Get the distinct folders the readable Dags live in, scoped to their bundle.
 
-    A folder is the directory part of a Dag's ``relative_fileloc`` (relative to its
-    bundle root). Because ``relative_fileloc`` is relative to each bundle, the same
-    path can exist in several bundles, so every folder is paired with its bundle
-    name to keep them apart. Dags located directly at the bundle root have no folder
-    and are not represented here. The result powers the folder navigation tree in
+    A Dag's folder is the ``display_folder`` declared in its code, or otherwise the directory
+    part of its ``relative_fileloc`` (relative to its bundle root). Folders are relative
+    to each bundle, so the same path can exist in several bundles, and every folder is
+    paired with its bundle name to keep them apart. Dags at the bundle root that declare
+    no folder have none and are not represented here. The result powers the folder navigation tree in
     the UI, which reconstructs the hierarchy by splitting each path on ``/`` and
     groups it under its bundle when more than one bundle is present.
 
@@ -403,12 +403,18 @@ def get_dag_folders(
     select down to an empty list.
     """
     query = readable_dags_filter.to_orm(
-        select(DagModel.bundle_name, DagModel.relative_fileloc)
-        .where(DagModel.relative_fileloc.is_not(None), DagModel.is_stale == false())
+        select(DagModel.bundle_name, DagModel.display_folder, DagModel.relative_fileloc)
+        .where(
+            or_(DagModel.display_folder.is_not(None), DagModel.relative_fileloc.is_not(None)),
+            DagModel.is_stale == false(),
+        )
         .distinct()
     )
     folders: set[tuple[str, str]] = set()
-    for bundle_name, relative_fileloc in session.execute(query):
+    for bundle_name, declared_folder, relative_fileloc in session.execute(query):
+        if declared_folder:
+            folders.add((bundle_name, declared_folder))
+            continue
         parent = PurePosixPath(relative_fileloc).parent
         if str(parent) != ".":
             folders.add((bundle_name, str(parent)))

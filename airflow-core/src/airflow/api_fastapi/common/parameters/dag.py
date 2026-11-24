@@ -218,14 +218,16 @@ def teams_filter_factory(
 
 class _RelativeFilelocPrefixFilter(BaseParam[str | None]):
     """
-    Filter Dags by the folder they live in, derived from ``relative_fileloc``.
+    Filter Dags by their folder: the ``display_folder`` declared in Dag code, else the directory of ``relative_fileloc``.
 
     The value is treated as a directory path relative to the bundle root (e.g.
-    ``team_a/etl``). It matches every Dag whose file lives directly in that folder
-    or in any of its subfolders, using an escaped ``LIKE 'team_a/etl/%'`` so a
-    folder name is never a substring/prefix of another (``team_a`` won't match
-    ``team_alpha``). Dags at the bundle root (no ``/`` in ``relative_fileloc``)
-    are not matched by any folder value and appear only when no folder is selected.
+    ``team_a/etl``). It matches every Dag in that folder or in any of its subfolders.
+    The prefix match uses an escaped ``LIKE 'team_a/etl/%'`` so a folder name is never
+    a substring/prefix of another (``team_a`` won't match ``team_alpha``). A declared
+    folder takes precedence, so a Dag declaring ``display_folder="team_b"`` is not matched by
+    ``team_a`` even if its file lives under ``team_a/``. Dags at the bundle root that
+    declare no folder are not matched by any folder value and appear only when no
+    folder is selected.
     """
 
     def to_orm(self, select: Select) -> Select:
@@ -237,7 +239,17 @@ class _RelativeFilelocPrefixFilter(BaseParam[str | None]):
 
         directory = self.value.rstrip("/")
         escaped = _escape_like_pattern(directory)
-        return select.where(DagModel.relative_fileloc.like(f"{escaped}/%", escape=_LIKE_ESCAPE_CHAR))
+        subfolders = f"{escaped}/%"
+        return select.where(
+            or_(
+                DagModel.display_folder == directory,
+                DagModel.display_folder.like(subfolders, escape=_LIKE_ESCAPE_CHAR),
+                and_(
+                    DagModel.display_folder.is_(None),
+                    DagModel.relative_fileloc.like(subfolders, escape=_LIKE_ESCAPE_CHAR),
+                ),
+            )
+        )
 
     @classmethod
     def depends(
@@ -245,8 +257,8 @@ class _RelativeFilelocPrefixFilter(BaseParam[str | None]):
         relative_fileloc_prefix: str | None = Query(
             default=None,
             description=(
-                "Filter Dags by the folder (directory of ``relative_fileloc``) they live in. "
-                "Matches the given folder and all of its subfolders."
+                "Filter Dags by their folder: the ``display_folder`` declared in Dag code, otherwise the "
+                "directory of ``relative_fileloc``. Matches the given folder and all of its subfolders."
             ),
         ),
     ) -> _RelativeFilelocPrefixFilter:

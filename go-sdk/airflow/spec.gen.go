@@ -38,6 +38,9 @@ type DagSpec struct {
 	// "disable_bundle_versioning".
 	DisableBundleVersioning *bool
 
+	// DisplayFolder corresponds to the JSON schema field "display_folder".
+	DisplayFolder string
+
 	// DocMD corresponds to the JSON schema field "doc_md".
 	DocMD string
 

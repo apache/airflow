@@ -2598,6 +2598,15 @@ class TestStringifiedDAGs:
         deserialized_dag = DagSerialization.from_dict(serialized_dag)
         assert deserialized_dag.rerun_with_latest_version is expected
 
+    @pytest.mark.parametrize("folder", ["team_a/etl", None])
+    def test_dag_display_folder_roundtrip(self, folder):
+        dag = DAG(dag_id="test_dag_display_folder_roundtrip", schedule=None, display_folder=folder)
+        BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
+        serialized_dag = DagSerialization.to_dict(dag)
+        # An unset display_folder is left out, so Dags that declare none keep their serialized hash.
+        assert ("display_folder" in serialized_dag["dag"]) is (folder is not None)
+        assert DagSerialization.from_dict(serialized_dag).display_folder == folder
+
     @pytest.mark.parametrize(
         ("bundle_name", "expected"),
         [

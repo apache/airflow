@@ -44,6 +44,8 @@ export interface GeneratedDagFields {
   readonly tags?: readonly string[];
   /** Maps to the schema key `dag_display_name`. */
   readonly dagDisplayName?: string;
+  /** Maps to the schema key `display_folder`. */
+  readonly displayFolder?: string;
   /** Maps to the schema key `doc_md`. */
   readonly docMd?: string;
   /** Maps to the schema key `max_active_tasks`. */
@@ -155,6 +157,7 @@ export const DAG_SCHEMA_FIELDS = {
   endDate: { key: "end_date", type: "datetime" },
   tags: { key: "tags", type: "string[]" },
   dagDisplayName: { key: "dag_display_name", type: "string" },
+  displayFolder: { key: "display_folder", type: "string" },
   docMd: { key: "doc_md", type: "string" },
   maxActiveTasks: { key: "max_active_tasks", type: "number" },
   maxActiveRuns: { key: "max_active_runs", type: "number" },
