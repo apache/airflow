@@ -26,6 +26,7 @@ from typing import ClassVar
 
 import attr
 import pytest
+from kubernetes.client import models as k8s
 from packaging import version
 from pydantic import BaseModel, create_model
 
@@ -334,6 +335,17 @@ class TestSerDe:
 
         d = deserialize(e)
         assert i.x == getattr(d, "x", None)
+
+    @conf_vars({("core", "allowed_deserialization_classes"): "kubernetes.*"})
+    @pytest.mark.usefixtures("recalculate_patterns")
+    def test_kubernetes_pod_with_legacy_values(self):
+        encoded = {
+            CLASSNAME: qualname(k8s.V1Pod),
+            VERSION: 1,
+            DATA: {"metadata": {"name": "foo", "labels": {"a": 1}}},
+        }
+
+        assert deserialize(encoded) == k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo", labels={"a": "1"}))
 
     @conf_vars(
         {

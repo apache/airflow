@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from airflow.sdk.module_loading import qualname
 
@@ -29,11 +29,13 @@ serializers = [
 ]
 
 if TYPE_CHECKING:
+    import pydantic
+
     from airflow.sdk.serde import U
 
 __version__ = 1
 
-deserializers: list[type[object]] = []
+deserializers = serializers
 log = logging.getLogger(__name__)
 
 
@@ -44,7 +46,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         return "", "", 0, False
 
     if isinstance(o, (k8s.V1Pod, k8s.V1ResourceRequirements)):
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client import ApiClient
 
         # We're running this in an except block, so we don't want it to fail
         # under any circumstances, e.g. accessing a non-existing attribute.
@@ -55,10 +57,41 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
                 return None
 
         try:
-            return PodGenerator.serialize_pod(o), qualname(o), __version__, True
+            return ApiClient().sanitize_for_serialization(o), qualname(o), __version__, True
         except Exception:
             log.warning("Serialization failed for pod %s", safe_get_name(o))
             log.debug("traceback for serialization error", exc_info=True)
             return "", "", 0, False
 
     return "", "", 0, False
+
+
+def deserialize(cls: type, version: int, data: dict) -> Any:
+    import pydantic
+
+    if version > __version__:
+        raise TypeError(f"serialized version {version} is newer than class version {__version__}")
+
+    if not hasattr(cls, "model_validate"):
+        raise TypeError(f"do not know how to deserialize {qualname(cls)}")
+
+    try:
+        return cls.model_validate(data)
+    except pydantic.ValidationError as e:
+        return cls.model_validate(_coerce_legacy_values(data, e))
+
+
+def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> dict:
+    # kubernetes<37 stored numeric quantities/labels and string booleans that the
+    # pydantic models of kubernetes>=37 reject in strict mode.
+    for err in error.errors():
+        *path, key = err["loc"]
+        parent: Any = data
+        for part in path:
+            parent = parent[part]
+        value = parent[key]
+        if err["type"] == "string_type" and isinstance(value, (int, float)):
+            parent[key] = str(value)
+        elif err["type"] == "bool_type" and str(value).lower() in ("true", "false"):
+            parent[key] = str(value).lower() == "true"
+    return data
