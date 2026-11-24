@@ -30,6 +30,7 @@ from huggingface_hub.utils import (
     build_hf_headers,
     hf_raise_for_status,
     parse_datetime,
+    validate_repo_id,
 )
 
 try:
@@ -146,6 +147,7 @@ class HuggingFaceHook(BaseHook):
         Requires ``huggingface-hub>=1.0.0`` and raises
         :class:`~airflow.exceptions.AirflowOptionalProviderFeatureException` when it is not installed.
         """
+        validate_repo_id(repo_id)
         path = f"{constants.ENDPOINT}/api/datasets/{repo_id}"
         if revision is not None:
             path = f"{path}/revision/{quote(revision, safe='')}"
@@ -168,6 +170,7 @@ class HuggingFaceHook(BaseHook):
         Requires ``huggingface-hub>=1.0.0`` and raises
         :class:`~airflow.exceptions.AirflowOptionalProviderFeatureException` when it is not installed.
         """
+        validate_repo_id(repo_id)
         headers = build_hf_headers(token=await self._aget_token())
         revisions = [revision] if revision else ["main"]
         async with _create_async_session() as client:

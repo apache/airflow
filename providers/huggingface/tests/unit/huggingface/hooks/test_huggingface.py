@@ -26,7 +26,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from huggingface_hub import GitCommitInfo
-from huggingface_hub.utils import RepositoryNotFoundError, RevisionNotFoundError
+from huggingface_hub.utils import HFValidationError, RepositoryNotFoundError, RevisionNotFoundError
 
 try:
     from huggingface_hub.utils import get_async_session
@@ -98,6 +98,26 @@ async def test_async_metadata_calls_require_hub_with_async_session(invoke, mocke
 
     with pytest.raises(AirflowOptionalProviderFeatureException, match="huggingface-hub 1.0.0"):
         await invoke(hook)
+
+
+@requires_async_session
+@pytest.mark.parametrize(
+    "invoke",
+    [
+        pytest.param(lambda hook: hook.aget_dataset_info("org/data/extra"), id="aget_dataset_info"),
+        pytest.param(
+            lambda hook: hook.afind_commit_by_marker("org/data/extra", "marker"),
+            id="afind_commit_by_marker",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_async_metadata_rejects_invalid_repo_id(invoke, mocker):
+    session = mocker.patch("airflow.providers.huggingface.hooks.huggingface._create_async_session")
+
+    with pytest.raises(HFValidationError):
+        await invoke(HuggingFaceHook(None))
+    session.assert_not_called()
 
 
 def test_get_conn_caches_autospecced_hf_api(connection_env):
