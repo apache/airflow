@@ -375,6 +375,10 @@ airflowLocalSettings: |-
   {{- end }}
   {{- end }}
 
+# Mount the Airflow config ConfigMap as a directory (at ``{airflowHome}/config``) and set
+# accordingly, instead of mounting ``airflow.cfg`` via ``subPath``.
+mountConfigAsDir: false
+
 # Enable RBAC (default on most clusters these days)
 rbac:
   # Specifies whether RBAC resources should be created
@@ -2528,6 +2532,9 @@ apiServer:
   # requests:
   #   cpu: 100m
   #   memory: 128Mi
+
+  # Grace period for API server to finish after SIGTERM is sent from Kubernetes
+  terminationGracePeriodSeconds: 30
 
   # Add custom annotations to the `apiServer` ConfigMap
   configMapAnnotations: {}

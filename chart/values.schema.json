@@ -810,6 +810,12 @@
             "x-docsSection": "Common",
             "default": "See values.yaml"
         },
+        "mountConfigAsDir": {
+            "description": "Mount the Airflow config ConfigMap as a directory (at ``{airflowHome}/config``) and set accordingly, instead of mounting ``airflow.cfg`` via ``subPath``.",
+            "type": "boolean",
+            "x-docsSection": "Kubernetes",
+            "default": false
+        },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "object",
@@ -7649,6 +7655,11 @@
                         }
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for API server to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
                 },
                 "apiServerConfig": {
                     "description": "This string (templated) will be mounted into the Airflow API Server as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
