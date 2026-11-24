@@ -195,6 +195,7 @@ from airflow.sdk.execution_time.task_runner import (
     _register_deserialization_allowed_classes,
     _run_execute_callable,
     _serialize_outlet_events,
+    _serialize_rendered_fields,
     _TaskRunner,
     _xcom_push,
     check_xcom_backend_supports_loops,
@@ -2120,6 +2121,26 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
 
     with pytest.raises(AirflowTaskTimeout):
         _TaskRunner.run(ti, ti.get_template_context(), mock.MagicMock())
+
+
+@pytest.mark.parametrize("sort_keys", [True, False])
+def test_rendered_fields_key_order(sort_keys):
+    """Verify recursive key ordering follows the operator policy, including dotted renderer paths."""
+
+    class ConfigOperator(BaseOperator):
+        template_fields = ("config",)
+        template_fields_renderers = {"config.z": "json"}
+        template_fields_sort_keys = sort_keys
+
+    task = ConfigOperator(task_id="config")
+    task.config = {"z": {"z": [{"z": 1, "a": 2}], "a": 3}, "a": 4}
+    rendered = _serialize_rendered_fields(task)
+    expected_keys = ["a", "z"] if sort_keys else ["z", "a"]
+    assert list(rendered["config"]) == expected_keys
+    assert list(rendered["config"]["z"]) == expected_keys
+    assert list(rendered["config"]["z"]["z"][0]) == expected_keys
+    assert list(rendered["config.z"]) == expected_keys
+    assert list(rendered["config.z"]["z"][0]) == expected_keys
 
 
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):

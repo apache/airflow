@@ -54,6 +54,14 @@ Understanding the task lifecycle helps Dag authors write more effective tasks an
 - **XCom Operations**: Upon successful task completion (or when explicitly invoked during execution), the Supervisor issues API calls to set or clear XCom entries for inter-task data passing.
 - **State Patch**: When the task reaches a terminal (success/failed), deferred, or rescheduled state, the Supervisor invokes ``PATCH /state`` with the final task status and metadata.
 
+Rendered Template Field Order
+-----------------------------
+
+Set ``template_fields_sort_keys = False`` on an operator class to disable recursive
+sorting of rendered dictionaries captured by Python workers. Sorting remains enabled
+by default; canonical Dag serialization is unchanged. Database and browser ordering
+rules still apply: MySQL may reorder JSON keys, and browsers reorder integer-like keys.
+
 Supervisor & Task Runner
 ------------------------
 
