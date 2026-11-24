@@ -97,6 +97,18 @@ Run these commands from the root of your cloned Airflow repository:
     # For VS Code
     uv run dev/ide_setup/setup_vscode.py
 
+.. note::
+   If your default Python is newer than the versions Airflow supports (or an existing ``.venv``
+   was created with it), ``setup_idea.py`` may fail while building dependencies such as ``pyodbc``
+   that have no prebuilt wheels for it. ``setup_idea.py`` prints the supported versions when it
+   starts. Pass one of them explicitly, for example:
+
+   .. code-block:: bash
+
+       uv run dev/ide_setup/setup_idea.py --python 3.14
+
+   This recreates the ``.venv`` and ``dev/breeze/.venv`` virtual environments with that Python version.
+
 4. Create a branch for your change
 
 .. code-block:: bash

@@ -33,7 +33,7 @@ Model and connection errors
 
 ``Connection '...' has no default model provider, so the bare model name '...' cannot be resolved``
     The generic ``pydanticai`` connection type needs a ``provider:`` prefix on the model
-    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, set
+    name, for example ``openai:gpt-6.1-sol`` rather than ``gpt-6.1-sol``. Add the prefix, set
     **Default Model Provider** (``extra["model_provider"]``, e.g. ``openai-chat``) on the connection,
     or use a vendor connection type (:doc:`connections/pydantic_ai_azure`,
     :doc:`connections/pydantic_ai_bedrock`, :doc:`connections/pydantic_ai_vertex`), which
@@ -86,7 +86,7 @@ An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pyd
     The connection named by ``llm_conn_id`` is not a ``pydanticai`` connection type. This
     is easy to hit by picking a similarly named type such as ``openai`` when the OpenAI
     provider is installed. Change the connection type to ``pydanticai``, put the API key
-    in the **API Key** field (the password) and the model, for example ``openai:gpt-5``,
+    in the **API Key** field (the password) and the model, for example ``openai:gpt-6.1-sol``,
     in **Model**. For Azure, Bedrock or Vertex use the matching ``pydanticai_azure``,
     ``pydanticai_bedrock`` or ``pydanticai_vertex`` type instead; see :doc:`model_providers`.
 
@@ -126,11 +126,6 @@ as a task failure.
     ``DecisionPolicy(on_uncertain="review")`` or ``enable_hitl_review``, needs Airflow 3.1
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
-
-``durable=True and enable_hitl_review=True cannot be used together``
-    Durable replay matches each step to the one at the same position in the previous
-    attempt, which a human review loop's regenerations do not keep. Pick one. See
-    :doc:`durable_execution`.
 
 ``durable=True needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather')``
     Durable replay records each call of a pydantic-ai ``MCPToolset`` under the toolset's
@@ -197,11 +192,11 @@ A structured ``output_type`` arrives downstream as a string or fails to deserial
     :doc:`structured_output`.
 
 A review task waits for a long time
-    That is expected: the task is waiting for a reviewer. An approval gate on an LLM operator
-    releases its worker slot while it waits (it pauses as awaiting input on Airflow 3.3+, and
-    defers to the triggerer on older Airflow versions); a HITL review on ``AgentOperator`` polls from the
-    worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout`` so an unattended
-    review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
+    That is expected: the task is waiting for a reviewer. On Airflow 3.3+ an approval gate on an
+    LLM operator and a HITL review on ``AgentOperator`` both pause as awaiting input and hold no
+    worker slot. On older Airflow versions an approval gate defers to the triggerer, while a HITL
+    review polls from the worker and holds its slot. Set ``approval_timeout`` or ``hitl_timeout``
+    so an unattended review cannot wait forever. See :doc:`approval_gates` and :doc:`hitl_review`.
 
 The provider returns a rate limit or is down
     Three features answer this at different layers. Airflow's own ``retries`` re-run the

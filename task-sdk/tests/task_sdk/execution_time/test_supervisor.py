@@ -176,6 +176,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.coordinator import BaseCoordinator, TaskLaunchError
 from airflow.sdk.execution_time.supervisor import (
+    _IN_PROCESS_RESPONSE_SINK,
     SERVER_TERMINATED,
     ActivitySubprocess,
     InProcessSupervisorComms,
@@ -4709,6 +4710,48 @@ class TestHandleRequest:
         generator.send(req2)
 
     @pytest.mark.parametrize(
+        "invalid_body",
+        [
+            pytest.param({"type": "NonExistentMessageType"}, id="unknown_message_type"),
+            pytest.param({"type": "GetVariable"}, id="missing_required_field"),
+        ],
+    )
+    def test_handle_requests_decoding_error_sends_error_response(
+        self, watched_subprocess, mocker, invalid_body
+    ):
+        """Test that invalid request frames produce an error response rather than dropping the frame."""
+        watched_subprocess, read_socket = watched_subprocess
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=invalid_body)
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.5)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        bytes_ = read_socket.recv(frame_len)
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(bytes_)
+
+        assert frame.id == req_frame.id
+        assert frame.error is not None
+        assert frame.error["error"] == "GENERIC_ERROR"
+        assert "Unable to decode message" in frame.error["detail"]["message"]
+
+        comms = CommsDecoder(socket=None)
+        with pytest.raises(AirflowRuntimeError) as exc_info:
+            comms._from_frame(frame)
+
+        assert exc_info.value.error.error == ErrorType.GENERIC_ERROR
+        assert exc_info.value.error.detail["exception_type"] is not None
+
+        watched_subprocess.client.task_instances.succeed = mocker.Mock(return_value=None)
+        msg = SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"))
+        req_valid = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_valid)
+        watched_subprocess.client.task_instances.succeed.assert_called_once()
+
+    @pytest.mark.parametrize(
         ("msg", "api_method", "expected_state"),
         [
             pytest.param(
@@ -4910,6 +4953,81 @@ class TestHandleRequest:
             rendered_map_index=None,
             **{"retry_reason": None, "loop_decision": None, **extra},
         )
+
+    @pytest.mark.parametrize(
+        "message",
+        [
+            TaskState(state=TaskInstanceState.FAILED, end_date=timezone.parse("2024-10-31T12:00:00Z")),
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z")),
+        ],
+        ids=["task_state", "succeed_task"],
+    )
+    def test_loop_decision_reason_is_masked_before_it_is_sent(self, watched_subprocess, mocker, message):
+        """The supervisor masks a gate's reason for a runtime of every language."""
+        watched_subprocess, _ = watched_subprocess
+        mocker.patch(
+            "airflow.sdk.execution_time.supervisor.redact",
+            autospec=True,
+            side_effect=lambda value: value.replace("hunter2", "***"),
+        )
+        decision = LoopDecisionPayload(stop=False, reason="password hunter2 rejected")
+
+        watched_subprocess._send_terminal_state_msg(message.model_copy(update={"loop_decision": decision}))
+
+        method = "finish" if isinstance(message, TaskState) else "succeed"
+        sent = getattr(watched_subprocess.client.task_instances, method).call_args.kwargs["loop_decision"]
+        assert sent == LoopDecisionPayload(stop=False, reason="password *** rejected")
+
+    @pytest.mark.parametrize(
+        ("reason", "sent", "cut_from_bytes"),
+        [
+            pytest.param("a" * 513, "a" * 512, 513, id="over-limit"),
+            pytest.param("\u00e9" * 257, "\u00e9" * 256, 514, id="cut-on-a-character-boundary"),
+            pytest.param("a" * 512, "a" * 512, None, id="at-limit"),
+            pytest.param(None, None, None, id="no-reason"),
+        ],
+    )
+    def test_loop_decision_reason_is_cut_only_over_the_limit(
+        self, watched_subprocess, reason, sent, cut_from_bytes
+    ):
+        """
+        A language SDK runtime is not told the limit, so the supervisor cuts a longer reason to it and
+        warns in the task log. It leaves a reason at the limit, or no reason, as it is.
+        """
+        watched_subprocess, _ = watched_subprocess
+        process_log = watched_subprocess.process_log
+
+        watched_subprocess._send_terminal_state_msg(
+            SucceedTask(
+                end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                loop_decision=LoopDecisionPayload(stop=True, reason=reason),
+            )
+        )
+
+        loop_decision = watched_subprocess.client.task_instances.succeed.call_args.kwargs["loop_decision"]
+        assert loop_decision == LoopDecisionPayload(stop=True, reason=sent)
+        if cut_from_bytes is None:
+            process_log.warning.assert_not_called()
+        else:
+            process_log.warning.assert_called_once_with(
+                "Loop decision reason exceeds the byte limit and is cut to it",
+                reason_bytes=cut_from_bytes,
+                max_reason_bytes=512,
+            )
+
+    @pytest.mark.enable_redact
+    def test_loop_decision_reason_is_masked_before_it_is_cut(self, watched_subprocess):
+        """A secret that crosses the byte limit is masked whole, not cut into an unmasked fragment."""
+        watched_subprocess, _ = watched_subprocess
+        mask_secret("s3cr3t-API-key-value")
+        decision = LoopDecisionPayload(stop=True, reason="x" * 500 + "s3cr3t-API-key-value" + "y" * 20)
+
+        watched_subprocess._send_terminal_state_msg(
+            SucceedTask(end_date=timezone.parse("2024-10-31T12:00:00Z"), loop_decision=decision)
+        )
+
+        sent = watched_subprocess.client.task_instances.succeed.call_args.kwargs["loop_decision"]
+        assert sent == LoopDecisionPayload(stop=True, reason="x" * 500 + "***" + "y" * 9)
 
 
 @pytest.mark.parametrize(
@@ -5330,6 +5448,105 @@ class TestInProcessTestSupervisor:
         # Ensure the task failed and the callback saw the exception
         assert isinstance(result.error, _Failure)
         assert isinstance(collected[0], _Failure)
+
+
+class TestInProcessSupervisorCommsAcrossThreads:
+    """
+    dag.test() serves a task's requests in the task's own process, possibly for several of the task's
+    threads at once. While a request is served, the code serving it stops seeing the comms, and only
+    that code: the task's other threads keep theirs. The in-process API server's side is covered in the
+    execution API's test_app.py.
+    """
+
+    @staticmethod
+    def _comms(serve):
+        """In-process comms whose supervisor answers each request with ``serve(msg)``."""
+        comms = InProcessSupervisorComms(supervisor=mock.Mock(spec=InProcessTestSupervisor))
+
+        def handle_request(msg, log, req_id):
+            sink = _IN_PROCESS_RESPONSE_SINK.get()
+            assert sink is not None
+            sink.append(serve(msg))
+
+        comms.supervisor._handle_request.side_effect = handle_request
+        return comms
+
+    def test_only_the_code_serving_a_request_stops_seeing_the_comms(self):
+        """
+        While one thread's request is served, the task's other threads must keep their comms: seeing
+        none, they would take their Variable and Connection lookups for the server side and find nothing.
+        """
+        seen: dict[str, object] = {}
+        serving = threading.Event()
+        sibling_read = threading.Event()
+
+        def serve(msg):
+            seen["serving"] = task_runner.get_supervisor_comms()
+            serving.set()
+            sibling_read.wait(5)
+            return "done"
+
+        def sibling():
+            serving.wait(5)
+            seen["sibling"] = task_runner.get_supervisor_comms()
+            sibling_read.set()
+
+        comms = self._comms(serve)
+        with patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True):
+            threads = [
+                threading.Thread(target=comms.send, args=("request",)),
+                threading.Thread(target=sibling),
+            ]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(5)
+            # Once answered, the sender sees its comms again, and the module attribute never went
+            # away, which is what `from task_runner import SUPERVISOR_COMMS` needs.
+            seen["after"] = task_runner.get_supervisor_comms()
+            seen["attribute"] = hasattr(task_runner, "SUPERVISOR_COMMS")
+
+        assert seen == {"serving": None, "sibling": comms, "after": comms, "attribute": True}
+
+    def test_hide_supervisor_comms_restores_the_previous_state(self):
+        with patch.object(task_runner, "SUPERVISOR_COMMS", "comms", create=True):
+            with task_runner.hide_supervisor_comms():
+                with task_runner.hide_supervisor_comms():
+                    assert task_runner.get_supervisor_comms() is None
+                assert task_runner.get_supervisor_comms() is None
+            assert task_runner.get_supervisor_comms() == "comms"
+
+    @pytest.mark.parametrize("serving", [False, True], ids=["task-code", "serving-a-request"])
+    def test_mask_secret_is_forwarded_only_from_task_code(self, serving):
+        from airflow.sdk.log import mask_secret
+
+        comms = mock.Mock(spec=InProcessSupervisorComms)
+        with patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True):
+            with task_runner.hide_supervisor_comms() if serving else nullcontext():
+                mask_secret("s3cr3t-value", "key")
+
+        assert comms.send.called is not serving
+
+    def test_with_an_older_core_the_comms_are_removed_while_a_request_is_served(self):
+        """
+        An airflow-core without ``airflow.process_context`` only checks whether ``SUPERVISOR_COMMS``
+        exists, so its code serving the request must not find the attribute.
+        """
+        seen: dict[str, object] = {}
+
+        def serve(msg):
+            seen["serving"] = hasattr(task_runner, "SUPERVISOR_COMMS")
+            return "done"
+
+        comms = self._comms(serve)
+        with (
+            patch.object(task_runner, "SUPERVISOR_COMMS", comms, create=True),
+            patch.object(supervisor, "_has_per_request_server_context", autospec=True, return_value=False),
+        ):
+            assert comms.send("request") == "done"
+            seen["after"] = task_runner.get_supervisor_comms()
+
+        assert seen == {"serving": False, "after": comms}
 
 
 class TestInProcessClient:
@@ -6119,6 +6336,15 @@ def test_in_process_api_server_caches_instance():
         in_process_api_server.cache_clear()
         third = in_process_api_server()
         assert third is not first
+    finally:
+        in_process_api_server.cache_clear()
+
+
+def test_in_process_api_server_serves_while_debugger_paused():
+    """dag.test() calls the API from the thread a debugger pauses, so the API's loop must keep running."""
+    in_process_api_server.cache_clear()
+    try:
+        assert in_process_api_server().serve_while_debugger_paused is True
     finally:
         in_process_api_server.cache_clear()
 

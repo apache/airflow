@@ -19,7 +19,7 @@ from __future__ import annotations
 import secrets
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -38,9 +38,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from airflow._shared.timezones import timezone
+from airflow.crypto import get_fernet
 from airflow.models.base import Base
 from airflow.models.connection import Connection
-from airflow.models.crypto import FernetFieldsMixin, get_fernet
+from airflow.models.crypto import FernetFieldsMixin
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-class ConnectionTestState(str, Enum):
+class ConnectionTestState(StrEnum):
     """All possible states of a connection test."""
 
     PENDING = "pending"
@@ -57,9 +58,6 @@ class ConnectionTestState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 ACTIVE_STATES = frozenset(

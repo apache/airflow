@@ -55,7 +55,7 @@ from pydantic_ai.messages import (
 from pydantic_ai.models import ModelRequestParameters
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.settings import ToolOrOutput
-from pydantic_ai.tools import ToolDefinition
+from pydantic_ai.tools import DeferredToolRequests, ToolDefinition
 from pydantic_core import to_jsonable_python
 
 from airflow.providers.common.ai.durable import fingerprint as fingerprint_module
@@ -69,6 +69,7 @@ from airflow.providers.common.ai.durable.fingerprint import (
     _seed_free,
     _template,
     _unpaired,
+    fingerprint_deferred_tool_requests,
     fingerprint_model_request,
     fingerprint_tool_call,
 )
@@ -439,6 +440,28 @@ class TestModelRequestFingerprint:
         assert low is not None
         assert high is not None
         assert low != high
+
+    def test_a_stamped_chain_leaves_out_which_chain_a_response_came_from(self):
+        """An agent stamps its own chain's id on every response it replays, so an edited chain differs only there."""
+
+        def history(model_id: str) -> list:
+            return [
+                ModelRequest(parts=[UserPromptPart("go")]),
+                ModelResponse(parts=[TextPart("hi")], model_id=model_id),
+                ModelRequest(parts=[UserPromptPart("next")]),
+            ]
+
+        old = history("fallback:a,b")
+        new = history("fallback:a,c")
+        params = ModelRequestParameters()
+
+        assert fingerprint_model_request(
+            "m", old, None, params, exclude_response_model_id=True
+        ) == fingerprint_model_request("m", new, None, params, exclude_response_model_id=True)
+        assert fingerprint_model_request("m", old, None, params) != fingerprint_model_request(
+            "m", new, None, params
+        )
+        assert fingerprint_model_request("m", old, None, params) == _json_mode_reference("m", old, params)
 
 
 class TestToolCallFingerprint:
@@ -2043,3 +2066,41 @@ class TestDigestsAcrossHashSeeds:
 
         assert first is not None
         assert first == second
+
+
+class TestDeferredToolRequests:
+    """The calls an approval answer is for: it must not replay for any other call."""
+
+    @staticmethod
+    def _approvals(*calls: tuple[str, dict[str, Any], str]) -> DeferredToolRequests:
+        return DeferredToolRequests(
+            approvals=[ToolCallPart(name, args, tool_call_id=i) for name, args, i in calls]
+        )
+
+    def test_the_same_calls_hash_the_same(self):
+        calls = ("refund", {"order_id": 1}, "c-1"), ("refund", {"order_id": 2}, "c-2")
+        assert fingerprint_deferred_tool_requests(
+            self._approvals(*calls)
+        ) == fingerprint_deferred_tool_requests(self._approvals(*calls))
+
+    @pytest.mark.parametrize(
+        "changed",
+        [
+            pytest.param(("refund", {"order_id": 2}, "c-1"), id="arguments"),
+            pytest.param(("refund", {"order_id": 1}, "c-9"), id="call-id"),
+            pytest.param(("cancel", {"order_id": 1}, "c-1"), id="tool"),
+        ],
+    )
+    def test_a_different_call_hashes_differently(self, changed):
+        before = fingerprint_deferred_tool_requests(self._approvals(("refund", {"order_id": 1}, "c-1")))
+        assert fingerprint_deferred_tool_requests(self._approvals(changed)) != before
+
+    def test_an_approval_and_an_external_call_hash_differently(self):
+        call = ToolCallPart("refund", {"order_id": 1}, tool_call_id="c-1")
+        assert fingerprint_deferred_tool_requests(
+            DeferredToolRequests(approvals=[call])
+        ) != fingerprint_deferred_tool_requests(DeferredToolRequests(calls=[call]))
+
+    def test_a_call_that_cannot_be_fingerprinted_leaves_none(self):
+        with patch.object(fingerprint_module, "fingerprint_tool_call", autospec=True, return_value=None):
+            assert fingerprint_deferred_tool_requests(self._approvals(("refund", {}, "c-1"))) is None

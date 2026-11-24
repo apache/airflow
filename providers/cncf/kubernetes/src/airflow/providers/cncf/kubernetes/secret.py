@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import copy
 import uuid
+from typing import cast
 
 from kubernetes.client import models as k8s
 
@@ -81,35 +82,37 @@ class Secret(K8SModel):
     def to_volume_secret(self) -> tuple[k8s.V1Volume, k8s.V1VolumeMount]:
         """Convert to volume secret."""
         vol_id = f"secretvol{uuid.uuid4()}"
-        volume = k8s.V1Volume(name=vol_id, secret=k8s.V1SecretVolumeSource(secret_name=self.secret))
+        secret = k8s.V1SecretVolumeSource(secret_name=self.secret)
+        volume = k8s.V1Volume(name=vol_id, secret=secret)
         if self.items:
-            volume.secret.items = self.items
+            secret.items = self.items
         return (volume, k8s.V1VolumeMount(mount_path=self.deploy_target, name=vol_id, read_only=True))
 
     def attach_to_pod(self, pod: k8s.V1Pod) -> k8s.V1Pod:
         """Attach to pod."""
         cp_pod = copy.deepcopy(pod)
+        pod_spec = cast("k8s.V1PodSpec", cp_pod.spec)
 
         if self.deploy_type == "volume":
             volume, volume_mount = self.to_volume_secret()
-            if cp_pod.spec.volumes is None:
-                cp_pod.spec.volumes = []
-            cp_pod.spec.volumes.append(volume)
-            if cp_pod.spec.containers[0].volume_mounts is None:
-                cp_pod.spec.containers[0].volume_mounts = []
-            cp_pod.spec.containers[0].volume_mounts.append(volume_mount)
+            if pod_spec.volumes is None:
+                pod_spec.volumes = []
+            pod_spec.volumes.append(volume)
+            if pod_spec.containers[0].volume_mounts is None:
+                pod_spec.containers[0].volume_mounts = []
+            pod_spec.containers[0].volume_mounts.append(volume_mount)
 
         if self.deploy_type == "env" and self.key is not None:
             env = self.to_env_secret()
-            if cp_pod.spec.containers[0].env is None:
-                cp_pod.spec.containers[0].env = []
-            cp_pod.spec.containers[0].env.append(env)
+            if pod_spec.containers[0].env is None:
+                pod_spec.containers[0].env = []
+            pod_spec.containers[0].env.append(env)
 
         if self.deploy_type == "env" and self.key is None:
             env_from = self.to_env_from_secret()
-            if cp_pod.spec.containers[0].env_from is None:
-                cp_pod.spec.containers[0].env_from = []
-            cp_pod.spec.containers[0].env_from.append(env_from)
+            if pod_spec.containers[0].env_from is None:
+                pod_spec.containers[0].env_from = []
+            pod_spec.containers[0].env_from.append(env_from)
 
         return cp_pod
 

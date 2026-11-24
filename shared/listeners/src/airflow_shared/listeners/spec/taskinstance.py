@@ -56,7 +56,14 @@ def on_task_instance_failed(
     failure_kind: TaskFailureKind | None,
     reason: str | None,
 ) -> None:
-    """Handle a failed attempt with its known cause, including when the task will retry."""
+    """
+    Execute when a task instance attempt fails. previous_state can be None.
+
+    This also runs for an attempt that will be retried. ``task_instance.state`` is then
+    ``UP_FOR_RETRY``, and ``FAILED`` when the task instance will not be retried. A listener that
+    should only react to final failures can check ``task_instance.state``. ``failure_kind`` and
+    ``reason`` carry the failure cause when Airflow can establish it, and are ``None`` otherwise.
+    """
 
 
 @hookspec

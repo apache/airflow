@@ -262,7 +262,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^\.github/workflows/(?!("
             r"asf-allowlist-check|automatic-backport|backport-cli|ci-duration-monitor|ci-notification|"
             r"codeql-analysis|e2e-flaky-tests-report|milestone-tag-assistant|notify-uv-lock-conflicts|"
-            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-release-calendar|stale"
+            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-improvement-proposals-wiki|"
+            r"scheduled-verify-release-calendar|stale"
             r")\.yml$)",
             r"^dev/breeze/src",
             r"^dev/breeze/pyproject\.toml",
@@ -1218,6 +1219,21 @@ class SelectiveChecks:
 
     def _get_previous_file_content(self, path: str) -> str | None:
         if self._fork_merge_base:
+            commit_check = run_command(
+                ["git", "cat-file", "-e", f"{self._fork_merge_base}^{{commit}}"],
+                capture_output=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if commit_check.returncode == 0:
+                result = run_command(
+                    ["git", "show", f"{self._fork_merge_base}:{path}"],
+                    capture_output=True,
+                    text=True,
+                    cwd=AIRFLOW_ROOT_PATH,
+                    check=False,
+                )
+                return result.stdout if result.returncode == 0 else None
             return get_upstream_file(path=path, ref=self._fork_merge_base)
         result = run_command(
             ["git", "show", f"{self._commit_ref}^:{path}"],
@@ -1611,6 +1627,11 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_task_sdk_tests(self) -> bool:
+        # A uv.lock bump can upgrade a library the Task SDK imports, e.g. kubernetes in serde.
+        return self._task_sdk_files_changed or self.is_uv_lock_update
+
+    @cached_property
+    def _task_sdk_files_changed(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
@@ -1764,6 +1785,7 @@ class SelectiveChecks:
             or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
+            or self.is_uv_lock_update
             or self.prod_image_build
             # prek hooks no longer force the full test matrix (they are static checks, not
             # tests), but they still need the CI image so mypy-scripts and the image-based
@@ -1921,7 +1943,7 @@ class SelectiveChecks:
             return []
         if self.upgrade_to_newer_dependencies:
             return ["Providers"]
-        if self.full_tests_needed or self.run_task_sdk_tests:
+        if self.full_tests_needed or self._task_sdk_files_changed:
             if split_to_individual_providers:
                 return list(providers_test_type())
             return ["Providers"]
@@ -2447,7 +2469,10 @@ class SelectiveChecks:
                 prek_hooks_to_skip.add("mypy-dev")
             if not self._matching_files(FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-scripts")
-            if not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            if (
+                not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES)
+                and not self.is_uv_lock_update
+            ):
                 prek_hooks_to_skip.add("mypy-task-sdk")
             if not self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-devel-common")

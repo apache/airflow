@@ -34,7 +34,7 @@ to pick the one that fits your use case:
    * - Single prompt → text or structured output
      - :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
      - ``@task.llm``
-   * - Many prompts, ~half the cost, up to 24h turnaround (OpenAI/Anthropic batch APIs)
+   * - Many prompts, ~half the cost, up to 24h turnaround (OpenAI, Anthropic and Gemini batch APIs)
      - :class:`~airflow.providers.common.ai.operators.llm_batch.LLMBatchOperator`
      - ``@task.llm_batch``
    * - Analyze files, prefixes, images, or PDFs with one prompt
@@ -96,7 +96,7 @@ Use this provider when a Dag needs:
 * **Generation, classification, summarization, or structured extraction**:
   :doc:`LLMOperator and @task.llm <llm>`, with Pydantic-typed output pushed to XCom.
 * **Many prompts at half the price**: :doc:`LLMBatchOperator and @task.llm_batch <llm_batch>`
-  submit prompts as one provider batch job (OpenAI or Anthropic), poll in deferrable mode for up to 24
+  submit prompts as one provider batch job (OpenAI, Anthropic or Gemini), poll in deferrable mode for up to 24
   hours, re-attach on retry instead of paying twice, and land results as JSONL on object storage.
 * **Branching on a model's decision**: :doc:`LLMBranchOperator <llm_branch>`.
 * **Agents with tools**: :doc:`AgentOperator <agent>` runs a multi-turn agent loop
