@@ -209,6 +209,8 @@ class _IdentityTracer:
         if tracer is None:
             raise AttributeError(name)
         return getattr(tracer, name)
+
+
 def _usage_metrics_enabled() -> bool:
     return conf.getboolean(SECTION, "emit_usage_metrics", fallback=False)
 
@@ -241,4 +243,8 @@ def emit_usage_metrics(
     Stats.incr("common_ai.llm_input_tokens", input_tokens, tags=tags)
     Stats.incr("common_ai.llm_output_tokens", output_tokens, tags=tags)
     if cost is not None:
-        Stats.incr("common_ai.llm_cost", cost, tags=tags)
+        Stats.incr(
+            "common_ai.llm_cost_micros",
+            int(round(cost * 1_000_000)),
+            tags=tags,
+        )
