@@ -42,6 +42,7 @@ SPEC_TEXT = "spec:\n  containers:\n  - name: main\n    image: /db/schema/repo/im
 JOB_NAME = "TEST_JOB"
 SNOWFLAKE_CONN_ID = "snowflake_default"
 MOCK_HOOK_PATH = "airflow.providers.snowflake.operators.snowpark_containers.SnowflakeHook"
+DROP_SQL = "DROP SERVICE IF EXISTS IDENTIFIER(%(job_name)s)"
 SUBMIT_RESPONSE = [f"Started Snowpark Container Services Job '{JOB_NAME}'."]
 
 
@@ -224,7 +225,7 @@ class TestSnowparkContainerJobOperator:
             op.poll_until_complete(JOB_NAME, None)
 
         mock_log.assert_called_once_with("RUNNING")
-        drop_call = mock.call(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+        drop_call = mock.call(DROP_SQL, parameters={"job_name": JOB_NAME})
         if drops:
             assert drop_call in mock_hook.run.call_args_list
         else:
@@ -307,7 +308,7 @@ class TestSnowparkContainerJobOperator:
         op = _make_operator()
         op.job_name = JOB_NAME
         op.on_kill()
-        mock_hook.run.assert_called_once_with(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+        mock_hook.run.assert_called_once_with(DROP_SQL, parameters={"job_name": JOB_NAME})
 
     @mock.patch(MOCK_HOOK_PATH)
     def test_on_kill_skips_drop_when_cancel_on_kill_disabled(self, mock_hook_cls):
@@ -381,7 +382,7 @@ class TestSnowparkContainerJobOperator:
         ]
         op = _make_operator(drop_on_completion=True, poll_interval=0, durable=False)
         op.execute(context=None)
-        assert mock.call(f"DROP SERVICE IF EXISTS {JOB_NAME}") in mock_hook.run.call_args_list
+        assert mock.call(DROP_SQL, parameters={"job_name": JOB_NAME}) in mock_hook.run.call_args_list
 
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
@@ -393,7 +394,7 @@ class TestSnowparkContainerJobOperator:
         ]
         op = _make_operator(drop_on_completion=False, poll_interval=0, durable=False)
         op.execute(context=None)
-        drop_call = mock.call(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+        drop_call = mock.call(DROP_SQL, parameters={"job_name": JOB_NAME})
         assert drop_call not in mock_hook.run.call_args_list
 
     @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
@@ -444,7 +445,7 @@ class TestSnowparkContainerJobOperator:
         result = op.execute_complete(context=None, event={"status": "DONE", "job_name": JOB_NAME})
         assert result == JOB_NAME
         mock_log.assert_called_once_with("DONE")
-        mock_hook.run.assert_called_once_with(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+        mock_hook.run.assert_called_once_with(DROP_SQL, parameters={"job_name": JOB_NAME})
 
     @mock.patch(MOCK_HOOK_PATH)
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
@@ -473,7 +474,7 @@ class TestSnowparkContainerJobOperator:
                 event={"status": status, "job_name": JOB_NAME, "message": "boom"},
             )
         if drops:
-            mock_hook.run.assert_called_once_with(f"DROP SERVICE IF EXISTS {JOB_NAME}")
+            mock_hook.run.assert_called_once_with(DROP_SQL, parameters={"job_name": JOB_NAME})
         else:
             mock_hook.run.assert_not_called()
         if logs:
@@ -525,7 +526,7 @@ class TestSnowparkContainerJobOperatorDurable:
         task_store.get.assert_called_once_with(op.external_id_key)
         assert task_store.set.call_args_list == [
             mock.call(op.external_id_key, JOB_NAME),
-            mock.call(op._job_status_key, {JOB_NAME: "DONE"}),
+            mock.call(op._job_done_marker_key, {JOB_NAME: "DONE"}),
         ]
         mock_handle.assert_called_once_with(status="DONE")
 
@@ -548,8 +549,11 @@ class TestSnowparkContainerJobOperatorDurable:
 
         result = op.execute(context=_context(task_store=task_store))
 
-        assert task_store.get.call_args_list == [mock.call(op.external_id_key), mock.call(op._job_status_key)]
-        task_store.set.assert_called_once_with(op._job_status_key, {JOB_NAME: "DONE"})
+        assert task_store.get.call_args_list == [
+            mock.call(op.external_id_key),
+            mock.call(op._job_done_marker_key),
+        ]
+        task_store.set.assert_called_once_with(op._job_done_marker_key, {JOB_NAME: "DONE"})
         mock_submit_job.assert_not_called()
         mock_handle.assert_called_once_with(status="DONE")
         assert result == JOB_NAME
@@ -570,7 +574,10 @@ class TestSnowparkContainerJobOperatorDurable:
 
         op.execute(context=_context(task_store=task_store))
 
-        assert task_store.get.call_args_list == [mock.call(op.external_id_key), mock.call(op._job_status_key)]
+        assert task_store.get.call_args_list == [
+            mock.call(op.external_id_key),
+            mock.call(op._job_done_marker_key),
+        ]
         mock_submit_job.assert_not_called()
         mock_poll_until_complete.assert_not_called()
         mock_handle.assert_called_once_with(status="DONE")
@@ -595,6 +602,7 @@ class TestSnowparkContainerJobOperatorDurable:
         task_store.get.assert_called_once_with(op.external_id_key)
         mock_submit_job.assert_called_once()
         task_store.set.assert_called_once_with(op.external_id_key, f"{JOB_NAME}_2")
+        mock_poll_until_complete.assert_called_once_with(f"{JOB_NAME}_2", mock.ANY)
 
     @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
     @mock.patch.object(SnowparkContainerJobOperator, "poll_until_complete")
@@ -615,7 +623,10 @@ class TestSnowparkContainerJobOperatorDurable:
 
         op.execute(context=_context(task_store=task_store))
 
-        assert task_store.get.call_args_list == [mock.call(op.external_id_key), mock.call(op._job_status_key)]
+        assert task_store.get.call_args_list == [
+            mock.call(op.external_id_key),
+            mock.call(op._job_done_marker_key),
+        ]
         mock_submit_job.assert_called_once()
         task_store.set.assert_called_once_with(op.external_id_key, f"{JOB_NAME}_2")
 
@@ -692,7 +703,7 @@ class TestSnowparkContainerJobOperatorDurable:
         op = _make_operator()
         status = op.get_job_status(context=_context(task_store=task_store), external_id=JOB_NAME)
         assert status == "DONE"
-        task_store.get.assert_called_once_with(op._job_status_key)
+        task_store.get.assert_called_once_with(op._job_done_marker_key)
         mock_describe_status.assert_not_called()
 
     @mock.patch.object(SnowparkContainerJobOperator, "_describe_status")
@@ -705,13 +716,28 @@ class TestSnowparkContainerJobOperatorDurable:
         assert status == "RUNNING"
         mock_describe_status.assert_called_once_with(JOB_NAME)
 
-    @pytest.mark.parametrize("external_id", ["x; DROP TABLE t", 123])
+    @pytest.mark.parametrize("external_id", [123, None])
     @mock.patch(MOCK_HOOK_PATH)
-    def test_get_job_status_rejects_invalid_stored_job_name(self, mock_hook_cls, external_id):
+    def test_get_job_status_rejects_non_string_stored_job_name(self, mock_hook_cls, external_id):
         op = _make_operator()
-        with pytest.raises(ValueError, match="not a valid Snowflake identifier"):
+        with pytest.raises(TypeError, match="is not a string"):
             op.get_job_status(external_id, _context())
         mock_hook_cls.return_value.run.assert_not_called()
+
+    @pytest.mark.parametrize("external_id", ["DB.SCHEMA.TEST_JOB", '"my job"'])
+    @mock.patch(MOCK_HOOK_PATH)
+    def test_get_job_status_binds_qualified_or_quoted_job_name(self, mock_hook_cls, external_id):
+        mock_hook = mock_hook_cls.return_value
+        mock_hook.run.return_value = {"status": "RUNNING"}
+        op = _make_operator()
+        status = op.get_job_status(external_id, _context())
+        assert status == "RUNNING"
+        mock_hook.run.assert_called_once_with(
+            "DESCRIBE SERVICE IDENTIFIER(%(job_name)s)",
+            parameters={"job_name": external_id},
+            handler=mock.ANY,
+            return_dictionaries=True,
+        )
 
     @mock.patch.object(SnowparkContainerJobOperator, "_log_container_output")
     @mock.patch(MOCK_HOOK_PATH)
@@ -727,8 +753,8 @@ class TestSnowparkContainerJobOperatorDurable:
         op.poll_until_complete(JOB_NAME, _context(task_store=task_store))
 
         assert manager.mock_calls[-2:] == [
-            mock.call.set(op._job_status_key, {JOB_NAME: "DONE"}),
-            mock.call.run(f"DROP SERVICE IF EXISTS {JOB_NAME}"),
+            mock.call.set(op._job_done_marker_key, {JOB_NAME: "DONE"}),
+            mock.call.run(DROP_SQL, parameters={"job_name": JOB_NAME}),
         ]
 
     def test_is_job_active_and_is_job_succeeded(self):

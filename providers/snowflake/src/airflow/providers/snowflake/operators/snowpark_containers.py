@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-import re
 import time
 from collections.abc import Sequence
 from datetime import timedelta
@@ -43,16 +42,6 @@ if TYPE_CHECKING:
     from pydantic import JsonValue
 
     from airflow.providers.common.compat.sdk import Context
-
-# The job name goes into DESCRIBE/DROP SERVICE as an identifier, which cannot be bound,
-# so it must match Snowflake's unquoted identifier syntax.
-_JOB_NAME_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_$]{0,254}")
-
-
-def _validate_job_name(external_id: JsonValue) -> str:
-    if not isinstance(external_id, str) or not _JOB_NAME_PATTERN.fullmatch(external_id):
-        raise ValueError(f"Stored job name {external_id!r} is not a valid Snowflake identifier")
-    return external_id
 
 
 class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
@@ -121,7 +110,7 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
     """
 
     external_id_key = "snowpark_container_job_name"
-    _job_status_key = "snowpark_container_job_status"
+    _job_done_marker_key = "snowpark_container_job_done_marker"
     template_fields: Sequence[str] = (
         "compute_pool",
         "spec",
@@ -235,7 +224,11 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
 
     def _describe_status(self, external_id: JsonValue) -> str:
         """Describe the job's current status."""
-        response = self._run_one(f"DESCRIBE SERVICE {external_id}", return_dictionaries=True)
+        response = self._run_one(
+            "DESCRIBE SERVICE IDENTIFIER(%(job_name)s)",
+            return_dictionaries=True,
+            parameters={"job_name": external_id},
+        )
         return response.get("status")
 
     def submit_job(self, context: Context) -> str:
@@ -255,13 +248,14 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
         """Return DONE if a prior try stored it, NOT_FOUND if the service is gone, else the current status."""
-        job_name = _validate_job_name(external_id)
+        if not isinstance(external_id, str):
+            raise TypeError(f"Stored job name {external_id!r} is not a string")
         if (task_state_store := context.get("task_state_store")) is not None:
-            marker = task_state_store.get(self._job_status_key)
-            if isinstance(marker, dict) and marker.get(job_name) == SnowparkContainerJobStatus.DONE:
+            marker = task_state_store.get(self._job_done_marker_key)
+            if isinstance(marker, dict) and marker.get(external_id) == SnowparkContainerJobStatus.DONE:
                 return SnowparkContainerJobStatus.DONE
         try:
-            return self._describe_status(job_name)
+            return self._describe_status(external_id)
         except ProgrammingError as e:
             if e.errno == OBJECT_NOT_EXIST_ERROR_CODE:
                 return NOT_FOUND_STATUS
@@ -298,10 +292,8 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
                     and (task_state_store := context.get("task_state_store")) is not None
                 ):
                     task_state_store.set(
-                        self._job_status_key, {self.job_name: SnowparkContainerJobStatus.DONE.value}
+                        self._job_done_marker_key, {self.job_name: SnowparkContainerJobStatus.DONE.value}
                     )
-                # get_job_result is skipped when the mixin reconnects to a still-running job, so
-                # finalize here.
                 self._handle_final_status(status=status)
                 self._poll_until_complete_ran = True
                 return
@@ -310,7 +302,7 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
             time.sleep(self.poll_interval)
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> None:
-        """Finalize the completed job unless poll_until_complete already did."""
+        """Finalize the completed job."""
         self.job_name = cast("str", external_id)
         if self._poll_until_complete_ran:
             return
@@ -342,7 +334,9 @@ class SnowparkContainerJobOperator(ResumableJobMixin, BaseOperator):
     def _drop_service(self) -> None:
         """Best-effort drop of the job service."""
         try:
-            self._hook.run(f"DROP SERVICE IF EXISTS {self.job_name}")
+            self._hook.run(
+                "DROP SERVICE IF EXISTS IDENTIFIER(%(job_name)s)", parameters={"job_name": self.job_name}
+            )
         except Exception as e:
             self.log.error("Error dropping service %s: %s", self.job_name, e)
 
