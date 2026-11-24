@@ -325,6 +325,33 @@ def _resolve_log_id_template(
         return default_template, None
 
 
+def _build_candidate_log_ids(
+    pinned_template: str,
+    configured_template: str,
+    ti: TaskInstance | TaskInstanceKey | RuntimeTI,
+    try_number: int,
+    *,
+    dag_run: Any = None,
+    json_format: bool = False,
+) -> list[str]:
+    """
+    Render the pinned log id, then the configured one when it differs and renders.
+
+    Readers try the ids in order. Writers without the pinned template (older SDKs, or tasks running while
+    the template changed) use the configured one, so readers try it after the pinned one.
+    """
+    log_ids = [_render_log_id(pinned_template, ti, try_number, dag_run=dag_run, json_format=json_format)]
+    try:
+        configured_log_id = _render_log_id(
+            configured_template, ti, try_number, dag_run=dag_run, json_format=json_format
+        )
+    except Exception:
+        return log_ids
+    if configured_log_id not in log_ids:
+        log_ids.append(configured_log_id)
+    return log_ids
+
+
 def _get_ti_id_fields(ti: TaskInstance | RuntimeTI) -> dict[str, str]:
     # Before 3.4 a try can reuse the previous try's id, so only log_id identifies it.
     if not AIRFLOW_V_3_4_PLUS:
@@ -622,7 +649,9 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             return ""
         return value.strftime("%Y_%m_%dT%H_%M_%S_%f")
 
-    def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+    def _get_pinned_log_id_template(
+        self, ti: TaskInstance | TaskInstanceKey
+    ) -> tuple[str, DagRun, TaskInstance]:
         from airflow.models.taskinstance import TaskInstanceKey
 
         log_id_template = self.log_id_template
@@ -632,28 +661,23 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             dag_run = ti.get_dagrun(session=session)
             if USE_PER_RUN_LOG_ID:
                 log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+        return log_id_template, dag_run, ti
 
-        if self.json_format:
-            data_interval_start = self._clean_date(dag_run.data_interval_start)
-            data_interval_end = self._clean_date(dag_run.data_interval_end)
-            logical_date = self._clean_date(dag_run.logical_date)
-        else:
-            data_interval_start = (
-                dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else ""
-            )
-            data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else ""
-            logical_date = dag_run.logical_date.isoformat() if dag_run.logical_date else ""
-        return log_id_template.format(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            run_id=getattr(ti, "run_id", ""),
-            data_interval_start=data_interval_start,
-            data_interval_end=data_interval_end,
-            logical_date=logical_date,
-            execution_date=logical_date,
-            try_number=try_number,
-            map_index=getattr(ti, "map_index", ""),
+    def _render_log_ids(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> list[str]:
+        """Render the Dag-run-pinned log id, then the configured one when it differs."""
+        log_id_template, dag_run, ti = self._get_pinned_log_id_template(ti)
+        return _build_candidate_log_ids(
+            log_id_template,
+            self.log_id_template,
+            ti,
+            try_number,
+            dag_run=dag_run,
+            json_format=self.json_format,
         )
+
+    def _render_log_id(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
+        log_id_template, dag_run, ti = self._get_pinned_log_id_template(ti)
+        return _render_log_id(log_id_template, ti, try_number, dag_run=dag_run, json_format=self.json_format)
 
     def _read(
         self, ti: TaskInstance, try_number: int, metadata: LogMetadata | None = None
@@ -686,8 +710,15 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             metadata["offset"] = 0
 
         offset = metadata["offset"]
-        log_id = self._render_log_id(ti, try_number)
-        response = self.io._os_read(log_id, offset, ti)
+        log_ids = self._render_log_ids(ti, try_number)
+        # Offsets only line up within one log id, so keep reading the id that produced the stream.
+        if metadata.get("log_id") in log_ids:
+            log_ids = [metadata["log_id"]]  # type: ignore[typeddict-item]
+        for log_id in log_ids:
+            response = self.io._os_read(log_id, offset, ti)
+            if response is not None and response.hits:
+                metadata["log_id"] = log_id  # type: ignore[typeddict-unknown-key]
+                break
         if response is not None and response.hits:
             logs_by_host = self.io._group_logs_by_host(response)
             next_offset = attrgetter(self.offset_field)(response[-1])
@@ -716,7 +747,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             if int(next_offset) == 0 and cur_ts.diff(last_log_ts).in_seconds() > 5:
                 metadata["end_of_log"] = True
                 missing_log_message = (
-                    f"*** Log {log_id} not found in Opensearch. "
+                    f"*** Log {' or '.join(log_ids)} not found in Opensearch. "
                     "If your task started recently, please wait a moment and reload this page. "
                     "Otherwise, the logs for this task instance may have been removed."
                 )
@@ -1104,28 +1135,20 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
             # Logs are keyed by task instance, and ``upload`` skips logs without one.
             return [], []
         log_id_template, dag_run = _resolve_log_id_template(ti, self.log_id_template)
-        log_id = _render_log_id(
+        log_ids = _build_candidate_log_ids(
             log_id_template,
+            self.log_id_template,
             ti,
             ti.try_number,
             dag_run=dag_run,
             json_format=self.json_format,
         )
-        self.log.info("Reading log %s from Opensearch", log_id)
         responses = []
-        offset = 0
-
-        while True:
-            response = self._os_read(log_id, offset, ti)
-            if response is None or not response.hits:
+        for candidate in log_ids:
+            self.log.info("Reading log %s from Opensearch", candidate)
+            responses = self._read_all_pages(candidate, ti)
+            if responses:
                 break
-
-            responses.append(response)
-
-            next_offset = attrgetter(self.offset_field)(response[-1])
-            if next_offset == offset:
-                break
-            offset = next_offset
 
         if responses:
             grouped_logs = defaultdict(list)
@@ -1138,7 +1161,7 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
 
         if logs_by_host is None:
             missing_log_message = (
-                f"*** Log {log_id} not found in Opensearch. "
+                f"*** Log {' or '.join(log_ids)} not found in Opensearch. "
                 "If your task started recently, please wait a moment and reload this page. "
                 "Otherwise, the logs for this task instance may have been removed."
             )
@@ -1150,6 +1173,21 @@ class OpensearchRemoteLogIO(LoggingMixin):  # noqa: D101
             for hit in hits:
                 message.append(json.dumps(_build_log_fields(hit.to_dict())))
         return header, message
+
+    def _read_all_pages(self, log_id: str, ti: RuntimeTI) -> list[OpensearchResponse]:
+        responses: list[OpensearchResponse] = []
+        offset = 0
+        while True:
+            response = self._os_read(log_id, offset, ti)
+            if response is None or not response.hits:
+                return responses
+
+            responses.append(response)
+
+            next_offset = attrgetter(self.offset_field)(response[-1])
+            if next_offset == offset:
+                return responses
+            offset = next_offset
 
     def _os_read(self, log_id: str, offset: int | str, ti: RuntimeTI) -> OpensearchResponse | None:
         """Return the logs matching ``log_id`` in OpenSearch."""

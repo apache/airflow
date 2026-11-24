@@ -38,6 +38,7 @@ from airflow.providers.opensearch.log.os_response import OpensearchResponse
 from airflow.providers.opensearch.log.os_task_handler import (
     OpensearchRemoteLogIO,
     OpensearchTaskHandler,
+    _build_candidate_log_ids,
     _build_log_fields,
     _build_log_query,
     _format_error_detail,
@@ -103,6 +104,13 @@ class _MockTI:
     id: UUID = dataclasses.field(default_factory=uuid4)
 
 
+@pytest.mark.parametrize("configured_template", ["{unknown_field}", "{", "{}"])
+def test_candidate_log_ids_skip_a_configured_template_that_fails_to_render(configured_template):
+    ti = _MockTI()
+
+    assert _build_candidate_log_ids("pinned-{dag_id}", configured_template, ti, 1) == [f"pinned-{ti.dag_id}"]
+
+
 def get_ti(dag_id, task_id, logical_date, create_task_instance):
     ti = create_task_instance(
         dag_id=dag_id,
@@ -141,6 +149,16 @@ def _build_os_search_response(*sources: dict, index: str = "test_index", doc_typ
 
 def _make_os_response(search, *sources: dict) -> OpensearchResponse:
     return OpensearchResponse(search, _build_os_search_response(*sources))
+
+
+def _make_paged_os_read(search, docs_by_log_id: dict[str, list[dict]]):
+    """Build a fake ``_os_read`` that returns one document past the offset, as a page size of one would."""
+
+    def os_read(log_id, offset, ti):
+        pending = [doc for doc in docs_by_log_id.get(log_id, []) if doc["offset"] > int(offset)]
+        return _make_os_response(search, pending[0]) if pending else None
+
+    return os_read
 
 
 def _metadata_from_result(metadatas):
@@ -606,6 +624,11 @@ class TestOpensearchTaskHandler:
         self.os_task_handler.json_format = True
         assert self.os_task_handler._render_log_id(ti, 1) == self.JSON_LOG_ID
 
+    @pytest.mark.db_test
+    def test_render_log_id_does_not_render_the_configured_template(self, ti):
+        self.os_task_handler.log_id_template = "{unknown_field}"
+        assert self.os_task_handler._render_log_id(ti, 1) == self.LOG_ID
+
     def test_render_log_id_uses_the_stored_region_index_of_a_loop_pass(self):
         loop_pass = _MockTI(map_index=-1)
         loop_pass.region_index = 3
@@ -618,7 +641,105 @@ class TestOpensearchTaskHandler:
         with patch.object(self.os_task_handler.io, "_os_read", return_value=None) as mock_os_read:
             self.os_task_handler.io.read("", ti)
 
-        mock_os_read.assert_called_once_with(self.LOG_ID, 0, ti)
+        configured_log_id = _render_log_id(self.os_task_handler.io.log_id_template, ti, ti.try_number)
+        assert mock_os_read.call_args_list == [call(self.LOG_ID, 0, ti), call(configured_log_id, 0, ti)]
+
+    @pytest.fixture
+    def configured_log_id(self):
+        self.os_task_handler.log_id_template = "conf-{dag_id}-{try_number}"
+        return f"conf-{self.DAG_ID}-1"
+
+    def _make_doc(self, log_id, offset, text):
+        return {**self.base_log_source, "log_id": log_id, "offset": offset, "message": text, "event": text}
+
+    @pytest.mark.db_test
+    def test_read_falls_back_to_configured_template_when_pinned_finds_nothing(self, ti, configured_log_id):
+        ti.state = TaskInstanceState.SUCCESS
+        response = _make_os_response(
+            self.os_task_handler.io, {**self.base_log_source, "log_id": configured_log_id}
+        )
+
+        def os_read(log_id, offset, ti):
+            return response if log_id == configured_log_id else None
+
+        with patch.object(self.os_task_handler.io, "_os_read", side_effect=os_read) as mock_os_read:
+            logs, metadatas = self.os_task_handler.read(ti, 1, {"offset": 0})
+
+        assert [c.args[0] for c in mock_os_read.call_args_list] == [self.LOG_ID, configured_log_id]
+        _assert_log_events(
+            logs, metadatas, expected_events=[self.test_message], expected_sources=["http://localhost"]
+        )
+
+    @pytest.mark.db_test
+    def test_read_keeps_polling_the_pinned_id_once_it_produced_the_stream(self, ti, configured_log_id):
+        ti.state = TaskInstanceState.SUCCESS
+        io = self.os_task_handler.io
+        docs = {
+            self.LOG_ID: [self._make_doc(self.LOG_ID, 1, "pinned")],
+            configured_log_id: [self._make_doc(configured_log_id, 2, "configured")],
+        }
+
+        with patch.object(io, "_os_read", side_effect=_make_paged_os_read(io, docs)) as mock_os_read:
+            logs, metadatas = self.os_task_handler.read(ti, 1, {"offset": 0})
+            metadata = _assert_log_events(
+                logs, metadatas, expected_events=["pinned"], expected_sources=["http://localhost"]
+            )
+            mock_os_read.reset_mock()
+            logs, metadatas = self.os_task_handler.read(ti, 1, metadata)
+
+        assert mock_os_read.call_args_list == [call(self.LOG_ID, "1", ti)]
+        _assert_no_logs(logs, metadatas)
+
+    @pytest.mark.db_test
+    def test_read_keeps_polling_the_configured_id_once_it_produced_the_stream(self, ti, configured_log_id):
+        ti.state = TaskInstanceState.SUCCESS
+        io = self.os_task_handler.io
+        docs = {
+            configured_log_id: [
+                self._make_doc(configured_log_id, 1, "first"),
+                self._make_doc(configured_log_id, 2, "second"),
+            ]
+        }
+
+        with patch.object(io, "_os_read", side_effect=_make_paged_os_read(io, docs)) as mock_os_read:
+            logs, metadatas = self.os_task_handler.read(ti, 1, {"offset": 0})
+            metadata = _assert_log_events(
+                logs, metadatas, expected_events=["first"], expected_sources=["http://localhost"]
+            )
+            mock_os_read.reset_mock()
+            logs, metadatas = self.os_task_handler.read(ti, 1, metadata)
+
+        assert mock_os_read.call_args_list == [call(configured_log_id, "1", ti)]
+        _assert_log_events(logs, metadatas, expected_events=["second"], expected_sources=["http://localhost"])
+
+    @pytest.mark.db_test
+    def test_read_ignores_a_metadata_log_id_that_is_not_a_candidate(self, ti, configured_log_id):
+        ti.state = TaskInstanceState.SUCCESS
+        io = self.os_task_handler.io
+        docs = {self.LOG_ID: [self._make_doc(self.LOG_ID, 1, "pinned")]}
+
+        with patch.object(io, "_os_read", side_effect=_make_paged_os_read(io, docs)) as mock_os_read:
+            logs, metadatas = self.os_task_handler.read(
+                ti, 1, {"offset": 0, "log_id": "id-from-a-previous-template"}
+            )
+
+        assert mock_os_read.call_args_list == [call(self.LOG_ID, 0, ti)]
+        metadata = _assert_log_events(
+            logs, metadatas, expected_events=["pinned"], expected_sources=["http://localhost"]
+        )
+        assert metadata["log_id"] == self.LOG_ID
+
+    @pytest.mark.db_test
+    def test_read_missing_logs_names_every_log_id_it_queried(self, ti, configured_log_id):
+        ti.state = TaskInstanceState.SUCCESS
+        start_time = pendulum.now().add(seconds=-6)
+        with patch.object(self.os_task_handler.io, "_os_read", return_value=None):
+            logs, _ = self.os_task_handler.read(
+                ti, 1, {"offset": 0, "last_log_timestamp": str(start_time), "end_of_log": False}
+            )
+
+        message = next(iter(logs)).event if AIRFLOW_V_3_0_PLUS else logs[0][0][1]
+        assert f"*** Log {self.LOG_ID} or {configured_log_id} not found in Opensearch" in message
 
     @pytest.fixture
     def _log_template_from_config(self):
@@ -633,6 +754,7 @@ class TestOpensearchTaskHandler:
             last_id = session.scalar(select(func.max(LogTemplate.id))) or 0
         with conf_vars(
             {
+                ("logging", "remote_logging"): "True",
                 ("elasticsearch", "host"): "",
                 ("elasticsearch", "log_id_template"): "es-{dag_id}-{try_number}",
                 ("opensearch", "host"): "http://localhost",
@@ -655,7 +777,11 @@ class TestOpensearchTaskHandler:
         with patch.object(self.os_task_handler.io, "_os_read", return_value=None) as mock_os_read:
             self.os_task_handler.io.read("", ti)
 
-        assert mock_os_read.call_args_list[0] == call(f"os-{self.DAG_ID}-1", 0, ti)
+        configured_log_id = _render_log_id(self.os_task_handler.io.log_id_template, ti, ti.try_number)
+        assert mock_os_read.call_args_list == [
+            call(f"os-{self.DAG_ID}-1", 0, ti),
+            call(configured_log_id, 0, ti),
+        ]
 
     def test_clean_date(self):
         clean_logical_date = OpensearchTaskHandler._clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
@@ -921,6 +1047,19 @@ class TestOpensearchRemoteLogIO:
         assert log_source_info == []
         assert f"*** Log {log_id} not found in Opensearch" in log_messages[0]
 
+    def test_read_missing_log_message_names_every_log_id_it_queried(self, ti):
+        configured_log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        with (
+            patch(
+                "airflow.providers.opensearch.log.os_task_handler._resolve_log_id_template",
+                return_value=("pinned-{dag_id}", None),
+            ),
+            patch.object(self.opensearch_io, "_os_read", return_value=None),
+        ):
+            _, log_messages = self.opensearch_io.read("", ti)
+
+        assert f"*** Log pinned-{ti.dag_id} or {configured_log_id} not found in Opensearch" in log_messages[0]
+
     def test_read_returns_all_logs_when_exceeding_page_size(self, ti):
         log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
 
@@ -972,6 +1111,30 @@ class TestOpensearchRemoteLogIO:
         mock_import_string.assert_called_once_with("path.to.index_pattern_callable")
         mock_callable.assert_called_once_with({})
         assert result == "callable_index_pattern"
+
+    def test_read_falls_back_to_configured_template_for_documents_without_ti_id(self, ti):
+        configured_log_id = _render_log_id(self.opensearch_io.log_id_template, ti, ti.try_number)
+        doc = {"event": "written by an older worker", "log_id": configured_log_id, "offset": 1}
+        pages = {configured_log_id: [_make_os_response(self.opensearch_io, doc), None]}
+
+        def os_read(log_id, offset, ti):
+            return pages.get(log_id, [None]).pop(0)
+
+        with (
+            patch(
+                "airflow.providers.opensearch.log.os_task_handler._resolve_log_id_template",
+                return_value=("pinned-{dag_id}", None),
+            ),
+            patch.object(self.opensearch_io, "_os_read", side_effect=os_read) as mock_os_read,
+        ):
+            _, log_messages = self.opensearch_io.read("", ti)
+
+        assert [json.loads(m)["event"] for m in log_messages] == ["written by an older worker"]
+        assert mock_os_read.call_args_list == [
+            call(f"pinned-{ti.dag_id}", 0, ti),
+            call(configured_log_id, 0, ti),
+            call(configured_log_id, 1, ti),
+        ]
 
     def test_upload_returns_early_when_ti_is_none(self, tmp_path):
         log_file = tmp_path / "1.log"
