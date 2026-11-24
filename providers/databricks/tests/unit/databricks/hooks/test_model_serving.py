@@ -473,17 +473,18 @@ class TestDatabricksServingAuth:
         handler.assert_not_called()
 
     @pytest.mark.parametrize(
-        ("login", "expected"),
+        ("login", "password", "expected"),
         [
-            pytest.param("token", "Bearer the-pat", id="login-token-is-a-pat"),
-            pytest.param(None, "Bearer the-pat", id="empty-login-is-a-pat"),
-            pytest.param("some-user", None, id="other-login-is-not-a-pat"),
+            pytest.param("token", "the-pat", "Bearer the-pat", id="login-token-is-a-pat"),
+            pytest.param(None, "the-pat", "Bearer the-pat", id="empty-login-is-a-pat"),
+            pytest.param("some-user", "the-pat", None, id="other-login-is-not-a-pat"),
+            pytest.param("token", None, None, id="login-token-without-password-is-not-configured"),
         ],
     )
-    def test_auth_flow_treats_login_token_with_password_as_pat(self, login, expected):
+    def test_auth_flow_treats_login_token_with_password_as_pat(self, login, password, expected):
         """The base hook sends Login ``token`` as Basic auth; serving endpoints need a Bearer header."""
         databricks_conn = Connection(
-            conn_type="databricks", host="adb-1.azuredatabricks.net", login=login, password="the-pat"
+            conn_type="databricks", host="adb-1.azuredatabricks.net", login=login, password=password
         )
         seen_auth_headers = []
 
