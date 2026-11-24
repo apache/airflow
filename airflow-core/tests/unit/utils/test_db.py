@@ -22,6 +22,7 @@ import os
 import re
 from contextlib import nullcontext, redirect_stdout
 from io import StringIO
+from unittest import mock
 
 import pytest
 from alembic.autogenerate import compare_metadata
@@ -30,11 +31,12 @@ from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
-from sqlalchemy import Column, Integer, MetaData, String, Table, delete, select
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, MetaData, String, Table, delete, func, select
+from sqlalchemy.orm import Session, declarative_base
 
 from airflow import settings
 from airflow.models import Base as airflow_base
+from airflow.models.tasklog import LogTemplate
 from airflow.models.team import Team
 from airflow.utils.db import (
     AutocommitEngineForMySQL,
@@ -499,6 +501,99 @@ class TestReflectTablesSchemaQualified:
         synchronize_log_template(session=session)
 
         session.execute.assert_called()
+
+
+class TestSynchronizeLogTemplate:
+    @pytest.fixture(autouse=True)
+    def _restore_log_templates(self):
+        with create_session() as session:
+            last_id = session.scalar(select(func.max(LogTemplate.id))) or 0
+        yield
+        with create_session() as session:
+            session.execute(delete(LogTemplate).where(LogTemplate.id > last_id))
+
+    def _get_latest_log_id_template(self) -> str | None:
+        with create_session() as session:
+            return session.scalars(
+                select(LogTemplate.elasticsearch_id).order_by(LogTemplate.id.desc())
+            ).first()
+
+    @pytest.mark.parametrize(
+        ("remote_logging", "es_host", "os_host", "os_template", "expected"),
+        [
+            pytest.param("True", "", "", "os-{dag_id}", "es-{dag_id}", id="no-host"),
+            pytest.param("True", "http://es", "", "os-{dag_id}", "es-{dag_id}", id="elasticsearch"),
+            pytest.param("True", "", "http://os", "os-{dag_id}", "os-{dag_id}", id="opensearch"),
+            pytest.param(
+                "True",
+                "http://es",
+                "http://os",
+                "os-{dag_id}",
+                "es-{dag_id}",
+                id="both-prefers-elasticsearch",
+            ),
+            pytest.param("False", "", "http://os", "os-{dag_id}", "es-{dag_id}", id="remote-logging-off"),
+            pytest.param(
+                "True",
+                "",
+                "http://os",
+                "",
+                "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+                id="empty-opensearch-template-uses-default",
+            ),
+        ],
+    )
+    def test_saves_the_log_id_template_of_the_configured_backend(
+        self, remote_logging, es_host, os_host, os_template, expected
+    ):
+        with conf_vars(
+            {
+                ("logging", "remote_logging"): remote_logging,
+                ("elasticsearch", "host"): es_host,
+                ("elasticsearch", "log_id_template"): "es-{dag_id}",
+                ("opensearch", "host"): os_host,
+                ("opensearch", "log_id_template"): os_template,
+            }
+        ):
+            synchronize_log_template()
+
+        assert self._get_latest_log_id_template() == expected
+
+    @pytest.mark.parametrize(
+        ("os_template", "expected"),
+        [
+            pytest.param("os-{dag_id}", ["os-{dag_id}"], id="custom-template-is-not-seeded"),
+            pytest.param(
+                "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+                [
+                    "{dag_id}-{task_id}-{logical_date}-{try_number}",
+                    "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
+                ],
+                id="default-template-is-seeded",
+            ),
+        ],
+    )
+    @mock.patch("airflow.utils.db.reflect_tables", autospec=True)
+    def test_seeds_the_legacy_template_only_for_the_default_opensearch_template(
+        self, mock_reflect_tables, os_template, expected
+    ):
+        metadata = MetaData()
+        LogTemplate.__table__.to_metadata(metadata)
+        mock_reflect_tables.return_value = metadata
+        session = mock.create_autospec(Session, instance=True)
+        session.execute.return_value.first.return_value = None
+
+        with conf_vars(
+            {
+                ("logging", "remote_logging"): "True",
+                ("elasticsearch", "host"): "",
+                ("opensearch", "host"): "http://os",
+                ("opensearch", "log_id_template"): os_template,
+            }
+        ):
+            synchronize_log_template(session=session)
+
+        assert [call.args[0].elasticsearch_id for call in session.add.call_args_list] == expected
 
 
 class TestAutocommitEngineForMySQL:
