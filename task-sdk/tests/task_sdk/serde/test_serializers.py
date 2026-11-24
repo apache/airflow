@@ -31,7 +31,7 @@ import pendulum.tz
 import pytest
 from cryptography.fernet import Fernet
 from dateutil.tz import tzutc
-from kubernetes.client import models as k8s
+from kubernetes.client import ApiClient, models as k8s
 from packaging import version
 from pendulum import Date, DateTime
 from pendulum.tz.timezone import FixedTimezone, Timezone
@@ -430,12 +430,11 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, payload)
 
-    def test_kubernetes_serializer(self, monkeypatch):
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+    @patch.object(ApiClient, "sanitize_for_serialization", autospec=True, side_effect=Exception("fail"))
+    def test_kubernetes_serializer(self, mock_sanitize):
         from airflow.sdk.serde.serializers.kubernetes import serialize
 
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))
-        monkeypatch.setattr(PodGenerator, "serialize_pod", lambda o: (_ for _ in ()).throw(Exception("fail")))
         assert serialize(pod) == ("", "", 0, False)
         assert serialize(123) == ("", "", 0, False)
 

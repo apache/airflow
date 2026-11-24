@@ -38,14 +38,12 @@ log = logging.getLogger(__name__)
 
 
 def serialize(o: object) -> tuple[U, str, int, bool]:
-    from kubernetes.client import models as k8s
+    from kubernetes.client import ApiClient, models as k8s
 
     if not k8s:
         return "", "", 0, False
 
     if isinstance(o, (k8s.V1Pod, k8s.V1ResourceRequirements)):
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-
         # We're running this in an except block, so we don't want it to fail
         # under any circumstances, e.g. accessing a non-existing attribute.
         def safe_get_name(pod):
@@ -55,7 +53,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
                 return None
 
         try:
-            return PodGenerator.serialize_pod(o), qualname(o), __version__, True
+            return ApiClient().sanitize_for_serialization(o), qualname(o), __version__, True
         except Exception:
             log.warning("Serialization failed for pod %s", safe_get_name(o))
             log.debug("traceback for serialization error", exc_info=True)

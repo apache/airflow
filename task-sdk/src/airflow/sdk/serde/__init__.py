@@ -231,7 +231,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
         qn = "builtins.tuple"
         classname = qn
 
-    if is_pydantic_model(o):
+    if qn not in _serializers and is_pydantic_model(o):
         # to match the generic Pydantic serializer and deserializer in _serializers and _deserializers
         qn = PYDANTIC_MODEL_QUALNAME
         # the actual Pydantic model class to encode
