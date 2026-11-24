@@ -1675,7 +1675,6 @@ class DagRun(Base, LoggingMixin):
         unfinished_tis = list(_filter_tis_and_exclude_removed(dag, unfinished_tis))
         finished_tis: list[SchedulingTI] = list(_build_finished_tis(dag, finished_rows))
 
-        retry_timeout_expired = False
         retry_timeout_expired_tis: list[TI] = []
         now = timezone.utcnow()
         for ti in unfinished_tis:
@@ -1695,7 +1694,6 @@ class DagRun(Base, LoggingMixin):
                     continue
                 ti.retry_timeout_deadline = failed_at + ti.task.retry_timeout
             if ti.retry_timeout_deadline <= now and ti.set_state(TaskInstanceState.FAILED, session=session):
-                retry_timeout_expired = True
                 retry_timeout_expired_tis.append(ti)
 
         if unfinished_tis:
@@ -1706,7 +1704,7 @@ class DagRun(Base, LoggingMixin):
                 finished_tis,
                 session=session,
             )
-            changed_tis |= retry_timeout_expired
+            changed_tis |= bool(retry_timeout_expired_tis)
 
             # During expansion, we may change some tis into non-schedulable
             # states, so we need to re-compute.
