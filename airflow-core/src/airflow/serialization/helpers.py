@@ -19,22 +19,24 @@
 from __future__ import annotations
 
 import contextlib
-import inspect
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from airflow._shared.module_loading import qualname
 from airflow._shared.secrets_masker import redact
+from airflow._shared.serialization.typing import has_serialize, has_to_dict
 from airflow._shared.template_rendering import truncate_rendered_value
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
+    from pydantic import JsonValue
+
     from airflow.models.deadline import DeadlineReferenceType
     from airflow.partition_mappers.base import PartitionMapper
     from airflow.partition_mappers.window import Window
     from airflow.timetables.base import Timetable as CoreTimetable
 
 
-def serialize_template_field(template_field: Any, name: str) -> str | dict | list | int | float | bool | None:
+def serialize_template_field(template_field: object, name: str) -> JsonValue:
     """
     Return a serializable representation of the templated field.
 
@@ -50,13 +52,13 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
        the same input always produces the same string.
     """
 
-    def normalize_dict_key(key) -> str:
+    def normalize_dict_key(key: object) -> str:
         """Normalize a dict key to a serialized string type."""
         # Serialized template_field keys must all be strings, not a mix of types, so that
         # downstream json.dumps(..., sort_keys=True) does not raise on mixed-type keys.
         return str(serialize_object(key))
 
-    def serialize_object(obj):
+    def serialize_object(obj: object) -> JsonValue:
         """Recursively rewrite ``obj`` into a JSON-encodable, hash-stable structure."""
         if obj is None or isinstance(obj, (str, int, float, bool)):
             return obj
@@ -77,7 +79,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
             return sorted(serialized_set, key=lambda x: (type(x).__name__, str(x)))
 
         # Use inspect.getattr_static to bypass any custom __getattr__ / metaclass magic
-        if callable(inspect.getattr_static(obj, "serialize", None)):
+        if has_serialize(obj):
             return serialize_object(obj.serialize())
 
         # Kubernetes client objects (V1Pod, V1Container, ...) expose their content via to_dict().
@@ -85,7 +87,7 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
         # define a to_dict() method fall through to str() instead of being treated as K8s payloads.
         if getattr(type(obj), "__module__", "").startswith(
             ("kubernetes.", "kubernetes_asyncio.")
-        ) and callable(inspect.getattr_static(obj, "to_dict", None)):
+        ) and has_to_dict(obj):
             return serialize_object(obj.to_dict())
 
         if callable(obj):
