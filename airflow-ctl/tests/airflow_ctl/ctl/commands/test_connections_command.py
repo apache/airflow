@@ -103,6 +103,38 @@ class TestCliConnectionCommands:
             api_client=api_client,
         )
 
+    @pytest.mark.parametrize(
+        ("flags", "expected_env"),
+        [
+            ([], "production"),
+            (["--env", "staging"], "staging"),
+            (["-e", "staging"], "staging"),
+        ],
+    )
+    def test_import_uses_environment(self, tmp_path, flags, expected_env):
+        connections_file = tmp_path / self.export_file_name
+        connections_file.write_text(json.dumps({self.connection_id: {"conn_type": "http"}}))
+
+        mock_client = mock.MagicMock(spec=Client)
+        mock_response = mock.MagicMock()
+        mock_response.create.success = [self.connection_id]
+        mock_response.create.errors = []
+        mock_client.connections.bulk.return_value = mock_response
+
+        with mock.patch("airflowctl.api.client.get_client") as mock_get_client:
+            mock_get_client.return_value.__enter__.return_value = mock_client
+
+            args = self.parser.parse_args(
+                ["connections", "import", connections_file.as_posix(), *flags]
+            )
+            connection_command.import_(args)
+
+        mock_get_client.assert_called_once_with(
+            kind=ClientKind.CLI,
+            api_token=None,
+            api_environment=expected_env,
+        )
+
     def test_import_error(self, api_client_maker, tmp_path, monkeypatch):
         api_client = api_client_maker(
             path="/api/v2/connections",
