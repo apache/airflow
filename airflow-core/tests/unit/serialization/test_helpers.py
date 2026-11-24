@@ -17,12 +17,40 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 
 import pytest
 
 from airflow.sdk.definitions._internal.types import SET_DURING_EXECUTION
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.serialization.helpers import serialize_template_field
+
+from tests_common.test_utils.config import conf_vars
+
+
+@pytest.mark.parametrize("max_length", [1000, 120], ids=["short", "oversized"])
+@mock.patch("airflow.serialization.helpers.normalize_template_field", autospec=True)
+@mock.patch("airflow.serialization.helpers.redact", autospec=True)
+def test_serialize_template_field_delegates_normalization(mock_redact, mock_normalize, max_length):
+    original = object()
+    normalized = {"password": "sensitive", "padding": "x" * 200}
+    redacted = {"password": "***", "padding": "x" * 200}
+    mock_normalize.return_value = normalized
+    mock_redact.return_value = redacted
+
+    with conf_vars({("core", "max_templated_field_length"): str(max_length)}):
+        result = serialize_template_field(original, "field")
+
+    mock_normalize.assert_called_once_with(original)
+    assert mock_normalize.call_args.args[0] is original
+    if max_length == 1000:
+        assert result is normalized
+        mock_redact.assert_not_called()
+    else:
+        mock_redact.assert_called_once_with(normalized, "field")
+        assert mock_redact.call_args.args[0] is normalized
+        prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
+        assert result == prefix + str(redacted)[: max_length - len(prefix) - 3].rstrip() + "..."
 
 
 def test_serialize_template_field_with_very_small_max_length(monkeypatch):

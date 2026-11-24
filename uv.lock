@@ -9665,6 +9665,7 @@ source = { editable = "shared/serialization" }
 [package.dev-dependencies]
 dev = [
     { name = "apache-airflow-devel-common" },
+    { name = "apache-airflow-shared-module-loading" },
 ]
 mypy = [
     { name = "apache-airflow-devel-common", extra = ["mypy"] },
@@ -9673,7 +9674,10 @@ mypy = [
 [package.metadata]
 
 [package.metadata.requires-dev]
-dev = [{ name = "apache-airflow-devel-common", editable = "devel-common" }]
+dev = [
+    { name = "apache-airflow-devel-common", editable = "devel-common" },
+    { name = "apache-airflow-shared-module-loading", editable = "shared/module_loading" },
+]
 mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
 
 [[package]]
