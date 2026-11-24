@@ -3422,6 +3422,7 @@ salesforce = [
     { name = "apache-airflow-providers-salesforce" },
 ]
 sqlalchemy = [
+    { name = "pyathena", extra = ["sqlalchemy"] },
     { name = "sqlalchemy", version = "2.0.57", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "sqlalchemy", version = "2.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
 ]
@@ -3514,7 +3515,8 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version == '3.13.*' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.13' and extra == 'parquet'", specifier = ">=16.1.0" },
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
-    { name = "pyathena", specifier = ">=3.10.0" },
+    { name = "pyathena", specifier = ">=3.28.0" },
+    { name = "pyathena", extras = ["sqlalchemy"], marker = "extra == 'sqlalchemy'", specifier = ">=3.28.0" },
     { name = "python3-saml", marker = "python_full_version < '3.13' and extra == 'python3-saml'", specifier = ">=1.16.0" },
     { name = "redshift-connector", specifier = ">=2.1.3" },
     { name = "redshift-connector", marker = "python_full_version >= '3.14'", specifier = ">=2.1.13" },
@@ -21378,6 +21380,12 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/39/16/6a3b9b94ccf12985885709b2fd832335c5e1c27cb61e32156fdc8f077f7f/pyathena-4.2.1.tar.gz", hash = "sha256:9f73e90b355a7ac5cc75b2d615609e52ccff27726be8eadb3c755ff39a92a549", size = 330992, upload-time = "2026-10-23T09:57:17.148Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/02/13/7b5fd9908a7e866d86e45e0f5ef25a076a5b712232a89cddf727bca7022e/pyathena-4.2.1-py3-none-any.whl", hash = "sha256:286839797fc6e830c6e080c15eccd4ed63ddefae238b1fb0156ad395c1422153", size = 405045, upload-time = "2026-10-23T09:57:15.201Z" },
+]
+
+[package.optional-dependencies]
+sqlalchemy = [
+    { name = "sqlalchemy", version = "2.0.57", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
+    { name = "sqlalchemy", version = "2.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
 ]
 
 [[package]]

@@ -66,7 +66,7 @@ PIP package                                 Version required
 ``redshift_connector``                      ``>=2.1.13; python_version >= "3.14"``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
-``PyAthena``                                ``>=3.10.0``
+``PyAthena``                                ``>=3.28.0``
 ``jmespath``                                ``>=0.7.0``
 ``sagemaker-studio``                        ``>=1.0.25,<1.1.0``
 ``marshmallow``                             ``>=3``
@@ -132,7 +132,7 @@ Extra                 Dependencies
 ``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``, ``duckdb>=1.2.2``
-``sqlalchemy``        ``sqlalchemy>=1.4.54,!=2.1.0``
+``sqlalchemy``        ``PyAthena[sqlalchemy]>=3.28.0``, ``sqlalchemy>=1.4.54,!=2.1.0``
 ====================  ======================================================================================================================================================================
 
 The changelog for the provider package can be found in the
