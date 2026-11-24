@@ -260,7 +260,7 @@ interface LoopMappedTaskRef<T = unknown> extends MappedTaskRef<T> {
 
 /**
  * `TaskRef` gains the same three, through a `this` parameter that admits only a reference to an
- * array or a record, so `extract().map(...)` on a `TaskRef<number>` is a compile error.
+ * array or a record, so `.map(...)` on a `TaskRef<number>` is a compile error.
  */
 interface TaskRef<TReturn> {
   map<U>(this: TaskRef<HasElements>, fn: MapCallable<ElementOf<TReturn>, U>): MapSource<U>;
@@ -451,9 +451,10 @@ before `"2"`. The payload is written in that order, and that is the expansion or
   `TaskRef`, as ADR-0003 found. The types above check what mapping adds without tightening it:
   expand sources and `MappedTaskRef` carry their element type, and neither is a `TaskRef`.
 - **No new runtime surface beyond ADR-0016's steps.** The handler is called with one instance's
-  values or an `XComSequence`. `SkipError`, `setRenderedMapIndex`, `expandedTiCount` and
-  `XComSequence` are the only new exports. `SkipError` is the runtime's first general skip; until
-  now only a `triggerDagRun` task ended `skipped`.
+  values or an `XComSequence`. `SkipError` is the only new value export. The rest is types
+  (`MappedTaskRef`, `XComSequence` and the source types above) and two members,
+  `getClient().setRenderedMapIndex` and `getContext().expandedTiCount`. `SkipError` is the runtime's
+  first general skip; until now only a `triggerDagRun` task ended `skipped`.
 - **Removing `mapIndexTemplate` from `TaskSpec` breaks a Dag that sets it.** It no longer
   compiles, and a Dag read rejects it where the types do not reach. Today that Dag serializes a
   template nothing renders, so the break surfaces a setting that never worked.
