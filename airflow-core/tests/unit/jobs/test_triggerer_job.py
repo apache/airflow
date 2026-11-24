@@ -105,7 +105,7 @@ from airflow.sdk.api.client import Client, TaskInstanceOperations
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
 from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
@@ -464,6 +464,7 @@ class InProcessTriggerComms:
         self._request_decoder = msgspec.msgpack.Decoder(_RequestFrame)
         self._response_decoder = msgspec.msgpack.Decoder(_ResponseFrame)
         self._body_decoder: TypeAdapter[ToTriggerRunner] = TypeAdapter(ToTriggerRunner)
+        self._error_decoder: TypeAdapter[ErrorResponse] = TypeAdapter(ErrorResponse)
 
     async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
         # Stamped the way TriggerCommsDecoder.asend does it: with no TI in scope the
@@ -478,7 +479,10 @@ class InProcessTriggerComms:
         (raw,), _ = self._stdin.sendall.call_args
         response = self._response_decoder.decode(raw[4:])
         assert response.id == frame.id
-        assert response.error is None, response.error
+        if response.error is not None:
+            # Raised, not asserted, so a caller meets the exception CommsDecoder._from_frame
+            # raises for the same response.
+            raise AirflowRuntimeError(error=self._error_decoder.validate_python(response.error))
         return self._body_decoder.validate_python(response.body)
 
 
@@ -6294,7 +6298,7 @@ async def test_a_rejected_rendered_fields_write_does_not_end_the_trigger(
 def test_supervisor_drops_rendered_fields_sent_outside_a_trigger_request(jobless_supervisor, mocker):
     """Fields that arrive with no task instance in scope are dropped, and the drop is logged."""
     jobless_supervisor.client = mocker.MagicMock(spec=Client)
-    mocker.patch.object(TriggerRunnerSupervisor, "send_msg")
+    send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
     log = MagicMock(spec=FilteringBoundLogger)
 
     jobless_supervisor._handle_request(
@@ -6303,7 +6307,7 @@ def test_supervisor_drops_rendered_fields_sent_outside_a_trigger_request(jobless
 
     jobless_supervisor.client.task_instances.set_rtif.assert_not_called()
     log.warning.assert_called_once_with("Dropping rendered fields sent outside a trigger request")
-    jobless_supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
+    send_msg.assert_called_once_with(jobless_supervisor, OKResponse(ok=True), request_id=7, error=None)
 
 
 @pytest.mark.asyncio
@@ -6320,7 +6324,7 @@ async def test_record_rendered_fields_skips_a_trigger_with_no_template_fields(mo
 def test_supervisor_records_rendered_fields_for_the_handled_trigger(jobless_supervisor, mocker):
     """The supervisor records the fields against the task instance whose trigger sent them."""
     jobless_supervisor.client = mocker.MagicMock(spec=Client)
-    mocker.patch.object(TriggerRunnerSupervisor, "send_msg")
+    send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
     ti_id = uuid.uuid4()
 
     token = _handling_trigger_ti_id.set(ti_id)
@@ -6336,4 +6340,4 @@ def test_supervisor_records_rendered_fields_for_the_handled_trigger(jobless_supe
     jobless_supervisor.client.task_instances.set_rtif.assert_called_once_with(
         ti_id, {"target_time": "2026-01-01"}
     )
-    jobless_supervisor.send_msg.assert_called_once_with(OKResponse(ok=True), request_id=7, error=None)
+    send_msg.assert_called_once_with(jobless_supervisor, OKResponse(ok=True), request_id=7, error=None)
