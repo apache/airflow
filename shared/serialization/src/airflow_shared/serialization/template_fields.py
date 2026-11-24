@@ -16,13 +16,35 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import inspect
+from typing import TYPE_CHECKING, Protocol, TypeGuard
 
 from ..module_loading import qualname
-from .typing import has_serialize, has_to_dict
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
+
+
+class SupportsSerialize(Protocol):
+    """An object with a no-argument serialization method."""
+
+    def serialize(self) -> object: ...
+
+
+class SupportsToDict(Protocol):
+    """An object with a no-argument dictionary conversion method."""
+
+    def to_dict(self) -> object: ...
+
+
+def has_serialize(obj: object) -> TypeGuard[SupportsSerialize]:
+    """Check for a callable serialize attribute without invoking user attribute hooks."""
+    return callable(inspect.getattr_static(obj, "serialize", None))
+
+
+def has_to_dict(obj: object) -> TypeGuard[SupportsToDict]:
+    """Check for a callable to_dict attribute without invoking user attribute hooks."""
+    return callable(inspect.getattr_static(obj, "to_dict", None))
 
 
 def normalize_template_field(template_field: object) -> JsonValue:

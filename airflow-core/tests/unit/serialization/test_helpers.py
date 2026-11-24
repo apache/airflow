@@ -32,6 +32,7 @@ from tests_common.test_utils.config import conf_vars
 @mock.patch("airflow.serialization.helpers.normalize_template_field", autospec=True)
 @mock.patch("airflow.serialization.helpers.redact", autospec=True)
 def test_serialize_template_field_delegates_normalization(mock_redact, mock_normalize, max_length):
+    """Verify core delegates normalization but retains its own masking and truncation."""
     original = object()
     normalized = {"password": "sensitive", "padding": "x" * 200}
     redacted = {"password": "***", "padding": "x" * 200}

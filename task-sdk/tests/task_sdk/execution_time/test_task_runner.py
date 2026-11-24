@@ -7872,6 +7872,7 @@ def test_stats_tags_dag_tags_disabled_by_default(create_runtime_ti):
 @mock.patch("airflow.sdk.execution_time.task_runner.normalize_template_field", autospec=True)
 @mock.patch("airflow.sdk._shared.secrets_masker.redact", autospec=True)
 def test_serialize_template_field_delegates_normalization(mock_redact, mock_normalize, max_length):
+    """Verify the SDK delegates normalization but retains its own masking and truncation."""
     original = object()
     normalized = {"password": "sensitive", "padding": "x" * 200}
     redacted = {"password": "***", "padding": "x" * 200}
