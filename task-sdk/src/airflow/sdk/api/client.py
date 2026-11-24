@@ -618,6 +618,9 @@ class VariableOperations:
         return VariableKeysResponse.model_validate_json(resp.read())
 
 
+_OMITTED_MAP_INDEX_RESOLVED_VERSION = "2027-02-28"
+
+
 def _build_xcom_slice_path(xcom_path: str) -> str:
     return f"{xcom_path}/slice"
 
@@ -705,6 +708,7 @@ class XComOperations:
                 map_index,
                 include_prior_dates=include_prior_dates,
                 previous_iteration=previous_iteration,
+                server_version=e.response.headers.get("Airflow-API-Version", API_VERSION),
             )
             if mapped is not None:
                 return mapped
@@ -736,6 +740,7 @@ class XComOperations:
         *,
         include_prior_dates: bool,
         previous_iteration: bool,
+        server_version: str,
     ) -> XComSequenceSliceResponse | None:
         """
         Read a mapped task's values from the slice endpoint.
@@ -747,6 +752,8 @@ class XComOperations:
         mixes earlier runs' values.
         """
         if map_index is not None or include_prior_dates:
+            return None
+        if server_version >= _OMITTED_MAP_INDEX_RESOLVED_VERSION:
             return None
         response = self.get_sequence_slice(
             dag_id,

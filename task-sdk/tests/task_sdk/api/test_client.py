@@ -70,6 +70,8 @@ from airflow.sdk.execution_time.comms import (
 if TYPE_CHECKING:
     from time_machine import TimeMachineFixture
 
+MAP_INDEX_UNRESOLVED_SERVER_HEADERS = {"Airflow-API-Version": "2026-10-30"}
+
 
 @pytest.fixture
 def ca_file(tmp_path):
@@ -1360,7 +1362,9 @@ class TestXCOMOperations:
             if request.url.path.endswith("/slice"):
                 return httpx2.Response(status_code=200, json=slice_values)
             return httpx2.Response(
-                status_code=404, json={"detail": {"reason": "not_found", "message": "XCom not found"}}
+                status_code=404,
+                headers=MAP_INDEX_UNRESOLVED_SERVER_HEADERS,
+                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
             )
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
@@ -1378,6 +1382,7 @@ class TestXCOMOperations:
                 return httpx2.Response(status_code=403, json={"detail": "Forbidden"})
             return httpx2.Response(
                 status_code=404,
+                headers=MAP_INDEX_UNRESOLVED_SERVER_HEADERS,
                 json={"detail": {"reason": "not_found", "message": "XCom not found"}},
             )
 
@@ -1388,19 +1393,21 @@ class TestXCOMOperations:
         assert ctx.value.response.status_code == 403
 
     @pytest.mark.parametrize(
-        "kwargs",
+        ("kwargs", "headers"),
         [
-            pytest.param({"map_index": -1}, id="explicit-map-index"),
-            pytest.param({"include_prior_dates": True}, id="prior-dates"),
+            pytest.param({"map_index": -1}, {}, id="explicit-map-index"),
+            pytest.param({"include_prior_dates": True}, {}, id="prior-dates"),
+            pytest.param({}, {"Airflow-API-Version": "2027-02-28"}, id="server-resolves-map-index"),
         ],
     )
-    def test_xcom_get_does_not_read_the_slice(self, kwargs):
+    def test_xcom_get_does_not_read_the_slice(self, kwargs, headers):
         requests = []
 
         def handle_request(request: httpx2.Request) -> httpx2.Response:
             requests.append(request)
             return httpx2.Response(
                 status_code=404,
+                headers=headers,
                 json={"detail": {"reason": "not_found", "message": "XCom not found"}},
             )
 
