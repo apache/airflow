@@ -18,10 +18,11 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, HTTPException, Query, Response, status
 from sqlalchemy import delete, select
 
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.hidden_entries import set_list_incomplete_header
 from airflow.api_fastapi.common.parameters import (
     QueryLimit,
     QueryOffset,
@@ -48,6 +49,7 @@ from airflow.api_fastapi.core_api.services.public.variables import (
 )
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.models.variable import Variable
+from airflow.secrets.environment_variables import VAR_ENV_PREFIX
 
 variables_router = AirflowRouter(tags=["Variable"], prefix="/variables")
 
@@ -113,6 +115,7 @@ def get_variables(
     session: SessionDep,
     variable_key_pattern: QueryVariableKeyPatternSearch,
     variable_key_prefix_pattern: QueryVariableKeyPrefixPatternSearch,
+    response: Response,
 ) -> VariableCollectionResponse:
     """Get all Variables entries."""
     variable_select, total_entries = paginated_select(
@@ -125,6 +128,8 @@ def get_variables(
     )
 
     variables = session.scalars(variable_select)
+
+    set_list_incomplete_header(response, VAR_ENV_PREFIX)
 
     return VariableCollectionResponse(
         variables=variables,

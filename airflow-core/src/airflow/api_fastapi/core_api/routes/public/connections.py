@@ -20,7 +20,7 @@ import json
 import os
 from typing import TYPE_CHECKING, Annotated, Any
 
-from fastapi import Depends, Header, HTTPException, Query, status
+from fastapi import Depends, Header, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -29,6 +29,7 @@ from sqlalchemy.exc import IntegrityError
 from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.models.resource_details import ConnectionDetails
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.hidden_entries import set_list_incomplete_header
 from airflow.api_fastapi.common.parameters import (
     QueryConnectionIdPatternSearch,
     QueryConnectionIdPrefixPatternSearch,
@@ -238,6 +239,7 @@ def get_connections(
     session: SessionDep,
     connection_id_pattern: QueryConnectionIdPatternSearch,
     connection_id_prefix_pattern: QueryConnectionIdPrefixPatternSearch,
+    response: Response,
 ) -> ConnectionCollectionResponse:
     """Get all connection entries."""
     connection_select, total_entries = paginated_select(
@@ -250,6 +252,8 @@ def get_connections(
     )
 
     connections = session.scalars(connection_select)
+
+    set_list_incomplete_header(response, CONN_ENV_PREFIX)
 
     return ConnectionCollectionResponse(
         connections=connections,
