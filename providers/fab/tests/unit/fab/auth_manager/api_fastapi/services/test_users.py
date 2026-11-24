@@ -666,12 +666,10 @@ class TestUsersService:
             password=password_mock,
         )
 
-        security_manager._hash_password.return_value = "hashed_password"
         FABAuthManagerUsers.update_user("alice", patch_body, update_mask="password")
 
         password_mock.get_secret_value.assert_called_once()
-        security_manager._hash_password.assert_called_once_with("newpassword")
-        assert user_obj.password == "hashed_password"
+        security_manager.set_user_password.assert_called_once_with(user_obj, "newpassword")
 
     # delete_user tests
 
