@@ -3131,7 +3131,7 @@ def _fail_task_before_runtime(
     finally:
         try:
             with _remote_logging_conn(client):
-                upload_to_remote(logger, ti)  # type: ignore[arg-type]
+                upload_to_remote(logger, ti, ti_context=ti_context)  # type: ignore[arg-type]
         except Exception:
             logger.exception("Failed to upload remote logs", ti_id=ti.id)
     return 1

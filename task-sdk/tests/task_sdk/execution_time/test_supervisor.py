@@ -481,10 +481,12 @@ class TestSuperviseTaskLaunchError:
         assert client.task_instances.finish.call_args.kwargs["retry_reason"] == expected
         assert "hunter2" not in (tmp_path / "etl/extract.log").read_text()
 
-    def test_uploads_the_task_log(self, client, ti, upload_to_remote):
+    def test_uploads_the_task_log_with_the_run_context(self, client, ti, upload_to_remote):
         self._supervise(client, ti, TaskLaunchError("no jar"))
 
-        upload_to_remote.assert_called_once_with(mock.ANY, ti)
+        upload_to_remote.assert_called_once_with(
+            mock.ANY, ti, ti_context=client.task_instances.start.return_value
+        )
 
     def test_uploads_the_task_log_when_reporting_the_state_fails(self, client, ti, upload_to_remote):
         client.task_instances.finish.side_effect = _response_error(500, {"reason": "boom"})
