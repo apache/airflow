@@ -441,10 +441,6 @@ class TestModelRequestFingerprint:
         assert high is not None
         assert low != high
 
-    @pytest.mark.skipif(
-        "model_id" not in {field.name for field in dataclasses.fields(ModelResponse)},
-        reason="this pydantic-ai has no model_id on ModelResponse",
-    )
     def test_a_stamped_chain_leaves_out_which_chain_a_response_came_from(self):
         """An agent stamps its own chain's id on every response it replays, so an edited chain differs only there."""
 

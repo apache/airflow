@@ -967,6 +967,11 @@ class TestPydanticAIHookFallback:
         model = PydanticAIHook(llm_conn_id="primary", fallback_conn_ids=["gateway"]).get_conn()
         response = await model.request([ModelRequest.user_text_prompt("go")], None, ModelRequestParameters())
 
+        assert isinstance(model, FallbackModel)
+        assert [member.conn_id for member in model.models if isinstance(member, MemberStampingModel)] == [
+            "primary",
+            "gateway",
+        ]
         assert get_member_conn_id(response) == "gateway"
         assert get_member_model_id(response) == "function:shared"
 
