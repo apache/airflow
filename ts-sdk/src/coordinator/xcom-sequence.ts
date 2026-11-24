@@ -23,9 +23,6 @@
 import type { CoordinatorClient, XComSequenceOpts } from "./client.js";
 import type { XComSequence } from "../sdk/xcom-sequence.js";
 
-/** The clients that handed a task a sequence, so a push from any other skips looking for one. */
-const clientsWithSequences = new WeakSet<CoordinatorClient>();
-
 /** Internal: a sequence over the values `opts` names, fetched only when read. */
 export class LazyXComSequence<T> implements XComSequence<T> {
   readonly #client: CoordinatorClient;
@@ -36,7 +33,6 @@ export class LazyXComSequence<T> implements XComSequence<T> {
   constructor(client: CoordinatorClient, opts: XComSequenceOpts) {
     this.#client = client;
     this.#opts = opts;
-    clientsWithSequences.add(client);
   }
 
   length(): Promise<number> {
@@ -127,12 +123,9 @@ async function materialize(
   return Object.fromEntries(entries);
 }
 
-/**
- * Whether `value` holds a sequence `client` handed out, at any depth. A client that handed out none
- * is not searched.
- */
-export function holdsXComSequence(client: CoordinatorClient, value: unknown): boolean {
-  return clientsWithSequences.has(client) && findXComSequence(value, new Set());
+/** Whether `value` holds a sequence, at any depth. */
+export function holdsXComSequence(value: unknown): boolean {
+  return findXComSequence(value, new Set());
 }
 
 function findXComSequence(value: unknown, seen: Set<object>): boolean {

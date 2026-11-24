@@ -52,6 +52,8 @@ export function createLoopGate(until: UntilCallable<never> | undefined): Operato
 /**
  * Decide whether another iteration follows, and send core the decision.
  *
+ * The reason goes into the task log as it is: the supervisor masks the log and the reason alike.
+ *
  * The gate pushes no return value. Core creates the next iteration in the same transaction that
  * accepts the decision (ADR-0017 decision 5). A `stop` of false at the last iteration fails the gate
  * here without a retry, as Python does, and the decision goes with the failure so its reason is kept.
@@ -83,8 +85,7 @@ async function executeLoopGate(
       return op.fail((err as Error).message, { retry: false });
     }
     if (!decision.stop && loop.index >= loop.max_iterations) {
-      // Python raises LoopMaxIterationsExceeded, an AirflowFailException, which is never retried. The
-      // message only reaches the task log, where the supervisor masks the reason as Python's redact does.
+      // Python raises LoopMaxIterationsExceeded, an AirflowFailException, which is never retried.
       const reason = decision.reason === undefined ? "" : `: ${decision.reason}`;
       return op.fail(
         `Loop condition remained false at max_iterations=${loop.max_iterations}${reason}`,
@@ -92,12 +93,11 @@ async function executeLoopGate(
       );
     }
   }
-  // The reason is left out: this runtime cannot redact it, and the supervisor masks it on its way
-  // to the UI, where it is shown next to the iteration.
   logs.info(`Loop iteration ${loop.index}: ${decision.stop ? "stop" : "continue"}`, {
     task_id: ctx.taskId,
     index: loop.index,
     max_iterations: loop.max_iterations,
+    ...(decision.reason !== undefined && { reason: decision.reason }),
   });
   return op.succeed(undefined, { loopDecision: decision });
 }

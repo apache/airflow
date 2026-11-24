@@ -453,7 +453,7 @@ export function isTaskRef(value: unknown): value is TaskRef {
 
 // What a placed construct stands for at either end of an edge: a condition or branch its deciding
 // task, a loop its group.
-const conditionTasks = new WeakMap<object, Node>();
+const placedNodes = new WeakMap<object, Node>();
 
 // Each reference a loop's `all()` returned, to the body task whose every iteration it reads.
 const allIterationReads = new WeakMap<object, TaskRef>();
@@ -465,7 +465,7 @@ const labelledNodes = new WeakMap<
 
 function resolveNode(node: Node): Node {
   if (typeof node !== "object" || node === null) return node;
-  return conditionTasks.get(node) ?? node;
+  return placedNodes.get(node) ?? node;
 }
 
 /** `use` is the call that was given `node`, such as `before() or after()`. */
@@ -1043,7 +1043,7 @@ export class Dag {
       },
       ...this.#forwardEdges(condition, () => placed),
     };
-    conditionTasks.set(placed, condition);
+    placedNodes.set(placed, condition);
     return Object.freeze(placed);
   }
 
@@ -1144,7 +1144,7 @@ export class Dag {
       },
       ...this.#forwardEdges(decider, () => branch),
     };
-    conditionTasks.set(branch, decider);
+    placedNodes.set(branch, decider);
     return Object.freeze(branch);
   }
 
@@ -1530,7 +1530,7 @@ export class Dag {
         return placed;
       },
     };
-    conditionTasks.set(placed, group);
+    placedNodes.set(placed, group);
     return Object.freeze(placed);
   }
 

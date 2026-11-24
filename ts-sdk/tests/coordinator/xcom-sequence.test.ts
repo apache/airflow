@@ -66,10 +66,10 @@ describe("materializeXComSequences", () => {
       "but it is in a Box",
     ],
   ])("refuses a sequence held by %s", async (_name, wrap, container) => {
-    const { client, sequence } = makeSequence([1]);
+    const { sequence } = makeSequence([1]);
     const value = wrap(sequence);
 
-    expect(holdsXComSequence(client, value)).toBe(true);
+    expect(holdsXComSequence(value)).toBe(true);
     await expect(materializeXComSequences(value)).rejects.toThrow(
       `An XComSequence has to be in an array or a plain object to be pushed as an XCom value, ${container}`,
     );
@@ -100,17 +100,11 @@ describe("materializeXComSequences", () => {
 
 describe("holdsXComSequence", () => {
   it("finds a nested sequence, and ends on a self-referencing value without one", () => {
-    const { client, sequence } = makeSequence([]);
+    const { sequence } = makeSequence([]);
     const value: Record<string, unknown> = { rows: [1, 2, 3] };
     value["self"] = value;
 
-    expect(holdsXComSequence(client, { deep: [{ sequence }] })).toBe(true);
-    expect(holdsXComSequence(client, value)).toBe(false);
-  });
-
-  it("does not search a value pushed through a client that handed out no sequence", () => {
-    const { sequence } = makeSequence([]);
-
-    expect(holdsXComSequence({} as CoordinatorClient, { sequence })).toBe(false);
+    expect(holdsXComSequence({ deep: [{ sequence }] })).toBe(true);
+    expect(holdsXComSequence(value)).toBe(false);
   });
 });

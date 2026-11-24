@@ -2072,12 +2072,10 @@ describe("coordinator runtime integration", () => {
       expect(requestsOf(result, "GetXCom")[0]).not.toHaveProperty("previous_iteration");
       expect(requestsOf(result, "SetXCom")).toEqual([]);
       expect(seen.loop).toMatchObject({ index: 1 });
-      // The runtime cannot redact the reason, so it leaves it to the supervisor rather than log it.
       const logged = result.logRecords.find(
         (r) => r["event"] === "[ts-sdk.runtime] Loop iteration 1: continue",
       );
-      expect(logged).toMatchObject({ index: 1, max_iterations: 3 });
-      expect(JSON.stringify(logged)).not.toContain("error 4.0e-2");
+      expect(logged).toMatchObject({ index: 1, max_iterations: 3, reason: "error 4.0e-2" });
     });
 
     it.each([
