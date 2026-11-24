@@ -70,6 +70,7 @@ class DeadlineDagRunProtocol(Protocol):
     dag_id: str
     logical_date: datetime | None
     queued_at: datetime | None
+    start_date: datetime | None
 
 
 def _get_evaluation_kwargs(reference: Any, evaluator: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
@@ -464,6 +465,12 @@ class ReferenceModels:
 
         def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
             return dagrun.queued_at
+
+    class DagRunStartDateDeadline(BaseDeadlineReference):
+        """A deadline reference based on when the DagRun started."""
+
+        def _evaluate_with(self, *, session: Session, dagrun: DeadlineDagRunProtocol) -> datetime | None:
+            return dagrun.start_date
 
     @dataclass
     class AverageRuntimeDeadline(BaseDeadlineReference):

@@ -343,6 +343,23 @@ def _recalculate_dagrun_queued_at_deadlines(dagrun: DagRun, *, session: Session)
     # These changes are committed by the calling function.
 
 
+def _remove_unmissed_dagrun_start_date_deadlines(dagrun: DagRun, *, session: Session) -> None:
+    """Remove pending start-date deadlines before a finished DagRun is requeued."""
+    deadlines = session.scalars(
+        select(Deadline)
+        .join(DeadlineAlertModel, Deadline.deadline_alert_id == DeadlineAlertModel.id)
+        .where(
+            Deadline.dagrun_id == dagrun.id,
+            Deadline.missed == false(),
+            DeadlineAlertModel.reference[ReferenceModels.REFERENCE_TYPE_FIELD].as_string()
+            == ReferenceModels.DagRunStartDateDeadline.__name__,
+        )
+    ).all()
+
+    for deadline in deadlines:
+        session.delete(deadline)
+
+
 def _get_new_task_ids(
     dag_id: str,
     run_id: str,
@@ -637,6 +654,8 @@ def clear_task_instances(
                 _recalculate_dagrun_queued_at_deadlines(dr, session=session)
 
                 if was_finished:
+                    if dag_run_state == DagRunState.QUEUED:
+                        _remove_unmissed_dagrun_start_date_deadlines(dr, session=session)
                     dr.state = dag_run_state
                     dr.start_date = timezone.utcnow()
 
