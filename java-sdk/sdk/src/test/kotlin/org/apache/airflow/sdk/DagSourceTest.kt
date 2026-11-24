@@ -121,43 +121,70 @@ internal class DagSourceTest {
     )
   }
 
-  @Test
-  @DisplayName("Should still require --comm and --logs without --describe-sources")
-  fun createStillRequiresAddresses() {
-    Assertions.assertThrows(IllegalArgumentException::class.java) { Server.create(arrayOf("--comm", "localhost:1")) }
-    Assertions.assertThrows(IllegalArgumentException::class.java) { Server.create(arrayOf("--logs", "localhost:1")) }
-    Assertions.assertThrows(IllegalArgumentException::class.java) { Server.create(emptyArray()) }
+  private fun assertInvalidArguments(
+    expectedMessage: String,
+    args: Array<String>,
+  ) {
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        Server.create(args)
+      }
+    Assertions.assertEquals(expectedMessage, error.message)
   }
 
   @Test
-  @DisplayName("Should reject unknown and duplicate command-line options")
+  @DisplayName("Should still require --comm and --logs without --describe-sources")
+  fun createStillRequiresAddresses() {
+    assertInvalidArguments(
+      "Missing required argument: --logs",
+      arrayOf("--comm", "localhost:1"),
+    )
+    assertInvalidArguments(
+      "Missing required argument: --comm",
+      arrayOf("--logs", "localhost:1"),
+    )
+    assertInvalidArguments(
+      "Missing required argument: --comm",
+      emptyArray(),
+    )
+  }
+
+  @Test
+  @DisplayName("Should reject unknown command-line options")
   fun rejectsInvalidOptions() {
-    Assertions.assertThrows(IllegalArgumentException::class.java) {
-      Server.create(arrayOf("--unknown", "value"))
-    }
-    Assertions.assertThrows(IllegalArgumentException::class.java) {
-      Server.create(arrayOf("--comm", "localhost:1", "--comm", "localhost:2"))
-    }
+    assertInvalidArguments(
+      "Unknown argument: --unknown=1",
+      arrayOf("--comm=localhost:1", "--logs=localhost:2", "--unknown=1"),
+    )
   }
 
   @Test
   @DisplayName("Should reject missing values and malformed addresses")
   fun rejectsMalformedArguments() {
-    val invalidArgs =
-      listOf(
-        arrayOf("--comm"),
-        arrayOf("--comm="),
-        arrayOf("--comm", "localhost"),
-        arrayOf("--comm", "localhost:abc"),
-        arrayOf("--comm", "localhost:65536"),
-        arrayOf("--logs", "localhost:0"),
-      )
-
-    invalidArgs.forEach { args ->
-      Assertions.assertThrows(IllegalArgumentException::class.java) {
-        Server.create(args)
-      }
-    }
+    assertInvalidArguments(
+      "Missing value for --comm",
+      arrayOf("--logs=localhost:2", "--comm"),
+    )
+    assertInvalidArguments(
+      "Missing value for --comm",
+      arrayOf("--comm=", "--logs=localhost:2"),
+    )
+    assertInvalidArguments(
+      "Invalid address for --comm: localhost",
+      arrayOf("--comm", "localhost", "--logs", "localhost:2"),
+    )
+    assertInvalidArguments(
+      "Invalid port for --comm: localhost:abc",
+      arrayOf("--comm=localhost:abc", "--logs=localhost:2"),
+    )
+    assertInvalidArguments(
+      "Invalid port for --comm: localhost:65536",
+      arrayOf("--comm=localhost:65536", "--logs=localhost:2"),
+    )
+    assertInvalidArguments(
+      "Invalid port for --logs: localhost:-1",
+      arrayOf("--comm=localhost:1", "--logs=localhost:-1"),
+    )
   }
 
   @Test
@@ -168,6 +195,88 @@ internal class DagSourceTest {
     )
     Assertions.assertTrue(
       Server.create(arrayOf("--comm=localhost:1234", "--logs", "localhost:5678")) is CoordinatorServer,
+    )
+  }
+
+  @Test
+  @DisplayName("Should accept repeated options")
+  fun acceptsRepeatedOptions() {
+    Assertions.assertTrue(
+      Server.create(
+        arrayOf("--comm=localhost:1", "--logs=localhost:2", "--comm=localhost:3"),
+      ) is CoordinatorServer,
+    )
+  }
+
+  @Test
+  @DisplayName("Should use the last value of a repeated option")
+  fun repeatedOptionUsesLastValue(
+    @TempDir dir: File,
+  ) {
+    val first = File(dir, "first.json")
+    val second = File(dir, "second.json")
+
+    Server
+      .create(
+        arrayOf(
+          "--describe-sources",
+          first.path,
+          "--describe-sources",
+          second.path,
+        ),
+      ).serve(Bundle())
+
+    Assertions.assertFalse(first.exists())
+    Assertions.assertTrue(second.isFile)
+    Assertions.assertEquals(
+      emptyMap<Any, Any>(),
+      ObjectMapper().readValue(second, Map::class.java),
+    )
+  }
+
+  @Test
+  @DisplayName("Should accept a trailing argument terminator")
+  fun acceptsTrailingTerminator() {
+    Assertions.assertTrue(
+      Server.create(
+        arrayOf("--comm=localhost:1", "--logs=localhost:2", "--"),
+      ) is CoordinatorServer,
+    )
+  }
+
+  @Test
+  @DisplayName("Should accept an empty host")
+  fun acceptsEmptyHost() {
+    Assertions.assertTrue(
+      Server.create(
+        arrayOf("--comm=:4001", "--logs=localhost:2"),
+      ) is CoordinatorServer,
+    )
+  }
+
+  @Test
+  @DisplayName("Should accept an empty describe-sources value")
+  fun acceptsEmptyDescribeSources() {
+    Assertions.assertTrue(
+      Server.create(arrayOf("--describe-sources=")) is SourceDescriber,
+    )
+  }
+
+  @Test
+  @DisplayName("Should accept describe-sources values beginning with double dash")
+  fun acceptsDescribeSourcesStartingWithDoubleDash() {
+    Assertions.assertTrue(
+      Server.create(arrayOf("--describe-sources", "--sources.json")) is SourceDescriber,
+    )
+  }
+
+  @Test
+  @DisplayName("Should accept port zero")
+  fun acceptsPortZero() {
+    Assertions.assertTrue(
+      Server.create(
+        arrayOf("--comm=localhost:1", "--logs=localhost:0"),
+      ) is CoordinatorServer,
     )
   }
 }

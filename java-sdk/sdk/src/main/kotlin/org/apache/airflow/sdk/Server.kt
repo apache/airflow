@@ -72,21 +72,26 @@ private data class Args(
 
       while (index < args.size) {
         val argument = args[index]
+        if (argument == "--" && index == args.lastIndex) break
         val option = argument.substringBefore('=')
         require(option in supported) { "Unknown argument: $argument" }
-        require(option !in values) { "Duplicate argument: $option" }
 
         val value =
           if ('=' in argument) {
             argument.substringAfter('=')
           } else {
-            require(index + 1 < args.size && !args[index + 1].startsWith("--")) {
+            require(
+              index + 1 < args.size &&
+                (option == "--describe-sources" || !args[index + 1].startsWith("--")),
+            ) {
               "Missing value for $option"
             }
             args[++index]
           }
 
-        require(value.isNotEmpty()) { "Missing value for $option" }
+        require(option == "--describe-sources" || value.isNotEmpty()) {
+          "Missing value for $option"
+        }
         values[option] = value
         index++
       }
@@ -94,7 +99,7 @@ private data class Args(
       fun address(option: String): InetSocketAddress? =
         values[option]?.let { value ->
           val separator = value.lastIndexOf(':')
-          require(separator > 0 && separator < value.lastIndex) {
+          require(separator >= 0 && separator < value.lastIndex) {
             "Invalid address for $option: $value"
           }
           val port = value.substring(separator + 1).toIntOrNull()
