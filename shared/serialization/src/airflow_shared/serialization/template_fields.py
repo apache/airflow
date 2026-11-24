@@ -25,24 +25,24 @@ if TYPE_CHECKING:
     from pydantic import JsonValue
 
 
-class SupportsSerialize(Protocol):
+class _SupportsSerialize(Protocol):
     """An object with a no-argument serialization method."""
 
     def serialize(self) -> object: ...
 
 
-class SupportsToDict(Protocol):
+class _SupportsToDict(Protocol):
     """An object with a no-argument dictionary conversion method."""
 
     def to_dict(self) -> object: ...
 
 
-def has_serialize(obj: object) -> TypeGuard[SupportsSerialize]:
+def _has_serialize(obj: object) -> TypeGuard[_SupportsSerialize]:
     """Check for a callable serialize attribute without invoking user attribute hooks."""
     return callable(inspect.getattr_static(obj, "serialize", None))
 
 
-def has_to_dict(obj: object) -> TypeGuard[SupportsToDict]:
+def _has_to_dict(obj: object) -> TypeGuard[_SupportsToDict]:
     """Check for a callable to_dict attribute without invoking user attribute hooks."""
     return callable(inspect.getattr_static(obj, "to_dict", None))
 
@@ -76,13 +76,13 @@ def normalize_template_field(template_field: object) -> JsonValue:
             serialized_set = [serialize_object(e) for e in obj]
             return sorted(serialized_set, key=lambda x: (type(x).__name__, str(x)))
 
-        if has_serialize(obj):
+        if _has_serialize(obj):
             return serialize_object(obj.serialize())
 
         # Restrict to_dict() to Kubernetes clients so unrelated user classes keep the normal fallback.
         if getattr(type(obj), "__module__", "").startswith(
             ("kubernetes.", "kubernetes_asyncio.")
-        ) and has_to_dict(obj):
+        ) and _has_to_dict(obj):
             return serialize_object(obj.to_dict())
 
         if callable(obj):
