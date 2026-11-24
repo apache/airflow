@@ -28,8 +28,10 @@ from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.pool import Pool, normalize_pool_name_for_stats
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import create_session
+from airflow.utils.sqlalchemy import get_dialect_name
 from airflow.utils.state import State
 
+from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.db import (
     clear_db_dags,
     clear_db_pools,
@@ -257,6 +259,17 @@ class TestPool:
                 "deferred": 0,
             }
         }
+
+    def test_unfiltered_slots_stats_uses_backend_query_shape(self, session):
+        with capture_orm_selects("task_instance") as statements:
+            Pool.slots_stats(session=session)
+
+        assert len(statements) == 1
+        if get_dialect_name(session) == "mysql":
+            assert "JOIN task_instance ON task_instance.pool = slot_pool.pool" in statements[0]
+        else:
+            assert "FROM task_instance" in statements[0]
+            assert "JOIN slot_pool" not in statements[0]
 
     def test_get_pool(self):
         self.add_pools()

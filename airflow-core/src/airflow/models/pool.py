@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, func, select
 from sqlalchemy.orm import Mapped, mapped_column
@@ -29,7 +29,7 @@ from airflow.exceptions import AirflowException, PoolNotFound
 from airflow.models.base import Base
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import with_row_locks
+from airflow.utils.sqlalchemy import get_dialect_name, with_row_locks
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -185,6 +185,7 @@ class Pool(Base):
     def slots_stats(
         *,
         lock_rows: bool = False,
+        pool_names: Sequence[str] | None = None,
         session: Session = NEW_SESSION,
     ) -> dict[str, PoolStats]:
         """
@@ -195,6 +196,7 @@ class Pool(Base):
         OperationalError.
 
         :param lock_rows: Should we attempt to obtain a row-level lock on all the Pool rows returns
+        :param pool_names: Pool names to include. If ``None``, include all pools.
         :param session: SQLAlchemy ORM Session
         """
         from airflow.models.taskinstance import TaskInstance  # Avoid circular import
@@ -204,6 +206,8 @@ class Pool(Base):
 
         # The below type annotation is acceptable on SQLA2.1, but not on 2.0
         query: Select[str, int, bool] = select(Pool.pool, Pool.slots, Pool.include_deferred)  # type: ignore[type-arg]
+        if pool_names is not None:
+            query = query.where(Pool.pool.in_(pool_names))
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)
@@ -220,11 +224,28 @@ class Pool(Base):
             TaskInstanceState.DEFERRED,
             TaskInstanceState.SCHEDULED,
         }
-        state_count_by_pool = session.execute(
-            select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
-            .filter(TaskInstance.state.in_(allowed_execution_states))
-            .group_by(TaskInstance.pool, TaskInstance.state)
-        )
+        # MySQL plans the pool-first join more efficiently for unfiltered statistics. On other
+        # databases it adds work to the scheduler critical section without reducing query count.
+        if pool_names is None and get_dialect_name(session) != "mysql":
+            state_count_query = (
+                select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
+                .filter(TaskInstance.state.in_(allowed_execution_states))
+                .group_by(TaskInstance.pool, TaskInstance.state)
+            )
+        else:
+            state_count_query = cast(
+                "Select[tuple[str, str | None, int]]",
+                select(Pool.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
+                .join(TaskInstance, TaskInstance.pool == Pool.pool)
+                .filter(TaskInstance.state.in_(allowed_execution_states))
+                .group_by(Pool.pool, TaskInstance.state),
+            )
+            if pool_names is not None:
+                state_count_query = state_count_query.filter(
+                    Pool.pool.in_(pool_names),
+                    TaskInstance.pool.in_(pool_names),
+                )
+        state_count_by_pool = session.execute(state_count_query)
 
         # calculate queued and running metrics
         for pool_name, state, decimal_count in state_count_by_pool:

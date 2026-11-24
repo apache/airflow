@@ -24,9 +24,11 @@ from sqlalchemy.orm import Session
 
 from airflow.models.pool import Pool
 from airflow.models.team import Team
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import TaskInstanceState
 
-from tests_common.test_utils.asserts import count_queries
+from tests_common.test_utils.asserts import capture_orm_selects, count_queries
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_pools, clear_db_teams
 from tests_common.test_utils.logs import check_last_log
@@ -279,6 +281,188 @@ class TestGetPools(TestPoolsEndpoint):
         assert response.status_code == 200
         assert response.json()["pools"][1]["open_slots"] == POOL1_SLOT
         assert event_loop_queries == []
+
+    def test_should_respond_200_with_slot_counts(self, test_client, dag_maker, session):
+        session.add_all(
+            [
+                Pool(pool="deferred_pool", slots=20, include_deferred=True),
+                Pool(pool="non_deferred_pool", slots=20, include_deferred=False),
+                Pool(pool="unlimited_pool", slots=-1, include_deferred=True),
+            ]
+        )
+        pool_slots_by_state = {
+            TaskInstanceState.RUNNING: 1,
+            TaskInstanceState.QUEUED: 2,
+            TaskInstanceState.SCHEDULED: 3,
+            TaskInstanceState.DEFERRED: 4,
+            TaskInstanceState.SUCCESS: 5,
+        }
+        state_by_task_id = {}
+        with dag_maker(dag_id="test_pool_slot_counts", session=session):
+            for pool_name in ("deferred_pool", "non_deferred_pool", "unlimited_pool"):
+                for state, pool_slots in pool_slots_by_state.items():
+                    task_id = f"{pool_name}_{state.value}"
+                    EmptyOperator(task_id=task_id, pool=pool_name, pool_slots=pool_slots)
+                    state_by_task_id[task_id] = state
+        for ti in dag_maker.create_dagrun().get_task_instances(session=session):
+            ti.state = state_by_task_id[ti.task_id]
+        session.commit()
+
+        response = test_client.get("/pools")
+
+        assert response.status_code == 200
+        pools = {pool["name"]: pool for pool in response.json()["pools"]}
+        assert pools["deferred_pool"] == {
+            "deferred_slots": 4,
+            "description": None,
+            "include_deferred": True,
+            "name": "deferred_pool",
+            "occupied_slots": 7,
+            "open_slots": 13,
+            "queued_slots": 2,
+            "running_slots": 1,
+            "scheduled_slots": 3,
+            "slots": 20,
+            "team_name": None,
+        }
+        assert pools["non_deferred_pool"] == {
+            "deferred_slots": 4,
+            "description": None,
+            "include_deferred": False,
+            "name": "non_deferred_pool",
+            "occupied_slots": 3,
+            "open_slots": 17,
+            "queued_slots": 2,
+            "running_slots": 1,
+            "scheduled_slots": 3,
+            "slots": 20,
+            "team_name": None,
+        }
+        assert pools["unlimited_pool"] == {
+            "deferred_slots": 4,
+            "description": None,
+            "include_deferred": True,
+            "name": "unlimited_pool",
+            "occupied_slots": 7,
+            "open_slots": -1,
+            "queued_slots": 2,
+            "running_slots": 1,
+            "scheduled_slots": 3,
+            "slots": -1,
+            "team_name": None,
+        }
+
+    @mock.patch.object(Pool, "slots_stats", autospec=True)
+    def test_open_slots_use_pool_configuration_from_response_query(
+        self, mock_slots_stats, test_client, session
+    ):
+        session.add(Pool(pool="concurrent_update_pool", slots=10, include_deferred=False))
+        session.commit()
+        mock_slots_stats.return_value = {
+            "concurrent_update_pool": {
+                "total": 20,
+                "running": 2,
+                "queued": 0,
+                "open": 18,
+                "deferred": 0,
+                "scheduled": 0,
+            }
+        }
+
+        response = test_client.get("/pools", params={"pool_name_pattern": "concurrent_update_pool"})
+
+        assert response.status_code == 200
+        assert response.json()["pools"][0]["slots"] == 10
+        assert response.json()["pools"][0]["occupied_slots"] == 2
+        assert response.json()["pools"][0]["open_slots"] == 8
+
+    @pytest.mark.backend("mysql")
+    def test_list_counts_slots_after_pool_is_recreated_with_different_case(
+        self, test_client, dag_maker, session
+    ):
+        response = test_client.post("/pools", json={"name": "analytics", "slots": 10})
+        assert response.status_code == 201
+        if session.scalar(select(Pool.id).where(Pool.pool == "Analytics")) is None:
+            pytest.skip("requires the case-insensitive pool-name collation used by fresh MySQL schemas")
+
+        with dag_maker(dag_id="test_recreated_pool_slot_counts", session=session):
+            EmptyOperator(task_id="running_task", pool="analytics", pool_slots=2)
+        ti = dag_maker.create_dagrun().get_task_instances(session=session)[0]
+        ti.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        assert test_client.delete("/pools/analytics").status_code == 204
+        response = test_client.post("/pools", json={"name": "Analytics", "slots": 10})
+        assert response.status_code == 201
+
+        single_response = test_client.get("/pools/Analytics")
+        assert single_response.status_code == 200
+        expected_counts = {"running_slots": 2, "occupied_slots": 2, "open_slots": 8}
+        single_pool = single_response.json()
+        assert {key: single_pool[key] for key in expected_counts} == expected_counts
+
+        response = test_client.get("/pools", params={"pool_name_pattern": "Analytics"})
+        assert response.status_code == 200
+        pools = response.json()["pools"]
+        assert len(pools) == 1
+        assert {key: pools[0][key] for key in expected_counts} == expected_counts
+
+    @pytest.mark.parametrize("pool_count", [5, 10, 20])
+    def test_query_count_is_independent_of_pool_count(self, test_client, session, pool_count):
+        """Regression guard: slot counts of all pools must be fetched together, not with queries per pool."""
+        # Readable pools, total count, page of pools, and the two slots_stats queries.
+        EXPECTED_QUERY_COUNT = 5
+
+        session.add_all(
+            Pool(pool=f"perf_pool_{pool_count}_{i}", slots=1, include_deferred=False)
+            for i in range(pool_count)
+        )
+        session.commit()
+
+        with count_queries() as result:
+            response = test_client.get("/pools")
+
+        assert response.status_code == 200
+        assert len(response.json()["pools"]) == pool_count + 1
+        assert sum(result.values()) == EXPECTED_QUERY_COUNT
+
+    def test_slot_stats_are_scoped_to_returned_page(self, test_client):
+        self.create_pools()
+
+        with capture_orm_selects("task_instance") as statements:
+            response = test_client.get("/pools", params={"limit": 1, "offset": 1})
+
+        assert response.status_code == 200
+        assert [pool["name"] for pool in response.json()["pools"]] == [POOL1_NAME]
+        assert len(statements) == 1
+        assert "JOIN task_instance ON task_instance.pool = slot_pool.pool" in statements[0]
+        assert f"slot_pool.pool IN ('{POOL1_NAME}')" in statements[0]
+        assert f"task_instance.pool IN ('{POOL1_NAME}')" in statements[0]
+
+    def test_empty_page_skips_slot_stats(self, test_client):
+        self.create_pools()
+
+        with capture_orm_selects("task_instance") as statements:
+            response = test_client.get("/pools", params={"limit": 1, "offset": 100})
+
+        assert response.status_code == 200
+        assert response.json() == {"pools": [], "total_entries": 4}
+        assert statements == []
+
+    def test_should_skip_pool_deleted_during_request(self, test_client, session):
+        self.create_pools()
+        pool_stats = Pool.slots_stats(session=session)
+        del pool_stats[POOL2_NAME]
+
+        with mock.patch.object(Pool, "slots_stats", autospec=True, return_value=pool_stats):
+            response = test_client.get("/pools")
+
+        assert response.status_code == 200
+        assert [pool["name"] for pool in response.json()["pools"]] == [
+            Pool.DEFAULT_POOL_NAME,
+            POOL1_NAME,
+            POOL3_NAME,
+        ]
 
 
 class TestPatchPool(TestPoolsEndpoint):
