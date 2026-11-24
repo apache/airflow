@@ -28,14 +28,19 @@ or the ``api/2.2/jobs/runs/submit``
 
 from __future__ import annotations
 
+import asyncio
 import json
+import math
 from enum import Enum
+from time import monotonic
 from typing import Any
+from urllib.parse import quote
 
 from requests import exceptions as requests_exceptions
 
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.hooks.lineage import send_sql_hook_lineage
+from airflow.providers.databricks.exceptions import DatabricksVectorSearchError, DatabricksVectorSearchTimeout
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 GET_CLUSTER_ENDPOINT = ("GET", "2.1/clusters/get")
@@ -857,6 +862,94 @@ class DatabricksHook(BaseDatabricksHook):
         :return: ``None`` when the request succeeds, without waiting for configuration changes to finish.
         """
         self._do_api_call(("POST", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}/edit"), json)
+
+    def sync_vector_search_index(self, index_name: str) -> None:
+        """
+        Request a synchronization of an existing triggered Delta Sync index.
+
+        :param index_name: Three-level Unity Catalog name of the index.
+        :return: ``None`` when the request succeeds, without waiting for the sync to finish.
+        """
+        if not index_name:
+            raise ValueError("index_name must be provided.")
+        self._do_api_call(("POST", f"2.0/vector-search/indexes/{quote(index_name, safe='')}/sync"))
+
+    async def a_get_vector_search_index(self, index_name: str) -> dict[str, Any]:
+        """
+        Get the metadata and current status of a Vector Search index.
+
+        :param index_name: Three-level Unity Catalog name of the index.
+        """
+        if not index_name:
+            raise ValueError("index_name must be provided.")
+        return await self._a_do_api_call(("GET", f"2.0/vector-search/indexes/{quote(index_name, safe='')}"))
+
+    @staticmethod
+    def validate_vector_search_wait_parameters(timeout: float, polling_period_seconds: float) -> None:
+        """
+        Validate the wait budget and polling interval before submitting a sync.
+
+        :param timeout: Maximum wait, in seconds.
+        :param polling_period_seconds: Interval between status checks, in seconds.
+        """
+        for name, value in (("timeout", timeout), ("polling_period_seconds", polling_period_seconds)):
+            if not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be finite and greater than zero.")
+
+    async def a_wait_for_vector_search_index(
+        self, index_name: str, *, timeout: float, polling_period_seconds: float = 30
+    ) -> None:
+        """
+        Wait until an index reports an online state without pending updates.
+
+        Follow the index-state convention of the Databricks SDK's
+        ``wait_until_ready(wait_for_updates=True)``; this does not track a particular sync request.
+        Manage the HTTP session and bound status requests, retries and sleeps by ``timeout``.
+
+        :param index_name: Three-level Unity Catalog name of the index.
+        :param timeout: Maximum wait in seconds, including status requests and retries.
+        :param polling_period_seconds: Interval between status checks, in seconds.
+        """
+        self.validate_vector_search_wait_parameters(timeout, polling_period_seconds)
+        deadline = monotonic() + timeout
+        timeout_message = f"Vector Search index {index_name} did not reach a state without pending updates within {timeout}s."
+        budget = asyncio.timeout(timeout)
+        try:
+            async with budget, self:
+                while True:
+                    if monotonic() >= deadline:
+                        raise DatabricksVectorSearchTimeout(timeout_message)
+                    index = await self.a_get_vector_search_index(index_name)
+                    if monotonic() >= deadline:
+                        raise DatabricksVectorSearchTimeout(timeout_message)
+                    status = index.get("status")
+                    state = status.get("detailed_state") if isinstance(status, dict) else None
+                    if state in ("ONLINE", "ONLINE_NO_PENDING_UPDATE", "ONLINE_DIRECT_ACCESS"):
+                        return
+                    if state in ("OFFLINE", "OFFLINE_FAILED", "ONLINE_PIPELINE_FAILED"):
+                        raise DatabricksVectorSearchError(
+                            f"Vector Search index {index_name} entered {state}."
+                        )
+                    if state not in (
+                        "PROVISIONING",
+                        "PROVISIONING_ENDPOINT",
+                        "PROVISIONING_INDEX",
+                        "PROVISIONING_PIPELINE_RESOURCES",
+                        "PROVISIONING_INITIAL_SNAPSHOT",
+                        "ONLINE_CONTINUOUS_UPDATE",
+                        "ONLINE_TRIGGERED_UPDATE",
+                        "ONLINE_UPDATING_PIPELINE_RESOURCES",
+                        "DOWNLOADING",
+                    ):
+                        raise DatabricksVectorSearchError(
+                            f"Vector Search index {index_name} returned an unrecognized status."
+                        )
+                    self.log.info("Vector Search index %s is %s; waiting for updates.", index_name, state)
+                    await asyncio.sleep(min(polling_period_seconds, max(0, deadline - monotonic())))
+        except TimeoutError as err:
+            if not budget.expired():
+                raise
+            raise DatabricksVectorSearchTimeout(timeout_message) from err
 
     def install(self, json: dict) -> None:
         """
