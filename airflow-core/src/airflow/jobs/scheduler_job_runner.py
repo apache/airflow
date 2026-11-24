@@ -111,7 +111,12 @@ from airflow.models.connection_test import (
     ConnectionTestState,
 )
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion, _resolve_ti_callback_bundle_info
+from airflow.models.dag_bundle_manifest import get_bundle_manifests
+from airflow.models.dag_version import (
+    DagVersion,
+    _get_bundle_manifest_key,
+    _resolve_ti_callback_bundle_info,
+)
 from airflow.models.dagbag import CachedDBDagBag, DBDagBag
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
@@ -1566,13 +1571,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # transient (via make_transient) before ExecuteTask.make() reads
             # ti.dag_run.created_dag_version.version_data to ship the bundle manifest matching
             # the run's pinned bundle_version. Lazy loads on transient objects silently return
-            # None instead of raising DetachedInstanceError. Scope the SELECT to version_data and
-            # bundle_version, the columns ExecuteTask.make() reads (the PK is auto-included), to
-            # avoid a lazy load after the commit, which fails once the Dag is deleted.
+            # None instead of raising DetachedInstanceError. Scope the SELECT to the columns read
+            # (the PK is auto-included) so don't read the full row.
             .options(
                 joinedload(TI.dag_run)
                 .selectinload(DagRun.created_dag_version)
-                .load_only(DagVersion.version_data, DagVersion.bundle_version)
+                .load_only(DagVersion.version_data, DagVersion.bundle_version, , DagVersion.bundle_name)
             )
             .limit(max_tis)
         )
@@ -1732,6 +1736,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             self.log.debug("Task instances deleted while their workloads were built: %s", deleted)
             task_instances = [ti for ti in task_instances if (ti.dag_id, ti.run_id) not in deleted_runs]
+        bundle_manifests = get_bundle_manifests(
+            {
+                key
+                for ti in task_instances
+                if (
+                    key := _get_bundle_manifest_key(ti.dag_run.created_dag_version, ti.dag_run.bundle_version)
+                )
+            },
+            session=session,
+        )
         # actually enqueue them
         num_enqueued = 0
         for ti in task_instances:
@@ -1759,6 +1773,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 generator=executor.jwt_generator,
                 sentry_integration=_get_sentry_integration(executor),
                 log_context=log_contexts[ti.id],
+                bundle_manifests=bundle_manifests,
             )
             executor.queue_workload(workload, session=session)
             num_enqueued += 1

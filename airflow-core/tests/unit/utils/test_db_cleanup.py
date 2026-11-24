@@ -60,6 +60,7 @@ from airflow.models.asset import (
     asset_alias_asset_event_association_table,
     association_table,
 )
+from airflow.models.dag_bundle_manifest import DagBundleManifest, DagBundleManifestRef
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.deadline import Deadline
@@ -1378,6 +1379,7 @@ class TestDBCleanup:
             "dag_priority_parsing_request",  # Records are purged once per DAG Processing loop, not a
             # significant source of data.
             "dag_bundle",  # leave alone - not appropriate for cleanup
+            "dag_bundle_manifest_ref",  # leave alone - one row per bundle, replaced in place
             "team",  # leave alone - team configuration, not run data
             # leave alone - per-asset key/value state, upserted in place (PK is asset_id+key),
             # so it is bounded and current, not accumulating history; removed with its asset
@@ -2594,6 +2596,63 @@ class TestPartitionedAssetKeyLogCleanup:
         assert ids["old orphan"] not in surviving
         assert ids["old but live"] in surviving, "evidence for a pending partition run must not be deleted"
         assert ids["recent orphan"] in surviving, "age filter still applies to orphans"
+
+
+@pytest.mark.db_test
+class TestBundleManifestCleanup:
+    """A manifest is purged only if it is old and no Dag run or current release names it."""
+
+    def setup_method(self):
+        with create_session() as session:
+            session.execute(text("DELETE FROM dag_bundle_manifest"))
+            session.execute(text("DELETE FROM dag_bundle_manifest_ref"))
+            session.commit()
+
+    teardown_method = setup_method
+
+    def test_only_unreferenced_old_manifests_are_purged(self, dag_maker):
+        old = pendulum.now(tz="UTC").subtract(days=30)
+        cutoff = pendulum.now(tz="UTC").subtract(days=1)
+        with dag_maker("bundle_manifest_cleanup_probe"):
+            PythonOperator(task_id="probe", python_callable=print)
+        dag_run = dag_maker.create_dagrun()
+        dag_run.bundle_version = "pinned"
+
+        with create_session() as session:
+            session.add_all(
+                [
+                    DagBundleManifest(
+                        bundle_name="b", bundle_version="unreferenced", manifest={}, created_at=old
+                    ),
+                    DagBundleManifest(bundle_name="b", bundle_version="pinned", manifest={}, created_at=old),
+                    DagBundleManifest(bundle_name="b", bundle_version="current", manifest={}, created_at=old),
+                    DagBundleManifest(
+                        bundle_name="b",
+                        bundle_version="recent",
+                        manifest={},
+                        created_at=pendulum.now(tz="UTC"),
+                    ),
+                    DagBundleManifestRef(bundle_name="b", version="current", payload={}, revision=1),
+                    DagBundleManifestRef(bundle_name="unversioned", version=None, payload={}, revision=1),
+                ]
+            )
+            session.commit()
+
+        with create_session() as session:
+            _cleanup_table(
+                **config_dict["dag_bundle_manifest"].__dict__,
+                clean_before_timestamp=cutoff,
+                dry_run=False,
+                verbose=False,
+                confirm=False,
+                skip_archive=True,
+                session=session,
+            )
+
+        with create_session() as session:
+            surviving = set(session.scalars(select(DagBundleManifest.bundle_version)).all())
+
+        assert surviving == {"pinned", "current", "recent"}
 
 
 def _delete_test_timestamp():

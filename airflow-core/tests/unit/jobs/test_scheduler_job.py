@@ -102,6 +102,7 @@ from airflow.models.connection_test import (
     ConnectionTestState,
 )
 from airflow.models.dag import DagModel, get_last_dagrun, infer_automated_data_interval
+from airflow.models.dag_bundle_manifest import DagBundleManifest, get_bundle_manifests
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import CachedDBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -4743,6 +4744,43 @@ class TestSchedulerJob:
             )
 
         assert mock_queue_workload.called
+        session.rollback()
+
+    def test_enqueue_ships_the_stored_bundle_manifest_with_one_lookup(self, dag_maker, session):
+        """Transient TIs cannot look up their manifest, so the batch is prefetched once."""
+        session = settings.Session()
+        with dag_maker(dag_id="enqueue_stored_bundle_manifest", max_active_tasks=8, session=session):
+            for task_number in range(3):
+                EmptyOperator(task_id=f"task{task_number}")
+        dag_run = dag_maker.create_dagrun()
+        dag_run.bundle_version = "abc123"
+        dag_run.created_dag_version.version_data = {"stale": True}
+        stored_manifest = {"stored": True}
+        session.add(
+            DagBundleManifest(bundle_name="dag_maker", bundle_version="abc123", manifest=stored_manifest)
+        )
+        for ti in dag_run.task_instances:
+            ti.state = State.SCHEDULED
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        transient_tis = self.job_runner._select_task_instances_to_queue(
+            32, make_pool_stats(), set(), session=session
+        )
+
+        with (
+            patch.object(BaseExecutor, "queue_workload") as mock_queue_workload,
+            patch(
+                "airflow.jobs.scheduler_job_runner.get_bundle_manifests", wraps=get_bundle_manifests
+            ) as mock_get_bundle_manifests,
+        ):
+            self.job_runner._enqueue_task_instances_with_queued_state(
+                transient_tis, executor=self.job_runner.executor, session=session
+            )
+
+        mock_get_bundle_manifests.assert_called_once()
+        workloads_queued = [call.args[0] for call in mock_queue_workload.call_args_list]
+        assert len(workloads_queued) == 3
+        assert all(workload.bundle_info.version_data == stored_manifest for workload in workloads_queued)
         session.rollback()
 
     def test_select_task_instances_to_queue_sets_external_executor_id(self, dag_maker, session):

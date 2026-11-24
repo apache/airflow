@@ -27,12 +27,13 @@ from uuid import UUID
 import sqlalchemy as sa
 import uuid6
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint, select
-from sqlalchemy.orm import Mapped, joinedload, mapped_column, relationship
+from sqlalchemy.orm import Mapped, joinedload, mapped_column, object_session, relationship
 
 from airflow._shared.timezones import timezone
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.exceptions import DagVersionNotFound
 from airflow.models.base import Base, StringID
+from airflow.models.dag_bundle_manifest import get_bundle_manifests
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 
@@ -411,10 +412,32 @@ def _get_provenance(version: DagVersion) -> dict[str, Any]:
     }
 
 
-def _resolve_version_data(
+def _get_bundle_manifest_key(
     dag_version: DagVersion | None, bundle_version: str | None
+) -> tuple[str, str] | None:
+    """Return the ``dag_bundle_manifest`` key of a pinned run, or ``None`` when it cannot have one."""
+    if dag_version is None or dag_version.bundle_name is None or bundle_version is None:
+        return None
+    return dag_version.bundle_name, bundle_version
+
+
+def _resolve_version_data(
+    dag_version: DagVersion | None,
+    bundle_version: str | None,
+    *,
+    bundle_manifests: dict[tuple[str, str], dict] | None = None,
 ) -> dict[str, Any] | None:
-    """Return a bundle version's ``version_data`` manifest, but only for pinned runs."""
+    """
+    Return a bundle version's ``version_data`` manifest, but only for pinned runs.
+
+    A manifest in ``dag_bundle_manifest`` wins over ``DagVersion.version_data``. ``bundle_manifests``
+    is a prefetch from ``get_bundle_manifests``; without it, ``dag_version``'s own session is queried.
+    """
+    if (key := _get_bundle_manifest_key(dag_version, bundle_version)) is not None:
+        if bundle_manifests is None and (session := object_session(dag_version)) is not None:
+            bundle_manifests = get_bundle_manifests([key], session=session)
+        if bundle_manifests is not None and (manifest := bundle_manifests.get(key)) is not None:
+            return manifest
     # Expose version_data only when the run is pinned (bundle_version set) and a DagVersion is
     # present, so the bundle initializes against the exact version the run used. Unpinned runs
     # follow the latest bundle state, and legacy rows have no DagVersion. A code-only update
