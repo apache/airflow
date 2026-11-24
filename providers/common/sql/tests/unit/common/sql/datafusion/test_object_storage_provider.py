@@ -23,6 +23,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
 from airflow.providers.common.sql.datafusion.object_storage_provider import (
@@ -342,6 +343,10 @@ class TestGetObjectStorageProvider:
         provider = get_object_storage_provider(StorageType.AZURE)
         assert isinstance(provider, AzureObjectStorageProvider)
 
+    def test_rejects_unknown_storage_type_string(self):
+        with pytest.raises(ValueError, match="'bogus' is not a valid StorageType"):
+            get_object_storage_provider("bogus")
+
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.import_string", autospec=True)
     @patch("airflow.providers_manager.ProvidersManager", autospec=True)
     def test_resolves_s3_via_registry(self, mock_pm_cls, mock_import_string):
@@ -436,6 +441,7 @@ class TestS3DeprecationShim:
         import airflow.providers.common.sql.datafusion.object_storage_provider as mod
 
         with pytest.warns(
+            AirflowProviderDeprecationWarning,
             match="Import it from airflow.providers.amazon",
         ):
             cls = mod.S3ObjectStorageProvider
@@ -448,6 +454,7 @@ class TestS3DeprecationShim:
         import airflow.providers.common.sql.datafusion.object_storage_provider as mod
 
         with pytest.warns(
+            AirflowProviderDeprecationWarning,
             match="Import it from airflow.providers.amazon",
         ):
             old_cls = mod.S3ObjectStorageProvider
@@ -462,6 +469,7 @@ class TestS3DeprecationShim:
         import airflow.providers.common.sql.datafusion.object_storage_provider as mod
 
         with pytest.warns(
+            AirflowProviderDeprecationWarning,
             match="Import it from airflow.providers.amazon",
         ):
             cls = mod.S3ObjectStorageProvider

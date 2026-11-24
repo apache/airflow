@@ -228,6 +228,7 @@ def _get_legacy_object_storage_provider(type_key: str) -> ObjectStorageProvider:
 
 def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvider:
     """Get an object storage provider based on the storage type."""
+    storage_type = StorageType(storage_type)
     if provider_cls := EMBEDDED_PROVIDERS.get(storage_type):
         return provider_cls()
 
