@@ -26,12 +26,12 @@ from uuid import UUID
 import attrs
 from cadwyn import current_dependency_solver
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
-from pydantic import JsonValue
 from sqlalchemy import select
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.types import DecodedJsonValue
 from airflow.api_fastapi.common.xcom import reject_reserved_xcom_key
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.token import DagParseToken, ExecutionToken, TIToken
@@ -684,7 +684,7 @@ def set_xcom(
     session: SessionDep,
     dag_bag: DagBagDep,
     value: Annotated[
-        JsonValue,
+        DecodedJsonValue,
         Body(
             description="A JSON-formatted string representing the value to set for the XCom.",
             openapi_examples={
