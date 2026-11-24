@@ -85,6 +85,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodNotFoundException,
     PodPhase,
     detect_pod_terminate_early_issues,
+    pod_uid_precondition,
 )
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
 from airflow.providers.common.compat.sdk import XCOM_RETURN_KEY, AirflowSkipException, Stats, conf
@@ -1671,16 +1672,24 @@ class KubernetesPodOperator(BaseOperator):
         if self.pod:
             pod = self.pod
             metadata = cast("k8s.V1ObjectMeta", pod.metadata)
-            kwargs: dict[str, Any] = {
-                "name": metadata.name,
-                "namespace": metadata.namespace,
-            }
-            if self.termination_grace_period is not None:
-                kwargs.update(grace_period_seconds=self.termination_grace_period)
+            preconditions = pod_uid_precondition(pod)
+            # The API server ignores the query parameters of a delete request that has a body, so the
+            # grace period has to be in the body too.
+            body = k8s.V1DeleteOptions(
+                grace_period_seconds=self.termination_grace_period, preconditions=preconditions
+            )
 
             @generic_api_retry
             def _delete_with_retry():
-                self.client.delete_namespaced_pod(**kwargs)
+                try:
+                    self.client.delete_namespaced_pod(
+                        name=cast("str", metadata.name), namespace=cast("str", metadata.namespace), body=body
+                    )
+                except kubernetes.client.exceptions.ApiException as e:
+                    if not preconditions or str(e.status) != "409":
+                        raise
+                    # The uid precondition failed, which a retry cannot change
+                    self.log.info("Pod %s was already replaced, nothing to delete", metadata.name)
 
             try:
                 _delete_with_retry()
