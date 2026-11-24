@@ -2252,14 +2252,35 @@ class TestPytestSnowflakeHook:
         assert call_kwargs["authenticator"] == "WORKLOAD_IDENTITY"
         assert call_kwargs["workload_identity_provider"] == "GCP"
 
-    def test_get_connection_form_widgets_exposes_workload_identity_provider(self):
-        """The connection form must expose a workload_identity_provider field so users can set it in the UI."""
+    @pytest.mark.parametrize("field", ["workload_identity_provider", "authenticator"])
+    def test_get_connection_form_widgets_exposes_auth_fields(self, field):
+        """The connection form must expose auth fields so users can set them in the UI."""
         pytest.importorskip("flask_appbuilder")
         pytest.importorskip("flask_babel")
 
         widgets = SnowflakeHook.get_connection_form_widgets()
 
-        assert "workload_identity_provider" in widgets
+        assert field in widgets
+
+    @pytest.mark.parametrize(
+        ("extra", "expected"),
+        [
+            pytest.param({"authenticator": ""}, "snowflake", id="blank-form-field-uses-default"),
+            pytest.param(
+                {"extra__snowflake__authenticator": "programmatic_access_token"},
+                "programmatic_access_token",
+                id="backcompat-prefix",
+            ),
+        ],
+    )
+    def test_get_conn_params_authenticator_from_extra(self, extra, expected):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"].update(extra)
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_static_conn_params
+
+        assert conn_params["authenticator"] == expected
 
     @pytest.mark.parametrize(
         ("field", "value"),
