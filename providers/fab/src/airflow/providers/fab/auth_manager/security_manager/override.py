@@ -1714,8 +1714,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
         from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
-        with FabAuthManager.cache_lock:
-            FabAuthManager.cache.pop(user.id, None)
+        FabAuthManager.evict_cached_user(user.id)
         return True
 
     @staticmethod

@@ -215,8 +215,6 @@ class FabAuthManager(BaseAuthManager[User]):
     This auth manager is responsible for providing a backward compatible user management experience to users.
     """
 
-    # Pop a user only after their change is committed: a request served in between would
-    # cache the row as it was before the change.
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
     # ``TTLCache`` is not thread-safe: requests read it on the event loop, while user updates pop
     # from it in threadpool and WSGI threads. Hold this lock for every access to ``cache``.
@@ -225,6 +223,17 @@ class FabAuthManager(BaseAuthManager[User]):
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
     _flask_app_lock = threading.Lock()
+
+    @classmethod
+    def evict_cached_user(cls, user_id: int) -> None:
+        """
+        Drop a user from the cache so that their next request reloads them from the database.
+
+        Call it only after the change to the user is committed: a request served in between would
+        cache the row as it was before the change.
+        """
+        with cls.cache_lock:
+            cls.cache.pop(user_id, None)
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()

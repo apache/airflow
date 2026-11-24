@@ -27,6 +27,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
     UserResponse,
 )
 from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_ordering
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.utils import get_fab_auth_manager
@@ -235,3 +236,4 @@ class FABAuthManagerUsers:
         user.roles = []
         security_manager.session.delete(user)
         security_manager.session.commit()
+        FabAuthManager.evict_cached_user(user.id)
