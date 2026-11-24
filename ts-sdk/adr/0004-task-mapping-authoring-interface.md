@@ -460,7 +460,8 @@ before `"2"`. The payload is written in that order, and that is the expansion or
 
 ## Alternatives
 
-- **A per-argument marker, as a positional SDK uses**, `measure.expand({ path: expand(files), bucket: "raw" })`.
+- **A per-argument marker, as a positional SDK uses**,
+  `measureFile.expand({ path: expand(files), bucket: "raw" })`.
   Rejected: TypeScript can split the arguments by key, which is Python's own spelling, so
   ADR-0016 has it keep that spelling. The marker is the substitute for an SDK that cannot.
 - **`MappedTaskRef<T>` as a `TaskRef<T>`, with `all()` for the reduce**, as a loop body's ref is.
