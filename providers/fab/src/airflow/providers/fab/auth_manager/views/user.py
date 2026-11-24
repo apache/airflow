@@ -73,6 +73,22 @@ class MultiResourceUserMixin:
     def class_permission_name(self, name):
         self._class_permission_name = name
 
+    # FAB calls these hooks only after the edit or delete is committed.
+    def post_update(self, item):
+        super().post_update(item)
+        self._evict_cached_user(item.id)
+
+    def post_delete(self, item):
+        super().post_delete(item)
+        self._evict_cached_user(item.id)
+
+    @staticmethod
+    def _evict_cached_user(user_id: int) -> None:
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+        with FabAuthManager.cache_lock:
+            FabAuthManager.cache.pop(user_id, None)
+
     @expose("/show/<pk>", methods=["GET"])
     @has_access
     def show(self, pk):

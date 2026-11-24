@@ -21,10 +21,12 @@ from datetime import datetime, timedelta
 from unittest import mock
 
 import pytest
+from cachetools import TTLCache
 from flask.sessions import SecureCookieSessionInterface
 from sqlalchemy import delete, func, select
 
 from airflow.api_fastapi.app import get_auth_manager
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www import app as application
 from airflow.providers.fab.www.security import permissions
@@ -301,6 +303,50 @@ class TestSecurity:
 
         assert response.status_code == 200
         check_content_in_response("This field is required", response)
+
+    @pytest.mark.parametrize(
+        ("action", "error"),
+        [
+            pytest.param("edit", "is not active", id="deactivate"),
+            pytest.param("delete", "not found", id="delete"),
+        ],
+    )
+    @mock.patch.object(FabAuthManager, "cache", new_callable=lambda: TTLCache(maxsize=8, ttl=60))
+    def test_user_change_ends_tokens_cached_before_it(self, cache, action, error, app):
+        create_user(
+            app,
+            username="has_access",
+            role_name="role_has_access",
+            permissions=[
+                (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER),
+                (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER),
+            ],
+        )
+        user = create_user(app, username="test_new_user", role_name="role_test_new_user")
+        auth_manager = get_auth_manager()
+        token = auth_manager.serialize_user(user)
+        auth_manager.deserialize_user(token)
+        assert user.id in cache
+        client = client_with_login(app, username="has_access", password="has_access")
+
+        if action == "edit":
+            # The unchecked "active" box is left out of the form, which deactivates the user.
+            client.post(
+                f"/users/edit/{user.id}",
+                data={
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "username": user.username,
+                    "email": user.email,
+                    "roles": str(user.roles[0].id),
+                },
+            )
+        else:
+            client.post(f"/users/delete/{user.id}")
+
+        with pytest.raises(ValueError, match=error):
+            auth_manager.deserialize_user(token)
 
 
 class TestResetUserSessions:
