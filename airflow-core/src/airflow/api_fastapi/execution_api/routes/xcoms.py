@@ -21,11 +21,13 @@ import logging
 from contextlib import suppress
 from functools import partial
 from typing import TYPE_CHECKING, Annotated
+from urllib.parse import quote
 from uuid import UUID
 
 import attrs
 from cadwyn import current_dependency_solver
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi.datastructures import URL
 from fastapi.responses import RedirectResponse
 from pydantic import JsonValue
 from sqlalchemy import select
@@ -698,8 +700,9 @@ def get_xcom(
             },
         )
     if map_index is None:
-        slice_url = request.url.replace(path=f"{request.url.path}/slice")
-        return RedirectResponse(slice_url, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
+        segment = quote(key, safe="")
+        segment = {".": "%2E", "..": "%2E%2E"}.get(segment, segment)
+        return RedirectResponse(URL(path=f"{segment}/slice", query=request.url.query))
     xcom_read = _build_xcom_read(
         dag_id=dag_id,
         run_id=run_id,

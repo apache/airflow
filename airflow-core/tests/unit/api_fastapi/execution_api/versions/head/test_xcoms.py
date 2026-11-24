@@ -1469,9 +1469,11 @@ class TestXComsGetOmittedMapIndex:
     @staticmethod
     def assert_redirected_to_slice(response):
         assert response.status_code == 307
-        location = urllib.parse.urlsplit(response.headers["location"])
-        assert location.path == f"{response.request.url.path}/slice"
-        assert location.query == response.request.url.query.decode()
+        location = response.headers["location"]
+        assert not urllib.parse.urlsplit(location).netloc  # Relative, so a proxy's URL is kept.
+        target = response.request.url.join(location)
+        assert target.path == f"{response.request.url.path}/slice"
+        assert target.query == response.request.url.query
 
     @pytest.mark.parametrize(
         ("task_id", "params", "expected"),
@@ -1510,6 +1512,19 @@ class TestXComsGetOmittedMapIndex:
     )
     def test_every_instance_is_redirected_to_the_slice(self, client, task_id, params):
         self.assert_redirected_to_slice(self.get(client, task_id, **params))
+
+    @pytest.mark.parametrize(
+        ("sent_key", "expected"),
+        [
+            pytest.param("a%2Fb", "a%2Fb/slice", id="slash"),
+            pytest.param("%2E", "%2E/slice", id="dot"),
+            pytest.param("my%20key", "my%20key/slice", id="space"),
+        ],
+    )
+    def test_redirect_quotes_the_key_as_one_segment(self, client, sent_key, expected):
+        response = client.get(f"/execution/xcoms/dag/runid/mapped/{sent_key}", follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers["location"] == expected
 
     @pytest.mark.parametrize("task_id", ["plain", "missing"])
     def test_task_without_regional_instances_does_not_load_the_dag(self, client, mocker, task_id):

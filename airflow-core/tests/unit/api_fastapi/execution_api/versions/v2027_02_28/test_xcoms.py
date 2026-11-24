@@ -49,4 +49,4 @@ class TestOmittedMapIndexVersioning:
         response = client.get(f"/execution/xcoms/dag/runid/mapped/{XCOM_RETURN_KEY}", follow_redirects=False)
 
         assert response.status_code == 307
-        assert response.headers["location"].endswith(f"/mapped/{XCOM_RETURN_KEY}/slice")
+        assert response.headers["location"] == f"{XCOM_RETURN_KEY}/slice"
