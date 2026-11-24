@@ -16,8 +16,31 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from dataclasses import is_dataclass
-from typing import Any
+from typing import Any, Protocol, TypeGuard
+
+
+class SupportsSerialize(Protocol):
+    """An object with a no-argument serialization method."""
+
+    def serialize(self) -> object: ...
+
+
+class SupportsToDict(Protocol):
+    """An object with a no-argument dictionary conversion method."""
+
+    def to_dict(self) -> object: ...
+
+
+def has_serialize(obj: object) -> TypeGuard[SupportsSerialize]:
+    """Check for a callable serialize attribute without invoking user attribute hooks."""
+    return callable(inspect.getattr_static(obj, "serialize", None))
+
+
+def has_to_dict(obj: object) -> TypeGuard[SupportsToDict]:
+    """Check for a callable to_dict attribute without invoking user attribute hooks."""
+    return callable(inspect.getattr_static(obj, "to_dict", None))
 
 
 def is_pydantic_model(cls: Any) -> bool:
