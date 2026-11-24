@@ -46,7 +46,8 @@ This ADR records the TypeScript spelling of it.
    method, unlike the `taskStateStore` property, because it takes the asset. It mirrors
    `TaskStateStore` without the retention option, which the asset messages do not carry.
 6. **Inlet event methods take an `InletEventQueryParams` object** and return promises.
-7. **Durations are seconds as a `number`; datetimes are a `Date` or an ISO 8601 string with an
+7. **`AssetExtra` aliases `JsonObject`** for asset and event `extra`.
+8. **Durations are seconds as a `number`; datetimes are a `Date` or an ISO 8601 string with an
    offset.** A string without an offset is rejected at build time.
 
 ## Signatures
@@ -54,6 +55,7 @@ This ADR records the TypeScript spelling of it.
 ```ts
 // @apache-airflow/ts-sdk
 type JsonObject = { [key: string]: JsonValue };
+type AssetExtra = JsonObject;
 type AssetLike = Asset | AssetRef | AssetAlias;
 type AssetExpression = AssetLike | AssetCondition;
 
@@ -62,7 +64,7 @@ class Asset {
     name?: string;                     // one of name and uri is required; the other defaults to it
     uri?: string;
     group?: string;                    // default "asset"
-    extra?: JsonObject;
+    extra?: AssetExtra;
     watchers?: AssetWatcher[];
     accessControl?: {                  // omitted fields take Python's defaults
       producerTeams?: string[];        // []
@@ -87,9 +89,9 @@ interface TaskContext {
   triggeringAssetEvents(asset: AssetLike): readonly TriggeringAssetEvent[];
 }
 interface OutletEventAccessor {
-  setExtra(extra: JsonObject): void;
+  setExtra(extra: AssetExtra): void;
   addPartitions(keys: string | string[]): void;             // throws on an alias
-  add(asset: Asset | AssetRef, extra?: JsonObject): void;   // throws on a non-alias
+  add(asset: Asset | AssetRef, extra?: AssetExtra): void;   // throws on a non-alias
 }
 interface TaskClient {
   inletEvents(asset: AssetLike): InletEventAccessor;
@@ -119,8 +121,8 @@ interface AssetStateStore {
 interface AssetEvent {                  // created_dagruns is not exposed
   id: number;
   timestamp: Date;
-  extra: JsonObject | null;
-  asset: { name: string; uri: string; group: string; extra: JsonObject | null };
+  extra: AssetExtra | null;
+  asset: { name: string; uri: string; group: string; extra: AssetExtra | null };
   sourceDagId: string | null;
   sourceTaskId: string | null;
   sourceRunId: string | null;
@@ -129,8 +131,8 @@ interface AssetEvent {                  // created_dagruns is not exposed
 }
 interface TriggeringAssetEvent {        // from consumed_asset_events
   timestamp: Date;
-  extra: JsonObject;
-  asset: { name: string; uri: string; extra: JsonObject };
+  extra: AssetExtra;
+  asset: { name: string; uri: string; extra: AssetExtra };
   sourceDagId: string | null;
   sourceTaskId: string | null;
   sourceRunId: string | null;

@@ -42,18 +42,23 @@ This ADR records the Go spelling of it.
    Each interface has one exported method that returns the value's serialized JSON, since a type
    in another package cannot implement an unexported method.
 3. **Required builder arguments are positional; optional ones are a trailing options struct**, as
-   `airflow.Dag(id, spec ...DagSpec)` takes its spec.
-4. **`DagSpec.Schedule` widens from `string` to `any`**: a cron expression or preset string, or an
-   `airflow.Timetable`. Another type fails at registration. A typed interface would reject
-   `Schedule: "@daily"`.
+   `airflow.Dag(id, spec ...DagSpec)` takes its spec. A field is a pointer only when its zero value
+   is a valid setting that differs from unset, such as `RunOffset *int`, as in the generated
+   `DagSpec`. Otherwise the zero value means unset.
+4. **`DagSpec.Schedule` changes from `string` to `airflow.Timetable`.** `schedule.Literal("@daily")`
+   wraps a cron expression or preset and keeps today's meaning of a string schedule. This breaks
+   `Schedule: "@daily"`, which is acceptable while the SDK is experimental, and lets the compiler
+   reject any other type.
 5. **`TaskSpec` gets `Inlets` and `Outlets`.**
-6. **Outlet and triggering events are on `airflow.Context`; inlet events and the asset state store
+6. **`airflow.AssetExtra` aliases `map[string]any`** for asset and event `extra`, so a plain map
+   literal still fits. It is defined in `sdk` and re-exported by `airflow`.
+7. **Outlet and triggering events are on `airflow.Context`; inlet events and the asset state store
    are on `sdk.Client`**, through a new `sdk.AssetClient` beside `TaskStateStoreClient`. The asset
    crosses into `sdk` as `sdk.AssetKey`, which every `airflow.AssetLike` returns. An alias passed
    to the asset state store returns an error, since its messages address an asset by name or URI.
    `sdk.AssetStateStore` mirrors `TaskStateStore` without `SetOption`, since the asset messages
    carry no retention.
-7. **Inlet events take `sdk.InletEventQueryParams`**, which `airflow` re-exports with
+8. **Inlet events take `sdk.InletEventQueryParams`**, which `airflow` re-exports with
    `airflow.Ascending` and `airflow.Descending`. `Order` replaces Python's `ascending` because its
    zero value, `Ascending`, is Python's default. `Limit: 0` means no limit. Durations are
    `time.Duration` and datetimes are `time.Time`.
@@ -67,14 +72,14 @@ type AssetLike interface {                                 // Asset, AssetRef, A
     AssetKey() sdk.AssetKey
 }
 type AssetExpression interface{ assetExpression() }       // AssetLike, or AllOf / AnyOf
-type Timetable interface{ TimetableJSON() map[string]any }              // {"__type", "__var"}
+type Timetable interface{ TimetableJSON() any }         // a cron or preset string, or {"__type", "__var"}
 type PartitionMapper interface{ PartitionMapperJSON() map[string]any }  // {"__type", "__var"}
 type Trigger interface{ TriggerJSON() map[string]any }                  // {"classpath", "kwargs", "queue"}
 
 type Asset struct {
     Name, URI string                                        // one is required; the other defaults to it
     Group         string                                    // "" means "asset"
-    Extra         map[string]any
+    Extra         AssetExtra
     Watchers      []AssetWatcher
     AccessControl *AssetAccessControl                       // nil takes Python's defaults
 }
@@ -92,15 +97,16 @@ type AssetWatcher struct {
 func AllOf(items ...AssetExpression) AssetExpression
 func AnyOf(items ...AssetExpression) AssetExpression
 
-type DagSpec struct { Schedule any ; /* string or Timetable; ... */ }
+type AssetExtra = sdk.AssetExtra
+type DagSpec struct { Schedule Timetable ; /* ... */ }
 type TaskSpec struct { Inlets, Outlets []AssetLike ; /* ... */ }
 
 func (c Context) OutletEvents(asset AssetLike) *OutletEventAccessor
 func (c Context) TriggeringAssetEvents(asset AssetLike) []sdk.TriggeringAssetEvent
 type OutletEventAccessor struct{ /* unexported */ }
-func (a *OutletEventAccessor) SetExtra(extra map[string]any)
+func (a *OutletEventAccessor) SetExtra(extra AssetExtra)
 func (a *OutletEventAccessor) AddPartitions(keys ...string) error            // error on an alias
-func (a *OutletEventAccessor) Add(asset AssetLike, extra map[string]any) error  // error on a non-alias accessor or an alias argument
+func (a *OutletEventAccessor) Add(asset AssetLike, extra AssetExtra) error  // error on a non-alias accessor or an alias argument
 
 type InletEventQueryParams = sdk.InletEventQueryParams
 const (
@@ -109,6 +115,7 @@ const (
 )
 
 // package sdk
+type AssetExtra = map[string]any
 type AssetKey struct{ Name, URI, AliasName string }
 type AssetKeyer interface{ AssetKey() AssetKey }
 type AssetClient interface {                              // embedded in Client
@@ -145,8 +152,8 @@ var AssetStateNotFound error
 type AssetEvent struct {                                  // created_dagruns is not exposed
     ID             int
     Timestamp      time.Time
-    Extra          map[string]any
-    Asset          AssetInfo                               // AssetInfo{Name, URI, Group string; Extra map[string]any}
+    Extra          AssetExtra
+    Asset          AssetInfo                               // AssetInfo{Name, URI, Group string; Extra AssetExtra}
     SourceDagID    string
     SourceTaskID   string
     SourceRunID    string
@@ -155,7 +162,7 @@ type AssetEvent struct {                                  // created_dagruns is 
 }
 type TriggeringAssetEvent struct {                        // from consumed_asset_events; no ID or asset Group
     Timestamp      time.Time
-    Extra          map[string]any
+    Extra          AssetExtra
     Asset          AssetInfo                               // Group is ""
     SourceDagID    string
     SourceTaskID   string
@@ -166,6 +173,7 @@ type TriggeringAssetEvent struct {                        // from consumed_asset
 }
 
 // package schedule
+func Literal(expression string) airflow.Timetable           // cron expression or preset, in the Dag timezone
 type RunImmediately struct {                              // zero value is Python's False; setting both
     Always bool                                             // fields is rejected. Python's None (10% of
     Within time.Duration                                    // the interval) is not exposed.
@@ -296,7 +304,7 @@ var (
         Name:  "orders",
         URI:   "s3://lake/orders",
         Group: "sales",
-        Extra: map[string]any{"owner": "sales"},
+        Extra: airflow.AssetExtra{"owner": "sales"},
         AccessControl: &airflow.AssetAccessControl{
             ProducerTeams: []string{"sales"},
             ConsumerTeams: []string{"finance"},
@@ -367,7 +375,7 @@ var (
 )
 
 func newDags() []*airflow.DagRef {
-    cronDag := airflow.Dag("cron_report", airflow.DagSpec{Schedule: "0 3 * * *", Queue: "golang"})
+    cronDag := airflow.Dag("cron_report", airflow.DagSpec{Schedule: schedule.Literal("0 3 * * *"), Queue: "golang"})
     cronDag.Task(load)
     dag := airflow.Dag("daily_report", airflow.DagSpec{Schedule: schedule.Asset(both), Queue: "golang"})
     dag.Task(load, airflow.TaskSpec{
@@ -441,9 +449,8 @@ func load(actx airflow.Context) error {
 
 ## Consequences
 
-- `DagSpec.Schedule` loses its compile-time type; a wrong value fails at registration instead.
-  Every existing `Schedule: "..."` keeps compiling. The schema that `internal/genspec` injects for
-  `schedule`, its test and the field's doc comment change with it.
+- Every existing `Schedule: "..."` must become `Schedule: schedule.Literal("...")`. The schema that
+  `internal/genspec` injects for `schedule`, its test and the field's doc comment change with it.
 - Every fake `sdk.Client`, such as in tests, gains the `AssetClient` methods.
 - `Add` on a non-alias accessor returns an error, where Python ignores it.
 - The builders must change whenever a Python built-in's `serialize()` changes; the golden fixtures
