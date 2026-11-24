@@ -24,6 +24,7 @@ import time
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_utils import ExecutorName
 from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job, JobState
@@ -255,6 +256,39 @@ def test_check_executor_health_records_unhealthy_when_a_check_stalls(session):
     assert job is not None
     assert job.health_check_result == HealthCheckResult.UNHEALTHY
     assert key in runner._stalled_health_checks
+
+    block_forever.set()
+    stuck.join()
+
+
+def test_check_executor_health_marks_unhealthy_on_every_tick_while_stalled(session):
+    """A stalled check must keep marking UNHEALTHY even after the row it wrote to gets replaced."""
+    executor = _StubExecutor()
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
+    runner._touch_executor_heartbeats(session=session)
+    session.commit()
+
+    block_forever = threading.Event()
+    stuck = threading.Thread(target=block_forever.wait, daemon=True)
+    stuck.start()
+    runner._executor_health_check_interval = 0.01
+    runner._executor_health_check_threads[key] = (stuck, time.monotonic() - 10)
+
+    runner._check_executor_health()
+    first_job = runner._open_executor_job(key, session=session)
+    assert first_job.health_check_result == HealthCheckResult.UNHEALTHY
+
+    first_job.end_date = timezone.utcnow()
+    session.commit()
+    runner._touch_executor_heartbeats(session=session)
+    session.commit()
+    second_job = runner._open_executor_job(key, session=session)
+    assert second_job.id != first_job.id
+
+    runner._check_executor_health()
+    session.refresh(second_job)
+    assert second_job.health_check_result == HealthCheckResult.UNHEALTHY
 
     block_forever.set()
     stuck.join()

@@ -523,15 +523,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 stall_after = (
                     self._executor_health_check_interval * self._executor_health_check_stall_after_intervals
                 )
-                if time.monotonic() - started > stall_after and key not in self._stalled_health_checks:
-                    self._stalled_health_checks.add(key)
-                    self.log.warning("Health check for executor %s has stopped responding", key)
-                    stats.incr(
-                        "scheduler.executor_health_check.stalled",
-                        tags=prune_dict(
-                            {"executor": type(executor).__name__, "team_name": executor.team_name}
-                        ),
-                    )
+                if time.monotonic() - started > stall_after:
+                    if key not in self._stalled_health_checks:
+                        self._stalled_health_checks.add(key)
+                        self.log.warning("Health check for executor %s has stopped responding", key)
+                        stats.incr(
+                            "scheduler.executor_health_check.stalled",
+                            tags=prune_dict(
+                                {"executor": type(executor).__name__, "team_name": executor.team_name}
+                            ),
+                        )
                     try:
                         self._record_executor_health_result(key, HealthCheckResult.UNHEALTHY)
                     except Exception:
@@ -557,11 +558,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         A check still running at that point can no longer revive a row -- only the main thread ever
         creates one -- but joining first still keeps it from writing a result onto a row the scheduler
-        has already closed. Bounded by the same timeout passed to ``get_health()``, so an implementation
-        that ignores it can delay shutdown but not hang it.
+        has already closed. All threads share one deadline, so shutdown is bounded by the timeout once,
+        not once per hung check.
         """
+        deadline = time.monotonic() + self._executor_health_check_timeout
         for thread, _ in self._executor_health_check_threads.values():
-            thread.join(timeout=self._executor_health_check_timeout)
+            thread.join(timeout=max(deadline - time.monotonic(), 0))
 
     def _run_executor_health_check(self, executor: BaseExecutor, key: str) -> None:
         """Run one executor's get_health() off the scheduler thread and record an explicit result."""

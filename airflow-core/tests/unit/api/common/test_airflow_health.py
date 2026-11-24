@@ -759,6 +759,10 @@ class TestConfiguredExecutorKeys:
     def test_survives_unreadable_executor_config(self, mock_get_executor_names):
         assert _configured_executor_keys() == set()
 
+    @conf_vars({("scheduler", "executor_health_check_interval"): "30s"})
+    def test_survives_unparseable_interval_config(self):
+        assert _configured_executor_keys() == set()
+
     @conf_vars({("scheduler", "executor_health_check_interval"): "0"})
     @patch("airflow.api.common.airflow_health.ExecutorLoader.import_executor_cls")
     @patch("airflow.api.common.airflow_health.ExecutorLoader.get_executor_names")

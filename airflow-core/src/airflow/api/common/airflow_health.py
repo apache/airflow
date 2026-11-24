@@ -246,10 +246,9 @@ def _configured_executor_keys() -> set[str]:
     skipped (``validate_teams=False``), the same as ``connections.py`` does, so a database hiccup on
     the first call can't get cached as "no executors".
     """
-    if conf.getfloat("scheduler", "executor_health_check_interval", fallback=30.0) <= 0:
-        return set()
-
     try:
+        if conf.getfloat("scheduler", "executor_health_check_interval", fallback=30.0) <= 0:
+            return set()
         names = ExecutorLoader.get_executor_names(validate_teams=False)
     except Exception:
         # A health probe must not fail on malformed executor config; callers fall back to liveness only.
