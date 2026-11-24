@@ -55,6 +55,15 @@
   "group": "그룹",
   "lastAssetEvent": "마지막 에셋 이벤트",
   "name": "이름",
+  "partitions": {
+    "consumerRuns": "소비한 실행",
+    "consumerRunsHelp": "파티션의 마지막 에셋 이벤트를 소비한 Dag 실행",
+    "lastProducerRun": "마지막 생성 실행",
+    "status": {
+      "in_progress": "진행 중",
+      "materialized": "구체화됨"
+    }
+  },
   "producingTasks": "생성 중인 태스크",
   "scheduledDags": "스케줄 된 Dags",
   "scheduling": "스케줄링",
@@ -62,5 +71,9 @@
   "taskDependencies": "태스크 종속성",
   "watcher_one": "Watcher",
   "watcher_other": "Watcher",
+  "watcherFailing_one": "Watcher 실패 중",
+  "watcherFailing_other": "Watcher 실패 중",
+  "watcherOrphaned_one": "Watcher 고아 상태",
+  "watcherOrphaned_other": "Watcher 고아 상태",
   "watchers": "Watcher"
 }

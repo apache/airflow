@@ -85,3 +85,39 @@ describe("FieldSelector array routing", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 });
+
+describe("FieldSelector enum routing", () => {
+  beforeEach(() => {
+    Object.keys(mockParamsDict).forEach((key) => {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete mockParamsDict[key];
+    });
+  });
+
+  it("renders a dropdown for an object param with enum choices", () => {
+    const envs = [
+      { name: "dev", replicas: 1 },
+      { name: "prod", replicas: 5 },
+    ];
+
+    mockParamsDict.test_param = {
+      schema: { enum: envs, type: "object" },
+      value: envs[0],
+    };
+
+    render(<FieldSelector name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("combobox")).toBeDefined();
+  });
+
+  it("renders the JSON editor for an object param without enum", () => {
+    mockParamsDict.test_param = {
+      schema: { type: "object" },
+      value: { name: "dev" },
+    };
+
+    render(<FieldSelector name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});

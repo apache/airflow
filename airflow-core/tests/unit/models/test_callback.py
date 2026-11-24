@@ -34,6 +34,7 @@ from airflow.models.callback import (
     Callback,
     CallbackFetchMethod,
     CallbackState,
+    CallbackType,
     DagProcessorCallback,
     ExecutorCallback,
     TriggererCallback,
@@ -320,7 +321,7 @@ class TestTriggererCallback:
         assert callback.trigger.kwargs["callback_kwargs"] == TEST_ASYNC_CALLBACK.kwargs
         assert callback.trigger.queue is None
         assert callback.state == CallbackState.QUEUED
-        assert callback.trigger.owner_ref == {"callback_id": str(callback.id)}
+        assert callback.trigger.used_by_ref == {"callback_id": str(callback.id)}
 
     @pytest.mark.parametrize(
         ("callback_kwargs", "data_dag_id"),
@@ -329,7 +330,7 @@ class TestTriggererCallback:
             pytest.param({"context": {"dag_run": {"dag_id": TEST_DAG_ID}}}, None, id="dag-id-in-context"),
         ],
     )
-    def test_queue_records_the_owner_dag_on_the_trigger(self, session, callback_kwargs, data_dag_id):
+    def test_queue_records_its_dag_on_the_trigger(self, session, callback_kwargs, data_dag_id):
         callback = TriggererCallback(TEST_ASYNC_CALLBACK)
         callback.data["kwargs"] = callback_kwargs
         callback.data["dag_id"] = data_dag_id
@@ -615,3 +616,9 @@ class TestAcceptsContext:
     def test_true_for_uninspectable_callable(self):
         with patch("airflow._shared.module_loading.inspect.signature", side_effect=ValueError):
             assert accepts_context(lambda: None) is True
+
+
+@pytest.mark.parametrize("member", [*CallbackType, *CallbackFetchMethod])
+def test_enum_str_is_value(member):
+    # DB drivers may bind str-Enum members through str(); mysqlclient>=2.3.1 does.
+    assert str(member) == member.value

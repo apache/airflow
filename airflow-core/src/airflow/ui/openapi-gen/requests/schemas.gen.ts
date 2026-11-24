@@ -1652,6 +1652,12 @@ export const $BulkDAGRunClearBody = {
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
         },
+        keep_task_state: {
+            type: 'boolean',
+            title: 'Keep Task State',
+            description: 'Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.',
+            default: false
+        },
         note: {
             anyOf: [
                 {
@@ -2289,6 +2295,13 @@ export const $BulkUpdateAction_VariableBody_ = {
     type: 'object',
     required: ['action', 'entities'],
     title: 'BulkUpdateAction[VariableBody]'
+} as const;
+
+export const $CallbackState = {
+    type: 'string',
+    enum: ['scheduled', 'pending', 'queued', 'running', 'success', 'failed'],
+    title: 'CallbackState',
+    description: 'All possible states of callbacks.'
 } as const;
 
 export const $ClearPartitionsBody = {
@@ -4026,6 +4039,12 @@ export const $DAGRunClearBody = {
             ],
             title: 'Run On Latest Version',
             description: '(Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.'
+        },
+        keep_task_state: {
+            type: 'boolean',
+            title: 'Keep Task State',
+            description: 'Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.',
+            default: false
         },
         note: {
             anyOf: [
@@ -5784,13 +5803,50 @@ export const $EventLogCollectionResponse = {
         },
         total_entries: {
             type: 'integer',
-            title: 'Total Entries'
+            title: 'Total Entries',
+            description: 'Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.'
+        },
+        total_entries_limit: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Total Entries Limit',
+            description: 'Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.'
+        },
+        next_cursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Next Cursor',
+            description: 'Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.'
+        },
+        previous_cursor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Previous Cursor',
+            description: 'Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.'
         }
     },
     type: 'object',
     required: ['event_logs', 'total_entries'],
     title: 'EventLogCollectionResponse',
-    description: 'Event Log Collection Response.'
+    description: 'Event Log collection response supporting both offset and cursor pagination.'
 } as const;
 
 export const $EventLogResponse = {
@@ -10561,10 +10617,18 @@ export const $TriggerAssetWatcherReferenceResponse = {
         watcher_name: {
             type: 'string',
             title: 'Watcher Name'
+        },
+        scheduled_dag_ids: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Scheduled Dag Ids',
+            description: "The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read."
         }
     },
     type: 'object',
-    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name'],
+    required: ['asset_id', 'asset_name', 'asset_uri', 'watcher_name', 'scheduled_dag_ids'],
     title: 'TriggerAssetWatcherReferenceResponse',
     description: 'An asset watcher a trigger serves.'
 } as const;
@@ -10600,13 +10664,12 @@ export const $TriggerCallbackReferenceResponse = {
         state: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/CallbackState'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'State'
+            ]
         }
     },
     type: 'object',
@@ -10918,7 +10981,7 @@ export const $TriggerKind = {
     type: 'string',
     enum: ['task', 'callback', 'asset_watcher'],
     title: 'TriggerKind',
-    description: 'What a trigger runs for, worked out from its owner rather than stored.'
+    description: 'What a trigger runs for, worked out from what it is used by rather than stored.'
 } as const;
 
 export const $TriggerResponse = {
@@ -11002,13 +11065,12 @@ export const $TriggerTaskInstanceReferenceResponse = {
         state: {
             anyOf: [
                 {
-                    type: 'string'
+                    '$ref': '#/components/schemas/TaskInstanceState'
                 },
                 {
                     type: 'null'
                 }
-            ],
-            title: 'State'
+            ]
         }
     },
     type: 'object',
@@ -11676,6 +11738,154 @@ export const $XComUpdateBody = {
     description: 'Payload serializer for updating an XCom entry.'
 } as const;
 
+export const $AssetPartitionCollectionResponse = {
+    properties: {
+        partitions: {
+            items: {
+                '$ref': '#/components/schemas/AssetPartitionResponse'
+            },
+            type: 'array',
+            title: 'Partitions'
+        },
+        total_entries: {
+            type: 'integer',
+            title: 'Total Entries'
+        },
+        status_counts: {
+            '$ref': '#/components/schemas/AssetPartitionStatusCounts'
+        }
+    },
+    type: 'object',
+    required: ['partitions', 'total_entries', 'status_counts'],
+    title: 'AssetPartitionCollectionResponse',
+    description: 'Partition keys of an asset with their status.'
+} as const;
+
+export const $AssetPartitionProducerRunResponse = {
+    properties: {
+        dag_id: {
+            type: 'string',
+            title: 'Dag Id'
+        },
+        run_id: {
+            type: 'string',
+            title: 'Run Id'
+        },
+        state: {
+            '$ref': '#/components/schemas/DagRunState'
+        },
+        start_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Start Date'
+        },
+        end_date: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'End Date'
+        }
+    },
+    type: 'object',
+    required: ['dag_id', 'run_id', 'state', 'start_date', 'end_date'],
+    title: 'AssetPartitionProducerRunResponse',
+    description: 'The latest run of a producing Dag for one partition key.'
+} as const;
+
+export const $AssetPartitionResponse = {
+    properties: {
+        partition_key: {
+            type: 'string',
+            title: 'Partition Key'
+        },
+        status: {
+            type: 'string',
+            enum: ['materialized', 'in_progress', 'failed'],
+            title: 'Status'
+        },
+        last_event_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Event Id'
+        },
+        last_event_timestamp: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Last Event Timestamp'
+        },
+        last_producer_run: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/AssetPartitionProducerRunResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        consumer_runs: {
+            items: {
+                '$ref': '#/components/schemas/DagRunAssetReference'
+            },
+            type: 'array',
+            title: 'Consumer Runs'
+        }
+    },
+    type: 'object',
+    required: ['partition_key', 'status', 'last_event_id', 'last_event_timestamp', 'last_producer_run', 'consumer_runs'],
+    title: 'AssetPartitionResponse',
+    description: 'Status of one partition key of an asset.'
+} as const;
+
+export const $AssetPartitionStatusCounts = {
+    properties: {
+        materialized: {
+            type: 'integer',
+            title: 'Materialized',
+            default: 0
+        },
+        in_progress: {
+            type: 'integer',
+            title: 'In Progress',
+            default: 0
+        },
+        failed: {
+            type: 'integer',
+            title: 'Failed',
+            default: 0
+        }
+    },
+    type: 'object',
+    title: 'AssetPartitionStatusCounts',
+    description: 'Number of partition keys per status.'
+} as const;
+
 export const $AuthenticatedMeResponse = {
     properties: {
         id: {
@@ -11760,7 +11970,7 @@ export const $BaseNodeResponse = {
         },
         type: {
             type: 'string',
-            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
+            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'asset-watcher', 'dag', 'sensor', 'trigger'],
             title: 'Type'
         },
         team: {
@@ -11785,6 +11995,27 @@ export const $BaseNodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Id'
+        },
+        trigger_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     type: 'object',
@@ -11881,13 +12112,6 @@ export const $CalendarTimeRangeResponse = {
     required: ['date', 'state', 'count'],
     title: 'CalendarTimeRangeResponse',
     description: 'Represents a summary of DAG runs for a specific calendar time range.'
-} as const;
-
-export const $CallbackState = {
-    type: 'string',
-    enum: ['scheduled', 'pending', 'queued', 'running', 'success', 'failed'],
-    title: 'CallbackState',
-    description: 'All possible states of callbacks.'
 } as const;
 
 export const $ConfigResponse = {
@@ -12915,6 +13139,18 @@ export const $DeadlineResponse = {
                 }
             ],
             title: 'Callback Path'
+        },
+        callback_trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Callback Trigger Id',
+            description: 'The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.'
         }
     },
     type: 'object',
@@ -14249,7 +14485,7 @@ export const $NodeResponse = {
         },
         type: {
             type: 'string',
-            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'dag', 'sensor', 'trigger'],
+            enum: ['join', 'task', 'asset-condition', 'asset', 'asset-alias', 'asset-name-ref', 'asset-uri-ref', 'asset-watcher', 'dag', 'sensor', 'trigger'],
             title: 'Type'
         },
         team: {
@@ -14274,6 +14510,27 @@ export const $NodeResponse = {
                 }
             ],
             title: 'Asset Condition Type'
+        },
+        trigger_id: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Trigger Id'
+        },
+        trigger_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TriggerStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         },
         children: {
             anyOf: [

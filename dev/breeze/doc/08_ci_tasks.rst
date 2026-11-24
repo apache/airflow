@@ -186,13 +186,10 @@ Reconciling pull requests gated to fork CI
 
 Pull requests from external contributors can run their CI in the contributor's fork instead of in
 ``apache/airflow`` (AIP-120). The ``fork-ci-reconcile`` command, run every 5 minutes by the
-``fork-ci-monitor.yml`` workflow, is the only place that changes those pull requests: it labels newly
-gated pull requests ``fork ci required``, keeps them in draft until the fork run is green, maintains
-one state comment and a ``Fork CI / Tests (AMD)`` commit status linking to the run in the fork, closes
-pull requests without fork CI activity for a week, closes gated pull requests that made project CI run
-by changing workflows, and writes everything it could not classify to a Slack message. With
-``--dry-run`` it prints the changes instead of applying them. See
-`Fork CI for external contributors <ci/08_fork_ci_for_external_contributors.md>`_ for the design.
+``fork-ci-monitor.yml`` workflow, is the only place that changes those pull requests: their labels,
+draft state, state comment and commit statuses. With ``--dry-run`` it prints the changes instead of
+applying them. What it does is described in
+`Fork CI for external contributors <ci/08_fork_ci_for_external_contributors.md#reconciler>`_.
 
 These are all available flags of ``fork-ci-reconcile`` command:
 
@@ -205,19 +202,13 @@ Approving workflow runs of external contributors
 ------------------------------------------------
 
 The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 15 minutes. It approves
-the waiting workflow runs of external contributors' PRs to ``main`` whose CI jobs are estimated at no more
-than 310 job-minutes, that change at most 100 lines of source code and that do not touch CI definition files, and labels the other PRs ``need workflow approval``, with a pending
-``Workflow approval`` commit status on their head commit that gives the reason. Once a maintainer
-approves the runs and they start, the ``mark-workflow-runs-approved`` workflow removes the label and
-turns the status green. PRs whose CI runs in
-the contributor's fork (AIP-120) only run the fork CI gate in ``apache/airflow``, so their runs are
-approved whatever their size unless they change CI definition files; such a PR gets a comment
-instead of the label, explaining that its CI change needs a maintainer. The runs of PRs from the repositories of trusted
-stakeholders (Amazon, Google, Astronomer) are always approved. For every PR it also
-estimates the CI jobs selective checks will run and how long they take, and writes them to the job
-summary. Use ``--report-only`` to see the decisions without approving runs or changing labels or
-statuses. The rules
-are described in `CI workflows <ci/05_workflows.md>`_.
+the waiting workflow runs of external contributors' PRs that its rules allow, and labels the other PRs
+``need workflow approval``, with a pending ``Workflow approval`` commit status on their head commit
+that gives the reason. For every PR it also estimates the CI jobs selective checks will run and how
+long they take, and writes them to the job summary. Use ``--report-only`` to see the decisions without
+approving runs or changing labels or statuses. The rules, including those for PRs whose CI runs in
+the contributor's fork, are described in
+`Approval of pull request runs <ci/05_workflows.md#approval-of-pull-request-runs>`_.
 
 These are all available flags of ``approve-workflow-runs`` command:
 

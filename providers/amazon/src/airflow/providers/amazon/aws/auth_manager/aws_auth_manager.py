@@ -21,7 +21,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 from fastapi import FastAPI
 
@@ -538,7 +538,10 @@ class AwsAuthManager(BaseAuthManager[AwsAuthManagerUser]):
         }
 
     def get_url_login(self, **kwargs) -> str:
-        return urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
+        login_url = urljoin(self.apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login")
+        if next_url := kwargs.get("next_url"):
+            return f"{login_url}?{urlencode({'next': next_url})}"
+        return login_url
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:

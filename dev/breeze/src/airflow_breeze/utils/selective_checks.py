@@ -1219,6 +1219,21 @@ class SelectiveChecks:
 
     def _get_previous_file_content(self, path: str) -> str | None:
         if self._fork_merge_base:
+            commit_check = run_command(
+                ["git", "cat-file", "-e", f"{self._fork_merge_base}^{{commit}}"],
+                capture_output=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if commit_check.returncode == 0:
+                result = run_command(
+                    ["git", "show", f"{self._fork_merge_base}:{path}"],
+                    capture_output=True,
+                    text=True,
+                    cwd=AIRFLOW_ROOT_PATH,
+                    check=False,
+                )
+                return result.stdout if result.returncode == 0 else None
             return get_upstream_file(path=path, ref=self._fork_merge_base)
         result = run_command(
             ["git", "show", f"{self._commit_ref}^:{path}"],

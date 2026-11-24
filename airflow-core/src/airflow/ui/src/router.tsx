@@ -43,6 +43,7 @@ const lazyRoute =
 
 const loadAsset = lazyRoute(() => import("src/pages/Asset"), "Asset");
 const loadAssetEvents = lazyRoute(() => import("src/pages/Asset/AssetEvents"), "AssetEvents");
+const loadAssetPartitions = lazyRoute(() => import("src/pages/Asset/AssetPartitions"), "AssetPartitions");
 const loadAssetStateStore = lazyRoute(() => import("src/pages/Asset/AssetStateStore"), "AssetStateStore");
 const loadAssetsList = lazyRoute(() => import("src/pages/AssetsList"), "AssetsList");
 const loadConfigs = lazyRoute(() => import("src/pages/Configs"), "Configs");
@@ -100,6 +101,10 @@ const loadRenderedTemplates = lazyRoute(
 );
 const loadTaskInstances = lazyRoute(() => import("src/pages/TaskInstances"), "TaskInstances");
 const loadTaskStateStore = lazyRoute(() => import("src/pages/TaskStateStore"), "TaskStateStore");
+const loadTrigger = lazyRoute(() => import("src/pages/Trigger"), "Trigger");
+const loadTriggerDetails = lazyRoute(() => import("src/pages/Trigger"), "Details");
+const loadTriggerUsedBy = lazyRoute(() => import("src/pages/Trigger"), "UsedBy");
+const loadTriggers = lazyRoute(() => import("src/pages/Triggers"), "Triggers");
 const loadVariables = lazyRoute(() => import("src/pages/Variables"), "Variables");
 const loadXCom = lazyRoute(() => import("src/pages/XCom"), "XCom");
 
@@ -204,6 +209,7 @@ export const routerConfig = [
       {
         children: [
           { index: true, lazy: loadAssetEvents },
+          { lazy: loadAssetPartitions, path: "partitions" },
           { lazy: loadAssetStateStore, path: "asset-state-store" },
           pluginRoute,
         ],
@@ -257,6 +263,18 @@ export const routerConfig = [
       {
         lazy: loadJobs,
         path: "jobs",
+      },
+      {
+        lazy: loadTriggers,
+        path: "triggers",
+      },
+      {
+        children: [
+          { index: true, lazy: loadTriggerDetails },
+          { lazy: loadTriggerUsedBy, path: "used_by" },
+        ],
+        lazy: loadTrigger,
+        path: "triggers/:triggerId",
       },
       pluginRoute,
       {

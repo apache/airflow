@@ -65,7 +65,7 @@ Batch processing
      - What it shows
    * - :doc:`operators/llm_batch`
      - :doc:`Classify thousands of reviews at half the price <use_cases/classify_reviews_in_bulk>`
-       through one OpenAI or Anthropic batch job, with structured output and results landed on
+       through one OpenAI, Anthropic or Gemini batch job, with structured output and results landed on
        object storage
        (`example_llm_batch.py <https://github.com/apache/airflow/blob/providers-common-ai/|version|/providers/common/ai/src/airflow/providers/common/ai/example_dags/example_llm_batch.py>`__).
 

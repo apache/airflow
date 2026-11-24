@@ -29,12 +29,12 @@ plugins {
     `java-test-fixtures`
     id("airflow-jvm-conventions")
     id("airflow-publish")
-    id("org.jetbrains.dokka") version "2.2.0"
-    id("org.jetbrains.dokka-javadoc") version "2.2.0"
+    id("org.jetbrains.dokka") version "2.3.0"
+    id("org.jetbrains.dokka-javadoc") version "2.3.0"
     // jsonschema2pojo 1.3.3 targets Java 17:
     // https://github.com/joelittlejohn/jsonschema2pojo/blob/jsonschema2pojo-1.3.3/jsonschema2pojo-gradle-plugin/build.gradle#L45-L48
     id("org.jsonschema2pojo") version "1.2.2"
-    kotlin("plugin.serialization") version "2.4.20"
+    kotlin("plugin.serialization") version "2.4.21"
 }
 
 val schemaInput = layout.projectDirectory.file("schema/schema.json")
@@ -46,7 +46,7 @@ val dagSchemaInput = layout.projectDirectory.file("schema/dag-schema.json")
 val dagDslDir = layout.buildDirectory.dir("generated-resources/dsl/src/main/kotlin")
 
 dependencies {
-    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.4")
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.5")
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     implementation("com.fasterxml.jackson.core:jackson-annotations:2.22")
@@ -55,14 +55,14 @@ dependencies {
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.4")
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.22.4")
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
-    implementation("io.ktor:ktor-network:3.6.0")
+    implementation("io.ktor:ktor-network:3.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
     implementation("org.msgpack:msgpack-core:0.9.12")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.12")
 
     testImplementation(kotlin("test"))
-    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.1")
 }
 
 // jsonSchema2Pojo does not accept the single JSON Schema file directly.
@@ -688,6 +688,52 @@ abstract class GenerateDagDslTask : DefaultTask() {
             |  annotation class TaskHandler(
             |    val dag: String,
             |    val task: String = "",
+            |  )
+            |
+            |  /**
+            |   * Marks the method that stops a task when Airflow asks the task to stop.
+            |   *
+            |   * The class the annotation processor generates for the task then
+            |   * implements [StoppableTask]. The documentation of its `onKill` method
+            |   * explains when the SDK calls this method. This method is called on the
+            |   * object that runs the task method, so the two methods can share a
+            |   * `volatile` field:
+            |   *
+            |   * ```java
+            |   * private volatile String jobId;
+            |   *
+            |   * @Airflow.Task(id = "build_report", retries = 2)
+            |   * public void buildReport(Context context) throws Exception {
+            |   *   jobId = service.submit();
+            |   *   if (context.isCancelled()) {
+            |   *     service.cancel(jobId);
+            |   *     throw new IllegalStateException("Airflow asked the task to stop");
+            |   *   }
+            |   *   service.waitFor(jobId); // Throws if the job fails or is cancelled.
+            |   * }
+            |   *
+            |   * @Airflow.OnKill(task = "build_report")
+            |   * public void stopReport() throws Exception {
+            |   *   if (jobId != null) service.cancel(jobId);
+            |   * }
+            |   * ```
+            |   *
+            |   * The method can take a [Context] parameter. It cannot take any other
+            |   * parameter, and it cannot be private, static or abstract. If a task
+            |   * method only checks [Context.isCancelled] in a loop, this method can be
+            |   * empty. The generated class checks for a stop request just before it
+            |   * calls the task method, and fails the task if it finds a request.
+            |   *
+            |   * @param task ID of the task. The class that declares this method must
+            |   *    also declare the task with [Task], [If], [Switch] or [TaskHandler].
+            |   *    In a [TaskGroup] class, leave out the group's prefix. A task that
+            |   *    triggers a Dag run has no body to stop, so it cannot have a method
+            |   *    with this annotation.
+            |   */
+            |  @Target(AnnotationTarget.FUNCTION)
+            |  @MustBeDocumented
+            |  annotation class OnKill(
+            |    val task: String,
             |  )
             |
             |  /**
