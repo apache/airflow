@@ -31,6 +31,11 @@ Changelog
 ......
 
 .. warning::
+    ``CloudMonitoringHook`` now uses credentials from its configured Google Cloud connection for alert
+    policy and notification channel operations instead of Application Default Credentials. Deployments
+    that relied on the previous identity must grant the required permissions to the connection identity.
+
+.. warning::
     ``BigQueryGetDataOperator`` no longer accepts ``project_id``, which has been deprecated since
     19.4.0. Use ``table_project_id`` instead. Dags that still pass ``project_id`` fail at parse time
     with ``TypeError``.

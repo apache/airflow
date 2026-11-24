@@ -98,7 +98,11 @@ def test_clients_use_connection_credentials(getter, client_class, monkeypatch):
     ):
         getattr(hook, getter)()
 
-    client.assert_called_once_with(credentials=credentials.return_value, client_options=options.return_value)
+    client.assert_called_once_with(
+        credentials=credentials.return_value,
+        client_info=cloud_monitoring.CLIENT_INFO,
+        client_options=options.return_value,
+    )
 
 
 @pytest.mark.db_test
