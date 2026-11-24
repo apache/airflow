@@ -52,3 +52,30 @@ it("saves a note against the selected region without addressing another loop pas
     requestBody: { note: "Retain this explanation", region_id: ti.region_id, region_index: 3 },
   });
 });
+
+it("updates the note when the selected task instance changes", async () => {
+  const firstTaskInstance = {
+    dag_id: "dag",
+    dag_run_id: "first-run",
+    id: "first-execution",
+    map_index: -1,
+    note: "First note",
+    task_id: "task",
+  } as TaskInstanceResponse;
+  const secondTaskInstance = {
+    ...firstTaskInstance,
+    dag_run_id: "second-run",
+    id: "second-execution",
+    note: "Second note",
+  };
+  const { rerender, result } = renderHook(({ taskInstance }) => useTaskInstanceNote(taskInstance), {
+    initialProps: { taskInstance: firstTaskInstance },
+    wrapper: Wrapper,
+  });
+
+  expect(result.current.note).toBe("First note");
+
+  rerender({ taskInstance: secondTaskInstance });
+
+  await waitFor(() => expect(result.current.note).toBe("Second note"));
+});
