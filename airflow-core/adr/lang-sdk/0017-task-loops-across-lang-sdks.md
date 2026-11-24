@@ -219,9 +219,11 @@ Nothing here is language-specific.
 3. On the gate, read this iteration's terminal result (one value, or ADR-0016's sequence when
    `terminal_is_mapped` is true) and run `until`. A fixed-count gate reads nothing and decides
    `stop` as `index >= max_iterations`.
-4. Send the result on `SucceedTask.loop_decision`. A `stop` of false at `max_iterations` is core's to
-   reject, so the SDK sends what the callable returned. A secret the reason might carry is registered
-   with `MaskSecret` as it would be for a log line. The supervisor masks the reason (decision 8), so
+4. Send the result on `SucceedTask.loop_decision`. A `stop` of false at `max_iterations` fails the
+   gate in the SDK without a retry, as Python's `LoopMaxIterationsExceeded` does. Core would retry its
+   own rejection while tries remain. The SDK sends the decision with the failure, so core keeps the
+   reason, and core still revalidates a decision sent on success. A secret the reason might carry is
+   registered with `MaskSecret` as it would be for a log line. The supervisor masks the reason (decision 8), so
    the SDK does not have to redact it.
 5. A callable that throws fails the gate like any other task body, and the loop stops there.
 

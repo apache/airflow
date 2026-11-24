@@ -21,7 +21,7 @@
 
 ## Status
 
-Accepted, as it was implemented.
+Accepted.
 
 ## Context
 
@@ -189,13 +189,10 @@ interface LoopContext {
   outside the loop declared after `loop()` that takes the gate's id fails as a duplicate, and so
   does a handler named like a child group, as in Python. An id the author gave in `taskId` is used
   as it is.
-- **A gate that still says to continue at `maxIterations` fails without a retry**, as Python's does.
-  This departs from [ADR-0017](../../airflow-core/adr/lang-sdk/0017-task-loops-across-lang-sdks.md)
-  ("What an SDK runtime does", step 4), where the SDK sends the continue and core rejects it. Core
-  retries that rejection while tries remain, but Python's `LoopMaxIterationsExceeded` is never retried.
-  The runtime fails the gate itself and sends the decision with the failure, so core keeps the reason,
-  and the failure message carries it as Python's does. Core still revalidates a decision on success.
-  ADR-0017 is unchanged here; the Go and Java runtimes can follow when they add loops.
+- **A gate that still says to continue at `maxIterations` fails without a retry**, as Python's does
+  and as [ADR-0017](../../airflow-core/adr/lang-sdk/0017-task-loops-across-lang-sdks.md) ("What an
+  SDK runtime does", step 4) asks. The decision goes with the failure, so core keeps the reason, and
+  the failure message carries it as Python's does.
 - **The body's single leaf is checked twice**: by the SDK when the Dag is read, for the faster
   message, and by the Dag processor, which decides (ADR-0017 decision 3). A nested loop and a loop
   inside a mapped task group are rejected the same way.
