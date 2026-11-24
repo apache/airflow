@@ -32,7 +32,7 @@ Node.js. There are two ways to use it:
 
 Both use the same task API and the same build tool, and one bundle can serve both.
 
-The SDK is the ``@apache-airflow/ts-sdk`` npm package (ESM-only). It is in **beta**, and its API may change.
+The SDK is the ``@apache-airflow/ts-sdk`` npm package (ESM-only). Its API may change.
 
 .. warning::
 
@@ -306,8 +306,8 @@ to label the branches of ``dag.if`` or ``dag.switch`` (see below):
 Task groups
 ~~~~~~~~~~~
 
-``dag.taskGroup(groupId)`` opens a group with the same ``task`` and ``taskGroup`` methods as the Dag. Every id
-declared in it is prefixed with the group's, as in Python:
+``dag.taskGroup(groupId)`` opens a group with the same ``task``, ``taskGroup``, ``if`` and ``switch`` methods
+as the Dag. Every id declared in it is prefixed with the group's, as in Python:
 
 .. code-block:: typescript
 
@@ -452,7 +452,7 @@ on a ``Bundle``:
 
     export async function buildMessage() {
       const client = getClient();
-      const upstream = await client.getXCom<string>({ key: "return_value", taskId: "python_start" });
+      const upstream = await client.getXCom<string>({ taskId: "python_start" });
       const greeting = await client.getVariable("typescript_example_greeting");
       return `${greeting ?? "hello from TypeScript"}; upstream=${upstream ?? "missing"}`;
     }
@@ -591,12 +591,15 @@ The ``TaskClient``
        exist.
    * - ``getConnectionOrThrow(connId)``
      - Same, but throws ``ConnectionNotFoundError``, like Python's ``BaseHook.get_connection``.
-   * - ``getXCom<T>({ key, ... })``
-     - An XCom value, or ``null`` when it does not exist. ``dagId``, ``runId``, ``taskId`` and ``mapIndex``
-       default to the current task; pass ``taskId`` to read an upstream task's XCom. See
-       :ref:`typescript-sdk/types`.
-   * - ``setXCom({ key, value, ... })``
-     - Publishes an XCom value.
+   * - ``getXCom<T>({ taskId, ... })``
+     - The XCom value ``taskId`` pushed, or ``null`` when it does not exist. ``key`` defaults to
+       ``return_value``, and ``dagId`` and ``runId`` to the current task's. For a mapped task, it is the values
+       of all its instances in an array ordered by map index; pass ``mapIndex`` to read one instance. A map
+       index that selects no task instance reads ``null``. See :ref:`typescript-sdk/types`.
+   * - ``setXCom({ value, ... })``
+     - Publishes an XCom value. ``key`` defaults to ``return_value``, and ``dagId``, ``runId`` and ``taskId``
+       to the current task's. ``mapIndex`` defaults to the current task's own map index when the target is the
+       current task, and to the unmapped value otherwise.
    * - ``taskStateStore``
      - This task instance's key/value store, with ``get<T>(key)``, ``set(key, value, { retention? })``,
        ``delete(key)`` and ``clear()``. See :ref:`typescript-sdk/task-state-store`.
@@ -892,6 +895,6 @@ Limitations
   run when the Dag processor reads them.
 * **Some CLI commands do not take a Dag declared in TypeScript.** ``airflow dags test``, ``tasks test`` and
   ``tasks render`` refuse it, and ``airflow dags reserialize`` skips it.
-* **Beta.** The API may change in incompatible ways between releases.
+* **Experimental.** The API may change in incompatible ways between releases.
 * **One Node.js process per task instance.** Tasks cannot share in-process state; use XComs or an external
   store.

@@ -164,11 +164,6 @@ def is_valid_dotpath(path: str) -> bool:
     return bool(re.match(pattern, path))
 
 
-def _normalize_dist_name(name: str) -> str:
-    # PEP 503 normalization, the same key importlib.metadata.entry_points() deduplicates on.
-    return re.sub(r"[-_.]+", "-", name).lower()
-
-
 @functools.cache
 def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
     mapping: dict[str, list[EPnD]] = defaultdict(list)
@@ -178,12 +173,18 @@ def _get_grouped_entry_points() -> dict[str, list[EPnD]]:
             # A distribution is yielded once per sys.path entry it is found on (e.g. RHEL/Fedora
             # venvs list both lib64/ and lib/ site-packages), possibly in different versions.
             # Only the first one is importable, so it is the only one whose entry points count.
-            dist_metadata = dist.metadata
-            if dist_metadata and (name := dist_metadata.get("Name")):
-                normalized_name = _normalize_dist_name(name)
-                if normalized_name in seen_dist_names:
+            # No public API returns the name without parsing METADATA. _normalized_name is private,
+            # but Python's own importlib.metadata.entry_points() deduplicates on it too, and it comes
+            # from the .dist-info directory name. If it cannot be read, the distribution is still
+            # loaded, only without deduplication. The exception type differs between versions.
+            try:
+                name = dist._normalized_name  # type: ignore[attr-defined]
+            except Exception:
+                name = None
+            if name:
+                if name in seen_dist_names:
                     continue
-                seen_dist_names.add(normalized_name)
+                seen_dist_names.add(name)
             for e in dist.entry_points:
                 # importlib_metadata >= 10 types this as its IDistribution protocol, which older
                 # releases and the stdlib lack; a cast would be redundant on those.

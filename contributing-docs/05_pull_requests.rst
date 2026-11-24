@@ -1,4 +1,3 @@
-contributing-docs/05_pull_requests.rst
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -94,14 +93,9 @@ these guidelines:
 
     The Airflow repo uses `GitHub Actions <https://help.github.com/en/actions>`_ to
     run the tests and `codecov <https://codecov.io/gh/apache/airflow>`_ to track
-    coverage. Fork CI is being piloted: it applies to pilot participants and to pull requests a
-    maintainer labels ``use fork ci``, and to every external contributor only once it is switched
-    on for everyone. Until then, enabling the ``Tests (AMD)`` workflow in your fork outside the
-    pilot runs CI twice for each pull request, in your fork and in apache/airflow. When fork CI
-    applies to you, enable that workflow and every push to your fork runs CI for free; pull
-    requests labelled ``fork ci required`` take their CI result from your fork and stay in draft
-    until that run is green. See `CI in your fork <18_contribution_workflow.rst#ci-in-your-fork>`__
-    and run ``breeze ci audit``, which tells you whether fork CI applies to you yet.
+    coverage. If your pull request's CI runs in your fork (fork CI is being piloted), see
+    `CI in your fork <18_contribution_workflow.rst#ci-in-your-fork>`__; ``breeze ci audit`` tells
+    you whether it applies to you yet.
     Also we advise to install locally `prek hooks <08_static_code_checks.rst#prek-hooks>`_ to
     apply various checks, code generation and formatting at the time you make a local commit - which
     gives you near-immediate feedback on things you need to fix before you push your code to the PR, or in
@@ -273,10 +267,9 @@ and approves them automatically when all of these hold:
 If your PR's CI runs in your fork (it carries the ``fork ci required`` label), the CI run in
 ``apache/airflow`` only checks that, so none of the rules above apply. The ``CI run started`` check
 waits until the fork CI monitor sees your fork's run, usually within 5 to 10 minutes, and then links it. Its runs are approved
-automatically unless the PR changes files that decide which CI jobs run and on which runners:
-anything under ``.github/``, ``dev/breeze/src/`` or ``scripts/ci/prek/``, or
-``dev/breeze/pyproject.toml``, ``dev/breeze/uv.lock`` or ``scripts/ci/install_breeze.sh``. Then
-the runs wait for a maintainer and a comment on the PR explains why. Changes to the other files
+automatically unless the PR changes files that decide which CI jobs run and on which runners (see
+`Changes to CI files <18_contribution_workflow.rst#changes-to-ci-files>`__). Then the runs wait for
+a maintainer and a comment on the PR explains why. Changes to the other files
 CI uses are not held, but a one-time comment points them out to the reviewer. CI in your fork
 runs either way.
 

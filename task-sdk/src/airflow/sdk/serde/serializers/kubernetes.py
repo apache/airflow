@@ -18,9 +18,12 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
+
+import pydantic
 
 from airflow.sdk.module_loading import qualname
+from airflow.sdk.serde.typing import is_pydantic_model
 
 # lazy loading for performance reasons
 serializers = [
@@ -33,7 +36,9 @@ if TYPE_CHECKING:
 
 __version__ = 1
 
-deserializers: list[type[object]] = []
+# Registering these as deserializers also adds them to the deserialization allowlist,
+# so they load without kubernetes.* in [core] allowed_deserialization_classes.
+deserializers = serializers
 log = logging.getLogger(__name__)
 
 
@@ -44,7 +49,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         return "", "", 0, False
 
     if isinstance(o, (k8s.V1Pod, k8s.V1ResourceRequirements)):
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client import ApiClient
 
         # We're running this in an except block, so we don't want it to fail
         # under any circumstances, e.g. accessing a non-existing attribute.
@@ -55,10 +60,48 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
                 return None
 
         try:
-            return PodGenerator.serialize_pod(o), qualname(o), __version__, True
+            return ApiClient().sanitize_for_serialization(o), qualname(o), __version__, True
         except Exception:
             log.warning("Serialization failed for pod %s", safe_get_name(o))
             log.debug("traceback for serialization error", exc_info=True)
             return "", "", 0, False
 
     return "", "", 0, False
+
+
+def deserialize(cls: type, version: int, data: dict) -> Any:
+    if version > __version__:
+        raise TypeError(f"serialized version {version} is newer than class version {__version__}")
+
+    if not is_pydantic_model(cls):
+        raise TypeError(f"do not know how to deserialize {qualname(cls)}")
+    model = cast("type[pydantic.BaseModel]", cls)
+
+    try:
+        return model.model_validate(data)
+    except pydantic.ValidationError as e:
+        try:
+            coerced = _coerce_legacy_values(data, e)
+        except (KeyError, TypeError, ValueError):
+            raise e
+        return model.model_validate(coerced)
+
+
+def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> dict:
+    # kubernetes<37 stored numeric quantities/labels, string booleans and fields since
+    # removed, all of which the pydantic models of kubernetes>=37 reject.
+    for err in error.errors():
+        *path, key = err["loc"]
+        parent: Any = data
+        for part in path:
+            parent = parent[part]
+        value = parent[key]
+        if err["type"] == "extra_forbidden":
+            del parent[key]
+        elif err["type"] == "string_type" and isinstance(value, bool):
+            parent[key] = str(value).lower()
+        elif err["type"] == "string_type" and isinstance(value, (int, float)):
+            parent[key] = str(value)
+        elif err["type"] == "bool_type" and str(value).lower() in ("true", "false"):
+            parent[key] = str(value).lower() == "true"
+    return data

@@ -193,6 +193,19 @@ class BulkResponse(BaseModel):
     ] = None
 
 
+class CallbackState(str, Enum):
+    """
+    All possible states of callbacks.
+    """
+
+    SCHEDULED = "scheduled"
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 class ClearPartitionsBody(BaseModel):
     """
     Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
@@ -519,6 +532,13 @@ class DAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.",
+            title="Keep Task State",
+        ),
+    ] = False
     note: Annotated[Note | None, Field(title="Note")] = None
 
 
@@ -1637,6 +1657,13 @@ class TriggerAssetWatcherReferenceResponse(BaseModel):
     asset_name: Annotated[str, Field(title="Asset Name")]
     asset_uri: Annotated[str, Field(title="Asset Uri")]
     watcher_name: Annotated[str, Field(title="Watcher Name")]
+    scheduled_dag_ids: Annotated[
+        list[str],
+        Field(
+            description="The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.",
+            title="Scheduled Dag Ids",
+        ),
+    ]
 
 
 class TriggerCallbackReferenceResponse(BaseModel):
@@ -1647,7 +1674,7 @@ class TriggerCallbackReferenceResponse(BaseModel):
     id: Annotated[str, Field(title="Id")]
     dag_id: Annotated[str | None, Field(title="Dag Id")]
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")]
-    state: Annotated[str | None, Field(title="State")]
+    state: CallbackState | None
 
 
 class TriggerDAGRunPostBody(BaseModel):
@@ -1678,7 +1705,7 @@ class TriggerDAGRunPostBody(BaseModel):
 
 class TriggerKind(str, Enum):
     """
-    What a trigger runs for, worked out from its owner rather than stored.
+    What a trigger runs for, worked out from what it is used by rather than stored.
     """
 
     TASK = "task"
@@ -1720,7 +1747,7 @@ class TriggerTaskInstanceReferenceResponse(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     map_index: Annotated[int, Field(title="Map Index")]
     try_number: Annotated[int, Field(title="Try Number")]
-    state: Annotated[str | None, Field(title="State")]
+    state: TaskInstanceState | None
 
 
 class TriggererInstanceInfoResponse(BaseModel):
@@ -2177,6 +2204,13 @@ class BulkDAGRunClearBody(BaseModel):
             title="Run On Latest Version",
         ),
     ] = None
+    keep_task_state: Annotated[
+        bool | None,
+        Field(
+            description="Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.",
+            title="Keep Task State",
+        ),
+    ] = False
     note: Annotated[Note | None, Field(title="Note")] = None
     dag_runs: Annotated[list[BulkDAGRunBody] | None, Field(title="Dag Runs")] = None
 
@@ -2700,11 +2734,38 @@ class DryRunBackfillCollectionResponse(BaseModel):
 
 class EventLogCollectionResponse(BaseModel):
     """
-    Event Log Collection Response.
+    Event Log collection response supporting both offset and cursor pagination.
     """
 
     event_logs: Annotated[list[EventLogResponse], Field(title="Event Logs")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    total_entries: Annotated[
+        int,
+        Field(
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
+            title="Total Entries",
+        ),
+    ]
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
+        ),
+    ] = None
+    next_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.",
+            title="Next Cursor",
+        ),
+    ] = None
+    previous_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.",
+            title="Previous Cursor",
+        ),
+    ] = None
 
 
 class ExternalViewResponse(BaseModel):

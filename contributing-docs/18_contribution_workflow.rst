@@ -137,9 +137,7 @@ capacity of the Apache Software Foundation (`ADIP-12, formerly AIP-120
 CI on a public fork costs you nothing and has no minute limit; it runs on every push to your
 fork, so you get feedback before a maintainer looks at your pull request. The change is being
 piloted: until it is switched on for everyone, it applies to pilot participants (see below) and
-to pull requests a maintainer labels ``use fork ci``. The `pull request lifecycle
-<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#pull-request-lifecycle>`__ diagram
-shows what your pull request shows at each step and who acts next.
+to pull requests a maintainer labels ``use fork ci``.
 
 Set up your checkout and fork once:
 
@@ -183,27 +181,81 @@ Set up your checkout and fork once:
 
       breeze ci audit
 
-When fork CI applies to your pull request, it is labelled ``fork ci required`` and kept in draft
-until the ``Tests (AMD)`` workflow runs in your fork for its latest commit. A failed run does not
-draft it. A
-``Fork CI / Tests (AMD)`` status on the pull request links to that run, and one comment on the pull
-request explains the current state. Once the run is green, a pull request the monitor drafted is
-marked ready for review and labelled ``ready for maintainer review``; a pull request you drafted
-yourself stays a draft, and gets the label, once you mark it ready. Marking a draft ready needs a
-free slot under the `limit on open pull requests <32_open_pull_request_limit.rst>`__: at the limit,
-GitHub refuses it, also when a maintainer tries, so close or finish one of your other open pull
-requests first. A pull request whose fork CI
-does not run for 30 days is closed with an explanation; you can reopen it after setting up fork CI. If your pull request changes
-files that decide which CI jobs run and where, such as ``.github/``, the breeze sources or
-``scripts/ci/prek/``, a green fork run is not enough: a maintainer reviews the change and runs project CI for it.
+GitHub reports a committer whose membership of the ``apache`` GitHub organisation is private as an
+external contributor, so once fork CI is switched on for everyone, their pull requests use it. Make
+the membership public at https://github.com/orgs/apache/people to avoid that; ``breeze ci audit``
+reports it.
 
-Fork CI tests your branch as it is, while project CI tests it merged with the target branch. The
-``CI passed`` check that merging requires is therefore reported only when your branch is fewer than
-200 commits behind the target branch and the target branch has not changed any file your pull request
-changes since your branch's base. Otherwise the pull request comment lists those files and asks you
-to rebase on ``upstream/main`` (or the target branch) and push, which runs fork CI again.
+What your pull request shows
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**Joining the pilot.** Open a pull request that adds your GitHub login to the ``[pilot]`` table in
+When fork CI applies to your pull request, it is labelled ``fork ci required``. The fork CI monitor
+checks it about every 5 minutes and keeps one comment on the pull request up to date with the
+current state and what to do next. It posts a new comment only when you need to act, for example
+to push again after you enabled the workflow. The `pull request lifecycle
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#pull-request-lifecycle>`__
+diagram shows each step and who acts next.
+
+The checks of your pull request:
+
+* ``Fork CI / Tests (AMD)`` is the result of the ``Tests (AMD)`` run in your fork for the latest
+  commit and links to it: red when the workflow is not set up or the run failed, yellow while the
+  monitor waits for your push or the run is in progress, green when it passed.
+* ``Fork CI job / <job name>`` shows each finished job of that run and links to it in your fork.
+  These are for information only.
+* ``CI run started`` turns green once the monitor sees the run in your fork, usually within 5 to
+  10 minutes of your push.
+* ``CI passed`` is the check that merging requires. It is set when the fork run is green, your
+  branch is close enough to the target branch (see below) and the pull request does not change
+  CI files (see below).
+
+Draft state and labels:
+
+* The pull request is kept in draft until the ``Tests (AMD)`` workflow runs in your fork for its
+  latest commit. A failed run does not draft it.
+* Once the run is green, a pull request the monitor drafted is marked ready for review and labelled
+  ``ready for maintainer review``. A pull request you drafted yourself stays a draft, and gets the
+  label, once you mark it ready. A new push removes the label until the new run is green.
+* Marking a draft ready needs a free slot under the `limit on open pull requests
+  <32_open_pull_request_limit.rst>`__: at the limit, GitHub refuses it, also when a maintainer
+  tries, so close or finish one of your other open pull requests first.
+* A pull request whose fork CI has not run for 30 days, with no comments or reviews from people in
+  that time, is closed with an explanation. You can reopen it after setting up fork CI; reopening
+  restarts the 30 days.
+* A maintainer can move a single pull request to project CI with the ``use project ci`` label.
+  Project CI then runs on your next push, or when a maintainer closes and reopens the pull request.
+
+Like project CI, fork CI tests your branch merged with the target branch, as the target branch was
+when the run started; a push that conflicts with it fails at once and asks you to rebase. The
+``CI passed`` check that merging requires is reported only when that commit of the target branch is
+fewer than 200 commits behind the target branch. Otherwise the pull request comment asks you to
+rebase on ``upstream/main`` (or the target branch) and push, which runs fork CI again. Details:
+`Tested base <../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#tested-base>`__.
+
+Changes to CI files
+^^^^^^^^^^^^^^^^^^^
+
+If your pull request changes files that decide which CI jobs run and where (anything under
+``.github/``, ``dev/breeze/src/`` or ``scripts/ci/prek/``, or ``dev/breeze/pyproject.toml``,
+``dev/breeze/uv.lock`` or ``scripts/ci/install_breeze.sh``), a green fork run is not enough, because
+that run used the files you changed. The pull request is labelled ``needs project ci`` instead of
+``ready for maintainer review``, ``Fork CI / Tests (AMD)`` stays yellow and ``CI passed`` is not
+reported. A maintainer reviews the CI change and adds ``use project ci`` to run project CI for it.
+Why: `Trusting a green fork run
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#trusting-a-green-fork-run>`__.
+
+A pull request using fork CI must not change the fork CI gate: the ``gate`` job of ``ci-amd.yml``,
+``dev/breeze/src/airflow_breeze/utils/fork_ci_gate.py``, the fork CI monitor or
+``.github/fork-ci-gate.toml``, except for your own ``[pilot]`` line. Such a pull request is closed
+with an explanation. If the change was accidental, revert it and reopen the pull request; if it is
+wanted, a maintainer adds ``use project ci``. A pull request for which project CI ran although it
+should not have is closed too, and only a maintainer can reopen it. Details: `Gate protection
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#gate-protection>`__.
+
+Joining and leaving the pilot
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To join, open a pull request that adds your GitHub login to the ``[pilot]`` table in
 ``.github/fork-ci-gate.toml``, with a join instant after the expected merge, for example the next day
 at 00:00 UTC:
 
@@ -214,13 +266,14 @@ at 00:00 UTC:
 
 Every pull request you open after that instant uses fork CI. Your earlier pull requests keep project
 CI until you push to them, rebase them or close and reopen them after that instant, and use fork CI
-from then on. To leave the pilot, open a pull request that removes the line. Your own ``[pilot]`` line is
-the only part of the fork CI gate a pull request using fork CI may change: one that changes the
-gate's code, the rest of its configuration or the ``gate`` job of ``ci-amd.yml`` is closed with an
-explanation. A pilot entry gates your pull
-requests whatever your role, so a committer in the pilot also enables the workflow;
-``breeze ci audit`` tells you which applies to you. The design is described in
-`Fork CI for external contributors <../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md>`__.
+from then on. A pilot entry gates your pull requests whatever your role, so a committer in the pilot
+also enables the workflow; ``breeze ci audit`` tells you which applies to you.
+
+To leave, open a pull request that removes your line. Pull requests already labelled
+``fork ci required`` stay on fork CI until a maintainer adds ``use project ci`` to them.
+
+The design, for maintainers, is described in `Fork CI for external contributors
+<../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md>`__.
 
 Step 3: Connect with People
 ---------------------------

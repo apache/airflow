@@ -51,7 +51,12 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, prune_logs
+from system.amazon.aws.utils import (
+    ENV_ID_KEY,
+    SystemTestContextBuilder,
+    print_and_delete_log_group_task,
+    prune_logs,
+)
 
 DAG_ID = "example_sagemaker_endpoint"
 
@@ -98,12 +103,9 @@ def delete_endpoint_config(endpoint_config_job_name):
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_endpoint(endpoint_name):
-    boto3.client("sagemaker").delete_endpoint(EndpointName=endpoint_name)
-
-
-@task(trigger_rule=TriggerRule.ALL_DONE)
-def archive_logs(log_group_name):
-    boto3.client("logs").put_retention_policy(logGroupName=log_group_name, retentionInDays=1)
+    sagemaker_client = boto3.client("sagemaker")
+    sagemaker_client.delete_endpoint(EndpointName=endpoint_name)
+    sagemaker_client.get_waiter("endpoint_deleted").wait(EndpointName=endpoint_name)
 
 
 @task
@@ -299,7 +301,7 @@ with DAG(
         delete_model,
         delete_bucket,
         log_cleanup,
-        archive_logs(f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}"),
+        print_and_delete_log_group_task(f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}"),
     )
 
     from tests_common.test_utils.watcher import watcher

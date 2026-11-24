@@ -93,6 +93,7 @@ export const MarkRunAsButton = ({ dagRun, isHotkeyEnabled = false, ...rest }: Pr
                 disabled={!isHotkeyEnabled}
                 key={menuState}
                 openDelay={100}
+                portalled
               >
                 {/* Not disabled when state matches: re-applying lets users also flip upstream/downstream tasks */}
                 <Menu.Item

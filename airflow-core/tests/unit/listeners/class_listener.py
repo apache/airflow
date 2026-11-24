@@ -41,25 +41,27 @@ class ClassBasedListener:
         self.stopped_component = component
         self.state.append(DagRunState.SUCCESS)
 
+    # ``AirflowTestPlugin`` registers this listener in every test run, including tasks run by the
+    # Task SDK, whose ``RuntimeTaskInstance`` has no ``note``.
     @hookimpl
     def on_task_instance_running(self, previous_state, task_instance):
         self.state.append(TaskInstanceState.RUNNING)
-        self.ti_note_at_listener = task_instance.note
+        self.ti_note_at_listener = getattr(task_instance, "note", None)
 
     @hookimpl
     def on_task_instance_success(self, previous_state, task_instance):
         self.state.append(TaskInstanceState.SUCCESS)
-        self.ti_note_at_listener = task_instance.note
+        self.ti_note_at_listener = getattr(task_instance, "note", None)
 
     @hookimpl
     def on_task_instance_failed(self, previous_state, task_instance, error: None | str | BaseException):
         self.state.append(TaskInstanceState.FAILED)
-        self.ti_note_at_listener = task_instance.note
+        self.ti_note_at_listener = getattr(task_instance, "note", None)
 
     @hookimpl
     def on_task_instance_skipped(self, previous_state, task_instance):
         self.state.append(TaskInstanceState.SKIPPED)
-        self.ti_note_at_listener = task_instance.note
+        self.ti_note_at_listener = getattr(task_instance, "note", None)
 
     @hookimpl
     def on_dag_run_running(self, dag_run, msg: str):

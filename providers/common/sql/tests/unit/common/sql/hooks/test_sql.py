@@ -28,6 +28,7 @@ import pandas as pd
 import polars as pl
 import pytest
 from sqlalchemy import event
+from sqlalchemy.engine import Inspector
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -462,6 +463,65 @@ class TestDbApiHookGetTableSchema:
             dbapi_hook.get_table_schema("my_table", schema="my_schema")
 
         mock_inspector.get_columns.assert_called_once_with("my_table", schema="my_schema")
+
+
+class TestDbApiHookGetTableComments:
+    @pytest.mark.db_test
+    @pytest.mark.parametrize(
+        ("inspector_result", "expected"),
+        [
+            pytest.param({"text": "Customer orders"}, "Customer orders", id="has-comment"),
+            pytest.param({"text": None}, None, id="comment-is-none"),
+            pytest.param({}, None, id="no-text-key"),
+            pytest.param(NotImplementedError(), None, id="dialect-unsupported"),
+        ],
+    )
+    def test_get_table_comment(self, inspector_result, expected):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        mock_inspector = MagicMock(spec=Inspector)
+        if isinstance(inspector_result, Exception):
+            mock_inspector.get_table_comment.side_effect = inspector_result
+        else:
+            mock_inspector.get_table_comment.return_value = inspector_result
+        with patch.object(
+            type(dbapi_hook), "inspector", new_callable=PropertyMock, return_value=mock_inspector
+        ):
+            result = dbapi_hook.get_table_comment("orders", schema="sales")
+
+        assert result == expected
+        mock_inspector.get_table_comment.assert_called_once_with("orders", schema="sales")
+
+    @pytest.mark.db_test
+    def test_get_table_columns_with_comments(self):
+        dbapi_hook = mock_db_hook(DbApiHook)
+        mock_inspector = MagicMock(spec=Inspector)
+        mock_inspector.get_columns.return_value = [
+            {"name": "id", "type": "INTEGER", "comment": "Primary key"},
+            {"name": "name", "type": "VARCHAR(255)", "comment": None},
+            {"name": "note", "type": "TEXT", "comment": ""},
+            {"name": "created", "type": "TIMESTAMP"},
+        ]
+        with patch.object(
+            type(dbapi_hook), "inspector", new_callable=PropertyMock, return_value=mock_inspector
+        ):
+            result = dbapi_hook.get_table_columns_with_comments("users", schema="s")
+
+        assert result == [
+            {"name": "id", "type": "INTEGER", "comment": "Primary key"},
+            {"name": "name", "type": "VARCHAR(255)"},
+            {"name": "note", "type": "TEXT"},
+            {"name": "created", "type": "TIMESTAMP"},
+        ]
+        mock_inspector.get_columns.assert_called_once_with("users", schema="s")
+
+    def test_comment_methods_on_dialect_without_comment_support(self, tmp_path):
+        db_path = tmp_path / "plain.db"
+        with closing(sqlite3.connect(db_path)) as conn:
+            conn.execute("CREATE TABLE users (id INTEGER)")
+        hook = DBApiHookForTests(conn_id=DEFAULT_CONN_ID)
+        with patch.object(hook, "get_uri", autospec=True, return_value=f"sqlite:///{db_path}"):
+            assert hook.get_table_comment("users") is None
+            assert hook.get_table_columns_with_comments("users") == [{"name": "id", "type": "INTEGER"}]
 
 
 def test_inspector_is_cached():

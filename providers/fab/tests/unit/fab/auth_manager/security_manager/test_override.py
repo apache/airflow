@@ -24,10 +24,14 @@ import pytest
 import requests
 from authlib.jose import JsonWebKey, jwt as authlib_jwt
 from authlib.jose.errors import InvalidClaimError
+from cachetools import TTLCache
+from flask import Flask
 from flask_appbuilder import const
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -190,6 +194,166 @@ class TestFabAirflowSecurityManagerOverride:
         assert mock_log.error.call_count == 0
 
     @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_add_user_returns_none_when_commit_fails(self, mock_log):
+        sm = EmptySecurityManager()
+        sm._hash_password = Mock(return_value="hashed")
+
+        mock_session = Mock(spec=Session)
+        mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm.add_user("alice", "Alice", "Smith", "alice@example.com", password="secret")
+
+        assert result is None
+        mock_session.rollback.assert_called_once()
+        mock_log.error.assert_called_once()
+
+    @pytest.mark.parametrize(
+        ("commit_fails", "found_is_active", "expected", "logs_parallel_login"),
+        [
+            pytest.param(False, None, "created", False, id="created"),
+            pytest.param(True, None, None, False, id="insert-failed"),
+            pytest.param(True, True, "found", True, id="parallel-login-active-user"),
+            pytest.param(True, False, None, True, id="parallel-login-inactive-user"),
+        ],
+    )
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
+    def test_register_user_on_login(
+        self, mock_log, commit_fails, found_is_active, expected, logs_parallel_login
+    ):
+        found = None if found_is_active is None else Mock(spec=User, is_active=found_is_active)
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=found)
+        sm._hash_password = Mock(return_value="hashed")
+
+        mock_session = Mock(spec=Session)
+        if commit_fails:
+            mock_session.commit.side_effect = IntegrityError("stmt", {}, Exception("Duplicate entry"))
+
+        with mock.patch.object(EmptySecurityManager, "session", mock_session):
+            result = sm._register_user_on_login(
+                username="alice", first_name="Alice", last_name="Smith", email="alice@example.com", role=None
+            )
+
+        if expected == "created":
+            assert isinstance(result, User)
+            assert result.username == "alice"
+            sm.find_user.assert_not_called()
+        elif expected == "found":
+            assert result is found
+        else:
+            assert result is None
+        parallel_login_log = call("User %s was registered by a parallel login, using that user", "alice")
+        assert (parallel_login_log in mock_log.info.call_args_list) is logs_parallel_login
+
+    @pytest.mark.parametrize("registered", [True, False])
+    @mock.patch.object(EmptySecurityManager, "_register_user_on_login", autospec=True)
+    @mock.patch.object(
+        EmptySecurityManager, "auth_user_registration", new_callable=mock.PropertyMock, return_value=True
+    )
+    def test_auth_user_oauth_registers_new_user(self, _, mock_register, registered):
+        user = Mock(spec=User, is_active=True)
+        mock_register.return_value = user if registered else None
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        sm._oauth_calculate_user_roles = Mock(return_value=[])
+        sm._rotate_session_id = Mock()
+        sm.update_user_auth_stat = Mock()
+
+        result = sm.auth_user_oauth({"username": "alice", "email": "alice@example.com"})
+
+        mock_register.assert_called_once_with(
+            sm, username="alice", first_name="", last_name="", email="alice@example.com", role=[]
+        )
+        assert result is (user if registered else None)
+        assert sm.update_user_auth_stat.called is registered
+
+    @pytest.mark.parametrize("registered", [True, False])
+    @mock.patch.object(EmptySecurityManager, "_register_user_on_login", autospec=True)
+    @mock.patch.object(
+        EmptySecurityManager,
+        "auth_user_registration_role",
+        new_callable=mock.PropertyMock,
+        return_value="User",
+    )
+    @mock.patch.object(
+        EmptySecurityManager, "auth_user_registration", new_callable=mock.PropertyMock, return_value=True
+    )
+    def test_auth_user_remote_user_registers_new_user(self, _, __, mock_register, registered):
+        user = Mock(spec=User, is_active=True)
+        mock_register.return_value = user if registered else None
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        sm.find_role = Mock(return_value=None)
+        sm._rotate_session_id = Mock()
+        sm.update_user_auth_stat = Mock()
+
+        result = sm.auth_user_remote_user("alice")
+
+        mock_register.assert_called_once_with(
+            sm, username="alice", first_name="alice", last_name="-", email="alice@email.notfound", role=None
+        )
+        assert result is (user if registered else None)
+        assert sm.update_user_auth_stat.called is registered
+
+    @pytest.mark.parametrize("registered", [True, False])
+    @mock.patch.object(EmptySecurityManager, "_register_user_on_login", autospec=True)
+    def test_auth_user_ldap_registers_new_user(self, mock_register, registered):
+        user = Mock(spec=User, is_active=True)
+        mock_register.return_value = user if registered else None
+        sm = EmptySecurityManager()
+        sm.find_user = Mock(return_value=None)
+        sm._ldap_bind = Mock(return_value=True)
+        sm._search_ldap = Mock(
+            return_value=(
+                "uid=alice,dc=example,dc=org",
+                {"givenName": [b"Alice"], "sn": [b"Smith"], "mail": [b"alice@example.org"]},
+            )
+        )
+        sm._ldap_calculate_user_roles = Mock(return_value=[])
+        sm._rotate_session_id = Mock()
+        sm.update_user_auth_stat = Mock()
+        sm._reset_user_permissions_cache = Mock()
+
+        # python-ldap is an optional dependency, so stub the module auth_user_ldap imports
+        mock_ldap = mock.MagicMock()
+        mock_ldap.LDAPError = type("LDAPError", (Exception,), {})
+
+        app = Flask(__name__)
+        app.config.update(
+            AUTH_LDAP_TLS_CACERTDIR=None,
+            AUTH_LDAP_TLS_CACERTFILE=None,
+            AUTH_LDAP_TLS_CERTFILE=None,
+            AUTH_LDAP_TLS_KEYFILE=None,
+            AUTH_LDAP_ALLOW_SELF_SIGNED=False,
+            AUTH_LDAP_TLS_DEMAND=False,
+            AUTH_LDAP_SERVER="ldap://localhost",
+            AUTH_LDAP_USE_TLS=False,
+            AUTH_LDAP_BIND_USER=None,
+            AUTH_LDAP_SEARCH="dc=example,dc=org",
+            AUTH_LDAP_APPEND_DOMAIN=None,
+            AUTH_LDAP_USERNAME_FORMAT=None,
+            AUTH_LDAP_FIRSTNAME_FIELD="givenName",
+            AUTH_LDAP_LASTNAME_FIELD="sn",
+            AUTH_LDAP_EMAIL_FIELD="mail",
+            AUTH_USER_REGISTRATION=True,
+            AUTH_ROLES_SYNC_AT_LOGIN=False,
+        )
+
+        with (
+            app.app_context(),
+            mock.patch.dict("sys.modules", {"ldap": mock_ldap, "ldap.filter": mock_ldap.filter}),
+            mock.patch.object(EmptySecurityManager, "session", Mock(spec=Session)),
+        ):
+            result = sm.auth_user_ldap("alice", "secret")
+
+        mock_register.assert_called_once_with(
+            sm, username="alice", first_name="Alice", last_name="Smith", email="alice@example.org", role=[]
+        )
+        assert result is (user if registered else None)
+        assert sm.update_user_auth_stat.called is registered
+
+    @mock.patch("airflow.providers.fab.auth_manager.security_manager.override.log")
     def test_create_action_returns_existing_on_concurrent_insert(self, mock_log):
         sm = EmptySecurityManager()
         existing_action = Mock(spec=Action, name="can_read")
@@ -306,6 +470,25 @@ class TestFabAirflowSecurityManagerOverride:
         assert user._perms == {("can_read", "DAG")}
         assert mock_merged_user._perms is None
         mock_session.commit.assert_called_once_with()
+
+    @mock.patch("airflow.providers.fab.www.utils.get_auth_manager", autospec=True)
+    @mock.patch.object(FabAuthManager, "cache", new_callable=lambda: TTLCache(maxsize=1, ttl=60))
+    @mock.patch.object(EmptySecurityManager, "session", new_callable=lambda: Mock(spec=Session))
+    def test_update_user_drops_cached_user_without_needing_fab_auth_manager(
+        self, mock_session, cache, mock_get_auth_manager
+    ):
+        """
+        ``update_user`` drops the user from ``FabAuthManager.cache`` even when the configured auth
+        manager is not a ``FabAuthManager``, instead of failing after the change is committed.
+        """
+        mock_get_auth_manager.return_value = Mock(spec=BaseAuthManager)
+        mock_session.get.return_value = None
+        user = Mock(spec=User, id=1, roles=[], groups=[])
+        cache[user.id] = Mock(spec=User)
+
+        assert EmptySecurityManager().update_user(user)
+
+        assert user.id not in cache
 
     @pytest.mark.parametrize(
         ("provider", "resp", "user_info"),

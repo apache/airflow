@@ -30,6 +30,12 @@ describe("stripExecutionParams", () => {
     expect(source.has("try_number")).toBe(true);
   });
 
+  it("drops the table page, whose cursor only fits the list it came from", () => {
+    const stripped = stripExecutionParams(new URLSearchParams("cursor=page-2&dag_run_state=failed"));
+
+    expect(stripped.toString()).toBe("dag_run_state=failed");
+  });
+
   it("keeps the loop scope, which follows you between a loop's tasks", () => {
     const stripped = stripExecutionParams(new URLSearchParams("region_id=r&loop_id=batch&iteration=3"));
 

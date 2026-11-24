@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -28,6 +27,11 @@ Use the :class:`~airflow.providers.common.messaging.triggers.msg_queue.MessageQu
 queue. Mandatory parameters of the trigger are:
 
 - ``scheme`` - the queue scheme (e.g., 'kafka', 'redis+pubsub', 'sqs') you are using
+
+Optional parameters include:
+
+- ``queue`` - assign this trigger to a specific trigger queue (see
+  :ref:`config:triggerer__queues_enabled` and the ``--queues`` option of ``airflow triggerer``)
 
 Additional parameters can be provided depending on the queue provider. Connections needs to be provided with the relevant
 default connection ID, for example, when connecting to a queue in AWS SQS, the connection ID should be

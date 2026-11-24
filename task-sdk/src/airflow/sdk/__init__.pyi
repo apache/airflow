@@ -35,7 +35,10 @@ from airflow.sdk.bases.operator import (
     cross_downstream as cross_downstream,
 )
 from airflow.sdk.bases.operatorlink import BaseOperatorLink as BaseOperatorLink
-from airflow.sdk.bases.resumablejobmixin import ResumableJobMixin as ResumableJobMixin
+from airflow.sdk.bases.resumablejobmixin import (
+    ResumableJobMixin as ResumableJobMixin,
+    ResumeDecision as ResumeDecision,
+)
 from airflow.sdk.bases.sensor import (
     BaseSensorOperator as BaseSensorOperator,
     PokeReturnValue as PokeReturnValue,
@@ -207,6 +210,7 @@ __all__ = [
     "RetryPolicy",
     "RetryRule",
     "ResumableJobMixin",
+    "ResumeDecision",
     "RollupMapper",
     "SecretCache",
     "SegmentWindow",
