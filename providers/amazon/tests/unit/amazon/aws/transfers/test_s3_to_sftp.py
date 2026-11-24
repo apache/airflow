@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import errno
+import stat
 from unittest import mock
 
 import boto3
@@ -354,6 +356,12 @@ class TestS3ToSFTPOperatorInit:
                 ["pre_dir/other.txt"],
                 id="nested-keys-keep-their-directory",
             ),
+            pytest.param(
+                ["source/pre_dir/", "source/pre_dir/pre_two.txt", "source/pre_dir/other.txt"],
+                [("source/pre_dir/pre_two.txt", "/destination/pre_dir/new_two.txt")],
+                ["pre_dir/other.txt"],
+                id="folder-marker-is-not-selected-or-reported",
+            ),
         ],
     )
     @mock.patch.object(S3ToSFTPOperator, "_download_from_s3")
@@ -364,7 +372,8 @@ class TestS3ToSFTPOperatorInit:
     ):
         """The prefix matches only the start of the file name, and only that leading occurrence is
         renamed. ``list_keys`` recurses, so a nested key is matched on its file name and keeps its
-        directory, while the old substring rule still decides which skipped keys are reported."""
+        directory, while the old substring rule still decides which skipped keys are reported. A
+        folder marker has no file name, so it is neither selected, created nor reported."""
         mock_s3_hook = mock_s3_hook_class.return_value
         mock_s3_hook.list_keys.return_value = keys
         sftp_client = mock_ssh_hook_class.return_value.get_conn.return_value.open_sftp.return_value
@@ -385,72 +394,109 @@ class TestS3ToSFTPOperatorInit:
             mock.call(sftp_client, mock_s3_hook, *call) for call in expected
         ]
         mock_log_warning.assert_called_once_with(mock.ANY, len(skipped), "pre_", skipped, "")
+        sftp_client.mkdir.assert_not_called()
 
-    @pytest.mark.parametrize(
-        ("keys", "s3_filenames", "sftp_filenames", "expected", "markers"),
-        [
-            pytest.param(
-                ["source/", "source/one.txt", "source/sub/", "source/sub/two.txt", "source/empty/"],
-                "*",
-                None,
-                [
-                    ("source/one.txt", "/destination/one.txt"),
-                    ("source/sub/two.txt", "/destination/sub/two.txt"),
-                ],
-                ["source/", "source/sub/", "source/empty/"],
-                id="all-files",
-            ),
-            pytest.param(
-                ["source/pre_dir/", "source/pre_dir/pre_one.txt"],
-                "pre_",
-                "new_",
-                [("source/pre_dir/pre_one.txt", "/destination/pre_dir/new_one.txt")],
-                ["source/pre_dir/"],
-                id="prefix",
-            ),
-        ],
-    )
+    @staticmethod
+    def _fake_sftp_server(sftp_client, *, dirs, files, events):
+        """Back ``stat`` and ``mkdir`` of the mocked SFTP client with in-memory paths."""
+
+        def fake_stat(path):
+            if path in dirs:
+                return mock.Mock(st_mode=stat.S_IFDIR | 0o755)
+            if path in files:
+                return mock.Mock(st_mode=stat.S_IFREG | 0o644)
+            raise FileNotFoundError(errno.ENOENT, "No such file", path)
+
+        def fake_mkdir(path, mode=0o777):
+            dirs.add(path)
+            events.append(("mkdir", path))
+
+        sftp_client.stat.side_effect = fake_stat
+        sftp_client.mkdir.side_effect = fake_mkdir
+
     @mock.patch.object(S3ToSFTPOperator, "_download_from_s3")
     @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.SSHHook")
     @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.S3Hook")
-    def test_execute_skips_folder_marker_keys(
-        self,
-        mock_s3_hook_class,
-        mock_ssh_hook_class,
-        mock_download_from_s3,
-        keys,
-        s3_filenames,
-        sftp_filenames,
-        expected,
-        markers,
+    def test_execute_creates_folder_markers_as_directories(
+        self, mock_s3_hook_class, mock_ssh_hook_class, mock_download_from_s3
     ):
         """A key ending in ``/`` is a folder marker, such as the S3 console creates for each folder.
-        An SFTP server cannot store a file at a path ending in ``/``, so every marker is skipped and
-        logged, including one that no other key overlaps, and none is reported as an unselected file."""
-        mock_s3_hook = mock_s3_hook_class.return_value
-        mock_s3_hook.list_keys.return_value = keys
+        With ``"*"`` each marker is created as a directory, with any missing parents, before any file
+        is transferred, so a file under a marker lands in it. A directory that exists is kept."""
+        events: list[tuple[str, ...]] = []
         sftp_client = mock_ssh_hook_class.return_value.get_conn.return_value.open_sftp.return_value
+        self._fake_sftp_server(sftp_client, dirs={"/", "/destination"}, files=set(), events=events)
+        mock_download_from_s3.side_effect = lambda client, hook, key, path: events.append(("put", key, path))
+        mock_s3_hook_class.return_value.list_keys.return_value = [
+            "source/",
+            "source/deep/nested/",
+            "source/empty/",
+            "source/one.txt",
+            "source/sub/",
+            "source/sub/two.txt",
+        ]
         operator = S3ToSFTPOperator(
             task_id=TASK_ID,
             s3_bucket=BUCKET,
             s3_key="source/",
             sftp_path="/destination/",
             sftp_conn_id=SFTP_CONN_ID,
-            s3_filenames=s3_filenames,
-            sftp_filenames=sftp_filenames,
+            s3_filenames="*",
         )
 
-        with (
-            mock.patch.object(operator.log, "info") as mock_log_info,
-            mock.patch.object(operator.log, "warning") as mock_log_warning,
-        ):
+        operator.execute(None)
+
+        assert events == [
+            ("mkdir", "/destination/deep"),
+            ("mkdir", "/destination/deep/nested"),
+            ("mkdir", "/destination/empty"),
+            ("mkdir", "/destination/sub"),
+            ("put", "source/one.txt", "/destination/one.txt"),
+            ("put", "source/sub/two.txt", "/destination/sub/two.txt"),
+        ]
+
+    @pytest.mark.parametrize(
+        ("keys", "files", "error", "match"),
+        [
+            pytest.param(
+                ["source/", "source/sub/"],
+                {"/destination/sub"},
+                FileExistsError,
+                "a file exists there",
+                id="file-at-marker-path",
+            ),
+            pytest.param(
+                ["source/../../etc/"],
+                set(),
+                ValueError,
+                "escapes configured sftp_path",
+                id="marker-escapes-sftp-path",
+            ),
+        ],
+    )
+    @mock.patch.object(S3ToSFTPOperator, "_download_from_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.SSHHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_sftp.S3Hook")
+    def test_execute_fails_on_folder_marker_that_cannot_be_a_directory(
+        self, mock_s3_hook_class, mock_ssh_hook_class, mock_download_from_s3, keys, files, error, match
+    ):
+        sftp_client = mock_ssh_hook_class.return_value.get_conn.return_value.open_sftp.return_value
+        self._fake_sftp_server(sftp_client, dirs={"/", "/destination"}, files=files, events=[])
+        mock_s3_hook_class.return_value.list_keys.return_value = keys
+        operator = S3ToSFTPOperator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key="source/",
+            sftp_path="/destination/",
+            sftp_conn_id=SFTP_CONN_ID,
+            s3_filenames="*",
+        )
+
+        with pytest.raises(error, match=match):
             operator.execute(None)
 
-        assert mock_download_from_s3.call_args_list == [
-            mock.call(sftp_client, mock_s3_hook, *call) for call in expected
-        ]
-        mock_log_info.assert_any_call(mock.ANY, len(markers), markers, "")
-        mock_log_warning.assert_not_called()
+        sftp_client.mkdir.assert_not_called()
+        mock_download_from_s3.assert_not_called()
 
     @pytest.mark.parametrize(
         ("s3_filenames", "sftp_filenames"),

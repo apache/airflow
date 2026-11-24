@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import posixpath
+import stat
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
@@ -66,7 +67,9 @@ class S3ToSFTPOperator(BaseOperator):
         a list with exact key suffixes present under the s3_key prefix, or a string
         prefix that all filenames must match. The prefix applies to the file name, the
         last segment of each key under s3_key. Use ``"*"`` to move all objects under
-        the s3_key prefix. Keys ending in ``"/"`` are folder markers and are skipped.
+        the s3_key prefix; each folder marker, a key ending in ``"/"`` such as the S3
+        console creates, is created as a directory on the SFTP server, with any missing
+        parents. A string prefix does not select folder markers.
     :param sftp_filenames: Only used if you want to move multiple files and name them
         differently at the destination. It can be a list of filenames or a string
         prefix that replaces the s3 prefix.
@@ -137,6 +140,27 @@ class S3ToSFTPOperator(BaseOperator):
             s3_hook.get_conn().download_file(self.s3_bucket, s3_key, f.name)
             sftp_client.put(f.name, sftp_path, confirm=self.confirm)
 
+    def _create_directory(self, sftp_client: paramiko.SFTPClient, s3_key: str, sftp_path: str) -> None:
+        validate_destination_path(sftp_path, self.sftp_path, base_name="sftp_path")
+        self.log.info("Creating directory %s for folder marker s3://%s/%s", sftp_path, self.s3_bucket, s3_key)
+        self._create_remote_dirs(sftp_client, posixpath.normpath(sftp_path))
+
+    @classmethod
+    def _create_remote_dirs(cls, sftp_client: paramiko.SFTPClient, path: str) -> None:
+        """Create ``path`` and any missing parents, accepting a directory that already exists."""
+        try:
+            mode = sftp_client.stat(path).st_mode
+        except FileNotFoundError:
+            parent = posixpath.dirname(path)
+            if parent and parent != path:
+                cls._create_remote_dirs(sftp_client, parent)
+            sftp_client.mkdir(path)
+            return
+        if not stat.S_ISDIR(mode):
+            raise FileExistsError(
+                f"Cannot create directory {path!r} on the SFTP server: a file exists there."
+            )
+
     def execute(self, context: Context) -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
 
@@ -150,20 +174,17 @@ class S3ToSFTPOperator(BaseOperator):
                 self.log.info("Getting files in s3://%s/%s", self.s3_bucket, self.s3_key)
                 all_keys = s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_key) or []
                 # A key ending in "/" is a folder marker, such as the S3 console creates for each
-                # folder. An SFTP server cannot store a file at a path ending in "/", so skip every
-                # marker, not only those that overlap other keys as the object-store transfers do.
+                # folder. It has no file name for a prefix to match, and an SFTP server cannot
+                # store a file at a path ending in "/", so it is never transferred as a file.
                 folder_markers = [k for k in all_keys if k.endswith("/")]
-                if folder_markers:
-                    omitted = len(folder_markers) - SKIPPED_SAMPLE_SIZE
-                    self.log.info(
-                        "Skipping %d S3 folder-marker key(s), which have no file to transfer: %s%s",
-                        len(folder_markers),
-                        folder_markers[:SKIPPED_SAMPLE_SIZE],
-                        f" and {omitted} more" if omitted > 0 else "",
-                    )
                 filenames = [k[len(self.s3_key) :] for k in all_keys if not k.endswith("/")]
                 s3_prefix: str = self.s3_filenames
                 if s3_prefix == "*":
+                    # Create every directory before any file, so a file under a marker finds it.
+                    for marker in folder_markers:
+                        self._create_directory(
+                            sftp_client, marker, self.sftp_path + marker[len(self.s3_key) :]
+                        )
                     files = filenames
                 else:
                     # ``list_keys`` recurses, so the prefix applies to the file name, while the
