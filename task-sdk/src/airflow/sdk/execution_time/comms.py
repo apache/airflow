@@ -938,31 +938,38 @@ class TaskState(BaseModel):
     loop_decision: LoopDecisionPayload | None = None
 
 
-class SucceedTask(TISuccessStatePayload):
+class _SenderSetBySupervisor(BaseModel):
+    """Leave the sender ``hostname`` and ``pid`` to the supervisor, which reports the state to the API server."""
+
+    hostname: str | None = Field(default=None, exclude=True)
+    pid: int | None = Field(default=None, exclude=True)
+
+
+class SucceedTask(_SenderSetBySupervisor, TISuccessStatePayload):
     """Update a task's state to success. Includes task_outlets and outlet_events for registering asset events."""
 
     type: Literal["SucceedTask"] = "SucceedTask"
 
 
-class DeferTask(TIDeferredStatePayload):
+class DeferTask(_SenderSetBySupervisor, TIDeferredStatePayload):
     """Update a task instance state to deferred."""
 
     type: Literal["DeferTask"] = "DeferTask"
 
 
-class AwaitInputTask(TIAwaitingInputStatePayload):
+class AwaitInputTask(_SenderSetBySupervisor, TIAwaitingInputStatePayload):
     """Park a task instance awaiting human input (Human-in-the-loop), without a trigger."""
 
     type: Literal["AwaitInputTask"] = "AwaitInputTask"
 
 
-class RetryTask(TIRetryStatePayload):
+class RetryTask(_SenderSetBySupervisor, TIRetryStatePayload):
     """Update a task instance state to up_for_retry."""
 
     type: Literal["RetryTask"] = "RetryTask"
 
 
-class RescheduleTask(TIRescheduleStatePayload):
+class RescheduleTask(_SenderSetBySupervisor, TIRescheduleStatePayload):
     """Update a task instance state to reschedule/up_for_reschedule."""
 
     type: Literal["RescheduleTask"] = "RescheduleTask"

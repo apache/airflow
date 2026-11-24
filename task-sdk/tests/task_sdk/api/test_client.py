@@ -57,6 +57,7 @@ from airflow.sdk.api.datamodels._generated import (
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
     AssetsByAliasResult,
+    AwaitInputTask,
     DeferTask,
     ErrorResponse,
     OKResponse,
@@ -620,6 +621,7 @@ class TestTaskInstanceOperations:
             when="2024-10-31T12:00:00Z",
             rendered_map_index="test",
             retry_reason=retry_reason,
+            pid=100,
         )
 
     @pytest.mark.parametrize(
@@ -642,11 +644,64 @@ class TestTaskInstanceOperations:
             ti_id,
             when="2024-10-31T12:00:00Z",
             rendered_map_index=None,
+            pid=100,
             loop_decision=LoopDecisionPayload(stop=False, reason="error 0.2"),
             **kwargs,
         )
 
         assert bodies[0]["loop_decision"] == {"stop": False, "reason": "error 0.2"}
+
+    @pytest.mark.parametrize(
+        ("method", "kwargs"),
+        [
+            pytest.param(
+                "finish",
+                {"state": TerminalTIState.FAILED, "when": "2024-10-31T12:00:00Z", "rendered_map_index": None},
+                id="finish",
+            ),
+            pytest.param(
+                "succeed",
+                {
+                    "when": "2024-10-31T12:00:00Z",
+                    "task_outlets": [],
+                    "outlet_events": [],
+                    "rendered_map_index": None,
+                },
+                id="succeed",
+            ),
+            pytest.param(
+                "retry", {"end_date": "2024-10-31T12:00:00Z", "rendered_map_index": None}, id="retry"
+            ),
+            pytest.param(
+                "defer", {"msg": DeferTask(classpath="a.Trigger", next_method="execute_complete")}, id="defer"
+            ),
+            pytest.param(
+                "reschedule",
+                {
+                    "msg": RescheduleTask(
+                        reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
+                        end_date=timezone.parse("2024-10-31T12:00:00Z"),
+                    )
+                },
+                id="reschedule",
+            ),
+            pytest.param(
+                "await_input", {"msg": AwaitInputTask(next_method="execute_complete")}, id="await_input"
+            ),
+        ],
+    )
+    @mock.patch("airflow.sdk.api.client.get_hostname", autospec=True, return_value="worker-a")
+    def test_task_instance_state_update_sends_hostname_and_pid(self, _, method, kwargs):
+        bodies = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            bodies.append(json.loads(request.read()))
+            return httpx2.Response(status_code=204)
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        getattr(client.task_instances, method)(uuid6.uuid7(), pid=100, **kwargs)
+
+        assert (bodies[0]["hostname"], bodies[0]["pid"]) == ("worker-a", 100)
 
     def test_task_instance_succeed_sends_external_clear_target(self):
         bodies = []
@@ -662,6 +717,7 @@ class TestTaskInstanceOperations:
             task_outlets=[],
             outlet_events=[],
             rendered_map_index=None,
+            pid=100,
             external_clear_target=ExternalClearTargetPayload(
                 dag_id="child", task_id="wait", logical_date="2024-10-31T00:00:00Z", recursion_depth=2
             ),
@@ -758,7 +814,7 @@ class TestTaskInstanceOperations:
             return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
-        client.task_instances.defer(ti_id, msg)
+        client.task_instances.defer(ti_id, msg, pid=100)
 
     def test_task_instance_reschedule(self):
         # Simulate a successful response from the server that reschedules a task
@@ -780,7 +836,7 @@ class TestTaskInstanceOperations:
             reschedule_date=timezone.parse("2024-10-31T12:00:00Z"),
             end_date=timezone.parse("2024-10-31T12:00:00Z"),
         )
-        client.task_instances.reschedule(ti_id, msg)
+        client.task_instances.reschedule(ti_id, msg, pid=100)
 
     def test_task_instance_up_for_retry(self):
         ti_id = uuid6.uuid7()
@@ -798,7 +854,7 @@ class TestTaskInstanceOperations:
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
         client.task_instances.retry(
-            ti_id, end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test"
+            ti_id, end_date=timezone.parse("2024-10-31T12:00:00Z"), rendered_map_index="test", pid=100
         )
 
     @pytest.mark.parametrize(

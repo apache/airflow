@@ -288,7 +288,7 @@ class TaskInstanceOperations:
         rendered_map_index,
         retry_reason: str | None = None,
         *,
-        pid: int | None = None,
+        pid: int,
         loop_decision: LoopDecisionPayload | None = None,
     ):
         """Report a terminal outcome or acknowledge server-requested termination."""
@@ -299,12 +299,11 @@ class TaskInstanceOperations:
             state=TerminalStateNonSuccess(state),
             rendered_map_index=rendered_map_index,
             retry_reason=retry_reason,
+            hostname=get_hostname(),
+            pid=pid,
         )
         if loop_decision is not None:
             body.loop_decision = loop_decision
-        if state == TerminalStateNonSuccess.SERVER_TERMINATED:
-            body.hostname = get_hostname()
-            body.pid = pid
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json(exclude_unset=True))
 
     def retry(
@@ -314,6 +313,8 @@ class TaskInstanceOperations:
         rendered_map_index,
         retry_delay_seconds: float | None = None,
         retry_reason: str | None = None,
+        *,
+        pid: int,
     ):
         """Tell the API server that this TI has failed and reached a up_for_retry state."""
         body = TIRetryStatePayload(
@@ -321,6 +322,8 @@ class TaskInstanceOperations:
             rendered_map_index=rendered_map_index,
             retry_delay_seconds=retry_delay_seconds,
             retry_reason=retry_reason,
+            hostname=get_hostname(),
+            pid=pid,
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
@@ -332,6 +335,7 @@ class TaskInstanceOperations:
         outlet_events,
         rendered_map_index,
         *,
+        pid: int,
         loop_decision: LoopDecisionPayload | None = None,
         external_clear_target: ExternalClearTargetPayload | None = None,
     ):
@@ -343,24 +347,32 @@ class TaskInstanceOperations:
             rendered_map_index=rendered_map_index,
             loop_decision=loop_decision,
             external_clear_target=external_clear_target,
+            hostname=get_hostname(),
+            pid=pid,
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def defer(self, id: uuid.UUID, msg):
+    def defer(self, id: uuid.UUID, msg, *, pid: int):
         """Tell the API server that this TI has been deferred."""
-        body = TIDeferredStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
+        body = TIDeferredStatePayload(
+            **msg.model_dump(exclude_unset=True, exclude={"type"}), hostname=get_hostname(), pid=pid
+        )
 
         # Create a deferred state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def await_input(self, id: uuid.UUID, msg):
+    def await_input(self, id: uuid.UUID, msg, *, pid: int):
         """Tell the API server that this TI is parked awaiting human input (Human-in-the-loop)."""
-        body = TIAwaitingInputStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
+        body = TIAwaitingInputStatePayload(
+            **msg.model_dump(exclude_unset=True, exclude={"type"}), hostname=get_hostname(), pid=pid
+        )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
-    def reschedule(self, id: uuid.UUID, msg: RescheduleTask):
+    def reschedule(self, id: uuid.UUID, msg: RescheduleTask, *, pid: int):
         """Tell the API server that this TI has been reschduled."""
-        body = TIRescheduleStatePayload(**msg.model_dump(exclude_unset=True, exclude={"type"}))
+        body = TIRescheduleStatePayload(
+            **msg.model_dump(exclude_unset=True, exclude={"type"}), hostname=get_hostname(), pid=pid
+        )
 
         # Create a reschedule state payload from msg
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())

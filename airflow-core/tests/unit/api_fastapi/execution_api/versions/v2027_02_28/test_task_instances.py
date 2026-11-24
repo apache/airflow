@@ -39,7 +39,7 @@ RUN_PATCH_BODY = {
 
 @pytest.fixture
 def old_ver_client(client):
-    """Execution API version immediately before ``execution_timeout`` was added."""
+    """Execution API version immediately before 2027-02-28."""
     client.headers["Airflow-API-Version"] = "2026-10-30"
     return client
 
@@ -82,3 +82,57 @@ class TestExecutionTimeoutBackwardCompat:
         response = client.patch(f"/execution/task-instances/{stub_ti.id}/run", json=RUN_PATCH_BODY)
         assert response.status_code == 200
         assert response.json()["execution_timeout"] == 90.0
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param(
+            {"state": "success", "end_date": "2024-09-30T12:00:00Z", "task_outlets": [], "outlet_events": []},
+            id="success",
+        ),
+        pytest.param(
+            {"state": "deferred", "classpath": "my.trigger", "next_method": "execute"}, id="deferred"
+        ),
+        pytest.param(
+            {
+                "state": "up_for_reschedule",
+                "end_date": "2024-09-30T12:00:00Z",
+                "reschedule_date": "2024-09-30T12:05:00Z",
+            },
+            id="up_for_reschedule",
+        ),
+        pytest.param({"state": "awaiting_input", "next_method": "execute"}, id="awaiting_input"),
+        pytest.param({"state": "up_for_retry", "end_date": "2024-09-30T12:00:00Z"}, id="up_for_retry"),
+    ],
+)
+def test_old_version_state_update_without_sender_is_accepted(
+    old_ver_client, session, create_task_instance, payload
+):
+    ti = create_task_instance(task_id="old_version_sender", state=State.RUNNING)
+    ti.hostname, ti.pid = "worker-b", 200
+    session.commit()
+
+    response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+    assert response.status_code == 204
+
+
+@pytest.mark.parametrize(
+    ("sender_field", "value"),
+    [pytest.param("hostname", "worker-a", id="hostname"), pytest.param("pid", 100, id="pid")],
+)
+def test_old_version_state_update_rejects_sender_fields(
+    old_ver_client, session, create_task_instance, sender_field, value
+):
+    ti = create_task_instance(task_id="old_version_sender", state=State.RUNNING)
+    session.commit()
+    payload = {"state": "deferred", "classpath": "my.trigger", "next_method": "execute", sender_field: value}
+
+    response = old_ver_client.patch(f"/execution/task-instances/{ti.id}/state", json=payload)
+
+    assert response.status_code == 422
+    assert any(
+        error["type"] == "extra_forbidden" and error["loc"][-1] == sender_field
+        for error in response.json()["detail"]
+    )

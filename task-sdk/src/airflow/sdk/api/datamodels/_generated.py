@@ -586,6 +586,8 @@ class TIAwaitingInputStatePayload(BaseModel):
     next_method: Annotated[str, Field(title="Next Method")]
     next_kwargs: Annotated[dict[str, JsonValue | None] | None, Field(title="Next Kwargs")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    pid: Annotated[int | None, Field(title="Pid")] = None
 
 
 class TIDeferredStatePayload(BaseModel):
@@ -604,6 +606,8 @@ class TIDeferredStatePayload(BaseModel):
     next_method: Annotated[str, Field(title="Next Method")]
     next_kwargs: Annotated[dict[str, JsonValue | None] | None, Field(title="Next Kwargs")] = None
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    pid: Annotated[int | None, Field(title="Pid")] = None
 
 
 class TIEnterRunningPayload(BaseModel):
@@ -644,6 +648,8 @@ class TIRescheduleStatePayload(BaseModel):
     state: Annotated[Literal["up_for_reschedule"], Field(title="State")] = "up_for_reschedule"
     reschedule_date: Annotated[AwareDatetime, Field(title="Reschedule Date")]
     end_date: Annotated[AwareDatetime, Field(title="End Date")]
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    pid: Annotated[int | None, Field(title="Pid")] = None
 
 
 class TIRetryStatePayload(BaseModel):
@@ -659,6 +665,8 @@ class TIRetryStatePayload(BaseModel):
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
     retry_delay_seconds: Annotated[float | None, Field(title="Retry Delay Seconds")] = None
     retry_reason: Annotated[str | None, Field(title="Retry Reason")] = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    pid: Annotated[int | None, Field(title="Pid")] = None
 
 
 class TISkippedDownstreamTasksStatePayload(BaseModel):
@@ -687,6 +695,8 @@ class TISuccessStatePayload(BaseModel):
     rendered_map_index: Annotated[str | None, Field(title="Rendered Map Index")] = None
     loop_decision: LoopDecisionPayload | None = None
     external_clear_target: ExternalClearTargetPayload | None = None
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    pid: Annotated[int | None, Field(title="Pid")] = None
 
 
 class TITargetStatePayload(BaseModel):
@@ -698,6 +708,8 @@ class TITargetStatePayload(BaseModel):
         extra="forbid",
     )
     state: IntermediateTIState
+    hostname: Annotated[str | None, Field(title="Hostname")] = None
+    pid: Annotated[int | None, Field(title="Pid")] = None
 
 
 class TaskBreadcrumbsResponse(BaseModel):
