@@ -482,7 +482,6 @@ class TestCommsDecoder:
         assert "already in the middle of a request" in str(raised[0])
         assert not _is_taken(decoder._thread_lock)
 
-    # Waiting for its own thread would never end: the limit turns a regression into a failure.
     @pytest.mark.execution_timeout(10)
     @pytest.mark.skipif(not hasattr(signal, "setitimer"), reason="needs SIGALRM timers")
     def test_a_signal_handler_calling_send_during_a_send_raises_instead_of_freezing(self, socket_pair):
@@ -536,7 +535,6 @@ class TestCommsDecoder:
         assert not _is_taken(decoder._thread_lock)
         assert decoder.send(GetVariable(key="next")).key == "next"
 
-    # Waiting for its own thread would never end: the limit turns a regression into a failure.
     @pytest.mark.execution_timeout(10)
     @pytest.mark.parametrize("where", ["before the request is written", "after the response is read"])
     def test_a_send_interrupting_its_own_thread_outside_a_request_is_served(self, socket_pair, where):
