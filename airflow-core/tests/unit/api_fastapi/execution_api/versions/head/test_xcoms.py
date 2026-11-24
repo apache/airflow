@@ -1511,6 +1511,12 @@ class TestXComsGetOmittedMapIndex:
     def test_every_instance_is_redirected_to_the_slice(self, client, task_id, params):
         self.assert_redirected_to_slice(self.get(client, task_id, **params))
 
+    @pytest.mark.parametrize("task_id", ["plain", "missing"])
+    def test_task_without_regional_instances_does_not_load_the_dag(self, client, mocker, task_id):
+        get_task = mocker.spy(TaskCoordinateResolver, "get_task")
+        self.get(client, task_id)
+        assert get_task.call_count == 0
+
     @pytest.mark.parametrize("same_run_caller", [True, False], ids=["same-run-caller", "no-caller"])
     def test_same_run_caller_reads_by_its_own_dag_version(
         self, client, mocker, session, dag_run, authenticate_as, same_run_caller

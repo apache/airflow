@@ -597,11 +597,15 @@ def _resolve_omitted_map_index(
     a given map index do.
 
     Everything else reads -1: an unmapped task, one that cannot be found, a read
-    with ``offset`` or ``include_prior_dates``, and older API versions.
+    with ``offset`` or ``include_prior_dates``, and older API versions. A task
+    with no regional instances in the run is never mapped, so the Dag is only
+    loaded for a task that has some.
     """
     if params.offset is not None or params.include_prior_dates:
         return -1
     if not ResolveOmittedXComMapIndexByTaskDefinition.is_applied:
+        return -1
+    if not resolver.has_regions(dag_id, run_id, task_id):
         return -1
     if caller is not None and (caller.dag_id, caller.run_id) == (dag_id, run_id):
         dag_version_id = caller.dag_version_id
