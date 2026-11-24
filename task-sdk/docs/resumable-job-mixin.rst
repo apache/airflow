@@ -127,13 +127,17 @@ When a retry reconnects to a running job, or uses the result of a job that alrea
 task logs page shows a banner saying so. The mixin records what each try did under the
 ``__airflow_durable__`` task state store key, and the banner reads it. A deferrable operator that
 reconnects shows the banner without a job status, because the outcome is known only after the
-Triggerer fires and nothing records it there.
+Triggerer fires and nothing records it there. Deployments that set ``[workers] state_store_backend``
+do not show the banner, because the record is offloaded with every other value and the banner reads
+only what is stored in the metadata database.
 
 .. note::
 
    Only operators that use ``ResumableJobMixin`` show the banner. ``KubernetesPodOperator``,
    ``MSGraphAsyncOperator`` and ``AgentOperator`` implement durable execution on their own and do
-   not record what each try did, so they reconnect without a banner.
+   not record what each try did, so they reconnect without a banner. ``GlueJobOperator`` with
+   ``deferrable=True`` uses the mixin but finds a retry's run by searching Glue job runs instead,
+   so it shows no banner either.
 
 Example
 -------
