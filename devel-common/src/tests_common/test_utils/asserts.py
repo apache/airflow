@@ -114,11 +114,13 @@ class CountQueries:
         *,
         stacklevel: int = 1,
         stacklevel_from_module: str | None = None,
+        include_async_engine: bool = True,
         session: Session | None = None,
     ):
         self.result: Counter[str] = Counter()
         self.stacklevel = stacklevel
         self.stacklevel_from_module = stacklevel_from_module
+        self.include_async_engine = include_async_engine
         self.session = session
 
     def __enter__(self):
@@ -127,7 +129,9 @@ class CountQueries:
         else:
             self.engines = [airflow.settings.engine]
             # Absent before Airflow 3, which provider tests still run against.
-            if async_engine := getattr(airflow.settings, "async_engine", None):
+            if self.include_async_engine and (
+                async_engine := getattr(airflow.settings, "async_engine", None)
+            ):
                 self.engines.append(async_engine.sync_engine)
             for engine in self.engines:
                 event.listen(engine, "after_cursor_execute", self.after_cursor_execute)
@@ -162,6 +166,7 @@ def assert_queries_count(
     margin: int = 0,
     stacklevel: int = 5,
     stacklevel_from_module: str | None = None,
+    include_async_engine: bool = True,
     session: Session | None = None,
 ):
     """
@@ -174,9 +179,13 @@ def assert_queries_count(
     :param margin: margin to add to expected number of calls
     :param stacklevel: limits the output stack trace to that numbers of frame
     :param stacklevel_from_module: Filter stack trace from specific module.
+    :param include_async_engine: Also count queries run on the async engine.
     """
     with count_queries(
-        stacklevel=stacklevel, stacklevel_from_module=stacklevel_from_module, session=session
+        stacklevel=stacklevel,
+        stacklevel_from_module=stacklevel_from_module,
+        include_async_engine=include_async_engine,
+        session=session,
     ) as result:
         yield None
 
