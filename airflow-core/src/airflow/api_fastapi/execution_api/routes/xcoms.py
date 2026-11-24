@@ -152,6 +152,10 @@ def has_xcom_access(
     )
 
 
+def _get_resolver(dag_bag: DagBagDep, session: SessionDep) -> TaskCoordinateResolver:
+    return TaskCoordinateResolver(dag_bag, session)
+
+
 router = APIRouter(
     route_class=ExecutionAPIRoute,
     responses={
@@ -163,11 +167,6 @@ router = APIRouter(
 )
 
 log = logging.getLogger(__name__)
-
-
-def _get_resolver(dag_bag: DagBagDep, session: SessionDep) -> TaskCoordinateResolver:
-    return TaskCoordinateResolver(dag_bag, session)
-
 
 _ResolverDep = Annotated[TaskCoordinateResolver, Depends(_get_resolver)]
 
