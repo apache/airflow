@@ -90,7 +90,9 @@ CUT_OFF_TIMEDELTA = timedelta(days=6 * 30)
 # minimum versions for compatibility with Airflow 3
 MIN_VERSION_OVERRIDE: dict[str, Version] = {
     "amazon": parse_version("2.1.3"),
-    "fab": parse_version("3.6.0"),
+    # This script does not generate the fab-oauth, github-enterprise and google-auth extras in
+    # pyproject.toml. When you change this fab minimum, set the same minimum in those extras by hand.
+    "fab": parse_version("3.10.2"),
     "openlineage": parse_version("2.3.0"),
     "git": parse_version("0.0.2"),
     "common.messaging": parse_version("2.0.0"),
