@@ -547,6 +547,61 @@ async def test_afind_commit_by_marker_sends_http_requests(connection_env, mocker
 
 
 @requires_async_session
+@pytest.mark.asyncio
+async def test_afind_commit_by_marker_returns_none_when_pull_request_refs_are_unauthorized(mocker):
+    http = _async_http()
+    paths = []
+
+    def handler(request):
+        paths.append(request.url.raw_path.decode())
+        return http.Response(401, json={"error": "missing"})
+
+    mocker.patch(
+        "airflow.providers.huggingface.hooks.huggingface.get_async_session",
+        side_effect=_mock_async_session(handler),
+    )
+
+    hook = HuggingFaceHook(None)
+    assert await hook.afind_commit_by_marker("org/data", "marker", include_pull_requests=True) is None
+    assert paths == ["/api/datasets/org/data/refs?include_prs=1"]
+
+
+@requires_async_session
+@pytest.mark.asyncio
+async def test_afind_commit_by_marker_requests_each_ref_once(mocker):
+    http = _async_http()
+    commit_paths = []
+
+    def handler(request):
+        path = request.url.raw_path.decode()
+        if path == "/api/datasets/org/data/refs?include_prs=1":
+            return http.Response(
+                200,
+                json={"pullRequests": [{"name": "7", "ref": "refs/pr/7", "targetCommit": "deadbeef"}]},
+            )
+        if path.startswith("/api/datasets/org/data/commits/"):
+            commit_paths.append(path)
+            return http.Response(200, json=[_commit_payload("c" * 40, "Publish newer artifact")])
+        raise AssertionError(f"unexpected request {path}")
+
+    mocker.patch(
+        "airflow.providers.huggingface.hooks.huggingface.get_async_session",
+        side_effect=_mock_async_session(handler),
+    )
+
+    hook = HuggingFaceHook(None)
+    commit = await hook.afind_commit_by_marker(
+        "org/data",
+        "airflow-artifact-sha256:abc:target:def",
+        revision="refs/pr/7",
+        include_pull_requests=True,
+    )
+
+    assert commit is None
+    assert commit_paths == ["/api/datasets/org/data/commits/refs%2Fpr%2F7"]
+
+
+@requires_async_session
 @pytest.mark.parametrize(
     ("status", "headers", "expected"),
     [
