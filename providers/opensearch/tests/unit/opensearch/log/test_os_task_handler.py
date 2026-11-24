@@ -53,7 +53,7 @@ from airflow.utils.state import DagRunState, TaskInstanceState
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_5_PLUS
 
 opensearchpy = pytest.importorskip("opensearchpy")
 
@@ -619,6 +619,43 @@ class TestOpensearchTaskHandler:
             self.os_task_handler.io.read("", ti)
 
         mock_os_read.assert_called_once_with(self.LOG_ID, 0, ti)
+
+    @pytest.fixture
+    def _log_template_from_config(self):
+        from sqlalchemy import delete, func, select
+
+        from airflow.models import DagRun, TaskInstance
+        from airflow.models.tasklog import LogTemplate
+        from airflow.utils.db import synchronize_log_template
+        from airflow.utils.session import create_session
+
+        with create_session() as session:
+            last_id = session.scalar(select(func.max(LogTemplate.id))) or 0
+        with conf_vars(
+            {
+                ("elasticsearch", "host"): "",
+                ("elasticsearch", "log_id_template"): "es-{dag_id}-{try_number}",
+                ("opensearch", "host"): "http://localhost",
+                ("opensearch", "log_id_template"): "os-{dag_id}-{try_number}",
+            }
+        ):
+            synchronize_log_template()
+        yield
+        with create_session() as session:
+            session.execute(delete(TaskInstance))
+            session.execute(delete(DagRun))
+            session.execute(delete(LogTemplate).where(LogTemplate.id > last_id))
+
+    @pytest.mark.db_test
+    @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="Core pins the OpenSearch template from 3.5")
+    @pytest.mark.usefixtures("_log_template_from_config")
+    def test_remote_log_io_read_uses_template_pinned_from_opensearch_config(self, create_task_instance):
+        ti = get_ti(self.DAG_ID, self.TASK_ID, self.LOGICAL_DATE, create_task_instance)
+
+        with patch.object(self.os_task_handler.io, "_os_read", return_value=None) as mock_os_read:
+            self.os_task_handler.io.read("", ti)
+
+        assert mock_os_read.call_args_list[0] == call(f"os-{self.DAG_ID}-1", 0, ti)
 
     def test_clean_date(self):
         clean_logical_date = OpensearchTaskHandler._clean_date(timezone.datetime(2016, 7, 8, 9, 10, 11, 12))
