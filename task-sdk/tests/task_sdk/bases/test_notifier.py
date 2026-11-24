@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import jinja2
 import pytest
@@ -97,3 +97,10 @@ class TestBaseNotifier:
             }
         )
         assert notifier.message == "task: some_task"
+
+    @pytest.mark.asyncio
+    async def test_notifier_await_without_context_passes_template_fields(self):
+        notifier = MockNotifier(message="Hello")
+        notifier.async_notify = AsyncMock()
+        await notifier
+        notifier.async_notify.assert_awaited_once_with({"message": "Hello"})

@@ -131,9 +131,6 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
 
     :meta private:
     """
-    if not context:
-        context = Context()
-
     context.update(*args, **kwargs)
 
 
