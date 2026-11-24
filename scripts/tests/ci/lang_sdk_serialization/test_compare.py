@@ -334,8 +334,11 @@ def test_parse_features():
     assert parse_features("all") == FEATURES
     assert parse_features("") == frozenset()
     assert parse_features("branch,switch") == {"branch", "switch"}
+    assert parse_features("all,-loops,-branch") == FEATURES - {"loops", "branch"}
     with pytest.raises(SystemExit, match=r"--supports names \['nope'\]"):
         parse_features("branch,nope")
+    with pytest.raises(SystemExit, match=r"--supports names \['nope'\]"):
+        parse_features("all,-nope")
 
 
 @pytest.mark.parametrize(

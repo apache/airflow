@@ -183,8 +183,6 @@ def create_loop(
     until: Callable[..., bool | LoopDecision] | None = None,
 ) -> LoopTaskGroup:
     """Construct a loop group and its gate."""
-    from airflow.sdk.bases.decorator import get_unique_task_id
-
     if until is not None and not callable(until):
         raise TypeError("until must be callable")
     if until is not None and (
@@ -200,21 +198,30 @@ def create_loop(
     with group:
         factory.apply_function_doc(group)
         factory.function(**factory.partial_kwargs)
-        terminals = {task.task_id: task for task in group.get_leaves()}
-        if len(terminals) != 1:
-            raise ValueError("A loop body must have exactly one terminal task definition")
-        terminal = next(iter(terminals.values()))
-        gate_name = getattr(until, "__name__", "__loop_gate")
-        if not gate_name.isidentifier() or not gate_name.isascii():
-            gate_name = "__loop_gate"
-        gate = LoopGateOperator(
-            task_id=get_unique_task_id(gate_name, task_group=group),
-            until=until,
-            doc_md=_get_until_doc(until),
-        )
-        terminal >> gate
-        group.terminal_task_id = terminal.task_id
-        group.gate_task_id = gate.task_id
-        redirect_outside_edges_to_gate(group, gate)
+        add_loop_gate(group, until)
     factory._task_group_created = True
     return group
+
+
+def add_loop_gate(group: LoopTaskGroup, until: Callable[..., bool | LoopDecision] | None) -> None:
+    """Give a filled loop group its gate, after the body's one terminal task."""
+    from airflow.sdk.bases.decorator import get_unique_task_id
+
+    terminals = {task.task_id: task for task in group.get_leaves()}
+    if len(terminals) != 1:
+        raise ValueError("A loop body must have exactly one terminal task definition")
+    terminal = next(iter(terminals.values()))
+    gate_name = getattr(until, "__name__", "__loop_gate")
+    if not gate_name.isidentifier() or not gate_name.isascii():
+        gate_name = "__loop_gate"
+    gate = LoopGateOperator(
+        task_id=get_unique_task_id(gate_name, dag=group.dag, task_group=group),
+        until=until,
+        doc_md=_get_until_doc(until),
+        dag=group.dag,
+        task_group=group,
+    )
+    terminal >> gate
+    group.terminal_task_id = terminal.task_id
+    group.gate_task_id = gate.task_id
+    redirect_outside_edges_to_gate(group, gate)

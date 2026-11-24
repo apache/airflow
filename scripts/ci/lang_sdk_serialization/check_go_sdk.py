@@ -61,7 +61,7 @@ def main() -> int:
         "--sdk",
         "go",
         "--supports",
-        "branch,switch,edge_labels,group_options,trigger_dag_run,literal_inputs",
+        "all,-loops",
         "--",
         *SERIALIZER,
     ]

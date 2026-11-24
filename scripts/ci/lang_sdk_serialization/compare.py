@@ -31,7 +31,8 @@ a copy of test_dags.yaml and of the JSON file to write appended, and writes each
         pnpm --dir ts-sdk exec tsx tests/conformance/serialize_typescript.ts
 
 A Dag of test_dags.yaml may list the features that it ``requires`` of an SDK. ``--supports`` names the
-features the SDK has, as a comma-separated list or ``all``, and the copy of test_dags.yaml holds only
+features the SDK has, as a comma-separated list where ``all`` stands for every feature and ``-name``
+takes one out, as in ``all,-loops``. The copy of test_dags.yaml holds only
 the Dags whose features are all among them. A Dag that requires nothing is always in it, and the SDK
 has to write exactly the Dags of the copy.
 
@@ -94,13 +95,19 @@ TASK_KEYS_NOT_COMPARED = frozenset(
 
 
 def parse_features(value: str) -> frozenset[str]:
-    """Read the value of ``--supports``: ``all``, or feature names separated by commas."""
-    if value == "all":
-        return FEATURES
-    features = frozenset(name for name in value.split(",") if name)
-    if unknown := features - FEATURES:
+    """Read the value of ``--supports``: names separated by commas, ``all`` for every feature and ``-name`` to take one out."""
+    names = [name for name in value.split(",") if name]
+    if unknown := {name.removeprefix("-") for name in names} - FEATURES - {"all"}:
         raise SystemExit(f"--supports names {sorted(unknown)}, which are not among {sorted(FEATURES)}")
-    return features
+    features: set[str] = set()
+    for name in names:
+        if name == "all":
+            features |= FEATURES
+        elif name.startswith("-"):
+            features.discard(name.removeprefix("-"))
+        else:
+            features.add(name)
+    return frozenset(features)
 
 
 CASE_START = re.compile(r"^  - dag_id: (\S+)\s*$")
@@ -267,7 +274,8 @@ def main(argv: list[str] | None = None) -> int:
         "--supports",
         default="",
         type=parse_features,
-        help="the features the SDK has, as names separated by commas or `all`; none by default",
+        help="the features the SDK has, as names separated by commas, where `all` stands for every "
+        "feature and `-name` takes one out; none by default",
     )
     parser.add_argument("command", nargs="+", help="the SDK's serializer, after --")
     args = parser.parse_args(argv)

@@ -41,12 +41,7 @@ import yaml
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.sdk import DAG, BaseOperator, Label, TaskGroup
 from airflow.sdk.bases.branch import BaseBranchOperator
-from airflow.sdk.bases.decorator import get_unique_task_id
-from airflow.sdk.definitions._internal.loop import (
-    LoopGateOperator,
-    LoopTaskGroup,
-    redirect_outside_edges_to_gate,
-)
+from airflow.sdk.definitions._internal.loop import LoopTaskGroup, add_loop_gate
 from airflow.serialization.serialized_objects import DagSerialization
 
 
@@ -124,7 +119,7 @@ def build_dag(case: dict[str, Any]) -> DAG:
             if chosen is not None:
                 tasks[qualified_id] >> tasks[chosen]
     for group_id, loop in loops.items():
-        close_loop(loop_groups[group_id], loop.get("until"))
+        add_loop_gate(loop_groups[group_id], build_until(loop["until"]) if "until" in loop else None)
     for upstream, downstream, *label in case.get("order_edges", []):
         edge = get_node(tasks, groups, upstream)
         if label:
@@ -133,23 +128,14 @@ def build_dag(case: dict[str, Any]) -> DAG:
     return dag
 
 
-def close_loop(group: LoopTaskGroup, until: str | None) -> None:
-    """Give a filled loop group its gate, as ``create_loop`` does once the body is built."""
-    (terminal,) = group.get_leaves()
+def build_until(name: str):
+    """Stand in for an ``until`` handler named ``name``: the gate takes its id from the name."""
 
     def decide() -> bool:
         return True
 
-    gate = LoopGateOperator(
-        task_id=get_unique_task_id(until or "__loop_gate", dag=group.dag, task_group=group),
-        until=decide if until else None,
-        dag=group.dag,
-        task_group=group,
-    )
-    terminal >> gate
-    group.terminal_task_id = terminal.task_id
-    group.gate_task_id = gate.task_id
-    redirect_outside_edges_to_gate(group, gate)
+    decide.__name__ = name
+    return decide
 
 
 def get_node(tasks: dict[str, BaseOperator], groups: dict[str, TaskGroup], node_id: str):
