@@ -3268,7 +3268,9 @@ class TestTriggerRunner:
         mock_trigger.on_kill.assert_awaited_once()
         mock_trigger.cleanup.assert_awaited_once()
 
-    def test_run_trigger_cleanup_exception_logged_and_not_reraised(self, session, cap_structlog) -> None:
+    def test_run_trigger_cleanup_exception_logged_and_not_reraised(
+        self, session, cap_structlog, mocker
+    ) -> None:
         """cleanup() exceptions are logged as a warning with traceback and not re-raised."""
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
@@ -3280,6 +3282,7 @@ class TestTriggerRunner:
         mock_trigger.task_instance.map_index = -1
         mock_trigger.cleanup = AsyncMock(side_effect=RuntimeError("cleanup boom"))
 
+        spy_awarning = mocker.spy(trigger_runner.log, "awarning")
         with pytest.raises(asyncio.CancelledError):
             asyncio.run(trigger_runner.run_trigger(1, mock_trigger))
 
@@ -3289,6 +3292,11 @@ class TestTriggerRunner:
             "log_level": "warning",
             "name": "mock_name",
         } in cap_structlog
+        spy_awarning.assert_called_once()
+        assert spy_awarning.call_args.args == ("cleanup() raised an exception",)
+        assert spy_awarning.call_args.kwargs["name"] == "mock_name"
+        assert isinstance(spy_awarning.call_args.kwargs["exc_info"], RuntimeError)
+        assert str(spy_awarning.call_args.kwargs["exc_info"]) == "cleanup boom"
 
     def test_run_trigger_routes_shared_stream_trigger_through_manager(self, session) -> None:
         """A BaseEventTrigger that opts into a shared stream consumes filter_shared_stream()."""

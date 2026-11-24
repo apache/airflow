@@ -1,0 +1,1 @@
+Log a warning with traceback in the triggerer when a trigger's ``cleanup()`` method raises an exception, instead of silently suppressing it.

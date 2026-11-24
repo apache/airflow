@@ -2245,8 +2245,8 @@ class TriggerRunner:
                         )
                 try:
                     await trigger.cleanup()
-                except Exception:
-                    await self.log.awarning("cleanup() raised an exception", name=name, exc_info=True)
+                except Exception as e:
+                    await self.log.awarning("cleanup() raised an exception", name=name, exc_info=e)
 
                 await self.log.ainfo("trigger completed", name=name)
 
