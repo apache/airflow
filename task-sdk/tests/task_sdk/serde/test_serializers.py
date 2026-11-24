@@ -443,7 +443,7 @@ class TestSerializers:
         [
             pytest.param(
                 {
-                    "metadata": {"name": "foo", "labels": {"a": "1"}},
+                    "metadata": {"name": "foo", "labels": {"a": "1", "enabled": "true"}},
                     "spec": {
                         "containers": [
                             {
@@ -459,7 +459,7 @@ class TestSerializers:
             ),
             pytest.param(
                 {
-                    "metadata": {"name": "foo", "labels": {"a": 1}},
+                    "metadata": {"name": "foo", "labels": {"a": 1, "enabled": True}},
                     "spec": {
                         "containers": [
                             {
@@ -481,7 +481,7 @@ class TestSerializers:
         pod = deserialize(k8s.V1Pod, 1, data)
 
         assert pod == k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(name="foo", labels={"a": "1"}),
+            metadata=k8s.V1ObjectMeta(name="foo", labels={"a": "1", "enabled": "true"}),
             spec=k8s.V1PodSpec(
                 containers=[
                     k8s.V1Container(
@@ -495,22 +495,25 @@ class TestSerializers:
         )
 
     @pytest.mark.parametrize(
-        "spec",
+        "data",
         [
-            pytest.param({"containers": [{"name": "foo"}], "hostNetwork": "yes"}, id="not-coercible"),
             pytest.param(
-                {"containers": [{"name": "foo", "livenessProbe": {"httpGet": {"port": 8.5}}}]},
+                {"spec": {"containers": [{"name": "foo"}], "hostNetwork": "yes"}}, id="not-coercible"
+            ),
+            pytest.param(
+                {"spec": {"containers": [{"name": "foo", "livenessProbe": {"httpGet": {"port": 8.5}}}]}},
                 id="union-field",
             ),
+            pytest.param(None, id="no-data"),
         ],
     )
-    def test_kubernetes_deserialize_invalid_data(self, spec):
+    def test_kubernetes_deserialize_invalid_data(self, data):
         from pydantic import ValidationError
 
         from airflow.sdk.serde.serializers.kubernetes import deserialize
 
         with pytest.raises(ValidationError):
-            deserialize(k8s.V1Pod, 1, {"spec": spec})
+            deserialize(k8s.V1Pod, 1, data)
 
     @pytest.mark.parametrize(
         ("klass", "version", "msg"),

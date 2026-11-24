@@ -336,8 +336,6 @@ class TestSerDe:
         d = deserialize(e)
         assert i.x == getattr(d, "x", None)
 
-    @conf_vars({("core", "allowed_deserialization_classes"): "kubernetes.*"})
-    @pytest.mark.usefixtures("recalculate_patterns")
     def test_kubernetes_pod_with_legacy_values(self):
         encoded = {
             CLASSNAME: qualname(k8s.V1Pod),

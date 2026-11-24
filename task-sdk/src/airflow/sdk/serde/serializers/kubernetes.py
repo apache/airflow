@@ -18,9 +18,12 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
+
+import pydantic
 
 from airflow.sdk.module_loading import qualname
+from airflow.sdk.serde.typing import is_pydantic_model
 
 # lazy loading for performance reasons
 serializers = [
@@ -29,12 +32,12 @@ serializers = [
 ]
 
 if TYPE_CHECKING:
-    import pydantic
-
     from airflow.sdk.serde import U
 
 __version__ = 1
 
+# Registering these as deserializers also adds them to the deserialization allowlist,
+# so they load without kubernetes.* in [core] allowed_deserialization_classes.
 deserializers = serializers
 log = logging.getLogger(__name__)
 
@@ -67,22 +70,21 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
 
 
 def deserialize(cls: type, version: int, data: dict) -> Any:
-    import pydantic
-
     if version > __version__:
         raise TypeError(f"serialized version {version} is newer than class version {__version__}")
 
-    if not hasattr(cls, "model_validate"):
+    if not is_pydantic_model(cls):
         raise TypeError(f"do not know how to deserialize {qualname(cls)}")
+    model = cast("type[pydantic.BaseModel]", cls)
 
     try:
-        return cls.model_validate(data)
+        return model.model_validate(data)
     except pydantic.ValidationError as e:
         try:
             coerced = _coerce_legacy_values(data, e)
-        except (KeyError, IndexError, TypeError):
+        except (KeyError, TypeError, ValueError):
             raise e
-        return cls.model_validate(coerced)
+        return model.model_validate(coerced)
 
 
 def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> dict:
@@ -94,7 +96,9 @@ def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> dict:
         for part in path:
             parent = parent[part]
         value = parent[key]
-        if err["type"] == "string_type" and isinstance(value, (int, float)):
+        if err["type"] == "string_type" and isinstance(value, bool):
+            parent[key] = str(value).lower()
+        elif err["type"] == "string_type" and isinstance(value, (int, float)):
             parent[key] = str(value)
         elif err["type"] == "bool_type" and str(value).lower() in ("true", "false"):
             parent[key] = str(value).lower() == "true"
