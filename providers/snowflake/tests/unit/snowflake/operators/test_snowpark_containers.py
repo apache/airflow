@@ -59,7 +59,7 @@ def _make_operator(**kwargs):
 
 
 def _context(task_store=None):
-    ctx = {"ti": mock.MagicMock(stats_tags={})}
+    ctx = {"ti": mock.MagicMock(spec=["stats_tags"], stats_tags={})}
     if task_store is not None:
         ctx["task_state_store"] = task_store
     return ctx
@@ -757,19 +757,29 @@ class TestSnowparkContainerJobOperatorDurable:
             mock.call.run(DROP_SQL, parameters={"job_name": JOB_NAME}),
         ]
 
-    def test_is_job_active_and_is_job_succeeded(self):
+    @pytest.mark.parametrize(
+        ("status", "active", "succeeded"),
+        [
+            ("PENDING", True, False),
+            ("RUNNING", True, False),
+            ("DONE", False, True),
+            ("FAILED", False, False),
+            ("CANCELLING", False, False),
+            ("DELETING", False, False),
+        ],
+    )
+    def test_is_job_active_and_is_job_succeeded(self, status, active, succeeded):
         op = _make_operator()
-        assert op.is_job_active("RUNNING") is True
-        assert op.is_job_active("DONE") is False
-        assert op.is_job_active("DELETING") is False
+        assert op.is_job_active(status) is active
+        assert op.is_job_succeeded(status) is succeeded
 
-        assert op.is_job_succeeded("DONE") is True
-        assert op.is_job_succeeded("FAILED") is False
-
-    def test_default_args_durable_reaches_operator(self):
-        op = _make_operator(default_args={"durable": False})
-        assert op.durable is False
-
-    def test_durable_false_direct_kwarg_reaches_operator(self):
-        op = _make_operator(durable=False)
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            pytest.param({"default_args": {"durable": False}}, id="default_args"),
+            pytest.param({"durable": False}, id="kwarg"),
+        ],
+    )
+    def test_durable_false_reaches_operator(self, kwargs):
+        op = _make_operator(**kwargs)
         assert op.durable is False
