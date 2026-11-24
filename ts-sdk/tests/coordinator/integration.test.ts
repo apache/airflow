@@ -418,6 +418,7 @@ describe("coordinator runtime integration", () => {
     [null, "null"],
     ["disk full", "disk full"],
     [{ message: "quota exceeded", code: 429 }, "quota exceeded"],
+    [{ message: 429 }, "[object Object]"],
   ])("returns RetryTask when the handler throws %s", async (thrown, reason) => {
     testDag.task("throws_non_error", async () => {
       throw thrown;
