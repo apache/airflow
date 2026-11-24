@@ -31,7 +31,7 @@ import os
 import re
 import warnings
 from functools import reduce
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from dateutil import parser
 from kubernetes.client import Configuration, models as k8s
@@ -175,13 +175,13 @@ class PodGenerator:
         if pod_template_file:
             self.ud_pod = self.deserialize_model_file(pod_template_file)
         else:
-            self.ud_pod = pod
+            self.ud_pod = cast("k8s.V1Pod", pod)
 
         # Attach sidecar
         self.extract_xcom = extract_xcom
 
     @staticmethod
-    def from_obj(obj) -> dict | k8s.V1Pod | None:
+    def from_obj(obj) -> k8s.V1Pod | None:
         """Convert to pod from obj."""
         if obj is None:
             return None
@@ -444,10 +444,10 @@ class PodGenerator:
 
         # Reconcile the pods starting with the first chronologically,
         # Pod from the pod_template_File -> Pod from the K8s executor -> Pod from executor_config arg
-        pod_list = [base_worker_pod, dynamic_pod, pod_override_object]
+        pod_list = [dynamic_pod, pod_override_object]
 
         try:
-            pod = reduce(PodGenerator.reconcile_pods, pod_list)
+            pod = reduce(PodGenerator.reconcile_pods, pod_list, base_worker_pod)
         except Exception as e:
             raise PodReconciliationError from e
 
@@ -577,7 +577,7 @@ class PodGenerator:
         :return: De-serialized k8s.V1Pod
         """
         api_client = ApiClient(configuration=Configuration())
-        return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
+        return api_client._ApiClient__deserialize_model(pod_dict or {}, k8s.V1Pod)  # type: ignore[attr-defined]
 
 
 def merge_objects(base_obj, client_obj):

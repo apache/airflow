@@ -38,6 +38,7 @@ from airflow.providers.dbt.cloud.operators.dbt import (
 )
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 
+from tests_common.test_utils.task_state import get_non_reserved_task_state_writes
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -1104,7 +1105,7 @@ class TestDbtCloudRunJobOperatorDurable:
 
         mock_trigger.assert_called_once()
         mock_wait.assert_called_once()
-        self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(self.task_store) == [call("dbt_cloud_job_run_id", RUN_ID)]
         self._assert_run_xcoms(RUN_ID, DEFAULT_ACCOUNT_JOB_RUN_RESPONSE["data"]["href"])
 
     @pytest.mark.parametrize(
@@ -1128,7 +1129,7 @@ class TestDbtCloudRunJobOperatorDurable:
 
         mock_trigger.assert_not_called()
         assert mock_wait.called is waits
-        self.task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(self.task_store) == []
         assert operator.run_id == STORED_RUN_ID
         self._assert_run_xcoms(STORED_RUN_ID, STORED_RUN_URL)
 
@@ -1164,7 +1165,7 @@ class TestDbtCloudRunJobOperatorDurable:
         assert self._operator().execute(self.context) == RUN_ID
 
         mock_trigger.assert_called_once()
-        self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(self.task_store) == [call("dbt_cloud_job_run_id", RUN_ID)]
         self._assert_run_xcoms(RUN_ID, DEFAULT_ACCOUNT_JOB_RUN_RESPONSE["data"]["href"])
 
     def test_stored_errored_run_retries_from_failure(self, mock_trigger, mock_wait, requests_mock):
@@ -1185,7 +1186,7 @@ class TestDbtCloudRunJobOperatorDurable:
 
         mock_trigger.assert_called_once()
         assert mock_trigger.call_args.kwargs["retry_from_failure"] is True
-        self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(self.task_store) == [call("dbt_cloud_job_run_id", RUN_ID)]
 
     @patch.object(DbtCloudHook, "get_job_runs", autospec=True)
     def test_stored_run_takes_precedence_over_reuse_existing_run(
@@ -1219,7 +1220,7 @@ class TestDbtCloudRunJobOperatorDurable:
             self._operator().execute(self.context)
 
         mock_trigger.assert_not_called()
-        self.task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(self.task_store) == []
 
     @patch.object(DbtCloudRunJobOperator, "defer", autospec=True)
     @patch.object(
@@ -1232,7 +1233,7 @@ class TestDbtCloudRunJobOperatorDurable:
 
         mock_trigger.assert_called_once()
         mock_wait.assert_not_called()
-        self.task_store.set.assert_called_once_with("dbt_cloud_job_run_id", RUN_ID)
+        assert get_non_reserved_task_state_writes(self.task_store) == [call("dbt_cloud_job_run_id", RUN_ID)]
         assert mock_defer.call_args.kwargs["trigger"].run_id == RUN_ID
 
     @patch.object(DbtCloudRunJobOperator, "defer", autospec=True)
@@ -1258,7 +1259,7 @@ class TestDbtCloudRunJobOperatorDurable:
 
         mock_trigger.assert_not_called()
         mock_wait.assert_not_called()
-        self.task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(self.task_store) == []
         assert mock_defer.call_args.kwargs["trigger"].run_id == STORED_RUN_ID
 
     def test_durable_false_never_touches_task_state_store(self, mock_trigger, mock_wait):
@@ -1266,7 +1267,7 @@ class TestDbtCloudRunJobOperatorDurable:
 
         mock_trigger.assert_called_once()
         self.task_store.get.assert_not_called()
-        self.task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(self.task_store) == []
 
 
 class TestDbtCloudGetJobRunArtifactOperator:

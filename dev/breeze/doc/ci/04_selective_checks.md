@@ -511,7 +511,10 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   with the images they need (none for airflow-ctl); other tests do not run, provider tests are skipped,
   and docs build only the chart's package. Static checks still run. See [Stage 2](#stage-2--decide-which-jobs-run).
 * If no Source files are changed - no tests are run and no further rules below are checked.
-* `CI Image building` is enabled if either test are run, docs are build.
+* `CI Image building` is enabled if either test are run, docs are build, or `uv.lock` changed.
+* `Task SDK tests` and the `mypy-task-sdk` check run when `Task SDK files` or `uv.lock` changed, because a
+  lock file bump can upgrade a library the Task SDK imports (for example `kubernetes` in serde). Unlike a
+  Task SDK file change, a `uv.lock` change alone does not select the tests of all providers.
 * Jobs that used to run for every change run only when a file they depend on changed. Full-test runs,
   which include the scheduled canary runs, still run all of them:
   * `Shared distributions tests` run when `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml`
@@ -689,7 +692,7 @@ when some files are not changed. Those are the rules implemented:
   * if no `All Airflow Python files` changed - `mypy-airflow-core` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
   * if no `All Scripts Python files` changed - `mypy-scripts` check is skipped
-  * if no `Task SDK files` changed - `mypy-task-sdk` check is skipped
+  * if neither `Task SDK files` nor `uv.lock` changed - `mypy-task-sdk` check is skipped
   * if no `All Airflow CTL Python files` changed - `mypy-airflow-ctl` check is skipped
   * if no `All Devel Common Python files` changed - `mypy-devel-common` check is skipped
   * if no files under the matching folder changed, the corresponding per-folder mypy hook
@@ -820,7 +823,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-providers-compatibility-tests                       | Whether the provider tests run against released Airflow versions: false when every changed file is hidden from them (Task SDK or core Python sources, Task SDK tests, their docs); off on component branches | true                                     |      |
 | run-shared-distributions-tests                          | Whether the shared distributions tests run: `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml` or `uv.lock` changed; off on component branches | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
-| run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
+| run-task-sdk-tests                                      | Whether Task SDK tests should be run: Task SDK files or `uv.lock` changed ("true"/"false")              | true                                     |      |
 | run-translation-check                                   | Whether the UI translation completeness check runs: a translation file changed; off on component branches | true                                     |      |
 | run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
 | run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
