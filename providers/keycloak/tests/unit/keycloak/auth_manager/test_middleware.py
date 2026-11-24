@@ -704,9 +704,7 @@ class TestKeycloakJWTMiddleware:
             None,
         )
         assert seen["authenticated_via"] is trusted_marker
-        mock_auth_manager.refresh_user.assert_any_call(
-            user=KeycloakAuthManager._attach_keycloak_tokens(mock_user, access_token, "refresh_token")
-        )
+        mock_auth_manager.refresh_user.assert_any_call(user=mock_user)
         mock_auth_manager.generate_jwt.assert_any_call(refreshed_user)
         assert _get_browser_cookies(response) == {
             (COOKIE_NAME_JWT_TOKEN, "/"): "new_token",
