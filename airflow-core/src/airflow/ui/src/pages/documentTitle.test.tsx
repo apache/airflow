@@ -17,7 +17,7 @@
  * under the License.
  */
 import { render, waitFor } from "@testing-library/react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
@@ -59,9 +59,7 @@ const DETAIL_ROUTES = [
   ["/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source/events", "log_source"],
 ] as const;
 
-beforeAll(() =>
-  preloadAppRoutes([...PAGE_ROUTES.map(([route]) => route), ...DETAIL_ROUTES.map(([route]) => route)]),
-);
+await preloadAppRoutes([...PAGE_ROUTES.map(([route]) => route), ...DETAIL_ROUTES.map(([route]) => route)]);
 
 describe("document title", () => {
   beforeEach(() => {

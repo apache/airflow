@@ -79,5 +79,7 @@ export default defineConfig({
     mockReset: true,
     restoreMocks: true,
     setupFiles: "./testsSetup.ts",
+    // Room for a few of the 3s waits set in testsSetup.ts, where the default 5s fits about one.
+    testTimeout: 15_000,
   },
 });

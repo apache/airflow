@@ -19,13 +19,13 @@
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as ColorMode from "src/context/colorMode";
 import { server } from "src/mocks/server";
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
-beforeAll(() => preloadAppRoutes(["/xcoms"]));
+await preloadAppRoutes(["/xcoms"]);
 
 vi.mock("src/components/MonacoEditor", () => ({
   default: ({ value }: { readonly value?: string }) => <div data-testid="monaco-editor">{value}</div>,

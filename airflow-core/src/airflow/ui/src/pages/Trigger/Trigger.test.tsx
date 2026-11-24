@@ -16,13 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { TriggerDetailResponse } from "openapi/requests/types.gen";
 
@@ -32,24 +30,23 @@ import { alsoWatching, triggers } from "src/mocks/handlers/triggers";
 import { server } from "src/mocks/server";
 import { routerConfig } from "src/router";
 import { preloadAppRoutes } from "src/utils/AppWrapper";
+import { BaseWrapper } from "src/utils/Wrapper";
 
-beforeAll(() => preloadAppRoutes(["/triggers/1", "/triggers/1/used_by"]));
+await preloadAppRoutes(["/triggers/1", "/triggers/1/used_by"]);
 
+// Not AppWrapper: its TimezoneProvider follows the host, and these times must render in UTC.
 const renderAt = (path: string) =>
   render(
-    <ChakraProvider value={defaultSystem}>
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        {/* Times render in UTC, whatever the timezone of the machine running the tests. */}
-        <TimezoneContext.Provider value={{ selectedTimezone: "UTC", setSelectedTimezone: vi.fn() }}>
-          <RouterProvider
-            router={createMemoryRouter(
-              routerConfig.map((route) => ({ ...route, loader: undefined })),
-              { initialEntries: [path] },
-            )}
-          />
-        </TimezoneContext.Provider>
-      </QueryClientProvider>
-    </ChakraProvider>,
+    <BaseWrapper>
+      <TimezoneContext.Provider value={{ selectedTimezone: "UTC", setSelectedTimezone: vi.fn() }}>
+        <RouterProvider
+          router={createMemoryRouter(
+            routerConfig.map((route) => ({ ...route, loader: undefined })),
+            { initialEntries: [path] },
+          )}
+        />
+      </TimezoneContext.Provider>
+    </BaseWrapper>,
   );
 
 const watcher = triggers.find(({ id }) => id === 3) as TriggerDetailResponse;
