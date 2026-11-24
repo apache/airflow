@@ -495,6 +495,24 @@ class TestSerializers:
         )
 
     @pytest.mark.parametrize(
+        "spec",
+        [
+            pytest.param({"containers": [{"name": "foo"}], "hostNetwork": "yes"}, id="not-coercible"),
+            pytest.param(
+                {"containers": [{"name": "foo", "livenessProbe": {"httpGet": {"port": 8.5}}}]},
+                id="union-field",
+            ),
+        ],
+    )
+    def test_kubernetes_deserialize_invalid_data(self, spec):
+        from pydantic import ValidationError
+
+        from airflow.sdk.serde.serializers.kubernetes import deserialize
+
+        with pytest.raises(ValidationError):
+            deserialize(k8s.V1Pod, 1, {"spec": spec})
+
+    @pytest.mark.parametrize(
         ("klass", "version", "msg"),
         [
             (k8s.V1Pod, 2, "serialized version 2 is newer than class version 1"),

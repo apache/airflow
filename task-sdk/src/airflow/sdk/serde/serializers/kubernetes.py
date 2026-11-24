@@ -78,7 +78,11 @@ def deserialize(cls: type, version: int, data: dict) -> Any:
     try:
         return cls.model_validate(data)
     except pydantic.ValidationError as e:
-        return cls.model_validate(_coerce_legacy_values(data, e))
+        try:
+            coerced = _coerce_legacy_values(data, e)
+        except (KeyError, IndexError, TypeError):
+            raise e
+        return cls.model_validate(coerced)
 
 
 def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> dict:
