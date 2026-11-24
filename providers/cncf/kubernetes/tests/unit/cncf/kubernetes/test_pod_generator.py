@@ -19,7 +19,6 @@ from __future__ import annotations
 import pickle
 import re
 from unittest import mock
-from unittest.mock import MagicMock
 
 import pendulum
 import pytest
@@ -107,11 +106,11 @@ class TestPodGenerator:
 
         self.resources = k8s.V1ResourceRequirements(
             requests={
-                "cpu": 1,
+                "cpu": "1",
                 "memory": "1Gi",
                 "ephemeral-storage": "2Gi",
             },
-            limits={"cpu": 2, "memory": "2Gi", "ephemeral-storage": "4Gi", "nvidia.com/gpu": 1},
+            limits={"cpu": "2", "memory": "2Gi", "ephemeral-storage": "4Gi", "nvidia.com/gpu": "1"},
         )
 
         self.k8s_client = ApiClient()
@@ -489,8 +488,7 @@ class TestPodGenerator:
         template_file = data_file("pods/generator_base_with_secrets.yaml").as_posix()
         worker_config = PodGenerator.deserialize_model_file(template_file)
         mock_rand_str.return_value = self.rand_str
-        executor_config = MagicMock()
-        executor_config.side_effect = AttributeError("error")
+        executor_config = object()
 
         with pytest.raises(PodReconciliationError):
             PodGenerator.construct_pod(
@@ -722,9 +720,7 @@ class TestPodGenerator:
         pod = PodGenerator.deserialize_model_dict(pod_dict)
 
         assert isinstance(pod, k8s.V1Pod)
-        pickle.dumps(pod)
-        assert pod.local_vars_configuration.refresh_api_key_hook is None
-        assert pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+        assert PodGenerator.serialize_pod(pickle.loads(pickle.dumps(pod))) == pod_dict
 
     @pytest.mark.parametrize(
         "input",

@@ -33,10 +33,17 @@ import kubernetes
 import pytest
 import pytest_asyncio
 import yaml
-from kubernetes.client import V1Deployment, V1DeploymentStatus
-from kubernetes.client.rest import ApiException
+from kubernetes.client import (
+    V1Deployment,
+    V1DeploymentSpec,
+    V1DeploymentStatus,
+    V1LabelSelector,
+    V1PodTemplateSpec,
+)
+from kubernetes.client.rest import ApiException, RESTResponse
 from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client
+from urllib3 import HTTPResponse
 
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.exceptions import KubernetesApiPermissionError
@@ -74,18 +81,20 @@ POLL_INTERVAL = 100
 YAML_URL = "https://test-yaml-url.com"
 
 NOT_READY_DEPLOYMENT = V1Deployment(
+    spec=V1DeploymentSpec(selector=V1LabelSelector(), template=V1PodTemplateSpec()),
     status=V1DeploymentStatus(
         observed_generation=1,
         ready_replicas=None,
         replicas=None,
         unavailable_replicas=1,
         updated_replicas=None,
-    )
+    ),
 )
 READY_DEPLOYMENT = V1Deployment(
+    spec=V1DeploymentSpec(selector=V1LabelSelector(), template=V1PodTemplateSpec()),
     status=V1DeploymentStatus(
         observed_generation=1, ready_replicas=1, replicas=1, unavailable_replicas=None, updated_replicas=1
-    )
+    ),
 )
 DEPLOYMENT_NAME = "test-deployment-name"
 
@@ -119,19 +128,44 @@ class TestTimeoutK8sApiClient:
             ),
         ],
     )
-    def test_call_api_timeout_inject(self, kwargs, expected_timeout):
-        with mock.patch("kubernetes.client.ApiClient.call_api") as mocked_call_api:
-            mocked_call_api.return_value = "ok"
-            cli = _TimeoutK8sApiClient()
+    @mock.patch("kubernetes.client.rest.RESTClientObject.request", autospec=True)
+    def test_call_api_timeout_inject(self, mocked_request, kwargs, expected_timeout):
+        mocked_request.return_value = RESTResponse(HTTPResponse(body=b'{"items": []}', status=200))
+        with _TimeoutK8sApiClient() as cli:
+            result = kubernetes.client.CoreV1Api(cli).list_namespaced_pod("default", **kwargs)
 
-            out = cli.call_api("arg1", kwargs_arg1="fake", **kwargs)
+        assert result.items == []
+        assert mocked_request.call_args.kwargs["_request_timeout"] == expected_timeout
 
-            mocked_call_api.assert_called_once()
-            call_args, call_kwargs = mocked_call_api.call_args
-            assert call_args[0] == "arg1"
-            assert call_kwargs["kwargs_arg1"] == "fake"
-            assert call_kwargs["_request_timeout"] == expected_timeout
-            assert out == "ok"
+
+@pytest.mark.non_db_test_override
+@pytest.mark.parametrize(
+    ("method", "kwargs", "response_body", "expected_type"),
+    [
+        (
+            "get_deployment_status",
+            {"name": "test", "namespace": "default"},
+            {"spec": {"selector": {}, "template": {}}},
+            kubernetes.client.V1Deployment,
+        ),
+        ("get_job", {"job_name": "test", "namespace": "default"}, {}, kubernetes.client.V1Job),
+        ("get_job_status", {"job_name": "test", "namespace": "default"}, {}, kubernetes.client.V1Job),
+        ("list_jobs_all_namespaces", {}, {"items": []}, kubernetes.client.V1JobList),
+        ("list_jobs_from_namespace", {"namespace": "default"}, {"items": []}, kubernetes.client.V1JobList),
+    ],
+)
+@mock.patch("kubernetes.client.rest.RESTClientObject.request", autospec=True)
+def test_hook_reads_with_generated_client(mocked_request, method, kwargs, response_body, expected_type):
+    mocked_request.return_value = RESTResponse(
+        HTTPResponse(body=json.dumps(response_body).encode(), status=200)
+    )
+    with _TimeoutK8sApiClient() as cli:
+        hook = KubernetesHook()
+        hook.api_client = cli
+        result = getattr(hook, method)(**kwargs)
+
+    assert isinstance(result, expected_type)
+    assert mocked_request.call_count == 1
 
 
 class TestTimeoutAsyncK8sApiClient:
@@ -704,13 +738,13 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch(f"{HOOK_MODULE}.KubernetesHook.batch_v1_client")
     def test_get_job_status(self, mock_client, mock_kube_config_merger, mock_kube_config_loader):
-        job_expected = mock_client.read_namespaced_job_status.return_value
+        job_expected = mock_client.read_namespaced_job.return_value
 
         hook = KubernetesHook()
         job_actual = hook.get_job_status(job_name=JOB_NAME, namespace=NAMESPACE)
 
-        mock_client.read_namespaced_job_status.assert_called_once_with(
-            name=JOB_NAME, namespace=NAMESPACE, pretty=True
+        mock_client.read_namespaced_job.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, pretty="true"
         )
         assert job_actual == job_expected
 
@@ -2062,7 +2096,7 @@ class TestAsyncKubernetesHook:
         assert exc_info.value.status == 404
 
     @pytest.mark.asyncio
-    @mock.patch(KUBE_BATCH_API.format("read_namespaced_job_status"))
+    @mock.patch(KUBE_BATCH_API.format("read_namespaced_job"))
     async def test_get_job_status(self, lib_method, kube_config_loader, hook):
         lib_method.return_value = self.mock_await_result(None)
 
@@ -2071,7 +2105,7 @@ class TestAsyncKubernetesHook:
             namespace=NAMESPACE,
         )
 
-        lib_method.assert_called_once()
+        lib_method.assert_called_once_with(name=JOB_NAME, namespace=NAMESPACE)
 
     @pytest.mark.asyncio
     @mock.patch(HOOK_MODULE + ".asyncio.sleep")

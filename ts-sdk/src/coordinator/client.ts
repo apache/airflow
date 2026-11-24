@@ -58,12 +58,16 @@ import type {
  */
 type AbsentRowPolicy = "throw" | { codes: readonly string[]; apiServer404: boolean };
 
-type XComTargetOpts = Pick<GetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
+/** The key a task's return value is stored under, as Python `@task` does. */
+export const XCOM_RETURN_KEY = "return_value";
+
+type XComTargetOpts = Pick<SetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
 
 function resolveXComTarget(opts: XComTargetOpts, ctx: TaskContext) {
   // The supervisor never replies to a frame with a wrongly typed field, so the
   // task would hang instead of failing fast.
-  assertKey(opts.key, "XCom key");
+  const key = opts.key ?? XCOM_RETURN_KEY;
+  assertKey(key, "XCom key");
   for (const [label, id] of [
     ["dagId", opts.dagId],
     ["taskId", opts.taskId],
@@ -72,20 +76,11 @@ function resolveXComTarget(opts: XComTargetOpts, ctx: TaskContext) {
     if (id != null) assertKey(id, `XCom ${label}`);
   }
   assertMapIndex(opts.mapIndex);
-  const dag_id = opts.dagId ?? ctx.dagId;
-  const task_id = opts.taskId ?? ctx.taskId;
-  const run_id = opts.runId ?? ctx.runId;
-  // A map index only names a row of the task that owns it, so another task or
-  // run does not inherit it. `mapIndex` is nullable: an explicit null stays null.
-  const targetsSelf = dag_id === ctx.dagId && task_id === ctx.taskId && run_id === ctx.runId;
-  const mapIndex =
-    opts.mapIndex === undefined ? (targetsSelf ? ctx.mapIndex : null) : opts.mapIndex;
   return {
-    key: opts.key,
-    dag_id,
-    task_id,
-    run_id,
-    map_index: mapIndex === null || mapIndex < 0 ? null : mapIndex,
+    key,
+    dag_id: opts.dagId ?? ctx.dagId,
+    task_id: opts.taskId ?? ctx.taskId,
+    run_id: opts.runId ?? ctx.runId,
   };
 }
 
@@ -373,9 +368,12 @@ export function createCoordinatorClient(
     // ---- XCom ----
 
     async getXComEntry(opts: GetXComOpts): Promise<XComEntry> {
+      assertKey(opts.taskId, "XCom taskId"); // Required: getXCom has no default task.
       const msg: GetXCom = {
         type: "GetXCom",
         ...resolveXComTarget(opts, ctx),
+        // A null map index is resolved by the server by how the task is defined.
+        map_index: opts.mapIndex ?? null,
         include_prior_dates: opts.includePriorDates ?? false,
       };
       const entry = await rpc<XComEntry>(
@@ -400,10 +398,18 @@ export function createCoordinatorClient(
     },
 
     async setXCom(opts: SetXComOpts): Promise<void> {
+      const target = resolveXComTarget(opts, ctx);
+      // A map index only names a row of the task that owns it, so another task or
+      // run does not inherit it. `mapIndex` is nullable: an explicit null stays null.
+      const targetsSelf =
+        target.dag_id === ctx.dagId && target.task_id === ctx.taskId && target.run_id === ctx.runId;
+      const mapIndex =
+        opts.mapIndex === undefined ? (targetsSelf ? ctx.mapIndex : null) : opts.mapIndex;
       const msg: SetXCom = {
         type: "SetXCom",
-        ...resolveXComTarget(opts, ctx),
+        ...target,
         value: opts.value,
+        map_index: mapIndex === null || mapIndex < 0 ? null : mapIndex,
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
     },

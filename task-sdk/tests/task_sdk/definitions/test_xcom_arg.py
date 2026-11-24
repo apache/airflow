@@ -384,6 +384,42 @@ def test_xcom_concat(run_ti, mock_supervisor_comms):
     assert agg_results == {"a", "b", "c", 1, 2}
 
 
+def test_xcom_concat_expand_with_other_argument(run_ti, mock_supervisor_comms):
+    results = set()
+
+    with DAG("test") as dag:
+
+        @dag.task
+        def push_letters():
+            return ["a", "b", "c"]
+
+        @dag.task
+        def push_numbers():
+            return [1, 2]
+
+        @dag.task
+        def pull(x, y):
+            results.add((x, y))
+
+        # The concat argument is declared last, so it is the first to divide map_index.
+        pull.expand(x=[10, 20], y=push_letters().concat(push_numbers()))
+
+    def xcom_get(msg):
+        if not isinstance(msg, GetXCom):
+            return mock.DEFAULT
+        if msg.task_id == "push_letters":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=push_letters.function())
+        if msg.task_id == "push_numbers":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=push_numbers.function())
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = xcom_get
+
+    states = [run_ti(dag, "pull", map_index) for map_index in range(10)]
+    assert states == [TaskInstanceState.SUCCESS] * 10
+    assert results == {(x, y) for x in (10, 20) for y in ("a", "b", "c", 1, 2)}
+
+
 class TestPlainXComArgResolveMappedGroup:
     """Resolving a task inside a mapped task group from a task outside that group.
 
@@ -399,7 +435,6 @@ class TestPlainXComArgResolveMappedGroup:
     @staticmethod
     def _make_ti(*, computed):
         ti = mock.MagicMock()
-        ti._upstream_map_indexes = None
         ti._cached_template_context = {"expanded_ti_count": 1}
         ti.run_id = "run-1"
         ti.get_relevant_upstream_map_indexes.return_value = computed
@@ -445,6 +480,22 @@ class TestPlainXComArgResolveMappedGroup:
         assert resolved == "value-0"
         ti.xcom_pull.assert_called_once()
         assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0
+
+
+class TestPlainXComArgResolveUnmapped:
+    """An unmapped upstream is pulled at map index -1, sparing the server a lookup of how it is defined."""
+
+    def test_resolve_outside_a_mapped_task_group_pulls_minus_one(self):
+        operator = mock.MagicMock()
+        operator.is_mapped = False
+        operator.task_id = "upstream"
+        operator.dag_id = "test_dag"
+        operator.get_closest_mapped_task_group.return_value = None
+        ti = mock.MagicMock()
+        ti.xcom_pull.return_value = "value"
+
+        assert PlainXComArg(operator=operator, key="test").resolve({"ti": ti}) == "value"
+        assert ti.xcom_pull.call_args.kwargs["map_indexes"] == -1
 
 
 class TestPlainXComArgResolveLoopTask:

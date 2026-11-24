@@ -65,7 +65,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -620,7 +620,7 @@ def clear_task_instances(
             )
         ).all()
         if reset_dag_runs:
-            dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
+            dag_run_state = DagRunState(str(dag_run_state))  # Validate the state value.
         for dr in drs:
             was_finished = dr.state in State.finished_dr_states
             if reset_dag_runs:
@@ -2695,9 +2695,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 )
                 if event is None:
                     ti.log.info("Dynamically creating AssetModel %s", asset_key)
-                    session.add(AssetModel.from_serialized(asset))
-                    session.flush()  # So event can set up its asset fk.
-                    asset_manager.register_asset_change(
+                    try:
+                        with session.begin_nested():
+                            session.add(AssetModel.from_serialized(asset))
+                    except IntegrityError:
+                        ti.log.info("AssetModel %s was created concurrently; reusing it", asset_key)
+                    event = asset_manager.register_asset_change(
                         task_instance=ti,
                         asset=asset,
                         source_alias_names=event_aliase_names,
@@ -2707,6 +2710,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         callback_sink=callback_sink,
                         session=session,
                     )
+                    if event is None:
+                        ti.log.error("Could not register asset event for %s", asset_key)
 
         return callback_sink
 
@@ -2773,7 +2778,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 kwargs=trigger_kwargs,
                 team_name=team_name,
                 dag_id=self.dag_id,
-                owner_ref={"ti_id": str(self.id)},
+                used_by_ref={"ti_id": str(self.id)},
             )
 
             # First, make the trigger entry

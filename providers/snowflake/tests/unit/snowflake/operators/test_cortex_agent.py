@@ -270,6 +270,31 @@ class TestSnowflakeCortexAgentUpdateOperator:
         assert result == response
 
 
+@pytest.mark.parametrize(
+    "operator_class",
+    [
+        SnowflakeCortexAgentCreateOperator,
+        SnowflakeCortexAgentUpdateOperator,
+    ],
+)
+def test_configuration_template_renderers(operator_class):
+    operator = operator_class(
+        task_id=TASK_ID,
+        database="MY_DATABASE",
+        schema="MY_SCHEMA",
+        agent_name="my_agent",
+    )
+
+    assert operator.template_fields_renderers == {
+        "profile": "json",
+        "models": "json",
+        "instructions": "json",
+        "orchestration": "json",
+        "tools": "json",
+        "tool_resources": "json",
+    }
+
+
 class TestSnowflakeCortexAgentDeleteOperator:
     @pytest.mark.parametrize(
         ("operator_kwargs", "expected_kwargs"),
