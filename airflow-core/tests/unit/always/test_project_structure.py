@@ -61,8 +61,6 @@ class TestProjectStructure:
         # A long-standing bug in the test below allowed modules without tests to go undetected.
         # This list tracks those modules and should shrink to zero as tests are added.
         OVERLOOKED_TESTS = [
-            "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
             "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/docker/test_app.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_emr.py",
