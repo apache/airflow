@@ -236,5 +236,4 @@ class FABAuthManagerUsers:
         user.roles = []
         security_manager.session.delete(user)
         security_manager.session.commit()
-        with FabAuthManager.cache_lock:
-            FabAuthManager.cache.pop(user.id, None)
+        FabAuthManager.evict_cached_user(user.id)

@@ -75,19 +75,16 @@ class MultiResourceUserMixin:
 
     # FAB calls these hooks only after the edit or delete is committed.
     def post_update(self, item):
-        super().post_update(item)
-        self._evict_cached_user(item.id)
-
-    def post_delete(self, item):
-        super().post_delete(item)
-        self._evict_cached_user(item.id)
-
-    @staticmethod
-    def _evict_cached_user(user_id: int) -> None:
         from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
-        with FabAuthManager.cache_lock:
-            FabAuthManager.cache.pop(user_id, None)
+        super().post_update(item)
+        FabAuthManager.evict_cached_user(item.id)
+
+    def post_delete(self, item):
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+        super().post_delete(item)
+        FabAuthManager.evict_cached_user(item.id)
 
     @expose("/show/<pk>", methods=["GET"])
     @has_access

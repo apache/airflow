@@ -25,8 +25,8 @@ Changelog
     ``ab_user`` table. Run ``airflow db migrate`` after upgrading the provider.
 
     Changing or resetting a password now ends the API tokens and UI sessions issued before the
-    change, and deactivating or deleting a user in the UI or through the API now ends their API
-    tokens. API servers cache users for up to ``[fab] cache_ttl`` seconds, so for a
+    change, and deactivating or deleting a user in the UI, or deleting one through the API, now
+    ends their API tokens. API servers cache users for up to ``[fab] cache_ttl`` seconds, so for a
     change made from another process, such as ``airflow users reset-password``,
     ``airflow users delete`` or another API server, the earlier API tokens stop working there once
     its cached user expires.
