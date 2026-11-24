@@ -352,7 +352,7 @@ class TestBaseAuthManager:
     )
     @patch.object(EmptyAuthManager, "deserialize_user")
     @pytest.mark.asyncio
-    async def test_get_user_from_token_checks_revocation_async(
+    async def test_get_user_from_token_not_revoked(
         self, mock_deserialize_user, mock__get_token_validator, mock_is_revoked, auth_manager
     ):
         signer = AsyncMock(spec=JWTValidator)

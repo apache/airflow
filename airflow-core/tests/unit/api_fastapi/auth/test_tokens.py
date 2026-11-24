@@ -42,6 +42,7 @@ from airflow.api_fastapi.auth.tokens import (
 )
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.db import is_token_revoked
 
 if TYPE_CHECKING:
     from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -338,8 +339,6 @@ class TestRevokeToken:
         """Test that revoke_token validates the token and persists the jti in the database."""
         import time
 
-        from airflow.models.revoked_token import RevokedToken
-
         now = int(time.time())
         payload = {
             "sub": "user",
@@ -359,13 +358,11 @@ class TestRevokeToken:
         )
         validator.revoke_token(token)
 
-        assert RevokedToken.is_revoked("revoke-test-jti") is True
+        assert is_token_revoked("revoke-test-jti") is True
 
     def test_revoke_token_without_jti_does_not_persist(self):
         """Test that a token without jti does not create a revoked token entry."""
         import time
-
-        from airflow.models.revoked_token import RevokedToken
 
         now = int(time.time())
         payload = {"sub": "user", "exp": now + 3600, "iat": now, "nbf": now, "aud": "test"}
@@ -379,11 +376,10 @@ class TestRevokeToken:
         )
         validator.revoke_token(token)
 
-        assert RevokedToken.is_revoked("any-jti") is False
+        assert is_token_revoked("any-jti") is False
 
     def test_revoke_token_with_invalid_token_does_not_raise(self):
         """Test that revoke_token logs a warning instead of raising for an invalid token."""
-        from airflow.models.revoked_token import RevokedToken
 
         # Pass issuer=None explicitly so the validator does not pick up the
         # process-wide test-env default `[api_auth] jwt_issuer` and demand an
@@ -393,7 +389,7 @@ class TestRevokeToken:
         )
         validator.revoke_token("invalid-token")
 
-        assert RevokedToken.is_revoked("any-jti") is False
+        assert is_token_revoked("any-jti") is False
 
     def test_revoke_token_with_db_error_does_not_raise(self):
         """Test that revoke_token handles database errors gracefully."""
