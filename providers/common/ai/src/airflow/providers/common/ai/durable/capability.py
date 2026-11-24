@@ -706,7 +706,7 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
         # The agent writes the chain's own id (``fallback:a,b``) on every response it puts in the
         # history, replayed ones too, so a replayed response carries the edited chain's id and
         # that field has to stay out of the fingerprint.
-        stamped = _is_stamped_chain(model)
+        stamped = _get_stamped_members(model) is not None
         identity = "fallback" if stamped else f"{model.system}:{model.model_name}"
         return fingerprint_model_request(
             identity, messages, prepared_settings, prepared_parameters, exclude_response_model_id=stamped
@@ -830,24 +830,21 @@ def _decode_tool_payload(payload: Any) -> Any:
     raise DurableJournalError(f"durable execution found a tool result it cannot replay: {kind!r}")
 
 
-def _is_stamped_chain(model: Model) -> TypeGuard[FallbackModel]:
-    return isinstance(model, FallbackModel) and all(
-        isinstance(member, MemberStampingModel) for member in model.models
-    )
+def _get_stamped_members(model: Model) -> list[MemberStampingModel] | None:
+    if not isinstance(model, FallbackModel):
+        return None
+    members = [member for member in model.models if isinstance(member, MemberStampingModel)]
+    return members if len(members) == len(model.models) else None
 
 
 def _find_unusable_answerer(response: ModelResponse, model: Model) -> str | None:
     """Return why a recorded response cannot replay into ``model``'s chain, or ``None`` if it can."""
-    if not _is_stamped_chain(model):
+    if (members := _get_stamped_members(model)) is None:
         return None
     if (member_model_id := get_member_model_id(response)) is None:
         return _UNSTAMPED_ANSWERER
     member_conn_id = get_member_conn_id(response)
-    answerers = {
-        (member.conn_id, member.model_id)
-        for member in model.models
-        if isinstance(member, MemberStampingModel)
-    }
+    answerers = {(member.conn_id, member.model_id) for member in members}
     if (member_conn_id, member_model_id) not in answerers:
         answerer = (
             member_model_id if member_conn_id is None else f"{member_model_id} on connection {member_conn_id}"
