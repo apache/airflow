@@ -325,6 +325,27 @@ def test_join_executor_health_check_threads_prevents_a_row_reappearing_after_shu
     assert rows[0].end_date is not None
 
 
+def test_join_executor_health_check_threads_skips_a_check_already_marked_stalled(session):
+    """A check already known to be stalled isn't coming back; shutdown must not wait on it again."""
+    executor = _StubExecutor()
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
+
+    block_forever = threading.Event()
+    stuck = threading.Thread(target=block_forever.wait, daemon=True)
+    stuck.start()
+    runner._executor_health_check_timeout = 5.0
+    runner._executor_health_check_threads[key] = (stuck, time.monotonic())
+    runner._stalled_health_checks.add(key)
+
+    started = time.monotonic()
+    runner._join_executor_health_check_threads()
+    assert time.monotonic() - started < 1.0
+
+    block_forever.set()
+    stuck.join()
+
+
 def test_end_executor_jobs_closes_this_scheduler_rows_with_the_given_state(session):
     executor = _StubExecutor()
     runner = _make_runner(executor, session)

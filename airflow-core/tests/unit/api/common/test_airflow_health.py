@@ -707,11 +707,6 @@ def _patch_executor_keys(keys: set[str]):
     return patch("airflow.api.common.airflow_health._configured_executor_keys", return_value=keys)
 
 
-def _patch_live_scheduler_ids(ids: set[int]):
-    """Patch which owning-scheduler ids count as alive, standing in for a real SchedulerJob query."""
-    return patch("airflow.api.common.airflow_health._live_scheduler_job_ids", return_value=ids)
-
-
 class _HealthCheckingExecutor(BaseExecutor):
     """A stand-in for a concrete executor (e.g. Celery) that has implemented get_health()."""
 
@@ -860,53 +855,54 @@ class TestExecutorDetailedStatus:
         ],
     )
     def test_coverage(self, keys, jobs, expected):
-        with _patch_executor_keys(keys), _patch_live_scheduler_ids({1}):
-            assert _executor_detailed_status(jobs) == expected
+        with _patch_executor_keys(keys):
+            assert _executor_detailed_status(jobs, {1}) == expected
+
+    def test_liveness_fallback_ignores_a_dead_schedulers_row_when_nothing_is_configured(self):
+        """No configured executor falls back to liveness, which must still respect the owner check."""
+        with _patch_executor_keys(set()):
+            jobs = [_executor(alive=True, executor="Celery", owner_job_id=2)]
+            assert _executor_detailed_status(jobs, {1}) == DetailedHealthStatus.DOWN
 
     @_patch_executor_keys({"Celery"})
-    @_patch_live_scheduler_ids({1, 2})
-    def test_restart_while_another_scheduler_already_reports_healthy(self, mock_live_ids, mock_keys):
+    def test_restart_while_another_scheduler_already_reports_healthy(self, mock_keys):
         jobs = [
             _executor(alive=True, healthy=None, executor="Celery", owner_job_id=1),
             _executor(alive=True, healthy=True, executor="Celery", owner_job_id=2),
         ]
-        assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+        assert _executor_detailed_status(jobs, {1, 2}) == DetailedHealthStatus.HEALTHY
 
     @_patch_executor_keys({"Celery"})
-    @_patch_live_scheduler_ids({1, 2})
-    def test_unknown_does_not_mask_a_real_unhealthy_report(self, mock_live_ids, mock_keys):
+    def test_unknown_does_not_mask_a_real_unhealthy_report(self, mock_keys):
         jobs = [
             _executor(alive=True, healthy=None, executor="Celery", owner_job_id=1),
             _executor(alive=True, healthy=False, executor="Celery", owner_job_id=2),
         ]
-        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+        assert _executor_detailed_status(jobs, {1, 2}) == DetailedHealthStatus.DOWN
 
     @_patch_executor_keys({"Celery"})
-    @_patch_live_scheduler_ids({1})
-    def test_restarted_executor_leaves_the_component_healthy(self, mock_live_ids, mock_keys):
+    def test_restarted_executor_leaves_the_component_healthy(self, mock_keys):
         """A hard-killed replica leaves its row behind; a fresh one taking over must still read healthy."""
         jobs = [
             _executor(alive=True, executor="Celery"),
             _executor(alive=False, executor="Celery"),
         ]
-        assert _executor_detailed_status(jobs) == DetailedHealthStatus.HEALTHY
+        assert _executor_detailed_status(jobs, {1}) == DetailedHealthStatus.HEALTHY
 
     @_patch_executor_keys({"Celery"})
-    @_patch_live_scheduler_ids({1, 2})
-    def test_one_scheduler_reporting_unhealthy_is_not_masked_by_another(self, mock_live_ids, mock_keys):
+    def test_one_scheduler_reporting_unhealthy_is_not_masked_by_another(self, mock_keys):
         """Two schedulers checking the same broker: one healthy row must not hide another's failure."""
         jobs = [
             _executor(alive=True, healthy=True, executor="Celery", owner_job_id=1),
             _executor(alive=True, healthy=False, executor="Celery", owner_job_id=2),
         ]
-        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+        assert _executor_detailed_status(jobs, {1, 2}) == DetailedHealthStatus.DOWN
 
     @_patch_executor_keys({"Celery"})
-    @_patch_live_scheduler_ids({1})
-    def test_row_left_behind_by_crashed_scheduler_is_ignored(self, mock_live_ids, mock_keys):
+    def test_row_left_behind_by_crashed_scheduler_is_ignored(self, mock_keys):
         """A row can still look alive right after its scheduler died; it must not count as coverage."""
         jobs = [_executor(alive=True, healthy=True, executor="Celery", owner_job_id=2)]
-        assert _executor_detailed_status(jobs) == DetailedHealthStatus.DOWN
+        assert _executor_detailed_status(jobs, {1}) == DetailedHealthStatus.DOWN
 
 
 class TestAirflowHealthExecutor:

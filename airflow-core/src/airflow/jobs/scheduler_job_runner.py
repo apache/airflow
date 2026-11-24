@@ -559,10 +559,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         A check still running at that point can no longer revive a row -- only the main thread ever
         creates one -- but joining first still keeps it from writing a result onto a row the scheduler
         has already closed. All threads share one deadline, so shutdown is bounded by the timeout once,
-        not once per hung check.
+        not once per hung check. A check already marked stalled is skipped: it has ignored its own
+        timeout once already and isn't coming back.
         """
         deadline = time.monotonic() + self._executor_health_check_timeout
-        for thread, _ in self._executor_health_check_threads.values():
+        for key, (thread, _) in self._executor_health_check_threads.items():
+            if key in self._stalled_health_checks:
+                continue
             thread.join(timeout=max(deadline - time.monotonic(), 0))
 
     def _run_executor_health_check(self, executor: BaseExecutor, key: str) -> None:

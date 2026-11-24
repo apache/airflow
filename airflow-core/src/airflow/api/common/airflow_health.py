@@ -152,25 +152,16 @@ def _executor_instance_health(job: Job) -> dict[str, Any]:
     }
 
 
-def _live_scheduler_job_ids() -> set[int]:
-    """Ids of the currently-alive SchedulerJob rows, used to age out a dead scheduler's own rows."""
-    return {job.id for job in get_jobs_health(SchedulerJobRunner.job_type) if job.is_alive()}
-
-
-def _live_executor_jobs(jobs: list[Job], live_scheduler_ids: set[int] | None = None) -> list[Job]:
+def _live_executor_jobs(jobs: list[Job], live_scheduler_ids: set[int]) -> list[Job]:
     """
     Narrow executor rows down to live instances whose owning scheduler is also still alive.
 
     A row can stay technically alive for a little while after its scheduler process has already
     died (its heartbeat hasn't crossed the staleness threshold yet), so liveness on the row alone
     isn't enough; cross-checking the owner avoids briefly reporting a dead scheduler's executor as
-    healthy.
-
-    ``live_scheduler_ids`` lets a caller that already fetched the scheduler jobs (e.g.
-    :func:`get_airflow_health`) pass the result along instead of this re-querying them.
+    healthy. ``live_scheduler_ids`` comes from the caller's own scheduler job query (e.g.
+    :func:`get_airflow_health`) rather than this re-querying them.
     """
-    if live_scheduler_ids is None:
-        live_scheduler_ids = _live_scheduler_job_ids()
     return [job for job in jobs if job.is_alive() and job.owner_job_id in live_scheduler_ids]
 
 
@@ -267,9 +258,7 @@ def _configured_executor_keys() -> set[str]:
     return keys
 
 
-def _executor_detailed_status(
-    jobs: list[Job], live_scheduler_ids: set[int] | None = None
-) -> DetailedHealthStatus:
+def _executor_detailed_status(jobs: list[Job], live_scheduler_ids: set[int]) -> DetailedHealthStatus:
     """
     Status from configured-executor coverage: each configured executor is its own partition.
 
@@ -281,13 +270,14 @@ def _executor_detailed_status(
     ``live_scheduler_ids`` is forwarded to :func:`_live_executor_jobs`; see its docstring.
     """
     expected = _configured_executor_keys()
+    live_jobs = _live_executor_jobs(jobs, live_scheduler_ids)
     if not expected:
-        return _liveness_status(jobs)
+        return _liveness_status(live_jobs)
 
     covered: set[str] = set()
     unhealthy: set[str] = set()
     seen: set[str] = set()
-    for job in _live_executor_jobs(jobs, live_scheduler_ids):
+    for job in live_jobs:
         if not job.executor_class or job.executor_class not in expected:
             continue
         seen.add(job.executor_class)
@@ -297,7 +287,7 @@ def _executor_detailed_status(
             unhealthy.add(job.executor_class)
     expected = expected - (seen - covered - unhealthy)
     if not expected:
-        return _liveness_status(jobs)
+        return _liveness_status(live_jobs)
     covered -= unhealthy
     return _coverage_status(expected, covered)
 
@@ -394,8 +384,7 @@ def get_airflow_health() -> dict[str, Any]:
     if report_executor_health:
         try:
             executor_jobs = get_jobs_health(EXECUTOR_JOB_TYPE)
-            # get_airflow_health already fetched scheduler_jobs above; reuse it rather than
-            # re-querying the same rows through _live_scheduler_job_ids().
+            # Reuse scheduler_jobs fetched above instead of re-querying the same rows.
             live_scheduler_ids = {job.id for job in scheduler_jobs if job.is_alive()}
             executor_detailed_status = _executor_detailed_status(executor_jobs, live_scheduler_ids)
             executor_status = (
