@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.triggers.batch import (
 )
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
+from tests_common.test_utils.task_state import get_non_reserved_task_state_writes
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -769,7 +770,7 @@ class TestBatchOperatorDurable:
 
         client.submit_job.assert_called_once()
         link_mock.assert_called_once()
-        task_store.set.assert_called_once_with("batch_job_id", self.NEW_JOB_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [mock.call("batch_job_id", self.NEW_JOB_ID)]
         monitor_mock.assert_called_once()
         assert result == self.NEW_JOB_ID
 
@@ -783,9 +784,9 @@ class TestBatchOperatorDurable:
 
         result = operator.execute(self._context(task_store))
 
-        client.describe_jobs.assert_called_once_with(jobs=[JOB_ID])
+        assert client.describe_jobs.call_args_list[0] == mock.call(jobs=[JOB_ID])
         client.submit_job.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         monitor_mock.assert_called_once()
         assert link_mock.call_args.kwargs["job_id"] == JOB_ID
         assert operator.job_id == JOB_ID
@@ -825,7 +826,7 @@ class TestBatchOperatorDurable:
         result = self._make_operator().execute(self._context(task_store))
 
         client.submit_job.assert_called_once()
-        task_store.set.assert_called_once_with("batch_job_id", self.NEW_JOB_ID)
+        assert get_non_reserved_task_state_writes(task_store) == [mock.call("batch_job_id", self.NEW_JOB_ID)]
         assert result == self.NEW_JOB_ID
 
     @mock.patch.object(BatchOperator, "monitor_job", autospec=True)
@@ -834,7 +835,7 @@ class TestBatchOperatorDurable:
 
         client.submit_job.assert_called_once()
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     @pytest.mark.parametrize("durable", [True, False])
     @mock.patch.object(BatchOperator, "monitor_job", autospec=True)

@@ -13159,6 +13159,86 @@ export const $DeadlineResponse = {
     description: 'Deadline serializer for responses.'
 } as const;
 
+export const $DurableExecutionResponse = {
+    properties: {
+        tries: {
+            items: {
+                '$ref': '#/components/schemas/DurableTryResponse'
+            },
+            type: 'array',
+            title: 'Tries'
+        }
+    },
+    type: 'object',
+    required: ['tries'],
+    title: 'DurableExecutionResponse',
+    description: 'Durable execution history of a task instance, read by the logs banner.'
+} as const;
+
+export const $DurableTryResponse = {
+    properties: {
+        try_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Try Number'
+        },
+        decision: {
+            type: 'string',
+            enum: ['submitted', 'resubmitted', 'reconnected', 'already_succeeded'],
+            title: 'Decision'
+        },
+        external_id: {
+            '$ref': '#/components/schemas/JsonValue'
+        },
+        status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        submitted_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Submitted At'
+        },
+        saved_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Saved Seconds'
+        },
+        previous_external_id: {
+            '$ref': '#/components/schemas/JsonValue'
+        }
+    },
+    type: 'object',
+    required: ['try_number', 'decision', 'external_id', 'status', 'saved_seconds'],
+    title: 'DurableTryResponse',
+    description: 'What one try did with the external job.'
+} as const;
+
 export const $DurationStats = {
     properties: {
         mean: {
