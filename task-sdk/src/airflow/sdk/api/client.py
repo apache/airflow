@@ -198,7 +198,8 @@ __all__ = [
 
 def get_json_error(response: httpx2.Response):
     """Raise a ServerResponseError if we can extract error info from the error."""
-    if err := ServerResponseError.from_response(response):
+    err = ServerResponseError.from_response(response)
+    if err:
         raise err
 
 
