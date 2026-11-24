@@ -152,7 +152,7 @@ def _safe_build_structured_log_message(hit_dict: dict[str, Any]) -> StructuredLo
     A single malformed stored log entry (for example a non-string ``event`` produced by
     logging a list or dict as the sole message argument) must not fail the entire
     log-fetch request. Fall back to a stringified event, mirroring the fallback used for
-    unparsable raw log lines in ``_log_stream_to_parsed_log_stream``.
+    unparsable raw log lines in ``log_stream_to_parsed_log_stream``.
     """
     fields = _build_log_fields(hit_dict)
     try:

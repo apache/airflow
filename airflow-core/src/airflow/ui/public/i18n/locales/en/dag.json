@@ -121,6 +121,10 @@
       "previousMatch": "Previous match"
     },
     "settings": "Log Settings",
+    "trigger": {
+      "forbidden": "You don't have permission to read this trigger's logs. Reading them needs access to the logs of the task, callback or Dag it runs for.",
+      "openOwnerLog": "Open the full log"
+    },
     "tryNotStarted": "This try hasn't started yet.",
     "viewFailedTry": "View logs for failed try {{tryNumber}}",
     "viewInExternal": "View logs in {{name}} (attempt {{attempt}})",

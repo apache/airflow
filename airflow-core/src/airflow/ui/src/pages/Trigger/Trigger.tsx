@@ -19,7 +19,7 @@
 import { Box } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiLink, FiZap } from "react-icons/fi";
-import { MdDetails } from "react-icons/md";
+import { MdDetails, MdReorder } from "react-icons/md";
 import { Outlet, useParams } from "react-router-dom";
 
 import { useTriggerServiceGetTrigger } from "openapi/queries";
@@ -59,6 +59,7 @@ export const Trigger = () => {
 
   const tabs = [
     { icon: <MdDetails />, label: translate("dag:tabs.details"), value: "" },
+    { icon: <MdReorder />, label: translate("dag:tabs.logs"), value: "logs" },
     { icon: <FiLink />, label: translate("triggers.columns.usedBy"), value: "used_by" },
   ];
 

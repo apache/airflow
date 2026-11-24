@@ -144,7 +144,9 @@ class LogType(str, Enum):
     WORKER = "worker"
 
 
-def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
+def fetch_logs_from_service(
+    url: str, log_relative_path: str, headers: dict[str, str] | None = None
+) -> Response:
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
     import requests
 
@@ -165,7 +167,7 @@ def _fetch_logs_from_service(url: str, log_relative_path: str) -> Response:
     response = requests.get(
         url,
         timeout=timeout,
-        headers={"Authorization": generator.generate({"filename": log_relative_path})},
+        headers={**(headers or {}), "Authorization": generator.generate({"filename": log_relative_path})},
         stream=True,
     )
     response.encoding = "utf-8"
@@ -179,6 +181,31 @@ if not _parse_timestamp:
     def _parse_timestamp(line: str):
         timestamp_str, _ = line.split(" ", 1)
         return pendulum.parse(timestamp_str.strip("[]"))
+
+
+def get_log_server_url(hostname: str, log_relative_path: str, log_type: LogType | None = None) -> str:
+    """Return the URL of a log on a triggerer's log server, or a worker's for any other ``log_type``."""
+    if log_type == LogType.TRIGGER:
+        config_key = "trigger_log_server_port"
+        deprecated_config_key = "triggerer_log_server_port"
+        if (
+            conf.get("logging", config_key, fallback=None) is None
+            and conf.get("logging", deprecated_config_key, fallback=None) is not None
+        ):
+            logger.warning(
+                "The [logging] %s option is deprecated. Please use [logging] %s instead.",
+                deprecated_config_key,
+                config_key,
+            )
+            config_key = deprecated_config_key
+        config_default = 8794
+    else:
+        config_key = "worker_log_server_port"
+        config_default = 8793
+    return urljoin(
+        f"http://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
+        log_relative_path,
+    )
 
 
 def _stream_lines_by_chunk(
@@ -225,7 +252,7 @@ def _stream_lines_by_chunk(
         yield from buffer.split("\n")
 
 
-def _log_stream_to_parsed_log_stream(
+def log_stream_to_parsed_log_stream(
     log_stream: RawLogStream,
 ) -> ParsedLogStream:
     """
@@ -355,7 +382,7 @@ def _interleave_logs(*log_streams: RawLogStream) -> StructuredLogStream:
     heap: list[tuple[int, StructuredLogMessage]] = []
     # to allow removing empty streams while iterating, also turn the str stream into parsed log stream
     parsed_log_streams: dict[int, ParsedLogStream] = {
-        idx: _log_stream_to_parsed_log_stream(log_stream) for idx, log_stream in enumerate(log_streams)
+        idx: log_stream_to_parsed_log_stream(log_stream) for idx, log_stream in enumerate(log_streams)
     }
 
     # keep adding records from logs until all logs are empty
@@ -672,36 +699,15 @@ class FileTaskHandler(logging.Handler):
         if log_type == LogType.TRIGGER:
             if not ti.triggerer_job:
                 raise RuntimeError("Could not build triggerer log URL; no triggerer job.")
-            config_key = "trigger_log_server_port"
-            deprecated_config_key = "triggerer_log_server_port"
-            if (
-                conf.get("logging", config_key, fallback=None) is None
-                and conf.get("logging", deprecated_config_key, fallback=None) is not None
-            ):
-                logger.warning(
-                    "The [logging] %s option is deprecated. Please use [logging] %s instead.",
-                    deprecated_config_key,
-                    config_key,
-                )
-                config_key = deprecated_config_key
-            config_default = 8794
             hostname = ti.triggerer_job.hostname
             log_relative_path = self.add_triggerer_suffix(log_relative_path, job_id=ti.triggerer_job.id)
         else:
             hostname = ti.hostname
-            config_key = "worker_log_server_port"
-            config_default = 8793
 
         if not hostname:
             return None, None
 
-        return (
-            urljoin(
-                f"http://{hostname}:{conf.get('logging', config_key, fallback=config_default)}/log/",
-                log_relative_path,
-            ),
-            log_relative_path,
-        )
+        return get_log_server_url(hostname, log_relative_path, log_type), log_relative_path
 
     def read(
         self,
@@ -752,12 +758,12 @@ class FileTaskHandler(logging.Handler):
         if isinstance(out_stream, list) and isinstance(out_stream[0], str):
             # If the out_stream is a list of strings, convert it to a generator
             raw_stream = _stream_lines_by_chunk(io.StringIO("".join(out_stream)))
-            out_stream = (log for _, _, log in _log_stream_to_parsed_log_stream(raw_stream))
+            out_stream = (log for _, _, log in log_stream_to_parsed_log_stream(raw_stream))
             return out_stream, metadata
         if isinstance(out_stream, str):
             # If the out_stream is a string, convert it to a generator
             raw_stream = _stream_lines_by_chunk(io.StringIO(out_stream))
-            out_stream = (log for _, _, log in _log_stream_to_parsed_log_stream(raw_stream))
+            out_stream = (log for _, _, log in log_stream_to_parsed_log_stream(raw_stream))
             return out_stream, metadata
         raise TypeError(
             "Invalid log stream type. Expected a generator of StructuredLogMessage, list of StructuredLogMessage, list of str or str."
@@ -883,7 +889,7 @@ class FileTaskHandler(logging.Handler):
                     f"Please check your `hostname_callable` configuration."
                 )
                 return sources, log_streams
-            response = _fetch_logs_from_service(url, rel_path)
+            response = fetch_logs_from_service(url, rel_path)
             if response.status_code == 403:
                 sources.append(
                     "!!!! Please make sure that all your Airflow components (e.g. "

@@ -23,6 +23,8 @@ import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useLocalStorage } from "usehooks-ts";
 
+import type { TaskInstancesLogResponse } from "openapi/requests/types.gen";
+
 import { Modal } from "src/system-components";
 
 import { TaskLogContent, type TaskLogContentProps } from "src/pages/TaskInstance/Logs/TaskLogContent";
@@ -41,11 +43,9 @@ import { useShortcut } from "src/hooks/useShortcut";
 import { useConfig } from "src/queries/useConfig";
 import { useCallbackLogs } from "src/queries/useLogs";
 
-// Shown under a callback's row in the Callbacks tab.
-export const CallbackLogs = ({ callbackId }: { readonly callbackId: string }) => {
-  const { dagId = "", runId = "" } = useParams();
+/** The task log viewer's display settings, for a log shown outside a task instance. */
+export const useLogDisplayOptions = () => {
   const [searchParams] = useSearchParams();
-  const { t: translate } = useTranslation("dag");
 
   const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
   const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
@@ -56,21 +56,58 @@ export const CallbackLogs = ({ callbackId }: { readonly callbackId: string }) =>
   const [showTimestamp, setShowTimestamp] = useLocalStorage<boolean>(LOG_SHOW_TIMESTAMP_KEY, true);
   const [showSource, setShowSource] = useLocalStorage<boolean>(LOG_SHOW_SOURCE_KEY, false);
   const [showLogLevel, setShowLogLevel] = useLocalStorage<boolean>(LOG_SHOW_LOG_LEVEL_KEY, true);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
 
-  const { error, fetchedData, isLoading, parsedData } = useCallbackLogs({
-    callbackId,
-    dagId,
-    dagRunId: runId,
+  return {
     logLevelFilters,
+    setShowLogLevel,
+    setShowSource,
+    setShowTimestamp,
+    setWrap,
     showLogLevel,
     showSource,
     showTimestamp,
     sourceFilters,
-  });
+    wrap,
+  };
+};
+
+type LogViewerProps = {
+  readonly display: ReturnType<typeof useLogDisplayOptions>;
+  readonly downloadName: string;
+  readonly error: unknown;
+  readonly fetchedData: TaskInstancesLogResponse | undefined;
+  readonly isLoading: boolean;
+  readonly parsedData: ReturnType<typeof useCallbackLogs>["parsedData"];
+  readonly title: string;
+};
+
+// The task log viewer for a log with no try to pick, such as a callback's or a trigger's.
+export const LogViewer = ({
+  display,
+  downloadName,
+  error,
+  fetchedData,
+  isLoading,
+  parsedData,
+  title,
+}: LogViewerProps) => {
+  const { t: translate } = useTranslation("dag");
+  const {
+    logLevelFilters,
+    setShowLogLevel,
+    setShowSource,
+    setShowTimestamp,
+    setWrap,
+    showLogLevel,
+    showSource,
+    showTimestamp,
+    sourceFilters,
+    wrap,
+  } = display;
+  const [fullscreen, setFullscreen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeSearchIndex, setActiveSearchIndex] = useState(0);
 
   const getLogString = () =>
     getDownloadText({
@@ -95,7 +132,7 @@ export const CallbackLogs = ({ callbackId }: { readonly callbackId: string }) =>
     const element = document.createElement("a");
 
     element.href = URL.createObjectURL(new Blob([getLogString()], { type: "text/plain" }));
-    element.download = `logs_${dagId}_${runId}_callback_${callbackId}.txt`;
+    element.download = downloadName;
     document.body.append(element);
     element.click();
     element.remove();
@@ -161,7 +198,7 @@ export const CallbackLogs = ({ callbackId }: { readonly callbackId: string }) =>
   };
 
   return (
-    <Box display="flex" flexDirection="column" maxH="60vh" p={2}>
+    <>
       <TaskLogHeader {...logHeaderProps} />
       <TaskLogContent {...logContentProps} />
       <Modal
@@ -170,7 +207,7 @@ export const CallbackLogs = ({ callbackId }: { readonly callbackId: string }) =>
           children: (
             <Box display="flex" flexDirection="column" width="100%">
               <Heading mb={2} size="xl">
-                {callbackId}
+                {title}
               </Heading>
               <TaskLogHeader {...logHeaderProps} isFullscreen />
             </Box>
@@ -184,6 +221,37 @@ export const CallbackLogs = ({ callbackId }: { readonly callbackId: string }) =>
       >
         <TaskLogContent {...logContentProps} />
       </Modal>
+    </>
+  );
+};
+
+// Shown under a callback's row in the Callbacks tab.
+export const CallbackLogs = ({ callbackId }: { readonly callbackId: string }) => {
+  const { dagId = "", runId = "" } = useParams();
+  const display = useLogDisplayOptions();
+
+  const { error, fetchedData, isLoading, parsedData } = useCallbackLogs({
+    callbackId,
+    dagId,
+    dagRunId: runId,
+    logLevelFilters: display.logLevelFilters,
+    showLogLevel: display.showLogLevel,
+    showSource: display.showSource,
+    showTimestamp: display.showTimestamp,
+    sourceFilters: display.sourceFilters,
+  });
+
+  return (
+    <Box display="flex" flexDirection="column" maxH="60vh" p={2}>
+      <LogViewer
+        display={display}
+        downloadName={`logs_${dagId}_${runId}_callback_${callbackId}.txt`}
+        error={error}
+        fetchedData={fetchedData}
+        isLoading={isLoading}
+        parsedData={parsedData}
+        title={callbackId}
+      />
     </Box>
   );
 };
