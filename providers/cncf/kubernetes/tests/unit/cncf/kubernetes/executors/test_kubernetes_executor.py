@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import random
 import re
 import string
@@ -60,6 +61,7 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils impor
     AirflowKubernetesScheduler,
     KubernetesJobWatcher,
     ResourceVersion,
+    collect_pod_failure_details,
     get_base_pod_from_template,
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
@@ -72,6 +74,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.common.compat.sdk import AirflowException, timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State, TaskInstanceState
+from airflow.version import version as airflow_version
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.version_compat import (
@@ -98,6 +101,33 @@ if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
 else:
     LOGICAL_DATE_KEY = "execution_date"
+
+
+def test_collect_pod_failure_details_skips_containers_without_state():
+    pod = k8s.V1Pod(
+        status=k8s.V1PodStatus(
+            phase="Failed",
+            container_statuses=[
+                k8s.V1ContainerStatus(
+                    name="pending", image="image", image_id="id", ready=False, restart_count=0
+                ),
+                k8s.V1ContainerStatus(
+                    name="failed",
+                    image="image",
+                    image_id="id",
+                    ready=False,
+                    restart_count=0,
+                    state=k8s.V1ContainerState(terminated=k8s.V1ContainerStateTerminated(exit_code=42)),
+                ),
+            ],
+        )
+    )
+
+    details = collect_pod_failure_details(pod, logging.getLogger(__name__))
+
+    assert details is not None
+    assert details["container_name"] == "failed"
+    assert details["exit_code"] == 42
 
 
 class TestAirflowKubernetesScheduler:
@@ -701,7 +731,7 @@ class TestKubernetesExecutor:
         ("response", "task_publish_max_retries", "should_requeue", "task_expected_state", "retry_delay"),
         [
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=400),
+                HTTPResponse(body=b'{"message": "any message"}', status=400),
                 0,
                 False,
                 State.FAILED,
@@ -709,7 +739,7 @@ class TestKubernetesExecutor:
                 id="400 BadRequest",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=400),
+                HTTPResponse(body=b'{"message": "any message"}', status=400),
                 1,
                 False,
                 State.FAILED,
@@ -717,7 +747,7 @@ class TestKubernetesExecutor:
                 id="400 BadRequest (task_publish_max_retries=1)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=403),
+                HTTPResponse(body=b'{"message": "any message"}', status=403),
                 0,
                 False,
                 State.FAILED,
@@ -725,7 +755,7 @@ class TestKubernetesExecutor:
                 id="403 Forbidden (permission denied)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=403),
+                HTTPResponse(body=b'{"message": "any message"}', status=403),
                 1,
                 False,
                 State.FAILED,
@@ -734,9 +764,9 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
-                    "resouece-quota, requested: pods=1, used: pods=10, "
-                    'limited: pods=10"}',
+                    body=b'{"message": "pods pod1 is forbidden: exceeded quota: '
+                    b"resouece-quota, requested: pods=1, used: pods=10, "
+                    b'limited: pods=10"}',
                     status=403,
                 ),
                 0,
@@ -747,9 +777,9 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
-                    "resouece-quota, requested: pods=1, used: pods=10, "
-                    'limited: pods=10"}',
+                    body=b'{"message": "pods pod1 is forbidden: exceeded quota: '
+                    b"resouece-quota, requested: pods=1, used: pods=10, "
+                    b'limited: pods=10"}',
                     status=403,
                 ),
                 1,
@@ -760,9 +790,9 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "pods pod1 is forbidden: exceeded quota: '
-                    "resouece-quota, requested: pods=1, used: pods=10, "
-                    'limited: pods=10"}',
+                    body=b'{"message": "pods pod1 is forbidden: exceeded quota: '
+                    b"resouece-quota, requested: pods=1, used: pods=10, "
+                    b'limited: pods=10"}',
                     status=403,
                 ),
                 1,
@@ -772,7 +802,7 @@ class TestKubernetesExecutor:
                 id="403 Forbidden (exceeded quota) (task_publish_max_retries=1)  (retry failed)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=404),
+                HTTPResponse(body=b'{"message": "any message"}', status=404),
                 0,
                 False,
                 State.FAILED,
@@ -780,7 +810,7 @@ class TestKubernetesExecutor:
                 id="404 Not Found",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=404),
+                HTTPResponse(body=b'{"message": "any message"}', status=404),
                 1,
                 False,
                 State.FAILED,
@@ -788,7 +818,7 @@ class TestKubernetesExecutor:
                 id="404 Not Found (task_publish_max_retries=1)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=422),
+                HTTPResponse(body=b'{"message": "any message"}', status=422),
                 0,
                 False,
                 State.FAILED,
@@ -796,7 +826,7 @@ class TestKubernetesExecutor:
                 id="422 Unprocessable Entity",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=422),
+                HTTPResponse(body=b'{"message": "any message"}', status=422),
                 1,
                 False,
                 State.FAILED,
@@ -804,7 +834,7 @@ class TestKubernetesExecutor:
                 id="422 Unprocessable Entity (task_publish_max_retries=1)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=12345),
+                HTTPResponse(body=b'{"message": "any message"}', status=12345),
                 0,
                 False,
                 State.FAILED,
@@ -812,7 +842,7 @@ class TestKubernetesExecutor:
                 id="12345 fake-unhandled-reason",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=12345),
+                HTTPResponse(body=b'{"message": "any message"}', status=12345),
                 1,
                 False,
                 State.FAILED,
@@ -820,7 +850,7 @@ class TestKubernetesExecutor:
                 id="12345 fake-unhandled-reason (task_publish_max_retries=1) (retry succeeded)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "any message"}', status=12345),
+                HTTPResponse(body=b'{"message": "any message"}', status=12345),
                 1,
                 False,
                 State.FAILED,
@@ -829,7 +859,7 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "the object has been modified; please apply your changes to the latest version and try again"}',
+                    body=b'{"message": "the object has been modified; please apply your changes to the latest version and try again"}',
                     status=409,
                 ),
                 1,
@@ -840,7 +870,7 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "too old resource version: 65442975 (65489651)"}',
+                    body=b'{"message": "too old resource version: 65442975 (65489651)"}',
                     status=410,
                 ),
                 1,
@@ -851,7 +881,7 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body="Too many requests, please try again later.",
+                    body=b"Too many requests, please try again later.",
                     status=429,
                     headers={"Retry-After": "3"},
                 ),
@@ -862,7 +892,7 @@ class TestKubernetesExecutor:
                 id="429 Too Many Requests (non-JSON body) (requeued after retry delay)",
             ),
             pytest.param(
-                HTTPResponse(body="", status=429),
+                HTTPResponse(body=b"", status=429),
                 0,
                 False,
                 State.FAILED,
@@ -871,7 +901,7 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "Internal error occurred: failed calling webhook \\"mutation.azure-workload-identity.io\\": failed to call webhook: Post \\"https://azure-wi-webhook-webhook-service.kube-system.svc:443/mutate-v1-pod?timeout=10s\\""}',
+                    body=b'{"message": "Internal error occurred: failed calling webhook \\"mutation.azure-workload-identity.io\\": failed to call webhook: Post \\"https://azure-wi-webhook-webhook-service.kube-system.svc:443/mutate-v1-pod?timeout=10s\\""}',
                     status=500,
                 ),
                 1,
@@ -882,7 +912,7 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "Internal error occurred: failed calling webhook"}',
+                    body=b'{"message": "Internal error occurred: failed calling webhook"}',
                     status=500,
                 ),
                 1,
@@ -892,7 +922,7 @@ class TestKubernetesExecutor:
                 id="500 Internal Server Error (webhook failure) (retry failed)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "Bad Gateway"}', status=502),
+                HTTPResponse(body=b'{"message": "Bad Gateway"}', status=502),
                 1,
                 True,
                 State.SUCCESS,
@@ -901,7 +931,7 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "apiserver is shutting down"}',
+                    body=b'{"message": "apiserver is shutting down"}',
                     status=503,
                     headers={"Retry-After": "1"},
                 ),
@@ -912,7 +942,7 @@ class TestKubernetesExecutor:
                 id="503 Service Unavailable (Retry-After honored, requeued after retry delay)",
             ),
             pytest.param(
-                HTTPResponse(body='{"message": "Gateway Timeout"}', status=504),
+                HTTPResponse(body=b'{"message": "Gateway Timeout"}', status=504),
                 1,
                 True,
                 State.SUCCESS,
@@ -921,7 +951,7 @@ class TestKubernetesExecutor:
             ),
             pytest.param(
                 HTTPResponse(
-                    body='{"message": "apiserver is shutting down"}',
+                    body=b'{"message": "apiserver is shutting down"}',
                     status=503,
                     headers={"Retry-After": "1"},
                 ),
@@ -1044,7 +1074,7 @@ class TestKubernetesExecutor:
         mock_kube_client.create_namespaced_pod = mock.MagicMock(  # type: ignore[attr-defined]
             side_effect=ApiException(
                 http_resp=HTTPResponse(
-                    body="Too many requests, please try again later.",
+                    body=b"Too many requests, please try again later.",
                     status=429,
                     headers={"Retry-After": "999999"},
                 ),
@@ -1919,7 +1949,7 @@ class TestKubernetesExecutor:
                         api_version="v1",
                         kind="Pod",
                         metadata=k8s.V1ObjectMeta(
-                            name=mock.ANY,
+                            name=mock_run_pod_async.call_args.args[0].metadata.name,
                             namespace="default",
                             annotations={
                                 "dag_id": "dag",
@@ -1929,7 +1959,7 @@ class TestKubernetesExecutor:
                             },
                             labels={
                                 "airflow-worker": "5",
-                                "airflow_version": mock.ANY,
+                                "airflow_version": airflow_version.replace("+", "-"),
                                 "dag_id": "dag",
                                 "run_id": "run_id",
                                 "kubernetes_executor": "True",
@@ -3210,15 +3240,15 @@ class TestKubernetesExecutor:
                             "dag_id": "test_cleanup_stuck_queued_tasks",
                             "task_id": "bash",
                             "run_id": "test",
-                            "try_number": 0,
+                            "try_number": "0",
                         },
                         labels={
                             "role": "airflow-worker",
                             "dag_id": "test_cleanup_stuck_queued_tasks",
                             "task_id": "bash",
-                            "airflow-worker": 123,
+                            "airflow-worker": "123",
                             "run_id": "test",
-                            "try_number": 0,
+                            "try_number": "0",
                         },
                     ),
                     status=k8s.V1PodStatus(phase="Pending"),
@@ -3362,8 +3392,7 @@ class TestKubernetesExecutor:
         """Reading a running task's logs must not spawn a ``multiprocessing.Manager``."""
         mock_kube_client = mock_get_kube_client.return_value
         mock_kube_client.read_namespaced_pod_log.return_value = [b"a_"]
-        mock_pod = mock.Mock(spec=k8s.V1Pod)
-        mock_pod.metadata.name = "x"
+        mock_pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="x"))
         mock_kube_client.list_namespaced_pod.return_value.items = [mock_pod]
         ti = create_task_instance_of_operator(EmptyOperator, dag_id="test_k8s_log_dag", task_id="test_task")
 
@@ -3479,7 +3508,6 @@ class TestKubernetesJobWatcher:
             "task_id": "task",
             "run_id": "run_id",
             "try_number": "1",
-            LOGICAL_DATE_KEY: None,
         }
         self.pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
@@ -3491,6 +3519,7 @@ class TestKubernetesJobWatcher:
             ),
             status=k8s.V1PodStatus(phase="Pending"),
         )
+        self.core_annotations[LOGICAL_DATE_KEY] = None
         self.events = []
 
     def _run(self):

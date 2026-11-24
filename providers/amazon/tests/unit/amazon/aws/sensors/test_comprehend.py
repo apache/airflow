@@ -20,12 +20,13 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendCreateDocumentClassifierCompletedSensor,
     ComprehendStartPiiEntitiesDetectionJobCompletedSensor,
 )
-from airflow.providers.common.compat.sdk import AirflowException
+from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 
 class TestComprehendStartPiiEntitiesDetectionJobCompletedSensor:
@@ -86,6 +87,23 @@ class TestComprehendStartPiiEntitiesDetectionJobCompletedSensor:
 
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
+
+    def test_execute_defers_to_execute_complete(self):
+        sensor = self.SENSOR(**self.default_op_kwargs, deferrable=True)
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute({})
+
+        assert deferred.value.method_name == "execute_complete"
+
+    def test_execute_complete_success_event(self):
+        assert self.sensor.execute_complete({}, event={"status": "success", "job_id": "job_id"}) is None
+
+    def test_execute_complete_error_event(self):
+        event = {"status": "error", "message": "Waiter error: max attempts reached", "job_id": "job_id"}
+
+        with pytest.raises(SensorTriggerFailedError, match="max attempts reached"):
+            self.sensor.execute_complete({}, event=event)
 
 
 class TestComprehendCreateDocumentClassifierCompletedSensor:
@@ -179,3 +197,31 @@ class TestComprehendCreateDocumentClassifierCompletedSensor:
 
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
+
+    def test_execute_defers_to_execute_complete(self):
+        sensor = self.SENSOR(**self.default_op_kwargs, deferrable=True)
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute({})
+
+        assert deferred.value.method_name == "execute_complete"
+
+    @mock.patch.object(ComprehendHook, "validate_document_classifier_training_status", autospec=True)
+    def test_execute_complete_success_event(self, mock_validate):
+        event = {"status": "success", "document_classifier_arn": self.DOCUMENT_CLASSIFIER_ARN}
+
+        self.sensor.execute_complete({}, event=event)
+
+        mock_validate.assert_called_once_with(
+            mock.ANY, document_classifier_arn=self.DOCUMENT_CLASSIFIER_ARN, fail_on_warnings=False
+        )
+
+    def test_execute_complete_error_event(self):
+        event = {
+            "status": "error",
+            "message": "Waiter error: max attempts reached",
+            "document_classifier_arn": self.DOCUMENT_CLASSIFIER_ARN,
+        }
+
+        with pytest.raises(SensorTriggerFailedError, match="max attempts reached"):
+            self.sensor.execute_complete({}, event=event)

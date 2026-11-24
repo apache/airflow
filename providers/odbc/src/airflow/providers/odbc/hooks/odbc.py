@@ -99,16 +99,17 @@ class OdbcHook(DbApiHook):
         extra_driver = self.connection_extra_lower.get("driver")
         from airflow.providers.common.compat.sdk import conf
 
-        if extra_driver and conf.getboolean("providers.odbc", "allow_driver_in_extra", fallback=False):
-            self._driver = extra_driver
-        else:
-            self.log.warning(
-                "You have supplied 'driver' via connection extra but it will not be used. In order to "
-                "use 'driver' from extra you must set airflow config setting `allow_driver_in_extra = True` "
-                "in section `providers.odbc`. Alternatively you may specify driver via 'driver' parameter of "
-                "the hook constructor or via 'hook_params' dictionary with key 'driver' if using SQL "
-                "operators."
-            )
+        if extra_driver:
+            if conf.getboolean("providers.odbc", "allow_driver_in_extra", fallback=False):
+                self._driver = extra_driver
+            else:
+                self.log.warning(
+                    "You have supplied 'driver' via connection extra but it will not be used. In order to "
+                    "use 'driver' from extra you must set airflow config setting `allow_driver_in_extra = True` "
+                    "in section `providers.odbc`. Alternatively you may specify driver via 'driver' parameter of "
+                    "the hook constructor or via 'hook_params' dictionary with key 'driver' if using SQL "
+                    "operators."
+                )
         if not self._driver:
             self._driver = self.default_driver
         return self._driver.strip().lstrip("{").rstrip("}").strip() if self._driver else None

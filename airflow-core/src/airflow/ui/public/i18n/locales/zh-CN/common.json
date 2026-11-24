@@ -31,6 +31,7 @@
     "deadlines": "截止期限",
     "jobs": "作业",
     "requiredActions": "待响应的任务实例",
+    "triggers": "触发器",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "收起所有额外 JSON",
@@ -197,6 +198,7 @@
     },
     "save": "保存"
   },
+  "moreTabs": "更多",
   "nav": {
     "admin": "管理",
     "assets": "资源",
@@ -260,6 +262,7 @@
     "asset_triggered": "资源触发",
     "backfill": "回填",
     "manual": "手动触发",
+    "operator_triggered": "操作器触发",
     "scheduled": "已调度"
   },
   "scroll": {
@@ -439,6 +442,7 @@
   "switchDag": "切换 $t(dag_one)",
   "switchDagRun": "切换 $t(dagRun_one)",
   "switchMapIndex": "切换$t(mapIndex)",
+  "switchTask": "切换$t(task_one)",
   "table": {
     "completedAt": "完成时间",
     "createdAt": "创建时间",
@@ -504,13 +508,13 @@
     },
     "trigger": "触发器",
     "triggerer": {
-      "assigned": "指派的触发器",
+      "assigned": "指派的触发器进程",
       "class": "触发器类别",
       "createdAt": "触发器创建时间",
       "id": "触发器 ID",
-      "job": "触发器作业",
-      "latestHeartbeat": "最新触发器心跳时间",
-      "title": "触发器信息"
+      "job": "触发器进程作业",
+      "latestHeartbeat": "最新触发器进程心跳时间",
+      "title": "触发器进程信息"
     },
     "unixname": "Unix 名称"
   },
@@ -609,6 +613,8 @@
     "tokenShownOnce": "此令牌仅显示一次。请立即复制。"
   },
   "total": "总计 {{state}}",
+  "trigger_one": "触发器",
+  "trigger_other": "触发器",
   "triggered": "已触发",
   "tryNumber": "尝试次数",
   "unpause": "取消暂停",
