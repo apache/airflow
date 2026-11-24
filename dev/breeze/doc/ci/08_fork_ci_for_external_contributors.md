@@ -95,7 +95,7 @@ Four pieces, in dependency order:
 2. **Project CI gate** — a `gate` job at the head of `ci-amd.yml`.
 3. **Fork mode CI** — a push trigger plus fork-aware selective checks.
 4. **Reconciler** — `breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml` on a schedule
-   and when a gated pull request to `main` is opened or pushed.
+   and when a gated pull request to `main` is opened, reopened or pushed.
 
 Plus `breeze ci audit` for the contributor's local setup, and documentation.
 
@@ -1094,9 +1094,11 @@ Breeze, so the monitor uses about 24 runner minutes an hour instead of 8. The ru
 `fork-ci-monitor-wake.yml` starts for gated pushes come on top: job statuses still get the budget
 for the time since the previous run, but each such run counts as one run for the per-run caps and
 the run counts before a Slack note, so those caps allow more per hour and a persisting problem is
-reported sooner than their names say. Each such run also costs a run's reads, about 45 today.
-The concurrency group runs them one after another, so at about 2 minutes a run they add at most
-about 30 runs an hour.
+reported sooner than the 30 and 45 minutes those counts are derived from. Each such run also costs
+a run's reads, about 45 today. The concurrency group runs them one after another, and a whole run,
+with the time its jobs wait for runners, took 3.3 minutes at the median and 8 minutes at the 90th
+percentile (100 runs on 2026-11-23 and 2026-11-24), so the monitor runs at most about 18 times an
+hour in total, against 5.4 an hour from the schedule alone in that period.
 
 These are estimates: the share of gated runs, the jobs per push and the pushes per pull request
 are assumptions, not measurements. Watch the monitor's call counts in its run log after enabling
@@ -1548,9 +1550,10 @@ as a failed check rather than a crash.
 ## Known limitations
 
 - Opening or pushing a gated pull request to `main` starts a monitor run, so its first state
-  comment comes within one or two monitor runs (about 2 minutes each, an estimate), unless the
-  search index does not list it yet. Everything
-  else, such as the start or end of the fork run, arrives within one cadence (5 minutes) plus
+  comment no longer waits for the schedule. It still waits for a runner twice, for the wake-up job
+  and for the monitor, each from seconds to several minutes when runners are busy, for a monitor
+  run already in progress, and for the search index to list the pull request. Everything else,
+  such as the start or end of the fork run, arrives within one cadence (5 minutes) plus
   GitHub's delay of scheduled workflows: the fork runs in another repository, so no event in
   `apache/airflow` reports it.
 - The workflows API lists workflows from the fork's default branch. A fork whose `main`
