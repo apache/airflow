@@ -373,12 +373,10 @@ def _executor_health_key(executor: BaseExecutor) -> str | None:
     """
     Return the key an executor's health is tracked and recorded under, or None if it has no name.
 
-    ``ExecutorName.__repr__()`` is the identity ``ExecutorName`` itself already uses for equality and
+    ``ExecutorName.__repr__()`` is the identity ``ExecutorName`` already uses for equality and
     hashing, so using it here too keeps this side and ``_configured_executor_keys()`` in
-    ``airflow_health.py`` from drifting apart. ``load_executor()`` always sets ``executor.name``, so
-    ``None`` only happens for an executor constructed without one; there is no class-name fallback for
-    that case, since a fallback key could never match ``_configured_executor_keys()``'s format and
-    would read DOWN forever with no way to tell why. An unnamed executor gets no row instead.
+    ``airflow_health.py`` from drifting apart. ``load_executor()`` always sets ``executor.name``;
+    an executor constructed without one gets no row.
     """
     return repr(executor.name) if executor.name is not None else None
 
@@ -535,9 +533,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         ),
                     )
                     try:
-                        self._record_executor_health_result(
-                            key, executor.team_name, HealthCheckResult.UNHEALTHY
-                        )
+                        self._record_executor_health_result(key, HealthCheckResult.UNHEALTHY)
                     except Exception:
                         self.log.exception("Failed to record health check result for executor %s", key)
                 else:
@@ -559,11 +555,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Wait for any in-flight executor health check before this scheduler's ExecutorJob rows are closed.
 
-        Without this, a check thread still running when ``_end_executor_jobs`` closes those rows would
-        go on to call ``_get_or_create_executor_job`` afterwards, find no open row, and insert a fresh
-        RUNNING one -- bringing a row back to life right after the scheduler declared it stopped. Bounded
-        by the same timeout passed to ``get_health()``, so an implementation that ignores it can delay
-        shutdown but not hang it; that one case still risks the race, same as before this existed.
+        A check still running at that point can no longer revive a row -- only the main thread ever
+        creates one -- but joining first still keeps it from writing a result onto a row the scheduler
+        has already closed. Bounded by the same timeout passed to ``get_health()``, so an implementation
+        that ignores it can delay shutdown but not hang it.
         """
         for thread, _ in self._executor_health_check_threads.values():
             thread.join(timeout=self._executor_health_check_timeout)
@@ -586,7 +581,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 self.log.warning("Executor %s reported itself unhealthy", key)
                 result = HealthCheckResult.UNHEALTHY
         try:
-            self._record_executor_health_result(key, executor.team_name, result)
+            self._record_executor_health_result(key, result)
         except Exception:
             self.log.exception("Failed to record health check result for executor %s", key)
 
@@ -611,11 +606,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             job = self._get_or_create_executor_job(key, team_name, session=session)
             job.latest_heartbeat = now
 
+    def _open_executor_job(self, executor_key: str, *, session: Session) -> Job | None:
+        """Return this scheduler's own open Job row for ``executor_key``, or None if it has none."""
+        return session.scalar(
+            select(Job).where(
+                Job.job_type == EXECUTOR_JOB_TYPE,
+                Job.executor_class == executor_key,
+                Job.owner_job_id == self.job.id,
+                Job.end_date.is_(None),
+            )
+        )
+
     def _get_or_create_executor_job(
         self, executor_key: str, team_name: str | None, *, session: Session
     ) -> Job:
         """
         Return this scheduler's own Job row for ``executor_key``, creating it if needed.
+
+        Only called from the main thread (``_touch_executor_heartbeats``). The health check thread
+        must never create a row here: right after another scheduler's ``adopt_or_reset_orphaned_tasks``
+        closes the old one, both threads could otherwise find no open row and each insert their own,
+        splitting the heartbeat and the health check result across two different rows.
 
         Keyed by ``owner_job_id`` (this scheduler's own Job id), not just ``hostname``: two schedulers
         running the same executor against shared infrastructure (e.g. the same Celery broker) each get
@@ -629,14 +640,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         same way the Execution API's job-registration endpoint does for Jobs it creates on another
         component's behalf.
         """
-        job = session.scalar(
-            select(Job).where(
-                Job.job_type == EXECUTOR_JOB_TYPE,
-                Job.executor_class == executor_key,
-                Job.owner_job_id == self.job.id,
-                Job.end_date.is_(None),
-            )
-        )
+        job = self._open_executor_job(executor_key, session=session)
         if job is None:
             now = timezone.utcnow()
             inserted = session.execute(
@@ -664,21 +668,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _record_executor_health_result(
         self,
         executor_key: str,
-        team_name: str | None,
         result: HealthCheckResult,
         *,
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Record the outcome of an executor's health check as an explicit result.
+        Record the outcome of an executor's health check on this scheduler's open row.
 
-        Reuses the existing Jobs table rather than introducing a new status model, but the result
-        itself -- not heartbeat silence -- is what ``/monitor/health`` reads as HEALTHY/UNHEALTHY: a
-        row that is alive but has never completed a check, or whose last check raised or is still
-        hanging, stays UNKNOWN instead of looking identical to a genuine failure.
+        Never creates a row -- only ``_get_or_create_executor_job``, on the main thread, does that.
+        With no open row the result is dropped; the next heartbeat tick creates a fresh row for the
+        next check to update.
         """
-        job = self._get_or_create_executor_job(executor_key, team_name, session=session)
-        job.health_check_result = result
+        job = self._open_executor_job(executor_key, session=session)
+        if job is not None:
+            job.health_check_result = result
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
         try:
@@ -2434,12 +2437,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         if self._executor_health_keys:
-            if self.job.heartrate > 0:
-                timers.call_regular_interval(
-                    delay=self.job.heartrate,
-                    action=self._touch_executor_heartbeats,
-                    non_fatal=True,
-                )
+            timers.call_regular_interval(
+                delay=max(self.job.heartrate, 1.0),
+                action=self._touch_executor_heartbeats,
+                non_fatal=True,
+            )
 
             timers.call_regular_interval(
                 delay=self._executor_health_check_interval,

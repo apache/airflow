@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import threading
 import time
-from unittest import mock
 
 import pytest
 from sqlalchemy import select
@@ -135,6 +135,8 @@ def test_run_executor_health_check_records_result(session, result, expected):
     executor = _StubExecutor(result=result)
     runner = _make_runner(executor, session)
     key = _executor_health_key(executor)
+    runner._touch_executor_heartbeats(session=session)
+    session.commit()
 
     runner._run_executor_health_check(executor, key)
 
@@ -142,15 +144,26 @@ def test_run_executor_health_check_records_result(session, result, expected):
     assert job.health_check_result == expected
 
 
-def test_run_executor_health_check_does_not_log_reported_itself_unhealthy_when_it_raised(session):
+def test_run_executor_health_check_does_not_create_a_row_when_none_is_open(session):
+    """The health check thread only ever updates a row; only _touch_executor_heartbeats creates one."""
+    executor = _StubExecutor()
+    runner = _make_runner(executor, session)
+    key = _executor_health_key(executor)
+
+    runner._run_executor_health_check(executor, key)
+
+    assert _get_executor_job(session, runner.job.id, key) is None
+
+
+def test_run_executor_health_check_does_not_log_reported_itself_unhealthy_when_it_raised(session, caplog):
     executor = _StubExecutor(result=RuntimeError("boom"))
     runner = _make_runner(executor, session)
     key = _executor_health_key(executor)
 
-    with mock.patch.object(runner.log, "warning") as mock_warning:
+    with caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"):
         runner._run_executor_health_check(executor, key)
 
-    assert mock_warning.call_args_list == []
+    assert "reported itself unhealthy" not in caplog.text
 
 
 @conf_vars({("scheduler", "executor_health_check_interval"): "10.0"})
@@ -227,6 +240,8 @@ def test_check_executor_health_records_unhealthy_when_a_check_stalls(session):
     executor = _StubExecutor()
     runner = _make_runner(executor, session)
     key = _executor_health_key(executor)
+    runner._touch_executor_heartbeats(session=session)
+    session.commit()
 
     block_forever = threading.Event()
     stuck = threading.Thread(target=block_forever.wait, daemon=True)
