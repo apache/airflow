@@ -1740,6 +1740,16 @@ repos:
         pass_filenames: true
         require_serial: true
         files: ^\.github/workflows/.*\.yml$
+      - id: check-fork-ci-tests-merge
+        name: Check fork CI jobs test the pushed commit merged with the base branch
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Every job of a fork run that checks out the pushed commit merges it with the base branch
+        entry: ./scripts/ci/prek/check_fork_ci_tests_merge.py
+        language: python
+        pass_filenames: false
+        require_serial: true
+        files: ^\.github/workflows/.*\.yml$|^scripts/ci/prek/check_fork_ci_tests_merge\.py$
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
         env:
@@ -1802,6 +1812,25 @@ repos:
         language: python
         files: changelog\.(rst|txt)$
         entry: ./scripts/ci/prek/check_changelog_format.py
+        pass_filenames: true
+      - id: check-rst-license-header
+        name: Check the shape of the license header in RST files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        language: python
+        files: \.rst$
+        # The cli-and-env-variables-ref.rst files start with a ``:tocdepth:`` field list, which only
+        # counts as document metadata while it is the first element, so the header cannot go above it.
+        # The provider README.rst files are generated and published as the PyPI description, where
+        # the indented header renders as an empty block quote.
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          newsfragments/.*\.rst$|
+          ^scripts/ci/license-templates/|
+          ^(airflow-core|airflow-ctl)/docs/cli-and-env-variables-ref\.rst$|
+          ^providers/.*/README\.rst$
+        entry: ./scripts/ci/prek/check_rst_license_header.py
         pass_filenames: true
       - id: check-newsfragments-are-valid
         name: Check newsfragments are valid

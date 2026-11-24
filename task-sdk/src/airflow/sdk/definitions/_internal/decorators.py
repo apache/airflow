@@ -19,8 +19,6 @@ from __future__ import annotations
 
 import sys
 
-import libcst as cst
-
 
 class _autostacklevel_warn:
     def __init__(self, delta):
@@ -44,35 +42,6 @@ def fixup_decorator_warning_stack(func, delta: int = 2):
         func.__globals__["warnings"] = _autostacklevel_warn(delta)
 
 
-class _TaskDecoratorRemover(cst.CSTTransformer):
-    def __init__(self, task_decorator_name: str) -> None:
-        self.decorators_to_remove: set[str] = {
-            "setup",
-            "teardown",
-            "task.skip_if",
-            "task.run_if",
-            task_decorator_name.strip("@"),
-        }
-
-    def _is_task_decorator(self, decorator_node: cst.Decorator) -> bool:
-        decorator_expr = decorator_node.decorator
-        if isinstance(decorator_expr, cst.Name):
-            return decorator_expr.value in self.decorators_to_remove
-        if isinstance(decorator_expr, cst.Attribute) and isinstance(decorator_expr.value, cst.Name):
-            return f"{decorator_expr.value.value}.{decorator_expr.attr.value}" in self.decorators_to_remove
-        if isinstance(decorator_expr, cst.Call):
-            return self._is_task_decorator(cst.Decorator(decorator=decorator_expr.func))
-        return False
-
-    def leave_FunctionDef(
-        self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
-    ) -> cst.FunctionDef:
-        new_decorators = [dec for dec in updated_node.decorators if not self._is_task_decorator(dec)]
-        if len(new_decorators) == len(updated_node.decorators):
-            return updated_node
-        return updated_node.with_changes(decorators=new_decorators)
-
-
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
     Remove @task or similar decorators as well as @setup and @teardown.
@@ -80,6 +49,39 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     :param python_source: The python source code
     :param task_decorator_name: the decorator name
     """
+    # Imported here because `bases/operator.py` imports this module and libcst is slow to load.
+    import libcst as cst
+
+    class _TaskDecoratorRemover(cst.CSTTransformer):
+        def __init__(self, task_decorator_name: str) -> None:
+            self.decorators_to_remove: set[str] = {
+                "setup",
+                "teardown",
+                "task.skip_if",
+                "task.run_if",
+                task_decorator_name.strip("@"),
+            }
+
+        def _is_task_decorator(self, decorator_node: cst.Decorator) -> bool:
+            decorator_expr = decorator_node.decorator
+            if isinstance(decorator_expr, cst.Name):
+                return decorator_expr.value in self.decorators_to_remove
+            if isinstance(decorator_expr, cst.Attribute) and isinstance(decorator_expr.value, cst.Name):
+                return (
+                    f"{decorator_expr.value.value}.{decorator_expr.attr.value}" in self.decorators_to_remove
+                )
+            if isinstance(decorator_expr, cst.Call):
+                return self._is_task_decorator(cst.Decorator(decorator=decorator_expr.func))
+            return False
+
+        def leave_FunctionDef(
+            self, original_node: cst.FunctionDef, updated_node: cst.FunctionDef
+        ) -> cst.FunctionDef:
+            new_decorators = [dec for dec in updated_node.decorators if not self._is_task_decorator(dec)]
+            if len(new_decorators) == len(updated_node.decorators):
+                return updated_node
+            return updated_node.with_changes(decorators=new_decorators)
+
     source_tree = cst.parse_module(python_source)
     modified_tree = source_tree.visit(_TaskDecoratorRemover(task_decorator_name))
     return modified_tree.code

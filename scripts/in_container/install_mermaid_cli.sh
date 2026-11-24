@@ -25,9 +25,31 @@ set -euo pipefail
 
 MERMAID_CLI_VERSION="11.17.0"
 
+function align_image_packages_with_hardened_repository() {
+    # Chromium pulls in libraries (libx11-xcb1) that depend on the exact dhi.io version of packages
+    # the image already has. When dhi.io has renumbered those since the image's OS dependencies were
+    # installed, apt refuses to downgrade the image's copy and the install fails. This repeats the
+    # function of the same name in scripts/docker/install_os_dependencies.sh, which explains the
+    # renumbering and only runs when the OS dependencies are installed, not on this later apt run.
+    local package
+    local dhi_version
+    local -a downgrades=()
+    while read -r package; do
+        dhi_version=$(apt-cache madison "${package}" | awk -F' [|] ' '$3 ~ /dhi\.io/ && !found {print $2; found=1}')
+        if [[ -n "${dhi_version}" ]]; then
+            downgrades+=("${package}=${dhi_version}")
+        fi
+    done < <(apt list --installed 2>/dev/null | awk -F/ '/\[installed,local\]/ {print $1}')
+    if (( ${#downgrades[@]} )); then
+        echo "Aligning image packages with the dhi.io repository: ${downgrades[*]}"
+        apt-get install -y -qq --no-install-recommends --allow-downgrades "${downgrades[@]}" > /dev/null
+    fi
+}
+
 # Debian's chromium is used instead of the browser puppeteer would download. fonts-liberation gives
 # mermaid Liberation Sans, which has Arial's metrics, to measure its labels with.
 apt-get update -qq
+align_image_packages_with_hardened_repository
 apt-get install -y -qq --no-install-recommends chromium fonts-liberation > /dev/null
 rm -rf /var/lib/apt/lists/*
 

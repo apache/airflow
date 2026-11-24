@@ -104,9 +104,9 @@ spec:
         tier: airflow
         component: worker
         release: {{ .Release.Name }}
-        {{- if ne .Values.workers.celery.name "default" }}
+        {{- /* Set for every worker set, unlike the immutable spec.selector, so the worker Service can tell
+          Celery workers apart from KubernetesExecutor pods, which carry the same labels above. */}}
         worker-set: {{ .Values.workers.celery.name }}
-        {{- end }}
         {{- if or .Values.labels .Values.workers.celery.labels }}
           {{- mustMerge .Values.workers.celery.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
@@ -299,6 +299,9 @@ spec:
             timeoutSeconds: {{ .Values.workers.celery.livenessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.workers.celery.livenessProbe.failureThreshold }}
             periodSeconds: {{ .Values.workers.celery.livenessProbe.periodSeconds }}
+            {{- if .Values.workers.celery.livenessProbe.terminationGracePeriodSeconds }}
+            terminationGracePeriodSeconds: {{ .Values.workers.celery.livenessProbe.terminationGracePeriodSeconds }}
+            {{- end }}
             exec:
               command:
                 {{- if .Values.workers.celery.livenessProbe.command }}
@@ -352,8 +355,8 @@ spec:
             {{- include "custom_airflow_environment" . | indent 10 }}
             {{- include "standard_airflow_environment" . | indent 10 }}
             {{- if $keda }}
+            {{- include "keda_airflow_environment" (merge (dict "UsePgbouncer" .Values.workers.celery.keda.usePgbouncer "AuthenticationRef" .Values.workers.celery.keda.authenticationRef) .) | indent 10 }}
             {{- include "metadata_db_environment" . | indent 10 }}
-            {{- include "keda_airflow_environment" (merge (dict "UsePgbouncer" .Values.workers.celery.keda.usePgbouncer) .) | indent 10 }}
             {{- else if not (include "celery_result_backend_configured" .) }}
             {{- include "metadata_db_sql_alchemy_environment" . | indent 10 }}
             {{- else }}

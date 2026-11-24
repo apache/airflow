@@ -42,7 +42,8 @@ What each failure costs
      - Kept. The next connection receives the run's message history, including every
        tool result, and continues the run.
    * - Every connection in the chain fails, and the task raises
-       ``pydantic_ai.exceptions.FallbackExceptionGroup``
+       ``FallbackChainExhaustedError`` (a ``pydantic_ai.exceptions.FallbackExceptionGroup``;
+       see :doc:`provider_fallback` for which tasks raise it)
      - Airflow ``retries`` with ``durable=True``
      - Replayed. The retry replays the steps an earlier attempt recorded, whichever
        connection answered them, and continues on the first connection that answers now.
@@ -125,10 +126,12 @@ Retries after the whole chain fails
 -----------------------------------
 
 With ``durable=True``, each step is recorded in the task instance's journal whichever
-connection answered it. When every connection fails, the task raises
-``FallbackExceptionGroup`` and Airflow retries it. The retry replays the recorded steps,
-then sends its first live request through the chain from the top. The run continues on
-the first connection that answers, whether or not that is the one that answered before.
+connection answered it. When every connection fails, the operator (or ``@task.llm`` /
+``@task.agent``) raises ``FallbackChainExhaustedError``, and a plain ``@task`` with
+``AirflowDurability`` raises the bare ``FallbackExceptionGroup`` (see
+:doc:`provider_fallback`). Airflow retries either one. The retry replays the recorded steps,
+then sends its first live request through the chain from the top. The run continues on the
+first connection that answers, whether or not that is the one that answered before.
 
 A recorded model step replays only if the retry's request has the same fingerprint, and
 for a chain the model in the fingerprint is the whole chain, whichever connection
@@ -144,11 +147,18 @@ What is not covered
   whose worker died before its result was recorded. Make such tools idempotent; see
   "Side effects and idempotency" in :doc:`durable_execution`.
 - A request every provider rejects, such as a malformed one that each returns a 400
-  for, walks the whole chain on every attempt. A ``RetryRule`` cannot stop those retries
-  without stopping outage retries too: once a chain is configured, both raise
-  ``FallbackExceptionGroup``, and a rule compares only that top-level type. Retry
-  policies need Airflow 3.3 or later; see "When the connection also carries a fallback
-  chain" in :doc:`retry_policies`.
+  for, walks the whole chain on every attempt. The error the task raises is a
+  ``FallbackExceptionGroup``: ``FallbackChainExhaustedError``, carrying each connection's
+  error in ``member_errors``, from the operators and decorators, and the plain group from a
+  hand-built agent (see :doc:`provider_fallback`). ``LLMRetryPolicy`` and
+  ``ClassifierRetryPolicy`` match their ``fallback_rules`` against the last connection's
+  error too, so a rule can fail a permanent error such as a bad request without failing
+  outage retries, provided the two raise different exception types. Telling a rate limit
+  from a bad request needs ``ModelRateLimitError`` and ``ModelRequestRejectedError``
+  rules; see :doc:`retry_policies` for the pydantic-ai-slim versions that have them. A plain
+  ``ExceptionRetryPolicy`` compares only the group, and a retry still counts against
+  ``retries``. Retry policies need Airflow 3.3 or later; see "When the connection also
+  carries a fallback chain" in :doc:`retry_policies`.
 - No connection type builds the ``AnthropicVertex`` client that Claude on Vertex AI
   needs, so a chain cannot include Claude on Vertex AI. A Vertex AI connection reaches
   Gemini.

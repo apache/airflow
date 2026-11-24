@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers.amazon.aws.exceptions import SensorTriggerFailedError
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
@@ -120,3 +121,29 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, aws_conn_id=None)
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
+
+    def test_execute_defers_to_execute_complete(self):
+        sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, deferrable=True)
+
+        with pytest.raises(TaskDeferred) as deferred:
+            sensor.execute({})
+
+        assert deferred.value.method_name == "execute_complete"
+
+    def test_execute_complete_success_event(self):
+        assert (
+            self.sensor.execute_complete(
+                {}, event={"status": "success", "collection_id": "knowledge_base_id"}
+            )
+            is None
+        )
+
+    def test_execute_complete_error_event(self):
+        event = {
+            "status": "error",
+            "message": "Waiter error: max attempts reached",
+            "collection_id": "knowledge_base_id",
+        }
+
+        with pytest.raises(SensorTriggerFailedError, match="max attempts reached"):
+            self.sensor.execute_complete({}, event=event)

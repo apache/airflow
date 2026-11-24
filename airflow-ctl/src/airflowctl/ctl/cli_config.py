@@ -25,6 +25,7 @@ import ast
 import datetime
 import inspect
 import json
+import math
 import os
 import sys
 import typing
@@ -234,6 +235,17 @@ def positive_int(*, allow_zero):
     return _check
 
 
+def positive_finite_float(value):
+    """Parse a float argument that must be positive and finite."""
+    try:
+        parsed = float(value)
+    except ValueError:
+        parsed = None
+    if parsed is None or not math.isfinite(parsed) or parsed <= 0:
+        raise argparse.ArgumentTypeError(f"invalid positive number: '{value}'")
+    return parsed
+
+
 def string_list_type(val):
     """Parse comma-separated list and returns list of string (strips whitespace)."""
     return [x.strip() for x in val.split(",")]
@@ -345,6 +357,30 @@ ARG_AUTH_PASSWORD = Arg(
     dest="password",
     help="The password to use for authentication",
 )
+ARG_AUTH_SSO = Arg(
+    flags=("--sso",),
+    dest="sso",
+    default=False,
+    action="store_true",
+    help="Log in through the browser with the identity provider of the API server, if it offers it",
+)
+ARG_AUTH_NO_BROWSER = Arg(
+    flags=("--no-browser",),
+    dest="no_browser",
+    default=False,
+    action="store_true",
+    help=(
+        "With --sso, print the login URL instead of opening a browser. "
+        "The browser must run on this machine, because the login redirects to 127.0.0.1"
+    ),
+)
+ARG_AUTH_TIMEOUT = Arg(
+    flags=("--timeout",),
+    type=positive_finite_float,
+    default=None,
+    dest="timeout",
+    help="With --sso, seconds to wait for the browser login to complete (default: 300)",
+)
 
 # Dag Commands Args
 ARG_DAG_ID = Arg(
@@ -389,6 +425,12 @@ ARG_DAG_CLEAR_ONLY_RUNNING = Arg(
     default=False,
     action="store_true",
     help="Only clear running task instances",
+)
+ARG_DAG_CLEAR_KEEP_TASK_STATE = Arg(
+    flags=("--keep-task-state",),
+    default=False,
+    action="store_true",
+    help="Keep the task state store entries of cleared tasks so they resume from them",
 )
 ARG_DAG_CLEAR_YES = Arg(
     flags=("-y", "--yes"),
@@ -608,6 +650,7 @@ class CommandFactory:
         # (hyphenated into the subcommand name).
         # e.g. list_state_store -> "taskinstances state-store list".
         self.subgroups: dict[str, set[str]] = {
+            "AssetsOperations": {"state_store"},
             "TaskInstancesOperations": {"state_store"},
         }
 
@@ -1236,7 +1279,8 @@ AUTH_COMMANDS = (
         description=(
             "Log in to the Airflow API server and store the credentials for the selected environment. "
             "Pass --api-token (or set AIRFLOW_CLI_TOKEN), or --username and --password; "
-            "missing credentials are prompted for when running in a terminal."
+            "missing credentials are prompted for when running in a terminal. "
+            "Pass --sso to log in through the browser when the API server offers it."
         ),
         func=lazy_load_command("airflowctl.ctl.commands.auth_command.login"),
         args=(
@@ -1245,6 +1289,9 @@ AUTH_COMMANDS = (
             ARG_AUTH_USERNAME,
             ARG_AUTH_PASSWORD,
             ARG_AUTH_SKIP_KEYRING,
+            ARG_AUTH_SSO,
+            ARG_AUTH_NO_BROWSER,
+            ARG_AUTH_TIMEOUT,
         ),
     ),
     ActionCommand(
@@ -1258,7 +1305,8 @@ AUTH_COMMANDS = (
         name="token",
         help="Generate and print a JWT token for the given credentials",
         description=(
-            "Authenticate with username and password and print the access token to stdout. "
+            "Authenticate with username and password, or through the browser with --sso, "
+            "and print the access token to stdout. "
             "Username and password are prompted interactively if not provided. "
             "In non-interactive runs, pass --username and either pass --password "
             "or pipe the password on stdin."
@@ -1268,6 +1316,9 @@ AUTH_COMMANDS = (
             ARG_AUTH_URL,
             ARG_AUTH_USERNAME,
             ARG_AUTH_PASSWORD,
+            ARG_AUTH_SSO,
+            ARG_AUTH_NO_BROWSER,
+            ARG_AUTH_TIMEOUT,
         ),
     ),
 )
@@ -1313,6 +1364,7 @@ DAG_COMMANDS = (
             ARG_DAG_PARTITION_DATE_END,
             ARG_DAG_CLEAR_ONLY_FAILED,
             ARG_DAG_CLEAR_ONLY_RUNNING,
+            ARG_DAG_CLEAR_KEEP_TASK_STATE,
             ARG_DAG_CLEAR_YES,
         ),
     ),

@@ -246,9 +246,13 @@ def find_macro_body_start(body: str, start: int) -> int | None:
 
 
 def find_properties(body: str) -> list[dict[str, str]]:
-    """Return the rows of each Page Properties block as {key: value storage HTML}."""
+    """
+    Return the rows of each Page Properties block as {key: value storage HTML}.
+
+    The editor writes the macro's attributes in no fixed order, ``ac:macro-id`` often first.
+    """
     blocks = []
-    for match in re.finditer(r'<ac:structured-macro ac:name="details"', body):
+    for match in re.finditer(r'<ac:structured-macro\b[^>]*?\sac:name="details"', body):
         # Only a table inside the macro's own rich-text body is read by the index report; a
         # self-closing macro, or one with no body, has no properties.
         body_start = find_macro_body_start(body, match.end())
@@ -301,7 +305,7 @@ def find_table_rows(html: str) -> list[list[str]]:
 
 def find_badge(cell: str) -> str | None:
     match = re.search(
-        r'<ac:structured-macro ac:name="status".*?<ac:parameter ac:name="title">([^<]*)</ac:parameter>',
+        r'<ac:structured-macro\b[^>]*?\sac:name="status".*?<ac:parameter ac:name="title">([^<]*)</ac:parameter>',
         cell,
         re.S,
     )
@@ -316,7 +320,8 @@ def check_properties(page: Page, allowed_badges: set[str]) -> tuple[list[str], d
     if "State" not in properties:
         return ["has no State row in its Page Properties block"], properties
     badge = find_badge(properties["State"])
-    if badge not in allowed_badges:
+    # Confluence shows every status badge in capitals, so case is not something readers see.
+    if badge is None or badge.casefold() not in {allowed.casefold() for allowed in allowed_badges}:
         return [f"State badge is {badge!r}, expected one of {sorted(allowed_badges)}"], properties
     return [], properties
 
