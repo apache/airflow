@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta
+from typing import cast
 from unittest import mock
 
 import pytest
@@ -243,7 +244,7 @@ class TestKubernetesStartKueueJobOperatorWait:
 
     def set_pods(self, *pod_lists: list[k8s.V1Pod]) -> None:
         """Make each list_namespaced_pod call return the next list of pods."""
-        self.pods = {pod.metadata.name: pod for pods in pod_lists for pod in pods}
+        self.pods = {cast("k8s.V1ObjectMeta", pod.metadata).name: pod for pods in pod_lists for pod in pods}
         self.mock_client.list_namespaced_pod.side_effect = [k8s.V1PodList(items=pods) for pods in pod_lists]
 
     def build_operator(self, **kwargs) -> KubernetesStartKueueJobOperator:

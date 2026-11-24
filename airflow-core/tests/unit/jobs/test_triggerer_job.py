@@ -22,6 +22,7 @@ import contextlib
 import copy
 import datetime
 import errno
+import importlib.util
 import itertools
 import json
 import logging
@@ -121,6 +122,7 @@ from airflow.sdk.execution_time.comms import (
     SetAssetStateStoreByUri,
     ToSupervisor,
     ToTask,
+    XComSequenceSliceResult,
     _new_encoder,
     _RequestFrame,
     _ResponseFrame,
@@ -331,6 +333,19 @@ def test_capacity_decode():
         job = Job()
         with pytest.raises(ValueError, match=r"Capacity number .+ is invalid"):
             TriggererJobRunner(job=job, capacity=input_str)
+
+
+@conf_vars({("triggerer", "triggerer_health_check_threshold"): "30.5"})
+def test_health_check_threshold_accepts_float():
+    # The threshold is read when the class body runs, so execute a fresh copy of the module.
+    # importlib.reload() would rebind the classes that the rest of this module imported and patches.
+    spec = importlib.util.find_spec("airflow.jobs.triggerer_job_runner")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.TriggerRunnerSupervisor.health_check_threshold == 30.5
 
 
 @pytest.mark.parametrize("team_name", ["team_a", None])
@@ -4898,7 +4913,6 @@ class TestTriggererMessageTypes:
             "PrevSuccessfulDagRunResult",
             "XComCountResponse",
             "XComSequenceIndexResult",
-            "XComSequenceSliceResult",
             "PreviousDagRunResult",
             "PreviousTIResult",
             "HITLDetailRequestResult",
@@ -4925,6 +4939,12 @@ class TestTriggererMessageTypes:
             + "\n".join(f"  - {t}" for t in sorted(task_diff))
             + "\n\nEither handle these types in ToTriggerRunner or update in_task_but_not_in_trigger_runner list."
         )
+
+    def test_trigger_runner_decodes_a_mapped_xcom_read(self):
+        """GetXCom on a mapped task is answered with a slice result, which a trigger must decode."""
+        wire = _new_encoder().encode(XComSequenceSliceResult(root=[1, 2]).model_dump())
+        decoded = TypeAdapter(ToTriggerRunner).validate_python(msgspec.msgpack.decode(wire))
+        assert decoded == XComSequenceSliceResult(root=[1, 2])
 
 
 def _make_ti_dto(task_id="my_task", map_index=-1, context_carrier=None):

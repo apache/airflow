@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta
-from enum import Enum
+from enum import StrEnum
 from functools import cached_property, lru_cache
 from time import sleep
 from typing import TYPE_CHECKING, NoReturn
@@ -45,16 +45,13 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 
-class JobState(str, Enum):
+class JobState(StrEnum):
     """All possible states that a Job can be in."""
 
     RUNNING = "running"
     SUCCESS = "success"
     RESTARTING = "restarting"
     FAILED = "failed"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 if TYPE_CHECKING:

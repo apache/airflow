@@ -46,7 +46,7 @@ from airflow.utils.db import resetdb
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.test_utils import create_role, create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_role, create_user, delete_role, delete_user
 from unit.fab.utils import client_with_login
 
 with suppress(ImportError):
@@ -1286,8 +1286,16 @@ class TestFabAuthManager:
             ),
         ],
     )
+    @pytest.mark.parametrize("as_public_user", [False, True], ids=["db-user", "public-user"])
     def test_get_authorized_dag_ids(
-        self, method, user_permissions, expected_results, auth_manager_with_appbuilder, flask_app, dag_maker
+        self,
+        method,
+        user_permissions,
+        expected_results,
+        as_public_user,
+        auth_manager_with_appbuilder,
+        flask_app,
+        dag_maker,
     ):
         with dag_maker("test_dag1"):
             EmptyOperator(task_id="task1")
@@ -1304,20 +1312,64 @@ class TestFabAuthManager:
         dag_maker.session.commit()
         dag_maker.session.close()
 
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+
+        if as_public_user:
+            delete_role(flask_app, "test")
+            create_role(flask_app, "test", user_permissions)
+            with conf_vars({("fab", "auth_role_public"): "test"}):
+                user = auth_manager_with_appbuilder.build_public_user()
+        else:
+            user = create_user(
+                flask_app,
+                username="username",
+                role_name="test",
+                permissions=user_permissions,
+            )
+
+        try:
+            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
+        finally:
+            delete_user(flask_app, "username")
+            delete_role(flask_app, "test")
+
+        assert results == expected_results
+
+    def test_get_authorized_dag_ids_reads_cached_user_permissions(
+        self, auth_manager_with_appbuilder, flask_app, dag_maker
+    ):
+        for dag_id in ("test_dag1", "test_dag2"):
+            with dag_maker(dag_id):
+                EmptyOperator(task_id="task")
+            if AIRFLOW_V_3_1_PLUS:
+                sync_dag_to_db(dag_maker.dag)
+        dag_maker.session.commit()
+        dag_maker.session.close()
+
+        security_manager = auth_manager_with_appbuilder.security_manager
+        security_manager.sync_perm_for_dag("test_dag1")
+        security_manager.sync_perm_for_dag("test_dag2")
         user = create_user(
             flask_app,
             username="username",
             role_name="test",
-            permissions=user_permissions,
+            permissions=[(ACTION_CAN_READ, "DAG:test_dag1")],
         )
+        try:
+            # Load the permissions as deserialize_user's cached user would hold them.
+            assert user.perms == {(ACTION_CAN_READ, "DAG:test_dag1")}
+            security_manager.add_permission_to_role(
+                security_manager.find_role("test"),
+                security_manager.get_permission(ACTION_CAN_READ, "DAG:test_dag2"),
+            )
 
-        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
-        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method="GET")
+        finally:
+            delete_user(flask_app, "username")
+            delete_role(flask_app, "test")
 
-        results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
-        assert results == expected_results
-
-        delete_user(flask_app, "username")
+        assert results == {"test_dag1"}
 
     def test_get_authorized_pools(self, auth_manager):
         session = Mock()
