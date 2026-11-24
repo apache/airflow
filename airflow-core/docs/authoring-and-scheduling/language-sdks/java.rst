@@ -238,6 +238,10 @@ value one call returned into another call makes the second task wait for the fir
 * Every task method is called in the wiring class. A task the wiring leaves out fails when the Dag is read.
 * A task method that takes arguments is called once; keep its result in a local variable to use it twice.
 * Values move between tasks as XComs, so a task returns data JSON can hold (see :ref:`java-sdk/types`).
+* When a task method receives an object as a parameter, from an upstream task or from ``lit(...)``, the SDK reads the
+  object into the class of the parameter with the rules in :ref:`the Dag run conf section <java-sdk/dag-run-conf>`.
+  Two kinds of key that ``getConf`` ignores fail the task: a key that matches no field, and a key that matches a
+  field when another key has the field's exact name.
 
 With the interface, each task is a class, and ``dag.task(taskId, TaskClass)`` registers it. A task reads the
 value of an upstream task itself, through ``client.getXCom``:
@@ -254,7 +258,7 @@ value of an upstream task itself, through ``client.getXCom``:
     public class Load implements Task {
       @Override
       public void execute(Context context, Client client) {
-        var extracted = ((Number) client.getXCom("extract")).longValue();
+        var extracted = client.getXCom("extract", Long.class);
       }
     }
 
@@ -399,7 +403,7 @@ With the interface, implement ``ConditionTask`` and register it with ``dag.If``:
     public class HasRows implements ConditionTask {
       @Override
       public boolean decide(Context context, Client client) {
-        return ((Number) client.getXCom("transform")).longValue() > 0;
+        return client.getXCom("transform", Long.class) > 0;
       }
     }
 
@@ -440,7 +444,7 @@ With the interface, implement ``SwitchTask`` and register it with ``dag.Switch``
     public class PickReport implements SwitchTask {
       @Override
       public Class<? extends Task> choose(Context context, Client client) {
-        return ((Number) client.getXCom("transform")).longValue() > 100 ? ReportLong.class : ReportShort.class;
+        return client.getXCom("transform", Long.class) > 100 ? ReportLong.class : ReportShort.class;
       }
     }
 
@@ -667,6 +671,14 @@ An argument the Python call leaves at its default does not count towards the arg
 method may leave it out. A method declares flat parameters or one ``TaskInput``, not both, and two fields whose
 names match the same argument fail the build.
 
+The table covers the arguments themselves. When the value of an argument is an object, the SDK reads the object into
+the class of the parameter or field that takes the argument. The SDK uses the rules that
+:ref:`the Dag run conf section <java-sdk/dag-run-conf>` describes for ``getConf``. Two kinds of key in the object
+fail the task. One is a key that matches no field. The other is a key that matches a field when another key has the
+field's exact name. ``getConf`` ignores both kinds of key. In a class with
+``@JsonIgnoreProperties(ignoreUnknown = true)``, or with a ``@JsonUnwrapped`` field whose type is a class with
+fields, Jackson drops both kinds of key without an error.
+
 .. note::
 
   A dependency drawn with ``>>`` in the Python Dag orders the tasks and passes nothing. To read a value the call
@@ -709,6 +721,10 @@ The ``Client``
        task, it is the values of all its instances in a ``List`` ordered by map index. Overloads read another
        key, Dag, run, or one instance of a mapped task; a map index that selects no task instance reads
        ``null``. See the API reference. For the Java types values arrive as, see :ref:`java-sdk/types`.
+   * - ``getXCom(taskId, type)``
+     - The same XCom read into ``type`` (a ``Class`` or a ``TypeRef``), or ``null`` when it does not exist. Keys
+       match fields as they do for ``getConf``, but a key that matches no field fails the read. A key that matches a
+       field also fails the read when another key has the field's exact name.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
      - Publishes an XCom value. The value must be JSON-serializable.
    * - ``getTaskStateStore()``
@@ -719,6 +735,8 @@ The ``Client``
 
    A value from a secrets backend, such as an ``AIRFLOW_VAR_*`` environment variable, still wins over the stored
    value when the Variable is read back. ``setVariable`` without a description clears the existing description.
+
+.. _java-sdk/dag-run-conf:
 
 The Dag run conf
 ~~~~~~~~~~~~~~~~
@@ -745,9 +763,10 @@ an instance of a class with typed fields instead:
 For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31"}``, ``etl.targetTable`` is
 ``"sales"``, ``etl.since`` is ``LocalDate.of(2024, 1, 31)``, and ``etl.limit`` stays ``100``. Keys match field
 names when case and underscores are ignored, and keys that match no field are ignored. ``getConf`` does not add
-the defaults of the Dag's params, and the conf of a scheduled run is empty. For the classes that ``getConf``
-accepts and the cases where it throws, see ``DagRun.getConf`` in the `Java SDK API reference
-<https://airflow.apache.org/docs/java-sdk/stable/>`__.
+the defaults of the Dag's params, and the conf of a scheduled run is empty. ``getConf`` also takes a ``TypeRef``
+for a generic type. ``context.dagRun.getConfJson()`` returns the conf as a JSON string. For the classes that
+``getConf`` accepts, the annotations it reads and the cases where it throws, see ``DagRun.getConf`` in the `Java
+SDK API reference <https://airflow.apache.org/docs/java-sdk/stable/>`__.
 
 .. _java-sdk/cancellation:
 
@@ -924,7 +943,7 @@ For Log4j 2, declare the appender in ``log4j2.xml``:
 XCom type mapping
 -----------------
 
-XComs are stored as JSON, so a value read with ``getXCom`` arrives as the matching Java type:
+XComs are stored as JSON, so a value that ``getXCom`` reads without a type arrives as the matching Java type:
 
 .. list-table::
    :header-rows: 1

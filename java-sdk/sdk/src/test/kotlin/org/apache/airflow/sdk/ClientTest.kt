@@ -41,11 +41,27 @@ private data class StateStoreCall(
   val expiresAt: OffsetDateTime? = null,
 )
 
+private data class XComCall(
+  val key: String,
+  val dagId: String,
+  val taskId: String,
+  val runId: String,
+  val mapIndex: Int?,
+  val includePriorDates: Boolean,
+)
+
+private class XComStats {
+  @JvmField
+  var rowCount: Long = 0
+}
+
 private class FakeTransport(
   val connection: ConnectionResult = ConnectionResult(),
   val stored: TaskStateStoreResult? = null,
+  val xcom: Any? = null,
 ) : org.apache.airflow.sdk.execution.Client {
   val calls = mutableListOf<StateStoreCall>()
+  val xcomCalls = mutableListOf<XComCall>()
 
   override fun getConnection(id: String): ConnectionResult = connection
 
@@ -66,7 +82,10 @@ private class FakeTransport(
     runId: String,
     mapIndex: Int?,
     includePriorDates: Boolean,
-  ): XComResult = throw NotImplementedError()
+  ): XComResult {
+    xcomCalls.add(XComCall(key, dagId, taskId, runId, mapIndex, includePriorDates))
+    return XComResult().also { it.value = xcom }
+  }
 
   override fun setXCom(
     key: String,
@@ -184,6 +203,130 @@ class ClientTest {
     val connection = clientWith(result).getConnection("test_http")
 
     Assertions.assertNull(connection.port)
+  }
+
+  private fun xcomClient(xcom: Any?): Pair<Client, FakeTransport> {
+    val details =
+      StartupDetails().also {
+        it.ti =
+          TaskInstance().also { ti ->
+            ti.dagId = "current_dag"
+            ti.runId = "current_run"
+          }
+      }
+    val transport = FakeTransport(xcom = xcom)
+    return Client(details, transport) to transport
+  }
+
+  @Test
+  @DisplayName("getXCom with a class reads the XCom into that class, matching keys ignoring case and underscores")
+  fun getXComReadsIntoClass() {
+    val (client, _) = xcomClient(mapOf("row_count" to 5L))
+
+    Assertions.assertEquals(5L, client.getXCom(taskId = "extract", type = XComStats::class.java)?.rowCount)
+  }
+
+  @Test
+  @DisplayName("getXCom with a TypeRef keeps the element type of a generic type")
+  fun getXComReadsIntoGenericType() {
+    val (client, _) = xcomClient(listOf(mapOf("row_count" to 5L)))
+
+    val stats = client.getXCom(taskId = "extract", type = object : TypeRef<List<XComStats>>() {})
+
+    Assertions.assertEquals(5L, stats?.single()?.rowCount)
+  }
+
+  @Test
+  @DisplayName("getXCom with a type fails on a key that no field of the class declares, and names the XCom")
+  fun getXComFailsOnUnknownKey() {
+    val (client, _) = xcomClient(mapOf("thresh" to 0.5))
+
+    listOf<() -> Any?>(
+      { client.getXCom(taskId = "extract", type = XComStats::class.java) },
+      { client.getXCom(taskId = "extract", type = object : TypeRef<XComStats>() {}) },
+    ).forEach { read ->
+      val error = Assertions.assertThrows(IllegalArgumentException::class.java) { read() }
+
+      val message = error.message.orEmpty()
+      Assertions.assertTrue(
+        message.startsWith("Cannot convert the XCom value to org.apache.airflow.sdk.XComStats: Unrecognized field"),
+      ) { message }
+    }
+  }
+
+  @Test
+  @DisplayName("getXCom with a type returns null when nothing was pushed, even for a primitive class")
+  fun getXComReturnsNullWhenNothingWasPushed() {
+    val (client, _) = xcomClient(null)
+
+    Assertions.assertNull(client.getXCom(taskId = "extract", type = XComStats::class.java))
+    Assertions.assertNull(client.getXCom(taskId = "extract", type = Long::class.java))
+    Assertions.assertNull(client.getXCom(taskId = "extract", type = object : TypeRef<List<XComStats>>() {}))
+  }
+
+  @Test
+  @DisplayName("getXCom accepts a primitive class, which is what Long::class.java is in Kotlin")
+  fun getXComAcceptsPrimitiveClass() {
+    val (client, _) = xcomClient(5L)
+
+    Assertions.assertEquals(5L, client.getXCom(taskId = "extract", type = Long::class.java))
+    Assertions.assertEquals(5, client.getXCom(taskId = "extract", type = Int::class.java))
+    Assertions.assertEquals(5L, client.getXCom(taskId = "extract", type = Long::class.javaObjectType))
+  }
+
+  @Test
+  @DisplayName("getXCom with a type passes every argument to the transport")
+  fun getXComWithTypePassesEveryArgument() {
+    val (client, transport) = xcomClient(5L)
+    val expected = XComCall("k", "other_dag", "extract", "other_run", 2, true)
+
+    client.getXCom("k", "other_dag", "extract", "other_run", 2, true, Long::class.javaObjectType)
+    client.getXCom("k", "other_dag", "extract", "other_run", 2, true, object : TypeRef<Long>() {})
+
+    Assertions.assertEquals(listOf(expected, expected), transport.xcomCalls)
+  }
+
+  @Test
+  @DisplayName("getXCom with a type gives Java overloads whose defaults read the return value of the current run")
+  fun getXComWithTypeGivesJavaOverloads() {
+    val string = String::class.java
+    val boxedInt = Int::class.javaObjectType
+    val primitiveBoolean = Boolean::class.java
+    val classType: Any = Long::class.javaObjectType
+    val typeRef: Any = object : TypeRef<Long>() {}
+    val call = { key: String, dagId: String, runId: String, mapIndex: Int?, prior: Boolean ->
+      XComCall(key, dagId, "extract", runId, mapIndex, prior)
+    }
+
+    listOf(Class::class.java to classType, TypeRef::class.java to typeRef).forEach { (parameter, type) ->
+      val (client, transport) = xcomClient(5L)
+      val overloads =
+        listOf(
+          arrayOf(string, parameter) to arrayOf("extract", type),
+          arrayOf(string, string, parameter) to arrayOf("k", "extract", type),
+          arrayOf(string, string, string, parameter) to arrayOf("k", "d", "extract", type),
+          arrayOf(string, string, string, string, parameter) to arrayOf("k", "d", "extract", "r", type),
+          arrayOf(string, string, string, string, boxedInt, parameter) to arrayOf("k", "d", "extract", "r", 2, type),
+          arrayOf(string, string, string, string, boxedInt, primitiveBoolean, parameter) to
+            arrayOf("k", "d", "extract", "r", 2, true, type),
+        )
+
+      overloads.forEach { (parameters, arguments) ->
+        Client::class.java.getMethod("getXCom", *parameters).invoke(client, *arguments)
+      }
+
+      Assertions.assertEquals(
+        listOf(
+          call("return_value", "current_dag", "current_run", null, false),
+          call("k", "current_dag", "current_run", null, false),
+          call("k", "d", "current_run", null, false),
+          call("k", "d", "r", null, false),
+          call("k", "d", "r", 2, false),
+          call("k", "d", "r", 2, true),
+        ),
+        transport.xcomCalls,
+      )
+    }
   }
 
   @Test

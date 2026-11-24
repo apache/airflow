@@ -23,6 +23,7 @@ import org.apache.airflow.sdk.execution.Cancellation
 import org.apache.airflow.sdk.execution.Logger
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.internal.bindConf
+import org.apache.airflow.sdk.internal.writeConfJson
 import java.time.Duration
 import java.time.OffsetDateTime
 import java.util.concurrent.TimeUnit
@@ -111,12 +112,12 @@ data class DagRun(
    * EtlConf etl = context.dagRun.getConf(EtlConf.class);
    * ```
    *
-   * Each key goes to the field, setter or record component whose name matches
-   * the key when case and underscores are ignored. If one key matches a name
-   * exactly, that key wins over keys that match the same name only when case
-   * and underscores are ignored. Objects nested in the conf follow the same
-   * rules, including objects in lists and objects that are map values. The keys
-   * of a map field stay as written.
+   * Each key goes to the field, setter, record component or `@JsonCreator`
+   * parameter whose name matches the key when case and underscores are ignored.
+   * A key that matches a field exactly wins over the keys that match the same
+   * field only when case and underscores are ignored. Objects nested in the
+   * conf follow the same rules, including objects in lists and objects that are
+   * map values. The keys of a map field stay as written.
    *
    * Keys that match no field are ignored, because other tasks in the run may
    * read them. A field with no matching key keeps its default value. The conf
@@ -125,38 +126,115 @@ data class DagRun(
    * is empty, no field has a matching key.
    *
    * The class needs a no-argument constructor and public fields or setters, so
-   * a nested class must be `static`. A record also works. A record component
-   * with no matching key is null. If the component has a primitive type, this
-   * method throws instead, so a task that reads the conf into a record with a
-   * primitive component fails in a scheduled run. In Kotlin, declare the fields
-   * with `@JvmField` so that a property such as `isEnabled` keeps its name.
+   * a nested class must be `static`. A record and a class with a builder also
+   * work. A class with a `@JsonCreator` constructor works when each parameter
+   * of the constructor has `@JsonProperty`, which gives the parameter its name.
+   * A record component or a constructor parameter with no matching key gets
+   * null. If the component or the parameter has a primitive type, this method
+   * throws instead. A scheduled run has an empty conf, so a task that reads the
+   * conf into a record with a primitive component fails in a scheduled run. In
+   * Kotlin, declare the fields with `@JvmField` so that a property such as
+   * `isEnabled` keeps its name.
    *
-   * Annotating a field with [ArgName] has no effect on this method. To set a
-   * field from a key that no Java name can match, such as `target-table`, add
-   * `@JsonProperty("target-table")` to that field. `@JsonProperty` needs
-   * `com.fasterxml.jackson.core:jackson-annotations` in your build, because the
-   * SDK keeps Jackson off your compile classpath. You can also read the key
-   * from [conf].
+   * To set a field from a key that no Java name can match, such as
+   * `target-table`, annotate the field with [ArgName]. The field then takes
+   * only that key, as written. You can also read the value of the key from
+   * [conf]. Jackson's `@JsonProperty` also sets the key of a field, but other
+   * keys still match the name in `@JsonProperty` when case and underscores are
+   * ignored. Do not combine `@JsonProperty` with [ArgName] on one field. The
+   * SDK keeps Jackson off your compile classpath, so to use a Jackson
+   * annotation, add the library that contains the annotation to your build.
+   * Annotations such as `@JsonProperty`, `@JsonCreator` and `@JsonAlias` are in
+   * `com.fasterxml.jackson.core:jackson-annotations`. `@JsonDeserialize` is in
+   * `com.fasterxml.jackson.core:jackson-databind`.
+   *
+   * An `OffsetDateTime` or `ZonedDateTime` field keeps the offset in the value
+   * instead of moving the date-time to UTC. An integer field drops any fraction,
+   * so `5.9` reads as `5` in an `int` field.
+   *
+   * Keys match this way wherever Jackson reads an object field by field, for
+   * example in a class that `@JsonTypeInfo` or `@JsonDeserialize(as = ...)`
+   * picks, or in the class of a `@JsonUnwrapped` field. For a builder that
+   * `@JsonDeserialize(builder = ...)` names, keys match the names that the
+   * builder takes. A key that equals a name in `@JsonAlias` counts as an exact
+   * match. Two limits apply to `@JsonTypeInfo`. First, the key that holds the
+   * type id must equal the name of the type id. Second, with
+   * `use = JsonTypeInfo.Id.DEDUCTION`, Jackson picks the class from the keys as
+   * written. A deserializer that `@JsonDeserialize` sets on a class or on a
+   * field gets the keys of an object as written. So does a deserializer that a
+   * Jackson module on the classpath registers. A converter that
+   * `@JsonDeserialize` sets and a delegating `@JsonCreator` also get the keys
+   * as written when they take a `Map` or a `JsonNode`. When a converter or a
+   * delegating `@JsonCreator` takes a class with fields, keys match the fields
+   * of that class.
+   *
+   * In a class with `@JsonIgnoreProperties(ignoreUnknown = true)`, or with a
+   * `@JsonUnwrapped` field whose type is a class with fields, Jackson drops two
+   * kinds of key without an error. One is a key that matches no field. The
+   * other is a key that matches a field when another key has the field's exact
+   * name. A class with a `@JsonAnySetter` method receives both kinds of key in
+   * that method. Jackson handles the two kinds of key this way even in a task
+   * argument or a typed `getXCom`, which otherwise fail on such keys.
    *
    * This method throws [IllegalArgumentException] in these cases:
    *
-   * * A value, such as an empty string for an `int` field, cannot be converted
-   *   to the type of its field.
+   * * A value, such as an empty string or `3000000000` for an `int` field,
+   *   cannot be converted to the type of its field.
    * * A key holds null for a primitive field, a list holds null for a primitive
-   *   array such as `int[]`, or a primitive record component has no matching
-   *   key. To let a field or a component receive null, declare it with a boxed
-   *   type, such as `Integer`.
+   *   array such as `int[]`, or a primitive record component or constructor
+   *   parameter has no matching key. To let a field, a component or a parameter
+   *   receive null, declare it with a boxed type, such as `Integer`. This
+   *   method does not throw when Jackson handles the null on its own. Jackson
+   *   handles the null with `@JsonSetter(nulls = Nulls.AS_EMPTY)`, with
+   *   `Nulls.SKIP` on a field or a setter, and with a deserializer of the field
+   *   that gives a value for null.
    * * Two keys, such as `target_table` and `TARGET_TABLE`, match the same field
    *   after case and underscores are ignored, but neither key matches the field
    *   name exactly.
    * * The class has two fields whose names differ only in case or underscores,
-   *   such as `targetTable` and `target_table`. This method checks the class
-   *   even when the conf is empty, so it throws in a scheduled run too.
+   *   such as `targetTable` and `target_table`. For a field with [ArgName], the
+   *   name in [ArgName] counts as the name of the field. For a field of a class
+   *   that a `@JsonUnwrapped` field reads, the name of the field includes the
+   *   prefix and the suffix from `@JsonUnwrapped`. This method also throws when
+   *   the name in [ArgName] on one field equals the name of another field in
+   *   the same class or in a superclass. When a field of the class and a field
+   *   in the class of a `@JsonUnwrapped` field have equal names, this method
+   *   does not throw. The key then goes only to the field of the class itself.
+   *   This method checks the class that it reads the conf into even when the
+   *   conf is empty, so this method throws in a scheduled run too. The class of
+   *   a nested object is checked only when the conf has that nested object.
    *
    * @param type Class to read the conf into.
    * @throws IllegalArgumentException in the cases listed above.
    */
   fun <T : Any> getConf(type: Class<T>): T = bindConf(conf, type)
+
+  /**
+   * Reads [conf] into a new instance of a generic type, which a `Class` cannot
+   * express. Keys match fields in the same way as in the overload that takes a
+   * `Class`.
+   *
+   * ```java
+   * Map<String, TableConf> tables = context.dagRun.getConf(new TypeRef<Map<String, TableConf>>() {});
+   * ```
+   *
+   * @param type Type to read the conf into.
+   * @throws IllegalArgumentException in the same cases as the overload that takes
+   *    a `Class`.
+   */
+  fun <T : Any> getConf(type: TypeRef<T>): T = bindConf(conf, type.type)
+
+  /**
+   * Writes [conf] as a JSON string, for a task that parses the conf with its own
+   * JSON library.
+   *
+   * Airflow stores the conf as parsed values when it creates the run, so this
+   * string is not the text that the run was triggered with. A value of `1.10`
+   * comes back as `1.1`, for example. The keys follow the order of [conf]. On
+   * PostgreSQL and MySQL, that order can differ from the order in the trigger
+   * request, because both databases reorder the keys of a JSON object.
+   */
+  fun getConfJson(): String = writeConfJson(conf)
 }
 
 /**
