@@ -16,18 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-import math
 import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-import time_machine
 from sqlalchemy import select
 
 from airflow.models.revoked_token import RevokedToken
 
 from tests_common.test_utils.asserts import assert_queries_count
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_revoked_tokens
 
 
@@ -53,86 +52,20 @@ class TestRevokedTokenModel:
         assert arg.jti == "test-jti-123"
         assert arg.exp == exp
 
-    def test_is_revoked_returns_true(self):
-        """Test that a revoked JTI is detected."""
-        mock_session = MagicMock()
-        mock_session.scalar.return_value = True
-        result = RevokedToken.is_revoked("known-jti", session=mock_session)
-        assert result is True
-
-    def test_is_revoked_returns_false(self):
-        """Test that an unknown JTI returns False."""
-        mock_session = MagicMock()
-        mock_session.scalar.return_value = False
-        result = RevokedToken.is_revoked("unknown-jti", session=mock_session)
-        assert result is False
-
-
-class TestRevokedTokenCleanup:
-    """Tests for automatic periodic cleanup of expired revoked tokens."""
-
-    def test_cleanup_runs_when_interval_passed(self):
-        """Cleanup should run when enough time has passed since last cleanup."""
-        mock_session = MagicMock()
-        mock_session.scalar.return_value = False
-
-        original_last_cleanup = RevokedToken._last_cleanup_time
-        try:
-            RevokedToken._last_cleanup_time = 0.0
-            with (
-                patch("airflow.models.revoked_token.time.monotonic", return_value=8000.0),
-                patch("airflow.models.revoked_token.conf.getint", return_value=3600),
-            ):
-                RevokedToken.is_revoked("test-jti", session=mock_session)
-
-            # session.execute should be called for DELETE
-            mock_session.execute.assert_called_once()
-        finally:
-            RevokedToken._last_cleanup_time = original_last_cleanup
-
-    def test_cleanup_skips_when_interval_not_passed(self):
-        """Cleanup should skip when not enough time has passed."""
-        mock_session = MagicMock()
-        mock_session.scalar.return_value = False
-
-        original_last_cleanup = RevokedToken._last_cleanup_time
-        try:
-            RevokedToken._last_cleanup_time = 4000.0
-            # cleanup_interval = 3600 * 2 = 7200, so 4500 - 4000 = 500 < 7200 skips cleanup
-            with (
-                patch("airflow.models.revoked_token.time.monotonic", return_value=4500.0),
-                patch("airflow.models.revoked_token.conf.getint", return_value=3600),
-            ):
-                RevokedToken.is_revoked("test-jti", session=mock_session)
-
-            # session.execute should NOT be called
-            mock_session.execute.assert_not_called()
-        finally:
-            RevokedToken._last_cleanup_time = original_last_cleanup
-
 
 FROZEN_NOW = datetime(2026, 11, 1, tzinfo=UTC)
+JWT_EXPIRATION_TIME = 3600
+CLEANUP_INTERVAL = JWT_EXPIRATION_TIME * 2  # mirrors _maybe_cleanup_expired
+LAST_CLEANUP_TIME = 4000.0
 
 
 @pytest.mark.db_test
 @pytest.mark.asyncio
 class TestRevokedTokenAsync:
     @pytest.fixture(autouse=True)
-    def cleanup_revoked_tokens(self):
+    def seed_revoked_tokens(self, session, time_machine):
+        time_machine.move_to(FROZEN_NOW, tick=False)
         clear_db_revoked_tokens()
-        yield
-        clear_db_revoked_tokens()
-
-    @pytest.mark.parametrize(
-        ("jti", "cleanup_due", "expected", "expected_remaining"),
-        [
-            pytest.param("revoked-jti", False, True, {"revoked-jti", "expired-jti"}, id="revoked"),
-            pytest.param("unknown-jti", False, False, {"revoked-jti", "expired-jti"}, id="unknown"),
-            pytest.param("revoked-jti", True, True, {"revoked-jti"}, id="cleanup-due"),
-        ],
-    )
-    @time_machine.travel(FROZEN_NOW, tick=False)
-    async def test_is_revoked_async(self, session, jti, cleanup_due, expected, expected_remaining):
         session.add_all(
             [
                 RevokedToken(jti="revoked-jti", exp=FROZEN_NOW + timedelta(days=1)),
@@ -140,10 +73,34 @@ class TestRevokedTokenAsync:
             ]
         )
         session.commit()
+        yield
+        clear_db_revoked_tokens()
 
-        last_cleanup_time = -math.inf if cleanup_due else math.inf
+    @pytest.mark.parametrize(("jti", "expected"), [("revoked-jti", True), ("unknown-jti", False)])
+    async def test_is_revoked_async(self, jti, expected):
         with assert_queries_count(0, include_async_engine=False):
-            with patch.object(RevokedToken, "_last_cleanup_time", last_cleanup_time):
-                assert await RevokedToken.is_revoked_async(jti) is expected
+            assert await RevokedToken.is_revoked_async(jti) is expected
 
-        assert set(session.scalars(select(RevokedToken.jti))) == expected_remaining
+    # Patch the module's ``time`` name, not ``time.monotonic``.
+    # The latter is process-wide and would also freeze the event loop clock.
+    @patch("airflow.models.revoked_token.time", autospec=True)
+    @patch.object(RevokedToken, "_last_cleanup_time", LAST_CLEANUP_TIME)
+    async def test_cleanup_runs_when_interval_passed(self, mock_time, session):
+        """Cleanup should run when enough time has passed since last cleanup."""
+        mock_time.monotonic.return_value = LAST_CLEANUP_TIME + CLEANUP_INTERVAL
+
+        with conf_vars({("api_auth", "jwt_expiration_time"): str(JWT_EXPIRATION_TIME)}):
+            await RevokedToken.is_revoked_async("revoked-jti")
+
+        assert set(session.scalars(select(RevokedToken.jti))) == {"revoked-jti"}
+
+    @patch("airflow.models.revoked_token.time", autospec=True)
+    @patch.object(RevokedToken, "_last_cleanup_time", LAST_CLEANUP_TIME)
+    async def test_cleanup_skips_when_interval_not_passed(self, mock_time, session):
+        """Cleanup should skip when not enough time has passed."""
+        mock_time.monotonic.return_value = LAST_CLEANUP_TIME + CLEANUP_INTERVAL - 1
+
+        with conf_vars({("api_auth", "jwt_expiration_time"): str(JWT_EXPIRATION_TIME)}):
+            await RevokedToken.is_revoked_async("revoked-jti")
+
+        assert set(session.scalars(select(RevokedToken.jti))) == {"revoked-jti", "expired-jti"}

@@ -54,13 +54,6 @@ class RevokedToken(Base):
         session.merge(cls(jti=jti, exp=exp))
 
     @classmethod
-    @provide_session
-    def is_revoked(cls, jti: str, *, session: Session = NEW_SESSION) -> bool:
-        """Check if a token JTI has been revoked."""
-        cls._maybe_cleanup_expired(session)
-        return bool(session.scalar(select(exists().where(cls.jti == jti))))
-
-    @classmethod
     async def is_revoked_async(cls, jti: str) -> bool:
         """Check token revocation using the async database engine."""
         async with create_session_async() as session:
