@@ -38,7 +38,13 @@ from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.dag_version import DagVersion
-from airflow.models.trigger import RecordedFailure, handle_event_submit
+from airflow.models.trigger import (
+    RecordedFailure,
+    TriggerFailureReason,
+    TriggerKind,
+    TriggerStatus,
+    handle_event_submit,
+)
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
@@ -2213,3 +2219,9 @@ def test_kind_is_the_same_in_sql_and_python(session, used_by_ref, watched, expec
     assert sql_kind == expected
     kind = session.get(Trigger, trigger.id).kind
     assert (kind.value if kind else None) == expected
+
+
+@pytest.mark.parametrize("member", [*TriggerKind, *TriggerStatus, *TriggerFailureReason])
+def test_enum_str_is_value(member):
+    # DB drivers may bind str-Enum members through str(); mysqlclient 2.3.1 does.
+    assert str(member) == member.value
