@@ -42,6 +42,76 @@ class TestPgbouncer:
         assert jmespath.search("kind", docs[0]) == "Deployment"
         assert jmespath.search("metadata.name", docs[0]) == "release-name-pgbouncer"
         assert jmespath.search("spec.template.spec.containers[0].name", docs[0]) == "pgbouncer"
+        assert "initContainers" not in jmespath.search("spec.template.spec", docs[0])
+
+    def test_should_not_add_empty_extra_init_containers(self):
+        docs = render_chart(
+            values={"pgbouncer": {"enabled": True, "extraInitContainers": []}},
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert "initContainers" not in jmespath.search("spec.template.spec", docs[0])
+
+    @pytest.mark.parametrize(
+        "extra_init_container",
+        [
+            {
+                "name": "test-init-container",
+                "image": "test-registry/test-repo:test-tag",
+                "volumeMounts": [{"name": "pgbouncer-auth", "mountPath": "/etc/pgbouncer/auth"}],
+            },
+            {
+                "name": "token-refresher",
+                "image": "test-registry/token-refresher:test-tag",
+                "restartPolicy": "Always",
+                "startupProbe": {
+                    "exec": {"command": ["sh", "-c", "test -s /etc/pgbouncer/auth/userlist.txt"]},
+                },
+                "volumeMounts": [{"name": "pgbouncer-auth", "mountPath": "/etc/pgbouncer/auth"}],
+            },
+        ],
+        ids=["standard-init-container", "restartable-init-container"],
+    )
+    def test_should_add_extra_init_containers(self, extra_init_container):
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "extraInitContainers": [extra_init_container],
+                    "extraVolumes": [{"name": "pgbouncer-auth", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "pgbouncer-auth", "mountPath": "/etc/pgbouncer/auth"},
+                    ],
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.initContainers", docs[0]) == [extra_init_container]
+
+    def test_should_template_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "images": {"pgbouncer": {"tag": "test-tag"}},
+                "pgbouncer": {
+                    "enabled": True,
+                    "extraInitContainers": [
+                        {
+                            "name": "{{ .Release.Name }}-token-refresher",
+                            "image": "test-registry/token-refresher:{{ .Values.images.pgbouncer.tag }}",
+                        },
+                    ],
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.initContainers", docs[0]) == [
+            {
+                "name": "release-name-token-refresher",
+                "image": "test-registry/token-refresher:test-tag",
+            },
+        ]
 
     def test_should_create_pgbouncer_service(self):
         docs = render_chart(
