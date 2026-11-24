@@ -336,6 +336,7 @@ class _XComOperations:
         include_node_regions: bool = True,
         producer_ids: Select | None = None,
         include_prior_dates: bool = False,
+        prior_dates_before: datetime | None = None,
         limit: int | None = None,
         try_number: int | None = None,
     ) -> XComModelSelect:
@@ -366,6 +367,9 @@ class _XComOperations:
         :param include_prior_dates: If *False* (default), only XComs from the
             specified DAG run are returned. If *True*, all matching XComs are
             returned regardless of the run it belongs to.
+        :param prior_dates_before: Upper bound for ``include_prior_dates``. If *None*
+            (default), the bound is the date of the run identified by ``run_id``
+            in the Dag being read.
         :param limit: Limiting returning XComs
         :param try_number: Read the XComs of this public try, current or archived, instead of
             the current attempt.
@@ -395,6 +399,7 @@ class _XComOperations:
                 region_id=region_id,
                 include_node_regions=include_node_regions,
                 include_prior_dates=include_prior_dates,
+                prior_dates_before=prior_dates_before,
                 try_number=try_number,
             )
         statement = build_xcom_read_query(producer_ids=producer_ids, key=key)
@@ -654,6 +659,7 @@ def select_producers(
     region_id=SENTINEL_REGION_ID,
     include_node_regions=True,
     include_prior_dates=False,
+    prior_dates_before=None,
     try_number=None,
 ):
     from airflow.models.dagrun import DagRun
@@ -688,16 +694,18 @@ def select_producers(
     elif map_indexes is not None:
         query = query.where(TaskInstance.region_index == map_indexes)
     if include_prior_dates:
-        requested_run = aliased(DagRun)
-        cutoff = (
-            select(func.coalesce(requested_run.logical_date, requested_run.run_after))
-            .where(
-                requested_run.dag_id == TaskInstance.dag_id,
-                requested_run.run_id == run_id,
+        cutoff = prior_dates_before
+        if cutoff is None:
+            requested_run = aliased(DagRun)
+            cutoff = (
+                select(func.coalesce(requested_run.logical_date, requested_run.run_after))
+                .where(
+                    requested_run.dag_id == TaskInstance.dag_id,
+                    requested_run.run_id == run_id,
+                )
+                .correlate(TaskInstance)
+                .scalar_subquery()
             )
-            .correlate(TaskInstance)
-            .scalar_subquery()
-        )
         query = query.join(
             DagRun, and_(TaskInstance.dag_id == DagRun.dag_id, TaskInstance.run_id == DagRun.run_id)
         ).where(func.coalesce(DagRun.logical_date, DagRun.run_after) <= cutoff)
