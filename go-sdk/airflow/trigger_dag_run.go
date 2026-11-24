@@ -22,13 +22,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/apache/airflow/go-sdk/internal/bundle"
+	"github.com/apache/airflow/go-sdk/internal/jsonvalue"
 )
 
 // TriggerDagRunSpec holds the options of a task that triggers a Dag run. [TriggerDagRun] takes a
@@ -224,63 +223,8 @@ func copyConf(conf map[string]any) (map[string]any, error) {
 	if err := dec.Decode(&copied); err != nil {
 		return nil, err
 	}
-	if _, err := resolveNumbers(copied, ""); err != nil {
+	if _, err := jsonvalue.ResolveNumbers(copied, ""); err != nil {
 		return nil, err
 	}
 	return copied, nil
-}
-
-// resolveNumbers replaces each json.Number in value with an int64, a uint64 or a float64, and
-// returns value. It changes a map or a slice in value in place. path names value in an error, as
-// in ["rows"][2].
-func resolveNumbers(value any, path string) (any, error) {
-	switch v := value.(type) {
-	case json.Number:
-		return resolveNumber(v, path)
-	case map[string]any:
-		// The keys are sorted, so that a conf with more than one bad number always gets the same
-		// error.
-		for _, key := range slices.Sorted(maps.Keys(v)) {
-			resolved, err := resolveNumbers(v[key], path+"["+strconv.Quote(key)+"]")
-			if err != nil {
-				return nil, err
-			}
-			v[key] = resolved
-		}
-	case []any:
-		for i, item := range v {
-			resolved, err := resolveNumbers(item, fmt.Sprintf("%s[%d]", path, i))
-			if err != nil {
-				return nil, err
-			}
-			v[i] = resolved
-		}
-	}
-	return value, nil
-}
-
-func resolveNumber(n json.Number, path string) (any, error) {
-	if i, err := n.Int64(); err == nil {
-		return i, nil
-	}
-	if u, err := strconv.ParseUint(n.String(), 10, 64); err == nil {
-		return u, nil
-	}
-	f, err := n.Float64()
-	// encoding/json writes a float64 such as 1e20 with neither a point nor an exponent, so a number
-	// written like an integer can come from a float64. Such a number is read as a float64 only when
-	// the float64 formats back to the same digits. Otherwise the number is an integer that does not
-	// fit in 64 bits.
-	if !strings.ContainsAny(n.String(), ".eE") &&
-		(err != nil || strconv.FormatFloat(f, 'f', -1, 64) != n.String()) {
-		return nil, fmt.Errorf("the integer at %s is %s, which does not fit in 64 bits", path, n)
-	}
-	if err != nil {
-		return nil, fmt.Errorf(
-			"the number at %s is %s, which is past the range of a float64",
-			path,
-			n,
-		)
-	}
-	return f, nil
 }

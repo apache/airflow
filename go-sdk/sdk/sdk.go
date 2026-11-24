@@ -140,9 +140,14 @@ type XComClient interface {
 
 	// PushXCom stores value under key for the given task instance ti.
 	//
-	// value must be JSON serializable; nil is allowed and is pushed as null.
-	// A time.Time, a byte slice or array such as a uuid.UUID, or a non-finite
-	// float is rejected before it is sent.
+	// value is stored as encoding/json writes it, so json struct tags and
+	// MarshalJSON methods apply: a time.Time is stored as an RFC 3339 string
+	// and a byte slice as a base64 string, which GetXCom returns as a string.
+	// A float64 with no fractional part, such as 5.0, is stored as the integer
+	// 5. nil is allowed and is pushed as null. A value that json.Marshal
+	// rejects, such as a non-finite float, is rejected before it is sent, and
+	// so is an integer that fits in neither int64 nor uint64, or a number past
+	// the range of a float64.
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error
 }
 
@@ -172,8 +177,8 @@ type TaskStateStore interface {
 	Get(ctx context.Context, key string) (any, error)
 
 	// UnmarshalJSONValue fetches a task state value and unmarshals it into
-	// pointer via json.Unmarshal. Use it for values stored as JSON objects or
-	// arrays; pointer must be a non-nil pointer.
+	// pointer via json.Unmarshal. Use it to read a value back into its Go
+	// type; pointer must be a non-nil pointer.
 	//
 	// The name keeps the UnmarshalJSON prefix of [VariableClient] without
 	// colliding with encoding/json's UnmarshalJSON, whose signature go vet
@@ -185,9 +190,14 @@ type TaskStateStore interface {
 	// “[state_store] default_retention_days“; if that setting is invalid or
 	// absent the write fails.
 	//
-	// value must be non-nil and built from strings, numbers, bools, slices,
-	// string-keyed maps, and structs. A time.Time, a byte slice or array, or a
-	// non-finite float is rejected before it is sent.
+	// value must be non-nil. It is stored as encoding/json writes it, so
+	// UnmarshalJSONValue reads it back into the same Go type: a time.Time is
+	// stored as an RFC 3339 string and a byte slice as a base64 string, which
+	// Get returns as a string. A float64 with no fractional part, such as 5.0,
+	// is stored as the integer 5, so Get returns it as an int64. A value that
+	// json.Marshal rejects, such as a non-finite float, is rejected before it
+	// is sent, and so is an integer that fits in neither int64 nor uint64, or
+	// a number past the range of a float64.
 	Set(ctx context.Context, key string, value any, opts ...SetOption) error
 
 	// Delete removes the value stored under key. Deleting a key that does not
