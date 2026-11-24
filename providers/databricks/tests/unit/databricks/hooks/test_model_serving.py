@@ -157,13 +157,29 @@ class TestGetProviderKwargs:
         assert kwargs["base_url"] == SERVING_URL
         mock_hook_cls.return_value._endpoint_url.assert_called_once_with("serving-endpoints")
         assert kwargs["api_key"] == _UNUSED_TOKEN_PLACEHOLDER
-        mock_hook_cls.return_value._get_token.assert_not_called()
+        mock_hook_cls.return_value._get_token.assert_called_once_with()
         assert isinstance(kwargs["http_client"], httpx2.AsyncClient)
         # Pin that per-request refresh is actually wired up: deleting `auth=...` from
         # `_get_databricks_hook` would leave every assertion above green.
         client_auth = kwargs["http_client"].auth
         assert isinstance(client_auth, _DatabricksServingAuth)
         assert client_auth._databricks_hook is mock_hook_cls.return_value
+
+    @pytest.mark.parametrize("kind", list(_build_token_errors_by_kind()))
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_token_error_fails_unless_transient(self, mock_hook_cls, kind):
+        error, is_transient = _build_token_errors_by_kind()[kind]
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook._get_token.side_effect = error
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+
+        if is_transient:
+            kwargs = hook._get_provider_kwargs(api_key=None, base_url=None, extra={})
+            assert kwargs["http_client"].auth._databricks_hook is mock_hook
+        else:
+            with pytest.raises(type(error)) as exc_info:
+                hook._get_provider_kwargs(api_key=None, base_url=None, extra={})
+            assert exc_info.value is error
 
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
     def test_databricks_hook_built_once(self, mock_hook_cls):
@@ -514,12 +530,12 @@ class TestGetConn:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
     @pytest.mark.asyncio
-    async def test_get_conn_does_not_fetch_token_until_request(self, mock_hook_cls):
+    async def test_get_conn_fetches_token_when_building_the_model(self, mock_hook_cls):
         mock_hook = _mock_databricks_hook(mock_hook_cls)
 
         hook = PydanticAIDatabricksHook(llm_conn_id="test_conn")
         model = hook.get_conn()
-        mock_hook._get_token.assert_not_called()
+        mock_hook._get_token.assert_called_once_with()
 
         client = httpx2.AsyncClient(
             auth=hook._http_client.auth,
@@ -528,7 +544,7 @@ class TestGetConn:
         await client.get("https://example.com/x")
 
         assert isinstance(model, OpenAIChatModel)
-        mock_hook._get_token.assert_called_once_with()
+        assert mock_hook._get_token.call_count == 2
 
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=LEFTOVER_PASSWORD_CONN_URI)
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
@@ -601,19 +617,38 @@ class TestGetConn:
             databricks_conn_id="databricks_conn", caller="PydanticAIDatabricksHook"
         )
 
+    @mock.patch.dict(
+        "os.environ",
+        AIRFLOW_CONN_PRIMARY_CONN=PRIMARY_CONN_URI,
+        AIRFLOW_CONN_FALLBACK_CONN=DATABRICKS_CONN_URI,
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    @pytest.mark.parametrize("kind", ["retry_exhausted_explicit_cause", "not_configured"])
+    def test_fallback_member_with_unusable_credentials_fails_chain_build(self, mock_hook_cls, kind):
+        error, is_transient = _build_token_errors_by_kind()[kind]
+        _mock_databricks_hook(mock_hook_cls)._get_token.side_effect = error
+        hook = PydanticAIHook(llm_conn_id="primary_conn")
+
+        if is_transient:
+            assert type(hook.get_conn()).__name__ == "FallbackModel"
+        else:
+            with pytest.raises(AirflowException, match="Token authentication isn't configured"):
+                hook.get_conn()
+
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
     @pytest.mark.parametrize("kind", ["retry_exhausted_explicit_cause", "not_configured"])
     @pytest.mark.asyncio
     async def test_fallback_chain_depends_on_token_failure_kind(self, mock_hook_cls, kind):
-        """Only a token endpoint that stays unreachable fails over; a misconfigured one fails the task.
+        """A credential that works when the model is built and fails later.
 
-        The second half needs openai>=3.15.0: older clients turn the auth's own exception into
+        Only a token endpoint that stays unreachable fails over; a configuration error fails the
+        task. The second half needs openai>=3.15.0: older clients turn the auth's own exception into
         APIConnectionError, which the fallback model treats like an unreachable endpoint.
         """
         error, is_transient = _build_token_errors_by_kind()[kind]
         mock_hook = _mock_databricks_hook(mock_hook_cls)
-        mock_hook._get_token.side_effect = error
+        mock_hook._get_token.side_effect = ["real-token", error]
         fallback_calls: list[int] = []
         first_handler = mock.Mock(spec=["__call__"])
 
@@ -650,13 +685,13 @@ class TestGetConn:
 class TestTestConnection:
     @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
     @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
-    def test_success_fetches_token_once(self, mock_hook_cls):
+    def test_success_fetches_token_when_building_the_model_and_again_explicitly(self, mock_hook_cls):
         _mock_databricks_hook(mock_hook_cls)
         ok, message = PydanticAIDatabricksHook(llm_conn_id="test_conn").test_connection()
 
         assert ok is True
         assert "only checked for being set, not validated against the workspace" in message
-        mock_hook_cls.return_value._get_token.assert_called_once_with()
+        assert mock_hook_cls.return_value._get_token.call_count == 2
 
     @mock.patch("requests.adapters.HTTPAdapter.send", autospec=True)
     def test_personal_access_token_is_accepted_without_a_request(self, mock_send):

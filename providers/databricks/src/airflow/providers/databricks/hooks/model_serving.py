@@ -56,6 +56,8 @@ if TYPE_CHECKING:
 # every request, so this value is never sent.
 _UNUSED_TOKEN_PLACEHOLDER = "unused-overridden-per-request"
 
+_TOKEN_FETCH_ERRORS = (AirflowException, ConnectionError)
+
 # Token refreshes run here, never on asyncio's default executor: ``asend()`` reads its reply on that
 # executor while holding the comms lock, so blocking lookups that fill it leave nothing to run the
 # read and the task hangs (common.ai>=1.1.0 guards against the same thing with ``_executor`` in
@@ -119,10 +121,12 @@ class _DatabricksServingAuth(httpx2.Auth):
 
     A token fetch that still cannot reach the token endpoint after its retries raises
     ``httpx2.ConnectError`` so that ``fallback_conn_ids`` can fail over. Any other failure, such as
-    missing credentials or a rejected secret, keeps its original exception. That guarantee needs
-    ``openai>=3.15.0``: earlier versions catch every exception raised while sending a request and
-    re-raise it as ``openai.APIConnectionError``, so in a ``fallback_conn_ids`` chain such a
-    configuration error fails over instead of failing the task.
+    missing credentials or a rejected secret, keeps its original exception.
+    ``PydanticAIDatabricksHook._get_provider_kwargs`` already raises such an error when
+    the model is built, on any openai version. One that first appears while a request is being sent
+    fails the task only with ``openai>=3.15.0``: earlier versions catch every exception raised while
+    sending a request and re-raise it as ``openai.APIConnectionError``, so in a ``fallback_conn_ids``
+    chain it fails over instead of failing the task.
     """
 
     def __init__(self, databricks_hook: BaseDatabricksHook) -> None:
@@ -131,7 +135,7 @@ class _DatabricksServingAuth(httpx2.Auth):
     def _get_auth_header(self, request: Request) -> str:
         try:
             return f"Bearer {_get_databricks_token(self._databricks_hook)}"
-        except (AirflowException, ConnectionError) as e:
+        except _TOKEN_FETCH_ERRORS as e:
             if _is_transient_token_failure(e):
                 raise httpx2.ConnectError(f"Could not fetch a Databricks token: {e}", request=request) from e
             raise
@@ -271,8 +275,17 @@ class PydanticAIDatabricksHook(PydanticAIHook):
             ``api_key`` and ``base_url`` (sourced from ``conn.password`` and ``conn.host``) are
             intentionally ignored: this connection hides those fields in the UI, and credentials
             and host come from the Databricks connection named by ``databricks_conn_id`` instead.
+
+        A token is fetched once here so that a non-transient token error fails when the model is built.
         """
-        self._get_databricks_hook(extra)
+        databricks_hook = self._get_databricks_hook(extra)
+        # A transient failure is left for request time, where _DatabricksServingAuth turns it into
+        # httpx2.ConnectError so that fail-over works.
+        try:
+            _get_databricks_token(databricks_hook)
+        except _TOKEN_FETCH_ERRORS as e:
+            if not _is_transient_token_failure(e):
+                raise
         return {
             "base_url": self._base_url,
             "api_key": _UNUSED_TOKEN_PLACEHOLDER,
