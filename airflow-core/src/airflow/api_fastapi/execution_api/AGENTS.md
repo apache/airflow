@@ -88,3 +88,17 @@ The task-sdk client tests use a mocked server, and the endpoint tests use a hand
 ## Token Scope Infrastructure
 
 Token types (`"execution"`, `"workload"`, `"callback"`, `"dag_processor_session"`, `"dag_processor"`, `"dag_parse"`), route-level enforcement via `ExecutionAPIRoute` + `require_auth`, and the `ti:self` path-parameter validation are documented in the module docstring of `security.py`. A route that admits `dag_processor` or `dag_parse` tokens for Connection, Variable, XCom, Dag run or task-instance reads must also bind the request to a granted Dag bundle (`SelectedDagBundle` or `DagInGrantedBundle`); the `/jobs` routes bind to the `job_id` claim instead. `test_token_scope_boundaries.py` lists the bundle-bound routes and the parse-time messages that use them.
+
+## Runtime verification
+
+Use the [Task SDK section](../../../../../task-sdk/AGENTS.md#runtime-verification) and prove the
+change with a triggered run, not only with `airflow dags test`. Without `--use-executor`,
+`dags test` calls these routes in its own process through `InProcessExecutionAPI`, which replaces
+the token and access checks with `always_allow` (see `in_process.py`). A triggered run sends the
+requests of the task over HTTP to the API server, with the token of the task, the way a worker
+does.
+
+The Dag processor and the triggerer of this instance also use `InProcessExecutionAPI`, so their
+requests skip the token checks in `security.py`. This instance cannot verify a change to the
+`dag_processor`, `dag_parse` or triggerer token rules. Say so in the report, and rely on
+`test_token_scope_boundaries.py` for those rules.

@@ -1,17 +1,20 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      https://www.apache.org/licenses/LICENSE-2.0 -->
 
-# A Dag run, from the file to the result
+# Task SDK — Agent Instructions
+
+## Runtime verification
 
 A user writes a Dag with `airflow.sdk`, saves it in the Dags folder, sees it parsed, triggers it and
 reads the outcome: the run state, the task states, the XCom values and the task logs. Most changes
 to the scheduler, the Dag processor, the executor, the Task SDK supervisor and task runner, and the
-Execution API show here.
+Execution API show here. This is also the baseline run for an area with no recipe of its own.
 
-The instance from [`SKILL.md`](../SKILL.md) is up and healthy. `<web>` is its port, `verify-<run>`
-its compose project, `<dag_id>` the id of the Dag under test.
+When you verify a change against a running Airflow, start it with the
+[runtime verification skill](../.agents/skills/airflow-runtime-verification/SKILL.md). The skill
+defines the placeholders used below.
 
-## Write the Dag
+### Write the Dag
 
 Save it in `files/dags/`, for example as `files/dags/verify_probe.py`. Use the changed behaviour in
 the smallest realistic way and print the value the change affects, with a marker word that is easy
@@ -39,7 +42,7 @@ def verify_probe():
 verify_probe()
 ```
 
-## Parse, trigger, wait
+### Parse, trigger, wait
 
 1. Wait until the Dag is parsed. The Dag processor looks for new files every 5 seconds:
 
@@ -71,7 +74,7 @@ verify_probe()
    curl -s "http://localhost:<web>/api/v2/dags/<dag_id>/dagRuns/<dag_run_id>"
    ```
 
-## Read the result
+### Read the result
 
 - Task states and try numbers: `GET .../dagRuns/<dag_run_id>/taskInstances`.
 - XCom: `GET .../dagRuns/<dag_run_id>/taskInstances/emit/xcomEntries/return_value` returns
@@ -84,14 +87,15 @@ verify_probe()
     | grep -o 'VERIFY received probe-ok'
   ```
 
-- Second surface, the CLI:
+- Second surface, the CLI (see its
+  [section](../airflow-core/src/airflow/cli/AGENTS.md#runtime-verification)):
 
   ```bash
   breeze exec --project-name verify-<run> -- \
     -c "AIRFLOW__CORE__LOAD_EXAMPLES=False airflow dags list-runs <dag_id> -o plain"
   ```
 
-## Variables, Connections and retries
+### Variables, Connections and retries
 
 Create a Variable and a Connection through the public API. Both calls return `201`:
 
@@ -103,7 +107,7 @@ curl -s -X POST -H 'Content-Type: application/json' http://localhost:<web>/api/v
 ```
 
 Read them inside a task and assert on the printed line in the task log. Add tasks like these to a
-Dag; the third fails on its first try only, which shows a retry:
+Dag. The third fails on its first try only, which shows a retry:
 
 ```python
 from datetime import timedelta
@@ -133,7 +137,7 @@ def fail_first_try() -> None:
 For the retried task, `.../taskInstances/fail_first_try/logs/1` holds the failed try and `logs/2`
 the next one. Without `retry_delay` the retry waits 5 minutes.
 
-## `airflow dags test`
+### `airflow dags test` and a triggered run
 
 ```bash
 breeze exec --project-name verify-<run> -- \
@@ -143,12 +147,13 @@ breeze exec --project-name verify-<run> -- \
 The exit code is `0` when the Dag run succeeds and `1` when it fails. What a task prints appears as
 a line without a prefix between the log lines. The command also runs a paused Dag.
 
-`dags test` runs the tasks in one process and calls the Execution API routes inside that process.
+Without `--use-executor`, `dags test` runs the tasks in one process and calls the Execution API
+routes inside that process.
 Under the scheduler a task goes through the executor and a supervisor process, and reaches the
 Execution API on the API server. A change to the executor, the supervisor or the way a task talks to
 the API server needs the triggered run above, not only `dags test`.
 
 `dags test` also writes a Dag run to the database of the instance. Its run id looks like a manual
-run; the `triggered_by` field is `test`. A run triggered with the `curl` call above has `rest_api`,
-one triggered in the UI has `ui`. Filter on that field before counting runs or reading the latest
-one.
+run, and its `triggered_by` field is `test`. A run triggered with the `curl` call above has
+`rest_api`, and one triggered in the UI has `ui`. Filter on that field before counting runs or
+reading the latest one.
