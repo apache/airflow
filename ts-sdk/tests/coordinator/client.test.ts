@@ -214,7 +214,7 @@ describe("getXCom not-found contract", () => {
 });
 
 describe("XCom key", () => {
-  it("defaults to return_value for getXCom and setXCom", async () => {
+  it("defaults to return_value for getXCom, setXCom and deleteXCom", async () => {
     const { client: c, sent } = recordingClient({
       type: "XComResult",
       key: "return_value",
@@ -223,10 +223,12 @@ describe("XCom key", () => {
 
     await c.getXCom({ taskId: "up" });
     await c.setXCom({ value: 1 });
+    await c.deleteXCom({});
 
     expect(sent.map((m) => [m.type, m.key])).toEqual([
       ["GetXCom", "return_value"],
       ["SetXCom", "return_value"],
+      ["DeleteXCom", "return_value"],
     ]);
   });
 });
@@ -400,7 +402,10 @@ describe("client is bound to TaskContext", () => {
   });
 });
 
-describe("setXCom map index default", () => {
+describe.each([
+  ["setXCom", (c: TaskClient, o: XComOpts) => c.setXCom({ ...o, value: 1 })],
+  ["deleteXCom", (c: TaskClient, o: XComOpts) => c.deleteXCom(o)],
+] as const)("%s map index default", (_name, call) => {
   it.each([
     ["the running task", {}, 3],
     ["the running task named explicitly", { dagId: "d", taskId: "t", runId: "r" }, 3],
@@ -416,7 +421,7 @@ describe("setXCom map index default", () => {
     async (_label, target, expected) => {
       const { client: c, sent } = recordingClient(null, MAPPED_CTX);
 
-      await c.setXCom({ key: "k", value: 1, ...target });
+      await call(c, { key: "k", ...target });
 
       expect(sent[0]).toMatchObject({ map_index: expected });
     },

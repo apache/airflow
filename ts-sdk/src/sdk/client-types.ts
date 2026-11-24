@@ -78,17 +78,19 @@ export interface SetXComOpts {
 /**
  * Options for deleting an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
+ * `dagId`, `taskId`, and `runId` default to the running task's context when
+ * omitted or `null`.
  *
  * `mapIndex` defaults to the running task's own map index when the target is
  * the running task, and to the unmapped value for any other task or run. Pass
  * a number to pick one mapped instance, or `null` for the unmapped one.
  */
 export interface DeleteXComOpts {
-  key: string;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  /** XCom key to delete; defaults to `"return_value"`. */
+  key?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
   mapIndex?: number | null;
 }
 

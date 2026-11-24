@@ -430,10 +430,10 @@ describe("public API", () => {
       mapIndex?: number | null;
     }>();
     expectTypeOf<DeleteXComOpts>().toEqualTypeOf<{
-      key: string;
-      dagId?: string;
-      runId?: string;
-      taskId?: string;
+      key?: string;
+      dagId?: string | null;
+      runId?: string | null;
+      taskId?: string | null;
       mapIndex?: number | null;
     }>();
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{

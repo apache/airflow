@@ -86,6 +86,17 @@ function resolveXComTarget(opts: XComTargetOpts, ctx: TaskContext) {
   };
 }
 
+function resolveXComWriteTarget(opts: XComTargetOpts, ctx: TaskContext) {
+  const target = resolveXComTarget(opts, ctx);
+  // A map index only names a row of the task that owns it, so another task or
+  // run does not inherit it. `mapIndex` is nullable: an explicit null stays null.
+  const targetsSelf =
+    target.dag_id === ctx.dagId && target.task_id === ctx.taskId && target.run_id === ctx.runId;
+  const mapIndex =
+    opts.mapIndex === undefined ? (targetsSelf ? ctx.mapIndex : null) : opts.mapIndex;
+  return { ...target, map_index: mapIndex === null || mapIndex < 0 ? null : mapIndex };
+}
+
 function fromWireConnection(body: WireConnectionResult): ConnectionResult {
   return {
     id: body.conn_id,
@@ -400,24 +411,16 @@ export function createCoordinatorClient(
     },
 
     async setXCom(opts: SetXComOpts): Promise<void> {
-      const target = resolveXComTarget(opts, ctx);
-      // A map index only names a row of the task that owns it, so another task or
-      // run does not inherit it. `mapIndex` is nullable: an explicit null stays null.
-      const targetsSelf =
-        target.dag_id === ctx.dagId && target.task_id === ctx.taskId && target.run_id === ctx.runId;
-      const mapIndex =
-        opts.mapIndex === undefined ? (targetsSelf ? ctx.mapIndex : null) : opts.mapIndex;
       const msg: SetXCom = {
         type: "SetXCom",
-        ...target,
+        ...resolveXComWriteTarget(opts, ctx),
         value: opts.value,
-        map_index: mapIndex === null || mapIndex < 0 ? null : mapIndex,
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
     },
 
     async deleteXCom(opts: DeleteXComOpts): Promise<void> {
-      const msg: DeleteXCom = { type: "DeleteXCom", ...resolveXComTarget(opts, ctx) };
+      const msg: DeleteXCom = { type: "DeleteXCom", ...resolveXComWriteTarget(opts, ctx) };
       await rpc("DeleteXCom", null, msg, () => undefined, "throw");
     },
 
