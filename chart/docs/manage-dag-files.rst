@@ -80,6 +80,14 @@ If you are deploying an image from a private repository, you need to create a se
 Using Git-Sync
 --------------
 
+To use a directory name other than ``repo``, set ``dags.gitSync.link``. For example,
+``link: myrepo`` places Dags under ``$AIRFLOW_HOME/dags/myrepo/<subPath>`` (or
+``<dags.mountPath>/myrepo/<subPath>`` when a custom mount path is set). This applies
+with and without persistence. The name must start with a letter, digit, underscore
+or hyphen and contain only letters, digits, underscores, hyphens and dots.
+This only renames the directory: Git-Sync publishes a symlink inside the Dag mount
+path, so the directory level cannot be removed.
+
 Mounting Dags using Git-Sync sidecar with persistence enabled
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
