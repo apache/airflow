@@ -95,7 +95,7 @@ Four pieces, in dependency order:
 2. **Project CI gate** — a `gate` job at the head of `ci-amd.yml`.
 3. **Fork mode CI** — a push trigger plus fork-aware selective checks.
 4. **Reconciler** — `breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml` on a schedule
-   and when a gated pull request is opened or pushed.
+   and when a gated pull request to `main` is opened or pushed.
 
 Plus `breeze ci audit` for the contributor's local setup, and documentation.
 
@@ -1094,7 +1094,9 @@ Breeze, so the monitor uses about 24 runner minutes an hour instead of 8. The ru
 `fork-ci-monitor-wake.yml` starts for gated pushes come on top: job statuses still get the budget
 for the time since the previous run, but each such run counts as one run for the per-run caps and
 the run counts before a Slack note, so those caps allow more per hour and a persisting problem is
-reported sooner than their names say.
+reported sooner than their names say. Each such run also costs a run's reads, about 45 today.
+The concurrency group runs them one after another, so at about 2 minutes a run they add at most
+about 30 runs an hour.
 
 These are estimates: the share of gated runs, the jobs per push and the pushes per pull request
 are assumptions, not measurements. Watch the monitor's call counts in its run log after enabling
@@ -1361,13 +1363,16 @@ budget stays observable.
 
 - `on: schedule: cron '*/5 * * * *'` (`MONITOR_INTERVAL`) and `workflow_dispatch` with a `dry-run`
   input.
-- `fork-ci-monitor-wake.yml` dispatches it when a `Tests (AMD)` run of a fork pull request to
-  `main` is requested and the gate, taken from `main` and fed the pull request's data from the API,
-  leaves that pull request to fork CI. `requested` comes right after the push, also for a run held
-  for approval, which GitHub creates already completed as `action_required`, before its gate job
-  runs. The wake-up is an `ubuntu-slim` job per fork pull request push that never checks out pull
-  request code, and adds a monitor run per gated pull request push; the concurrency group keeps one run queued, so a burst of pushes adds at most one run behind the
-  current one. Pull requests to other branches, and a wake-up that fails, wait for the schedule.
+- `fork-ci-monitor-wake.yml` dispatches it when a `Tests (AMD)` run of a fork pull request to `main`
+  is requested and the gate, taken from `main` and fed the pull request's data from the API, leaves
+  that pull request to fork CI. `requested` comes right after the push, also for a run held for
+  approval, which GitHub creates already completed as `action_required`, before its gate job runs.
+  The wake-up is an `ubuntu-slim` job per fork pull request push that never checks out pull request
+  code, and adds a monitor run per gated pull request push; the concurrency group keeps one run
+  queued, so a burst of pushes adds at most one run behind the current one. Pull requests to other
+  branches, re-runs, which GitHub does not report as `requested`, and a wake-up that fails wait for
+  the schedule. Discovery finds new pull requests through the search index, so a pull request that
+  the index does not list yet when the woken run searches also waits for the next run.
 - Two jobs, each with its own `permissions` block and a justification comment; the workflow
   grants nothing by default.
 - The `reconcile` job: `actions: write, contents: read, pull-requests: write, statuses: write`.
@@ -1543,7 +1548,8 @@ as a failed check rather than a crash.
 ## Known limitations
 
 - Opening or pushing a gated pull request to `main` starts a monitor run, so its first state
-  comment comes within one or two monitor runs (about 2 minutes each, at most about 7). Everything
+  comment comes within one or two monitor runs (about 2 minutes each, an estimate), unless the
+  search index does not list it yet. Everything
   else, such as the start or end of the fork run, arrives within one cadence (5 minutes) plus
   GitHub's delay of scheduled workflows: the fork runs in another repository, so no event in
   `apache/airflow` reports it.

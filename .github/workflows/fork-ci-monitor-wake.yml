@@ -27,6 +27,7 @@ on:  # yamllint disable-line rule:truthy
     # completed as `action_required`.
     types: [requested]
 permissions: {}
+
 jobs:
   wake:
     name: "Start the fork CI monitor for a gated pull request"
@@ -61,17 +62,20 @@ jobs:
           HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-        # Pull requests to other branches are left to the schedule.
+        # `workflow_run.pull_requests` is empty for runs from forks. Pull requests to other branches
+        # are left to the schedule.
         run: |
           set -euo pipefail
           # The sha is put into a jq filter below.
           [[ "${HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]] || { echo "Unexpected head sha: ${HEAD_SHA}"; exit 1; }
-          gh api -X GET --paginate "repos/${REPO}/pulls" \
-            -f state=open -f base=main -f per_page=100 -f head="${HEAD_REPOSITORY%%/*}:${HEAD_BRANCH}" \
-            --jq ".[] | select(.head.sha == \"${HEAD_SHA}\")" \
-            | jq -rs '.[0] // empty | "number=\(.number)", "head-repo=\(.head.repo.full_name)",
-              "author=\(.user.login)", "author-association=\(.author_association)",
-              "created-at=\(.created_at)"' >> "${GITHUB_OUTPUT}"
+          # -f with GET encodes the branch into the query string. One head and base pair has at most
+          # one open pull request.
+          gh api -X GET "repos/${REPO}/pulls" \
+            -f state=open -f base=main -f head="${HEAD_REPOSITORY%%/*}:${HEAD_BRANCH}" \
+            --jq ".[] | select(.head.sha == \"${HEAD_SHA}\")
+              | \"number=\(.number)\", \"head-repo=\(.head.repo.full_name)\", \"author=\(.user.login)\",
+                \"author-association=\(.author_association)\", \"created-at=\(.created_at)\"" \
+            >> "${GITHUB_OUTPUT}"
       # The inputs of the gate step in ci-amd.yml, which the triggering run's gate job decides from.
       - name: "Decide whether the pull request is gated"
         id: gate
@@ -86,6 +90,7 @@ jobs:
           PR_AUTHOR_ASSOCIATION: ${{ steps.pr.outputs.author-association }}
           PR_CREATED_AT: ${{ steps.pr.outputs.created-at }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+        # The gate reads the event name and the run id of the run it decides for.
         run: GITHUB_EVENT_NAME=pull_request GITHUB_RUN_ID="${RUN_ID}" python3 "${GATE_SCRIPT}"
       - name: "Start the fork CI monitor"
         if: steps.gate.outputs.project-ci == 'false'

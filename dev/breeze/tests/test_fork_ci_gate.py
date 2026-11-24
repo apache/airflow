@@ -315,6 +315,18 @@ def test_canonical_branch_filters_match_pull_request_release_branches():
     assert list(CANONICAL_PUSH_BRANCH_FILTERS) == release_prep_branches
 
 
+def _find_step(workflow_file: str, job: str, step_id: str) -> dict:
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / workflow_file).read_text())
+    return next(step for step in workflow["jobs"][job]["steps"] if step.get("id") == step_id)
+
+
+def test_monitor_wake_up_sets_the_gate_step_env_names():
+    gate = _find_step("ci-amd.yml", "gate", "gate")
+    wake = _find_step("fork-ci-monitor-wake.yml", "wake", "gate")
+
+    assert wake["env"].keys() - {"RUN_ID"} == gate["env"].keys()
+
+
 @pytest.mark.parametrize(
     ("pattern", "branch", "matches"),
     [
@@ -539,15 +551,3 @@ def test_main_reads_the_run_time_only_for_a_pilots_older_pull_request(mock_run, 
 )
 def test_find_pilot_join_after(login, created_at, expected):
     assert _config().find_pilot_join_after(login, created_at) == expected
-
-
-def _find_step(workflow_file: str, job: str, step_id: str) -> dict:
-    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github/workflows" / workflow_file).read_text())
-    return next(step for step in workflow["jobs"][job]["steps"] if step.get("id") == step_id)
-
-
-def test_monitor_wake_up_decides_from_the_gate_job_inputs():
-    gate = _find_step("ci-amd.yml", "gate", "gate")
-    wake = _find_step("fork-ci-monitor-wake.yml", "wake", "gate")
-
-    assert wake["env"].keys() - {"RUN_ID"} == gate["env"].keys()

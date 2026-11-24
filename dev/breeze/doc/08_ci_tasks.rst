@@ -185,10 +185,10 @@ Reconciling pull requests gated to fork CI
 ------------------------------------------
 
 Pull requests from external contributors can run their CI in the contributor's fork instead of in
-``apache/airflow`` (AIP-120). The ``fork-ci-reconcile`` command, run every 5 minutes and when such a
-pull request is pushed by the ``fork-ci-monitor.yml`` workflow, is the only place that changes those pull requests: their labels,
-draft state, state comment and commit statuses. With ``--dry-run`` it prints the changes instead of
-applying them. What it does is described in
+``apache/airflow`` (AIP-120). The ``fork-ci-reconcile`` command, run by the ``fork-ci-monitor.yml``
+workflow every 5 minutes and when such a pull request to ``main`` is opened or pushed, is the only
+place that changes those pull requests: their labels, draft state, state comment and commit statuses.
+With ``--dry-run`` it prints the changes instead of applying them. What it does is described in
 `Fork CI for external contributors <ci/08_fork_ci_for_external_contributors.md#reconciler>`_.
 
 These are all available flags of ``fork-ci-reconcile`` command:
