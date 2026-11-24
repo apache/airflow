@@ -18,8 +18,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import boto3
-
 from airflow.providers.amazon.aws.operators.mwaa_serverless import (
     MwaaServerlessCreateWorkflowOperator,
     MwaaServerlessDeleteWorkflowOperator,
@@ -35,7 +33,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
 from airflow.providers.amazon.aws.sensors.mwaa_serverless import MwaaServerlessWorkflowRunSensor
 from airflow.providers.common.compat.sdk import DAG, chain, task
 
-from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from system.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, print_and_delete_log_group
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -85,12 +83,7 @@ def print_and_delete_workflow_logs(workflow_arn: str):
     """Copy the workflow logs into this task's log, then delete their CloudWatch log group."""
     # The service names the log group after the workflow ID, the last ARN segment, which ends in
     # a generated suffix. The name is therefore only known once the workflow exists.
-    log_group_name = f"/aws/mwaa-serverless/{workflow_arn.rsplit('/', 1)[-1]}/"
-    logs_client = boto3.client("logs")
-    for page in logs_client.get_paginator("filter_log_events").paginate(logGroupName=log_group_name):
-        for event in page["events"]:
-            print(event["message"])
-    logs_client.delete_log_group(logGroupName=log_group_name)
+    print_and_delete_log_group(f"/aws/mwaa-serverless/{workflow_arn.rsplit('/', 1)[-1]}/")
 
 
 with DAG(

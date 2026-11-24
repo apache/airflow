@@ -64,6 +64,7 @@ def _get_sync_token_key(kubernetes_version: str) -> str:
 
 
 _SYNC_TOKEN_KEY = _get_sync_token_key(kubernetes.__version__)
+_SYNC_CLIENT_V_37_PLUS = Version(kubernetes.__version__).major >= 37
 
 
 class _EksExecutorHook(EksHook):
@@ -87,6 +88,8 @@ class _EksApiClient(client.ApiClient):
         self._expire_token = expire_token
 
     def call_api(self, *args, **kwargs):
+        if _SYNC_CLIENT_V_37_PLUS:
+            return self._call_api_with_serialized_auth(*args, **kwargs)
         try:
             return super().call_api(*args, **kwargs)
         except client.ApiException as e:
@@ -95,6 +98,22 @@ class _EksApiClient(client.ApiClient):
         log.warning(_TOKEN_REJECTED)
         self._expire_token()
         return super().call_api(*args, **kwargs)
+
+    def _call_api_with_serialized_auth(
+        self, method, url, header_params=None, body=None, post_params=None, _request_timeout=None
+    ):
+        # In 37+, headers are serialized before call_api, possibly in another thread for async_req.
+        header_params = dict(header_params or {})
+        _sent_token.set(header_params.get("authorization", "").removeprefix("Bearer "))
+        response = super().call_api(method, url, header_params, body, post_params, _request_timeout)
+        if response.status != HTTPStatus.UNAUTHORIZED:
+            return response
+        response.response.close()
+        response.response.release_conn()
+        log.warning(_TOKEN_REJECTED)
+        self._expire_token()
+        header_params["authorization"] = self.configuration.get_api_key_with_prefix(_SYNC_TOKEN_KEY)
+        return super().call_api(method, url, header_params, body, post_params, _request_timeout)
 
 
 class _EksAsyncApiClient(async_client.ApiClient):

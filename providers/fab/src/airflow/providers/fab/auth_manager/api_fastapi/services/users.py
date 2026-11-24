@@ -185,7 +185,7 @@ class FABAuthManagerUsers:
 
         password_changed = False
         if "password" in fields_to_update and body.password is not None:
-            user.password = security_manager._hash_password(body.password.get_secret_value())
+            security_manager.set_user_password(user, body.password.get_secret_value())
             password_changed = True
 
         if "username" in fields_to_update and body.username is not None:

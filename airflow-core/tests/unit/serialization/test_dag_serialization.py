@@ -5354,6 +5354,17 @@ class TestValidateSerializedDag:
         with pytest.raises(DeserializationError, match="^Dag 'checked_dag' has no timetable$"):
             DagSerialization.validate_serialized_dag(data)
 
+    def test_rejects_an_invalid_timetable(self):
+        data = self._serialize()
+        data["dag"]["timetable"] = {
+            "__type": "airflow.timetables.interval.CronDataIntervalTimetable",
+            "__var": {"expression": "0 25 * * *", "timezone": "UTC"},
+        }
+
+        error = "Dag 'checked_dag' has an invalid timetable: [0 25 * * *] is not acceptable, out of range"
+        with pytest.raises(DeserializationError, match=f"^{re.escape(error)}$"):
+            DagSerialization.validate_serialized_dag(data)
+
     @pytest.mark.parametrize(
         ("deadline", "error"),
         [
