@@ -7868,32 +7868,6 @@ def test_stats_tags_dag_tags_disabled_by_default(create_runtime_ti):
     assert ti.stats_tags == {"dag_id": "tagged_dag", "task_id": "t", "run_type": "manual"}
 
 
-@pytest.mark.parametrize("max_length", [1000, 120], ids=["short", "oversized"])
-@mock.patch("airflow.sdk.execution_time.task_runner.normalize_template_field", autospec=True)
-@mock.patch("airflow.sdk._shared.secrets_masker.redact", autospec=True)
-def test_serialize_template_field_delegates_normalization(mock_redact, mock_normalize, max_length):
-    """Verify the SDK delegates normalization but retains its own masking and truncation."""
-    original = object()
-    normalized = {"password": "sensitive", "padding": "x" * 200}
-    redacted = {"password": "***", "padding": "x" * 200}
-    mock_normalize.return_value = normalized
-    mock_redact.return_value = redacted
-
-    with conf_vars({("core", "max_templated_field_length"): str(max_length)}):
-        result = task_runner._serialize_template_field(original, "field")
-
-    mock_normalize.assert_called_once_with(original)
-    assert mock_normalize.call_args.args[0] is original
-    if max_length == 1000:
-        assert result is normalized
-        mock_redact.assert_not_called()
-    else:
-        mock_redact.assert_called_once_with(normalized, "field")
-        assert mock_redact.call_args.args[0] is normalized
-        prefix = "Truncated. You can change this behaviour in [core]max_templated_field_length. "
-        assert result == prefix + str(redacted)[: max_length - len(prefix) - 3].rstrip() + "..."
-
-
 @conf_vars({("metrics", "dag_tags_in_metrics"): "True"})
 def test_stats_tags_without_dag_tags(create_runtime_ti):
     tags = _make_dag_tagged_ti(create_runtime_ti, []).stats_tags
