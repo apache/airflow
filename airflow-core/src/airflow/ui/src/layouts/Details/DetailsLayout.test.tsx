@@ -90,7 +90,7 @@ it("positions a selected run that is only present as the page look-ahead row", (
     <BaseWrapper>
       <MemoryRouter initialEntries={["/dags/test_dag/runs/lookahead_run"]}>
         <Routes>
-          <Route element={<DetailsLayout tabs={[]} />} path="/dags/:dagId/runs/:runId" />
+          <Route element={<DetailsLayout />} path="/dags/:dagId/runs/:runId" />
         </Routes>
       </MemoryRouter>
     </BaseWrapper>,

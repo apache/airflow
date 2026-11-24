@@ -16,6 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
@@ -110,4 +112,41 @@ it("names the audit log date filter after the When column it filters", async () 
   expect(await screen.findByTestId("add-filter-event_date_range")).toHaveTextContent(
     "browse:auditLog.columns.when",
   );
+});
+
+// A 404 on a level's audit log is left to that level's header; the global log has no header, so
+// it reports its own.
+it.each([
+  { isShown: false, path: "/dags/dag/events", route: "/dags/:dagId/events" },
+  { isShown: true, path: "/events", route: "/events" },
+])("reports a 404 at $path: $isShown", async ({ isShown, path, route }) => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  vi.spyOn(EventLogService, "getEventLogs").mockRejectedValue({ status: 404 });
+
+  render(
+    <ChakraProvider value={defaultSystem}>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={[path]}>
+          <Routes>
+            <Route element={<Events />} path={route} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    </ChakraProvider>,
+  );
+  await waitFor(() =>
+    expect(
+      queryClient
+        .getQueryCache()
+        .getAll()
+        .some((query) => query.state.status === "error"),
+    ).toBe(true),
+  );
+
+  if (isShown) {
+    expect(await screen.findByTestId("error-alert")).toBeInTheDocument();
+  } else {
+    expect(screen.queryByTestId("error-alert")).not.toBeInTheDocument();
+  }
 });

@@ -97,6 +97,7 @@ vi.mock("src/components/DataTable", () => ({
   DataTable: ({
     columns,
     data,
+    errorMessage,
   }: {
     readonly columns: ReadonlyArray<{
       accessorKey?: string;
@@ -104,6 +105,7 @@ vi.mock("src/components/DataTable", () => ({
       header?: (() => ReactNode) | ReactNode;
     }>;
     readonly data: ReadonlyArray<TaskInstanceResponse>;
+    readonly errorMessage?: ReactNode;
   }) => {
     const renderedColumns = columns.filter(
       (column) =>
@@ -116,6 +118,7 @@ vi.mock("src/components/DataTable", () => ({
 
     return (
       <table>
+        <caption>{errorMessage}</caption>
         <thead>
           <tr>
             <th>{typeof selectionColumn?.header === "function" ? selectionColumn.header() : undefined}</th>
@@ -360,5 +363,43 @@ describe("TaskInstances date filters", () => {
       undefined,
       expect.anything(),
     );
+  });
+});
+
+// A 404 on a list inside a level is left to that level's header, but only the Dag, run and task
+// headers report one; the mapped and group levels have no header that does.
+describe("TaskInstances not-found error", () => {
+  const runId = "manual__2026-06-07T00:00:00+00:00";
+
+  it.each([
+    { description: "a run's tab", isShown: false, params: { dagId: "example_dag", runId } },
+    { description: "a task's tab", isShown: false, params: { dagId: "example_dag", taskId: "work" } },
+    { description: "the global list", isShown: true, params: {} },
+    {
+      description: "a mapped task's list",
+      isShown: true,
+      params: { dagId: "example_dag", runId, taskId: "mapped_task" },
+    },
+    {
+      description: "a group's list",
+      isShown: true,
+      params: { dagId: "example_dag", groupId: "batch", runId },
+    },
+  ])("reports a 404 on $description: $isShown", ({ isShown, params }) => {
+    mockParams = params;
+    mockSearchParams = new URLSearchParams();
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue({
+      data: undefined,
+      error: { status: 404 },
+      isLoading: false,
+    } as unknown as ReturnType<typeof useTaskInstanceServiceGetTaskInstances>);
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    if (isShown) {
+      expect(screen.getByTestId("error-alert")).toBeInTheDocument();
+    } else {
+      expect(screen.queryByTestId("error-alert")).not.toBeInTheDocument();
+    }
   });
 });
