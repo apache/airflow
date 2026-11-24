@@ -145,6 +145,31 @@ def test_empty_named_connection_disables_ambient_token_fallback(monkeypatch):
         dataset.push_to_hub.assert_called_once_with("org/public", token=False)
 
 
+@requires_async_session
+@pytest.mark.asyncio
+async def test_aget_dataset_info_empty_named_connection_sends_no_authorization_header(monkeypatch, mocker):
+    monkeypatch.setenv("AIRFLOW_CONN_HUGGINGFACE_PUBLIC", '{"conn_type":"huggingface"}')
+    monkeypatch.setenv("HF_TOKEN", "worker-write-token")
+    http = _async_http()
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return http.Response(200, json={"id": "org/public", "private": False})
+
+    mocker.patch(
+        "airflow.providers.huggingface.hooks.huggingface.get_async_session",
+        side_effect=_mock_async_session(handler),
+    )
+
+    hook = HuggingFaceHook("huggingface_public")
+    info = await hook.aget_dataset_info("org/public")
+
+    assert info.id == "org/public"
+    assert len(requests) == 1
+    assert "authorization" not in requests[0].headers
+
+
 def test_connection_test_success_and_failure(connection_env):
     with patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as api:
         hook = HuggingFaceHook("huggingface_test")
