@@ -140,7 +140,12 @@ class HuggingFaceHook(BaseHook):
         return response
 
     async def aget_dataset_info(self, repo_id: str, revision: str | None = None) -> Any:
-        """Async variant of :meth:`get_dataset_info`; reads the Hub over HTTP."""
+        """
+        Async variant of :meth:`get_dataset_info`; reads the Hub over HTTP.
+
+        Requires ``huggingface-hub>=1.0.0`` and raises
+        :class:`~airflow.exceptions.AirflowOptionalProviderFeatureException` when it is not installed.
+        """
         path = f"{constants.ENDPOINT}/api/datasets/{repo_id}"
         if revision is not None:
             path = f"{path}/revision/{quote(revision, safe='')}"
@@ -157,7 +162,12 @@ class HuggingFaceHook(BaseHook):
         revision: str | None = None,
         include_pull_requests: bool = False,
     ) -> Any | None:
-        """Async variant of :meth:`find_commit_by_marker`; scans the latest commit per requested ref."""
+        """
+        Async variant of :meth:`find_commit_by_marker`; scans the latest commit per requested ref.
+
+        Requires ``huggingface-hub>=1.0.0`` and raises
+        :class:`~airflow.exceptions.AirflowOptionalProviderFeatureException` when it is not installed.
+        """
         headers = build_hf_headers(token=await self._aget_token())
         revisions = [revision] if revision else ["main"]
         async with _create_async_session() as client:
