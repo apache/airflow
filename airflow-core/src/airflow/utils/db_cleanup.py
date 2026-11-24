@@ -642,7 +642,7 @@ def _delete_directly(
     dialect_name: str,
 ) -> None:
     pk_cols = list(source_table.primary_key.columns)
-    pk_query = limited_query.with_only_columns(
+    pk_query: Select = limited_query.with_only_columns(
         *[literal_column(f"{_BASE_TABLE_ALIAS}.{col.name}").label(col.name) for col in pk_cols]
     )
     rows_to_delete = pk_query.subquery("rows_to_delete")

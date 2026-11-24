@@ -57,7 +57,8 @@ def get_readable_import_error_files(
             DagModel.relative_fileloc.in_(filenames),
         )
     ):
-        dag_ids_by_file.setdefault(relative_fileloc, set()).add(dag_id)
+        if relative_fileloc is not None:
+            dag_ids_by_file.setdefault(relative_fileloc, set()).add(dag_id)
 
     readable: set[str] = set()
     if dag_ids_by_file:

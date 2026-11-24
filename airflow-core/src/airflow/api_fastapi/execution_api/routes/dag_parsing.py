@@ -452,7 +452,7 @@ class _RequestedWork(Protocol[WorkT]):
     model: type[WorkT]
     kind: Literal["callbacks", "priority"]
 
-    def build_query(self, *, replaying: bool) -> Select[tuple[WorkT]]: ...
+    def build_query(self, *, replaying: bool) -> Select[WorkT]: ...
 
     def get_payload(self, work: WorkT) -> tuple[str, CallbackRequest | None]: ...
 
@@ -463,7 +463,7 @@ class _CallbackWork:
     model = DagProcessorCallback
     kind: Literal["callbacks", "priority"] = "callbacks"
 
-    def build_query(self, *, replaying: bool) -> Select[tuple[DagProcessorCallback]]:
+    def build_query(self, *, replaying: bool) -> Select[DagProcessorCallback]:
         query = select(self.model).order_by(self.model.priority_weight.desc(), self.model.id)
         if not replaying:
             query = query.where(self.model.state.is_(None))
@@ -486,7 +486,7 @@ class _PriorityWork:
     model = DagPriorityParsingRequest
     kind: Literal["callbacks", "priority"] = "priority"
 
-    def build_query(self, *, replaying: bool) -> Select[tuple[DagPriorityParsingRequest]]:
+    def build_query(self, *, replaying: bool) -> Select[DagPriorityParsingRequest]:
         return select(self.model).order_by(self.model.id)
 
     def get_payload(self, work: DagPriorityParsingRequest) -> tuple[str, None]:
