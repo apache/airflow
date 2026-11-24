@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow.utils.hidden_entries import get_hidden_entry_sources
+from airflow.secrets.hidden_entries import get_hidden_entry_sources
 
 if TYPE_CHECKING:
     from fastapi import Response

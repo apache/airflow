@@ -22,7 +22,7 @@ import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
 
-from airflow.utils.hidden_entries import get_hidden_entry_sources
+from airflow.secrets.hidden_entries import get_hidden_entry_sources
 
 # Placeholder for masking sensitive values in CLI output
 SENSITIVE_PLACEHOLDER = "***"
