@@ -215,9 +215,9 @@ of the context are set to ``None``.
           ...
 
 The context also has a ``bundle_name`` field holding the name of the Dag bundle the file is being parsed from. It is
-set both when the Dag File Processor parses the file and when a task re-parses its Dag file before execution, and is
-``None`` outside of those parses. For example, you can use it to pass the bundle name to triggers created at parse
-time, which otherwise have no way to know which bundle they came from:
+set both when the Dag File Processor parses the file and when a task re-parses its Dag file before execution and,
+like ``dag_id`` and ``task_id``, it stays set while the task runs. For example, you can use it to pass the bundle name
+to triggers created at parse time, which otherwise have no way to know which bundle they came from:
 
 .. code-block:: python
 

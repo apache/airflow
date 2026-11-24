@@ -41,17 +41,10 @@ def _airflow_parsing_context_manager(
     if bundle_name is not None:
         os.environ[_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME] = bundle_name
 
-    try:
-        yield
-    finally:
-        # dag_id/task_id intentionally keep their historical behaviour of staying set when there was no
-        # previous value; bundle_name is fully restored so it never leaks past the parse it describes.
-        if bundle_name is not None:
-            if old_bundle_name is None:
-                os.environ.pop(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, None)
-            else:
-                os.environ[_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME] = old_bundle_name
+    yield
 
+    if old_bundle_name is not None:
+        os.environ[_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME] = old_bundle_name
     if old_task_id is not None:
         os.environ[_AIRFLOW_PARSING_CONTEXT_TASK_ID] = old_task_id
     if old_dag_id is not None:

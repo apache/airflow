@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from unittest import mock
 
 import pytest
 
@@ -26,8 +27,12 @@ from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME
 
 
 @pytest.fixture(autouse=True)
-def _clear_bundle_name(monkeypatch):
-    monkeypatch.delenv(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, raising=False)
+def _isolate_bundle_name():
+    # patch.dict also undoes the variable the context manager leaves set, which monkeypatch.delenv
+    # would not track when the variable was absent to begin with.
+    with mock.patch.dict(os.environ):
+        os.environ.pop(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, None)
+        yield
 
 
 def test_bundle_name_defaults_to_none():
@@ -35,20 +40,18 @@ def test_bundle_name_defaults_to_none():
     assert AirflowParsingContext(dag_id="d", task_id="t").bundle_name is None
 
 
-@pytest.mark.parametrize("previous", [None, "outer-bundle"])
-def test_context_manager_sets_and_restores_bundle_name(monkeypatch, previous):
+@pytest.mark.parametrize(
+    ("previous", "expected_after"),
+    [
+        pytest.param(None, "my-bundle", id="stays-set-without-previous-value"),
+        pytest.param("outer-bundle", "outer-bundle", id="restores-previous-value"),
+    ],
+)
+def test_context_manager_sets_bundle_name(previous, expected_after):
     if previous is not None:
-        monkeypatch.setenv(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, previous)
+        os.environ[_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME] = previous
 
     with _airflow_parsing_context_manager(bundle_name="my-bundle"):
         assert get_parsing_context().bundle_name == "my-bundle"
 
-    assert os.environ.get(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME) == previous
-
-
-def test_context_manager_restores_bundle_name_on_error():
-    with pytest.raises(RuntimeError):
-        with _airflow_parsing_context_manager(bundle_name="my-bundle"):
-            raise RuntimeError("boom")
-
-    assert _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME not in os.environ
+    assert get_parsing_context().bundle_name == expected_after

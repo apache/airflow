@@ -958,6 +958,7 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
         pytest.param(False, None, None, None, id="parse"),
     ],
 )
+@mock.patch.dict(os.environ)
 @mock.patch("airflow.sdk.execution_time.task_runner.get_listener_manager")
 @mock.patch("airflow.dag_processing.dagbag.BundleDagBag")
 @mock.patch("airflow.sdk.execution_time.bundles.DagBundlesManager")
@@ -1029,7 +1030,8 @@ def test_bundle_initialize_parsing_context(
         "task_id": expected_task_id,
         "bundle_name": expected_bundle_name,
     }
-    assert _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME not in os.environ
+    # Like dag_id/task_id, bundle_name stays set after startup so it is visible during task execution.
+    assert os.environ.get(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME) == expected_bundle_name
     mock_bundle.initialize.assert_called_once()
 
 
