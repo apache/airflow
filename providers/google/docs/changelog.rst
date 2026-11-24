@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+.. note::
+    ``GKEKubernetesAsyncHook`` now reuses its API client across ``get_conn()`` calls.
+    Exiting the context no longer closes the client. Direct hook users must call
+    ``await hook.close()`` when finished to release the connection pool and SSL context.
+    Built-in GKE pod and job triggers close the hook during cleanup. Subclasses overriding
+    ``cleanup()`` must call ``await super().cleanup()`` or close the hook themselves.
+
 23.0.0
 ......
 
@@ -34,13 +41,6 @@ Changelog
     ``BigQueryGetDataOperator`` no longer accepts ``project_id``, which has been deprecated since
     19.4.0. Use ``table_project_id`` instead. Dags that still pass ``project_id`` fail at parse time
     with ``TypeError``.
-
-.. note::
-    ``GKEKubernetesAsyncHook`` now reuses its API client across ``get_conn()`` calls.
-    Exiting the context no longer closes the client. Direct hook users must call
-    ``await hook.close()`` when finished to release the connection pool and SSL context.
-    Built-in GKE pod and job triggers close the hook during cleanup. Subclasses overriding
-    ``cleanup()`` must call ``await super().cleanup()`` or close the hook themselves.
 
 .. note::
     The provider no longer installs ``litellm``. It now depends on ``google-cloud-aiplatform`` and the

@@ -782,11 +782,11 @@ class TestGKEKubernetesAsyncHook:
         assert credentials.refresh.call_count == 2
 
     @pytest.mark.asyncio
-    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), new_callable=mock.AsyncMock)
-    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_token"), autospec=True)
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook._build_client"), autospec=True)
     async def test_close_releases_client_and_token(self, mock_build_client, mock_get_token, async_hook):
         mock_get_token.return_value = self._mock_token(["token-1"])
-        kube_client = mock.MagicMock(default_headers={}, close=mock.AsyncMock())
+        kube_client = mock.MagicMock(spec=async_client.ApiClient, default_headers={})
         mock_build_client.return_value = kube_client
 
         async with async_hook.get_conn():
