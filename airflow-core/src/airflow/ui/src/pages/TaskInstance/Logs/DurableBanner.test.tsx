@@ -80,6 +80,27 @@ const TRIES = [
     status: "failed",
     try_number: 6,
   },
+  {
+    decision: "resumed",
+    external_id: "run_1",
+    saved_seconds: null,
+    status: "running",
+    try_number: 7,
+  },
+  {
+    decision: "resumed",
+    external_id: "run_1",
+    saved_seconds: null,
+    status: "success",
+    try_number: 8,
+  },
+  {
+    decision: "resumed",
+    external_id: "run_1",
+    saved_seconds: null,
+    status: "failed",
+    try_number: 9,
+  },
 ];
 
 const renderFor = (tryNumber: number, taskInstance: Partial<TaskInstanceResponse> = {}) => {
@@ -114,6 +135,9 @@ describe("DurableBanner", () => {
     [4, "logs.durable.title.reconnected", "logs.durable.detail.reconnectedRunning"],
     [5, "logs.durable.title.reconnected", "logs.durable.detail.reconnectedNoDuration"],
     [6, "logs.durable.title.reconnected", "logs.durable.detail.reconnectedFailed"],
+    [7, "logs.durable.title.resumed", "logs.durable.detail.resumedRunning"],
+    [8, "logs.durable.title.resumed", "logs.durable.detail.resumed"],
+    [9, "logs.durable.title.resumed", "logs.durable.detail.resumedFailed"],
   ])("shows what durable execution did on try %i", (tryNumber, title, detail) => {
     renderFor(tryNumber);
 

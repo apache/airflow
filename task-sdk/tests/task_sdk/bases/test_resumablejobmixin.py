@@ -463,6 +463,76 @@ class TestResumeFailedJob:
         assert op.submitted_ids == ["job-002"]
         assert op.polled_ids == ["job-002"]
         assert task_state.get("test_job_id") == "job-002"
+        last_try = task_state.get(DURABLE_RECORD_KEY)["tries"][-1]
+        assert (last_try["decision"], last_try["previous_external_id"]) == ("resubmitted", "job-001")
+
+    @pytest.mark.parametrize(
+        ("resumed_id", "previous_id"),
+        [
+            pytest.param("job-001", None, id="resumed_in_place"),
+            pytest.param("job-001-repair", "job-001", id="resumed_under_new_id"),
+        ],
+    )
+    def test_resume_records_the_resumed_job(self, resumed_id, previous_id):
+        op = ResumingOperator(task_id="test_task", resumed_id=resumed_id)
+        op._status_map["job-001"] = "FAILED"
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+        status_while_polling: list = []
+
+        def poll(external_id, context):
+            status_while_polling.append(task_state.get(DURABLE_RECORD_KEY)["tries"][-1]["status"])
+            op._status_map[str(external_id)] = "SUCCEEDED"
+
+        op.poll_until_complete = poll
+        op.execute_resumable(make_context(task_state))
+
+        expected = {
+            "try_number": None,
+            "decision": "resumed",
+            "external_id": resumed_id,
+            "status": "success",
+            "submitted_at": None,
+            "saved_seconds": None,
+        }
+        if previous_id is not None:
+            expected["previous_external_id"] = previous_id
+        assert status_while_polling == ["running"]
+        assert task_state.get(DURABLE_RECORD_KEY)["tries"] == [expected]
+
+    @pytest.mark.parametrize(
+        ("status_after_raise", "expected_status"),
+        [
+            pytest.param("FAILED", "failed", id="job-failed-again"),
+            pytest.param("RUNNING", "running", id="wait-timed-out"),
+        ],
+    )
+    def test_resume_records_failed_only_when_the_job_ended(self, status_after_raise, expected_status):
+        op = ResumingOperator(task_id="test_task", resumed_id="job-001")
+        op._status_map["job-001"] = "FAILED"
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+
+        def poll(external_id, context):
+            op._status_map["job-001"] = status_after_raise
+            raise RuntimeError("poll stopped")
+
+        op.poll_until_complete = poll
+
+        with pytest.raises(RuntimeError, match="poll stopped"):
+            op.execute_resumable(make_context(task_state))
+
+        last_try = task_state.get(DURABLE_RECORD_KEY)["tries"][-1]
+        assert (last_try["decision"], last_try["status"]) == ("resumed", expected_status)
+
+    def test_resume_stored_job_records_running_for_deferrable_callers(self):
+        op = ResumingOperator(task_id="test_task", resumed_id="job-001")
+        op._status_map["job-001"] = "FAILED"
+        task_state = FakeTaskState({"test_job_id": "job-001"})
+        ctx = make_context(task_state)
+
+        op.resume_stored_job(ctx, op.get_resume_decision(ctx))
+
+        last_try = task_state.get(DURABLE_RECORD_KEY)["tries"][-1]
+        assert (last_try["decision"], last_try["status"]) == ("resumed", "running")
 
     @pytest.mark.parametrize("status", ["RUNNING", "SUCCEEDED"])
     def test_not_asked_when_job_did_not_fail(self, status):

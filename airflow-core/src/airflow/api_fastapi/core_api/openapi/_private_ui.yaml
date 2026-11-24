@@ -4799,6 +4799,7 @@ components:
           - resubmitted
           - reconnected
           - already_succeeded
+          - resumed
           title: Decision
         external_id:
           $ref: '#/components/schemas/JsonValue'

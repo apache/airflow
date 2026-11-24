@@ -171,8 +171,8 @@ How ``durable`` and ``resume_on_retry`` combine when a retry finds the stored jo
 Durable execution banner
 ------------------------
 
-When a retry reconnects to a running job, or uses the result of a job that already finished, the
-task logs page shows a banner saying so. The mixin records what each try did under the
+When a retry reconnects to a running job, uses the result of a job that already finished, or resumes
+a failed job with ``resume_failed_job``, the task logs page shows a banner saying so. The mixin records what each try did under the
 ``__airflow_durable__`` task state store key, and the banner reads it. A deferrable operator that
 reconnects shows the banner without a job status, because the outcome is known only after the
 Triggerer fires and nothing records it there. Deployments that set ``[workers] state_store_backend``
@@ -234,7 +234,8 @@ Call these methods before ``defer()`` instead:
   ``"already_succeeded"`` or ``"resume"``. It never submits, resumes or polls. It records a reconnect
   or an already succeeded job for the :ref:`durable execution banner <sdk-resumable-job-mixin-banner>`.
 * ``resume_stored_job(context, decision)`` resumes the failed job on a ``"resume"`` decision and
-  returns the id to wait on, or ``None`` when you should submit a new job.
+  returns the id to wait on, or ``None`` when you should submit a new job. It records the resume for
+  the banner.
 * ``persist_job_id(context, job_id)`` saves a new job's id so a retry can find it.
 
 .. code-block:: python

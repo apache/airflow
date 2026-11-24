@@ -25,7 +25,10 @@ from sqlalchemy import select
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.router import AirflowRouter
-from airflow.api_fastapi.core_api.datamodels.ui.durable_execution import DurableExecutionResponse
+from airflow.api_fastapi.core_api.datamodels.ui.durable_execution import (
+    DurableExecutionResponse,
+    DurableTryResponse,
+)
 from airflow.api_fastapi.core_api.security import requires_access_dag
 from airflow.api_fastapi.core_api.services.public.task_coordinates import TaskScopeDep
 from airflow.models.task_state_store import TaskStateStoreModel
@@ -57,8 +60,16 @@ def get_durable_execution(scope: TaskScopeDep, session: SessionDep) -> DurableEx
     )
     if value is None:
         return DurableExecutionResponse(tries=[])
-    try:
-        return DurableExecutionResponse.model_validate(json.loads(value))
-    except ValidationError:
-        # With [workers] state_store_backend set, the row holds only a reference to the offloaded value.
+    record = json.loads(value)
+    # With [workers] state_store_backend set, the row holds only a reference to the offloaded value.
+    raw_tries = record.get("tries") if isinstance(record, dict) else None
+    if not isinstance(raw_tries, list):
         return DurableExecutionResponse(tries=[])
+    tries = []
+    for raw_try in raw_tries:
+        try:
+            tries.append(DurableTryResponse.model_validate(raw_try))
+        except ValidationError:
+            # A newer Task SDK can write a decision this server does not know; keep the other tries.
+            continue
+    return DurableExecutionResponse(tries=tries)

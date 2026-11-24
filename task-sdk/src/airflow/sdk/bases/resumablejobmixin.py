@@ -46,6 +46,7 @@ class DurableDecision(StrEnum):
     RESUBMITTED = "resubmitted"
     RECONNECTED = "reconnected"
     ALREADY_SUCCEEDED = "already_succeeded"
+    RESUMED = "resumed"
 
 
 class ResumeDecision(NamedTuple):
@@ -162,16 +163,26 @@ class ResumableJobMixin(ABC):
             try:
                 result = self.poll_until_complete(decision.external_id, context)
             except Exception:
-                self._record_reconnect_failure(context, decision.external_id)
+                self._record_poll_failure(context, DurableDecision.RECONNECTED, decision.external_id)
                 raise
-            self._record_reconnect_outcome(context, decision.external_id)
+            self._record_poll_outcome(context, DurableDecision.RECONNECTED, decision.external_id)
             return result
         if decision.action == "already_succeeded":
             return self.get_job_result(decision.external_id, context)
         if decision.action == "resume":
             resumed_id = self.resume_stored_job(context, decision)
             if resumed_id is not None:
-                self.poll_until_complete(resumed_id, context)
+                previous_id = decision.external_id if resumed_id != decision.external_id else None
+                try:
+                    self.poll_until_complete(resumed_id, context)
+                except Exception:
+                    self._record_poll_failure(
+                        context, DurableDecision.RESUMED, resumed_id, previous_external_id=previous_id
+                    )
+                    raise
+                self._record_poll_outcome(
+                    context, DurableDecision.RESUMED, resumed_id, previous_external_id=previous_id
+                )
                 return self.get_job_result(resumed_id, context)
 
         # The replaced job's ID is kept in the history record; the banner does not show resubmits.
@@ -287,6 +298,13 @@ class ResumableJobMixin(ABC):
             )
         if resumed_id != external_id:
             self.persist_job_id(context, resumed_id)
+        self._record_try(
+            context,
+            DurableDecision.RESUMED,
+            resumed_id,
+            status="running",
+            previous_external_id=external_id if resumed_id != external_id else None,
+        )
         return resumed_id
 
     def _record_terminal_resubmit(self, external_id: JsonValue, status: str, stats_tags: dict) -> None:
@@ -384,8 +402,15 @@ class ResumableJobMixin(ABC):
         )
         return None
 
-    def _record_reconnect_outcome(self, context: Context, external_id: JsonValue) -> None:
-        """Record the reconnected job's status once polling returns, which may be before the job ends."""
+    def _record_poll_outcome(
+        self,
+        context: Context,
+        decision: DurableDecision,
+        external_id: JsonValue,
+        *,
+        previous_external_id: JsonValue = None,
+    ) -> None:
+        """Record the watched job's status once polling returns, which may be before the job ends."""
         try:
             job_status = self.get_job_status(external_id, context)
         except Exception:
@@ -393,9 +418,18 @@ class ResumableJobMixin(ABC):
             return
         # A poll that returned without raising accepted the job's end state (e.g. SageMaker ``Stopped``).
         if not self.is_job_active(job_status):
-            self._record_try(context, DurableDecision.RECONNECTED, external_id, status="success")
+            self._record_try(
+                context, decision, external_id, status="success", previous_external_id=previous_external_id
+            )
 
-    def _record_reconnect_failure(self, context: Context, external_id: JsonValue) -> None:
+    def _record_poll_failure(
+        self,
+        context: Context,
+        decision: DurableDecision,
+        external_id: JsonValue,
+        *,
+        previous_external_id: JsonValue = None,
+    ) -> None:
         """Record ``failed`` only if the job ended; a wait timeout raises while the job still runs."""
         try:
             job_status = self.get_job_status(external_id, context)
@@ -403,7 +437,9 @@ class ResumableJobMixin(ABC):
             self.log.warning("Could not read job status for durable execution history", exc_info=True)
             return
         if not self.is_job_active(job_status) and not self.is_job_succeeded(job_status):
-            self._record_try(context, DurableDecision.RECONNECTED, external_id, status="failed")
+            self._record_try(
+                context, decision, external_id, status="failed", previous_external_id=previous_external_id
+            )
 
     def _record_try(
         self,

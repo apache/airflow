@@ -3405,7 +3405,7 @@ export type DurableExecutionResponse = {
  */
 export type DurableTryResponse = {
     try_number: number | null;
-    decision: 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
+    decision: 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded' | 'resumed';
     external_id: JsonValue;
     status: TaskInstanceState | null;
     submitted_at?: string | null;
@@ -3413,7 +3413,7 @@ export type DurableTryResponse = {
     previous_external_id?: JsonValue;
 };
 
-export type decision = 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
+export type decision = 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded' | 'resumed';
 
 /**
  * Duration statistics for a DAG across historical runs.
