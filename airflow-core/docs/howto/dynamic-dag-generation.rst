@@ -227,5 +227,10 @@ to triggers created at parse time, which otherwise have no way to know which bun
 
   asset = Asset(
       "my_asset",
-      watchers=[AssetWatcher(name="my_watcher", trigger=MyTrigger(bundle_name=bundle_name))],
+      watchers=[
+          AssetWatcher(
+              name="my_watcher",
+              trigger=MyTrigger(bundle_name=bundle_name),  # Pass in the bundle name to be used, as needed
+          )
+      ],
   )

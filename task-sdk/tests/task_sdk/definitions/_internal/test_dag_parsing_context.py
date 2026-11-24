@@ -28,8 +28,6 @@ from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME
 
 @pytest.fixture(autouse=True)
 def _isolate_bundle_name():
-    # patch.dict also undoes the variable the context manager leaves set, which monkeypatch.delenv
-    # would not track when the variable was absent to begin with.
     with mock.patch.dict(os.environ):
         os.environ.pop(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, None)
         yield
