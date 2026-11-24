@@ -1253,8 +1253,8 @@ class TestAttemptLiveness:
             assert XComModelV2.get_for_attempt(current.id, "key", session=session).value == "current"
 
             class APITransport:
-                def get(self, path, *, params, follow_redirects=False):
-                    response = client.get(f"/{path}", params=params, follow_redirects=follow_redirects)
+                def get(self, path, *, params):
+                    response = client.get(f"/{path}", params=params)
                     response.raise_for_status()
                     return response
 

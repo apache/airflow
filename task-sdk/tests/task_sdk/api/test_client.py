@@ -29,7 +29,6 @@ import pytest
 import time_machine
 import truststore
 import uuid6
-from pydantic import ValidationError
 from task_sdk import make_client, make_client_w_dry_run, make_client_w_responses
 from uuid6 import uuid7
 
@@ -1344,8 +1343,16 @@ class TestXCOMOperations:
             return httpx2.Response(status_code=307, headers={"Location": str(location)})
 
         client = make_client(transport=httpx2.MockTransport(handle_request))
-        with pytest.raises(ValidationError):
+        with pytest.raises(httpx2.HTTPStatusError):
             client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key")
+
+    def test_redirect_on_another_endpoint_raises(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=307, headers={"Location": str(request.url)})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(httpx2.HTTPStatusError):
+            client.variables.get("key")
 
     @pytest.mark.parametrize(
         ("slice_values", "expected"),

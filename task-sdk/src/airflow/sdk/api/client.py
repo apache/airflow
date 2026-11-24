@@ -203,11 +203,9 @@ def get_json_error(response: httpx2.Response):
         raise err
 
 
-def raise_on_4xx_5xx(response: httpx2.Response):
+def require_2xx(response: httpx2.Response):
     try:
-        get_json_error(response)
-        if not response.is_redirect:  # Followed by httpx, or handled by the caller.
-            response.raise_for_status()
+        return get_json_error(response) or response.raise_for_status()
     except httpx2.HTTPStatusError as e:
         e.add_note(
             f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
@@ -626,16 +624,17 @@ def _build_xcom_slice_path(xcom_path: str) -> str:
     return f"{xcom_path}/slice"
 
 
-def _is_read_from_slice(response: httpx2.Response) -> bool:
+def _find_slice_redirect(response: httpx2.Response) -> httpx2.URL | None:
     """
-    Whether a Get XCom request was redirected to the slice endpoint.
+    Return where a Get XCom response redirects to, if that is its slice endpoint.
 
     The server does so for an omitted map index on a mapped task, since the
     slice lists one stored value per instance.
     """
-    if not response.history:
-        return False
-    return response.url.path == _build_xcom_slice_path(response.history[0].request.url.path)
+    if response.status_code != HTTPStatus.TEMPORARY_REDIRECT or "location" not in response.headers:
+        return None
+    target = response.request.url.join(response.headers["location"])
+    return target if target.path == _build_xcom_slice_path(response.request.url.path) else None
 
 
 class XComOperations:
@@ -693,11 +692,7 @@ class XComOperations:
         if include_prior_dates:
             params.update({"include_prior_dates": include_prior_dates})
         try:
-            resp = self.client.get(
-                _path("xcoms", dag_id, run_id, task_id, tail=key),
-                params=params,
-                follow_redirects=True,
-            )
+            resp = self.client.get(_path("xcoms", dag_id, run_id, task_id, tail=key), params=params)
         except ServerResponseError as e:
             if e.response.status_code != HTTPStatus.NOT_FOUND:
                 raise
@@ -725,8 +720,10 @@ class XComOperations:
             )
             # A missing XCom is not an error, as in Airflow 2; xcom_pull then returns its default.
             return XComResponse(key=key, value=None)
-        if _is_read_from_slice(resp):
-            mapped = XComSequenceSliceResponse.model_validate_json(resp.read())
+        except httpx2.HTTPStatusError as e:  # require_2xx raises for the redirect too.
+            if (slice_url := _find_slice_redirect(e.response)) is None:
+                raise
+            mapped = XComSequenceSliceResponse.model_validate_json(self.client.get(slice_url).read())
             # A mapped task with no values is not found not an empty slice.
             return mapped if mapped.root else XComResponse(key=key, value=None)
         return XComResponse.model_validate_json(resp.read())
@@ -1400,7 +1397,7 @@ class Client(httpx2.Client):
                 "airflow-api-version": API_VERSION,
             },
             event_hooks={
-                "response": [self._update_auth, raise_on_4xx_5xx],
+                "response": [self._update_auth, require_2xx],
                 "request": [add_correlation_id, inject_trace_context],
             },
             **kwargs,
