@@ -218,6 +218,17 @@ class TestBundleVersionLock:
         assert b.lock_file_path is None
         assert b.lock_file is None
 
+    def test_update_version_file_writes_parseable_timestamp_with_no_leftover_temp_files(self):
+        lock = BundleVersionLock(
+            bundle_name="abc",
+            bundle_version="v1",
+        )
+        lock._update_version_file()
+        assert lock.lock_file_path is not None
+        assert lock.lock_file_path.exists()
+        assert BundleUsageTrackingManager()._parse_dt(lock.lock_file_path.read_text()) is not None
+        assert list(lock.lock_file_path.parent.iterdir()) == [lock.lock_file_path]
+
     def test_log_exc_formats_message_correctly(self):
         """Test that _log_exc correctly formats the log message with all parameters."""
         from airflow.dag_processing.bundles.base import log as bundle_log
@@ -256,6 +267,19 @@ class FakeBundle(BaseDagBundle):
 
 
 class TestBundleUsageTrackingManager:
+    @pytest.mark.parametrize("val", ["", "not-a-date"])
+    def test_parse_dt_returns_none_for_invalid_values(self, val):
+        assert BundleUsageTrackingManager()._parse_dt(val) is None
+
+    @patch("airflow.dag_processing.bundles.base.get_bundle_tracking_dir")
+    def test_find_all_tracking_files_skips_empty_file(self, mock_get_dir, tmp_path):
+        mock_get_dir.return_value = tmp_path
+        (tmp_path / "empty-version").write_text("")
+        (tmp_path / "old-version").write_text("2020-01-01T00:00:00+00:00")
+        found = BundleUsageTrackingManager()._find_all_tracking_files(bundle_name="abc")
+        assert found is not None
+        assert [info.version for info in found] == ["old-version"]
+
     @pytest.mark.parametrize(
         ("threshold_hours", "min_versions", "when_hours", "expected_remaining"),
         [

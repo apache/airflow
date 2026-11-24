@@ -100,7 +100,7 @@ class BundleUsageTrackingManager:
         try:
             dt = pendulum.parse(val)
             return dt if isinstance(dt, pendulum.DateTime) else None
-        except ParserError:
+        except (ParserError, ValueError):
             return None
 
     @staticmethod
@@ -501,11 +501,13 @@ class BundleVersionLock:
             assert self.lock_file_path
         self.lock_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with tempfile.TemporaryDirectory() as td:
-            temp_file = Path(td, self.lock_file_path)
-            now = pendulum.now(tz=pendulum.UTC)
-            temp_file.write_text(now.isoformat())
+        with tempfile.NamedTemporaryFile(mode="w", dir=self.lock_file_path.parent, delete=False) as tmp:
+            tmp.write(pendulum.now(tz=pendulum.UTC).isoformat())
+            temp_file = Path(tmp.name)
+        try:
             os.replace(temp_file, self.lock_file_path)
+        finally:
+            temp_file.unlink(missing_ok=True)
 
     def acquire(self):
         if not self.version:
