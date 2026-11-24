@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 from azure.common import AzureHttpError
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -314,18 +314,16 @@ class TestWasbTaskHandler:
         assert rec.message == "Could not read logs from remote/log/location/1.log"
         assert rec.exc_info is not None
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", autospec=True)
     def test_write_log(self, mock_hook):
-        mock_hook.return_value.check_for_blob.return_value = True
         mock_hook.return_value.read_file.return_value = ""
         self.wasb_task_handler.io.write("text", self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
             "text", self.container_name, self.remote_log_location, overwrite=True
         )
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", autospec=True)
     def test_write_on_existing_log(self, mock_hook):
-        mock_hook.return_value.check_for_blob.return_value = True
         mock_hook.return_value.read_file.return_value = "old log"
         self.wasb_task_handler.io.write("text", self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
@@ -335,9 +333,8 @@ class TestWasbTaskHandler:
             overwrite=True,
         )
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", autospec=True)
     def test_write_on_existing_log_already_newline_terminated(self, mock_hook):
-        mock_hook.return_value.check_for_blob.return_value = True
         mock_hook.return_value.read_file.return_value = "old log\n"
         self.wasb_task_handler.io.write("text", self.remote_log_location)
         mock_hook.return_value.load_string.assert_called_once_with(
@@ -347,21 +344,10 @@ class TestWasbTaskHandler:
             overwrite=True,
         )
 
-    @pytest.mark.parametrize(
-        "failing_call",
-        [
-            pytest.param("check_for_blob", id="existence-check-fails"),
-            pytest.param("read_file", id="read-fails"),
-        ],
-    )
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
-    def test_write_refuses_to_overwrite_when_existing_log_cannot_be_read(
-        self, mock_hook, failing_call, caplog
-    ):
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", autospec=True)
+    def test_write_refuses_to_overwrite_when_existing_log_cannot_be_read(self, mock_hook, caplog):
         """A failed read of the existing log must not be uploaded over as if the log were empty."""
-        mock_hook.return_value.check_for_blob.return_value = True
-        mock_hook.return_value.read_file.return_value = "old log\n"
-        getattr(mock_hook.return_value, failing_call).side_effect = HttpResponseError(
+        mock_hook.return_value.read_file.side_effect = HttpResponseError(
             message="Operation could not be completed within the specified time. ErrorCode:ServerBusy"
         )
 
@@ -375,13 +361,14 @@ class TestWasbTaskHandler:
         )
         assert "ServerBusy" in caplog.text
 
-    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook", autospec=True)
     def test_write_when_remote_log_does_not_exist(self, mock_hook):
-        mock_hook.return_value.check_for_blob.return_value = False
+        mock_hook.return_value.read_file.side_effect = ResourceNotFoundError(
+            "The specified blob does not exist."
+        )
 
         assert self.wasb_task_handler.io.write("text", self.remote_log_location) is True
 
-        mock_hook.return_value.read_file.assert_not_called()
         mock_hook.return_value.load_string.assert_called_once_with(
             "text", self.container_name, self.remote_log_location, overwrite=True
         )
@@ -392,12 +379,11 @@ class TestWasbTaskHandler:
         fail_reads = {"enabled": False}
 
         class FakeHook:
-            def check_for_blob(self, container, blob_name, **kwargs):
-                return blob_name in blobs
-
             def read_file(self, container, blob_name, **kwargs):
                 if fail_reads["enabled"]:
                     raise HttpResponseError(message="ErrorCode:ServerBusy")
+                if blob_name not in blobs:
+                    raise ResourceNotFoundError("The specified blob does not exist.")
                 return blobs[blob_name]
 
             def load_string(self, string_data, container, blob_name, **kwargs):

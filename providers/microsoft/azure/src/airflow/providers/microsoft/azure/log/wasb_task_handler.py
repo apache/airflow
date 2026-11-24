@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
 import attrs
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
@@ -234,9 +234,9 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         """
         if append:
             try:
+                old_log = self.hook.read_file(self.wasb_container, remote_log_location)
+            except ResourceNotFoundError:
                 old_log = ""
-                if self.hook.check_for_blob(self.wasb_container, remote_log_location):
-                    old_log = self.hook.read_file(self.wasb_container, remote_log_location)
             except Exception as e:
                 # Uploading only the new content here would replace the existing blob and lose the
                 # log history already stored in it. Keep the local log and let the next upload retry.
