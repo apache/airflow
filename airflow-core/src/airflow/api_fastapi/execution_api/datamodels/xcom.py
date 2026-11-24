@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
-from pydantic import JsonValue, RootModel
+from pydantic import RootModel
 
+from airflow.api_fastapi.common.types import DecodedJsonValue
 from airflow.api_fastapi.core_api.base import BaseModel
 
 
@@ -26,7 +27,7 @@ class XComResponse(BaseModel):
     """XCom schema for responses with fields that are needed for Runtime."""
 
     key: str
-    value: JsonValue
+    value: DecodedJsonValue
     """The returned XCom value in a JSON-compatible format."""
 
 
@@ -52,10 +53,10 @@ class GetXcomFilterParams(BaseModel):
 class XComSequenceIndexResponse(RootModel):
     """XCom schema with minimal structure for index-based access."""
 
-    root: JsonValue
+    root: DecodedJsonValue
 
 
 class XComSequenceSliceResponse(RootModel):
     """XCom schema with minimal structure for slice-based access."""
 
-    root: list[JsonValue]
+    root: list[DecodedJsonValue]
