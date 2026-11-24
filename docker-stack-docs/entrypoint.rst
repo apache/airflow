@@ -211,7 +211,7 @@ If there are any other arguments - they are simply passed to the "airflow" comma
           kerberos          Start a kerberos ticket renewer
           plugins           Dump information about loaded plugins
           rotate-fernet-key
-                            Rotate encrypted connection credentials and variables
+                            Rotate encrypted connection credentials, variables and trigger kwargs
           scheduler         Start a scheduler instance
           standalone        Run an all-in-one copy of Airflow
           triggerer         Start a triggerer instance

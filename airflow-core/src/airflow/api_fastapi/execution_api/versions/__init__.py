@@ -68,6 +68,7 @@ from airflow.api_fastapi.execution_api.versions.v2026_10_30 import (
     IdentifyArchivedTaskStateUpdates,
     ReturnNotFoundForMissingDagRun,
 )
+from airflow.api_fastapi.execution_api.versions.v2026_12_01 import RemoveStringTriggerKwargs
 from airflow.api_fastapi.execution_api.versions.v2027_02_28 import (
     AddCallbackStateEndpoint,
     AddDagProcessorJobEndpoints,
@@ -88,6 +89,7 @@ bundle = VersionBundle(
         AddCallbackStateEndpoint,
         ResolveOmittedXComMapIndexByTaskDefinition,
     ),
+    Version("2026-12-01", RemoveStringTriggerKwargs),
     Version(
         "2026-10-30",
         AddArgBindingsToTIRunContext,
