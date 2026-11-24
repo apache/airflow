@@ -165,7 +165,7 @@ class BatchAdapter(ABC):
     without touching them.
     """
 
-    #: The ``model_id`` prefix this adapter serves (``"openai"`` in ``"openai:gpt-5"``).
+    #: The ``model_id`` prefix this adapter serves (``"openai"`` in ``"openai:gpt-6.1-sol"``).
     name: ClassVar[str]
     #: Airflow connection types whose ``password``/``host`` this adapter can turn into
     #: credentials. Dispatch rejects any other connection type with a clear error.
@@ -258,7 +258,7 @@ class BatchAdapter(ABC):
         """
         Upload/submit the batch and return the provider's batch id.
 
-        Where the provider offers batch-level metadata (OpenAI), record both
+        Where the provider offers batch-level metadata, record both
         ``idempotency_key`` and ``input_fingerprint`` there so
         :meth:`find_orphaned_batch` can read them back. The key alone identifies
         the task instance, not this submission of it: it is stable across a

@@ -55,6 +55,7 @@
   "history": "Historie",
   "importErrors": {
     "bundle": "Bündel",
+    "copyStackTrace": "Aufruf-Stapel kopieren",
     "dagImportError_one": "Fehler beim Laden des Dags",
     "dagImportError_other": "Fehler beim Laden der Dags",
     "searchByFile": "Nach Datei suchen",
@@ -72,6 +73,7 @@
   "stats": {
     "activeDags": "Aktive Dags",
     "failedDags": "Fehlgeschlagene Dags",
+    "failingTriggers": "Fehlgeschlage Benachrichtigungen",
     "queuedDags": "Dags in Warteschlange",
     "requiredActions": "Erforderliche Interaktionen",
     "runningDags": "Laufende Dags",

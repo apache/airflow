@@ -41,7 +41,7 @@ def pytest_collection_modifyitems(config, items):
     Automatically skip integration tests unless explicitly requested via -m flag.
 
     This allows running `pytest` without any flags to run only unit tests,
-    while `pytest -m integration` will run integration tests.
+    while `pytest -m integration_tests` will run integration tests.
     """
     # Check if user explicitly requested integration tests via -m
     markexpr = config.getoption("-m", default="")
@@ -50,11 +50,11 @@ def pytest_collection_modifyitems(config, items):
         return
 
     skip_integration = pytest.mark.skip(
-        reason="Did not run. This is tntegration test. Please run with: pytest -m integration_tests"
+        reason="Did not run. This is an integration test. Please run with: pytest -m integration_tests"
     )
 
     for item in items:
-        if "integration" in item.keywords:
+        if "integration_tests" in item.keywords:
             item.add_marker(skip_integration)
 
 

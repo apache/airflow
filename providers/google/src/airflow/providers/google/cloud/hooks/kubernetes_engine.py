@@ -74,7 +74,8 @@ class GKEClusterConnection:
 
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
-        configuration.refresh_api_key_hook = self._refresh_api_key_hook
+        # Kubernetes types this public callback as None.
+        configuration.refresh_api_key_hook = self._refresh_api_key_hook  # type: ignore[assignment]
         if self.enable_tcp_keepalive:
             configure_tcp_keepalive(configuration)
         return client.ApiClient(configuration)
@@ -513,7 +514,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         )
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
+    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:  # type: ignore[override]
         kube_client = None
         try:
             kube_client = await self._load_config()

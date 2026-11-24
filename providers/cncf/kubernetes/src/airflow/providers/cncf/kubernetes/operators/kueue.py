@@ -22,7 +22,7 @@ import json
 import time
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
@@ -172,16 +172,18 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
         self.name = self._set_name(self.name)
         self.job_request_obj = self.build_job_request_obj(context)
         self.job = self.create_job(job_request_obj=self.job_request_obj)  # must set `self.job` for `on_kill`
+        metadata = cast("k8s.V1ObjectMeta", self.job.metadata)
+        job_name, namespace = cast("str", metadata.name), cast("str", metadata.namespace)
 
         ti = context["ti"]
-        ti.xcom_push(key="job_name", value=self.job.metadata.name)
-        ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
+        ti.xcom_push(key="job_name", value=job_name)
+        ti.xcom_push(key="job_namespace", value=namespace)
 
         if self.deferrable:
             self.defer(
                 trigger=KubernetesKueueJobTrigger(
-                    job_name=self.job.metadata.name,
-                    job_namespace=self.job.metadata.namespace,
+                    job_name=job_name,
+                    job_namespace=namespace,
                     base_container_name=self.base_container_name,
                     kubernetes_conn_id=self.kubernetes_conn_id,
                     cluster_context=self.cluster_context,
@@ -195,9 +197,7 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
                 timeout=self.execution_timeout,
             )
 
-        return self.execute_complete(
-            context, self._wait_until_job_finished(self.job.metadata.name, self.job.metadata.namespace)
-        )
+        return self.execute_complete(context, self._wait_until_job_finished(job_name, namespace))
 
     def _wait_until_job_finished(self, job_name: str, namespace: str) -> dict[str, Any]:
         """Poll the Job until it is finished, and return the event ``KubernetesKueueJobTrigger`` yields."""
@@ -288,4 +288,6 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
         try:
             self.pod_manager.fetch_requested_container_logs(pod=pod, containers=self.container_logs)
         except (HTTPError, ApiException) as e:
-            self.log.warning("Could not read the logs of pod %s: %s", pod.metadata.name, e)
+            self.log.warning(
+                "Could not read the logs of pod %s: %s", pod.metadata.name if pod.metadata else None, e
+            )

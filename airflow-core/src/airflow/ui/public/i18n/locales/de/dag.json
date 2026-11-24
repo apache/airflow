@@ -85,6 +85,8 @@
     "upcomingCount_other": "{{count, number}} bevorstehende Fristen"
   },
   "extraLinks": "Extra Links",
+  "failingWatcherTriggers_one": "{{count, number}} fehlgeschlagene Benachrichtigung",
+  "failingWatcherTriggers_other": "{{count, number}} fehlgeschlagene Benachrichtigungen",
   "grid": {
     "buttons": {
       "newerRuns": "Neuere Läufe",

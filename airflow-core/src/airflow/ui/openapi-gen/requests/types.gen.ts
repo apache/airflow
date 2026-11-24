@@ -1621,11 +1621,26 @@ export type DryRunBackfillResponse = {
 };
 
 /**
- * Event Log Collection Response.
+ * Event Log collection response supporting both offset and cursor pagination.
  */
 export type EventLogCollectionResponse = {
     event_logs: Array<EventLogResponse>;
+    /**
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
+     */
     total_entries: number;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -3379,6 +3394,28 @@ export type DeadlineResponse = {
 };
 
 /**
+ * Durable execution history of a task instance, read by the logs banner.
+ */
+export type DurableExecutionResponse = {
+    tries: Array<DurableTryResponse>;
+};
+
+/**
+ * What one try did with the external job.
+ */
+export type DurableTryResponse = {
+    try_number: number | null;
+    decision: 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
+    external_id: JsonValue;
+    status: TaskInstanceState | null;
+    submitted_at?: string | null;
+    saved_seconds: number | null;
+    previous_external_id?: JsonValue;
+};
+
+export type decision = 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
+
+/**
  * Duration statistics for a DAG across historical runs.
  */
 export type DurationStats = {
@@ -4829,6 +4866,10 @@ export type GetEventLogResponse = EventLogResponse;
 export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -5594,6 +5635,10 @@ export type DeleteAssetStateStoreResponse = void;
 export type ListTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
+    /**
+     * Include keys starting with ``__airflow_``, which Airflow writes.
+     */
+    includeReserved?: boolean;
     limit?: number;
     mapIndex?: number;
     offset?: number;
@@ -6019,6 +6064,17 @@ export type GetCallbackLogsData = {
 };
 
 export type GetCallbackLogsResponse = TaskInstancesLogResponse;
+
+export type GetDurableExecutionData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
+    taskId: string;
+};
+
+export type GetDurableExecutionResponse = DurableExecutionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -10544,6 +10600,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/durable': {
+        get: {
+            req: GetDurableExecutionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DurableExecutionResponse;
                 /**
                  * Validation Error
                  */

@@ -337,8 +337,9 @@ class PlainXComArg(XComArg):
             return LazyXComSequence(xcom_arg=self, ti=ti)
         tg = self.operator.get_closest_mapped_task_group()
         if tg is None:
-            # No mapped task group - pull from unmapped instance
-            map_indexes: int | range | None = None
+            # No mapped task group; pull from the unmapped instance explicitly
+            # to spare the server a definition lookup.
+            map_indexes: int | range = -1
         else:
             # Compute lazily - ti_count will be queried if needed
             cached_context = getattr(ti, "_cached_template_context", None)

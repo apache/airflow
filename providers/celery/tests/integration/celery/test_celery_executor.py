@@ -171,7 +171,7 @@ class TestCeleryExecutor:
                                             "memory": "384Mi",
                                         },
                                         limits={
-                                            "cpu": 1,
+                                            "cpu": "1",
                                             "memory": "500Mi",
                                         },
                                     ),
