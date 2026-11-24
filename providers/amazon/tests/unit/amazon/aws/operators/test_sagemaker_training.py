@@ -33,6 +33,7 @@ from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.common.compat.sdk import DAG, AirflowException, TaskDeferred
 from airflow.providers.openlineage.extractors import OperatorLineage
 
+from tests_common.test_utils.task_state import get_non_reserved_task_state_writes
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -154,7 +155,7 @@ class TestSageMakerTrainingOperator:
 
         mock_training.assert_called_once()
         store.get.assert_not_called()
-        store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(store) == []
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
@@ -174,7 +175,9 @@ class TestSageMakerTrainingOperator:
 
         self.sagemaker.execute({"task_state_store": store})
 
-        store.set.assert_called_once_with("sagemaker_training_job_name", "job_name")
+        assert get_non_reserved_task_state_writes(store) == [
+            mock.call("sagemaker_training_job_name", "job_name")
+        ]
 
     @pytest.mark.skipif(
         not AIRFLOW_V_3_3_PLUS,
@@ -243,7 +246,7 @@ class TestSageMakerTrainingOperator:
         mock_training.assert_not_called()
         mock_configure_s3.assert_not_called()
         mock_poll.assert_not_called()
-        store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(store) == []
         assert result == {"Training": ""}
 
     @pytest.mark.skipif(
@@ -268,7 +271,9 @@ class TestSageMakerTrainingOperator:
         self.sagemaker.execute({"task_state_store": store})
 
         mock_training.assert_called_once()
-        store.set.assert_called_once_with("sagemaker_training_job_name", "job_name")
+        assert get_non_reserved_task_state_writes(store) == [
+            mock.call("sagemaker_training_job_name", "job_name")
+        ]
 
     def test_unknown_job_status_is_neither_active_nor_succeeded(self):
         assert self.sagemaker.is_job_active("NOT_FOUND") is False
@@ -307,7 +312,9 @@ class TestSageMakerTrainingOperator:
         self.sagemaker.execute({"task_state_store": store})
 
         mock_training.assert_called_once()
-        store.set.assert_called_once_with("sagemaker_training_job_name", "job_name")
+        assert get_non_reserved_task_state_writes(store) == [
+            mock.call("sagemaker_training_job_name", "job_name")
+        ]
 
     @pytest.mark.parametrize("durable", [True, False])
     def test_durable_is_a_named_parameter(self, durable):

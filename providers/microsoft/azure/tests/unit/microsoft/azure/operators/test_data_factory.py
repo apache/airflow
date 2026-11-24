@@ -40,6 +40,7 @@ from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFa
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.task_state import drop_reserved_task_state_keys
 from tests_common.test_utils.taskinstance import create_task_instance as _create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS
 from unit.microsoft.azure.test_utils import TaskStateStore
@@ -543,7 +544,7 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
         operator.execute(context)
 
         self.mock_run_pipeline.assert_called_once()
-        assert context["task_state_store"].values == {RUN_ID_KEY: NEW_RUN_ID}
+        assert drop_reserved_task_state_keys(context["task_state_store"].values) == {RUN_ID_KEY: NEW_RUN_ID}
         context["ti"].xcom_push.assert_called_once_with(key="run_id", value=NEW_RUN_ID)
 
     @pytest.mark.parametrize(
@@ -583,7 +584,7 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
         with pytest.raises(TaskDeferred):
             operator.execute(context)
 
-        assert context["task_state_store"].values == {RUN_ID_KEY: NEW_RUN_ID}
+        assert drop_reserved_task_state_keys(context["task_state_store"].values) == {RUN_ID_KEY: NEW_RUN_ID}
 
     @pytest.mark.parametrize("deferrable", [False, True])
     def test_execute_skips_succeeded_run(self, deferrable):
@@ -618,7 +619,7 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
         operator.execute(context)
 
         self.mock_run_pipeline.assert_called_once()
-        assert context["task_state_store"].values == {RUN_ID_KEY: NEW_RUN_ID}
+        assert drop_reserved_task_state_keys(context["task_state_store"].values) == {RUN_ID_KEY: NEW_RUN_ID}
         assert operator.run_id == NEW_RUN_ID
 
     def test_execute_without_waiting_returns_for_run_in_progress(self):
@@ -641,5 +642,7 @@ class TestAzureDataFactoryRunPipelineOperatorDurable:
 
         self.mock_run_pipeline.assert_called_once()
         self.mock_status.assert_not_called()
-        assert context["task_state_store"].values == {RUN_ID_KEY: STORED_RUN_ID}
+        assert drop_reserved_task_state_keys(context["task_state_store"].values) == {
+            RUN_ID_KEY: STORED_RUN_ID
+        }
         context["ti"].xcom_push.assert_called_once_with(key="run_id", value=NEW_RUN_ID)
