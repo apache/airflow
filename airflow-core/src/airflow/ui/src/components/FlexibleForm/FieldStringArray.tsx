@@ -52,7 +52,13 @@ export const FieldStringArray = ({ name, namespace = "default", onUpdate }: Flex
     }
   };
 
-  const value = Array.isArray(param.value) ? param.value.join("\n") : [];
+  const value = Array.isArray(param.value)
+    ? param.value
+        .map((item) =>
+          typeof item === "object" && item !== null ? JSON.stringify(item) : String(item ?? ""),
+        )
+        .join("\n")
+    : [];
 
   return (
     <Textarea

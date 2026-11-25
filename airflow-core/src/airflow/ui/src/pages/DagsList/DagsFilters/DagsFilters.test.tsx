@@ -20,7 +20,7 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, it, expect, vi } from "vitest";
 
-import { dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
+import { brokenDag, dagsListHandler, defaultDags, drainingDag } from "src/mocks/handlers/dags";
 import { server } from "src/mocks/server";
 import { AppWrapper } from "src/utils/AppWrapper";
 
@@ -66,6 +66,27 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
 
     await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
+  });
+
+  it("sends the paused default on every dags request, including the first", async () => {
+    const urls: Array<URL> = [];
+    const onRequest = ({ request }: { request: Request }) => {
+      urls.push(new URL(request.url));
+    };
+
+    server.events.on("request:start", onRequest);
+    try {
+      render(<AppWrapper initialEntries={["/dags"]} />);
+
+      await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    } finally {
+      server.events.removeListener("request:start", onRequest);
+    }
+
+    const dagsRequests = urls.filter((url) => url.pathname === "/ui/dags");
+
+    expect(dagsRequests).toHaveLength(1);
+    expect(dagsRequests.every((url) => url.searchParams.get("paused") === "false")).toBe(true);
   });
 
   it("keeps draining dags under the default, since they are not paused yet", async () => {
@@ -116,7 +137,7 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     expect(screen.queryByText("paused_dag")).not.toBeInTheDocument();
 
     // There is no "All" option any more; removing the pill is how you ask for every Dag.
-    fireEvent.click(screen.getByTestId("paused-pill-remove"));
+    fireEvent.click(await screen.findByTestId("paused-pill-remove"));
 
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
@@ -250,5 +271,28 @@ describe("Links written before draining moved into the pill", () => {
     fireEvent.click(screen.getByTestId("paused-pill-remove"));
     await waitFor(() => expect(screen.getByText("paused_dag")).toBeInTheDocument());
     expect(screen.getByText("draining_dag")).toBeInTheDocument();
+  });
+});
+
+const withBrokenDag = () => server.use(dagsListHandler([...defaultDags, brokenDag]));
+
+describe("Import errors filter", () => {
+  it.each([
+    { expected: "broken_dag", param: "true", unexpected: "tutorial_taskflow_api_success" },
+    { expected: "tutorial_taskflow_api_success", param: "false", unexpected: "broken_dag" },
+  ])("filters dags by has_import_errors=$param", async ({ expected, param, unexpected }) => {
+    withBrokenDag();
+    render(<AppWrapper initialEntries={[`/dags?has_import_errors=${param}`]} />);
+
+    await waitFor(() => expect(screen.getByText(expected)).toBeInTheDocument());
+    expect(screen.queryByText(unexpected)).not.toBeInTheDocument();
+  });
+
+  it("shows both when the filter is unset", async () => {
+    withBrokenDag();
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("broken_dag")).toBeInTheDocument());
+    expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument();
   });
 });

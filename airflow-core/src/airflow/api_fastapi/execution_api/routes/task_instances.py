@@ -93,7 +93,7 @@ from airflow.api_fastapi.execution_api.services.task_instances import (
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
 from airflow.configuration import conf
 from airflow.exceptions import InvalidPartitionKeyError, TaskNotFound
-from airflow.models.asset import AssetActive
+from airflow.models.asset import AssetActive, AssetEvent
 from airflow.models.base import ID_LEN
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DBDagBag
@@ -319,7 +319,8 @@ def ti_run(
                 select(DR)
                 .filter_by(dag_id=ti.dag_id, run_id=ti.run_id)
                 .options(
-                    joinedload(DR.consumed_asset_events),
+                    joinedload(DR.consumed_asset_events).selectinload(AssetEvent.asset),
+                    joinedload(DR.consumed_asset_events).selectinload(AssetEvent.source_aliases),
                     *eager_load_teams(DR.dag_model),
                     *dag_tag_options,
                 )

@@ -38,6 +38,7 @@ import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
 import type { DagView } from "src/constants/dagView";
 import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
+import { usePersistentSearchParamKeys } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
@@ -87,6 +88,7 @@ type Props = {
 export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
+  const persistentKeys = usePersistentSearchParamKeys();
   const refetchInterval = useAutoRefresh({ dagId });
   const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
     refetchInterval: (query) => query.state.data?.scheduling_state === "draining" && refetchInterval,
@@ -168,15 +170,23 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
 
   const noDateFilters = runAfterGte === undefined && runAfterLte === undefined;
 
-  // Initial grid page (no date ceiling) — loaded first so we can check whether
-  // the selected run is already visible before fetching it individually.
-  const { data: initialGridRuns } = useGridRuns({
-    dagRunState: dagRunStateFilter,
-    limit,
-    runIdPattern: runIdPatternFilter,
-    runType: runTypeFilter,
-    triggeringUser: triggeringUserFilter,
-  });
+  // Match the Grid's first-page query so React Query shares the request. This observer does not
+  // keep polling after the Grid moves to another page; it only positions a selected older run.
+  const { data: dataGridRuns } = useGridRuns(
+    {
+      dagRunState: dagRunStateFilter,
+      limit: limit + 1,
+      offset: 0,
+      runIdPattern: runIdPatternFilter,
+      runType: runTypeFilter,
+      triggeringUser: triggeringUserFilter,
+    },
+    {
+      autoRefresh: false,
+      enabled: Boolean(runId) && noDateFilters,
+    },
+  );
+  const initialGridRuns = dataGridRuns?.slice(0, limit);
 
   // Whether the selected run is absent from the initial grid page and we don't
   // yet have a ceiling set. Only true once initialGridRuns has loaded.
@@ -444,7 +454,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   >
                     {children}
                     <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-                    <NavTabs tabs={tabs} />
+                    <NavTabs persistentKeys={persistentKeys} tabs={tabs} />
                     <Box flexGrow={1} overflow="auto" pb={3} px={2}>
                       <Outlet context={outletContext} />
                     </Box>

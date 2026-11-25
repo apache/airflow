@@ -21,6 +21,7 @@ import { useState } from "react";
 import { Box, Button, Heading } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { useParams, useSearchParams } from "react-router-dom";
+import { useDebouncedCallback } from "use-debounce";
 import { useLocalStorage } from "usehooks-ts";
 
 import { Alert, Modal } from "src/system-components";
@@ -33,6 +34,7 @@ import {
   LOG_SHOW_TIMESTAMP_KEY,
   LOG_WRAP_KEY,
 } from "src/constants/localStorage";
+import { LOG_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { SHORTCUTS } from "src/context/keyboardShortcuts";
 import { useShortcut } from "src/hooks/useShortcut";
@@ -45,6 +47,8 @@ import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
 import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
 import { getDownloadText } from "./utils";
 
+const debounceDelay = 200;
+
 export const Logs = () => {
   const { dagId = "", taskId = "" } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -52,8 +56,8 @@ export const Logs = () => {
   const { t: translate } = useTranslation("dag");
 
   const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
-  const logLevelFilters = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
-  const sourceFilters = searchParams.getAll(SearchParamsKeys.SOURCE);
+  const logLevelFilters = searchParams.getAll(LOG_SEARCH_PARAMS.level);
+  const sourceFilters = searchParams.getAll(LOG_SEARCH_PARAMS.source);
 
   const defaultTryNumber = taskInstance?.try_number;
 
@@ -115,7 +119,9 @@ export const Logs = () => {
 
   const getLogString = () => downloadTextLines.filter((line) => line !== "").join("\n");
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const urlSearchQuery = searchParams.get(LOG_SEARCH_PARAMS.search) ?? "";
+  const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
+  const [lastUrlSearchQuery, setLastUrlSearchQuery] = useState(urlSearchQuery);
   const [activeSearchIndex, setActiveSearchIndex] = useState(0);
 
   const searchMatchIndices = (() => {
@@ -134,9 +140,37 @@ export const Logs = () => {
     return indices;
   })();
 
+  // Local state keeps the highlighting responsive; the url follows (debounced) so the query survives a
+  // tab change and can be shared.
+  const syncSearchParam = useDebouncedCallback((query: string) => {
+    setSearchParams(
+      (params) => {
+        if (query === "") {
+          params.delete(LOG_SEARCH_PARAMS.search);
+        } else {
+          params.set(LOG_SEARCH_PARAMS.search, query);
+        }
+
+        return params;
+      },
+      { replace: true },
+    );
+  }, debounceDelay);
+
+  // Back/Forward can change the url without remounting; adopt it unless a typed edit is still pending.
+  // The debounced write of the box's own query also lands here, and must not reset the selected match.
+  if (urlSearchQuery !== lastUrlSearchQuery) {
+    setLastUrlSearchQuery(urlSearchQuery);
+    if (!syncSearchParam.isPending() && urlSearchQuery !== searchQuery) {
+      setSearchQuery(urlSearchQuery);
+      setActiveSearchIndex(0);
+    }
+  }
+
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     setActiveSearchIndex(0);
+    syncSearchParam(query);
   };
 
   const handleSearchNext = () => {
@@ -219,6 +253,10 @@ export const Logs = () => {
     onSelectTryNumber,
     search: {
       currentMatchIndex: activeSearchIndex,
+      // Clicking a tab blurs the input before the link navigates, so the link carries the last keystrokes.
+      onSearchBlur: () => {
+        syncSearchParam.flush();
+      },
       onSearchChange: handleSearchChange,
       onSearchNext: handleSearchNext,
       onSearchPrevious: handleSearchPrevious,
