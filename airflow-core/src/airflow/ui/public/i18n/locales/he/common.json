@@ -50,6 +50,7 @@
   "dagBundle_two": "חבילות Dag",
   "dagDetails": {
     "activeRuns": "הרצות פעילות",
+    "bundleVersion": "גרסת חבילה",
     "catchup": "השלמה אוטומטית",
     "dagRunTimeout": "זמן תפוגה להרצת Dag",
     "defaultArgs": "פרמטרי ברירת מחדל",
@@ -124,6 +125,7 @@
     "home": "דף הבית",
     "invalidUrl": "הדף לא נמצא. בדוק את הכתובת ונסה שוב.",
     "notFound": "הדף לא נמצא",
+    "reload": "טען מחדש את הדף",
     "title": "שגיאה"
   },
   "errors": {
@@ -146,6 +148,7 @@
     "all": "הכל",
     "and": "וגם",
     "any": "כלשהו",
+    "hiddenAsset": "נכס מוסתר",
     "or": "או"
   },
   "filter": "מסנן",
@@ -227,6 +230,10 @@
     "write": "כתיבה"
   },
   "overallStatus": "סטטוס כללי",
+  "pagination": {
+    "nextPage": "הדף הבא",
+    "previousPage": "הדף הקודם"
+  },
   "partition_one": "מחיצה",
   "partition_other": "מחיצות",
   "partition_two": "מחיצות",
@@ -276,7 +283,8 @@
   "search": {
     "advanced": {
       "description": "חיפוש בכל מקום (תת-מחרוזת). איטי יותר בפריסות גדולות כי לא ניתן להשתמש באינדקס B-tree הרגיל. למידע נוסף, ראה תיעוד בנושא אינדקסי מטא-נתונים מותאמים אישית.",
-      "title": "חיפוש בכל מקום"
+      "title": "חיפוש בכל מקום",
+      "toggleLabel": "הפעל/כבה חיפוש בכל מקום"
     }
   },
   "security": {
@@ -390,10 +398,12 @@
       "scrollBottom": "גלול לתחתית הדף",
       "scrollTop": "גלול לראש הדף",
       "searchDags": "חפש $t(dag_other)",
+      "selectGridCellRange": "בחר טווח של $t(taskInstance_other) או $t(taskGroup_other)",
       "showHelp": "הצג $t(shortcuts.title)",
       "toggleExpand": "הרחב או כווץ את כל הקבוצות",
       "toggleFullscreen": "הפעל/כבה מסך מלא",
       "toggleGraphGrid": "החלף בין תצוגת גרף לתצוגת רשת",
+      "toggleGridCellSelection": "הוסף או הסר $t(taskInstance_one) או $t(taskGroup_one) מהבחירה",
       "toggleLogLevel": "הצג או הסתר רמות יומן",
       "toggleSource": "הצג/הסתר מקור",
       "toggleTaskGroup": "הרחב או כווץ $t(taskGroup_one)",
@@ -426,6 +436,7 @@
     "no_status": "ללא סטטוס",
     "none": "ללא סטטוס",
     "open": "פנוי",
+    "pending": "בהמתנה",
     "planned": "בתכנון",
     "queued": "בתור",
     "removed": "הוסרו",
@@ -440,6 +451,7 @@
   },
   "switchDag": "החלף $t(dag_one)",
   "switchDagRun": "החלף $t(dagRun_one)",
+  "switchMapIndex": "החלף $t(mapIndex)",
   "table": {
     "completedAt": "הושלם בתאריך",
     "createdAt": "נוצר בתאריך",
@@ -499,6 +511,7 @@
     "queue": "תור",
     "queuedWhen": "זמן כניסה לתור",
     "renderedMapIndex": "אינדקס מיפוי מעובד",
+    "retryAt": "מועד ניסיון חוזר",
     "scheduledWhen": "מועד תזמון",
     "stateReason": "סיבה למצב",
     "stateReasonSummary": {
