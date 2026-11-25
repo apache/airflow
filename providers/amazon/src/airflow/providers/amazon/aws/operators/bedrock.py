@@ -755,16 +755,14 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
     ):
         super().__init__(**kwargs)
 
-        if not role_arn:
+        if role_arn is None:
             raise ValueError("role_arn is required to create a Bedrock Knowledge Base.")
 
         if knowledge_base_config is None:
-            if not embedding_model_arn or not storage_config:
+            if embedding_model_arn is None or storage_config is None:
                 raise ValueError(
                     "embedding_model_arn and storage_config are required when knowledge_base_config is not provided."
                 )
-        elif knowledge_base_config.get("type") == "VECTOR" and not storage_config:
-            raise ValueError("storage_config is required for VECTOR knowledge bases.")
 
         self.name = name
         self.role_arn = role_arn
@@ -796,6 +794,9 @@ class BedrockCreateKnowledgeBaseOperator(AwsBaseOperator[BedrockAgentHook]):
                 "type": "VECTOR",
                 "vectorKnowledgeBaseConfiguration": {"embeddingModelArn": self.embedding_model_arn},
             }
+
+        if knowledge_base_config.get("type") == "VECTOR" and self.storage_config is None:
+            raise ValueError("storage_config is required for VECTOR knowledge bases.")
 
         def _create_kb():
             # This API call will return the following if the index has not completed, but there is no apparent

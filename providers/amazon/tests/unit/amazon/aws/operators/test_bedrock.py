@@ -688,18 +688,20 @@ class TestBedrockCreateKnowledgeBaseOperator:
 
     def test_custom_vector_configuration_requires_storage(self):
         """Custom VECTOR configurations should require storage_config."""
-        with pytest.raises(ValueError, match="storage_config is required for VECTOR"):
-            BedrockCreateKnowledgeBaseOperator(
-                task_id="missing_custom_vector_storage",
-                name=self.KNOWLEDGE_BASE_ID,
-                role_arn="role-arn",
-                knowledge_base_config={
-                    "type": "VECTOR",
-                    "vectorKnowledgeBaseConfiguration": {
-                        "embeddingModelArn": "embedding-model-arn",
-                    },
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="missing_custom_vector_storage",
+            name=self.KNOWLEDGE_BASE_ID,
+            role_arn="role-arn",
+            knowledge_base_config={
+                "type": "VECTOR",
+                "vectorKnowledgeBaseConfiguration": {
+                    "embeddingModelArn": "embedding-model-arn",
                 },
-            )
+            },
+        )
+
+        with pytest.raises(ValueError, match="storage_config is required for VECTOR"):
+            operator.execute({})
 
     def test_knowledge_base_config_uses_rendered_embedding_model_arn(self, mock_conn):
         """The knowledgeBaseConfiguration must be built from embedding_model_arn as it
