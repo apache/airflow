@@ -211,14 +211,34 @@ class TestSQLExecuteQueryOperator:
         assert descriptions == ("id", "name")
         assert result == [(1, "Alice"), (2, "Bob")]
 
+    @staticmethod
+    def _kill_during_run(operator: SQLExecuteQueryOperator, hook: MagicMock) -> None:
+        """Make ``hook.run`` call ``on_kill``, as the ``SIGTERM`` handler does while a statement runs."""
+        hook.run.side_effect = lambda *args, **kwargs: operator.on_kill()
+
     @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
     def test_on_kill_cancels_running_query(self, mock_get_hook):
         hook = mock.create_autospec(DbApiHook, instance=True)
         mock_get_hook.return_value = hook
-        operator = self._construct_operator("SELECT pg_sleep(600);")
-        operator.get_db_hook()  # as ``execute`` does before running the statement
+        operator = self._construct_operator("SELECT pg_sleep(600);", do_xcom_push=False)
+        self._kill_during_run(operator, hook)
 
-        operator.on_kill()
+        operator.execute(context={})
+
+        hook.cancel_query.assert_called_once_with()
+
+    def test_on_kill_cancels_through_the_hook_returned_by_get_db_hook(self):
+        hook = mock.create_autospec(DbApiHook, instance=True)
+
+        class OwnHookOperator(SQLExecuteQueryOperator):
+            # Like ``DuckDBExecuteQueryOperator``, which does not go through ``BaseSQLOperator._hook``
+            def get_db_hook(self):
+                return hook
+
+        operator = OwnHookOperator(task_id="test_task", sql="SELECT pg_sleep(600);", do_xcom_push=False)
+        self._kill_during_run(operator, hook)
+
+        operator.execute(context={})
 
         hook.cancel_query.assert_called_once_with()
 
@@ -234,10 +254,10 @@ class TestSQLExecuteQueryOperator:
     def test_on_kill_does_nothing_when_cancel_on_kill_is_disabled(self, mock_get_hook):
         hook = mock.create_autospec(DbApiHook, instance=True)
         mock_get_hook.return_value = hook
-        operator = self._construct_operator("SELECT pg_sleep(600);", cancel_on_kill=False)
-        operator.get_db_hook()
+        operator = self._construct_operator("SELECT pg_sleep(600);", cancel_on_kill=False, do_xcom_push=False)
+        self._kill_during_run(operator, hook)
 
-        operator.on_kill()
+        operator.execute(context={})
 
         hook.cancel_query.assert_not_called()
 
@@ -246,11 +266,11 @@ class TestSQLExecuteQueryOperator:
         hook = mock.create_autospec(DbApiHook, instance=True)
         hook.cancel_query.side_effect = RuntimeError("connection is closed")
         mock_get_hook.return_value = hook
-        operator = self._construct_operator("SELECT pg_sleep(600);")
-        operator.get_db_hook()
+        operator = self._construct_operator("SELECT pg_sleep(600);", do_xcom_push=False)
+        self._kill_during_run(operator, hook)
 
         with caplog.at_level(logging.ERROR):
-            operator.on_kill()
+            operator.execute(context={})
 
         hook.cancel_query.assert_called_once_with()
         assert "Failed to cancel the running SQL statement" in caplog.text

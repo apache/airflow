@@ -553,6 +553,8 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.show_return_value_in_logs = show_return_value_in_logs
         self.requires_result_fetch = requires_result_fetch
         self.cancel_on_kill = cancel_on_kill
+        # The hook ``execute`` runs the statements on, for ``on_kill``
+        self._running_hook: DbApiHook | None = None
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -585,20 +587,25 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         hook = self.get_db_hook()
         # The hook cancels a statement interrupted by the ``execution_timeout`` itself, before ``on_kill``
         hook.cancel_on_interrupt = self.cancel_on_kill
+        self._running_hook = hook
         if self.split_statements is not None:
             extra_kwargs = {"split_statements": self.split_statements}
         else:
             extra_kwargs = {}
-        output = hook.run(
-            sql=self.sql,
-            autocommit=self.autocommit,
-            parameters=self.parameters,
-            handler=self.handler
-            if self._should_run_output_processing() or self.requires_result_fetch
-            else None,
-            return_last=self.return_last,
-            **extra_kwargs,
-        )
+        try:
+            output = hook.run(
+                sql=self.sql,
+                autocommit=self.autocommit,
+                parameters=self.parameters,
+                handler=self.handler
+                if self._should_run_output_processing() or self.requires_result_fetch
+                else None,
+                return_last=self.return_last,
+                **extra_kwargs,
+            )
+        finally:
+            # ``on_kill`` is called again after an ``execution_timeout``, when nothing is running anymore
+            self._running_hook = None
         if not self._should_run_output_processing():
             return None
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
@@ -624,11 +631,13 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         """
         if not self.cancel_on_kill:
             return
-        # Only the hook that ``execute`` ran on holds the running statement. ``get_db_hook()`` could build a
-        # new hook here, with a connection lookup inside the signal handler, that has nothing to cancel.
-        hook = self.__dict__.get("_hook")
+        # Not ``get_db_hook()``: it can build a new hook, with a connection lookup inside the signal handler,
+        # that has nothing to cancel
+        hook = self._running_hook
         if hook is None:
-            self.log.info("Task instance is being killed before a SQL statement was run, nothing to cancel")
+            self.log.info(
+                "Task instance is being killed while no SQL statement is running, nothing to cancel"
+            )
             return
         self.log.info("Task instance is being killed, cancelling the running SQL statement if there is one")
         try:
