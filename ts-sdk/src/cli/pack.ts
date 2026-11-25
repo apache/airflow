@@ -134,34 +134,42 @@ function readBundleManifest(bundlePath: string): BundleManifest {
   // Writes to a file are synchronous.
   const stderrDir = mkdtempSync(path.join(tmpdir(), "airflow-ts-pack-"));
   const stderrPath = path.join(stderrDir, "stderr");
-  const stderrFd = openSync(stderrPath, "w");
+  let stderrFd: number;
+  try {
+    stderrFd = openSync(stderrPath, "w");
+  } catch (error) {
+    rmSync(stderrDir, { recursive: true, force: true });
+    throw error;
+  }
   let stdout: string;
   try {
-    stdout = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", stderrFd],
-      timeout: MANIFEST_TIMEOUT_MS,
-      maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
-    });
+    try {
+      stdout = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", stderrFd],
+        timeout: MANIFEST_TIMEOUT_MS,
+        maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
+      });
+    } catch (error) {
+      const stderr = readEnd(stderrPath, STDERR_READ_LIMIT_BYTES).text;
+      const reported = stderr
+        .split("\n")
+        .reverse()
+        .find((line) => /^\w*Error: /.test(line.trim()))
+        ?.trim();
+      throw new Error(
+        reported ??
+          `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}\n` +
+            stderr.trimEnd().slice(-STDERR_TAIL_CHARS),
+        { cause: error },
+      );
+    }
     // Still pass on what a working bundle logs, such as warnings from user code.
     const { text, skippedBytes } = readEnd(stderrPath, STDERR_READ_LIMIT_BYTES);
     if (skippedBytes > 0) {
       process.stderr.write(`[first ${skippedBytes} bytes of the bundle's stderr omitted]\n`);
     }
     if (text) process.stderr.write(text);
-  } catch (error) {
-    const stderr = readEnd(stderrPath, STDERR_READ_LIMIT_BYTES).text;
-    const reported = stderr
-      .split("\n")
-      .reverse()
-      .find((line) => /^\w*Error: /.test(line.trim()))
-      ?.trim();
-    throw new Error(
-      reported ??
-        `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}\n` +
-          stderr.trimEnd().slice(-STDERR_TAIL_CHARS),
-      { cause: error },
-    );
   } finally {
     closeSync(stderrFd);
     rmSync(stderrDir, { recursive: true, force: true });
