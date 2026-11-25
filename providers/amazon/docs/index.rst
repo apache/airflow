@@ -27,6 +27,7 @@
     Home <self>
     Changelog <changelog>
     Security <security>
+    Deprecation policy <deprecation-policy>
 
 .. toctree::
     :hidden:
