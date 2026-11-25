@@ -4268,8 +4268,10 @@ class TestSchedulerJob:
     def test_build_schedulable_tis_query_replaces_candidates_locked_by_other_transactions(
         self, dag_maker, session
     ):
-        # Four Dag runs of one candidate each, the three highest-priority ones locked.
-        self._schedule_one_task_per_dag_run(dag_maker, session, [("p4", 4), ("p3", 3), ("p2", 2), ("p1", 1)])
+        # CANDIDATE_BATCHES Dag runs of one candidate each (one batch of candidates per locked one, plus
+        # the replacement), all locked but the lowest-priority one.
+        priorities = range(CANDIDATE_BATCHES, 0, -1)
+        self._schedule_one_task_per_dag_run(dag_maker, session, ((f"p{p}", p) for p in priorities))
         session.commit()
         locked = session.scalars(select(TaskInstance.id).where(TaskInstance.dag_id != "p1")).all()
         query = SchedulerJobRunner(job=Job())._build_schedulable_tis_query(set(), set(), set(), set(), 1)
