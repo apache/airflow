@@ -30,8 +30,7 @@ violation is a call that creates a mock without a spec:
 * ``Mock``, ``MagicMock``, ``AsyncMock``, ``NonCallableMock`` or
   ``NonCallableMagicMock`` without ``spec``/``spec_set`` or a positional spec.
 * ``patch`` or ``patch.object`` without ``spec``, ``spec_set``, ``autospec``,
-  ``new`` or ``new_callable``, given by keyword or by position. A
-  ``new_callable`` that is itself a mock class still counts.
+  ``new`` or ``new_callable``, given by keyword or by position.
 
 An argument set to its "no spec" value counts as missing: ``None`` or ``False``
 for ``spec``, ``spec_set`` and ``autospec``, ``DEFAULT`` for ``new``, and
@@ -161,16 +160,9 @@ def _is_none_or_false(value: ast.expr) -> bool:
     return isinstance(value, ast.Constant) and (value.value is None or value.value is False)
 
 
-def _is_named(value: ast.expr, names: frozenset[str]) -> bool:
-    name = _get_dotted_name(value)
-    return name is not None and name.split(".")[-1] in names
-
-
 def _is_spec_or_new_argument(param: str, value: ast.expr) -> bool:
     if param == "new":
         return _get_dotted_name(value) not in _DEFAULT_NAMES
-    if param == "new_callable":
-        return not (_is_none_or_false(value) or _is_named(value, _MOCK_CLASSES))
     return not _is_none_or_false(value)
 
 

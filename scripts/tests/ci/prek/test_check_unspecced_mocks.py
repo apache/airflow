@@ -81,14 +81,6 @@ class TestUnspeccedMockAllowlistManager:
             pytest.param(
                 "mock.patch.object(Variable, 'get', return_value=1)", id="patch.object-return-value"
             ),
-            pytest.param(
-                "mock.patch('airflow.models.Variable.get', new_callable=mock.AsyncMock)",
-                id="patch-new_callable-mock-class",
-            ),
-            pytest.param(
-                "mock.patch.object(Variable, 'get', new_callable=MagicMock)",
-                id="patch.object-new_callable-mock-class",
-            ),
             pytest.param("MagicMock(spec=None)", id="MagicMock-spec-None"),
             pytest.param("MagicMock(spec_set=None)", id="MagicMock-spec_set-None"),
             pytest.param("MagicMock(None)", id="MagicMock-positional-spec-None"),
@@ -135,6 +127,16 @@ class TestUnspeccedMockAllowlistManager:
                 "mock.patch('airflow.models.Variable.get', new_callable=PropertyMock)",
                 id="patch-new_callable",
             ),
+            pytest.param(
+                "mock.patch('airflow.models.Variable.get', new_callable=mock.AsyncMock)",
+                id="patch-new_callable-mock-class",
+            ),
+            pytest.param(
+                "mock.patch.object(Variable, 'get', new_callable=MagicMock)",
+                id="patch.object-new_callable-mock-class",
+            ),
+            pytest.param("mock.patch.object(Variable, 'get', new=get)", id="patch.object-new"),
+            pytest.param("mock.patch.object(Variable, 'get', spec_set=True)", id="patch.object-spec_set"),
             pytest.param("mock.patch('airflow.models.Variable.get', new=None)", id="patch-new-None"),
             pytest.param("mock.patch('airflow.models.Variable.get', get)", id="patch-positional-new"),
             pytest.param(
