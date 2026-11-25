@@ -67,14 +67,17 @@ WeaviateSwapAliasOperator
 Use the :class:`~airflow.providers.weaviate.operators.weaviate.WeaviateSwapAliasOperator` to point a
 Weaviate alias to a collection. Applications that query the alias instead of the collection name can then
 be moved to a freshly built collection without downtime: load and embed the data into a new collection,
-then swap the alias to it. The alias is created if it does not exist. Aliases require Weaviate 1.32 or later.
+then swap the alias to it. By default (``create_if_missing=True``), the alias is created if it does not
+exist; set ``create_if_missing=False`` to raise an error when the alias is missing. Aliases require
+Weaviate 1.32 or later.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
 The operator requires ``alias_name`` and ``target_collection``. Set ``delete_previous_collection=True`` to
-delete the collection the alias pointed to before, once the swap has succeeded. The operator returns the
-name of that previous collection, so a later task can use it from XCom.
+delete the collection the alias pointed to before once the swap succeeds (deletion is skipped with a warning
+if other aliases still point to that collection). The operator returns the name of the swapped-out collection
+through XCom, or ``None`` if the alias was created or already pointed to ``target_collection``.
 
 An example swapping an alias to a re-indexed collection and deleting the old one:
 

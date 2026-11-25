@@ -185,6 +185,11 @@ class WeaviateDocumentIngestOperator(BaseOperator):
         return batch_delete_error
 
 
+def _normalize_collection_name(name: str) -> str:
+    """Return Weaviate's canonical collection name (first letter capitalized)."""
+    return name[:1].upper() + name[1:]
+
+
 class WeaviateSwapAliasOperator(BaseOperator):
     """
     Point a Weaviate alias to a collection, creating the alias if needed.
@@ -203,10 +208,11 @@ class WeaviateSwapAliasOperator(BaseOperator):
     :param create_if_missing: Create the alias if it does not exist. If ``False``, a missing alias
         raises an error.
     :param delete_previous_collection: After the swap, delete the collection the alias pointed to
-        before. The deletion cannot be undone.
+        before, unless other aliases still point to it. The deletion cannot be undone.
     :param hook_params: Optional config params to be passed to the underlying hook.
         Should match the desired hook constructor params.
-    :return: The name of the collection the alias pointed to before, or ``None`` if the alias was created.
+    :return: The name of the collection the alias pointed to before, or ``None`` if the alias was
+        created or already pointed to ``target_collection``.
     """
 
     template_fields: Sequence[str] = (
@@ -248,9 +254,18 @@ class WeaviateSwapAliasOperator(BaseOperator):
             return None
 
         previous_collection = alias.collection
-        if previous_collection == self.target_collection:
-            self.log.info("Alias '%s' already points to '%s'.", self.alias_name, self.target_collection)
-            return previous_collection
+        normalized_target = _normalize_collection_name(self.target_collection)
+        if previous_collection == normalized_target:
+            self.log.info("Alias '%s' already points to '%s'.", self.alias_name, previous_collection)
+            if self.delete_previous_collection:
+                self.log.warning(
+                    "Alias '%s' already points to '%s'; skipping deletion because no previous collection "
+                    "was swapped out. If a prior attempt swapped the alias before failing to delete the old "
+                    "collection, clean up the old collection manually.",
+                    self.alias_name,
+                    previous_collection,
+                )
+            return None
 
         if not self.hook.update_alias(self.alias_name, self.target_collection):
             raise RuntimeError(f"Alias '{self.alias_name}' disappeared before it could be updated.")
@@ -258,9 +273,17 @@ class WeaviateSwapAliasOperator(BaseOperator):
             "Swapped alias '%s' from '%s' to '%s'.",
             self.alias_name,
             previous_collection,
-            self.target_collection,
+            normalized_target,
         )
-        if self.delete_previous_collection:
-            self.hook.delete_collections(previous_collection)
-            self.log.info("Deleted previous collection '%s'.", previous_collection)
+        if self.delete_previous_collection and previous_collection != normalized_target:
+            remaining_aliases = self.hook.list_aliases(collection_name=previous_collection)
+            if remaining_aliases:
+                self.log.warning(
+                    "Skipping deletion of previous collection '%s' because aliases still point to it: %s.",
+                    previous_collection,
+                    sorted(remaining_aliases),
+                )
+            else:
+                self.hook.delete_collections(previous_collection)
+                self.log.info("Deleted previous collection '%s'.", previous_collection)
         return previous_collection

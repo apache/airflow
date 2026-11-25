@@ -214,17 +214,18 @@ class TestWeaviateDocumentIngestOperator:
 
 class TestWeaviateSwapAliasOperator:
     @staticmethod
-    def make_operator(**kwargs):
+    def make_operator(target_collection: str = "Docs_v2", **kwargs):
         operator = WeaviateSwapAliasOperator(
             task_id="swap_alias",
             conn_id="weaviate_conn",
             alias_name="Docs",
-            target_collection="Docs_v2",
+            target_collection=target_collection,
             **kwargs,
         )
         operator.hook.get_alias = MagicMock(return_value=None)
         operator.hook.create_alias = MagicMock()
         operator.hook.update_alias = MagicMock(return_value=True)
+        operator.hook.list_aliases = MagicMock(return_value={})
         operator.hook.delete_collections = MagicMock()
         return operator
 
@@ -244,14 +245,22 @@ class TestWeaviateSwapAliasOperator:
 
         operator.hook.create_alias.assert_not_called()
 
-    def test_alias_already_on_target_is_a_no_op(self):
-        operator = self.make_operator(delete_previous_collection=True)
+    @pytest.mark.parametrize("target_collection", ["Docs_v2", "docs_v2"])
+    @patch("airflow.providers.weaviate.operators.weaviate.WeaviateSwapAliasOperator.log")
+    def test_alias_already_on_target_is_a_no_op(self, mock_log, target_collection):
+        operator = self.make_operator(
+            target_collection=target_collection,
+            delete_previous_collection=True,
+        )
         operator.hook.get_alias.return_value = MagicMock(collection="Docs_v2")
 
-        assert operator.execute(context=None) == "Docs_v2"
+        assert operator.execute(context=None) is None
 
         operator.hook.update_alias.assert_not_called()
+        operator.hook.list_aliases.assert_not_called()
         operator.hook.delete_collections.assert_not_called()
+        mock_log.warning.assert_called_once()
+        assert "skipping deletion" in mock_log.warning.call_args[0][0]
 
     def test_swaps_alias_and_keeps_previous_collection_by_default(self):
         operator = self.make_operator()
@@ -260,15 +269,30 @@ class TestWeaviateSwapAliasOperator:
         assert operator.execute(context=None) == "Docs_v1"
 
         operator.hook.update_alias.assert_called_once_with("Docs", "Docs_v2")
+        operator.hook.list_aliases.assert_not_called()
         operator.hook.delete_collections.assert_not_called()
 
     def test_deletes_previous_collection_after_swap(self):
         operator = self.make_operator(delete_previous_collection=True)
         operator.hook.get_alias.return_value = MagicMock(collection="Docs_v1")
 
-        operator.execute(context=None)
+        assert operator.execute(context=None) == "Docs_v1"
 
+        operator.hook.list_aliases.assert_called_once_with(collection_name="Docs_v1")
         operator.hook.delete_collections.assert_called_once_with("Docs_v1")
+
+    @patch("airflow.providers.weaviate.operators.weaviate.WeaviateSwapAliasOperator.log")
+    def test_skips_deleting_previous_collection_when_other_aliases_remain(self, mock_log):
+        operator = self.make_operator(delete_previous_collection=True)
+        operator.hook.get_alias.return_value = MagicMock(collection="Docs_v1")
+        operator.hook.list_aliases.return_value = {"OtherAlias": MagicMock(collection="Docs_v1")}
+
+        assert operator.execute(context=None) == "Docs_v1"
+
+        operator.hook.list_aliases.assert_called_once_with(collection_name="Docs_v1")
+        operator.hook.delete_collections.assert_not_called()
+        mock_log.warning.assert_called_once()
+        assert mock_log.warning.call_args[0][2] == ["OtherAlias"]
 
     def test_raises_when_alias_disappears_before_update(self):
         operator = self.make_operator(delete_previous_collection=True)
@@ -278,4 +302,5 @@ class TestWeaviateSwapAliasOperator:
         with pytest.raises(RuntimeError, match="disappeared"):
             operator.execute(context=None)
 
+        operator.hook.list_aliases.assert_not_called()
         operator.hook.delete_collections.assert_not_called()
