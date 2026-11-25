@@ -2210,6 +2210,20 @@ requires-dist = [
 ]
 
 [[package]]
+name = "apache-airflow-client"
+version = "3.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "python-dateutil" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c5/7e/d8fc5e394aa9f66824af59541ff7808f3d3b9d64e8375982ea874dd6c019/apache_airflow_client-3.4.0.tar.gz", hash = "sha256:9b77972c7c2d58be21cc9ff364f487804fd1cd5f377426cd48aecb39524ebc9e", size = 344028, upload-time = "2026-11-12T13:21:31.259Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/db/4f/e65dd689a703dc8bd40b03e9554445017ec5f4f9a13fedc770997c376dfe/apache_airflow_client-3.4.0-py3-none-any.whl", hash = "sha256:d592eaaf6f919f196e90ca3189c5d14a88975cc5985e495347a7b7bdec87cb2c", size = 680736, upload-time = "2026-11-12T13:21:29.525Z" },
+]
+
+[[package]]
 name = "apache-airflow-core"
 version = "3.5.0"
 source = { editable = "airflow-core" }
@@ -3071,9 +3085,11 @@ name = "apache-airflow-e2e-tests"
 version = "0.0.1"
 source = { editable = "airflow-e2e-tests" }
 dependencies = [
+    { name = "apache-airflow-client" },
     { name = "apache-airflow-core" },
     { name = "apache-airflow-devel-common" },
     { name = "boto3" },
+    { name = "pendulum" },
     { name = "testcontainers" },
 ]
 
@@ -3084,9 +3100,11 @@ mypy = [
 
 [package.metadata]
 requires-dist = [
+    { name = "apache-airflow-client", specifier = ">=3.4.0" },
     { name = "apache-airflow-core", editable = "airflow-core" },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "boto3", specifier = ">=1.43.6" },
+    { name = "pendulum", specifier = ">=3.1.0" },
     { name = "testcontainers", specifier = ">=4.12.0" },
 ]
 
