@@ -363,37 +363,11 @@ server. When it points at Ollama, pass ``OllamaBackend`` as the factory
 For LM Studio, pass ``LMStudioBackend``. It needs LM Studio 0.4.0 or later, the
 release that introduced the native
 `v1 REST API <https://lmstudio.ai/docs/developer/rest>`__ (see also the
-`API changelog <https://lmstudio.ai/docs/developer/api-changelog>`__). It first
-lists the models with
+`API changelog <https://lmstudio.ai/docs/developer/api-changelog>`__). It lists
+the models with
 `GET /api/v1/models <https://lmstudio.ai/docs/developer/rest/list>`__ and sends
 `POST /api/v1/models/load <https://lmstudio.ai/docs/developer/rest/load>`__
-only when the model's entry has no loaded instance. The check comes first
-because the LM Studio documentation, as of this writing, does not say what
-loading an already-loaded model does. The load documentation also does not say
-whether the request waits until the model is loaded or what an error response
-looks like, so the backend relies on neither: it treats a successful response
-as done and reports the ``error`` text of a failed response when there is one,
-or the start of the response body otherwise.
-
-The model name is compared with the ``key`` of the listed models, so use the
-model key that LM Studio lists. A ``loaded_instances`` that is missing, empty or
-not a list counts as not loaded, and an entry without a ``key`` never matches. If the list
-is not a JSON object with a ``models`` list of objects, for example when a proxy
-answers with a login page, ``ValueError`` is raised instead of loading anyway.
-The list request gets ``timeout`` seconds and the load request gets the time
-the list request left. Each is an httpx2 timeout, which applies to the connect,
-write and read phases separately, so both requests together can take longer
-than ``timeout``. A timeout message names the time that request was given.
-The list and the load are two requests, not one atomic step, so two tasks that
-start together can both see the model as not loaded and both send a load
-request.
-``base_url`` may end in ``/v1`` or ``/api/v1`` and must be set (``ValueError``
-otherwise). The backend does not send an API token, so LM Studio with
-`authentication <https://lmstudio.ai/docs/developer/core/authentication>`__
-turned on is not supported. The load documentation does not mention an idle
-TTL for models loaded this way; see LM Studio's
-`TTL and auto-evict <https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict>`__
-page for the settings it does describe:
+only when the model has no loaded instance.
 
 .. code-block:: python
 
@@ -401,6 +375,43 @@ page for the settings it does describe:
 
     hook = PydanticAIHook(llm_conn_id="pydanticai_default", model_id="openai:qwen3")
     hook.ensure_model_ready(backend_factory=LMStudioBackend)
+
+Things to know:
+
+- **List first, then load.** The check comes first because the LM Studio
+  documentation, as of this writing, does not say what loading an already-loaded
+  model does. The load documentation also does not say whether the request waits
+  until the model is loaded or what an error response looks like, so the backend
+  relies on neither: it treats a successful response as done and reports the
+  ``error`` text of a failed response when there is one, or the start of the
+  response body otherwise.
+- **Model name and list shape.** The model name is compared with the ``key`` of
+  the listed models, so use the model key that LM Studio lists. A
+  ``loaded_instances`` that is missing, empty or not a list counts as not
+  loaded, and an entry without a ``key`` never matches. If the list is not a
+  JSON object with a ``models`` list of objects, for example when a proxy
+  answers with a login page, ``ValueError`` is raised instead of loading anyway.
+- **Timeout.** The list request gets ``timeout`` seconds and the load request
+  gets the time the list request left. Each is an httpx2 timeout, which applies
+  to the connect, write and read phases separately, so both requests together
+  can take longer than ``timeout``. A timeout message names the time that
+  request was given.
+- **Concurrent tasks.** The list and the load are two requests, not one atomic
+  step, so two tasks that start together can both see the model as not loaded
+  and both send a load request.
+- **Plan for the model to stay loaded.** The load request sends no TTL. LM Studio's
+  `TTL and auto-evict <https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict>`__
+  page says models loaded with ``lms load`` have no TTL and stay loaded until
+  they are unloaded manually, and that auto-evict only unloads models that were
+  loaded just in time. It does not say whether a model loaded through this
+  endpoint is ever unloaded on its own, so plan for it to stay loaded until you
+  unload it, for example with
+  `POST /api/v1/models/unload <https://lmstudio.ai/docs/developer/rest/unload>`__.
+- **Connection.** ``base_url`` may end in ``/v1`` or ``/api/v1`` and must be set
+  (``ValueError`` otherwise). The backend does not send an API token, so LM
+  Studio with
+  `authentication <https://lmstudio.ai/docs/developer/core/authentication>`__
+  turned on is not supported.
 
 Routing through an AI gateway
 --------------------------------
