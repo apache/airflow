@@ -160,7 +160,7 @@ class Client internal constructor(
    * - For a mapped task, its "collective result": the values of all its
    *   instances in a list, ordered by map index. Instances that pushed nothing
    *   are left out. If none pushed a value, including when the task expanded
-   *   to no instances, the result is an empty list, or `null` on Airflow 3.4.
+   *   to no instances, the result is `null`.
    *
    * A map index reads that one instance's value. One that selects no task
    * instance of the task, such as any map index of a task that is not mapped,
