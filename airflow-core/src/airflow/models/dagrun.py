@@ -98,7 +98,7 @@ from airflow.models.dynamic_region import (
     DynamicRegion,
     public_region_filter,
 )
-from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, is_started_from_trigger
+from airflow.models.taskinstance import TaskInstance as TI, _add_and_prime_mapped_ti, has_start_from_trigger
 from airflow.models.tasklog import LogTemplate
 from airflow.sdk.definitions.context import CallbackMeta, CallbackSource  # noqa: SDK001
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
@@ -2883,8 +2883,8 @@ class DagRun(Base, LoggingMixin):
                 assert ti.task
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 ti.refresh_from_task(ti.task, dag_run=self)
-            # Rows written before the column existed, or before a Dag version change, may be stale.
-            ti.start_from_trigger = is_started_from_trigger(ti.task)
+            # Null rather than False, so TIs that don't start from the triggerer need no extra UPDATE.
+            ti.start_from_trigger = has_start_from_trigger(ti.task) or None
             if not ti.is_schedulable:
                 empty_ti_ids.append(ti.id)
             # Tasks with start_from_trigger are scheduled too: the scheduler defers them instead of queuing

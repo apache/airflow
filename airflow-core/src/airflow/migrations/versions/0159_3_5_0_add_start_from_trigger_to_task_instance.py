@@ -44,10 +44,19 @@ def upgrade():
     """Add start_from_trigger to task_instance."""
     with op.batch_alter_table("task_instance") as batch_op:
         batch_op.add_column(sa.Column("start_from_trigger", sa.Boolean(), nullable=True))
+    start_from_trigger = sa.column("start_from_trigger", sa.Boolean()) == sa.true()
+    op.create_index(
+        "ti_start_from_trigger",
+        "task_instance",
+        ["start_from_trigger"],
+        postgresql_where=start_from_trigger,
+        sqlite_where=start_from_trigger,
+    )
 
 
 def downgrade():
     """Remove start_from_trigger from task_instance."""
+    op.drop_index("ti_start_from_trigger", table_name="task_instance")
     # Dropping a column rebuilds the table on SQLite, unlike adding one, so the foreign keys of
     # everything that points at task_instance have to be held off while the rows are copied.
     with sqlite_rebuilds(op), op.batch_alter_table("task_instance") as batch_op:

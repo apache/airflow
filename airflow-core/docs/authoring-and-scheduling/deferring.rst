@@ -306,7 +306,9 @@ If you want to defer your task directly to the triggerer without going into the 
 The scheduler defers these tasks in the same step where it queues other tasks, so pool slots,
 ``max_active_tasks``, ``max_active_tis_per_dag`` and ``max_active_tis_per_dagrun`` must allow it.
 They do not need an executor slot, so they are deferred even when the executors are full. Like other
-tasks, a task is ``SCHEDULED`` first and stays ``SCHEDULED`` until these limits allow it.
+tasks, a task is ``SCHEDULED`` first and stays ``SCHEDULED`` until these limits allow it. If the scheduler
+cannot defer a task, for example because its trigger arguments cannot be serialized, the task fails without
+retrying, and the reason is recorded in the audit log.
 
 .. note::
 

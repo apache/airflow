@@ -4007,16 +4007,19 @@ def test_schedule_tis_refreshes_a_retry_started_from_trigger(dag_maker, session)
 
 
 @pytest.mark.parametrize(
-    "stored_start_from_trigger",
+    ("task_starts_from_trigger", "stored_start_from_trigger", "expected"),
     [
-        pytest.param(None, id="row-written-before-the-column"),
-        pytest.param(False, id="row-written-by-an-older-dag-version"),
+        pytest.param(True, None, True, id="waits-to-be-deferred"),
+        pytest.param(False, True, None, id="task-no-longer-starts-from-trigger"),
+        pytest.param(False, None, None, id="task-does-not-start-from-trigger"),
     ],
 )
-def test_schedule_tis_refreshes_start_from_trigger(dag_maker, session, stored_start_from_trigger):
+def test_schedule_tis_refreshes_start_from_trigger(
+    dag_maker, session, task_starts_from_trigger, stored_start_from_trigger, expected
+):
     with dag_maker(session=session):
         task = MockOperator(task_id="task")
-        task.start_from_trigger = True
+        task.start_from_trigger = task_starts_from_trigger
         task.start_trigger_args = StartTriggerArgs(
             trigger_cls="airflow.triggers.testing.SuccessTrigger",
             next_method="execute_complete",
@@ -4032,7 +4035,7 @@ def test_schedule_tis_refreshes_start_from_trigger(dag_maker, session, stored_st
     session.flush()
     session.refresh(ti)
 
-    assert (ti.state, ti.start_from_trigger) == (TaskInstanceState.SCHEDULED, True)
+    assert (ti.state, ti.start_from_trigger) == (TaskInstanceState.SCHEDULED, expected)
 
 
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
@@ -4233,6 +4236,7 @@ def test_defer_task_start_trigger_kwargs_e2e(dag_maker, session):
     ti = dr.get_task_instance("test_task")
     ti.task = dr.dag.get_task("test_task")
     ti.defer_task(session=session)
+    session.flush()
 
     assert ti.state == TaskInstanceState.DEFERRED
 
@@ -4372,11 +4376,11 @@ def test_schedule_tis_start_trigger_through_expand(dag_maker, session):
     dr.schedule_tis(dr.task_instances, session=session)
     session.flush()
     session.expire_all()
-    tis = sorted(
-        (ti.state, ti.start_from_trigger, ti.map_index) for ti in dr.get_task_instances(session=session)
-    )
-    assert tis[0] == (TaskInstanceState.SCHEDULED, True, 0)
-    assert tis[1] == (TaskInstanceState.SCHEDULED, False, 1)
+    tis = sorted(dr.get_task_instances(session=session), key=lambda ti: ti.map_index)
+    assert [(ti.state, ti.start_from_trigger, ti.map_index) for ti in tis] == [
+        (TaskInstanceState.SCHEDULED, True, 0),
+        (TaskInstanceState.SCHEDULED, None, 1),
+    ]
 
 
 def test_mapped_expand_kwargs(dag_maker):
