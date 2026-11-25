@@ -207,9 +207,10 @@ class TestRenderedTaskInstanceFields:
             (0, 1, 0, 2),
             (1, 1, 1, 2),
             (1, 0, 1, 0),
-            (3, 1, 1, 2),
+            # Only the num_to_keep runs past the retained ones are cleared; older ones are left to db clean.
+            (3, 1, 2, 2),
             (4, 2, 2, 2),
-            (5, 2, 2, 2),
+            (5, 2, 3, 2),
         ],
     )
     def test_delete_old_records(
@@ -246,9 +247,9 @@ class TestRenderedTaskInstanceFields:
     @pytest.mark.parametrize(
         ("num_runs", "num_to_keep", "remaining_rtifs", "expected_query_count"),
         [
-            (3, 1, 1, 2),
+            (3, 1, 2, 2),
             (4, 2, 2, 2),
-            (5, 2, 2, 2),
+            (5, 2, 3, 2),
         ],
     )
     def test_delete_old_records_mapped(

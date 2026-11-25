@@ -308,6 +308,9 @@ class RenderedTaskInstanceFields(Base):
         All mapped task instance records for a given run are kept or deleted together,
         ensuring no partial data remains.
 
+        Each call only clears the N dag runs just past the retained ones, so its cost does not grow
+        with the task's attempt history. Older leftovers are removed by ``airflow db clean``.
+
         :param task_id: Task ID
         :param dag_id: Dag ID
         :param num_to_keep: Number of recent dag runs to retain RTIF records for
@@ -318,27 +321,26 @@ class RenderedTaskInstanceFields(Base):
 
         from airflow.models.dagrun import DagRun
 
-        # Find run_ids from the N most recent dag runs (no RTIF table scan needed).
         # Use run_after instead of logical_date since logical_date can be NULL for manual runs.
-        run_ids_to_keep_query = (
-            select(DagRun.run_id)
-            .where(DagRun.dag_id == dag_id)
-            .order_by(DagRun.run_after.desc())
-            .limit(num_to_keep)
+        recent_run_ids = (
+            select(DagRun.run_id).where(DagRun.dag_id == dag_id).order_by(DagRun.run_after.desc())
         )
 
+        run_ids_to_keep: list[str] | ScalarSelect[str]
+        run_ids_to_clear: list[str] | ScalarSelect[str]
         if get_dialect_name(session) == "mysql":
             # MySQL doesn't support LIMIT in IN/NOT IN subqueries, so fetch IDs first
-            run_ids_to_keep: list[str] | ScalarSelect[str] = list(
-                session.scalars(run_ids_to_keep_query).all()
-            )
+            run_ids = list(session.scalars(recent_run_ids.limit(2 * num_to_keep)).all())
+            run_ids_to_keep, run_ids_to_clear = run_ids[:num_to_keep], run_ids[num_to_keep:]
         else:
-            run_ids_to_keep = run_ids_to_keep_query.scalar_subquery()
+            run_ids_to_keep = recent_run_ids.limit(num_to_keep).scalar_subquery()
+            run_ids_to_clear = recent_run_ids.offset(num_to_keep).limit(num_to_keep).scalar_subquery()
 
         cls._do_delete_old_records(
             dag_id=dag_id,
             task_id=task_id,
             run_ids_to_keep=run_ids_to_keep,
+            run_ids_to_clear=run_ids_to_clear,
             session=session,
         )
         session.flush()
@@ -351,6 +353,7 @@ class RenderedTaskInstanceFields(Base):
         task_id: str,
         dag_id: str,
         run_ids_to_keep: list[str] | ScalarSelect[str],
+        run_ids_to_clear: list[str] | ScalarSelect[str],
         session: Session,
     ) -> None:
         from airflow.models.taskinstance import TaskInstance
@@ -363,19 +366,17 @@ class RenderedTaskInstanceFields(Base):
                 legacy.c.run_id.not_in(run_ids_to_keep),
             )
         )
+        # rtif_v2 only stores the attempt UUID, so matching every run outside the retained ones
+        # would read the task's whole attempt history on each task run.
+        attempt_ids_to_clear = select(TaskInstance.id).where(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.task_id == task_id,
+            TaskInstance.run_id.in_(run_ids_to_clear),
+        )
         session.execute(
             delete(cls)
-            .where(
-                select(1)
-                .where(
-                    TaskInstance.id == cls.task_instance_id,
-                    TaskInstance.dag_id == dag_id,
-                    TaskInstance.task_id == task_id,
-                    TaskInstance.run_id.not_in(run_ids_to_keep),
-                )
-                .exists()
-            )
-            .execution_options(synchronize_session="fetch")
+            .where(cls.task_instance_id.in_(attempt_ids_to_clear))
+            .execution_options(synchronize_session="fetch", include_all_attempts=True)
         )
 
 
