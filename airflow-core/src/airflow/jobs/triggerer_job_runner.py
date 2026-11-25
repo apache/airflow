@@ -106,6 +106,7 @@ from airflow.sdk.execution_time.comms import (
     VariableKeysResult,
     VariableResult,
     XComResult,
+    XComSequenceSliceResult,
     _new_encoder,
     _RequestFrame,
 )
@@ -485,6 +486,7 @@ ToTriggerRunner = Annotated[
     | VariableResult
     | VariableKeysResult
     | XComResult
+    | XComSequenceSliceResult
     | DagRunStateResult
     | DRCount
     | TICount
@@ -681,7 +683,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     queues: set[str] | None = None
     team_name: str | None = None
 
-    health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
+    health_check_threshold = conf.getfloat("triggerer", "triggerer_health_check_threshold")
     runner_health_check_threshold = conf.getfloat("triggerer", "runner_health_check_threshold")
 
     runner: TriggerRunner | None = None

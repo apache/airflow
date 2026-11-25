@@ -40,19 +40,30 @@ from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
 
 if TYPE_CHECKING:
+    from typing import TypeVarTuple
+
+    import sqlalchemy.sql
     from kubernetes.client.models.v1_pod import V1Pod
     from sqlalchemy.dialects.mysql.dml import Insert as MySQLInsert
     from sqlalchemy.dialects.postgresql.dml import Insert as PostgreSQLInsert
     from sqlalchemy.dialects.sqlite.dml import Insert as SQLiteInsert
     from sqlalchemy.exc import OperationalError
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql import Select
     from sqlalchemy.types import TypeEngine
 
-    from airflow.typing_compat import Self
+    from airflow.typing_compat import Self, TypeAlias
 
-    # TODO: use Select[UUID] once the minimum SQLAlchemy is 2.1; 2.0 uses Select[tuple[UUID]].
-    UUIDSelect = Select
+    _Ts = TypeVarTuple("_Ts")
+
+    # Spell selects the SQLAlchemy 2.1 way, ``Select[X, Y]``, and this expands to ``Select[tuple[X, Y]]``
+    # when mypy reads SQLAlchemy 2.0. The constant is set by the ``airflow_mypy.plugins.sqlalchemy_version``
+    # plugin; without it mypy analyses both branches and the alias silently degrades to ``Select[Any]``.
+    # TODO: Replace with ``sqlalchemy.sql.Select`` once the minimum SQLAlchemy is 2.1.
+    SQLALCHEMY_2_1 = False
+    if SQLALCHEMY_2_1:
+        Select: TypeAlias = sqlalchemy.sql.Select[*_Ts]
+    else:
+        Select: TypeAlias = sqlalchemy.sql.Select[tuple[*_Ts]]
 
 
 log = logging.getLogger(__name__)
@@ -451,7 +462,7 @@ def deserialize_pod_dict(pod_dict: dict) -> V1Pod:
     from kubernetes.client.api_client import ApiClient
     from kubernetes.client.models.v1_pod import V1Pod
 
-    return ApiClient(configuration=Configuration())._ApiClient__deserialize_model(pod_dict, V1Pod)
+    return ApiClient(configuration=Configuration())._ApiClient__deserialize_model(pod_dict, V1Pod)  # type: ignore[attr-defined]
 
 
 def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:

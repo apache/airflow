@@ -134,11 +134,36 @@ then sends its first live request through the chain from the top. The run contin
 first connection that answers, whether or not that is the one that answered before.
 
 A recorded model step replays only if the retry's request has the same fingerprint, and
-for a chain the model in the fingerprint is the whole chain, whichever connection
-answered. Adding, removing or reordering a connection in ``fallback_conn_ids``, or
-changing the ``model`` of a connection in it, between attempts therefore makes the retry
-run every step live, tools included. Changing a connection's credentials or host does
-not. "How a retry replays" in :doc:`durable_execution` gives the full matching rules.
+for a chain the fingerprint names the chain as a whole, not its connections. Each
+recorded response also notes which model of the chain answered it, and the step replays
+only if that model is still in the chain. Adding, removing or reordering other
+connections in ``fallback_conn_ids`` between attempts therefore keeps the steps that a
+remaining connection answered, as long as at least one fallback connection remains. With
+a single connection the hook passes the bare model to the agent instead of a chain, so
+the fingerprint changes and every step runs live; so does going from one connection to
+two. A step answered by a connection that was removed from the chain, or whose ``model``
+changed, runs live along with every step after it, tools included, and the task log
+names the reason.
+
+For a chain the hook builds, the response also notes the connection that answered,
+and the step replays only if a connection with that ID still serves the same model,
+so two connections that serve the same model are told apart. A connection is matched
+by its ID, not by what it points at: renaming a connection runs the steps it answered
+live, while changing its host or credentials does not invalidate them. A response the
+model left suspended, such as an Anthropic ``pause_turn``, is resumed by pydantic-ai on
+the first connection in the chain that serves its model, which need not be the one that
+answered it. If that connection fails with an error the chain falls back on, the chain
+abandons the suspended response, tries to cancel its job on that connection, which need
+not be the one that started it, and generates the turn again from the top of the chain.
+
+A ``FallbackModel`` built outside the hook, whose members do not record which one
+answered, keeps the earlier rule: its steps replay while the chain is unchanged and run
+live once it is edited.
+
+Upgrading to this behaviour changes the fingerprint of every model step recorded
+through a chain, so the first retry after the upgrade of a task whose journal was
+written by an earlier version runs live. "How a retry replays" in :doc:`durable_execution`
+gives the full matching rules.
 
 What is not covered
 -------------------

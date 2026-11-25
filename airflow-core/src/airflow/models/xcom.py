@@ -70,13 +70,11 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.util import AliasedClass
-    from sqlalchemy.sql.expression import CompoundSelect, Select, Subquery, TextClause
+    from sqlalchemy.sql.expression import CompoundSelect, Subquery
 
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance
-
-    # TODO: use Select[XComModel] once the minimum SQLAlchemy is 2.1; 2.0 uses Select[tuple[XComModel]].
-    XComModelSelect = Select
+    from airflow.utils.sqlalchemy import Select
 
 
 XCOM_RETURN_KEY = "return_value"
@@ -338,7 +336,7 @@ class _XComOperations:
         include_prior_dates: bool = False,
         limit: int | None = None,
         try_number: int | None = None,
-    ) -> XComModelSelect:
+    ) -> Select[XComModel]:
         """
         Composes a query to get one or more XCom entries.
 
@@ -634,7 +632,7 @@ def _reject_projection_write(mapper, connection, target):
     raise TypeError("XCom read projection is read-only")
 
 
-def build_xcom_read_query(*, producer_ids: Select, key: str | None = None) -> XComModelSelect:
+def build_xcom_read_query(*, producer_ids: Select, key: str | None = None) -> Select[XComModel]:
     model = get_xcom_model()
     entity = aliased(model, _filter_rows(model.__table__, producer_ids=producer_ids, key=key))
     return select(entity).execution_options(populate_existing=True)
@@ -712,10 +710,6 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
 
     :meta private:
     """
-
-    @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select[tuple[Any]]:
-        return cast("Select[tuple[Any]]", select(get_xcom_model().value).from_statement(stmt))
 
     @staticmethod
     def _process_row(row: Row) -> Any:

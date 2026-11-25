@@ -72,20 +72,21 @@ export interface TaskClient {
   deleteVariable(key: string): Promise<void>;
 
   /**
-   * Pull an XCom value.
+   * Pull an XCom value pushed by a task.
    *
-   * Returns `null` when the row is missing. Locator fields default to the
-   * current task's context; see {@link GetXComOpts} for how `mapIndex` defaults.
+   * Returns `null` when nothing was pushed. `key` defaults to `"return_value"`,
+   * and `dagId` and `runId` to the current task's context. See
+   * {@link GetXComOpts.mapIndex} for what the map index selects.
    *
    * The generic `T` lets callers narrow the return type when the shape is
    * known:
    *
    * ```ts
-   * const data = await client.getXCom<{ count: number }>({ key: "result" });
+   * const data = await client.getXCom<{ count: number }>({ key: "result", taskId: "extract" });
    * // data is { count: number } | null
    * ```
    *
-   * @throws `TypeError` when `key` is not a string, `dagId`, `taskId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
+   * @throws `TypeError` when `taskId` is not a string, `key`, `dagId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
    * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is an empty string, or `mapIndex` is not an integer.
    */
   getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null>;
@@ -96,7 +97,7 @@ export interface TaskClient {
    * Target fields default to the current task's context; see
    * {@link SetXComOpts} for how `mapIndex` defaults.
    *
-   * @throws `TypeError` when `key` is not a string, `dagId`, `taskId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
+   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
    * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is an empty string, or `mapIndex` is not an integer.
    */
   setXCom(opts: SetXComOpts): Promise<void>;

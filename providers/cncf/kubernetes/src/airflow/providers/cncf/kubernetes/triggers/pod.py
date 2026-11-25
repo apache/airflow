@@ -47,6 +47,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from kubernetes.client.models import V1Pod as SyncV1Pod
     from kubernetes_asyncio.client.models import V1Pod
     from pendulum import DateTime
     from sqlalchemy.orm.session import Session
@@ -594,7 +595,7 @@ class KubernetesPodTrigger(BaseTrigger):
         finally:
             await self.hook.close()
 
-    def define_container_state(self, pod: V1Pod) -> ContainerState:
+    def define_container_state(self, pod: V1Pod | SyncV1Pod) -> ContainerState:
         if pod.status is None or pod.status.container_statuses is None:
             return ContainerState.UNDEFINED
 
@@ -608,7 +609,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
         return ContainerState.UNDEFINED
 
-    def define_pod_container_state(self, pod: V1Pod) -> ContainerState:
+    def define_pod_container_state(self, pod: V1Pod | SyncV1Pod) -> ContainerState:
         """Infer workload state from terminal pod phase first, then from the base container state."""
         if pod.status is None:
             return ContainerState.UNDEFINED
