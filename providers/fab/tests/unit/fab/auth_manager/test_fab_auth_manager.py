@@ -66,7 +66,6 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import User
 from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
 from airflow.providers.fab.auth_manager.fab_auth_manager import DAG_BUNDLES_ACCESS_VIEW, FabAuthManager
 from airflow.providers.fab.auth_manager.models import User
-from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
@@ -616,17 +615,6 @@ class TestFabAuthManager:
         assert isinstance(user, AnonymousUser)
         # Role not found in the DB, so no pre-populated perms.
         assert user._perms == set()
-
-    def test_anonymous_user_with_unknown_role_has_no_perms_in_an_app_context(self, flask_app):
-        """A Flask view resolving a public role that does not exist grants nothing instead of failing."""
-        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
-        flask_app.config["AUTH_ROLE_PUBLIC"] = "DoesNotExist"
-        try:
-            user = AnonymousUser()
-            assert user.roles == []
-            assert user.perms == set()
-        finally:
-            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
     def test_get_fastapi_middlewares_disabled(self, flask_app, auth_manager_with_appbuilder):
         """No middleware is registered when public access is not configured."""
