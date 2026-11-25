@@ -30,16 +30,22 @@ const { mockBackfills } = vi.hoisted(() => ({
 }));
 
 vi.mock("openapi/queries", () => ({
-  // One success and one failure out of three created runs.
-  useBackfillServiceListBackfillDagRuns: ({ state }: { state: Array<string> }) => ({
-    data: { backfill_dag_runs: [], total_entries: state.length === 1 ? 1 : 3 },
-  }),
   useBackfillServiceListBackfillsUi: () => ({ data: { backfills: mockBackfills.current } }),
   useDagRunServiceGetDagRuns: () => ({ data: undefined }),
   useDagServiceGetDagDetails: () => ({ data: undefined }),
 }));
 
 vi.mock("src/queries/useConfig", () => ({ useConfig: () => undefined }));
+
+vi.mock("./BackfillProgressBar", () => ({
+  BackfillProgressBar: ({
+    backfillId,
+    isRunning,
+  }: {
+    readonly backfillId: number;
+    readonly isRunning: boolean;
+  }) => <span>{`progress-${backfillId}-${isRunning ? "running" : "done"}`}</span>,
+}));
 
 const label = i18n.t("banner.backfillInProgress", { ns: "components" });
 
@@ -54,7 +60,7 @@ describe("BackfillInProgressBadge", () => {
     render(<BackfillInProgressBadge dagId="example_dag" />, { wrapper: Wrapper });
 
     expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", "/dags/example_dag/backfills");
-    expect(screen.getByText("2/3")).toBeInTheDocument();
+    expect(screen.getByText("progress-1-running")).toBeInTheDocument();
   });
 
   it("renders nothing once every backfill has completed", () => {

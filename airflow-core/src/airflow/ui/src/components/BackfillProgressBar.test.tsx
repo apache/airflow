@@ -17,8 +17,10 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+
+import type * as Services from "openapi/requests/services.gen";
 
 import i18n from "src/i18n/config";
 import type * as Utils from "src/utils";
@@ -26,50 +28,51 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { BackfillProgressBar } from "./BackfillProgressBar";
 
-const { mockCounts, mockOptions } = vi.hoisted(() => ({
-  mockCounts: { current: undefined as Record<string, number> | undefined },
-  mockOptions: [] as Array<{ refetchInterval: number | false }>,
+const REFRESH_MS = 20;
+
+const { listBackfillDagRuns, mockCounts } = vi.hoisted(() => {
+  const counts = { current: {} as Record<string, number> };
+
+  return {
+    listBackfillDagRuns: vi.fn(({ state }: { state: Array<string> }) =>
+      Promise.resolve({
+        backfill_dag_runs: [],
+        total_entries: state.reduce((sum, st) => sum + (counts.current[st] ?? 0), 0),
+      }),
+    ),
+    mockCounts: counts,
+  };
+});
+
+vi.mock("openapi/requests/services.gen", async (importOriginal) => ({
+  ...(await importOriginal<typeof Services>()),
+  BackfillService: { listBackfillDagRuns },
 }));
-
-vi.mock("openapi/queries", () => ({
-  useBackfillServiceListBackfillDagRuns: (
-    { state }: { state: Array<string> },
-    _queryKey: unknown,
-    options: { refetchInterval: number | false },
-  ) => {
-    mockOptions.push(options);
-    if (mockCounts.current === undefined) {
-      return { data: undefined };
-    }
-    const counts = mockCounts.current;
-
-    return {
-      data: { backfill_dag_runs: [], total_entries: state.reduce((sum, st) => sum + (counts[st] ?? 0), 0) },
-    };
-  },
-  useDagRunServiceGetDagRuns: () => ({ data: undefined }),
-  useDagServiceGetDagDetails: () => ({ data: undefined }),
-}));
-
-vi.mock("src/queries/useConfig", () => ({ useConfig: () => undefined }));
 
 vi.mock("src/utils", async (importOriginal) => ({
   ...(await importOriginal<typeof Utils>()),
-  useAutoRefresh: () => 5000,
+  useAutoRefresh: () => REFRESH_MS,
 }));
 
+const countRefreshes = () => listBackfillDagRuns.mock.calls.length / 3;
+
+const waitForSeveralRefreshIntervals = () =>
+  new Promise((resolve) => {
+    setTimeout(resolve, REFRESH_MS * 6);
+  });
+
 afterEach(() => {
-  mockCounts.current = undefined;
-  mockOptions.length = 0;
+  mockCounts.current = {};
+  listBackfillDagRuns.mockClear();
 });
 
 describe("BackfillProgressBar", () => {
-  it("shows finished over created runs, ignoring skipped slots", () => {
+  it("shows finished over created runs", async () => {
     mockCounts.current = { failed: 1, queued: 2, running: 1, success: 3 };
 
     render(<BackfillProgressBar backfillId={1} isRunning />, { wrapper: Wrapper });
 
-    expect(screen.getByText("4/7")).toBeInTheDocument();
+    expect(await screen.findByText("4/7")).toBeInTheDocument();
     expect(
       screen.getByText(
         i18n.t("backfill.progressSummary", { failed: 1, ns: "components", remaining: 3, success: 3 }),
@@ -77,29 +80,47 @@ describe("BackfillProgressBar", () => {
     ).toBeInTheDocument();
   });
 
-  it.each([
-    { expected: 5000, isRunning: true },
-    { expected: false, isRunning: false },
-  ])("polls only while the backfill is running (isRunning=$isRunning)", ({ expected, isRunning }) => {
+  it("renders nothing when the backfill has created no runs", async () => {
+    const { container } = render(<BackfillProgressBar backfillId={1} isRunning={false} />, {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(listBackfillDagRuns).toHaveBeenCalled());
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("stops polling a completed backfill once all its runs have finished", async () => {
+    mockCounts.current = { failed: 1, success: 4 };
+
+    render(<BackfillProgressBar backfillId={1} isRunning={false} />, { wrapper: Wrapper });
+    await screen.findByText("5/5");
+    await waitForSeveralRefreshIntervals();
+
+    expect(countRefreshes()).toBe(1);
+  });
+
+  it("keeps polling a completed backfill until its remaining runs finish", async () => {
+    // A cancelled backfill is completed while its running Dag runs carry on.
+    mockCounts.current = { failed: 4, running: 1 };
+
+    render(<BackfillProgressBar backfillId={1} isRunning={false} />, { wrapper: Wrapper });
+    await screen.findByText("4/5");
+
+    mockCounts.current = { failed: 4, success: 1 };
+
+    expect(await screen.findByText("5/5")).toBeInTheDocument();
+    const refreshes = countRefreshes();
+
+    await waitForSeveralRefreshIntervals();
+    expect(countRefreshes()).toBe(refreshes);
+  });
+
+  it("keeps polling while the backfill is running", async () => {
     mockCounts.current = { success: 1 };
 
-    render(<BackfillProgressBar backfillId={1} isRunning={isRunning} />, { wrapper: Wrapper });
+    render(<BackfillProgressBar backfillId={1} isRunning />, { wrapper: Wrapper });
+    await screen.findByText("1/1");
 
-    expect(screen.getByText("1/1")).toBeInTheDocument();
-    expect(new Set(mockOptions.map((options) => options.refetchInterval))).toEqual(new Set([expected]));
-  });
-
-  it("renders nothing while the counts are loading", () => {
-    const { container } = render(<BackfillProgressBar backfillId={1} isRunning />, { wrapper: Wrapper });
-
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it("renders nothing when the backfill has created no runs", () => {
-    mockCounts.current = {};
-
-    const { container } = render(<BackfillProgressBar backfillId={1} isRunning />, { wrapper: Wrapper });
-
-    expect(container).toBeEmptyDOMElement();
+    await waitFor(() => expect(countRefreshes()).toBeGreaterThan(2));
   });
 });

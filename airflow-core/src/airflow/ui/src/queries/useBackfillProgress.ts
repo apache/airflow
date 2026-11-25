@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useBackfillServiceListBackfillDagRuns } from "openapi/queries";
+import { useQuery } from "@tanstack/react-query";
+
+import { BackfillService } from "openapi/requests/services.gen";
 import type { DagRunState } from "openapi/requests/types.gen";
 
 import { useAutoRefresh } from "src/utils";
 
-// Slots the backfill skipped have no Dag run, so they are left out of the total.
-const CREATED_RUN_STATES: Array<DagRunState> = ["queued", "running", "success", "failed"];
+export const useBackfillProgressKey = "backfillProgress";
 
 export type BackfillProgress = {
   readonly failed: number;
@@ -32,34 +33,36 @@ export type BackfillProgress = {
 
 // `limit: 0` returns only `total_entries`, so each count costs a single COUNT query
 // however many runs the backfill has.
-export const useBackfillProgress = (backfillId: number, isRunning: boolean): BackfillProgress | undefined => {
+const countDagRuns = async (backfillId: number, state: Array<DagRunState>) =>
+  (await BackfillService.listBackfillDagRuns({ backfillId, limit: 0, state })).total_entries;
+
+// Fetched together so one refresh never mixes counts taken at different times.
+const fetchBackfillProgress = async (backfillId: number): Promise<BackfillProgress> => {
+  const [success, failed, unfinished] = await Promise.all([
+    countDagRuns(backfillId, ["success"]),
+    countDagRuns(backfillId, ["failed"]),
+    countDagRuns(backfillId, ["queued", "running"]),
+  ]);
+
+  // Slots the backfill skipped have no Dag run, so they are left out of the total.
+  return { failed, success, total: success + failed + unfinished };
+};
+
+export const useBackfillProgress = (backfillId: number, isRunning: boolean) => {
   const refetchInterval = useAutoRefresh({});
-  // A completed backfill's counts are final, so it is fetched once rather than polled.
-  const options = { refetchInterval: isRunning ? refetchInterval : false };
 
-  const { data: total } = useBackfillServiceListBackfillDagRuns(
-    { backfillId, limit: 0, state: CREATED_RUN_STATES },
-    undefined,
-    options,
-  );
-  const { data: success } = useBackfillServiceListBackfillDagRuns(
-    { backfillId, limit: 0, state: ["success"] },
-    undefined,
-    options,
-  );
-  const { data: failed } = useBackfillServiceListBackfillDagRuns(
-    { backfillId, limit: 0, state: ["failed"] },
-    undefined,
-    options,
-  );
+  const { data } = useQuery({
+    queryFn: () => fetchBackfillProgress(backfillId),
+    queryKey: [useBackfillProgressKey, backfillId],
+    // Poll on the counts, not only `isRunning`: a cancelled backfill is completed while its
+    // running Dag runs carry on, and a cached result may predate the last runs finishing.
+    refetchInterval: (query) => {
+      const progress = query.state.data;
+      const hasUnfinishedRuns = progress === undefined || progress.success + progress.failed < progress.total;
 
-  if (total === undefined || success === undefined || failed === undefined) {
-    return undefined;
-  }
+      return isRunning || hasUnfinishedRuns ? refetchInterval : false;
+    },
+  });
 
-  return {
-    failed: failed.total_entries,
-    success: success.total_entries,
-    total: total.total_entries,
-  };
+  return data;
 };
