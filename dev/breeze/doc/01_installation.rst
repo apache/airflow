@@ -216,7 +216,8 @@ Memory
 Minimum 4GB RAM for Docker Engine is required to run the full Breeze environment.
 
 On macOS, Docker Desktop allocates 50% of the host's memory to its virtual machine by default.
-If Breeze needs more memory, increase the memory limit in the
+An allocation of 4 GB is a reasonable starting point for Breeze. If you need more memory,
+increase the memory limit in the
 `Docker Desktop resource settings <https://docs.docker.com/desktop/settings-and-maintenance/settings/#advanced>`_.
 
 On Windows WSL 2 expect the Linux Distro and Docker containers to use 7 - 8 GB of RAM.
