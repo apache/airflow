@@ -300,12 +300,13 @@ added `[pilot]` instant, an `enabled_since` moved later, or `enabled` switched o
 `enabled_since` is still in the past; contributors use the next day at 00:00 UTC. Moving
 `enabled_since` earlier is the backlog reset and is allowed. A base branch without the file,
 such as a release branch the file is backported to, has no gate yet, so its entries are not
-checked against it. In CI the hook fetches the pull
-request's base branch to compare with, because the shallow checkout has none; a push in a
-contributor's fork has no base branch, so it fetches `apache/airflow`'s `main`. Without any
-base to compare with, the hook fails rather than comparing the change with itself. A merge
-after that instant still leaves the window open; the
-closure is reported to Slack as an attention item, and the maintainer reopens the pull
+checked against it. The hook fetches a pull request's base branch to compare with. When fork CI
+merges a push with its upstream base, the hook compares with that exact base commit. For a
+fork push without that merge or a local run, Breeze's `AIRFLOW_BRANCH` identifies the upstream
+branch to compare with. When a comparison revision is required and unavailable, the hook fails.
+Push, scheduled, and manual runs in `apache/airflow` validate the checked-out configuration and
+its agreement with `.asf.yaml`. A merge after the configured instant still leaves the window
+open. The closure is reported to Slack as an attention item, and the maintainer reopens the pull
 request with `use project ci`.
 
 Leaving is a pull request that removes the line. Pull requests already labelled
