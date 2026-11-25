@@ -140,6 +140,19 @@ describe("SearchMapIndexes", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it("keeps the log filters but not the old pass or try across the switch", () => {
+    renderSearch(
+      `/dags/my_dag/runs/run_1/tasks/task_1/mapped/2/logs?region_id=other&region_index=2&try_number=3&log_level=info&log_source=task&offset=20`,
+      `${MAPPED_ROUTE}/logs`,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "alpha (success)" }));
+
+    expect(screen.getByTestId("search").textContent).toBe(
+      `?region_id=${REGION_ID}&region_index=0&log_level=info&log_source=task`,
+    );
+  });
+
   it("keeps the open tab across the switch", () => {
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2/xcom", `${MAPPED_ROUTE}/xcom`);
 
