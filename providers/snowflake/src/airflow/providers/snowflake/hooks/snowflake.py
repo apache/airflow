@@ -53,6 +53,8 @@ from airflow.utils.strings import to_boolean
 OAUTH_REQUEST_TIMEOUT = 30  # seconds, avoid hanging tasks on token request
 OAUTH_EXPIRY_BUFFER = 30
 SUPPORTED_GRANT_TYPES = {"refresh_token", "client_credentials", "password"}
+# The connector matches authenticator names case-insensitively, but the hooks compare these exactly.
+LOWERCASE_AUTHENTICATORS = {"oauth", "programmatic_access_token"}
 LOGOUT_AUTO_DETECTION_PARAM = "enable_server_session_keep_alive_auto_detection"
 # Logout behaviour of connectors before 5.0: keep the server session while async queries
 # started on the connection are still running. Connector 5 plans to change its default.
@@ -530,7 +532,9 @@ class SnowflakeHook(DbApiHook):
 
         schema = conn.schema or ""
 
-        authenticator = self._get_field(extra_dict, "authenticator") or "snowflake"
+        authenticator = (self._get_field(extra_dict, "authenticator") or "").strip() or "snowflake"
+        if authenticator.lower() in LOWERCASE_AUTHENTICATORS:
+            authenticator = authenticator.lower()
         # session_parameters never supported long name
         session_parameters = extra_dict.get("session_parameters")
 

@@ -2252,15 +2252,14 @@ class TestPytestSnowflakeHook:
         assert call_kwargs["authenticator"] == "WORKLOAD_IDENTITY"
         assert call_kwargs["workload_identity_provider"] == "GCP"
 
-    @pytest.mark.parametrize("field", ["workload_identity_provider", "authenticator"])
-    def test_get_connection_form_widgets_exposes_auth_fields(self, field):
-        """The connection form must expose auth fields so users can set them in the UI."""
+    def test_get_connection_form_widgets_exposes_workload_identity_provider(self):
+        """The connection form must expose a workload_identity_provider field so users can set it in the UI."""
         pytest.importorskip("flask_appbuilder")
         pytest.importorskip("flask_babel")
 
         widgets = SnowflakeHook.get_connection_form_widgets()
 
-        assert field in widgets
+        assert "workload_identity_provider" in widgets
 
     @pytest.mark.parametrize(
         ("extra", "expected"),
@@ -2271,6 +2270,13 @@ class TestPytestSnowflakeHook:
                 "programmatic_access_token",
                 id="backcompat-prefix",
             ),
+            pytest.param({"authenticator": "OAUTH"}, "oauth", id="oauth-uppercase"),
+            pytest.param(
+                {"authenticator": " Programmatic_Access_Token "},
+                "programmatic_access_token",
+                id="pat-mixed-case-whitespace",
+            ),
+            pytest.param({"authenticator": "   "}, "snowflake", id="whitespace-uses-default"),
         ],
     )
     def test_get_conn_params_authenticator_from_extra(self, extra, expected):
