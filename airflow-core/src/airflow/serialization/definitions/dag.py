@@ -116,7 +116,8 @@ _READ_ONLY_TRANSACTION_STATEMENTS = {
 @contextlib.contextmanager
 def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Session]) -> Iterator[Session]:
     # query_only belongs to the connection, not the transaction. Detached from the pool, the connection
-    # is closed after the alert instead of going back to the pool read-only, even if the alert closes it.
+    # is closed after the alerts instead of going back to the pool read-only. An alert that closes it
+    # itself makes the later alerts of the Dag run fail, and they are skipped.
     with engine.connect() as connection:
         connection.detach()
         connection.exec_driver_sql("PRAGMA query_only = ON")
@@ -907,7 +908,9 @@ class SerializedDAG:
             # MySQL deadlock) leaves the Dag run in the session, while a commit and close() outside the
             # scheduler's commit guard (e.g. ``dag.test``) detaches it but keeps its row.
             try:
-                return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
+                # Without autoflush, so a pending Deadline is not written against a row that may be gone.
+                with session.no_autoflush:
+                    return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
             except DBAPIError as error:
                 # A failed statement aborts the caller's PostgreSQL transaction. Any other error, such as
                 # a dropped connection, is not caused by the alert and propagates as before.
