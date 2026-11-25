@@ -20,13 +20,13 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy import Column, Float, MetaData, String, Table, create_engine, select
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import InstrumentedAttribute, aliased
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
@@ -681,8 +681,9 @@ class TestRangeFilter:
             "upper_bound_lt": None,
         }
         values.update(bounds)
-        range_value = Range(**values)
-        param = RangeFilter(range_value, table.c.value)
+        range_value: Range[float] = Range(**values)
+        # Cast to InstrumentedAttribute for type compatibility
+        param = RangeFilter(range_value, cast("InstrumentedAttribute", table.c.value))
         statement = param.to_orm(select(table.c.value).order_by(table.c.value))
         with engine.connect() as conn:
             conn.execute(table.insert(), [{"value": value} for value in (-1, 0, 5)])
