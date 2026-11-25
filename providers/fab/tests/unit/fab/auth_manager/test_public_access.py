@@ -27,11 +27,18 @@ from fastapi.testclient import TestClient
 from airflow.api_fastapi.app import create_app, create_auth_manager
 
 from tests_common.test_utils.config import conf_vars
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 if TYPE_CHECKING:
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
-pytestmark = pytest.mark.db_test
+pytestmark = [
+    pytest.mark.db_test,
+    # The API server registers auth manager middlewares through get_fastapi_middlewares since 3.3.
+    pytest.mark.skipif(
+        not AIRFLOW_V_3_3_PLUS, reason="Public access in the API server requires Airflow 3.3+"
+    ),
+]
 
 
 @contextmanager
