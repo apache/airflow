@@ -81,8 +81,7 @@ Non-goals:
   configuration change, but it is decided separately.
 - Any change to how committer, collaborator or exempted-organisation pull requests are tested.
 - Event-driven mutation of pull requests. Nothing in this design uses `pull_request_target`.
-  All writes come from the reconciler, which runs on a schedule; an event only starts it sooner
-  (`fork-ci-monitor-wake.yml`, see "Monitor workflow").
+  All writes come from the scheduled reconciler.
 
 ## Overview
 
@@ -94,8 +93,7 @@ Four pieces, in dependency order:
    and one configuration file. Used by the gate job and by the reconciler.
 2. **Project CI gate** — a `gate` job at the head of `ci-amd.yml`.
 3. **Fork mode CI** — a push trigger plus fork-aware selective checks.
-4. **Reconciler** — `breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml` on a schedule
-   and when a gated pull request to `main` is opened, reopened, pushed or marked ready for review.
+4. **Reconciler** — `breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml` on a schedule.
 
 Plus `breeze ci audit` for the contributor's local setup, and documentation.
 
@@ -536,10 +534,9 @@ which is how contributors run CI in forks today via pull requests against their 
 
 ## Reconciler
 
-`breeze ci fork-ci-reconcile` is the only writer. It runs on a schedule, and when
-`fork-ci-monitor-wake.yml` starts it, and is idempotent: its inputs are the current state of
-GitHub, its outputs are the minimal set of mutations to reach the desired state. It never depends
-on having seen an earlier event.
+`breeze ci fork-ci-reconcile` is the only writer. It runs on a schedule and is idempotent: its
+inputs are the current state of GitHub, its outputs are the minimal set of mutations to reach
+the desired state. It never depends on having seen an earlier event.
 
 ### Discovery
 
@@ -1091,19 +1088,7 @@ reaches a pull request only when the monitor runs: a fork run's start, failure o
 to 15 minutes late, plus GitHub's delay of scheduled workflows. Unchanged pull requests cost no
 writes, so the faster cadence adds reads, about 45 a run, well within the token's quotas, and
 runner time: each run takes about two minutes on a GitHub-hosted runner, mostly installing
-Breeze, so the monitor uses about 24 runner minutes an hour instead of 8. The runs that
-`fork-ci-monitor-wake.yml` starts for gated pushes come on top: job statuses still get the budget
-for the time since the previous run, but each such run counts as one run for the per-run caps and
-the run counts before a Slack note, so those caps allow more per hour and a persisting problem is
-reported sooner than the 30 and 45 minutes those counts are derived from. Each such run also costs
-a run's reads, about 45 today. The concurrency group runs them one after another, and a whole run,
-with the time its jobs wait for runners, took 3.3 minutes at the median and 8 minutes at the 90th
-percentile (100 runs on 2026-11-23 and 2026-11-24), so runs that follow one another without a gap
-come to about 18 an hour at that median, against 5.4 an hour from the schedule alone in that
-period. A run that another run replaced while it waited in the concurrency group never ran, but
-the budget counts it as the previous run, so the run after it gets the budget for a shorter time
-and the job statuses left over follow on a later run. Scheduled runs already replace one another
-this way, and a wake-up that arrives while a run waits does the same.
+Breeze, so the monitor uses about 24 runner minutes an hour instead of 8.
 
 These are estimates: the share of gated runs, the jobs per push and the pushes per pull request
 are assumptions, not measurements. Watch the monitor's call counts in its run log after enabling
@@ -1196,10 +1181,9 @@ run.
 
 ### The `CI run started` check
 
-Fork CI reports to the pull request only when the monitor runs, on its schedule about every 5
-minutes, later when GitHub delays scheduled workflows, or after a push when
-`fork-ci-monitor-wake.yml` starts it, and until then a gated pull request shows only skipped
-checks. The gate cannot say more itself: it runs on the contributor's `pull_request`
+Fork CI reports to the pull request only when the scheduled monitor runs, about every 5 minutes
+and later when GitHub delays scheduled workflows, and until then a gated pull request shows only
+skipped checks. The gate cannot say more itself: it runs on the contributor's `pull_request`
 event with a read-only token. Instead both CI rulesets in `.asf.yaml` also require a
 `CI run started` check, which nothing reports when a commit is pushed, so GitHub lists it on every
 pull request as expected and waiting for its status. The reconciler reports it, as a commit status
@@ -1371,16 +1355,6 @@ budget stays observable.
 
 - `on: schedule: cron '*/5 * * * *'` (`MONITOR_INTERVAL`) and `workflow_dispatch` with a `dry-run`
   input.
-- `fork-ci-monitor-wake.yml` dispatches it when a `Tests (AMD)` run of a fork pull request to `main`
-  is requested and the gate, taken from `main` and fed the pull request's data from the API, leaves
-  that pull request to fork CI. `requested` comes right after the push, also for a run held for
-  approval, which GitHub creates already completed as `action_required`, before its gate job runs.
-  The wake-up is an `ubuntu-slim` job per fork pull request push that never checks out pull request
-  code, and adds a monitor run per gated pull request push; the concurrency group keeps one run
-  queued, so a burst of pushes adds at most one run behind the current one. Pull requests to other
-  branches, re-runs, which GitHub does not report as `requested`, and a wake-up that fails wait for
-  the schedule. Discovery finds new pull requests through the search index, so a pull request that
-  the index does not list yet when the woken run searches also waits for the next run.
 - Two jobs, each with its own `permissions` block and a justification comment; the workflow
   grants nothing by default.
 - The `reconcile` job: `actions: write, contents: read, pull-requests: write, statuses: write`.
@@ -1547,21 +1521,16 @@ as a failed check rather than a crash.
   any run starts; see "Approving gated runs".
 - The reconciler runs on `main` with `pull-requests: write` and never checks out or executes
   pull request content. Its inputs are API data; its comment templates are static.
-- `fork-ci-monitor-wake.yml` reacts to a fork pull request's run with `actions: write`, but takes
-  the gate from `main`, reads the pull request through the API and only dispatches the monitor on
-  `main`, which works from GitHub's state, not from the event.
 - Fork runs get the fork's `GITHUB_TOKEN` only. Nothing in project CI trusts a fork run's
   result beyond reading its public status.
 
 ## Known limitations
 
-- Opening or pushing a gated pull request to `main` starts a monitor run, so its first state
-  comment does not wait for the schedule. It still waits for a runner twice, for the wake-up job
-  and for the monitor, each from seconds to several minutes when runners are busy, for a monitor
-  run already in progress, and for the search index to list the pull request. Everything else,
-  such as the start or end of the fork run, arrives within one cadence (5 minutes) plus
-  GitHub's delay of scheduled workflows: the fork runs in another repository, so no event in
-  `apache/airflow` reports it.
+- Drafting, the setup comment and the commit status arrive within one cadence (5 minutes) of the
+  event they reflect, plus GitHub's delay of scheduled workflows, not instantly. The fork runs in
+  another repository, so no event in `apache/airflow` reports its start or end; a `workflow_run`
+  trigger on project CI's gate run would only cover a push, at the cost of a monitor run per
+  pull request push.
 - The workflows API lists workflows from the fork's default branch. A fork whose `main`
   predates `ci-amd.yml` reports it missing; the setup comment covers this with
   `gh repo sync`.
