@@ -47,7 +47,14 @@ _WRITE_CHUNK_CHARS = 1024 * 1024
 
 @cache
 def _get_base_path() -> ObjectStoragePath:
-    return ObjectStoragePath(conf.get_mandatory_value(SECTION, "state_store_objectstorage_path"))
+    path = conf.get_mandatory_value(SECTION, "state_store_objectstorage_path")
+    # _is_storage_ref only recognises URLs, so a schemeless ref would be parsed as JSON on read.
+    if not urlsplit(path).scheme:
+        raise ValueError(
+            f"[{SECTION}] state_store_objectstorage_path must be a URL with a scheme, such as "
+            f"s3://conn_id@bucket/task-state or file:///path/to/task-state; got {path!r}."
+        )
+    return ObjectStoragePath(path)
 
 
 @cache
@@ -119,10 +126,11 @@ def _read_from_object_storage(path: ObjectStoragePath) -> str | None:
 
 
 def _is_storage_ref(value: str) -> bool:
+    base_path = _get_base_path()
     try:
         if not urlsplit(value).scheme:
             return False
-        return ObjectStoragePath(value).is_relative_to(_get_base_path())
+        return ObjectStoragePath(value).is_relative_to(base_path)
     except Exception:
         return False
 

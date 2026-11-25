@@ -1774,6 +1774,15 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Run agent framework tests when the lock file changes",
         ),
         pytest.param(
+            ("uv.lock",),
+            {
+                "run-task-sdk-tests": "true",
+                "ci-image-build": "true",
+                "providers-test-types-list-as-strings-in-json": "[]",
+            },
+            id="Run Task SDK tests without all provider tests when the lock file changes",
+        ),
+        pytest.param(
             ("providers/common/ai/docs/frameworks/strands.rst",),
             {"run-agent-framework-tests": "false"},
             id="Skip agent framework tests for a common.ai docs-only change",
@@ -4098,6 +4107,24 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
         )
     )
     assert_outputs_are_printed({"has-migrations": str(has_migrations).lower()}, str(stderr))
+
+
+@pytest.mark.parametrize(
+    ("files", "skipped"),
+    [
+        pytest.param(("uv.lock",), False, id="lock file changed"),
+        pytest.param(("airflow-core/src/airflow/models/dag.py",), True, id="no Task SDK or lock file change"),
+    ],
+)
+def test_mypy_task_sdk_skipped(files: tuple[str, ...], skipped: bool):
+    skip_prek_hooks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    ).skip_prek_hooks
+
+    assert ("mypy-task-sdk" in skip_prek_hooks.split(",")) is skipped
 
 
 @pytest.mark.parametrize(

@@ -65,6 +65,7 @@ def _count_import_errors(bundle_names: Sequence[str], *, session: Session) -> di
             .where(ParseImportError.bundle_name.in_(bundle_names))
             .group_by(ParseImportError.bundle_name)
         )
+        if bundle_name is not None
     }
 
 
