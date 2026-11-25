@@ -11042,10 +11042,10 @@ class TestSchedulerJob:
         assert "Failed creating DagRun" in caplog.text
 
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
-    def test_dag_run_rolled_back_by_deadline_alert_does_not_advance_schedule(
-        self, mock_create, session, dag_maker, caplog
-    ):
-        mock_create.side_effect = DagRunRolledBackError("rolled back")
+    def test_dag_run_rolled_back_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
+        mock_create.side_effect = DagRunRolledBackError(
+            "rolled back", dag_id="testdag1", dag_version_id=uuid4()
+        )
         with dag_maker("testdag1", serialized=True):
             BashOperator(task_id="task", bash_command="echo 1")
 
@@ -11055,17 +11055,19 @@ class TestSchedulerJob:
         next_dagrun = dm1.next_dagrun
 
         job_runner = SchedulerJobRunner(job=Job())
-        job_runner._create_dag_runs([dm1], session)
+        with pytest.raises(DagRunRolledBackError):
+            job_runner._create_dag_runs([dm1], session)
 
-        assert {"event": "Failed creating DagRun", "dag_id": "testdag1"} in caplog
         assert dm1.next_dagrun == next_dagrun
 
     @pytest.mark.need_serialized_dag
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
-    def test_asset_triggered_dag_run_rolled_back_by_deadline_alert_keeps_queued_records(
-        self, mock_create, session, dag_maker, caplog
+    def test_asset_triggered_dag_run_rolled_back_by_deadline_alert_propagates(
+        self, mock_create, session, dag_maker
     ):
-        mock_create.side_effect = DagRunRolledBackError("rolled back")
+        mock_create.side_effect = DagRunRolledBackError(
+            "rolled back", dag_id="asset-consumer-rolled-back", dag_version_id=uuid4()
+        )
         asset = Asset(uri="test://asset-rolled-back", name="asset-rolled-back")
         with dag_maker(dag_id="asset-consumer-rolled-back", schedule=[asset], session=session):
             pass
@@ -11080,9 +11082,9 @@ class TestSchedulerJob:
         session.flush()
 
         job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
-        job_runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
+        with pytest.raises(DagRunRolledBackError):
+            job_runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
 
-        assert {"event": "Failed creating DagRun", "dag_id": dag_model.dag_id} in caplog
         assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none() is None
         assert (
             session.scalars(
@@ -11090,6 +11092,70 @@ class TestSchedulerJob:
             ).one_or_none()
             is not None
         )
+
+    @mock.patch.object(SchedulerJobRunner, "_start_queued_dagruns", autospec=True)
+    @mock.patch.object(SchedulerJobRunner, "_create_dagruns_for_dags", autospec=True)
+    def test_do_scheduling_ends_dag_run_creation_when_deadline_alert_rolls_back_session(
+        self, mock_create_dagruns, mock_start_queued, session, caplog
+    ):
+        dag_version_id = uuid4()
+        mock_create_dagruns.side_effect = DagRunRolledBackError(
+            "rolled back", dag_id="rolled_back_dag", dag_version_id=dag_version_id
+        )
+
+        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        job_runner._do_scheduling(session)
+
+        assert job_runner._dag_versions_rolling_back_session == {"rolled_back_dag": dag_version_id}
+        assert {
+            "event": "A deadline alert rolled back the scheduler's session; skipping the Dag "
+            "until a new version of it is parsed",
+            "dag_id": "rolled_back_dag",
+        } in caplog
+        mock_start_queued.assert_called_once()
+
+    @pytest.mark.parametrize("recorded_version_is_latest", [True, False])
+    def test_get_dag_ids_rolling_back_session_forgets_dags_with_a_newer_version(
+        self, session, dag_maker, recorded_version_is_latest
+    ):
+        with dag_maker("rolled_back_dag", serialized=True):
+            EmptyOperator(task_id="task")
+        latest_version_id = DagVersion.get_latest_version("rolled_back_dag", session=session).id
+
+        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        job_runner._dag_versions_rolling_back_session["rolled_back_dag"] = (
+            latest_version_id if recorded_version_is_latest else uuid4()
+        )
+
+        excluded = job_runner._get_dag_ids_rolling_back_session(session=session)
+
+        expected = {"rolled_back_dag"} if recorded_version_is_latest else set()
+        assert excluded == expected
+        assert set(job_runner._dag_versions_rolling_back_session) == expected
+
+    def test_dag_rolling_back_session_does_not_use_up_dag_run_creation_limit(self, session, dag_maker):
+        with dag_maker("rolled_back_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
+            EmptyOperator(task_id="task")
+        rolled_back_dag_model = dag_maker.dag_model
+        with dag_maker("other_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
+            EmptyOperator(task_id="task")
+        other_dag_model = dag_maker.dag_model
+        # The failing Dag keeps the oldest create-after, so it would sort first into the batch.
+        rolled_back_dag_model.next_dagrun_create_after = DEFAULT_DATE
+        other_dag_model.next_dagrun_create_after = DEFAULT_DATE + timedelta(hours=1)
+        session.flush()
+
+        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        job_runner._dag_versions_rolling_back_session["rolled_back_dag"] = DagVersion.get_latest_version(
+            "rolled_back_dag", session=session
+        ).id
+        with mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1):
+            job_runner._create_dagruns_for_dags(mock.create_autospec(CommitProhibitorGuard), session)
+
+        created = session.scalars(
+            select(DagRun.dag_id).where(DagRun.dag_id.in_(["rolled_back_dag", "other_dag"]))
+        )
+        assert list(created) == ["other_dag"]
 
     def test_activate_referenced_assets_no_in_check_inside_query(self, session, testing_dag_bundle):
         dag_id1 = "test_asset_dag1"
@@ -14916,8 +14982,8 @@ def test_partitioned_batch_asset_events(dag_maker: DagMaker, session: Session, b
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partitioned_dag_run_rolled_back_by_deadline_alert_keeps_apdr_pending(
-    dag_maker: DagMaker, session: Session, caplog
+def test_partitioned_dag_run_rolled_back_by_deadline_alert_propagates_and_is_excluded_on_request(
+    dag_maker: DagMaker, session: Session
 ):
     asset = Asset(name="partitioned-rolled-back-asset")
     dag_id = "partitioned-rolled-back-consumer"
@@ -14938,11 +15004,17 @@ def test_partitioned_dag_run_rolled_back_by_deadline_alert_keeps_apdr_pending(
     # Patched only here: producing the asset event above also goes through create_dagrun.
     with patch(
         "airflow.serialization.serialized_objects.SerializedDAG.create_dagrun",
-        side_effect=DagRunRolledBackError("rolled back"),
-    ):
-        assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {dag_id}
+        side_effect=DagRunRolledBackError("rolled back", dag_id=dag_id, dag_version_id=uuid4()),
+    ) as mock_create:
+        with pytest.raises(DagRunRolledBackError):
+            runner._create_dagruns_for_partitioned_asset_dags(session=session)
 
-    assert {"event": "Failed creating DagRun", "dag_id": dag_id} in caplog
+        assert (
+            runner._create_dagruns_for_partitioned_asset_dags(session=session, exclude_dag_ids={dag_id})
+            == set()
+        )
+        mock_create.assert_called_once()
+
     assert apdr.created_dag_run_id is None
     assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).one_or_none() is None
 

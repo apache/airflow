@@ -704,7 +704,9 @@ class DagModel(Base):
         return any_deactivated
 
     @classmethod
-    def dags_needing_dagruns(cls, session: Session) -> tuple[Any, dict[str, datetime]]:
+    def dags_needing_dagruns(
+        cls, session: Session, *, exclude_dag_ids: Collection[str] = ()
+    ) -> tuple[Any, dict[str, datetime]]:
         """
         Return (and lock) a list of Dag objects that are due to create a new DagRun.
 
@@ -716,6 +718,8 @@ class DagModel(Base):
         but no matching ``SerializedDagModel`` row are omitted from the asset-aware scheduling
         buckets until serialization exists; ADRQs are **not** deleted here so the scheduler can
         re-evaluate on a later run.
+
+        :param exclude_dag_ids: Dags to leave out, even when due.
 
         :meta private:
         """
@@ -834,6 +838,7 @@ class DagModel(Base):
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
                 cls.exceeds_max_non_backfill == expression.false(),
+                cls.dag_id.not_in(exclude_dag_ids),
                 or_(
                     cls.dag_id.in_(asset_triggered_dag_ids),
                     and_(cls.dag_id.in_(asset_gated_ready_dag_ids), time_due),

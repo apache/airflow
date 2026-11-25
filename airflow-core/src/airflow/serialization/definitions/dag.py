@@ -859,6 +859,7 @@ class SerializedDAG:
         run_id = orm_dagrun.run_id
         dagrun_id = orm_dagrun.id
         dagrun_dag_id = orm_dagrun.dag_id
+        dag_version_id = orm_dagrun.created_dag_version_id
         bundle_name = orm_dagrun.dag_model.bundle_name
         dagrun_snapshot = _DagRunSnapshot(
             dag_id=dagrun_dag_id,
@@ -941,7 +942,9 @@ class SerializedDAG:
                 if orm_dagrun not in session:
                     raise DagRunRolledBackError(
                         f"Dag run {run_id} of Dag {self.dag_id} was discarded by a session rollback "
-                        "while processing deadline alerts"
+                        "while processing deadline alerts",
+                        dag_id=dagrun_dag_id,
+                        dag_version_id=dag_version_id,
                     )
 
     @provide_session

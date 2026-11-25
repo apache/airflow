@@ -2426,10 +2426,13 @@ class TestDagRun:
             raise KeyError("missing_key")
 
         mock_variable_get.side_effect = rollback_and_raise
+        dag_version_id = DagVersion.get_latest_version(scheduler_dag.dag_id, session=session).id
 
-        with pytest.raises(DagRunRolledBackError):
+        with pytest.raises(DagRunRolledBackError) as exc_info:
             self.create_dag_run(dag=scheduler_dag, session=session)
 
+        assert exc_info.value.dag_id == scheduler_dag.dag_id
+        assert exc_info.value.dag_version_id == dag_version_id
         assert session.scalars(select(Deadline)).all() == []
         assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
 

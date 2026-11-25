@@ -436,6 +436,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Process-local and deliberately not de-duplicated across schedulers: in an HA deployment
         # each scheduler writes its own row, so a Dag gets one row per scheduler per episode.
         self._partition_cap_reported_dag_ids: set[str] = set()
+        # Dag versions whose deadline alerts rolled back the scheduler's session, keyed by dag_id.
+        # A failing Dag keeps the oldest next_dagrun_create_after, so without skipping it every
+        # loop would end on it and no other Dag in its batch would get a run. Process-local: each
+        # scheduler, and each restart, hits a failing version once before skipping it.
+        self._dag_versions_rolling_back_session: dict[str, UUID | None] = {}
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -461,6 +466,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @provide_session
     def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
+
+    def _get_dag_ids_rolling_back_session(self, *, session: Session) -> set[str]:
+        """Return the Dags to leave out of Dag run creation, forgetting those with a newer version parsed."""
+        for dag_id, dag_version_id in list(self._dag_versions_rolling_back_session.items()):
+            latest_version = DagVersion.get_latest_version(dag_id, session=session)
+            if latest_version is None or latest_version.id != dag_version_id:
+                del self._dag_versions_rolling_back_session[dag_id]
+        if self._dag_versions_rolling_back_session:
+            self.log.debug(
+                "Skipping Dag run creation for Dags whose deadline alerts rolled back the session",
+                dag_ids=sorted(self._dag_versions_rolling_back_session),
+            )
+        return set(self._dag_versions_rolling_back_session)
 
     def _get_current_dag(self, dag_id: str, session: Session) -> SerializedDAG | None:
         try:
@@ -2314,7 +2332,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
             if self._scheduler_use_job_schedule:
-                self._create_dagruns_for_dags(guard, session)
+                try:
+                    self._create_dagruns_for_dags(guard, session)
+                except DagRunRolledBackError as e:
+                    # The rollback released the DagModel row locks and discarded every Dag run
+                    # created so far in this loop. Creating more without those locks could race
+                    # another scheduler, so stop here; the discarded runs are retried next loop.
+                    self._dag_versions_rolling_back_session[e.dag_id] = e.dag_version_id
+                    self.log.exception(
+                        "A deadline alert rolled back the scheduler's session; skipping the Dag "
+                        "until a new version of it is parsed",
+                        dag_id=e.dag_id,
+                        dag_version_id=e.dag_version_id,
+                    )
+                    session.rollback()
 
             self._start_queued_dagruns(session)
             guard.commit()
@@ -2538,7 +2569,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return None
         return anchors.pop()
 
-    def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
+    def _create_dagruns_for_partitioned_asset_dags(
+        self, session: Session, *, exclude_dag_ids: Collection[str] = ()
+    ) -> set[str]:
         """
         Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
 
@@ -2590,7 +2623,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             with_row_locks(
                 select(AssetPartitionDagRun)
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                .where(*_build_pending_partitioned_apdr_filters())
+                .where(
+                    *_build_pending_partitioned_apdr_filters(),
+                    AssetPartitionDagRun.target_dag_id.not_in(exclude_dag_ids),
+                )
                 .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
                 .limit(self._max_partition_dag_runs_per_loop),
                 of=AssetPartitionDagRun,
@@ -2759,9 +2795,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     creating_job_id=self.job.id,
                     session=session,
                 )
-            except (DagRunRolledBackError, ParamValidationError):
+            except ParamValidationError:
                 # A stored Dag can hold a default that became invalid after an upgrade, until re-parsed.
-                # The APDR keeps created_dag_run_id unset, so the run is retried on the next tick.
                 self.log.exception("Failed creating DagRun", dag_id=apdr.target_dag_id)
                 continue
             asset_events = session.scalars(
@@ -2780,9 +2815,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
-        partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
+        # Excluded in the queries rather than skipped afterwards, so they don't use up the per-loop limits.
+        excluded_dag_ids = self._get_dag_ids_rolling_back_session(session=session)
+        partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(
+            session, exclude_dag_ids=excluded_dag_ids
+        )
 
-        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(
+            session, exclude_dag_ids=excluded_dag_ids
+        )
         all_dags_needing_dag_runs = set(query.all())
         asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
         non_asset_dags = {
@@ -2980,6 +3021,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
             # crash due to misconfigured dags. We should log any exception encountered
             # and continue to the next serdag.
+            except DagRunRolledBackError:
+                raise
             except Exception:
                 self.log.exception("Failed creating DagRun", dag_id=dag_model.dag_id)
                 # todo: if you get a database error here, continuing does not work because
@@ -3214,8 +3257,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         dag_run.run_id,
                         len(events),
                     )
-            except (DagRunRolledBackError, ParamValidationError):
-                # ADRQ rows stay queued so the run is created once the Dag is fixed or the alert stops rolling back.
+            except ParamValidationError:
+                # ADRQ rows stay queued so the run is created once the Dag is fixed.
                 self.log.exception("Failed creating DagRun", dag_id=dag.dag_id)
                 continue
             session.flush()  # Make consumed events visible to ADRQ cleanup.
