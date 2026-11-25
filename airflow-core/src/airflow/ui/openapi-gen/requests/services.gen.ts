@@ -615,6 +615,7 @@ export class BackfillService {
      * @param data.limit
      * @param data.offset
      * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+     * @param data.state
      * @returns BackfillDagRunCollectionResponse Successful Response
      * @throws ApiError
      */
@@ -628,7 +629,8 @@ export class BackfillService {
             query: {
                 limit: data.limit,
                 offset: data.offset,
-                order_by: data.orderBy
+                order_by: data.orderBy,
+                state: data.state
             },
             errors: {
                 401: 'Unauthorized',

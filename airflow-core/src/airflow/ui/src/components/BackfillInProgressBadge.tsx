@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { Badge } from "@chakra-ui/react";
+import { Badge, HStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { RiArrowGoBackFill } from "react-icons/ri";
 
@@ -25,6 +25,8 @@ import { useBackfillServiceListBackfillsUi } from "openapi/queries";
 import { RouterLink } from "src/system-components";
 
 import { useAutoRefresh } from "src/utils";
+
+import { BackfillProgressBar } from "./BackfillProgressBar";
 
 type Props = {
   readonly dagId: string;
@@ -48,16 +50,21 @@ export const BackfillInProgressBadge = ({ dagId }: Props) => {
   });
 
   // An active backfill may already be finished; only an incomplete one is in progress.
-  if (!(data?.backfills ?? []).some((backfill) => backfill.completed_at === null)) {
+  const inProgress = data?.backfills.find((backfill) => backfill.completed_at === null);
+
+  if (inProgress === undefined) {
     return undefined;
   }
 
   return (
-    <RouterLink to={`/dags/${dagId}/backfills`}>
-      <Badge colorPalette="info" cursor="pointer" variant="subtle">
-        <RiArrowGoBackFill size={12} />
-        {translate("banner.backfillInProgress")}
-      </Badge>
-    </RouterLink>
+    <HStack gap={3}>
+      <RouterLink to={`/dags/${dagId}/backfills`}>
+        <Badge colorPalette="info" cursor="pointer" variant="subtle">
+          <RiArrowGoBackFill size={12} />
+          {translate("banner.backfillInProgress")}
+        </Badge>
+      </RouterLink>
+      <BackfillProgressBar backfillId={inProgress.id} isRunning />
+    </HStack>
   );
 };

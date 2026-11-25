@@ -35,6 +35,7 @@ import type { BackfillResponse } from "openapi/requests/types.gen";
 
 import { IconButton } from "src/system-components";
 
+import { BackfillProgressBar } from "src/components/BackfillProgressBar";
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -147,6 +148,14 @@ const getColumns = ({
       ),
     enableSorting: false,
     header: translate("table.completedAt"),
+  },
+  {
+    accessorKey: "progress",
+    cell: ({ row }) => (
+      <BackfillProgressBar backfillId={row.original.id} isRunning={row.original.completed_at === null} />
+    ),
+    enableSorting: false,
+    header: translate("components:backfill.progress"),
   },
   {
     accessorKey: "duration",

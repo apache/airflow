@@ -79,6 +79,16 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("src/components/BackfillProgressBar", () => ({
+  BackfillProgressBar: ({
+    backfillId,
+    isRunning,
+  }: {
+    readonly backfillId: number;
+    readonly isRunning: boolean;
+  }) => <span>{`progress-${backfillId}-${isRunning ? "running" : "done"}`}</span>,
+}));
+
 vi.mock("src/components/Time", () => ({
   default: ({ datetime }: { readonly datetime: string | null }) => <span>{datetime}</span>,
 }));
@@ -254,6 +264,8 @@ describe("Backfills filters", () => {
     // Exactly one row is still running, so only it gets a progress badge and actions.
     expect(await screen.findByText("components:banner.backfillInProgress")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "components:banner.cancel" })).toHaveLength(1);
+    expect(screen.getByText("progress-7-running")).toBeInTheDocument();
+    expect(screen.getByText("progress-8-done")).toBeInTheDocument();
   });
 
   it("opens a backfill's associated slots in a dialog", async () => {
