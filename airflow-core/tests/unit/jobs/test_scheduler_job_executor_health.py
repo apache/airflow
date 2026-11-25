@@ -164,7 +164,8 @@ def test_run_executor_health_check_does_not_log_reported_itself_unhealthy_when_i
     with caplog.at_level(logging.WARNING, logger="airflow.jobs.scheduler_job_runner"):
         runner._run_executor_health_check(executor, key)
 
-    assert "reported itself unhealthy" not in caplog.text
+    assert f"Health check for executor {key} raised an exception" in caplog
+    assert f"Executor {key} reported itself unhealthy" not in caplog
 
 
 @conf_vars({("scheduler", "executor_health_check_interval"): "10.0"})
