@@ -61,7 +61,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.dag_processing.maintenance import cleanup_processor_metadata
-from airflow.exceptions import AirflowException, DagRunRolledBackError, DeserializationError, TaskNotFound
+from airflow.exceptions import AirflowException, DagRunDiscardedError, DeserializationError, TaskNotFound
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -11043,7 +11043,7 @@ class TestSchedulerJob:
 
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True)
     def test_dag_run_rolled_back_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
-        mock_create.side_effect = DagRunRolledBackError(
+        mock_create.side_effect = DagRunDiscardedError(
             "rolled back", dag_id="testdag1", dag_version_id=uuid4()
         )
         with dag_maker("testdag1", serialized=True):
@@ -11055,7 +11055,7 @@ class TestSchedulerJob:
         next_dagrun = dm1.next_dagrun
 
         job_runner = SchedulerJobRunner(job=Job())
-        with pytest.raises(DagRunRolledBackError):
+        with pytest.raises(DagRunDiscardedError):
             job_runner._create_dag_runs([dm1], session)
 
         assert dm1.next_dagrun == next_dagrun
@@ -11066,7 +11066,7 @@ class TestSchedulerJob:
     def test_do_scheduling_ends_dag_run_creation_when_deadline_alert_rolls_back_session(
         self, mock_create_dagruns, mock_start_queued, mock_stats_incr, session, caplog
     ):
-        mock_create_dagruns.side_effect = DagRunRolledBackError(
+        mock_create_dagruns.side_effect = DagRunDiscardedError(
             "rolled back", dag_id="rolled_back_dag", dag_version_id=uuid4()
         )
 

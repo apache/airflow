@@ -64,7 +64,7 @@ from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.dag_processing.dagbag import DagBag
-from airflow.exceptions import DagRunRolledBackError
+from airflow.exceptions import DagRunDiscardedError
 from airflow.models.dag import DagModel, infer_automated_data_interval
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -2294,7 +2294,7 @@ class TestDagRun:
 
         mock_variable_get.side_effect = teardown_session_and_raise
 
-        with pytest.raises(DagRunRolledBackError):
+        with pytest.raises(DagRunDiscardedError):
             self.create_dag_run(dag=scheduler_dag, session=session)
 
         mock_stats_incr.assert_any_call(
@@ -2375,7 +2375,7 @@ class TestDagRun:
             with pytest.raises(DBAPIError):
                 alert_session.execute(text(statement))
 
-        # The connection goes back to the shared pool and must not stay read-only.
+        # On PostgreSQL and MySQL the connection goes back to the shared pool and must not stay read-only.
         session.execute(text("UPDATE variable SET val = val WHERE id = -1"))
 
     @pytest.mark.backend("sqlite")
@@ -2419,7 +2419,7 @@ class TestDagRun:
         mock_variable_get.side_effect = self._roll_back_callers_session_and_raise
         dag_version_id = DagVersion.get_latest_version(scheduler_dag.dag_id, session=session).id
 
-        with pytest.raises(DagRunRolledBackError) as exc_info:
+        with pytest.raises(DagRunDiscardedError) as exc_info:
             self.create_dag_run(dag=scheduler_dag, session=session)
 
         assert exc_info.value.dag_id == scheduler_dag.dag_id
@@ -2445,6 +2445,18 @@ class TestDagRun:
             ],
         )
 
+    def _create_dag_with_two_logical_date_alerts(self, deadline_test_dag):
+        return deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=datetime.timedelta(hours=hours),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                )
+                for hours in (1, 2)
+            ],
+        )
+
     def _create_dag_with_variable_interval_alert(self, deadline_test_dag):
         return deadline_test_dag(
             deadline=[
@@ -2463,20 +2475,6 @@ class TestDagRun:
         with create_session():
             pass
         return "60"
-
-    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
-    @mock.patch.object(Variable, "get", autospec=True, side_effect=_commit_callers_session)
-    def test_dagrun_deadline_alert_committing_guarded_session_raises_rolled_back_error(
-        self, _, __, session, deadline_test_dag
-    ):
-        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
-        session.commit()
-
-        # The guard rejects the commit and create_session() rolls back, discarding the Dag run.
-        with prohibit_commit(session), pytest.raises(DagRunRolledBackError):
-            self.create_dag_run(dag=scheduler_dag, session=session)
-
-        assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
 
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch.object(Variable, "get", autospec=True, side_effect=_commit_callers_session)
@@ -2500,52 +2498,18 @@ class TestDagRun:
         settings.Session().commit()
         return "60"
 
-    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
-    @mock.patch.object(Variable, "get", autospec=True, side_effect=_commit_callers_session_directly)
-    def test_dagrun_deadline_alert_committing_guarded_session_directly_raises_rolled_back_error(
-        self, _, __, session, deadline_test_dag
-    ):
-        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
-        session.commit()
-
-        # The guard rejects the commit and nothing rolls the session back, yet the Dag must still stop.
-        with prohibit_commit(session), pytest.raises(DagRunRolledBackError):
-            self.create_dag_run(dag=scheduler_dag, session=session)
-
     @staticmethod
     def _roll_back_callers_transaction_in_the_driver(key, session):
         # Like a MySQL deadlock: the database rolls back while the session still holds the Dag run.
         settings.Session().connection().connection.driver_connection.rollback()
         return "60"
 
-    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
-    @mock.patch.object(
-        Variable, "get", autospec=True, side_effect=_roll_back_callers_transaction_in_the_driver
-    )
-    def test_dagrun_deadline_alert_rolling_back_callers_transaction_in_the_database_raises_rolled_back_error(
-        self, _, __, session, deadline_test_dag
-    ):
-        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
-        session.commit()
-
-        with pytest.raises(DagRunRolledBackError):
-            self.create_dag_run(dag=scheduler_dag, session=session)
-
     @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     def test_dagrun_deadlines_are_counted_once_every_alert_has_run(
         self, _, mock_stats_incr, session, deadline_test_dag
     ):
-        scheduler_dag = deadline_test_dag(
-            deadline=[
-                DeadlineAlert(
-                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
-                    interval=datetime.timedelta(hours=hours),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                )
-                for hours in (1, 2)
-            ],
-        )
+        scheduler_dag = self._create_dag_with_two_logical_date_alerts(deadline_test_dag)
 
         self.create_dag_run(dag=scheduler_dag, session=session)
 
@@ -2572,7 +2536,7 @@ class TestDagRun:
         scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
         session.commit()
 
-        with pytest.raises(DagRunRolledBackError):
+        with pytest.raises(DagRunDiscardedError):
             self.create_dag_run(dag=scheduler_dag, session=session)
 
         counted = [call.args[0] for call in mock_stats_incr.call_args_list]
@@ -2585,16 +2549,7 @@ class TestDagRun:
     def test_dagrun_deadline_alerts_without_an_alert_session_are_skipped(
         self, mock_create_alert_session, _, mock_stats_incr, session, deadline_test_dag
     ):
-        scheduler_dag = deadline_test_dag(
-            deadline=[
-                DeadlineAlert(
-                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
-                    interval=datetime.timedelta(hours=hours),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                )
-                for hours in (1, 2)
-            ],
-        )
+        scheduler_dag = self._create_dag_with_two_logical_date_alerts(deadline_test_dag)
         mock_create_alert_session.side_effect = TimeoutError("QueuePool limit reached")
 
         dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
@@ -2609,33 +2564,41 @@ class TestDagRun:
     def _run_failing_statement_on_callers_session(key, session):
         settings.Session().execute(text("SELECT missing_column FROM variable"))
 
-    @pytest.mark.backend("postgres")
-    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
-    @mock.patch.object(Variable, "get", autospec=True, side_effect=_run_failing_statement_on_callers_session)
-    def test_dagrun_deadline_alert_aborting_callers_transaction_raises_rolled_back_error(
-        self, _, __, session, deadline_test_dag
-    ):
-        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
-        session.commit()
-
-        with pytest.raises(DagRunRolledBackError):
-            self.create_dag_run(dag=scheduler_dag, session=session)
-
     @staticmethod
     def _fail_flush_on_callers_session(key, session):
         callers_session = settings.Session()
         callers_session.add_all([Variable(key="duplicate", val="1"), Variable(key="duplicate", val="2")])
         callers_session.flush()
 
+    @pytest.mark.parametrize(
+        "break_callers_session",
+        [
+            # The guard rejects the commit and create_session() rolls back.
+            pytest.param(_commit_callers_session, id="commit_through_create_session"),
+            # The guard rejects the commit and nothing rolls back, yet the Dag must still stop.
+            pytest.param(_commit_callers_session_directly, id="commit_directly"),
+            pytest.param(_roll_back_callers_transaction_in_the_driver, id="rollback_by_the_database"),
+            pytest.param(_fail_flush_on_callers_session, id="failed_flush"),
+            pytest.param(
+                _run_failing_statement_on_callers_session,
+                id="aborted_transaction",
+                marks=pytest.mark.backend("postgres"),
+            ),
+        ],
+    )
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
-    @mock.patch.object(Variable, "get", autospec=True, side_effect=_fail_flush_on_callers_session)
-    def test_dagrun_deadline_alert_failing_flush_on_callers_session_raises_rolled_back_error(
-        self, _, __, session, deadline_test_dag
+    @mock.patch.object(Variable, "get", autospec=True)
+    def test_dagrun_deadline_alert_breaking_callers_session_raises_discarded_error(
+        self, mock_variable_get, _, break_callers_session, session, deadline_test_dag
     ):
         scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
         session.commit()
+        mock_variable_get.side_effect = break_callers_session
 
-        with pytest.raises(DagRunRolledBackError):
+        with prohibit_commit(session), pytest.raises(DagRunDiscardedError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
+
+        with pytest.raises(DagRunDiscardedError):
             self.create_dag_run(dag=scheduler_dag, session=session)
 
     @staticmethod

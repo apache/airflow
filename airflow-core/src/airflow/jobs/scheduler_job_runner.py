@@ -73,7 +73,7 @@ from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.dag_processing.maintenance import cleanup_processor_metadata
 from airflow.exceptions import (
     DagNotFound,
-    DagRunRolledBackError,
+    DagRunDiscardedError,
     ParamValidationError,
     TaskNotFound,
     UnknownExecutorException,
@@ -2322,10 +2322,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             if self._scheduler_use_job_schedule:
                 try:
                     self._create_dagruns_for_dags(guard, session)
-                except DagRunRolledBackError as e:
-                    # The alert rolled back the session or tried to commit it. Rolling back below discards
-                    # every Dag run created so far in this loop and releases the DagModel row locks, so
-                    # creating more could race another scheduler; stop here. The others are retried next loop.
+                except DagRunDiscardedError as e:
+                    # Rolling back below discards every Dag run created so far in this loop and releases the
+                    # DagModel row locks, so creating more could race another scheduler; stop here. The other
+                    # Dags' runs are created again next loop.
                     self._dag_ids_stopped_by_deadline_alerts.add(e.dag_id)
                     self.log.exception(
                         "A deadline alert broke the scheduler's session; no more Dag runs are "
@@ -3010,7 +3010,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         session=session,
                     )
 
-            except DagRunRolledBackError:
+            except DagRunDiscardedError:
                 raise
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not

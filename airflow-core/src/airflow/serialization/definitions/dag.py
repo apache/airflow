@@ -40,7 +40,7 @@ from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     AirflowException,
     DagNotPartitionedError,
-    DagRunRolledBackError,
+    DagRunDiscardedError,
     DagVersionNotFound,
     DeserializationError,
     InvalidPartitionKeyError,
@@ -892,7 +892,7 @@ class SerializedDAG:
         ]
 
         build_rolled_back_error = functools.partial(
-            DagRunRolledBackError,
+            DagRunDiscardedError,
             f"Dag run {run_id} of Dag {self.dag_id} was discarded while processing deadline alerts: "
             "a deadline reference rolled back, committed or broke the transaction it was created in",
             dag_id=dagrun_dag_id,
@@ -986,7 +986,7 @@ class SerializedDAG:
                     # reference misuses the scheduler's session just as a rollback does, and is handled the
                     # same way rather than escaping into the scheduler loop.
                     dagrun_discarded = (
-                        isinstance(exc, RuntimeError) and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc)
+                        type(exc) is RuntimeError and str(exc) == PROHIBIT_COMMIT_ERROR_MESSAGE
                     ) or is_dagrun_discarded()
                     log.exception(
                         "skipping deadline alert because creating its deadline failed",
