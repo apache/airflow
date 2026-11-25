@@ -578,6 +578,49 @@ def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
 
 
 @pytest.mark.parametrize(
+    ("folder", "expected"),
+    [
+        pytest.param(None, None, id="unset"),
+        pytest.param("team_a", "team_a", id="single-level"),
+        pytest.param("team_a/etl", "team_a/etl", id="nested"),
+        pytest.param("/team_a/etl/", "team_a/etl", id="surrounding-slashes-stripped"),
+    ],
+)
+def test_display_folder_normalized(folder: str | None, expected: str | None):
+    assert DAG("test-dag", display_folder=folder).display_folder == expected
+
+
+@pytest.mark.parametrize(
+    "folder",
+    [
+        pytest.param("", id="empty"),
+        pytest.param("/", id="only-slash"),
+        pytest.param("team_a//etl", id="empty-segment"),
+        pytest.param("team_a/ /etl", id="blank-segment"),
+        pytest.param("team_a/../etl", id="parent-segment"),
+        pytest.param("./team_a", id="current-segment"),
+        pytest.param("a" * 2001, id="too-long"),
+    ],
+)
+def test_display_folder_invalid(folder: str):
+    with pytest.raises(ValueError, match="Dag display_folder"):
+        DAG("test-dag", display_folder=folder)
+
+
+def test_display_folder_wrong_type():
+    with pytest.raises(TypeError, match="Dag display_folder must be a string"):
+        DAG("test-dag", display_folder=["team_a"])
+
+
+def test_dag_decorator_display_folder():
+    @dag_decorator(display_folder="team_a/etl")
+    def my_dag():
+        pass
+
+    assert my_dag().display_folder == "team_a/etl"
+
+
+@pytest.mark.parametrize(
     ("schedule", "input_val", "expected"),
     [
         pytest.param("@daily", None, None, id="none"),

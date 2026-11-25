@@ -2416,6 +2416,7 @@ class LazyDeserializedDAG(pydantic.BaseModel):
         "relative_fileloc",
         "disable_bundle_versioning",
         "rerun_with_latest_version",
+        "display_folder",
         "fail_fast",
         "last_loaded",
     }

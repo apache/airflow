@@ -206,6 +206,7 @@
             ]
         },
         "dag_display_name": { "type" : "string"},
+        "display_folder": { "type" : "string"},
         "description": { "type" : "string"},
         "deadline": {
             "anyOf": [

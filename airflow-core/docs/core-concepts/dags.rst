@@ -779,6 +779,36 @@ This is especially useful if your tasks are built dynamically from configuration
             EmptyOperator(task_id="extract_orders")
 
 
+.. _concepts-dag-folders:
+
+Organizing Dags into folders
+----------------------------
+
+The Dags page groups Dags into a folder tree, so you can browse and filter them by folder.
+By default, a Dag's folder is the directory of its Dag file within its bundle: a Dag defined in
+``team_a/etl/orders.py`` appears under ``team_a`` > ``etl``, and Dags at the root of the bundle
+appear only in the top-level list.
+
+To place a Dag in a folder regardless of where its file lives, set ``display_folder`` to a ``/``-separated path.
+Leading and trailing ``/`` are removed, and empty, ``.`` and ``..`` path segments are rejected when the Dag is parsed.
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, dag
+
+    with DAG("orders_etl", schedule=None, display_folder="team_a/etl"):
+        ...
+
+
+    @dag(schedule=None, display_folder="platform/maintenance")
+    def cleanup(): ...
+
+Selecting a folder shows the Dags in that folder and all of its subfolders. Folders are kept
+separate per bundle, so ``team_a`` in one bundle is a different folder from ``team_a`` in another.
+``display_folder`` only affects how Dags are grouped in the UI; it does not change how or where the
+Dag file is parsed.
+
+
 .. _concepts-packaging-dags:
 
 Packaging Dags

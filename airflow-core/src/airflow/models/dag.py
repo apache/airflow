@@ -355,6 +355,8 @@ class DagModel(Base):
     )
     # Description of the dag
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Folder declared in Dag code; when NULL the folder is derived from relative_fileloc
+    display_folder: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     # Timetable Type
     timetable_type: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     # Timetable summary

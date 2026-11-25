@@ -1376,3 +1376,54 @@ class TestDagFolders(TestPublicDagEndpoint):
         assert response.status_code == 200
         returned = {dag["dag_id"] for dag in response.json()["dags"]}
         assert set(FOLDER_DAGS) <= returned
+
+
+# Maps dag_id -> (relative_fileloc, declared folder). ``declared_at_root`` gets a folder although
+# its file sits at the bundle root, and ``declared_override`` is filed away from its file's directory.
+DECLARED_FOLDER_DAGS = {
+    "declared_at_root": ("root_declared.py", "platform/ingest"),
+    "declared_override": ("team_z/x.py", "team_y"),
+}
+
+
+class TestDeclaredDagFolders(TestPublicDagEndpoint):
+    @pytest.fixture(autouse=True)
+    @provide_session
+    def setup_declared_folder_dags(self, *, session: Session = NEW_SESSION) -> None:
+        for dag_id, (relative_fileloc, folder) in DECLARED_FOLDER_DAGS.items():
+            session.add(
+                DagModel(
+                    dag_id=dag_id,
+                    bundle_name="dag_maker",
+                    relative_fileloc=relative_fileloc,
+                    fileloc=f"/tmp/{relative_fileloc}",
+                    display_folder=folder,
+                    is_stale=False,
+                    is_paused=False,
+                )
+            )
+        session.commit()
+
+    def test_get_dag_folders_prefers_declared_folder(self, test_client):
+        response = test_client.get("/dags/folders")
+        assert response.status_code == 200
+        folders = response.json()["folders"]
+        assert {"bundle_name": "dag_maker", "folder": "platform/ingest"} in folders
+        assert {"bundle_name": "dag_maker", "folder": "team_y"} in folders
+        assert {"bundle_name": "dag_maker", "folder": "team_z"} not in folders
+
+    @pytest.mark.parametrize(
+        ("prefix", "expected_dag_ids"),
+        [
+            pytest.param("platform/ingest", {"declared_at_root"}, id="exact-declared-folder"),
+            pytest.param("platform", {"declared_at_root"}, id="parent-of-declared-folder"),
+            pytest.param("team_y", {"declared_override"}, id="declared-folder-overrides-file"),
+            pytest.param("team_z", set(), id="file-directory-ignored-when-declared"),
+            pytest.param("platform/ing", set(), id="declared-folder-not-a-prefix-match"),
+        ],
+    )
+    def test_folder_filter_prefers_declared_folder(self, test_client, prefix, expected_dag_ids):
+        response = test_client.get("/dags", params={"relative_fileloc_prefix": prefix})
+        assert response.status_code == 200
+        returned = {dag["dag_id"] for dag in response.json()["dags"]}
+        assert returned & set(DECLARED_FOLDER_DAGS) == expected_dag_ids

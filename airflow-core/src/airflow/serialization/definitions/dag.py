@@ -131,6 +131,7 @@ class SerializedDAG:
     bundle_name: str | None = None
     end_date: datetime.datetime | None = None
     fail_fast: bool = False
+    display_folder: str | None = None
     has_on_failure_callback: bool = False
     has_on_success_callback: bool = False
     is_paused_upon_creation: bool | None = None
@@ -205,6 +206,7 @@ class SerializedDAG:
                 "end_date",
                 "fail_fast",
                 "fileloc",
+                "display_folder",
                 "is_paused_upon_creation",
                 "max_active_runs",
                 "max_active_tasks",

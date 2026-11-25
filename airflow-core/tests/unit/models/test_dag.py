@@ -676,6 +676,20 @@ class TestDag:
         with assert_queries_count(8):
             SerializedDAG.bulk_write_to_db("testing", None, dags)
 
+    def test_bulk_write_to_db_folder(self, testing_dag_bundle, session):
+        clear_db_dags()
+        dag = DAG("dag-with-folder", schedule=None, start_date=DEFAULT_DATE, display_folder="team_a/etl")
+        SerializedDAG.bulk_write_to_db("testing", None, [LazyDeserializedDAG.from_dag(dag)], session=session)
+        assert (
+            session.scalar(select(DagModel.display_folder).where(DagModel.dag_id == dag.dag_id))
+            == "team_a/etl"
+        )
+
+        # Dropping the folder from Dag code falls back to the file-based folder on the next parse.
+        dag = DAG("dag-with-folder", schedule=None, start_date=DEFAULT_DATE)
+        SerializedDAG.bulk_write_to_db("testing", None, [LazyDeserializedDAG.from_dag(dag)], session=session)
+        assert session.scalar(select(DagModel.display_folder).where(DagModel.dag_id == dag.dag_id)) is None
+
     def test_bulk_write_to_db_multiple_dags(self, testing_dag_bundle):
         """
         Test bulk_write_to_db for multiple dags which does not use the index optimized query
