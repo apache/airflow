@@ -250,6 +250,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             return
 
         annotations_string = annotations_for_logging_task_metadata(annotations)
+        # A pod keeps producing events after its deletion is requested (MODIFIED with
+        # deletionTimestamp set, then DELETED); flag them so the executor does not delete it again.
+        deletion_requested = pod.metadata.deletion_timestamp is not None
         if event["type"] == "DELETED" and not pod.metadata.deletion_timestamp:
             # This will happen only when the task pods are adopted by another executor.
             # So, there is no change in the pod state.
@@ -276,6 +279,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     annotations,
                     resource_version,
                     None,
+                    deletion_requested=deletion_requested,
                 )
             )
         elif status == "Pending":
@@ -323,6 +327,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                                     annotations,
                                     resource_version,
                                     None,
+                                    deletion_requested=deletion_requested,
                                 )
                             )
                             break
@@ -352,12 +357,21 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     annotations,
                     resource_version,
                     failure_details,
+                    deletion_requested=deletion_requested,
                 )
             )
         elif status == "Succeeded":
             self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put(
-                KubernetesWatch(pod_name, namespace, None, annotations, resource_version, None)
+                KubernetesWatch(
+                    pod_name,
+                    namespace,
+                    None,
+                    annotations,
+                    resource_version,
+                    None,
+                    deletion_requested=deletion_requested,
+                )
             )
         elif status == "Running":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
@@ -376,6 +390,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                         annotations,
                         resource_version,
                         None,
+                        deletion_requested=deletion_requested,
                     )
                 )
             else:
@@ -906,6 +921,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                     task.namespace,
                     task.resource_version,
                     task.failure_details,
+                    deletion_requested=task.deletion_requested,
                 )
             )
 

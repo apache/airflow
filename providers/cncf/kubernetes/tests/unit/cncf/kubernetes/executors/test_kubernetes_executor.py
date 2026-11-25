@@ -2209,6 +2209,126 @@ class TestKubernetesExecutor:
             executor.end()
 
     @pytest.mark.db_test
+    @mock.patch.object(KubernetesExecutor, "_get_task_instance_state", return_value=State.SUCCESS)
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_sync_deletes_finished_pod_once(
+        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher, mock_get_ti_state
+    ):
+        """Watch events that follow the pod deletion must not delete the same pod again."""
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            key = TaskInstanceKey(dag_id="dag", task_id="task", run_id="run_id", try_number=1, map_index=2)
+            executor.running = {key}
+            watcher = KubernetesJobWatcher(
+                namespace="default",
+                watcher_queue=executor.kube_scheduler.watcher_queue,
+                resource_version="0",
+                scheduler_job_id=executor.scheduler_job_id,
+                kube_config=executor.kube_config,
+            )
+            annotations = {
+                "dag_id": "dag",
+                "task_id": "task",
+                "run_id": "run_id",
+                "try_number": "1",
+                "map_index": "2",
+            }
+
+            def watch_event(event_type, resource_version, deletion_timestamp=None):
+                pod = k8s.V1Pod(
+                    metadata=k8s.V1ObjectMeta(
+                        name="pod",
+                        namespace="default",
+                        resource_version=resource_version,
+                        deletion_timestamp=deletion_timestamp,
+                        labels={},
+                    ),
+                    status=k8s.V1PodStatus(phase="Succeeded"),
+                )
+                watcher.process_status(
+                    pod_name="pod",
+                    namespace="default",
+                    status="Succeeded",
+                    annotations=annotations,
+                    resource_version=resource_version,
+                    event={"type": event_type, "object": pod},
+                )
+
+            watch_event("MODIFIED", "1")
+            executor.sync()
+            mock_delete_pod.assert_called_once_with(pod_name="pod", namespace="default")
+            assert executor.event_buffer[key] == (State.SUCCESS, None)
+            assert executor.running == set()
+
+            # Deleting the pod makes Kubernetes emit a MODIFIED event with deletionTimestamp set,
+            # then a DELETED event; both still report the pod as Succeeded.
+            deleted_at = timezone.utcnow()
+            watch_event("MODIFIED", "2", deleted_at)
+            watch_event("DELETED", "3", deleted_at)
+            executor.sync()
+            mock_delete_pod.assert_called_once_with(pod_name="pod", namespace="default")
+            assert executor.event_buffer[key] == (State.SUCCESS, None)
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_change_state_pod_already_being_deleted(
+        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        """A pod deleted before its result is processed still reports the task state."""
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=1)
+            executor.running = {key}
+            results = KubernetesResults(
+                key, State.FAILED, "pod_name", "default", "1", None, deletion_requested=True
+            )
+            executor._change_state(results)
+            mock_delete_pod.assert_not_called()
+            assert executor.event_buffer[key] == (State.FAILED, None)
+            assert executor.running == set()
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.AirflowKubernetesScheduler.delete_pod"
+    )
+    def test_sync_retries_failed_pod_deletion(
+        self, mock_delete_pod, mock_get_kube_client, mock_kubernetes_job_watcher
+    ):
+        """A failed delete re-queues the result with the key still running, so the retry deletes it."""
+        mock_delete_pod.side_effect = [ApiException(status=429), None]
+        executor = self.kubernetes_executor
+        executor.start()
+        try:
+            key = TaskInstanceKey(dag_id="dag_id", task_id="task_id", run_id="run_id", try_number=1)
+            executor.running = {key}
+            executor.result_queue.put(KubernetesResults(key, State.SUCCESS, "pod_name", "default", "1", None))
+            executor.sync()
+            assert mock_delete_pod.call_args_list == [
+                mock.call(pod_name="pod_name", namespace="default"),
+                mock.call(pod_name="pod_name", namespace="default"),
+            ]
+            assert executor.event_buffer[key] == (State.SUCCESS, None)
+            assert executor.running == set()
+        finally:
+            executor.end()
+
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     @mock.patch(
@@ -3548,7 +3668,7 @@ class TestKubernetesJobWatcher:
                 },
             )
 
-    def assert_watcher_queue_called_once_with_state(self, state):
+    def assert_watcher_queue_called_once_with_state(self, state, deletion_requested=False):
         self.watcher.watcher_queue.put.assert_called_once_with(
             KubernetesWatch(
                 self.pod.metadata.name,
@@ -3557,6 +3677,7 @@ class TestKubernetesJobWatcher:
                 self.core_annotations,
                 self.pod.metadata.resource_version,
                 mock.ANY,  # failure_details can be any value including None
+                deletion_requested=deletion_requested,
             )
         )
 
@@ -3790,6 +3911,15 @@ class TestKubernetesJobWatcher:
         # We don't know the TI state, so we send in None
         self.assert_watcher_queue_called_once_with_state(None)
 
+    @pytest.mark.parametrize("event_type", ["MODIFIED", "DELETED"])
+    def test_process_status_succeeded_deletion_requested(self, event_type):
+        self.pod.status.phase = "Succeeded"
+        self.pod.metadata.deletion_timestamp = timezone.utcnow()
+        self.events.append({"type": event_type, "object": self.pod})
+
+        self._run()
+        self.assert_watcher_queue_called_once_with_state(None, deletion_requested=True)
+
     @pytest.mark.parametrize(
         "ti_state",
         [
@@ -3823,7 +3953,7 @@ class TestKubernetesJobWatcher:
         self.events.append({"type": "DELETED", "object": self.pod})
 
         self._run()
-        self.assert_watcher_queue_called_once_with_state(State.FAILED)
+        self.assert_watcher_queue_called_once_with_state(State.FAILED, deletion_requested=True)
 
     def test_process_status_running(self):
         self.pod.status.phase = "Running"

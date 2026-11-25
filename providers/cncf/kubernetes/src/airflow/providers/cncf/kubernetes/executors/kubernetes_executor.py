@@ -906,7 +906,11 @@ class KubernetesExecutor(BaseExecutor):
             return
 
         if self.kube_config.delete_worker_pods:
-            if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
+            if results.deletion_requested:
+                # The watcher reports a pod again once its deletion has been requested; deleting
+                # it again would only return 404, so just process the result below.
+                self.log.debug("Pod %s/%s is already being deleted", namespace, pod_name)
+            elif state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
                 self.log.info(
                     "Deleted pod associated with the TI %s. Pod name: %s. Namespace: %s",
