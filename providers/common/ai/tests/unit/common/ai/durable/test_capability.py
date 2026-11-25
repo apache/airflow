@@ -26,35 +26,60 @@ from __future__ import annotations
 import asyncio
 import base64
 import dataclasses
+import functools
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
+from unittest import mock
 
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, CancellationToken, RunContext
-from pydantic_ai.capabilities import AbstractCapability, durable_operation
-from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
+from pydantic_ai.capabilities import AbstractCapability, SetToolMetadata, durable_operation
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, ModelRetry, UnexpectedModelBehavior
+from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
     ModelMessage,
     ModelResponse,
+    RetryPromptPart,
     TextPart,
     ToolCallPart,
     ToolReturn,
     ToolReturnPart,
 )
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import AgentInfo, FunctionModel
-from pydantic_ai.toolsets import FunctionToolset
+from pydantic_ai.settings import ModelSettings
+from pydantic_ai.toolsets import DynamicToolset, FunctionToolset
+from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
 
 from airflow.providers.common.ai.durable import AirflowDurability
-from airflow.providers.common.ai.durable.capability import _JournalCodec
-from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
-from airflow.providers.common.ai.exceptions import DurableJournalError
+from airflow.providers.common.ai.durable.base import RUNS_KEY
+from airflow.providers.common.ai.durable.capability import (
+    _get_callable_toolset_id,
+    _give_durable_ids,
+    _GivenIds,
+    _JournalCodec,
+)
+from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request
+from airflow.providers.common.ai.durable.journal import (
+    DurableJournal,
+    DurableRun,
+    Unrecordable,
+    journal_scope,
+)
+from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
+from airflow.providers.common.ai.exceptions import DurableJournalError, SQLToolsetConnectionError
+from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
+from airflow.providers.common.compat.sdk import AirflowFailException
 
+from unit.common.ai.durable.memory_storage import MemoryStorage
+from unit.common.ai.sqlite_connection import create_orders_table, run_sql, sqlite_connection
 from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
+    from pydantic_ai.models import Model
     from pydantic_ai.toolsets.abstract import ToolsetTool
 
 PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
@@ -160,6 +185,27 @@ class TestReplay:
         assert calls["query"] == 1
         # The first model step replayed; only the one that failed runs again.
         assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    async def test_a_first_attempt_reads_back_nothing_but_the_run_list(self, memory_storage):
+        calls = Calls()
+        toolset = FunctionToolset(id="db")
+
+        @toolset.tool_plain
+        def query(sql: str) -> str:
+            return "3 rows"
+
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[toolset],
+            capabilities=[AirflowDurability()],
+        )
+
+        await attempt(memory_storage, agent)
+
+        assert memory_storage.loads() == [RUNS_KEY]
+        assert [step["kind"] for step in memory_storage.steps()] == ["model", "tool", "model"]
 
     @pytest.mark.asyncio
     async def test_changed_prompt_runs_everything_again(self, memory_storage):
@@ -451,6 +497,15 @@ def _function_toolset(calls: Calls, result: Any) -> FunctionToolset[None]:
         return result
 
     return toolset
+
+
+def _build_dynamic_toolset(calls: Calls, result: Any) -> DynamicToolset[None]:
+    """A dynamic toolset that builds :func:`_function_toolset` per run step."""
+
+    async def build(ctx: RunContext[None]) -> FunctionToolset[None]:
+        return _function_toolset(calls, result)
+
+    return DynamicToolset(build, id="dynamic_db")
 
 
 @dataclasses.dataclass
@@ -863,8 +918,456 @@ class TestAirflowToolsets:
         assert calls["model"] == 3
 
 
+def _build_ops_toolset(
+    calls: Calls, *, clock_metadata: dict[str, Any] | None = None, clock_changes: bool = False
+) -> FunctionToolset[None]:
+    toolset = FunctionToolset(id="ops")
+
+    @toolset.tool_plain(metadata=clock_metadata)
+    def clock() -> str:
+        """Read the time."""
+        calls.bump("clock")
+        return f"tick {calls['clock']}" if clock_changes else "tick"
+
+    @toolset.tool_plain
+    def lookup(key: str) -> str:
+        """Look a key up."""
+        calls.bump("lookup")
+        return "value"
+
+    return toolset
+
+
+def clock_then_lookup(calls: Calls, *, fail_final: list[bool]):
+    """A model that calls ``clock``, then ``lookup``, then answers."""
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        calls.bump("model")
+        match responses_so_far(messages):
+            case 0:
+                return ModelResponse(parts=[ToolCallPart("clock", {})])
+            case 1:
+                return ModelResponse(parts=[ToolCallPart("lookup", {"key": "a"})])
+        if fail_final[0]:
+            raise RuntimeError("worker died")
+        return ModelResponse(parts=[TextPart("done")])
+
+    return model_fn
+
+
+def _query_then_answer(sql: str, *, fail_final: list[bool]):
+    """A model that runs ``sql`` once, then answers with whatever the tool sent back, error or rows."""
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        if responses_so_far(messages) == 0:
+            return ModelResponse(parts=[ToolCallPart("query", {"sql": sql})])
+        if fail_final[0]:
+            raise RuntimeError("worker died")
+        answered = messages[-1].parts[0]
+        assert isinstance(answered, (RetryPromptPart, ToolReturnPart))
+        return ModelResponse(parts=[TextPart(f"answer: {answered.content}")])
+
+    return model_fn
+
+
+class TestToolOptOut:
+    """A tool whose metadata says ``{"airflow": False}`` runs live on every attempt."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("clock_metadata", "extra_capabilities"),
+        [
+            pytest.param({"airflow": False}, [], id="tool-metadata"),
+            pytest.param(None, [SetToolMetadata(tools=["clock"], airflow=False)], id="SetToolMetadata"),
+        ],
+    )
+    @pytest.mark.parametrize(
+        ("clock_changes", "expected_model_calls", "expected_lookups"),
+        [
+            pytest.param(False, 4, 1, id="same-result"),
+            # The request after the clock sees a different result, so it and the steps after it run again.
+            pytest.param(True, 5, 2, id="new-result"),
+        ],
+    )
+    async def test_an_opted_out_function_tool_runs_again_and_the_other_steps_replay(
+        self,
+        memory_storage,
+        clock_metadata,
+        extra_capabilities,
+        clock_changes,
+        expected_model_calls,
+        expected_lookups,
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(clock_then_lookup(calls, fail_final=fail_final)),
+                name="ops",
+                toolsets=[
+                    _build_ops_toolset(calls, clock_metadata=clock_metadata, clock_changes=clock_changes)
+                ],
+                capabilities=[AirflowDurability(), *extra_capabilities],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "done"
+        assert calls["clock"] == 2
+        assert (calls["model"], calls["lookup"]) == (expected_model_calls, expected_lookups)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("opt_out_on_attempt", [1, 2], ids=["opted-out-first", "opted-out-on-retry"])
+    @pytest.mark.parametrize("dynamic", [False, True], ids=["function", "dynamic"])
+    async def test_turning_the_opt_out_on_or_off_between_attempts_keeps_the_rest_replaying(
+        self, memory_storage, opt_out_on_attempt, dynamic
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build(attempt_number: int) -> Agent[None, str]:
+            opt_out = [SetToolMetadata(tools=["clock"], airflow=False)]
+
+            async def ops(ctx: RunContext[None]) -> FunctionToolset[None]:
+                return _build_ops_toolset(calls)
+
+            return Agent(
+                FunctionModel(clock_then_lookup(calls, fail_final=fail_final)),
+                name="ops",
+                toolsets=[DynamicToolset(ops, id="dynamic_ops") if dynamic else _build_ops_toolset(calls)],
+                capabilities=[
+                    AirflowDurability(),
+                    *(opt_out if attempt_number == opt_out_on_attempt else []),
+                ],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build(1))
+        fail_final[0] = False
+        await attempt(memory_storage, build(2))
+
+        # The clock is live on the attempt that opts it out, and has nothing to replay after one
+        # that did; the model requests and the lookup replay either way.
+        assert (calls["clock"], calls["lookup"], calls["model"]) == (2, 1, 4)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("airflow", "expected_queries"), [(False, 2), (True, 1)], ids=["opted-out", "journaled"]
+    )
+    @pytest.mark.parametrize(
+        "build_toolset",
+        [_function_toolset, _WarehouseToolset, _build_dynamic_toolset],
+        ids=["function", "airflow", "dynamic"],
+    )
+    async def test_set_tool_metadata_decides_whether_a_tool_replays(
+        self, memory_storage, build_toolset, airflow, expected_queries
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[build_toolset(calls, "3 rows")],
+                capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow=airflow)],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "answer: 3 rows"
+        assert calls["query"] == expected_queries
+        # The model request that chose the query replayed either way.
+        assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("value", ["false", 0])
+    @pytest.mark.parametrize("build_toolset", [_function_toolset, _WarehouseToolset])
+    async def test_an_airflow_metadata_value_that_is_not_a_bool_fails_the_task_before_the_model_is_asked(
+        self, memory_storage, value, build_toolset
+    ):
+        """Every attempt would fail the same way, so the task fails once, without retrying."""
+        calls = Calls()
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[build_toolset(calls, "3 rows")],
+            capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow=value)],
+        )
+
+        with pytest.raises(AirflowFailException, match="Tool 'query' has invalid 'airflow' metadata"):
+            await attempt(memory_storage, agent)
+        assert (calls["model"], calls["query"]) == (0, 0)
+
+    @pytest.mark.asyncio
+    async def test_an_airflow_metadata_value_that_is_not_a_bool_is_ignored_outside_a_task(self):
+        calls = Calls()
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[False])),
+            name="analyst",
+            toolsets=[_function_toolset(calls, "3 rows")],
+            capabilities=[AirflowDurability(), SetToolMetadata(tools=["query"], airflow="false")],
+        )
+
+        result = await agent.run("go")
+
+        assert result.output == "answer: 3 rows"
+        assert calls["query"] == 1
+
+
+def _query_tools(calls: Calls, *extra: Any, instructions: str | None = None) -> FunctionToolset[None]:
+    """A ``FunctionToolset`` without an id, with a ``query`` tool and any ``extra`` tools."""
+
+    def query(sql: str) -> str:
+        calls.bump("query")
+        return "3 rows"
+
+    return FunctionToolset(tools=[query, *extra], instructions=instructions)
+
+
+def _build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+    """A function that builds a toolset for each run, as a Dag file defines one."""
+    return FunctionToolset()
+
+
+class _ToolsBuilder:
+    def __call__(self, ctx: RunContext[None]) -> FunctionToolset[None]:
+        return FunctionToolset()
+
+
+class TestToolsetIds:
+    """Toolsets without an ``id`` replay under the ids ``_give_durable_ids`` gives them, as in AgentOperator."""
+
+    @staticmethod
+    def tool_step_names(storage) -> list[str]:
+        return [step["name"] for step in storage.steps() if step["kind"] == "tool"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("built_per_run", "instructions"),
+        [
+            pytest.param(False, None, id="function-toolset"),
+            # pydantic-ai builds instruction ids from the toolset's id: it rejects a colon in it, and the
+            # request fingerprint hashes them, so the id has to be the same on every attempt.
+            pytest.param(False, "Count rows with SQL.", id="function-toolset-with-instructions"),
+            pytest.param(True, None, id="function-building-one"),
+        ],
+    )
+    async def test_a_toolset_without_an_id_replays_on_retry(
+        self, memory_storage, built_per_run, instructions
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+            return _query_tools(calls)
+
+        def build() -> Agent[None, str]:
+            toolset = build_tools if built_per_run else _query_tools(calls, instructions=instructions)
+            return Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=fail_final)),
+                name="analyst",
+                toolsets=[_give_durable_ids(toolset, {})],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        names = self.tool_step_names(memory_storage)
+        fail_final[0] = False
+        result = await attempt(memory_storage, build())
+
+        assert result.output == "answer: 3 rows"
+        assert names == [
+            f"analyst__dynamic_toolset__{__name__}.{build_tools.__qualname__}.call_tool:query"
+            if built_per_run
+            else "analyst__function_toolset.call_tool:query"
+        ]
+        assert (calls["query"], calls["model"]) == (1, 3)
+
+    @pytest.mark.asyncio
+    async def test_adding_a_tool_between_attempts_keeps_the_first_tools_step_name(self, memory_storage):
+        """The retry runs again from the first request, which now offers a new tool, but names its calls alike."""
+        calls = Calls()
+
+        def forecast(city: str) -> str:
+            return "sunny"
+
+        names = []
+        for tools in ((), (forecast,)):
+            agent = Agent(
+                FunctionModel(tool_then_answer(calls, "query", fail_final=[True])),
+                name="analyst",
+                toolsets=[_give_durable_ids(_query_tools(calls, *tools), {})],
+                capabilities=[AirflowDurability()],
+            )
+            with pytest.raises(RuntimeError, match="worker died"):
+                await attempt(memory_storage, agent)
+            names.append(self.tool_step_names(memory_storage))
+
+        assert names == [["analyst__function_toolset.call_tool:query"]] * 2
+        assert calls["query"] == 2
+
+    @pytest.mark.asyncio
+    async def test_an_id_the_author_chose_keeps_its_step_names(self, memory_storage):
+        """The step names journals were recorded under before Airflow gave toolsets ids."""
+        calls = Calls()
+        toolset = FunctionToolset(tools=list(_query_tools(calls).tools.values()), id="db")
+        agent = Agent(
+            FunctionModel(tool_then_answer(calls, "query", fail_final=[True])),
+            name="analyst",
+            toolsets=[_give_durable_ids(toolset, {})],
+            capabilities=[AirflowDurability()],
+        )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, agent)
+
+        assert self.tool_step_names(memory_storage) == ["analyst__function_toolset__db.call_tool:query"]
+
+    def test_gives_ids_to_copies_and_one_copy_to_a_toolset_listed_twice(self):
+        """
+        ``_give_durable_ids`` writes ``FunctionToolset``'s private ``_id``, which only its constructor sets.
+
+        This test and the replay tests above fail if pydantic-ai stops reading the id from there.
+        """
+        shared = FunctionToolset()
+        given: _GivenIds = {}
+
+        prefixed = _give_durable_ids(shared.prefixed("a"), given)
+        plain = _give_durable_ids(shared, given)
+
+        assert isinstance(prefixed, WrapperToolset)
+        assert prefixed.wrapped is plain
+        assert plain.id == "__airflow_function_toolset_0"
+        assert shared.id is None
+
+    def test_numbers_the_function_toolsets_it_gives_ids_in_order(self):
+        given: _GivenIds = {}
+
+        ids = [_give_durable_ids(FunctionToolset(), given).id for _ in range(2)]
+
+        assert ids == ["__airflow_function_toolset_0", "__airflow_function_toolset_1"]
+
+    @pytest.mark.parametrize(
+        "toolset",
+        [
+            pytest.param(FunctionToolset(id="db").prefixed("a"), id="function-toolset-with-id"),
+            pytest.param(DynamicToolset(_build_tools, id="tools"), id="dynamic-toolset-with-id"),
+            pytest.param(MCPToolset("http://mcp.example.com/mcp"), id="mcp-toolset"),
+        ],
+    )
+    def test_leaves_a_toolset_it_cannot_or_need_not_give_an_id_as_it_is(self, toolset):
+        assert _give_durable_ids(toolset, {}) is toolset
+
+    def test_a_dynamic_toolset_without_an_id_gets_its_functions_name(self):
+        given = _give_durable_ids(DynamicToolset(_build_tools, per_run_step=False), {})
+
+        assert isinstance(given, DynamicToolset)
+        assert (given.id, given.per_run_step) == (f"{__name__}._build_tools", False)
+
+
+class TestGetCallableToolsetId:
+    def test_leaves_out_the_path_hash_airflow_puts_in_a_dag_files_module(self):
+        def build_tools(ctx: RunContext[None]) -> FunctionToolset[None]:
+            return FunctionToolset()
+
+        build_tools.__module__ = f"unusual_prefix_{'0123456789abcdef' * 2}01234567_orders_dag"
+
+        assert _get_callable_toolset_id(build_tools) == f"orders_dag.{build_tools.__qualname__}"
+
+    @pytest.mark.parametrize(
+        "function",
+        [
+            pytest.param(functools.partial(_build_tools), id="partial"),
+            pytest.param(_ToolsBuilder(), id="callable-instance"),
+        ],
+    )
+    def test_none_for_a_callable_without_a_qualified_name(self, function):
+        assert _get_callable_toolset_id(function) is None
+
+
+class TestSQLToolsetErrors:
+    """A database that could not be reached is queried again on retry; a rejected statement replays."""
+
+    @staticmethod
+    def _agent(model_fn) -> Agent[None, str]:
+        return Agent(
+            FunctionModel(model_fn),
+            name="analyst",
+            toolsets=[SQLToolset("warehouse")],
+            capabilities=[AirflowDurability()],
+        )
+
+    @pytest.mark.asyncio
+    async def test_a_query_that_could_not_connect_runs_again_on_retry(self, memory_storage, tmp_path):
+        path = tmp_path / "warehouse" / "warehouse.db"  # its directory does not exist yet
+        model_fn = _query_then_answer("SELECT count(*) FROM orders", fail_final=[False])
+
+        with sqlite_connection("warehouse", path):
+            # A model handed the failure would answer with it; the attempt fails instead.
+            with pytest.raises(
+                SQLToolsetConnectionError, match="connection 'warehouse': .*unable to open database file"
+            ):
+                await attempt(memory_storage, self._agent(model_fn))
+            create_orders_table(path)
+            result = await attempt(memory_storage, self._agent(model_fn))
+
+        assert '"rows":[[2]]' in result.output
+
+    @pytest.mark.asyncio
+    async def test_a_query_naming_a_missing_column_replays_on_retry(self, memory_storage, tmp_path):
+        path = tmp_path / "warehouse.db"
+        create_orders_table(path)
+        fail_final = [True]
+        model_fn = _query_then_answer("SELECT amount FROM orders", fail_final=fail_final)
+
+        with sqlite_connection("warehouse", path):
+            with pytest.raises(RuntimeError):
+                await attempt(memory_storage, self._agent(model_fn))
+            # Run live, the query would now succeed; replayed, it fails as it did.
+            run_sql(path, "ALTER TABLE orders ADD COLUMN amount REAL")
+            fail_final[0] = False
+            result = await attempt(memory_storage, self._agent(model_fn))
+
+        assert "no such column: amount" in result.output
+
+
 class Answer(BaseModel):
     rows: int
+
+
+def build_analyst(
+    calls: Calls, queries: list[str], metadata: dict[str, Any] | None = None
+) -> Agent[None, str]:
+    """An analyst whose first answer queries a column that does not exist; later answers query one that does."""
+
+    def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+        calls.bump("model")
+        if returns := tool_returns(messages):
+            return ModelResponse(parts=[TextPart(f"answer: {returns[-1].content}")])
+        sql = "select nope" if calls["model"] == 1 else "select 1"
+        return ModelResponse(parts=[ToolCallPart("query", {"sql": sql})])
+
+    toolset = FunctionToolset(id="db")
+
+    @toolset.tool_plain(metadata=metadata)
+    def query(sql: str) -> str:
+        queries.append(sql)
+        if "nope" in sql:
+            raise ValueError("column nope does not exist")
+        return "3 rows"
+
+    return Agent(
+        FunctionModel(model_fn), name="analyst", toolsets=[toolset], capabilities=[AirflowDurability()]
+    )
 
 
 class TestModelAtFault:
@@ -964,6 +1467,80 @@ class TestModelAtFault:
         await attempt(memory_storage, build())
 
         assert (calls["model"], calls["query"]) == (2, 2)
+
+    @pytest.mark.asyncio
+    # An opted-out call still takes its step, so its failures count the same way.
+    @pytest.mark.parametrize("metadata", [None, {"airflow": False}], ids=["journaled", "opted-out"])
+    async def test_a_tool_that_keeps_failing_on_the_models_arguments_asks_the_model_again(
+        self, memory_storage, metadata
+    ):
+        """The second attempt retries the same call in case the failure was transient; the third asks the model."""
+        calls = Calls()
+        queries: list[str] = []
+
+        for _ in range(2):
+            with pytest.raises(ValueError, match="column nope"):
+                await attempt(memory_storage, build_analyst(calls, queries, metadata))
+        result = await attempt(memory_storage, build_analyst(calls, queries, metadata))
+
+        assert result.output == "answer: 3 rows"
+        assert queries == ["select nope", "select nope", "select 1"]
+        # Attempt 2 replays the model's first answer; attempt 3 asks again, then for the answer.
+        assert calls["model"] == 3
+
+    @pytest.mark.asyncio
+    async def test_an_attempt_after_the_answer_asked_again_succeeded_replays_it(self, memory_storage):
+        """A task that keeps the journal after the run (AgentOperator, until its post-run work succeeds)."""
+        calls = Calls()
+        queries: list[str] = []
+        for _ in range(2):
+            with pytest.raises(ValueError, match="column nope"):
+                await attempt(memory_storage, build_analyst(calls, queries))
+        await attempt(memory_storage, build_analyst(calls, queries))
+
+        with mock.patch.object(
+            MemoryStorage, "save_step", autospec=True, side_effect=MemoryStorage.save_step
+        ) as save_step:
+            result = await attempt(memory_storage, build_analyst(calls, queries))
+
+        assert result.output == "answer: 3 rows"
+        assert queries == ["select nope", "select nope", "select 1"]
+        assert calls["model"] == 3
+        # Attempt 3 took the note down when it succeeded, so attempt 4 has nothing to write.
+        save_step.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_each_answer_with_the_same_failing_arguments_gets_its_own_retry(self, memory_storage):
+        """Even an answer identical to the last, call id included, is retried once before the model is asked again."""
+        calls = Calls()
+
+        def build() -> Agent[None, str]:
+            toolset = FunctionToolset(id="db")
+
+            @toolset.tool_plain
+            def query(sql: str) -> str:
+                calls.bump("query")
+                raise ValueError("column nope does not exist")
+
+            def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                calls.bump("model")
+                return ModelResponse(
+                    parts=[ToolCallPart("query", {"sql": "select nope"}, tool_call_id="call_1")]
+                )
+
+            return Agent(
+                FunctionModel(model_fn),
+                name="analyst",
+                toolsets=[toolset],
+                capabilities=[AirflowDurability()],
+            )
+
+        for _ in range(4):
+            with pytest.raises(ValueError, match="column nope"):
+                await attempt(memory_storage, build())
+
+        # Asked on attempts 1 and 3; attempts 2 and 4 replay those answers and retry the call.
+        assert (calls["model"], calls["query"]) == (2, 4)
 
 
 @pytest.mark.enable_redact
@@ -1361,3 +1938,415 @@ class TestReplayUsage:
 
         assert result.output == "done"
         assert usage.requests == 3
+
+
+class TestFallbackChainEdits:
+    """Editing a fallback chain between attempts keeps the steps a surviving member answered."""
+
+    @staticmethod
+    def build_chain(
+        calls: Calls,
+        members: list[tuple[str, float | None]],
+        *,
+        up: set[str],
+        stamped: bool = True,
+    ) -> FallbackModel:
+        def build_member(name: str, temperature: float | None) -> Model:
+            def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                calls.bump(name)
+                if name not in up:
+                    raise ModelHTTPError(500, name)
+                return ModelResponse(parts=[TextPart(f"{name} answered")])
+
+            model = FunctionModel(
+                respond,
+                model_name=name,
+                settings=ModelSettings(temperature=temperature) if temperature is not None else None,
+            )
+            return MemberStampingModel(model) if stamped else model
+
+        return FallbackModel(
+            *(build_member(name, temperature) for name, temperature in members),
+            fallback_on=(ModelAPIError,),
+        )
+
+    @staticmethod
+    def build_agent(chain: FallbackModel) -> Agent[None, str]:
+        return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+    @pytest.mark.parametrize(
+        ("members", "up", "output", "replayed", "calls_by_member"),
+        [
+            pytest.param(
+                [("c", None), ("b", None)], {"c"}, "b answered", 1, {"b": 1, "c": 0}, id="member added before"
+            ),
+            pytest.param(
+                [("b", None), ("a", None)], {"a"}, "b answered", 1, {"b": 1, "a": 1}, id="members reordered"
+            ),
+            pytest.param(
+                [("a", None), ("b", 0.9)], set(), "b answered", 1, {"b": 1}, id="member settings changed"
+            ),
+            pytest.param(
+                [("a", None)], {"a"}, "a answered", 0, {"a": 2, "b": 1}, id="answering member removed"
+            ),
+            pytest.param(
+                [("a", None), ("b2", None)],
+                {"b2"},
+                "b2 answered",
+                0,
+                {"a": 2, "b": 1, "b2": 1},
+                id="answering member's model changed",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_step_replays_only_while_its_answering_member_is_in_the_chain(
+        self, memory_storage, members, up, output, replayed, calls_by_member
+    ):
+        calls = Calls()
+        first = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
+        await attempt(memory_storage, self.build_agent(first))
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            result = await self.build_agent(self.build_chain(calls, members, up=up)).run("go")
+
+        assert result.output == output
+        assert journal.stats.replayed["model"] == replayed
+        assert {name: calls[name] for name in calls_by_member} == calls_by_member
+        reason = "the model that answered this step, function:b, is no longer in the fallback chain"
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == (
+            [reason] if replayed == 0 else []
+        )
+
+    @pytest.mark.parametrize(
+        ("second_attempt", "replayed", "calls_by_member"),
+        [
+            pytest.param([("a", None), ("b", None)], 1, {"a": 1, "b": 1}, id="chain unchanged"),
+            pytest.param([("b", None), ("c", None)], 0, {"a": 1, "b": 2, "c": 0}, id="chain edited"),
+        ],
+    )
+    @pytest.mark.parametrize("stamped_members", [0, 1], ids=["unstamped chain", "mixed chain"])
+    @pytest.mark.asyncio
+    async def test_a_chain_with_an_unstamped_member_replays_only_while_unchanged(
+        self, memory_storage, stamped_members, second_attempt, replayed, calls_by_member
+    ):
+        calls = Calls()
+
+        def build(members: list[tuple[str, float | None]]) -> FallbackModel:
+            chain = self.build_chain(calls, members, up={"b"}, stamped=False)
+            chain.models[:stamped_members] = [MemberStampingModel(m) for m in chain.models[:stamped_members]]
+            return chain
+
+        await attempt(memory_storage, self.build_agent(build([("a", None), ("b", None)])))
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            await self.build_agent(build(second_attempt)).run("go")
+
+        assert journal.stats.replayed["model"] == replayed
+        assert {name: calls[name] for name in calls_by_member} == calls_by_member
+
+    @pytest.mark.parametrize(
+        ("second_attempt", "output", "replayed", "calls_by_conn"),
+        [
+            pytest.param(
+                [("primary", True)],
+                "primary answered",
+                0,
+                {"primary": 2, "gateway": 1},
+                id="answering connection removed",
+            ),
+            pytest.param(
+                [("primary", False), ("gateway2", True)],
+                "gateway2 answered",
+                0,
+                {"primary": 2, "gateway": 1, "gateway2": 1},
+                id="answering connection renamed",
+            ),
+            pytest.param(
+                [("gateway", True)],
+                "gateway answered",
+                1,
+                {"primary": 1, "gateway": 1},
+                id="other connection removed",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_step_replays_only_while_its_answering_connection_is_in_the_chain(
+        self, memory_storage, second_attempt, output, replayed, calls_by_conn
+    ):
+        calls = Calls()
+
+        def build(members: list[tuple[str, bool]]) -> Agent[None, str]:
+            def member(conn_id: str, up: bool) -> MemberStampingModel:
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(conn_id)
+                    if not up:
+                        raise ModelHTTPError(500, conn_id)
+                    return ModelResponse(parts=[TextPart(f"{conn_id} answered")])
+
+                return MemberStampingModel(FunctionModel(respond, model_name="m"), conn_id=conn_id)
+
+            return self.build_agent(
+                FallbackModel(*(member(*entry) for entry in members), fallback_on=(ModelAPIError,))
+            )
+
+        await attempt(memory_storage, build([("primary", False), ("gateway", True)]))
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            result = await build(second_attempt).run("go")
+
+        assert result.output == output
+        assert journal.stats.replayed["model"] == replayed
+        assert {conn_id: calls[conn_id] for conn_id in calls_by_conn} == calls_by_conn
+        reason = (
+            "the model that answered this step, function:m on connection gateway, "
+            "is in the fallback chain only under a different connection"
+        )
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == (
+            [reason] if replayed == 0 else []
+        )
+
+    @pytest.mark.parametrize(
+        ("first_conn_id", "second_conn_id", "answerer"),
+        [
+            pytest.param(None, "gateway", "function:m", id="connection added"),
+            pytest.param("gateway", None, "function:m on connection gateway", id="connection dropped"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_member_without_a_connection_id_matches_only_one_without(
+        self, memory_storage, first_conn_id, second_conn_id, answerer
+    ):
+        calls = Calls()
+
+        def build(members: list[tuple[str, str | None, bool]]) -> Agent[None, str]:
+            def member(name: str, conn_id: str | None, up: bool) -> MemberStampingModel:
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    if not up:
+                        raise ModelHTTPError(500, name)
+                    return ModelResponse(parts=[TextPart(f"{name} answered")])
+
+                return MemberStampingModel(FunctionModel(respond, model_name="m"), conn_id=conn_id)
+
+            return self.build_agent(
+                FallbackModel(*(member(*entry) for entry in members), fallback_on=(ModelAPIError,))
+            )
+
+        await attempt(memory_storage, build([("down", "down", False), ("first", first_conn_id, True)]))
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            result = await build([("second", second_conn_id, True)]).run("go")
+
+        assert result.output == "second answered"
+        assert journal.stats.replayed["model"] == 0
+        assert {name: calls[name] for name in ("down", "first", "second")} == {
+            "down": 1,
+            "first": 1,
+            "second": 1,
+        }
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == [
+            f"the model that answered this step, {answerer}, "
+            "is in the fallback chain only under a different connection"
+        ]
+
+    @pytest.mark.parametrize(
+        ("second_attempt", "calls_of_c"),
+        [
+            pytest.param(["a", "c"], 0, id="member after the answerer replaced"),
+            pytest.param(["c", "a"], 1, id="member added before the answerer"),
+        ],
+    )
+    @pytest.mark.parametrize("with_conn_ids", [False, True], ids=["no conn ids", "conn ids"])
+    @pytest.mark.asyncio
+    async def test_a_chain_edit_keeps_replaying_after_the_first_model_step(
+        self, memory_storage, second_attempt, calls_of_c, with_conn_ids
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build(names: list[str]) -> Agent[None, str]:
+            def down(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                raise ModelHTTPError(500, "down")
+
+            def member(name: str) -> MemberStampingModel:
+                conn_id = f"conn_{name}" if with_conn_ids else None
+                if name == "a":
+                    return MemberStampingModel(
+                        FunctionModel(clock_then_lookup(calls, fail_final=fail_final), model_name="a"),
+                        conn_id=conn_id,
+                    )
+
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    return down(messages, info)
+
+                return MemberStampingModel(FunctionModel(respond, model_name=name), conn_id=conn_id)
+
+            chain = FallbackModel(*(member(name) for name in names), fallback_on=(ModelAPIError,))
+            return Agent(
+                chain,
+                name="chained",
+                toolsets=[_build_ops_toolset(calls)],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build(["a", "b"]))
+        fail_final[0] = False
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            result = await build(second_attempt).run("go")
+
+        assert result.output == "done"
+        assert journal.stats.replayed["model"] == 2
+        assert (calls["clock"], calls["lookup"], calls["model"]) == (1, 1, 4)
+        assert calls["c"] == calls_of_c
+
+    @pytest.mark.asyncio
+    async def test_a_stamped_chain_rejects_a_response_without_a_stamp(self, memory_storage):
+        calls = Calls()
+        chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
+        await attempt(memory_storage, self.build_agent(chain))
+        for entry in memory_storage.steps():
+            if entry["kind"] == "model":
+                entry["payload"]["metadata"] = None
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
+            await self.build_agent(chain).run("go")
+
+        assert journal.stats.replayed["model"] == 0
+        assert calls["b"] == 2
+        reason = "the recorded response does not say which fallback chain member answered it"
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == [reason]
+
+    @pytest.mark.asyncio
+    async def test_a_streamed_step_replays_while_its_answering_member_is_in_the_chain(self, memory_storage):
+        calls = Calls()
+
+        def build(names: list[str]) -> Agent[None, str]:
+            def stream_as(name: str):
+                async def stream(messages: list[ModelMessage], info: AgentInfo):
+                    calls.bump(name)
+                    if name == "a":
+                        raise ModelHTTPError(500, name)
+                    yield f"{name} answered"
+                    return
+
+                return stream
+
+            chain = FallbackModel(
+                *(
+                    MemberStampingModel(FunctionModel(stream_function=stream_as(name), model_name=name))
+                    for name in names
+                ),
+                fallback_on=(ModelAPIError,),
+            )
+            return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+        async def run_streamed(names: list[str]) -> str:
+            async with build(names).run_stream("go") as streamed:
+                return await streamed.get_output()
+
+        with journal_scope(DurableJournal(memory_storage)):
+            assert await run_streamed(["a", "b"]) == "b answered"
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            assert await run_streamed(["b", "a"]) == "b answered"
+
+        assert journal.stats.replayed["model"] == 1
+        assert calls["b"] == 1
+
+    @pytest.mark.asyncio
+    async def test_a_suspended_response_of_a_removed_member_is_not_continued(self, memory_storage):
+        calls = Calls()
+        histories: list[list[ModelMessage]] = []
+
+        def build(members: list[str]) -> Agent[None, str]:
+            def respond_as(name: str):
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    histories.append(messages)
+                    if name == "a" and "b" in members:
+                        raise ModelHTTPError(500, "a")
+                    suspended = name == "b" and calls["b"] == 1
+                    return ModelResponse(
+                        parts=[TextPart(f"{name} segment")],
+                        state="suspended" if suspended else "complete",
+                    )
+
+                return respond
+
+            chain = FallbackModel(
+                *(MemberStampingModel(FunctionModel(respond_as(name), model_name=name)) for name in members),
+                fallback_on=(ModelAPIError,),
+            )
+            return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+        await attempt(memory_storage, build(["a", "b"]))
+        assert calls["b"] == 2
+        histories.clear()
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            await build(["a"]).run("go")
+
+        assert journal.stats.replayed["model"] == 0
+        [history] = histories
+        assert [message for message in history if isinstance(message, ModelResponse)] == []
+
+    @pytest.mark.parametrize(
+        ("build_model", "expected"),
+        [
+            pytest.param(
+                lambda: FunctionModel(
+                    lambda messages, info: ModelResponse(parts=[TextPart("hi")]), model_name="solo"
+                ),
+                [("function:solo", False)],
+                id="single model",
+            ),
+            pytest.param(
+                lambda: TestFallbackChainEdits.build_chain(
+                    Calls(), [("a", None), ("b", None)], up={"a", "b"}, stamped=False
+                ),
+                [("fallback:function,function:fallback:a,b", False)],
+                id="chain of unstamped members",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.common.ai.durable.capability.fingerprint_model_request",
+        autospec=True,
+        side_effect=fingerprint_model_request,
+    )
+    async def test_a_model_without_a_stamped_chain_keeps_its_fingerprint(
+        self, mock_fingerprint_model_request, memory_storage, build_model, expected
+    ):
+        agent = Agent(build_model(), name="solo", capabilities=[AirflowDurability()])
+
+        await attempt(memory_storage, agent)
+
+        assert [
+            (call.args[0], call.kwargs["exclude_response_model_id"])
+            for call in mock_fingerprint_model_request.call_args_list
+        ] == expected

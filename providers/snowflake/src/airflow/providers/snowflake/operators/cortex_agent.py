@@ -178,6 +178,15 @@ class SnowflakeCortexAgentCreateOperator(BaseOperator):
         "snowflake_conn_id",
     )
 
+    template_fields_renderers = {
+        "profile": "json",
+        "models": "json",
+        "instructions": "json",
+        "orchestration": "json",
+        "tools": "json",
+        "tool_resources": "json",
+    }
+
     ui_color = "#29B5E8"
 
     def __init__(
@@ -282,6 +291,15 @@ class SnowflakeCortexAgentUpdateOperator(BaseOperator):
         "tool_resources",
         "snowflake_conn_id",
     )
+
+    template_fields_renderers = {
+        "profile": "json",
+        "models": "json",
+        "instructions": "json",
+        "orchestration": "json",
+        "tools": "json",
+        "tool_resources": "json",
+    }
 
     ui_color = "#29B5E8"
 

@@ -23,6 +23,7 @@ from asyncio import Future
 from unittest import mock
 
 import kubernetes.client
+import kubernetes_asyncio.client
 import pytest
 import pytest_asyncio
 from google.cloud.container_v1 import ClusterManagerAsyncClient
@@ -556,7 +557,7 @@ class TestGKEKubernetesAsyncHook:
         delete_namespaced_pod.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
-            body=kubernetes.client.V1DeleteOptions(),
+            body=kubernetes_asyncio.client.V1DeleteOptions(),
         )
 
     @pytest.mark.asyncio

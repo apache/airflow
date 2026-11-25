@@ -55,6 +55,15 @@
   "group": "分组",
   "lastAssetEvent": "最后资源事件",
   "name": "名称",
+  "partitions": {
+    "consumerRuns": "消费者执行",
+    "consumerRunsHelp": "消费了该分区最后一次资源事件的 Dag 执行",
+    "lastProducerRun": "最后生产者执行",
+    "status": {
+      "in_progress": "进行中",
+      "materialized": "已物化"
+    }
+  },
   "producingTasks": "生产任务",
   "scheduledDags": "已调度的 Dags",
   "scheduling": "调度",
@@ -62,5 +71,9 @@
   "taskDependencies": "任务依赖",
   "watcher_one": "监听器",
   "watcher_other": "监听器",
+  "watcherFailing_one": "个监听器持续失败",
+  "watcherFailing_other": "个监听器持续失败",
+  "watcherOrphaned_one": "个监听器已孤立",
+  "watcherOrphaned_other": "个监听器已孤立",
   "watchers": "监听器"
 }

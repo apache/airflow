@@ -19,7 +19,12 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import threading
 from textwrap import dedent
+
+import pytest
+
+from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 
 
 def test_construction_defers_execution_api_imports():
@@ -58,3 +63,15 @@ def test_app_reexports_in_process_api():
     from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 
     assert legacy_api is InProcessExecutionAPI
+
+
+@pytest.mark.parametrize("serve_while_debugger_paused", [True, False])
+def test_transport_loop_thread_debugger_marker(serve_while_debugger_paused):
+    before = set(threading.enumerate())
+
+    # Held until the assertion: dropping the transport stops and joins the loop thread.
+    transport = InProcessExecutionAPI(serve_while_debugger_paused=serve_while_debugger_paused).transport
+
+    (thread,) = {t for t in threading.enumerate() if t.name == "InProcessExecutionAPI-loop"} - before
+    assert getattr(thread, "pydev_do_not_trace", False) is serve_while_debugger_paused
+    del transport

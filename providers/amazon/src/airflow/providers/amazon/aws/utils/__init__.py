@@ -32,12 +32,15 @@ from airflow.utils.helpers import prune_dict
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from airflow.sdk.types import Logger
 
 log = logging.getLogger(__name__)
 
-# AWS rejects a delete call with ResourceInUseException while the target resource is still settling
-# from a prior operation (e.g. EKS finalizing a nodegroup removal before the cluster can be deleted).
+# AWS rejects a call with ResourceInUseException while the target resource is still settling from a
+# prior operation (e.g. EKS finalizing a nodegroup removal before the cluster can be deleted, or a
+# freshly ACTIVE cluster still finishing an internal update when a Fargate profile is created).
 # Retry with exponential backoff (1s, 2s, 4s, ... capped at RESOURCE_IN_USE_RETRY_MAX_WAIT per wait)
 # until RESOURCE_IN_USE_RETRY_TIMEOUT elapses, then give up and re-raise. The window has to cover an
 # EKS cluster reporting "an update in progress" for over ten minutes after a Fargate profile became
@@ -54,7 +57,24 @@ def is_resource_in_use_error(exception: BaseException) -> bool:
     )
 
 
-def build_resource_in_use_retry_args(logger: Logger | logging.Logger) -> dict[str, Any]:
+def is_update_in_progress_error(exception: BaseException) -> bool:
+    """
+    Return True if the exception is a ``ResourceInUseException`` caused by an update in progress.
+
+    Create calls also raise ``ResourceInUseException`` when a resource with the same name already
+    exists, which no amount of retrying fixes. Matching the message keeps that case failing fast.
+    """
+    return (
+        isinstance(exception, ClientError)
+        and exception.response.get("Error", {}).get("Code") == "ResourceInUseException"
+        and "update in progress" in exception.response.get("Error", {}).get("Message", "").lower()
+    )
+
+
+def build_resource_in_use_retry_args(
+    logger: Logger | logging.Logger,
+    predicate: Callable[[BaseException], bool] = is_resource_in_use_error,
+) -> dict[str, Any]:
     """
     Build tenacity arguments for retrying a call on a transient ``ResourceInUseException``.
 
@@ -62,9 +82,11 @@ def build_resource_in_use_retry_args(logger: Logger | logging.Logger) -> dict[st
     (``tenacity.AsyncRetrying``) so both back off identically. ``reraise=True`` keeps the
     original error as the task failure once the retry timeout is exhausted. Accepts either an
     Airflow structlog logger (``self.log``) or a stdlib ``logging.Logger`` (module-level helpers).
+    ``predicate`` decides which exceptions are retried; pass ``is_update_in_progress_error`` for
+    create calls, where ``ResourceInUseException`` can also mean the resource already exists.
     """
     return {
-        "retry": tenacity.retry_if_exception(is_resource_in_use_error),
+        "retry": tenacity.retry_if_exception(predicate),
         "wait": tenacity.wait_exponential(max=RESOURCE_IN_USE_RETRY_MAX_WAIT),
         "stop": tenacity.stop_after_delay(RESOURCE_IN_USE_RETRY_TIMEOUT),
         "before_sleep": tenacity.before_sleep_log(logger, logging.WARNING),

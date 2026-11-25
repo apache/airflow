@@ -1581,10 +1581,7 @@ class TestKubernetesImportAvoidance:
         decoded = BaseSerialization.deserialize(BaseSerialization.serialize(pod))
 
         assert isinstance(decoded, k8s.V1Pod)
-        # The top-level pod and every nested model must carry a clean, picklable Configuration.
-        pickle.dumps(decoded)
-        assert decoded.local_vars_configuration.refresh_api_key_hook is None
-        assert decoded.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+        assert pickle.loads(pickle.dumps(decoded)).to_dict() == pod.to_dict()
 
 
 @pytest.mark.db_test

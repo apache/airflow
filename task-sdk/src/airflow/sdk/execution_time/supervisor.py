@@ -22,6 +22,7 @@ from __future__ import annotations
 import atexit
 import contextlib
 import functools
+import importlib.util
 import io
 import logging
 import math
@@ -64,10 +65,12 @@ import structlog
 from pydantic import BaseModel, TypeAdapter
 
 from airflow.sdk._shared.logging.structlog import reconfigure_logger
+from airflow.sdk._shared.secrets_masker import redact
 from airflow.sdk.api.client import Client, ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     ConnectionResponse,
+    LoopDecisionPayload,
     TaskInstance,
     TaskInstanceState,
     TerminalStateNonSuccess,
@@ -647,7 +650,7 @@ def _should_use_exec() -> bool:
     return sys.platform in _FORK_EXEC_PLATFORMS
 
 
-def _task_process_uses_exec() -> bool:
+def task_process_uses_exec() -> bool:
     """
     Whether the task process should ``exec`` a fresh interpreter after the fork.
 
@@ -1179,8 +1182,21 @@ class WatchedSubprocess:
 
             try:
                 msg = self.decoder.validate_python(self._deserialize_request(request.body))
-            except Exception:
+            except Exception as e:
                 log.exception("Unable to decode message", body=request.body)
+                with suppress(Exception):
+                    self.send_msg(
+                        msg=None,
+                        error=ErrorResponse(
+                            error=ErrorType.GENERIC_ERROR,
+                            detail={
+                                "status_code": None,
+                                "message": f"Unable to decode message: {e}",
+                                "exception_type": type(e).__name__,
+                            },
+                        ),
+                        request_id=request.id,
+                    )
                 continue
 
             # Restore the task runner's trace context so that any outbound HTTP calls made while
@@ -1193,27 +1209,11 @@ class WatchedSubprocess:
                 with self._request_scope(request):
                     self._handle_request(msg, log, request.id)
             except ServerResponseError as e:
-                error_details = e.response.json() if e.response else None
-                log.error(
-                    "API server error",
-                    status_code=e.response.status_code,
-                    detail=error_details,
-                    message=str(e),
-                )
+                error = ErrorResponse.from_server_error(e)
+                log.error("API server error", **(error.detail or {}))
 
                 # Send error response back to task so that the error appears in the task logs
-                self.send_msg(
-                    msg=None,
-                    error=ErrorResponse(
-                        error=ErrorType.API_SERVER_ERROR,
-                        detail={
-                            "status_code": e.response.status_code,
-                            "message": str(e),
-                            "detail": error_details,
-                        },
-                    ),
-                    request_id=request.id,
-                )
+                self.send_msg(msg=None, error=error, request_id=request.id)
             except Exception as e:
                 # Generic exception handling so a transient network error (httpx2.ConnectError /
                 # httpx2.TimeoutException) or any other exception
@@ -1711,7 +1711,7 @@ class ActivitySubprocess(WatchedSubprocess):
         # fork+exec where the platform needs it (macOS) or the deployment opted in.
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
-        use_exec = target is _subprocess_main and _task_process_uses_exec()
+        use_exec = target is _subprocess_main and task_process_uses_exec()
         if target is _subprocess_main and not use_exec:
             _import_task_runner_before_fork()
         proc: Self = super().start(
@@ -1878,7 +1878,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     when=msg.end_date or datetime.now(tz=UTC),
                     rendered_map_index=self._rendered_map_index,
                     retry_reason=msg.retry_reason,
-                    loop_decision=msg.loop_decision,
+                    loop_decision=_redact_loop_decision(msg.loop_decision, self.process_log),
                 )
             elif isinstance(msg, SucceedTask):
                 self.client.task_instances.succeed(
@@ -1887,7 +1887,7 @@ class ActivitySubprocess(WatchedSubprocess):
                     task_outlets=msg.task_outlets,
                     outlet_events=msg.outlet_events,
                     rendered_map_index=self._rendered_map_index,
-                    loop_decision=msg.loop_decision,
+                    loop_decision=_redact_loop_decision(msg.loop_decision, self.process_log),
                     external_clear_target=msg.external_clear_target,
                 )
             elif isinstance(msg, RetryTask):
@@ -2526,7 +2526,7 @@ class ActivitySubprocess(WatchedSubprocess):
 def in_process_api_server():
     from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI
 
-    api = InProcessExecutionAPI()
+    api = InProcessExecutionAPI(serve_while_debugger_paused=True)
     return api
 
 
@@ -2548,6 +2548,17 @@ to the socket.
 """
 
 
+@functools.cache
+def _has_per_request_server_context() -> bool:
+    """
+    Whether the installed airflow-core has ``airflow.process_context``.
+
+    An older core decides from the presence of ``task_runner.SUPERVISOR_COMMS`` alone, so the
+    attribute has to go while a request is served there.
+    """
+    return importlib.util.find_spec("airflow.process_context") is not None
+
+
 @attrs.define(kw_only=True)
 class InProcessSupervisorComms:
     """In-process communication handler that returns each response directly to its caller."""
@@ -2556,13 +2567,25 @@ class InProcessSupervisorComms:
     supervisor: InProcessTestSupervisor
 
     def send(self, msg: BaseModel) -> BaseModel | None:
-        """Send a request to the supervisor and return its response."""
+        """
+        Send a request to the supervisor and return its response.
+
+        Safe to call from several threads: each call gets its own response sink, and the comms are
+        hidden from the code serving the request only (``task_runner.hide_supervisor_comms``). With an
+        airflow-core from before ``airflow.process_context`` they are removed for the whole process
+        instead, as before, so there only one thread of a task may make SDK calls at a time.
+        """
+        from airflow.sdk.execution_time.task_runner import hide_supervisor_comms
+
         self.log.debug("Sending request", msg=msg)
+        hidden_comms = (
+            hide_supervisor_comms() if _has_per_request_server_context() else set_supervisor_comms(None)
+        )
 
         responses: deque[BaseModel | None] = deque()
         token = _IN_PROCESS_RESPONSE_SINK.set(responses)
         try:
-            with set_supervisor_comms(None):
+            with hidden_comms:
                 self.supervisor._handle_request(msg, log, 0)  # type: ignore[arg-type]
         finally:
             _IN_PROCESS_RESPONSE_SINK.reset(token)
@@ -2798,9 +2821,10 @@ def set_supervisor_comms(temp_comms):
     by injecting a test Comms implementation (e.g. `InProcessSupervisorComms`)
     in place of the real inter-process communication layer.
 
-    Some parts of the code (e.g. models.Variable.get) check for the presence
-    of `task_runner.SUPERVISOR_COMMS` to determine if the code is running in a Task SDK execution context.
-    This override ensures those code paths behave correctly during in-process tests.
+    Some parts of the code (e.g. models.Variable.get) ask `task_runner.get_supervisor_comms()`, in
+    airflow-core through `airflow.process_context.should_use_task_sdk_api_path()`, to determine if the code
+    is running in a Task SDK execution context. That reads the comms set here, so this override ensures
+    those code paths behave correctly during in-process tests.
     """
     from airflow.sdk.execution_time import task_runner
 
@@ -3076,6 +3100,37 @@ def _configure_logging(log_path: str, client: Client) -> tuple[FilteringBoundLog
     return logger, log_file_descriptor
 
 
+def _redact_loop_decision(
+    decision: LoopDecisionPayload | None, log: FilteringBoundLogger
+) -> LoopDecisionPayload | None:
+    """
+    Mask a loop gate's reason, then cut it to the byte limit, before it is stored and shown in the UI.
+
+    The supervisor holds every value the task registered with ``MaskSecret``, so it masks the reason
+    of a gate written in any language. Masking runs first, so a secret that crosses the limit is masked
+    whole and no fragment of it survives the cut.
+    """
+    if decision is None or decision.reason is None:
+        return decision
+    reason = str(redact(decision.reason))
+    # Imported here: the module loads the authoring classes, which the supervisor otherwise never needs.
+    from airflow.sdk.definitions._internal.loop import LOOP_DECISION_REASON_MAX_BYTES
+
+    # A language SDK runtime is not told the limit, and a mask longer than the secret it hides can push
+    # a reason past it. Cutting here keeps the API server from rejecting the gate.
+    encoded = reason.encode()
+    if len(encoded) > LOOP_DECISION_REASON_MAX_BYTES:
+        log.warning(
+            "Loop decision reason exceeds the byte limit and is cut to it",
+            reason_bytes=len(encoded),
+            max_reason_bytes=LOOP_DECISION_REASON_MAX_BYTES,
+        )
+        reason = encoded[:LOOP_DECISION_REASON_MAX_BYTES].decode(errors="ignore")
+    if reason == decision.reason:
+        return decision
+    return decision.model_copy(update={"reason": reason})
+
+
 def _fail_task_before_runtime(
     *, ti: TaskInstance, client: Client, logger: FilteringBoundLogger, error: TaskLaunchError
 ) -> int:
@@ -3087,7 +3142,6 @@ def _fail_task_before_runtime(
     retryable *error* puts the task up for retry while it has retries left. Returns the process exit
     code, 1.
     """
-    from airflow.sdk._shared.secrets_masker import redact
     from airflow.sdk.log import upload_to_remote
 
     try:

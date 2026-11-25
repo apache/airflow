@@ -135,7 +135,7 @@ Using ``breeze testing providers-tests`` command
 The ``breeze testing providers-tests`` command is that you can run for all or specify sub-set of the tests
 for Providers.
 
-For example this will run all provider tests tests :
+For example this will run all provider tests :
 
 .. code-block:: bash
 
