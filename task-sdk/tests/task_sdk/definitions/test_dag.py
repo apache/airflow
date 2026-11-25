@@ -777,6 +777,18 @@ def _expand_group_outside(dag):
     outside_group.expand(value=dag.get_task("produce_body.produce").output)
 
 
+def _iterate_task_outside(dag):
+    _consume.iterate(value=dag.get_task("produce_body.produce").output)
+
+
+def _iterate_in_another_loop(dag):
+    @task_group
+    def other_body():
+        _consume.iterate(value=dag.get_task("produce_body.produce").output)
+
+    create_loop(other_body, max_iterations=2)
+
+
 def _expand_in_another_loop(dag):
     @task_group
     def other_body():
@@ -791,6 +803,8 @@ def _expand_in_another_loop(dag):
         pytest.param(_expand_task_outside, "_consume", id="mapped-task"),
         pytest.param(_expand_group_outside, "outside_group", id="mapped-task-group"),
         pytest.param(_expand_in_another_loop, "other_body._consume", id="other-loop"),
+        pytest.param(_iterate_task_outside, "_consume", id="iterated-task"),
+        pytest.param(_iterate_in_another_loop, "other_body._consume", id="iterated-in-other-loop"),
     ],
 )
 def test_validate_rejects_expansion_over_a_loop_task_from_outside_the_loop(build_consumer, consumer_id):
@@ -798,7 +812,9 @@ def test_validate_rejects_expansion_over_a_loop_task_from_outside_the_loop(build
         create_loop(produce_body, max_iterations=2)
         build_consumer(dag)
 
-    with pytest.raises(ValueError, match=f"'{consumer_id}' cannot expand over 'produce_body.produce'"):
+    with pytest.raises(
+        ValueError, match=f"'{consumer_id}' cannot expand or iterate over 'produce_body.produce'"
+    ):
         dag.validate()
 
 
@@ -812,6 +828,38 @@ def test_validate_accepts_expansion_over_a_loop_task_in_the_same_loop():
         _consume.expand(value=produce())
 
     with DAG("expand_inside_loop", schedule=None) as dag:
+        create_loop(body, max_iterations=2)
+
+    dag.validate()
+
+
+def test_expansion_sources_are_the_upstream_tasks_a_task_runs_once_per_item_of():
+    with DAG("expansion_sources", schedule=None):
+
+        @task
+        def produce():
+            return [1, 2]
+
+        produced = produce()
+        plain = _consume(produced)
+        mapped = _consume.expand(value=produced)
+        iterated = _consume.iterate(value=produced)
+
+    assert list(plain.operator.iter_expansion_sources()) == []
+    assert list(mapped.operator.iter_expansion_sources()) == [produced.operator]
+    assert list(iterated.operator.iter_expansion_sources()) == [produced.operator]
+
+
+def test_validate_accepts_iteration_over_a_loop_task_in_the_same_loop():
+    @task_group
+    def body():
+        @task
+        def produce():
+            return [1, 2]
+
+        _consume.iterate(value=produce())
+
+    with DAG("iterate_inside_loop", schedule=None) as dag:
         create_loop(body, max_iterations=2)
 
     dag.validate()
