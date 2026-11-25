@@ -4865,30 +4865,6 @@ class TestSchedulerJob:
             ("t2", TaskInstanceState.SCHEDULED, None),
         }
 
-    @mock.patch(
-        "airflow.jobs.scheduler_job_runner.prepare_task_log_contexts",
-        autospec=True,
-        wraps=prepare_task_log_contexts,
-        # A retry would succeed: only the first attempt fails.
-        side_effect=[KeyError("not a deleted region"), mock.DEFAULT],
-    )
-    def test_log_address_failure_not_caused_by_a_deletion_is_raised(self, mock_prepare, dag_maker, session):
-        with dag_maker(dag_id="log_address_fails", session=session):
-            EmptyOperator(task_id="t1")
-        dr = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
-        (ti,) = dr.get_task_instances(session=session)
-        ti.state = TaskInstanceState.SCHEDULED
-        job = Job()
-        session.add(job)
-        session.commit()
-        self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
-
-        with pytest.raises(KeyError, match="not a deleted region"):
-            self.job_runner._do_scheduling(session)
-        session.rollback()
-
-        assert dr.get_task_instance("t1", session=session).state == TaskInstanceState.SCHEDULED
-
     @staticmethod
     def _schedule_dag_runs_with_a_mapped_task(dag_maker, session, num_runs: int = 2) -> list[DagRun]:
         with dag_maker(dag_id="mapped_runs", session=session):
@@ -4968,7 +4944,7 @@ class TestSchedulerJob:
         autospec=True,
         wraps=prepare_task_log_contexts,
     )
-    @pytest.mark.parametrize("num_deleted", [1, 2], ids=["one-run-deleted", "another-deleted-on-retry"])
+    @pytest.mark.parametrize("num_deleted", [1, 2], ids=["one-run-deleted", "two-runs-deleted"])
     def test_task_instances_deleted_while_their_workloads_are_built_are_not_enqueued(
         self, mock_prepare, num_deleted, dag_maker, session
     ):
@@ -4981,15 +4957,17 @@ class TestSchedulerJob:
         kept_ids = {ti.id for ti in kept_run.get_task_instances(session=session)}
         self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
 
-        def delete_a_dag_run_on_each_attempt(*args, **kwargs):
-            if mock_prepare.call_count <= len(deleted_runs):
-                self._delete_dag_run(deleted_runs[mock_prepare.call_count - 1])
+        def delete_dag_runs_while_building(*args, **kwargs):
+            for dr in deleted_runs:
+                self._delete_dag_run(dr)
             return mock.DEFAULT
 
-        mock_prepare.side_effect = delete_a_dag_run_on_each_attempt
+        mock_prepare.side_effect = delete_dag_runs_while_building
 
         assert self.job_runner._do_scheduling(session) == len(kept_ids)
+        # The task instances without a region of the deleted Dag runs are dropped with the mapped ones.
         assert self._enqueued_task_instance_ids() == kept_ids
+        assert mock_prepare.call_count == 1
 
     @mock.patch(
         "airflow.jobs.scheduler_job_runner.prepare_task_log_contexts",

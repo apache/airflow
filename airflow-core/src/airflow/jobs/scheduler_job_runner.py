@@ -1215,18 +1215,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .limit(max_tis)
         )
 
-    def _build_pre_assigning_executor_filter(self) -> ColumnElement[bool] | bool:
-        """
-        Match the task instances routed to an executor that sets ``pre_assigns_external_executor_id``.
-
-        :return: ``True`` when every executor pre-assigns, ``False`` when none does, otherwise a condition
-            on ``TaskInstance.executor``.
-        """
+    def _build_pre_assigning_executor_filter(self) -> ColumnElement[bool]:
+        """Match the task instances routed to an executor that sets ``pre_assigns_external_executor_id``."""
         pre_assign_executors = {e for e in self.executors if e.pre_assigns_external_executor_id}
         if not pre_assign_executors:
-            return False
+            return expression.false()
         if pre_assign_executors == set(self.executors):
-            return True
+            return expression.true()
         opt_in_names: set[str] = set()
         for exc in pre_assign_executors:
             if exc.name:
@@ -1238,7 +1233,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             conditions.append(TI.executor.in_(opt_in_names))
         if self.executor in pre_assign_executors:
             conditions.append(TI.executor.is_(None))
-        return or_(*conditions) if conditions else False
+        return or_(*conditions) if conditions else expression.false()
 
     def _mark_task_instances_queued(self, executable_tis: list[TI], *, session: Session) -> list[TI]:
         """
@@ -1281,12 +1276,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # pre_assigns_external_executor_id (e.g. CeleryExecutor uses it as the
             # Celery task_id passed to apply_async). In mixed-executor deployments,
             # a CASE expression limits the UUID to TIs targeting an opt-in executor.
-            pre_assigning = self._build_pre_assigning_executor_filter()
-            if pre_assigning is True:
-                queued_values["external_executor_id"] = random_db_uuid()
-            elif pre_assigning is not False:
+            pre_assigning = any(e.pre_assigns_external_executor_id for e in self.executors)
+            if pre_assigning:
                 queued_values["external_executor_id"] = case(
-                    (pre_assigning, sql_cast(random_db_uuid(), Text)), else_=TI.external_executor_id
+                    (self._build_pre_assigning_executor_filter(), sql_cast(random_db_uuid(), Text)),
+                    else_=TI.external_executor_id,
                 )
 
             queued_update = (
@@ -1296,7 +1290,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 .execution_options(synchronize_session=False)
             )
 
-            if pre_assigning is not False:
+            if pre_assigning:
                 # Read the DB-generated UUIDs back onto the in-memory objects so the
                 # workload DTO carries them through to send_workload_to_executor (the
                 # objects are about to be detached by make_transient). Use RETURNING
@@ -1357,32 +1351,25 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             for ti in task_instances
             if ti.dag_version_id and ti.dag_run.state not in State.finished_dr_states
         ]
-        while True:
-            try:
-                log_contexts = prepare_task_log_contexts(
-                    log_tis,
-                    session=session,
-                    dag_bag=self.scheduler_dag_bag,
-                    filename_template=conf.get("logging", "log_filename_template"),
-                )
-                break
-            except KeyError:
-                # Nothing locks the batch while its workloads are built, so a Dag run deleted meanwhile can
-                # take the regions a log address is read from: skip the task instances that are gone, and
-                # retry until none is missing (each pass drops at least one). A KeyError with nothing
-                # deleted is a bug and is raised. Deleted task instances without a region are not detected
-                # here: their workloads are sent, and the server rejects their start.
-                existing_ids = set(session.scalars(select(TI.id).where(TI.id.in_([ti.id for ti in log_tis]))))
-                if len(existing_ids) == len(log_tis):
-                    raise
-                deleted = [ti for ti in log_tis if ti.id not in existing_ids]
-                self.log.warning(
-                    "Not enqueuing %s task instances deleted while their workloads were built", len(deleted)
-                )
-                self.log.debug("Task instances deleted while their workloads were built: %s", deleted)
-                deleted_ids = {ti.id for ti in deleted}
-                task_instances = [ti for ti in task_instances if ti.id not in deleted_ids]
-                log_tis = [ti for ti in log_tis if ti.id in existing_ids]
+        log_contexts = prepare_task_log_contexts(
+            log_tis,
+            session=session,
+            dag_bag=self.scheduler_dag_bag,
+            filename_template=conf.get("logging", "log_filename_template"),
+            skip_missing_regions=True,
+        )
+        # Nothing locks the batch while its workloads are built. Regions are only deleted with their Dag run
+        # (ON DELETE CASCADE), so a missing one means its Dag run was deleted meanwhile: drop all its task
+        # instances. Those of a deleted Dag run with no region in the batch are not detected here: their
+        # workloads are sent, and the server rejects their start.
+        deleted_runs = {(ti.dag_id, ti.run_id) for ti in log_tis if ti.id not in log_contexts}
+        if deleted_runs:
+            deleted = [ti for ti in task_instances if (ti.dag_id, ti.run_id) in deleted_runs]
+            self.log.warning(
+                "Not enqueuing %s task instances deleted while their workloads were built", len(deleted)
+            )
+            self.log.debug("Task instances deleted while their workloads were built: %s", deleted)
+            task_instances = [ti for ti in task_instances if (ti.dag_id, ti.run_id) not in deleted_runs]
         # actually enqueue them
         num_enqueued = 0
         for ti in task_instances:
@@ -1596,11 +1583,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             "queued_dttm": None,
             "queued_by_job_id": None,
         }
-        pre_assigning = self._build_pre_assigning_executor_filter()
-        if pre_assigning is True:
-            values["external_executor_id"] = None
-        elif pre_assigning is not False:
-            values["external_executor_id"] = case((pre_assigning, None), else_=TI.external_executor_id)
+        if any(e.pre_assigns_external_executor_id for e in self.executors):
+            values["external_executor_id"] = case(
+                (self._build_pre_assigning_executor_filter(), None), else_=TI.external_executor_id
+            )
         session.execute(
             update(TI)
             .where(TI.id.in_(reset_ids))
