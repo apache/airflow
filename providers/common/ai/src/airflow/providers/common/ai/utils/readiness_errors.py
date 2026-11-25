@@ -23,13 +23,17 @@ import httpx2
 
 
 def extract_error_detail(response: httpx2.Response) -> str:
-    """Return the ``error`` field when it is a non-empty string, or the body cut to a short length."""
+    """Return the ``error`` field, or its ``message`` when it is an object, else the body cut to a short length."""
     try:
         body = response.json()
     except ValueError:
         body = None
-    if isinstance(body, dict) and isinstance(error := body.get("error"), str) and error:
-        return error
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict):
+            error = error.get("message")
+        if isinstance(error, str) and error:
+            return error
     return response.text.strip()[:200] or response.reason_phrase
 
 

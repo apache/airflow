@@ -140,13 +140,21 @@ class TestLMStudioBackendLoad:
         def handler(request: httpx2.Request) -> httpx2.Response:
             if request.method == "GET":
                 return _build_models_response(loaded=False)
-            return httpx2.Response(404, json={"error": "model 'qwen3' not found"})
+            return httpx2.Response(
+                404,
+                json={
+                    "error": {
+                        "type": "model_not_found",
+                        "message": "Model qwen3 not found in downloaded models",
+                    }
+                },
+            )
 
         with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             _build_backend(handler).load(timeout=5.0)
 
         assert str(exc_info.value) == (
-            "LM Studio could not load model 'qwen3' (404): model 'qwen3' not found"
+            "LM Studio could not load model 'qwen3' (404): Model qwen3 not found in downloaded models"
         )
         assert exc_info.value.response.status_code == 404
         assert isinstance(exc_info.value.__cause__, httpx2.HTTPStatusError)

@@ -47,11 +47,24 @@ class TestExtractErrorDetail:
     def test_returns_the_error_field_when_it_is_a_non_empty_string(self):
         assert extract_error_detail(_build_response(json={"error": "model not found"})) == "model not found"
 
+    def test_returns_the_message_of_an_error_object(self):
+        body = {"error": {"type": "model_not_found", "message": "Model x not found in downloaded models"}}
+
+        assert (
+            extract_error_detail(_build_response(404, json=body)) == "Model x not found in downloaded models"
+        )
+
     @pytest.mark.parametrize(
         ("kwargs", "expected"),
         [
             pytest.param({"json": {"error": ""}}, '{"error":""}', id="empty-error"),
-            pytest.param({"json": {"error": {"message": "x"}}}, '{"error":{"message":"x"}}', id="non-string"),
+            pytest.param(
+                {"json": {"error": {"message": ""}}}, '{"error":{"message":""}}', id="empty-message"
+            ),
+            pytest.param(
+                {"json": {"error": {"code": 1}}}, '{"error":{"code":1}}', id="object-without-message"
+            ),
+            pytest.param({"json": {"error": ["x"]}}, '{"error":["x"]}', id="non-string"),
             pytest.param({"json": {"other": "x"}}, '{"other":"x"}', id="no-error-key"),
             pytest.param({"json": ["a"]}, '["a"]', id="non-dict-body"),
             pytest.param({"content": b"  plain text  "}, "plain text", id="not-json-stripped"),
