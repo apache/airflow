@@ -19,7 +19,7 @@ from __future__ import annotations
 import secrets
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-class ConnectionTestState(str, Enum):
+class ConnectionTestState(StrEnum):
     """All possible states of a connection test."""
 
     PENDING = "pending"
@@ -58,9 +58,6 @@ class ConnectionTestState(str, Enum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 ACTIVE_STATES = frozenset(

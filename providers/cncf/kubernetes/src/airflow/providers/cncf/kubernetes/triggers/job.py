@@ -29,7 +29,7 @@ from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from kubernetes.client import V1Job
+    from kubernetes_asyncio.client import V1Job
 
 
 class KubernetesJobTrigger(BaseTrigger):

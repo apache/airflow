@@ -41,6 +41,7 @@ from kubernetes.client import (
     V1ObjectReference,
     V1Pod,
     V1PodCondition,
+    V1PodSpec,
     V1PodStatus,
 )
 from kubernetes.client.rest import ApiException
@@ -292,6 +293,24 @@ def test_detect_pod_terminate_early_issues_returns_none_for_transient_messages(r
     """
     pod = _build_pod_with_waiting_container(reason, message)
     assert detect_pod_terminate_early_issues(pod) is None
+
+
+@pytest.mark.parametrize("with_container", [False, True])
+def test_detect_pod_terminate_early_issues_without_state(with_container):
+    pod = V1Pod()
+    if with_container:
+        container_status = _build_terminated_container_status("base")
+        container_status.state = None
+        pod.status = V1PodStatus(container_statuses=[container_status])
+
+    assert detect_pod_terminate_early_issues(pod) is None
+
+
+def test_get_init_container_names_without_init_containers():
+    manager = PodManager(kube_client=mock.Mock(spec=CoreV1Api))
+    pod = V1Pod(spec=V1PodSpec(containers=[]))
+
+    assert manager.get_init_container_names(pod) == []
 
 
 @pytest.mark.parametrize("init", [False, True], ids=["main_container", "init_container"])

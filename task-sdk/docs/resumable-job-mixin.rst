@@ -118,6 +118,27 @@ to check the current state of the job:
    longer than ``default_retention_days``, the identifier could be gone by the next retry,
    causing the operator to submit a fresh job instead of reconnecting.
 
+.. _sdk-resumable-job-mixin-banner:
+
+Durable execution banner
+------------------------
+
+When a retry reconnects to a running job, or uses the result of a job that already finished, the
+task logs page shows a banner saying so. The mixin records what each try did under the
+``__airflow_durable__`` task state store key, and the banner reads it. A deferrable operator that
+reconnects shows the banner without a job status, because the outcome is known only after the
+Triggerer fires and nothing records it there. Deployments that set ``[workers] state_store_backend``
+do not show the banner, because the record is offloaded with every other value and the banner reads
+only what is stored in the metadata database.
+
+.. note::
+
+   Only operators that use ``ResumableJobMixin`` show the banner. ``KubernetesPodOperator``,
+   ``MSGraphAsyncOperator`` and ``AgentOperator`` implement durable execution on their own and do
+   not record what each try did, so they reconnect without a banner. ``GlueJobOperator`` with
+   ``deferrable=True`` uses the mixin but finds a retry's run by searching Glue job runs instead,
+   so it shows no banner either.
+
 Example
 -------
 
@@ -162,7 +183,8 @@ Call these two methods before ``defer()`` instead:
 
 * ``get_resume_decision(context)`` checks the stored job and returns a
   :class:`~airflow.sdk.ResumeDecision`. Its ``action`` is ``"submit"``, ``"reconnect"`` or
-  ``"already_succeeded"``. It never submits or polls.
+  ``"already_succeeded"``. It never submits or polls. It records a reconnect or an already
+  succeeded job for the :ref:`durable execution banner <sdk-resumable-job-mixin-banner>`.
 * ``persist_job_id(context, job_id)`` saves a new job's id so a retry can find it.
 
 .. code-block:: python

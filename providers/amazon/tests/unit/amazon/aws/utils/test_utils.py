@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.utils import (
     get_airflow_version,
     get_botocore_version,
     is_resource_in_use_error,
+    is_update_in_progress_error,
 )
 
 DT = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
@@ -132,3 +133,53 @@ def test_build_resource_in_use_retry_args_does_not_retry_other_errors(mock_sleep
         _run_with_retry(call)
 
     assert call.call_count == 1
+
+
+@pytest.mark.parametrize(
+    ("exception", "expected"),
+    [
+        pytest.param(
+            ClientError(
+                {
+                    "Error": {
+                        "Code": "ResourceInUseException",
+                        "Message": "Cannot create Fargate Profile p because cluster c currently has an "
+                        "update in progress",
+                    }
+                },
+                "CreateFargateProfile",
+            ),
+            True,
+            id="update_in_progress",
+        ),
+        pytest.param(
+            ClientError(
+                {
+                    "Error": {
+                        "Code": "ResourceInUseException",
+                        "Message": "A Fargate Profile already exists with this name in this cluster.",
+                    }
+                },
+                "CreateFargateProfile",
+            ),
+            False,
+            id="already_exists",
+        ),
+        pytest.param(
+            ClientError({"Error": {"Code": "ResourceInUseException"}}, "CreateFargateProfile"),
+            False,
+            id="no_message",
+        ),
+        pytest.param(
+            ClientError(
+                {"Error": {"Code": "InvalidRequestException", "Message": "update in progress"}},
+                "CreateFargateProfile",
+            ),
+            False,
+            id="other_client_error",
+        ),
+        pytest.param(ValueError("update in progress"), False, id="non_client_error"),
+    ],
+)
+def test_is_update_in_progress_error(exception, expected):
+    assert is_update_in_progress_error(exception) is expected

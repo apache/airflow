@@ -70,12 +70,6 @@ def docker_examples(directory: Path, xfails: dict[str, str] | None = None):
     return result
 
 
-def get_constraints_branch(branch: str) -> str:
-    if match := re.fullmatch(r"v(\d+)-(\d+)-test", branch):
-        return f"constraints-{match[1]}-{match[2]}"
-    return "constraints-main"
-
-
 @pytest.mark.parametrize(
     ("dockerfile", "relative_path"),
     docker_examples(DOCKER_EXAMPLES_DIR, xfails=QUARANTINED_DOCKER_EXAMPLES),
@@ -85,9 +79,12 @@ def test_dockerfile_example(dockerfile, relative_path, tmp_path):
     content = Path(dockerfile).read_text()
     test_image = os.environ.get("TEST_IMAGE")
     if test_image:
-        # An image built from sources has a version whose constraints tag only exists once it is released.
-        constraints_branch = get_constraints_branch(os.environ.get("DEFAULT_BRANCH", "main"))
-        content = content.replace("constraints-${AIRFLOW_VERSION}/", f"{constraints_branch}/")
+        # Source-built images carry constraints from the same checkout as their providers.
+        content = content.replace(
+            "https://raw.githubusercontent.com/apache/airflow/"
+            "constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_MAJOR_MINOR}.txt",
+            "${HOME}/constraints.txt",
+        )
     else:
         test_image = get_latest_airflow_image()
 
@@ -103,3 +100,15 @@ def test_dockerfile_example(dockerfile, relative_path, tmp_path):
         assert image
     finally:
         docker.image.remove(image_name, force=True)
+
+
+def test_source_image_uses_its_own_constraints(monkeypatch, mocker, tmp_path):
+    monkeypatch.setenv("TEST_IMAGE", "airflow-ci:test")
+    build = mocker.patch.object(docker, "build", autospec=True)
+    mocker.patch.object(docker.image, "remove", autospec=True)
+    relative_path = "extending/slim-with-providers/Dockerfile"
+
+    test_dockerfile_example(DOCKER_EXAMPLES_DIR / relative_path, relative_path, tmp_path)
+
+    content = build.call_args.kwargs["file"].read_text()
+    assert '--constraint "${HOME}/constraints.txt"' in content

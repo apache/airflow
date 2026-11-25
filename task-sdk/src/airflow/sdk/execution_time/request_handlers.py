@@ -328,6 +328,8 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
     if isinstance(xcom, XComResponse):
         xcom_result = XComResult.from_xcom_response(xcom)
         return xcom_result, {"exclude_unset": True}
+    if isinstance(xcom, XComSequenceSliceResponse):
+        return XComSequenceSliceResult.from_response(xcom), {}
     return xcom, {}
 
 
