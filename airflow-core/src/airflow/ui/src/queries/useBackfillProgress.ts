@@ -36,16 +36,18 @@ export type BackfillProgress = {
 const countDagRuns = async (backfillId: number, state: Array<DagRunState>) =>
   (await BackfillService.listBackfillDagRuns({ backfillId, limit: 0, state })).total_entries;
 
-// Fetched together so one refresh never mixes counts taken at different times.
+// Each count is its own request and reads its own snapshot, so the total is counted directly
+// instead of summed from the per-state counts: a run changing state between requests then only
+// leaves `success + failed` short of `total`, which keeps the polling going.
 const fetchBackfillProgress = async (backfillId: number): Promise<BackfillProgress> => {
-  const [success, failed, unfinished] = await Promise.all([
+  const [success, failed, total] = await Promise.all([
     countDagRuns(backfillId, ["success"]),
     countDagRuns(backfillId, ["failed"]),
-    countDagRuns(backfillId, ["queued", "running"]),
+    // Slots the backfill skipped have no Dag run, so they are left out of the total.
+    countDagRuns(backfillId, ["queued", "running", "success", "failed"]),
   ]);
 
-  // Slots the backfill skipped have no Dag run, so they are left out of the total.
-  return { failed, success, total: success + failed + unfinished };
+  return { failed, success, total };
 };
 
 export const useBackfillProgress = (backfillId: number, isRunning: boolean) => {
@@ -58,9 +60,10 @@ export const useBackfillProgress = (backfillId: number, isRunning: boolean) => {
     // running Dag runs carry on, and a cached result may predate the last runs finishing.
     refetchInterval: (query) => {
       const progress = query.state.data;
-      const hasUnfinishedRuns = progress === undefined || progress.success + progress.failed < progress.total;
+      const isSettled =
+        progress === undefined ? false : progress.success + progress.failed === progress.total;
 
-      return isRunning || hasUnfinishedRuns ? refetchInterval : false;
+      return isRunning || !isSettled ? refetchInterval : false;
     },
   });
 

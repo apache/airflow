@@ -31,15 +31,23 @@ import { BackfillProgressBar } from "./BackfillProgressBar";
 const REFRESH_MS = 20;
 
 const { listBackfillDagRuns, mockCounts } = vi.hoisted(() => {
-  const counts = { current: {} as Record<string, number> };
+  const counts = {
+    afterSuccessCount: undefined as Record<string, number> | undefined,
+    current: {} as Record<string, number>,
+  };
 
   return {
-    listBackfillDagRuns: vi.fn(({ state }: { state: Array<string> }) =>
-      Promise.resolve({
-        backfill_dag_runs: [],
-        total_entries: state.reduce((sum, st) => sum + (counts.current[st] ?? 0), 0),
-      }),
-    ),
+    listBackfillDagRuns: vi.fn(({ state }: { state: Array<string> }) => {
+      const totalEntries = state.reduce((sum, st) => sum + (counts.current[st] ?? 0), 0);
+
+      // Lets a test move a run to another state between the requests of a single refresh.
+      if (state.length === 1 && state[0] === "success" && counts.afterSuccessCount !== undefined) {
+        counts.current = counts.afterSuccessCount;
+        counts.afterSuccessCount = undefined;
+      }
+
+      return Promise.resolve({ backfill_dag_runs: [], total_entries: totalEntries });
+    }),
     mockCounts: counts,
   };
 });
@@ -63,6 +71,7 @@ const waitForSeveralRefreshIntervals = () =>
 
 afterEach(() => {
   mockCounts.current = {};
+  mockCounts.afterSuccessCount = undefined;
   listBackfillDagRuns.mockClear();
 });
 
@@ -113,6 +122,16 @@ describe("BackfillProgressBar", () => {
 
     await waitForSeveralRefreshIntervals();
     expect(countRefreshes()).toBe(refreshes);
+  });
+
+  it("keeps polling when a run finishes between the count requests of one refresh", async () => {
+    mockCounts.current = { failed: 4, running: 1 };
+    mockCounts.afterSuccessCount = { failed: 4, success: 1 };
+
+    render(<BackfillProgressBar backfillId={1} isRunning={false} />, { wrapper: Wrapper });
+
+    expect(await screen.findByText("4/5")).toBeInTheDocument();
+    expect(await screen.findByText("5/5")).toBeInTheDocument();
   });
 
   it("keeps polling while the backfill is running", async () => {
