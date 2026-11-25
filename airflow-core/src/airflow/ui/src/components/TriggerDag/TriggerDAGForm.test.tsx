@@ -118,6 +118,46 @@ describe("TriggerDAGForm", () => {
     togglePauseMock.mockClear();
   });
 
+  it("enables Trigger when the last required field is filled and disables it when cleared", async () => {
+    useDagParamsMock.mockReturnValue({
+      paramsDict: {
+        required_field: {
+          description: null,
+          schema: { maxLength: 30, minLength: 10, title: "Required text field", type: "string" },
+          value: null,
+        },
+      },
+    });
+
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_ui_tutorial"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await screen.findByText("Required text field");
+    const input = container.querySelector<HTMLInputElement>('input[name="element_required_field"]');
+
+    if (input === null) {
+      throw new Error("Expected the required text input to be rendered");
+    }
+    const submit = screen.getByTestId("trigger-dag-submit");
+
+    expect(submit).toBeDisabled();
+    fireEvent.change(input, { target: { value: "Wind report" } });
+    expect(submit).toBeEnabled();
+    fireEvent.change(input, { target: { value: "" } });
+    expect(submit).toBeDisabled();
+  });
+
   it("submits a nested YAML object and blocks invalid input until the field is corrected", async () => {
     useDagParamsMock.mockReturnValue({
       paramsDict: {
@@ -148,11 +188,14 @@ describe("TriggerDAGForm", () => {
     const editor = screen.getByRole("textbox", { name: "settings" });
     const submit = screen.getByTestId("trigger-dag-submit");
 
+    const message = screen.getByDisplayValue("Hello");
+
+    fireEvent.change(message, { target: { value: "" } });
     expect(editor).toHaveValue("enabled: false\n");
     fireEvent.change(editor, { target: { value: "a: [" } });
     expect(editor).toHaveValue("a: [");
     expect(submit).toBeDisabled();
-    fireEvent.change(screen.getByDisplayValue("Hello"), { target: { value: "Updated" } });
+    fireEvent.change(message, { target: { value: "Updated" } });
     expect(submit).toBeDisabled();
     fireEvent.click(submit);
     expect(onSubmitTrigger).not.toHaveBeenCalled();
