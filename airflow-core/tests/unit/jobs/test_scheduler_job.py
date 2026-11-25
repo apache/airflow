@@ -11043,9 +11043,7 @@ class TestSchedulerJob:
 
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True)
     def test_dag_run_discarded_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
-        mock_create.side_effect = DagRunDiscardedError(
-            "rolled back", dag_id="testdag1", dag_version_id=uuid4()
-        )
+        mock_create.side_effect = DagRunDiscardedError("discarded", dag_id="testdag1", dag_version_id=uuid4())
         with dag_maker("testdag1", serialized=True):
             BashOperator(task_id="task", bash_command="echo 1")
 
@@ -11067,42 +11065,42 @@ class TestSchedulerJob:
         self, mock_create_dagruns, mock_start_queued, mock_stats_incr, session, caplog
     ):
         mock_create_dagruns.side_effect = DagRunDiscardedError(
-            "rolled back", dag_id="rolled_back_dag", dag_version_id=uuid4()
+            "discarded", dag_id="stopped_dag", dag_version_id=uuid4()
         )
 
         job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
         job_runner._do_scheduling(session)
 
-        assert job_runner._dag_ids_stopped_by_deadline_alerts == {"rolled_back_dag"}
+        assert job_runner._dag_ids_stopped_by_deadline_alerts == {"stopped_dag"}
         mock_stats_incr.assert_any_call(
-            "deadline_alerts.dag_run_creation_stopped", tags={"dag_id": "rolled_back_dag"}
+            "deadline_alerts.dag_run_creation_stopped", tags={"dag_id": "stopped_dag"}
         )
         assert {
             "event": "A deadline alert broke the scheduler's session; no more Dag runs are "
             "created for the Dag until the scheduler restarts",
-            "dag_id": "rolled_back_dag",
+            "dag_id": "stopped_dag",
         } in caplog
         mock_start_queued.assert_called_once()
 
     @mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1)
     def test_dag_stopped_by_deadline_alerts_does_not_use_up_dag_run_creation_limit(self, session, dag_maker):
-        with dag_maker("rolled_back_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
+        with dag_maker("stopped_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
             EmptyOperator(task_id="task")
-        rolled_back_dag_model = dag_maker.dag_model
+        stopped_dag_model = dag_maker.dag_model
         with dag_maker("other_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
             EmptyOperator(task_id="task")
         other_dag_model = dag_maker.dag_model
         # The failing Dag keeps the oldest create-after, so it would sort first into the batch.
-        rolled_back_dag_model.next_dagrun_create_after = DEFAULT_DATE
+        stopped_dag_model.next_dagrun_create_after = DEFAULT_DATE
         other_dag_model.next_dagrun_create_after = DEFAULT_DATE + timedelta(hours=1)
         session.flush()
 
         job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
-        job_runner._dag_ids_stopped_by_deadline_alerts.add("rolled_back_dag")
+        job_runner._dag_ids_stopped_by_deadline_alerts.add("stopped_dag")
         job_runner._create_dagruns_for_dags(mock.create_autospec(CommitProhibitorGuard), session)
 
         created = session.scalars(
-            select(DagRun.dag_id).where(DagRun.dag_id.in_(["rolled_back_dag", "other_dag"]))
+            select(DagRun.dag_id).where(DagRun.dag_id.in_(["stopped_dag", "other_dag"]))
         )
         assert list(created) == ["other_dag"]
 
@@ -14932,13 +14930,13 @@ def test_partitioned_batch_asset_events(dag_maker: DagMaker, session: Session, b
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 def test_partitioned_dag_run_creation_leaves_out_excluded_dags(dag_maker: DagMaker, session: Session):
-    asset = Asset(name="partitioned-rolled-back-asset")
-    dag_id = "partitioned-rolled-back-consumer"
+    asset = Asset(name="partitioned-stopped-asset")
+    dag_id = "partitioned-stopped-consumer"
     with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), session=session):
         EmptyOperator(task_id="task")
     session.commit()
     apdr = _produce_and_register_asset_event(
-        dag_id="partitioned-rolled-back-producer",
+        dag_id="partitioned-stopped-producer",
         asset=asset,
         partition_key="key-1",
         session=session,

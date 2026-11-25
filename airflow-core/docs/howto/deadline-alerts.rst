@@ -568,13 +568,14 @@ followed by a more urgent escalation if the Dag is still running.
   needs. It still works but is deprecated and will be removed in Airflow 4.0 — declare the keyword-only
   parameters your ``_evaluate_with()`` needs instead.
 * **Database Access**: Use the ``session`` parameter for read-only Airflow database queries if needed.
-  When a Dag run is created, the session is separate from the scheduler's own and is discarded after the
-  reference is evaluated. It is read-only on PostgreSQL, MySQL and SQLite, so writing through it, or on
-  PostgreSQL and MySQL locking rows (``SELECT ... FOR UPDATE``), raises an error and the alert is skipped.
-  Do not do either: the scheduler holds locks on the Dag's rows while it creates the Dag run, so a write
-  or a row lock would wait for the scheduler, which in turn waits for your reference. The session uses a
-  second connection from the database connection pool, so size the pool for it. With an in-memory SQLite
-  database, which has a single connection, the session is the scheduler's own and is not read-only.
+  When a Dag run is created, the session is separate from the scheduler's own, shared by the Dag run's
+  deadline alerts, and discarded once they are evaluated. It is read-only on PostgreSQL, MySQL and
+  SQLite, so writing through it, or on PostgreSQL and MySQL locking rows (``SELECT ... FOR UPDATE``),
+  raises an error and the alert is skipped. Do not do either: the scheduler holds locks on the Dag's rows
+  while it creates the Dag run, so a write or a row lock would wait for the scheduler, which in turn
+  waits for your reference. The session uses a second connection from the database connection pool, so
+  size the pool for it. With an in-memory SQLite database, which has a single connection, the session is
+  the scheduler's own and is not read-only.
 
   Do not open another session either (for example with ``provide_session`` or ``create_session``),
   because that returns the scheduler's session. Rolling it back, committing it (which the scheduler
