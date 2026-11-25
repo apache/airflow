@@ -29,7 +29,8 @@ from typing import TYPE_CHECKING, Literal, TypedDict, cast, overload
 
 import attrs
 import structlog
-from sqlalchemy import event, func, or_, select, tuple_
+from sqlalchemy import event, func, literal, or_, select, tuple_
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.pool import SingletonThreadPool, StaticPool
 
 from airflow import settings
@@ -894,12 +895,30 @@ class SerializedDAG:
             if not session.is_active:
                 # A failed flush left the caller's transaction to be rolled back, with the Dag run in it.
                 return True
-            if orm_dagrun in session:
-                return False
-            return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
+            if orm_dagrun not in session:
+                return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
+            try:
+                # A failed statement aborts the caller's PostgreSQL transaction without detaching anything.
+                session.execute(select(literal(1)))
+            except DBAPIError:
+                return True
+            return False
 
-        with _create_alert_session(session=session) as alert_session:
+        with contextlib.ExitStack() as exit_stack:
+            try:
+                alert_session = exit_stack.enter_context(_create_alert_session(session=session))
+            except Exception:
+                log.exception(
+                    "skipping deadline alerts because their session could not be opened",
+                    dag_id=self.dag_id,
+                    run_id=run_id,
+                )
+                stats.incr(
+                    "deadline_alerts.deadline_creation_failed", count=len(stored_alerts), tags=metrics_tags
+                )
+                return
             for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
+                new_deadline: Deadline | None = None
                 # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest
                 # or abort the Dag run.
                 try:
@@ -927,17 +946,14 @@ class SerializedDAG:
                         )
 
                         if deadline_time is not None:
-                            session.add(
-                                Deadline(
-                                    deadline_time=deadline_time,
-                                    callback=deserialized_deadline_alert.callback,
-                                    dagrun_id=dagrun_id,
-                                    deadline_alert_id=alert_id,
-                                    dag_id=dagrun_dag_id,
-                                    bundle_name=bundle_name,
-                                )
+                            new_deadline = Deadline(
+                                deadline_time=deadline_time,
+                                callback=deserialized_deadline_alert.callback,
+                                dagrun_id=dagrun_id,
+                                deadline_alert_id=alert_id,
+                                dag_id=dagrun_dag_id,
+                                bundle_name=bundle_name,
                             )
-                            stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
                         elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
                             type(deserialized_deadline_alert.reference)
                         ):
@@ -973,6 +989,7 @@ class SerializedDAG:
                     stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
                     if dagrun_discarded:
                         raise build_rolled_back_error() from exc
+                    continue
 
                 # Alerts get their own session, but one that reaches for the scheduler's session
                 # (provide_session, settings.Session) can still roll it back, discarding the pending
@@ -980,6 +997,9 @@ class SerializedDAG:
                 # returning normally would let the caller treat the missing run as created.
                 if is_dagrun_discarded():
                     raise build_rolled_back_error()
+                if new_deadline is not None:
+                    session.add(new_deadline)
+                    stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
 
     @provide_session
     def set_task_instance_state(

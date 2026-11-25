@@ -2390,6 +2390,15 @@ class TestDagRun:
         # The connection goes back to the shared pool and must not stay read-only.
         session.execute(text("UPDATE variable SET val = val WHERE id = -1"))
 
+    @pytest.mark.backend("sqlite")
+    def test_sqlite_deadline_alert_session_connection_is_writable_again_after_use(self, session):
+        with _create_alert_session(session=session) as alert_session:
+            dbapi_connection = alert_session.connection().connection.dbapi_connection
+            # The alert can close the session; the connection must still be switched back.
+            alert_session.close()
+
+        assert dbapi_connection.execute("PRAGMA query_only").fetchone()[0] == 0
+
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch.object(Variable, "get", autospec=True)
     def test_dagrun_deadline_alert_rolling_back_schedulers_session_raises_instead_of_orphaning_deadline(
@@ -2470,6 +2479,89 @@ class TestDagRun:
                 dag_run.id
             ]
             assert [deadline.dagrun_id for deadline in session.scalars(select(Deadline))] == [dag_run.id]
+
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True)
+    def test_dagrun_deadline_alert_silently_rolling_back_callers_session_creates_no_deadline(
+        self, mock_variable_get, _, mock_stats_incr, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(
+                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
+                    ),
+                    interval=VariableInterval("interval_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+            ],
+        )
+        session.commit()
+
+        def roll_back_callers_session(key, session):
+            settings.Session().rollback()
+            return "60"
+
+        mock_variable_get.side_effect = roll_back_callers_session
+
+        with pytest.raises(DagRunRolledBackError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
+
+        assert mock.call("deadline_alerts.deadline_created", tags=mock.ANY) not in mock_stats_incr.mock_calls
+
+    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch("airflow.serialization.definitions.dag._create_alert_session", autospec=True)
+    def test_dagrun_deadline_alerts_without_an_alert_session_are_skipped(
+        self, mock_create_alert_session, _, mock_stats_incr, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=datetime.timedelta(hours=hours),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                )
+                for hours in (1, 2)
+            ],
+        )
+        mock_create_alert_session.side_effect = TimeoutError("QueuePool limit reached")
+
+        dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+
+        assert dag_run in session
+        assert session.scalars(select(Deadline)).all() == []
+        mock_stats_incr.assert_any_call(
+            "deadline_alerts.deadline_creation_failed", count=2, tags={"dag_id": scheduler_dag.dag_id}
+        )
+
+    @pytest.mark.backend("postgres")
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True)
+    def test_dagrun_deadline_alert_aborting_callers_transaction_raises_rolled_back_error(
+        self, mock_variable_get, _, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(
+                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
+                    ),
+                    interval=VariableInterval("interval_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+            ],
+        )
+        session.commit()
+
+        def run_failing_statement_on_callers_session(key, session):
+            settings.Session().execute(text("SELECT missing_column FROM variable"))
+
+        mock_variable_get.side_effect = run_failing_statement_on_callers_session
+
+        with pytest.raises(DagRunRolledBackError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
 
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch.object(Variable, "get", autospec=True)
