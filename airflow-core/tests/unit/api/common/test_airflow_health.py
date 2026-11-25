@@ -312,7 +312,7 @@ def _triggerer(*, alive: bool, team_name: str | None) -> MagicMock:
 class TestDagProcessorDetailedStatus:
     """``detailed_status`` measures which configured bundles a live processor is parsing."""
 
-    BUNDLES = {"bundle-a": None, "bundle-b": None}
+    BUNDLES: dict[str, str | None] = {"bundle-a": None, "bundle-b": None}
 
     @pytest.mark.parametrize(
         ("jobs", "expected"),

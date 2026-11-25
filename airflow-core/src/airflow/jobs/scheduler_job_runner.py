@@ -650,6 +650,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 session.add(JobTeam(job_id=job_id, team_name=team_name))
             session.flush()
             job = session.get(Job, job_id)
+            if TYPE_CHECKING:
+                assert job is not None
         job.state = JobState.RUNNING
         return job
 
