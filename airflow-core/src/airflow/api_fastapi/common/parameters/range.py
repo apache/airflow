@@ -102,13 +102,13 @@ class RangeFilter(BaseParam[Range]):
         if self.value is None:
             return select
 
-        if self.value.lower_bound_gte:
+        if self.value.lower_bound_gte is not None:
             select = select.where(self.attribute >= self.value.lower_bound_gte)
-        if self.value.lower_bound_gt:
+        if self.value.lower_bound_gt is not None:
             select = select.where(self.attribute > self.value.lower_bound_gt)
-        if self.value.upper_bound_lte:
+        if self.value.upper_bound_lte is not None:
             select = select.where(self.attribute <= self.value.upper_bound_lte)
-        if self.value.upper_bound_lt:
+        if self.value.upper_bound_lt is not None:
             select = select.where(self.attribute < self.value.upper_bound_lt)
 
         return select
@@ -164,16 +164,16 @@ class NullableDatetimeRangeFilter(RangeFilter):
         if self.value is None:
             return select
 
-        if self.value.lower_bound_gte:
+        if self.value.lower_bound_gte is not None:
             x = self.value.lower_bound_gte
             select = select.where(or_(self.attribute >= x, self._get_null_lower_bound_clause()))
-        if self.value.lower_bound_gt:
+        if self.value.lower_bound_gt is not None:
             x = self.value.lower_bound_gt
             select = select.where(or_(self.attribute > x, self._get_null_lower_bound_clause()))
-        if self.value.upper_bound_lte:
+        if self.value.upper_bound_lte is not None:
             x = self.value.upper_bound_lte
             select = select.where(or_(self.attribute <= x, and_(self.attribute.is_(None), func.now() <= x)))
-        if self.value.upper_bound_lt:
+        if self.value.upper_bound_lt is not None:
             x = self.value.upper_bound_lt
             select = select.where(or_(self.attribute < x, and_(self.attribute.is_(None), func.now() < x)))
 

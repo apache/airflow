@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Column, MetaData, String, Table, create_engine, select
+from sqlalchemy import Column, Float, Integer, MetaData, String, Table, create_engine, select
 from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
@@ -36,10 +36,12 @@ from airflow.api_fastapi.common.parameters import (
     _SearchParam,
     datetime_range_filter_factory,
     filter_param_factory,
+    float_range_filter_factory,
+    int_range_filter_factory,
 )
 from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
 from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
-from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
+from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter, Range
 from airflow.api_fastapi.common.parameters.search import (
     _escape_like_pattern,
     _PrefixPatternParam,
@@ -586,6 +588,82 @@ class TestTaskDisplayNamePrefixPatternParam:
 
         sql = _compile(statement)
         assert "true" in sql or "1 = 1" in sql
+
+
+class TestRangeFilter:
+    """RangeFilter and NullableDatetimeRangeFilter must preserve falsy zero bounds (0 / 0.0)."""
+
+    @pytest.mark.parametrize("filter_cls", [RangeFilter, NullableDatetimeRangeFilter])
+    @pytest.mark.parametrize(
+        ("bound_name", "bound_value", "expected_op"),
+        [
+            ("lower_bound_gte", 0, ">="),
+            ("lower_bound_gte", 0.0, ">="),
+            ("lower_bound_gt", 0, ">"),
+            ("upper_bound_lte", 0, "<="),
+            ("upper_bound_lt", 0, "<"),
+        ],
+    )
+    def test_to_orm_applies_zero_bounds(self, filter_cls, bound_name, bound_value, expected_op):
+        probe = Table("range_probe", MetaData(), Column("metric", Float, nullable=True))
+        bounds = dict(lower_bound_gte=None, lower_bound_gt=None, upper_bound_lte=None, upper_bound_lt=None)
+        bounds[bound_name] = bound_value
+        rf = filter_cls(Range(**bounds), probe.c.metric)
+
+        assert rf.is_active() is True
+        sql = _compile(rf.to_orm(select(probe)))
+        assert f"range_probe.metric {expected_op}" in sql
+
+    @pytest.mark.parametrize(
+        ("factory", "bound_kwargs", "expected_ids"),
+        [
+            (int_range_filter_factory, {"lower_bound_gte": 0}, [2, 3]),
+            (int_range_filter_factory, {"lower_bound_gt": 0}, [3]),
+            (int_range_filter_factory, {"upper_bound_lte": 0}, [1, 2]),
+            (int_range_filter_factory, {"upper_bound_lt": 0}, [1]),
+            (float_range_filter_factory, {"lower_bound_gte": 0.0}, [2, 3]),
+            (float_range_filter_factory, {"upper_bound_lte": 0.0}, [1, 2]),
+        ],
+    )
+    def test_factories_filter_sqlite_rows_on_zero_bounds(self, factory, bound_kwargs, expected_ids):
+        model = type(
+            "RangeProbeModel",
+            (),
+            {
+                "__table__": Table(
+                    "range_probe",
+                    MetaData(),
+                    Column("id", Integer, primary_key=True),
+                    Column("metric", Float, nullable=True),
+                )
+            },
+        )()
+        table = model.__table__
+        model.metric = table.c.metric
+
+        engine = create_engine("sqlite://")
+        table.metadata.create_all(engine)
+        with engine.connect() as conn:
+            conn.execute(
+                table.insert(),
+                [
+                    {"id": 1, "metric": -2.0},
+                    {"id": 2, "metric": 0.0},
+                    {"id": 3, "metric": 5.0},
+                    {"id": 4, "metric": None},
+                ],
+            )
+            defaults = dict(
+                lower_bound_gte=None,
+                lower_bound_gt=None,
+                upper_bound_lte=None,
+                upper_bound_lt=None,
+            )
+            defaults.update(bound_kwargs)
+            rf = factory("metric", model)(**defaults)
+            rows = sorted(row[0] for row in conn.execute(rf.to_orm(select(table.c.id).select_from(table))))
+
+        assert rows == expected_ids
 
 
 def _make_datetime_filter(filter_name, model=TaskInstance, attribute_name=None, **kwargs):
