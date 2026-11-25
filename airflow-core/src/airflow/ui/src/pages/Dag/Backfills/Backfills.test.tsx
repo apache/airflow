@@ -229,6 +229,29 @@ describe("Backfills filters", () => {
     expect(mocks[mutateKey]).toHaveBeenCalledWith({ backfillId: 7 });
   });
 
+  it("refreshes the list only while a displayed backfill is incomplete", () => {
+    mocks.listBackfills.mockReturnValue({ data: undefined, error: undefined, isLoading: false });
+
+    renderBackfills();
+
+    const [, , options] = mocks.listBackfills.mock.lastCall as [
+      unknown,
+      undefined,
+      {
+        refetchInterval: (query: {
+          state: { data?: { backfills: Array<BackfillResponse> } };
+        }) => number | false;
+      },
+    ];
+
+    expect(options.refetchInterval({ state: { data: { backfills: [makeBackfill()] } } })).toBe(5000);
+    expect(
+      options.refetchInterval({
+        state: { data: { backfills: [makeBackfill({ completed_at: "2026-07-06T00:00:00Z" })] } },
+      }),
+    ).toBe(false);
+  });
+
   it("an in-progress backfill can be cancelled", async () => {
     mocks.listBackfills.mockReturnValue({
       data: { backfills: [makeBackfill()], total_entries: 1 },
@@ -322,7 +345,7 @@ describe("Backfills filters", () => {
         state: { data: makeBackfill({ completed_at: "2026-08-06T00:00:00Z" }) },
       }),
     ).toBe(false);
-    expect(mocks.listBackfills).toHaveBeenCalledWith({
+    expect(mocks.listBackfills.mock.lastCall?.[0]).toEqual({
       dagId: "example_dag",
       limit: 25,
       offset: 0,
