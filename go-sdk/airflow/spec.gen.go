@@ -101,6 +101,9 @@ type TaskGroupSpec struct {
 	// is nil, the group_id prefixes them.
 	PrefixGroupID *bool
 
+	// Retries corresponds to the JSON schema field "retries".
+	Retries int
+
 	// Tooltip corresponds to the JSON schema field "tooltip".
 	Tooltip string
 

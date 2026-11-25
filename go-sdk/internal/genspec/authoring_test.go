@@ -358,6 +358,7 @@ func TestShapeForAuthoringShapesTheCoreSchema(t *testing.T) {
 			"doc_md",
 			"group_display_name",
 			"prefix_group_id",
+			"retries",
 			"tooltip",
 			"ui_color",
 			"ui_fgcolor",
