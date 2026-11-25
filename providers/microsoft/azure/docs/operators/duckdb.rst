@@ -37,7 +37,7 @@ Prerequisite Tasks
 
 .. include:: /operators/_partials/prerequisite_tasks.rst
 
-DuckDB support is an optional extra
+DuckDB support is an optional extra:
 
 .. code-block:: bash
 
@@ -50,24 +50,17 @@ DuckDB support is an optional extra
     ``autoinstall_extensions=False`` and make the extension available yourself, either in an
     ``extension_directory`` or baked into your image.
 
-.. _howto/connection:duckdb_azure:
-
 Run a DuckDB query against Azure storage
 ========================================
 
-Two connections are involved:
+Two connections are involved: a :ref:`DuckDB on Azure connection <howto/connection:duckdb_azure>` that
+says which DuckDB database to open and with what settings, and an
+:ref:`ADLS connection <howto/connection:adls>` that gives the Azure identity and the storage account.
+Credentials stay in the ADLS connection. The DuckDB on Azure connection can be empty, but the operator
+needs it to exist.
 
-* A **DuckDB on Azure** (``duckdb_azure``) connection which configures DuckDB itself, i.e.: *which
-  DuckDB database and with what settings*. Its id is what you pass to
-  :class:`~airflow.providers.duckdb.operators.duckdb.DuckDBExecuteQueryOperator` as ``conn_id``, and its
-  type is also what selects :class:`~airflow.providers.microsoft.azure.hooks.duckdb.AzureDuckDBHook`.
-* An :ref:`ADLS <howto/connection:adls>` (``adls``) connection says *which Azure identity and storage
-  account*. The DuckDB connection points at it through ``azure_conn_id``, which defaults to
-  ``adls_default``.
-
-Credentials stay in the ADLS connection. The ``duckdb_azure`` connection can be empty (though it must
-exist): leave every field blank to get an in-memory database. Given those connections, the hook loads the
-``azure`` extension and creates the Azure secret, so the task supplies only SQL:
+Given those connections, the hook loads the ``azure`` extension and creates the Azure secret, so the task
+supplies only SQL:
 
 .. code-block:: python
 
@@ -109,6 +102,7 @@ connection setup and extension loading more than once per task:
 .. code-block:: python
 
     from airflow.providers.microsoft.azure.hooks.duckdb import AzureDuckDBHook
+    from airflow.sdk import task
 
 
     @task
@@ -121,6 +115,8 @@ connection setup and extension loading more than once per task:
             )
             return conn.execute("SELECT region, SUM(revenue) FROM sales GROUP BY region").fetchall()
 
+.. _howto/operator:duckdb_azure:credentials:
+
 How credentials reach DuckDB
 ============================
 
@@ -128,25 +124,35 @@ DuckDB does not use the Azure SDK for Python. The hook therefore issues a ``CREA
 tells DuckDB how to authenticate, and the ``credential_strategy`` parameter selects how:
 
 ``config`` (default)
-    Builds the secret from the ADLS connection: its ``connection_string`` when the extra has one
-    (``PROVIDER config``), otherwise an Active Directory service principal (``PROVIDER
-    service_principal``) with the connection's login as client id, its password as client secret and the
-    extra's ``tenant_id``. The extra's ``proxies["https"]``, as the ADLS hook uses it, becomes the secret's
-    ``HTTP_PROXY``. The credentials become part of the SQL statement.
+    Builds the secret from the credentials of the ADLS connection, read in the order
+    :class:`~airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook` reads them:
+
+    * its ``connection_string`` when the extra has one (``PROVIDER config``);
+    * else an Active Directory service principal when the extra has a ``tenant_id`` (``PROVIDER
+      service_principal``), with the connection's login as client id and its password as client secret;
+    * else the connection's password as the key of the storage account (``PROVIDER config``, with a
+      connection string built from the storage account and the key).
+
+    An ADLS connection without credentials, which the ADLS hook resolves through
+    ``DefaultAzureCredential``, is rejected: use ``credential_chain`` for it. The extra's
+    ``proxies["https"]``, as the ADLS hook uses it, becomes the secret's ``HTTP_PROXY``. The credentials
+    become part of the SQL statement.
 
 ``credential_chain``
     Issues ``CREATE SECRET (TYPE azure, PROVIDER credential_chain)``, which resolves credentials through the
     Azure SDK inside DuckDB's ``azure`` extension: Azure CLI, managed identity, workload identity or
     environment variables, optionally narrowed with ``credential_chain`` (for example
-    ``"managed_identity;env"``). Nothing secret is written into SQL text. The ADLS connection is optional
-    with this strategy: when it exists, it supplies the storage account and proxy; otherwise set
-    ``account_name``.
+    ``"managed_identity;env"``). Nothing secret is written into SQL text. The default ADLS connection is
+    optional with this strategy: when it exists, it supplies the storage account and proxy; otherwise set
+    ``account_name``. An ``azure_conn_id`` other than ``adls_default`` has to exist. The chain does not read
+    the ``managed_identity_client_id`` or ``workload_identity_tenant_id`` of the ADLS connection; DuckDB
+    picks the identity from the environment.
 
 ``none``
     Creates no secret. Use for a DuckDB database that never touches Azure.
 
 The storage account of the secret is ``account_name`` when it is set, otherwise it is derived from the
-ADLS connection: the first label of its ``account_url``, or its host.
+ADLS connection: the first label of its ``account_url`` (with or without a scheme), or its host.
 
 .. code-block:: python
 

@@ -58,17 +58,23 @@ class AzureDuckDBHook(DuckDBHook):
     Two credential strategies are supported:
 
     ``config`` (the default)
-        Builds the secret from the ADLS connection: its ``connection_string`` when the extra has one
-        (``PROVIDER config``), otherwise an Active Directory service principal (``PROVIDER
-        service_principal``) with the connection's login as client id, its password as client
-        secret and the extra's ``tenant_id``. The extra's ``proxies["https"]`` becomes the secret's
-        proxy. The credentials become part of the SQL statement.
+        Builds the secret from the credentials of the ADLS connection, read in the order
+        :class:`~airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook` reads
+        them: its ``connection_string`` when the extra has one (``PROVIDER config``), else an Active
+        Directory service principal when the extra has a ``tenant_id`` (``PROVIDER
+        service_principal``, with the connection's login as client id and its password as client
+        secret), else the password as the key of the storage account (``PROVIDER config``, with a
+        connection string built from the account and the key). A connection without credentials is
+        rejected: use ``credential_chain`` for it. The extra's ``proxies["https"]`` becomes the
+        secret's proxy. The credentials become part of the SQL statement.
 
     ``credential_chain``
         Issues ``CREATE SECRET (TYPE azure, PROVIDER credential_chain)``, which resolves credentials
         through the Azure SDK inside DuckDB's ``azure`` extension (Azure CLI, managed identity,
-        workload identity, environment). Nothing secret is written into SQL text. The ADLS
-        connection is optional then: when it exists, it supplies the storage account and proxy.
+        workload identity, environment). Nothing secret is written into SQL text. The default ADLS
+        connection is optional then: when it exists, it supplies the storage account and proxy. An
+        ``azure_conn_id`` other than the default has to exist. The chain does not read the
+        connection's ``managed_identity_client_id`` or ``workload_identity_tenant_id``.
 
     The storage account comes from ``account_name``, else from the ``account_url`` of the ADLS
     connection's extra (``onelake`` for ``https://onelake.dfs.fabric.microsoft.com``), else from its
@@ -147,14 +153,18 @@ class AzureDuckDBHook(DuckDBHook):
     @cached_property
     def optional_azure_connection(self) -> Connection | None:
         """
-        Return the ADLS connection, or ``None`` when it does not exist.
+        Return the ADLS connection, or ``None`` when the default one does not exist.
 
-        With the ``credential_chain`` strategy the ADLS connection is optional: it only supplies the
-        storage account and proxy when it exists.
+        With the ``credential_chain`` strategy the ADLS connection only supplies the storage account
+        and proxy, so the default one may be missing. A connection named explicitly has to exist, as
+        for the DuckDB connection itself: leaving it out would create a secret without the account
+        and proxy the Dag author asked for.
         """
         try:
             return self.azure_connection
         except AirflowNotFoundException:
+            if self.azure_conn_id != DEFAULT_AZURE_CONN_ID:
+                raise
             return None
 
     @property
@@ -193,7 +203,10 @@ class AzureDuckDBHook(DuckDBHook):
             return None
         account_url = self._get_azure_field(connection, "account_url")
         if account_url:
-            return urlsplit(account_url).netloc.split(".", 1)[0] or None
+            # The Azure SDK accepts an account_url without a scheme, which urlsplit reads as a path.
+            hostname = urlsplit(account_url if "//" in account_url else f"//{account_url}").hostname
+            if hostname:
+                return hostname.split(".", 1)[0]
         return connection.host or None
 
     def configure_secrets(self, conn: DuckDBPyConnection) -> None:
@@ -221,12 +234,7 @@ class AzureDuckDBHook(DuckDBHook):
 
     def _provider_clauses(self, strategy: CredentialStrategy) -> list[str]:
         if strategy == "config":
-            connection_string = self._get_azure_field(self.azure_connection, "connection_string")
-            if connection_string:
-                clauses = ["PROVIDER config", f"CONNECTION_STRING '{self._quote(connection_string)}'"]
-            else:
-                clauses = self._service_principal_clauses()
-            return [*clauses, *self._proxy_clauses()]
+            return [*self._config_clauses(), *self._proxy_clauses()]
         if strategy == "credential_chain":
             clauses = ["PROVIDER credential_chain"]
             if self.credential_chain:
@@ -236,14 +244,42 @@ class AzureDuckDBHook(DuckDBHook):
             f"Unknown credential_strategy {strategy!r}. Expected 'config', 'credential_chain' or 'none'."
         )
 
-    def _service_principal_clauses(self) -> list[str]:
+    def _config_clauses(self) -> list[str]:
+        """Translate the credentials of the ADLS connection, in the order the ADLS hook reads them."""
         connection = self.azure_connection
+        connection_string = self._get_azure_field(connection, "connection_string")
+        if connection_string:
+            return self._connection_string_clauses(connection_string)
         tenant_id = self._get_azure_field(connection, "tenant_id")
-        if not (tenant_id and connection.login and connection.password):
+        if tenant_id:
+            return self._service_principal_clauses(tenant_id)
+        if connection.password:
+            return self._account_key_clauses(connection.password)
+        raise ValueError(
+            f"The ADLS connection {self.azure_conn_id!r} has no credentials for the 'config' credential "
+            "strategy: it needs a connection_string, a tenant_id with a login (client id) and a "
+            "password (client secret), or a password (account key). Use 'credential_chain' to let "
+            "the Azure SDK resolve credentials."
+        )
+
+    def _connection_string_clauses(self, connection_string: str) -> list[str]:
+        return ["PROVIDER config", f"CONNECTION_STRING '{self._quote(connection_string)}'"]
+
+    def _account_key_clauses(self, account_key: str) -> list[str]:
+        account_name = self.get_account_name()
+        if not account_name:
             raise ValueError(
-                f"The ADLS connection {self.azure_conn_id!r} needs a connection_string, or a tenant_id "
-                "with a login (client id) and a password (client secret), for the 'config' "
-                "credential strategy. Use 'credential_chain' to let the Azure SDK resolve credentials."
+                f"The ADLS connection {self.azure_conn_id!r} has an account key but no storage account. "
+                "Set its host or account_url, or account_name on the DuckDB connection."
+            )
+        return self._connection_string_clauses(f"AccountName={account_name};AccountKey={account_key}")
+
+    def _service_principal_clauses(self, tenant_id: str) -> list[str]:
+        connection = self.azure_connection
+        if not (connection.login and connection.password):
+            raise ValueError(
+                f"The ADLS connection {self.azure_conn_id!r} has a tenant_id but no login (client id) "
+                "or password (client secret) for the 'config' credential strategy."
             )
         return [
             "PROVIDER service_principal",

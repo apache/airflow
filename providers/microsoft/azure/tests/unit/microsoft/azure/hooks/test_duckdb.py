@@ -33,6 +33,9 @@ except ImportError:
     from airflow.exceptions import AirflowNotFoundException  # type: ignore[no-redef]
 
 GET_CONNECTION = "airflow.providers.microsoft.azure.hooks.duckdb.AzureDuckDBHook.get_connection"
+# ``spec`` rather than ``autospec``: autospec replaces the inherited classmethod with a plain function,
+# which then receives the hook as ``conn_id``.
+GET_CONNECTION_SPEC = AzureDuckDBHook.get_connection
 
 SERVICE_PRINCIPAL = Connection(
     conn_id="adls_default",
@@ -58,7 +61,7 @@ def connections(*available: Connection):
             raise AirflowNotFoundException(conn_id)
         return by_id[conn_id]
 
-    return mock.patch(GET_CONNECTION, side_effect=get_connection)
+    return mock.patch(GET_CONNECTION, spec=GET_CONNECTION_SPEC, side_effect=get_connection)
 
 
 def statements(hook: AzureDuckDBHook) -> list[str]:
@@ -89,9 +92,11 @@ class TestAzureDuckDBHookConnectionType:
         connection = Connection(conn_id="azure_duck", conn_type=AzureDuckDBHook.conn_type)
         operator = DuckDBExecuteQueryOperator(task_id="t", sql="SELECT 1", conn_id="azure_duck")
         with (
-            mock.patch(GET_CONNECTION, return_value=connection),
+            mock.patch(GET_CONNECTION, spec=GET_CONNECTION_SPEC, return_value=connection),
             mock.patch(
-                "airflow.providers.duckdb.hooks.duckdb.DuckDBHook.get_connection", return_value=connection
+                "airflow.providers.duckdb.hooks.duckdb.DuckDBHook.get_connection",
+                spec=GET_CONNECTION_SPEC,
+                return_value=connection,
             ),
         ):
             hook = operator.get_db_hook()
@@ -163,15 +168,70 @@ class TestAzureDuckDBHookConfigStrategy:
         assert "ACCOUNT_NAME 'storageaccount'" in statement
         assert "HTTP_PROXY" not in statement
 
+    @pytest.mark.parametrize(
+        "account_url",
+        [
+            "https://storageaccount.dfs.core.windows.net",
+            "https://storageaccount.dfs.core.windows.net:443/",
+            "storageaccount.dfs.core.windows.net",
+        ],
+    )
+    def test_account_comes_from_the_account_url_with_or_without_a_scheme(self, account_url):
+        connection = Connection(
+            conn_id="adls_default",
+            conn_type="adls",
+            host="ignored",
+            extra=json.dumps({"account_url": account_url}),
+        )
+        with connections(connection):
+            assert AzureDuckDBHook().get_account_name() == "storageaccount"
+
+    def test_account_falls_back_to_the_host_when_the_account_url_has_none(self):
+        connection = Connection(
+            conn_id="adls_default",
+            conn_type="adls",
+            host="storageaccount",
+            extra=json.dumps({"account_url": "https://"}),
+        )
+        with connections(connection):
+            assert AzureDuckDBHook().get_account_name() == "storageaccount"
+
     def test_account_name_argument_wins(self):
         with connections(SERVICE_PRINCIPAL):
             statement = secret_statement(AzureDuckDBHook(account_name="other"))
 
         assert "ACCOUNT_NAME 'other'" in statement
 
+    def test_account_key_becomes_a_connection_string(self):
+        connection = Connection(
+            conn_id="adls_default", conn_type="adls", host="storageaccount", password="account-key"
+        )
+        with connections(connection):
+            statement = secret_statement(AzureDuckDBHook())
+
+        assert statement == (
+            "CREATE OR REPLACE SECRET airflow_azure (TYPE azure, PROVIDER config, "
+            "CONNECTION_STRING 'AccountName=storageaccount;AccountKey=account-key');"
+        )
+
+    def test_account_key_without_a_storage_account_is_rejected(self):
+        connection = Connection(conn_id="adls_default", conn_type="adls", password="account-key")
+        with connections(connection), pytest.raises(ValueError, match="no storage account"):
+            secret_statement(AzureDuckDBHook())
+
+    def test_tenant_without_client_credentials_is_rejected(self):
+        connection = Connection(
+            conn_id="adls_default",
+            conn_type="adls",
+            password="client-secret",
+            extra=json.dumps({"tenant_id": "tenant-id"}),
+        )
+        with connections(connection), pytest.raises(ValueError, match="no login"):
+            secret_statement(AzureDuckDBHook())
+
     def test_missing_credentials_are_rejected(self):
         connection = Connection(conn_id="adls_default", conn_type="adls", host="storageaccount")
-        with connections(connection), pytest.raises(ValueError, match="needs a connection_string"):
+        with connections(connection), pytest.raises(ValueError, match="has no credentials"):
             secret_statement(AzureDuckDBHook())
 
     def test_quotes_in_credentials_cannot_break_out_of_the_literal(self):
@@ -212,6 +272,11 @@ class TestAzureDuckDBHookOtherStrategies:
             "CREATE OR REPLACE SECRET airflow_azure (TYPE azure, PROVIDER credential_chain, "
             "ACCOUNT_NAME 'myaccount');"
         )
+
+    def test_credential_chain_needs_an_adls_connection_that_is_named(self):
+        hook = AzureDuckDBHook(credential_strategy="credential_chain", azure_conn_id="lake")
+        with connections(), pytest.raises(AirflowNotFoundException):
+            secret_statement(hook)
 
     def test_config_strategy_needs_the_adls_connection(self):
         with connections(), pytest.raises(AirflowNotFoundException):
