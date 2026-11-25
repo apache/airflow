@@ -378,13 +378,12 @@ only when the model has no loaded instance.
 
 Things to know:
 
-- **List first, then load.** The check comes first because the LM Studio
-  documentation, as of this writing, does not say what loading an already-loaded
-  model does. The load documentation also does not say whether the request waits
-  until the model is loaded or what an error response looks like, so the backend
-  relies on neither: it treats a successful response as done and reports the
-  ``error`` text of a failed response when there is one, or the start of the
-  response body otherwise.
+- **List first, then load.** LM Studio answers a load request for a model that
+  is already loaded by loading a second instance of it, so the backend lists the
+  models first and sends the load request only when the model has no loaded
+  instance. The load request returns once the model is loaded. A failed load is
+  reported with the server's error message when the response has one, or the
+  start of the response body otherwise.
 - **Model name and list shape.** The model name is compared with the ``key`` of
   the listed models, so use the model key that LM Studio lists. A
   ``loaded_instances`` that is missing, empty or not a list counts as not
@@ -399,13 +398,12 @@ Things to know:
 - **Concurrent tasks.** The list and the load are two requests, not one atomic
   step, so two tasks that start together can both see the model as not loaded
   and both send a load request.
-- **Plan for the model to stay loaded.** The load request sends no TTL. LM Studio's
-  `TTL and auto-evict <https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict>`__
-  page says models loaded with ``lms load`` have no TTL and stay loaded until
-  they are unloaded manually, and that auto-evict only unloads models that were
-  loaded just in time. It does not say whether a model loaded through this
-  endpoint is ever unloaded on its own, so plan for it to stay loaded until you
-  unload it, for example with
+- **The model stays loaded.** The load request sends no TTL, and a model loaded
+  this way has none: LM Studio neither unloads it when it is idle nor evicts it
+  to make room for another model, both of which only apply to models with a TTL
+  or loaded just in time (see
+  `TTL and auto-evict <https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict>`__).
+  It stays in memory until you unload it, for example with
   `POST /api/v1/models/unload <https://lmstudio.ai/docs/developer/rest/unload>`__.
 - **Connection.** ``base_url`` may end in ``/v1`` or ``/api/v1`` and must be set
   (``ValueError`` otherwise). The backend does not send an API token, so LM

@@ -103,7 +103,7 @@ class LMStudioBackend:
                 failure=f"could not load model '{self.model_name}'",
                 timeout_failure=f"did not finish loading model '{self.model_name}'",
             ):
-                # The load docs do not say what loading an already-loaded model does, hence the list first.
+                # LM Studio loads a second instance of an already-loaded model, hence the list first.
                 response = client.post(
                     f"{self.root}{_LOAD_MODEL_PATH}", json={"model": self.model_name}, timeout=remaining
                 )
