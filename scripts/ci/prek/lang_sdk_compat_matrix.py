@@ -135,7 +135,8 @@ SHARED_CAPABILITY_NAMES = {cap.name for cap in CAPABILITY_DIMENSIONS if cap.grou
 
 LEGEND = (
     f"Marks: {SUPPORTED_MARK} supported · {UNSUPPORTED_MARK} not supported · "
-    f"{NA_MARK} not applicable. A tier marked † applies only when `{DAG_DEFINITION_GATE}` is supported."
+    f"{NA_MARK} not applicable. Tiers: MUST is required, SHOULD is expected, MAY is optional. "
+    f"A tier marked † applies only when `{DAG_DEFINITION_GATE}` is supported."
 )
 
 

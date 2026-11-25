@@ -186,9 +186,12 @@ capabilities:
     note: "approval() / hitl()"
   task-test:
     supported: false
-    note: "a bundle's handler can be unit-tested through bundle.getTaskHandler(); airflow tasks test does not take a TypeScript Dag"
+    note: >-
+      a handler can be unit-tested through bundle.getTaskHandler(), but there is no local task
+      runner yet; the "airflow tasks test" command does not take a TypeScript Dag
   dag-test:
     supported: false
+    note: 'no local Dag runner yet; the "airflow dags test" command does not take a TypeScript Dag'
   asset-definition:
     supported: false
   asset-scheduling:

@@ -95,11 +95,11 @@ See [`example/`](https://github.com/apache/airflow/tree/main/ts-sdk/example) for
 Which features the TypeScript SDK supports, and the Airflow and SDK versions that first shipped each one.
 The minimum Airflow version applies to the current SDK release, so a feature's "Since (Airflow)"
 can be earlier.
+Each row and its tier (MUST, SHOULD, MAY) is defined in the
+[Language SDK conformance spec](https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst#conformance).
 
 <!--
 Generated from capabilities.yaml by the update-ts-sdk-readme-matrix prek hook: edit the manifest, not the table.
-The conformance dimensions and tiers are defined in
-contributing-docs/30_new_language_sdk.rst ("Conformance").
 -->
 
 <!-- BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
@@ -125,8 +125,8 @@ contributing-docs/30_new_language_sdk.rst ("Conformance").
 | capability: `trigger-dag-run` | MAY † | ✓ | 3.4.0 | 1.0.0 | triggerDagRun |
 | capability: `dynamic-dag-generation` | MAY † | ✓ | 3.4.0 | 1.0.0 |  |
 | capability: `human-in-the-loop` | MAY † | ✓ | 3.4.0 | 1.0.0 | approval() / hitl() |
-| capability: `task-test` | SHOULD † | ✗ | – | – | a bundle's handler can be unit-tested through bundle.getTaskHandler(); airflow tasks test does not take a TypeScript Dag |
-| capability: `dag-test` | SHOULD † | ✗ | – | – |  |
+| capability: `task-test` | SHOULD † | ✗ | – | – | a handler can be unit-tested through bundle.getTaskHandler(), but there is no local task runner yet; the "airflow tasks test" command does not take a TypeScript Dag |
+| capability: `dag-test` | SHOULD † | ✗ | – | – | no local Dag runner yet; the "airflow dags test" command does not take a TypeScript Dag |
 | capability: `asset-definition` | MAY † | ✗ | – | – |  |
 | capability: `asset-scheduling` | MAY † | ✗ | – | – |  |
 | capability: `mapped-tasks` | MAY † | ✗ | – | – |  |
@@ -162,7 +162,7 @@ contributing-docs/30_new_language_sdk.rst ("Conformance").
 | state: `awaiting_input` | MAY | ✓ | 3.4.0 | 1.0.0 | approval() / hitl() in a Dag definition |
 | state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
 
-*Marks: ✓ supported · ✗ not supported · n/a not applicable. A tier marked † applies only when `dag-definition-authoring` is supported.*
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. Tiers: MUST is required, SHOULD is expected, MAY is optional. A tier marked † applies only when `dag-definition-authoring` is supported.*
 
 <!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 

@@ -175,8 +175,10 @@ capabilities:
     supported: false
   task-test:
     supported: false
+    note: 'no local task runner yet; the "airflow tasks test" command does not take a Java Dag'
   dag-test:
     supported: false
+    note: 'no local Dag runner yet; the "airflow dags test" command does not take a Java Dag'
   asset-definition:
     supported: false
   asset-scheduling:

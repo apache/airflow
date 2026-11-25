@@ -179,9 +179,12 @@ capabilities:
     supported: false
   task-test:
     supported: false
-    note: "a Go task can be unit-tested by calling it with a Context from airflow.NewContext; airflow tasks test does not take a Go Dag"
+    note: >-
+      a task can be unit-tested with a Context from airflow.NewContext, but there is no local task
+      runner yet; the "airflow tasks test" command does not take a Go Dag
   dag-test:
     supported: false
+    note: 'no local Dag runner yet; the "airflow dags test" command does not take a Go Dag'
   asset-definition:
     supported: false
   asset-scheduling:

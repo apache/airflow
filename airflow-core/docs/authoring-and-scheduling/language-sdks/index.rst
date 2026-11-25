@@ -448,12 +448,12 @@ Language SDKs mature independently, so they do not all support the same features
 the minimum Airflow version of each Language SDK, then what it supports in a
 :ref:`Dag definition <language-sdks/dag-definition>`, in a
 :ref:`Python Dag with stub TaskHandler <language-sdks/stub-taskhandler>`, and in both. A supported feature
-shows the SDK release that shipped it.
+shows the SDK release that shipped it. Each row and its tier (MUST, SHOULD, MAY) is defined in the
+`Language SDK conformance spec <https://github.com/apache/airflow/blob/main/contributing-docs/30_new_language_sdk.rst#conformance>`__.
 
 ..
    Generated from each SDK's capabilities.yaml by the update-lang-sdk-central-matrix prek hook: edit the
-   manifests, not the tables. The dimensions and tiers are defined in
-   contributing-docs/30_new_language_sdk.rst ("Conformance").
+   manifests, not the tables.
 
 .. BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX
 
@@ -705,7 +705,7 @@ shows the SDK release that shipped it.
      - ✓ 1.0.0
      - ✓ 1.0.0
 
-*Marks:* ``✓`` supported (with the SDK release that shipped it, when known) · ``✗`` not supported · ``n/a`` not applicable · ``n/p`` not published. A tier marked ``†`` applies only when ``dag-definition-authoring`` is supported.
+*Marks:* ``✓`` supported (with the SDK release that shipped it, when known) · ``✗`` not supported · ``n/a`` not applicable · ``n/p`` not published. Tiers: MUST is required, SHOULD is expected, MAY is optional. A tier marked ``†`` applies only when ``dag-definition-authoring`` is supported.
 
 .. END AUTO-GENERATED LANG-SDK COMPAT MATRIX
 

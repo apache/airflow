@@ -125,7 +125,8 @@ def render_central_table(sdk_capabilities: Sequence[SdkCapabilities]) -> list[st
         "\n",
         f"*Marks:* ``{matrix.SUPPORTED_MARK}`` supported (with the SDK release that shipped it, when known) · "
         f"``{matrix.UNSUPPORTED_MARK}`` not supported · ``{matrix.NA_MARK}`` not applicable · "
-        f"``{ABSENT_MARK}`` not published. A tier marked ``†`` applies only when "
+        f"``{ABSENT_MARK}`` not published. Tiers: MUST is required, SHOULD is expected, MAY is optional. "
+        f"A tier marked ``†`` applies only when "
         f"``{matrix.DAG_DEFINITION_GATE}`` is supported.\n",
         "\n",
     ]

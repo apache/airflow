@@ -497,10 +497,9 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
     Dag-level arguments (schedule, tags, default queue, and so on) can be set on a Dag definition.
 
 ``timetable`` (MAY †)
-    A Dag definition can be scheduled by a timetable object, such as the equivalents of Python's
-    ``CronTriggerTimetable`` with its own timezone, ``DeltaTriggerTimetable``,
-    ``MultipleCronTriggerTimetable`` or ``EventsTimetable``, not only by a cron expression or preset
-    passed as the schedule (which ``dag-args`` covers).
+    A Dag definition can be scheduled by any of Airflow's built-in timetable classes (those in
+    ``airflow.timetables``), not only by a cron expression or preset passed as the schedule, and
+    the SDK provides a way to define a custom timetable.
 
 ``task-args`` (MUST †)
     Task-level arguments (retries, pool, queue, and so on) can be set on a task of a Dag definition.
@@ -550,13 +549,13 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
     A Dag definition can declare a task that waits for human input.
 
 ``task-test`` (SHOULD †)
-    A single task of a Dag definition can be run locally without a running Airflow deployment,
-    the equivalent of ``airflow tasks test``. Calling a task function directly from a unit test
-    with a hand-built context does not count on its own.
+    The SDK provides a documented way to run one task of a Dag definition locally. The mechanism
+    is not prescribed: an ``airflow`` CLI command, a CLI of the SDK, or a subcommand of the
+    bundle run by its own runtime (``java``, ``node``, the Go binary) all count.
 
 ``dag-test`` (SHOULD †)
-    A whole Dag definition can be run locally without a running Airflow deployment, the
-    equivalent of ``airflow dags test`` or Python's ``dag.test()``.
+    The SDK provides a documented way to run a whole Dag definition locally, with any of the
+    mechanisms ``task-test`` allows, running the tasks in the order their dependencies define.
 
 ``asset-definition`` (MAY †)
     Assets can be declared in the target language: the equivalents of Python's ``Asset``,
