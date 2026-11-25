@@ -410,10 +410,12 @@ class TestConsumer:
             real_replace(source_path, destination_path)
 
         with (
-            mock.patch.object(filesystem_module, "fsync_file", side_effect=record_fsync_file),
-            mock.patch.object(bundle_module, "fsync_file", side_effect=record_fsync_file),
-            mock.patch.object(bundle_module, "fsync_directory", side_effect=record_fsync_directory),
-            mock.patch.object(bundle_module.os, "replace", side_effect=record_replace),
+            mock.patch.object(filesystem_module, "fsync_file", autospec=True, side_effect=record_fsync_file),
+            mock.patch.object(bundle_module, "fsync_file", autospec=True, side_effect=record_fsync_file),
+            mock.patch.object(
+                bundle_module, "fsync_directory", autospec=True, side_effect=record_fsync_directory
+            ),
+            mock.patch.object(bundle_module.os, "replace", autospec=True, side_effect=record_replace),
         ):
             bundle.refresh()
 
@@ -487,6 +489,7 @@ class TestPinned:
         with mock.patch.object(
             bundle_module,
             "compute_file_sha256",
+            autospec=True,
             side_effect=AssertionError("marker must skip the hashing pass"),
         ):
             fresh_bundle.initialize()
@@ -652,7 +655,10 @@ class TestPublish:
         bundle = _make_bundle(tmp_path)
         with (
             mock.patch.object(
-                store_module, "_materialize_manifest_snapshot", side_effect=materialize_and_add_file
+                store_module,
+                "_materialize_manifest_snapshot",
+                autospec=True,
+                side_effect=materialize_and_add_file,
             ),
             pytest.raises(BundleManifestSourceChangedError, match="changed while publishing"),
         ):
@@ -721,9 +727,14 @@ class TestPublish:
 
         bundle = _make_bundle(tmp_path)
         with (
-            mock.patch.object(store_module, "fsync_directory", side_effect=record_fsync_directory),
             mock.patch.object(
-                store_module, "_write_json_atomically", side_effect=record_write_json_atomically
+                store_module, "fsync_directory", autospec=True, side_effect=record_fsync_directory
+            ),
+            mock.patch.object(
+                store_module,
+                "_write_json_atomically",
+                autospec=True,
+                side_effect=record_write_json_atomically,
             ),
         ):
             publish_manifest_local_dag_bundle(bundle=bundle, source_path=source)
@@ -973,7 +984,7 @@ class TestValidation:
             onerror(PermissionError(13, "Permission denied", str(snapshot_root / "unreadable")))
 
         with (
-            mock.patch.object(bundle_module.os, "walk", side_effect=fail_walk),
+            mock.patch.object(bundle_module.os, "walk", autospec=True, side_effect=fail_walk),
             pytest.raises(BundleManifestError, match="changed or became unreadable"),
         ):
             list(ManifestLocalDagBundle._iter_snapshot_files(snapshot_root))
