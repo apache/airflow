@@ -163,7 +163,7 @@ def test_coarser_schedule_change_does_not_stall_dagrun_creation(dag_maker, sessi
     # Drive scheduling decisions for the new run and confirm its TI reaches SCHEDULED,
     # i.e. it is not stuck in a not-yet-scheduled/None/queued limbo.
     new_run.dag = dag_maker.serialized_dag
-    schedulable_tis, _ = new_run.update_state(session=session)
+    schedulable_tis, _, _ = new_run.update_state(session=session)
     new_run.schedule_tis(schedulable_tis, session=session)
     session.flush()
     session.expire_all()
