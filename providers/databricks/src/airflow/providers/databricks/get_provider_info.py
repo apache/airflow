@@ -127,6 +127,7 @@ def get_provider_info():
                     "airflow.providers.databricks.hooks.databricks_base",
                     "airflow.providers.databricks.hooks.agent",
                     "airflow.providers.databricks.hooks.genie",
+                    "airflow.providers.databricks.hooks.model_serving",
                 ],
             },
             {
@@ -159,7 +160,37 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.databricks.hooks.databricks.DatabricksHook",
                 "hook-name": "Databricks",
                 "connection-type": "databricks",
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.databricks.hooks.model_serving.PydanticAIDatabricksHook",
+                "hook-name": "Pydantic AI (Databricks Model Serving)",
+                "connection-type": "pydanticai_databricks",
+                "external-services": ["Databricks Model Serving"],
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host", "password"],
+                    "relabeling": {},
+                    "placeholders": {
+                        "extra": '{"model": "my-serving-endpoint", "databricks_conn_id": "databricks_default"}'
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Serving endpoint name (e.g. my-serving-endpoint)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
+                    "databricks_conn_id": {
+                        "label": "Databricks Connection ID",
+                        "description": "Connection ID of an existing Databricks connection to source credentials from.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "plugins": [
             {
