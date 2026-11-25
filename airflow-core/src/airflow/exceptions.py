@@ -163,10 +163,11 @@ class InvalidPartitionKeyError(ValueError):
 class DagRunRolledBackError(RuntimeError):
     """Raise when a Dag run was discarded by a rollback before its deadline alerts were processed."""
 
-    def __init__(self, message: str, *, dag_id: str, dag_version_id: UUID | None) -> None:
+    def __init__(self, message: str, *, dag_id: str, dag_version_id: UUID | None, dag_hash: str) -> None:
         super().__init__(message)
         self.dag_id = dag_id
         self.dag_version_id = dag_version_id
+        self.dag_hash = dag_hash
 
 
 class DagRunAlreadyExists(AirflowBadRequest):

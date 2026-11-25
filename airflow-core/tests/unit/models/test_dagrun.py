@@ -2405,12 +2405,16 @@ class TestDagRun:
 
         mock_variable_get.side_effect = rollback_and_raise
         dag_version_id = DagVersion.get_latest_version(scheduler_dag.dag_id, session=session).id
+        dag_hash = session.scalar(
+            select(SerializedDagModel.dag_hash).where(SerializedDagModel.dag_version_id == dag_version_id)
+        )
 
         with pytest.raises(DagRunRolledBackError) as exc_info:
             self.create_dag_run(dag=scheduler_dag, session=session)
 
         assert exc_info.value.dag_id == scheduler_dag.dag_id
         assert exc_info.value.dag_version_id == dag_version_id
+        assert exc_info.value.dag_hash == dag_hash
         assert session.scalars(select(Deadline)).all() == []
         assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
 

@@ -11044,7 +11044,7 @@ class TestSchedulerJob:
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True)
     def test_dag_run_rolled_back_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
         mock_create.side_effect = DagRunRolledBackError(
-            "rolled back", dag_id="testdag1", dag_version_id=uuid4()
+            "rolled back", dag_id="testdag1", dag_version_id=uuid4(), dag_hash="hash"
         )
         with dag_maker("testdag1", serialized=True):
             BashOperator(task_id="task", bash_command="echo 1")
@@ -11065,40 +11065,54 @@ class TestSchedulerJob:
     def test_do_scheduling_ends_dag_run_creation_when_deadline_alert_rolls_back_session(
         self, mock_create_dagruns, mock_start_queued, session, caplog
     ):
-        dag_version_id = uuid4()
         mock_create_dagruns.side_effect = DagRunRolledBackError(
-            "rolled back", dag_id="rolled_back_dag", dag_version_id=dag_version_id
+            "rolled back", dag_id="rolled_back_dag", dag_version_id=uuid4(), dag_hash="hash"
         )
 
         job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
         job_runner._do_scheduling(session)
 
-        assert job_runner._dag_versions_rolling_back_session == {"rolled_back_dag": dag_version_id}
+        assert job_runner._dag_hashes_rolling_back_session == {"rolled_back_dag": "hash"}
         assert {
-            "event": "A deadline alert rolled back the scheduler's session; skipping the Dag "
-            "until a new version of it is parsed",
+            "event": "A deadline alert rolled back the scheduler's session; skipping the Dag until it changes",
             "dag_id": "rolled_back_dag",
         } in caplog
         mock_start_queued.assert_called_once()
 
-    @pytest.mark.parametrize("recorded_version_is_latest", [True, False])
-    def test_prune_dag_versions_rolling_back_session_forgets_dags_with_a_newer_version(
-        self, session, dag_maker, recorded_version_is_latest
-    ):
-        with dag_maker("rolled_back_dag", serialized=True):
-            EmptyOperator(task_id="task")
-        latest_version_id = DagVersion.get_latest_version("rolled_back_dag", session=session).id
-
-        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
-        job_runner._dag_versions_rolling_back_session["rolled_back_dag"] = (
-            latest_version_id if recorded_version_is_latest else uuid4()
+    @staticmethod
+    def _get_latest_dag_hash(dag_id, session):
+        return session.scalar(
+            SerializedDagModel.latest_item_select_object(dag_id).with_only_columns(
+                SerializedDagModel.dag_hash
+            )
         )
 
-        excluded = job_runner._prune_dag_versions_rolling_back_session(session=session)
+    @pytest.mark.parametrize("change_dag", [False, True])
+    def test_prune_dags_rolling_back_session_forgets_dags_that_changed(self, session, dag_maker, change_dag):
+        with dag_maker("rolled_back_dag", serialized=True, session=session):
+            EmptyOperator(task_id="task")
 
-        expected = {"rolled_back_dag"} if recorded_version_is_latest else set()
+        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        job_runner._dag_hashes_rolling_back_session["rolled_back_dag"] = self._get_latest_dag_hash(
+            "rolled_back_dag", session
+        )
+        if change_dag:
+            # A Dag whose alert rolls back never gets a run, so its version has no task instances
+            # and the changed Dag is written into the same DagVersion instead of a new one.
+            with dag_maker("rolled_back_dag", serialized=True, session=session):
+                EmptyOperator(task_id="fixed_task")
+            assert (
+                len(
+                    session.scalars(select(DagVersion.id).where(DagVersion.dag_id == "rolled_back_dag")).all()
+                )
+                == 1
+            )
+
+        excluded = job_runner._prune_dags_rolling_back_session(session=session)
+
+        expected = set() if change_dag else {"rolled_back_dag"}
         assert excluded == expected
-        assert set(job_runner._dag_versions_rolling_back_session) == expected
+        assert set(job_runner._dag_hashes_rolling_back_session) == expected
 
     @mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1)
     def test_dag_rolling_back_session_does_not_use_up_dag_run_creation_limit(self, session, dag_maker):
@@ -11114,9 +11128,9 @@ class TestSchedulerJob:
         session.flush()
 
         job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
-        job_runner._dag_versions_rolling_back_session["rolled_back_dag"] = DagVersion.get_latest_version(
-            "rolled_back_dag", session=session
-        ).id
+        job_runner._dag_hashes_rolling_back_session["rolled_back_dag"] = self._get_latest_dag_hash(
+            "rolled_back_dag", session
+        )
         job_runner._create_dagruns_for_dags(mock.create_autospec(CommitProhibitorGuard), session)
 
         created = session.scalars(

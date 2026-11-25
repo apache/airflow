@@ -831,18 +831,18 @@ class SerializedDAG:
         from airflow.models.serialized_dag import SerializedDagModel
 
         # Get the serialized_dag ID for this DAG
-        serialized_dag_id = session.scalar(
-            select(SerializedDagModel.id).where(
+        serialized_dag_row = session.execute(
+            select(SerializedDagModel.id, SerializedDagModel.dag_hash).where(
                 SerializedDagModel.dag_version_id == orm_dagrun.created_dag_version_id
             )
-        )
+        ).one_or_none()
 
-        if not serialized_dag_id:
+        if not serialized_dag_row:
             return
 
         # Query deadline alerts by serialized_dag_id
         deadline_alert_records = session.scalars(
-            select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
+            select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_row.id)
         ).all()
 
         if not deadline_alert_records:
@@ -880,6 +880,7 @@ class SerializedDAG:
             "while processing deadline alerts",
             dag_id=dagrun_dag_id,
             dag_version_id=dag_version_id,
+            dag_hash=serialized_dag_row.dag_hash,
         )
 
         def is_dagrun_discarded() -> bool:
