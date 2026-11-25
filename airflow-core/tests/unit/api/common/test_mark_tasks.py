@@ -187,7 +187,8 @@ def test_set_dag_run_state_to_queued_resets_scheduling_decision(dag_maker: DagMa
 
     set_dag_run_state_to_queued(dag=dag, run_id=dr.run_id, commit=True, session=dag_maker.session)
 
-    dr = dag_maker.session.scalar(select(DagRun).where(DagRun.run_id == dr.run_id))
-    assert dr.state == DagRunState.QUEUED
-    assert dr.last_scheduling_decision is None
-    assert dr.start_date is None
+    run = dag_maker.session.scalar(select(DagRun).filter_by(dag_id=dr.dag_id, run_id=dr.run_id))
+    assert run is not None
+    assert run.state == DagRunState.QUEUED
+    assert run.last_scheduling_decision is None
+    assert run.start_date is None
