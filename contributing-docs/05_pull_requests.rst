@@ -121,6 +121,10 @@ these guidelines:
     history for easier review, but if you need to, you can also squash all commits to reduce the
     maintenance burden during rebase.
 
+-   Do not put an issue or PR number in the PR title. **Squash and Merge** appends the PR number to
+    the title, so an extra number duplicates it, and readers cannot tell whether it refers to an issue
+    or a PR. Reference the issue in the PR description instead, for example ``closes: #12345``.
+
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`_ header to all new files. If you
     have ``prek`` installed, prek will do it automatically for you. If you hesitate to install
     prek for your local repository - for example because it takes a few seconds to commit your changes,
@@ -176,10 +180,11 @@ tooling, with a comment explaining what needs to be fixed.
    that only reference an issue number (e.g. "Fixes #12345") do not meet this bar.
 
 2. **Golden Rule** - in text descriptions - always use imperative mode, never use past
-   tense or conventional commits or any prefixes in the title take precious space and do not add any value, so they should be
-   avoided. For example, instead of "feat: add new feature" or "Added this new feature"
-   use "Add new feature". This is a common convention in many open source projects
-   and it makes the commit history more readable and consistent.
+   tense or Conventional Commits prefixes (``feat:``, ``fix:``, ``chore:`` ...). They take precious
+   space in the title and do not add any value, so they should be avoided. For example, instead of
+   "feat: add new feature" or "Added this new feature" use "Add new feature". This is a common
+   convention in many open source projects and it makes the commit history more readable and
+   consistent. Area tags the project already uses, such as ``UI:``, ``API:`` or ``Helm:``, are fine.
 
 3. **Meaningful description** — The PR body must contain a meaningful description of *what* the
    PR does and *why*. An empty body, a body consisting only of the PR template
