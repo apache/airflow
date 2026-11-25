@@ -50,7 +50,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
-from sqlalchemy.pool import SingletonThreadPool
+from sqlalchemy.pool import SingletonThreadPool, StaticPool
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -2350,9 +2350,12 @@ class TestDagRun:
         deadlines = session.scalars(select(Deadline)).all()
         assert [deadline.dagrun_id for deadline in deadlines] == [dag_run.id]
 
-    def test_deadline_alert_session_is_callers_session_when_the_pool_has_one_connection(self, session):
+    @pytest.mark.parametrize("pool_class", [SingletonThreadPool, StaticPool])
+    def test_deadline_alert_session_is_callers_session_when_the_pool_has_one_connection(
+        self, pool_class, session
+    ):
         engine = mock.create_autospec(settings.engine, instance=True)
-        engine.pool = mock.create_autospec(SingletonThreadPool, instance=True)
+        engine.pool = mock.create_autospec(pool_class, instance=True)
 
         with (
             mock.patch.object(settings, "engine", engine),
@@ -2467,6 +2470,34 @@ class TestDagRun:
                 dag_run.id
             ]
             assert [deadline.dagrun_id for deadline in session.scalars(select(Deadline))] == [dag_run.id]
+
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True)
+    def test_dagrun_deadline_alert_failing_flush_on_callers_session_raises_rolled_back_error(
+        self, mock_variable_get, _, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(
+                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
+                    ),
+                    interval=VariableInterval("interval_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+            ],
+        )
+        session.commit()
+
+        def fail_flush_on_callers_session(key, session):
+            callers_session = settings.Session()
+            callers_session.add_all([Variable(key="duplicate", val="1"), Variable(key="duplicate", val="2")])
+            callers_session.flush()
+
+        mock_variable_get.side_effect = fail_flush_on_callers_session
+
+        with pytest.raises(DagRunRolledBackError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
 
     @pytest.mark.backend("postgres")
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)

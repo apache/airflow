@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Literal, TypedDict, cast, overload
 import attrs
 import structlog
 from sqlalchemy import event, func, or_, select, tuple_
-from sqlalchemy.pool import SingletonThreadPool
+from sqlalchemy.pool import SingletonThreadPool, StaticPool
 
 from airflow import settings
 from airflow._shared.observability.metrics import stats
@@ -139,7 +139,7 @@ def _create_alert_session(*, session: Session) -> Iterator[Session]:
     engine, session_maker = settings.engine, settings.NonScopedSession
     if engine is None or session_maker is None:
         raise RuntimeError("Session must be set before!")
-    if isinstance(engine.pool, SingletonThreadPool):
+    if isinstance(engine.pool, (SingletonThreadPool, StaticPool)):
         # In-memory SQLite: every session in the thread shares the caller's one connection, so a
         # separate session would end the caller's transaction. Evaluate on the caller's session instead.
         yield session
@@ -890,7 +890,10 @@ class SerializedDAG:
 
         def is_dagrun_discarded() -> bool:
             # Leaving the session is not enough: a commit and close() outside the scheduler's commit
-            # guard (e.g. ``dag.test``) detaches the DagRun but keeps its row.
+            # guard (e.g. ``dag.test``) detaches the Dag run but keeps its row.
+            if not session.is_active:
+                # A failed flush left the caller's transaction to be rolled back, with the Dag run in it.
+                return True
             if orm_dagrun in session:
                 return False
             return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
@@ -898,7 +901,7 @@ class SerializedDAG:
         with _create_alert_session(session=session) as alert_session:
             for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
                 # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest
-                # or abort the DagRun.
+                # or abort the Dag run.
                 try:
                     deserialized_deadline_alert = decode_deadline_alert(
                         {
@@ -973,7 +976,7 @@ class SerializedDAG:
 
                 # Alerts get their own session, but one that reaches for the scheduler's session
                 # (provide_session, settings.Session) can still roll it back, discarding the pending
-                # DagRun. Carrying on would add Deadlines that violate the dagrun_id foreign key, and
+                # Dag run. Carrying on would add Deadlines that violate the dagrun_id foreign key, and
                 # returning normally would let the caller treat the missing run as created.
                 if is_dagrun_discarded():
                     raise build_rolled_back_error()
