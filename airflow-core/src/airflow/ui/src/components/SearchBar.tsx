@@ -114,6 +114,7 @@ export const SearchBar = ({
       startElement={<Icon as={FiSearch} color="fg.subtle" />}
     >
       <Input
+        aria-label={placeholder}
         data-testid="search-dags"
         onChange={onSearchChange}
         placeholder={
