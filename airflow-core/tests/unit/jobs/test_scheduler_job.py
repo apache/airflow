@@ -16116,23 +16116,18 @@ def test_consumer_dag_listen_to_two_partitioned_asset(
         assert asset_event.source_run_id == "test"
 
 
-@pytest.mark.need_serialized_dag
-@pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_consumer_dag_refire_rerun_clears_existing_run_on_late_event(
-    dag_maker: DagMaker,
-    session: Session,
-):
-    """With refire_policy="rerun", a late/corrected event for an already-fired partition
-    clears and re-queues the existing DagRun instead of leaving the new APDR unsatisfiable."""
-    asset_1 = Asset(name="refire-asset-1")
-    asset_2 = Asset(name="refire-asset-2")
-
+def _fire_refire_consumer(
+    *, dag_id: str, refire_policy: str, dag_maker: DagMaker, session: Session
+) -> tuple[SchedulerJobRunner, Asset, Asset, DagRun]:
+    """Create a consumer of ``asset_1 & asset_2`` and fire it once for ``key-1``."""
+    asset_1 = Asset(name=f"{dag_id}-asset-1")
+    asset_2 = Asset(name=f"{dag_id}-asset-2")
     with dag_maker(
-        dag_id="refire-rerun-consumer",
+        dag_id=dag_id,
         schedule=PartitionedAssetTimetable(
             assets=(asset_1 & asset_2),
             default_partition_mapper=IdentityMapper(),
-            refire_policy="rerun",
+            refire_policy=refire_policy,
         ),
         session=session,
     ):
@@ -16142,52 +16137,141 @@ def test_consumer_dag_refire_rerun_clears_existing_run_on_late_event(
     runner = SchedulerJobRunner(
         job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
     )
+    for i, asset in enumerate((asset_1, asset_2)):
+        _produce_and_register_asset_event(
+            dag_id=f"{dag_id}-producer-{i}",
+            asset=asset,
+            partition_key="key-1",
+            session=session,
+            dag_maker=dag_maker,
+        )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {dag_id}
 
-    _produce_and_register_asset_event(
-        dag_id="refire-producer-1",
-        asset=asset_1,
-        partition_key="key-1",
-        session=session,
-        dag_maker=dag_maker,
-    )
-    _produce_and_register_asset_event(
-        dag_id="refire-producer-2",
-        asset=asset_2,
-        partition_key="key-1",
-        session=session,
-        dag_maker=dag_maker,
-    )
-    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {"refire-rerun-consumer"}
-
-    dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == "refire-rerun-consumer")).all()
-    assert len(dag_runs) == 1
-    first_run = dag_runs[0]
-    assert len(first_run.consumed_asset_events) == 2
+    [first_run] = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).all()
     [ti] = first_run.get_task_instances(session=session)
     ti.state = TaskInstanceState.SUCCESS
+    first_run.state = DagRunState.SUCCESS
     session.commit()
+    return runner, asset_1, asset_2, first_run
 
-    # Late/corrected event for asset_1 on the same partition_key.
-    _produce_and_register_asset_event(
-        dag_id="refire-producer-3",
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_refire_rerun_clears_asset_triggered_run_on_late_event(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """With refire_policy="rerun", a late event clears the run the partition triggered, never
+    a manual run on the same key, and each later event re-queues that same run again."""
+    dag_id = "refire-rerun-consumer"
+    runner, asset_1, _, first_run = _fire_refire_consumer(
+        dag_id=dag_id, refire_policy="rerun", dag_maker=dag_maker, session=session
+    )
+    first_event_ids = {ev.id for ev in first_run.consumed_asset_events}
+    consumer_dag = runner.scheduler_dag_bag.get_latest_version_of_dag(dag_id, session=session)
+    assert consumer_dag is not None
+    manual_run = consumer_dag.create_dagrun(
+        run_id="manual-key-1",
+        run_after=timezone.utcnow(),
+        run_type=DagRunType.MANUAL,
+        triggered_by=DagRunTriggeredByType.TEST,
+        state=DagRunState.SUCCESS,
+        partition_key="key-1",
+        session=session,
+    )
+    session.commit()
+    assert manual_run.id > first_run.id
+
+    late_apdr = _produce_and_register_asset_event(
+        dag_id="refire-rerun-producer-late",
         asset=asset_1,
         partition_key="key-1",
         session=session,
         dag_maker=dag_maker,
     )
-    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {"refire-rerun-consumer"}
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {dag_id}
 
-    dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == "refire-rerun-consumer")).all()
-    # Still exactly one DagRun: the existing one was cleared and re-queued, not duplicated.
-    assert len(dag_runs) == 1
+    assert session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id)) == 2
+    session.refresh(manual_run)
+    assert manual_run.clear_number == 0
+    assert manual_run.state == DagRunState.SUCCESS
+    session.refresh(first_run)
+    assert first_run.clear_number == 1
+    assert first_run.state == DagRunState.QUEUED
+    [ti] = first_run.get_task_instances(session=session)
+    assert ti.state is None
+    session.refresh(late_apdr)
+    assert late_apdr.created_dag_run_id == first_run.id
+    late_event_ids = {ev.id for ev in first_run.consumed_asset_events} - first_event_ids
+    assert len(late_event_ids) == 1
+
+    # A further event after the rerun must open a new pending APDR rather than attach to the
+    # one the rerun consumed, and re-queue the same run again.
+    ti.state = TaskInstanceState.SUCCESS
+    first_run.state = DagRunState.SUCCESS
+    session.commit()
+    next_apdr = _produce_and_register_asset_event(
+        dag_id="refire-rerun-producer-next",
+        asset=asset_1,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    assert next_apdr.id != late_apdr.id
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {dag_id}
+
+    session.refresh(first_run)
+    assert first_run.clear_number == 2
+    assert first_run.state == DagRunState.QUEUED
+    session.refresh(manual_run)
+    assert manual_run.clear_number == 0
+    session.refresh(next_apdr)
+    assert next_apdr.created_dag_run_id == first_run.id
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_consumer_dag_refire_newrun_creates_run_with_corrected_inputs(
+    dag_maker: DagMaker,
+    session: Session,
+):
+    """With refire_policy="newrun", a late event creates a new run that consumes the late event
+    plus the sibling's earlier event, and leaves the earlier run untouched."""
+    dag_id = "refire-newrun-consumer"
+    runner, asset_1, asset_2, first_run = _fire_refire_consumer(
+        dag_id=dag_id, refire_policy="newrun", dag_maker=dag_maker, session=session
+    )
+    [sibling_event] = [ev for ev in first_run.consumed_asset_events if ev.asset.name == asset_2.name]
+
+    late_apdr = _produce_and_register_asset_event(
+        dag_id="refire-newrun-producer-late",
+        asset=asset_1,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+    [late_log] = session.scalars(
+        select(PartitionedAssetKeyLog).where(
+            PartitionedAssetKeyLog.asset_partition_dag_run_id == late_apdr.id,
+            PartitionedAssetKeyLog.asset_event_id != sibling_event.id,
+        )
+    ).all()
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {dag_id}
+
+    dag_runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_id).order_by(DagRun.id)).all()
+    assert len(dag_runs) == 2
     assert dag_runs[0].id == first_run.id
-    assert dag_runs[0].state == DagRunState.QUEUED
-    [ti] = dag_runs[0].get_task_instances(session=session)
-    # Clearing resets the task instance so the scheduler re-runs it instead of
-    # leaving it at its prior terminal state.
-    assert ti.state != TaskInstanceState.SUCCESS
-    # The sibling's original contribution plus the new late event are both carried.
-    assert len(dag_runs[0].consumed_asset_events) == 3
+    new_run = dag_runs[1]
+    assert new_run.partition_key == "key-1"
+    assert new_run.run_type == DagRunType.ASSET_TRIGGERED
+    assert {ev.id for ev in new_run.consumed_asset_events} == {late_log.asset_event_id, sibling_event.id}
+    session.refresh(late_apdr)
+    assert late_apdr.created_dag_run_id == new_run.id
+
+    session.refresh(first_run)
+    assert first_run.clear_number == 0
+    assert first_run.state == DagRunState.SUCCESS
+    assert len(first_run.consumed_asset_events) == 2
 
 
 @pytest.mark.need_serialized_dag

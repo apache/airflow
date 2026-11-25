@@ -54,9 +54,10 @@ def test_partitioned_timetable_refire_policy_defaults_to_none():
     assert PartitionedAssetTimetable(assets=Asset("test")).refire_policy is None
 
 
-@pytest.mark.parametrize("refire_policy", ["rerun", "newrun"])
-def test_partitioned_timetable_refire_policy_is_settable(refire_policy):
+@pytest.mark.parametrize("refire_policy", [None, "rerun", "newrun"])
+def test_partitioned_timetable_accepts_valid_refire_policy(refire_policy):
     timetable = PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
+    timetable.validate()
     assert timetable.refire_policy == refire_policy
 
 
@@ -65,6 +66,22 @@ def test_partitioned_timetable_rejects_invalid_refire_policy(refire_policy):
     timetable = PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
     with pytest.raises(AirflowTimetableInvalid, match="refire_policy"):
         timetable.validate()
+
+
+@pytest.mark.parametrize(
+    ("refire_policy", "expected"),
+    [
+        ("rerun", nullcontext()),
+        ("always", pytest.raises(AirflowTimetableInvalid, match="refire_policy")),
+    ],
+)
+def test_dag_validate_checks_refire_policy(refire_policy, expected):
+    dag = DAG(
+        "refire-policy",
+        schedule=PartitionedAssetTimetable(assets=Asset("a"), refire_policy=refire_policy),
+    )
+    with expected:
+        dag.validate()
 
 
 @pytest.mark.parametrize("configured", [False, True])

@@ -321,9 +321,9 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         converter=attrs.converters.default_if_none(factory=dict),  # type: ignore[misc]
     )
     default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER
-    # Opt-in refire on late/corrected partition events: "rerun" (clear + re-run the
-    # existing DagRun, attempts increment) or "newrun" (a new DagRun per refire).
-    # None = fire once (default, no behavior change).
+    # How an event for an already-fired partition is handled: None (default) starts
+    # collecting events for the partition from scratch; "newrun" and "rerun" reuse the
+    # earlier events, then create a new Dag run or clear the earlier one, respectively.
     refire_policy: str | None = None
     batch_asset_events: bool = attrs.field(
         default=attrs.Factory(_get_default_batch_asset_events, takes_self=True)

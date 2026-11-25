@@ -1026,45 +1026,68 @@ class TestAssetManager:
         assert apdr.pending_partition_key is None
 
     @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_get_or_create_apdr_refire_seeds_sibling_logs(self, session):
-        """A new APDR for an already-fired partition carries forward sibling key-log rows.
-
-        Once ``latest_apdr.created_dag_run_id`` is set, a plain ``_get_or_create_apdr`` call
-        always creates a fresh APDR holding only the arriving asset's key. With
-        ``refire_policy`` set, the prior APDR's key-log rows for *other* assets must be
-        copied onto the new APDR so the asset_condition can re-satisfy from this one event.
-        """
+    @pytest.mark.parametrize(
+        ("prior_logs", "superseded_key_log", "expected_seeded"),
+        [
+            pytest.param(
+                [("a", "day-1"), ("b", "day-1")],
+                ("a", "day-1"),
+                [("b", "day-1")],
+                id="superseded-log-dropped-sibling-kept",
+            ),
+            pytest.param(
+                [("a", "hour-1"), ("a", "hour-2"), ("a", "hour-3"), ("b", "hour-2")],
+                ("a", "hour-2"),
+                [("a", "hour-1"), ("a", "hour-3"), ("b", "hour-2")],
+                id="rollup-other-source-keys-of-arriving-asset-kept",
+            ),
+            pytest.param(
+                [("a", "day-1"), ("b", "day-1")],
+                None,
+                [],
+                id="no-refire-policy",
+            ),
+        ],
+    )
+    def test_get_or_create_apdr_refire_seeds_key_logs_from_fired_apdr(
+        self, session, prior_logs, superseded_key_log, expected_seeded
+    ):
+        """A new APDR for an already-fired partition copies every key log of the fired APDR
+        except the ``(asset_id, source_partition_key)`` the arriving event supersedes."""
         clear_db_apdr()
         clear_db_pakl()
-        asset_a = AssetModel(uri="test://refire/a/", name="refire_a", group="asset")
-        asset_b = AssetModel(uri="test://refire/b/", name="refire_b", group="asset")
+        assets = {
+            label: AssetModel(uri=f"test://refire/{label}/", name=f"refire_{label}", group="asset")
+            for label in ("a", "b")
+        }
         dag = DagModel(dag_id="refire_seed_dag", is_stale=False, bundle_name="testing")
-        session.add_all([asset_a, asset_b, dag])
+        session.add_all([*assets.values(), dag])
         session.flush()
 
         fired_apdr = AssetManager._get_or_create_apdr(
-            target_key="key-1",
+            target_key="day-1",
             target_partition_date=None,
             target_dag=dag,
             rollup_fingerprint={},
-            asset_id=asset_a.id,
             allow_reuse=True,
             session=session,
         )
-        sibling_event = AssetEvent(asset_id=asset_b.id, partition_key="key-1")
-        session.add(sibling_event)
-        session.flush()
-        session.add(
-            PartitionedAssetKeyLog(
-                asset_id=asset_b.id,
-                asset_event_id=sibling_event.id,
-                asset_partition_dag_run_id=fired_apdr.id,
-                source_partition_key="key-1",
-                target_dag_id=dag.dag_id,
-                target_partition_key="key-1",
+        event_ids = {}
+        for label, source_key in prior_logs:
+            asset_event = AssetEvent(asset_id=assets[label].id, partition_key=source_key)
+            session.add(asset_event)
+            session.flush()
+            event_ids[label, source_key] = asset_event.id
+            session.add(
+                PartitionedAssetKeyLog(
+                    asset_id=assets[label].id,
+                    asset_event_id=asset_event.id,
+                    asset_partition_dag_run_id=fired_apdr.id,
+                    source_partition_key=source_key,
+                    target_dag_id=dag.dag_id,
+                    target_partition_key="day-1",
+                )
             )
-        )
-        # Simulate the scheduler having already materialized a DagRun for this APDR.
         dag_run = DagRun(dag_id=dag.dag_id, run_id="refire_seed_run", run_type="asset_triggered")
         session.add(dag_run)
         session.flush()
@@ -1072,83 +1095,30 @@ class TestAssetManager:
         session.flush()
 
         refired_apdr = AssetManager._get_or_create_apdr(
-            target_key="key-1",
+            target_key="day-1",
             target_partition_date=None,
             target_dag=dag,
             rollup_fingerprint={},
-            asset_id=asset_a.id,
             allow_reuse=True,
-            refire_policy="rerun",
+            superseded_key_log=(
+                None
+                if superseded_key_log is None
+                else (assets[superseded_key_log[0]].id, superseded_key_log[1])
+            ),
             session=session,
         )
 
         assert refired_apdr.id != fired_apdr.id
         assert refired_apdr.created_dag_run_id is None
+        label_by_asset_id = {asset.id: label for label, asset in assets.items()}
         seeded = session.scalars(
             select(PartitionedAssetKeyLog).where(
                 PartitionedAssetKeyLog.asset_partition_dag_run_id == refired_apdr.id
             )
         ).all()
-        assert len(seeded) == 1
-        assert seeded[0].asset_id == asset_b.id
-        assert seeded[0].asset_event_id == sibling_event.id
-
-    @pytest.mark.usefixtures("testing_dag_bundle")
-    def test_get_or_create_apdr_no_refire_policy_does_not_seed_sibling_logs(self, session):
-        """Without a refire_policy, a new APDR for an already-fired partition stays empty."""
-        clear_db_apdr()
-        clear_db_pakl()
-        asset_a = AssetModel(uri="test://norefire/a/", name="norefire_a", group="asset")
-        asset_b = AssetModel(uri="test://norefire/b/", name="norefire_b", group="asset")
-        dag = DagModel(dag_id="norefire_seed_dag", is_stale=False, bundle_name="testing")
-        session.add_all([asset_a, asset_b, dag])
-        session.flush()
-
-        fired_apdr = AssetManager._get_or_create_apdr(
-            target_key="key-1",
-            target_partition_date=None,
-            target_dag=dag,
-            rollup_fingerprint={},
-            asset_id=asset_a.id,
-            allow_reuse=True,
-            session=session,
-        )
-        sibling_event = AssetEvent(asset_id=asset_b.id, partition_key="key-1")
-        session.add(sibling_event)
-        session.flush()
-        session.add(
-            PartitionedAssetKeyLog(
-                asset_id=asset_b.id,
-                asset_event_id=sibling_event.id,
-                asset_partition_dag_run_id=fired_apdr.id,
-                source_partition_key="key-1",
-                target_dag_id=dag.dag_id,
-                target_partition_key="key-1",
-            )
-        )
-        dag_run = DagRun(dag_id=dag.dag_id, run_id="norefire_seed_run", run_type="asset_triggered")
-        session.add(dag_run)
-        session.flush()
-        fired_apdr.created_dag_run_id = dag_run.id
-        session.flush()
-
-        refired_apdr = AssetManager._get_or_create_apdr(
-            target_key="key-1",
-            target_partition_date=None,
-            target_dag=dag,
-            rollup_fingerprint={},
-            asset_id=asset_a.id,
-            allow_reuse=True,
-            session=session,
-        )
-
-        assert refired_apdr.id != fired_apdr.id
-        seeded = session.scalars(
-            select(PartitionedAssetKeyLog).where(
-                PartitionedAssetKeyLog.asset_partition_dag_run_id == refired_apdr.id
-            )
-        ).all()
-        assert seeded == []
+        assert sorted(
+            (label_by_asset_id[log.asset_id], log.source_partition_key, log.asset_event_id) for log in seeded
+        ) == [(label, source_key, event_ids[label, source_key]) for label, source_key in expected_seeded]
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.usefixtures("testing_dag_bundle")

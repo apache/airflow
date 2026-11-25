@@ -3061,45 +3061,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=apdr.target_dag_id,
                     carried_partition_date=apdr.partition_date,
                 )
-            # Refire Semantics A ("rerun"): clear + re-queue the existing DagRun for this
-            # (dag, partition_key) instead of creating a new one, so a late/corrected
-            # event reprocesses in the same DagRun (attempts increment).
-            if getattr(timetable, "refire_policy", None) == "rerun":
-                existing_run = session.scalar(
-                    select(DagRun)
-                    .where(
-                        DagRun.dag_id == apdr.target_dag_id,
-                        DagRun.partition_key == apdr.partition_key,
-                    )
-                    .order_by(DagRun.id.desc())
-                    .limit(1)
-                )
-                if existing_run is not None:
-                    tis = session.scalars(
-                        select(TaskInstance).where(
-                            TaskInstance.dag_id == existing_run.dag_id,
-                            TaskInstance.run_id == existing_run.run_id,
-                        )
-                    ).all()
-                    clear_task_instances(list(tis), session, dag_run_state=DagRunState.QUEUED)
-                    existing_ids = {ev.id for ev in existing_run.consumed_asset_events}
-                    for ev in session.scalars(
-                        select(AssetEvent).where(
-                            PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                            PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
-                        )
-                    ):
-                        if ev.id not in existing_ids:
-                            existing_run.consumed_asset_events.append(ev)
-                    apdr.created_dag_run_id = existing_run.id
-                    session.flush()
-                    self.log.info(
-                        "Refire(rerun): cleared and re-queued run %s for dag %s partition_key %s",
-                        existing_run.run_id,
-                        apdr.target_dag_id,
-                        apdr.partition_key,
-                    )
-                    continue
+            if getattr(timetable, "refire_policy", None) == "rerun" and self._rerun_partition_dag_run(
+                apdr=apdr, session=session
+            ):
+                continue
             try:
                 dag_run = dag.create_dagrun(
                     run_id=DagRun.generate_run_id(
@@ -3133,6 +3098,57 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.flush()
 
         return partition_dag_ids
+
+    def _rerun_partition_dag_run(self, *, apdr: AssetPartitionDagRun, session: Session) -> bool:
+        """
+        Clear and re-queue the Dag run an earlier APDR for the same partition created.
+
+        The run is resolved through the APDR chain rather than by ``partition_key`` alone, so a
+        manual or backfill run on the same key is never the one cleared. Returns ``False`` when no
+        earlier APDR has a Dag run, and the caller creates a new one.
+        """
+        existing_run = session.scalar(
+            select(DagRun)
+            .join(AssetPartitionDagRun, AssetPartitionDagRun.created_dag_run_id == DagRun.id)
+            .where(
+                AssetPartitionDagRun.target_dag_id == apdr.target_dag_id,
+                AssetPartitionDagRun.partition_key == apdr.partition_key,
+                AssetPartitionDagRun.id < apdr.id,
+            )
+            .order_by(AssetPartitionDagRun.id.desc())
+            .limit(1)
+        )
+        if existing_run is None:
+            return False
+        tis = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == existing_run.dag_id,
+                TaskInstance.run_id == existing_run.run_id,
+            )
+        ).all()
+        clear_task_instances(list(tis), session, dag_run_state=DagRunState.QUEUED)
+        consumed_ids = {ev.id for ev in existing_run.consumed_asset_events}
+        existing_run.consumed_asset_events.extend(
+            [
+                ev
+                for ev in session.scalars(
+                    select(AssetEvent).where(
+                        PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
+                        PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
+                    )
+                )
+                if ev.id not in consumed_ids
+            ]
+        )
+        apdr.created_dag_run_id = existing_run.id
+        session.flush()
+        self.log.info(
+            "Refire(rerun): cleared and re-queued Dag run",
+            run_id=existing_run.run_id,
+            dag_id=apdr.target_dag_id,
+            partition_key=apdr.partition_key,
+        )
+        return True
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:

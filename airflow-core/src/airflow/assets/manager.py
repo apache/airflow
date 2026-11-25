@@ -22,7 +22,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, insert, or_, select
+from sqlalchemy import and_, exc, insert, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -661,8 +661,9 @@ class AssetManager(LoggingMixin):
                     target_dag=target_dag,
                     rollup_fingerprint=fingerprint,
                     allow_reuse=timetable.batch_asset_events,
-                    refire_policy=getattr(timetable, "refire_policy", None),
-                    asset_id=asset_id,
+                    superseded_key_log=(
+                        (asset_id, partition_key) if getattr(timetable, "refire_policy", None) else None
+                    ),
                     session=session,
                 )
                 log_record = PartitionedAssetKeyLog(
@@ -684,8 +685,7 @@ class AssetManager(LoggingMixin):
         target_dag: DagModel,
         rollup_fingerprint: dict,
         allow_reuse: bool,
-        refire_policy: str | None = None,
-        asset_id: int | None = None,
+        superseded_key_log: tuple[int, str] | None = None,
         session: Session,
     ) -> AssetPartitionDagRun:
         """
@@ -708,23 +708,11 @@ class AssetManager(LoggingMixin):
         assets in the timetable at creation time; the scheduler discards APDRs whose stamp no
         longer matches the current timetable's fingerprint (mapper / window may have changed).
 
-        When ``refire_policy`` is set and the latest APDR has already fired, sibling asset-key
-        logs are copied to the new APDR so a corrected event can satisfy the asset condition again.
+        ``superseded_key_log`` is the ``(asset_id, source_partition_key)`` of the arriving event and
+        is passed only when the timetable sets a ``refire_policy``. A newly created APDR then copies
+        the key logs of the latest fired APDR for the same partition, except those the arriving
+        event supersedes, so a late or corrected event can satisfy the asset condition again.
         """
-        latest_apdr = None
-        if refire_policy is not None:
-            latest_apdr = session.scalar(
-                select(AssetPartitionDagRun)
-                .where(
-                    AssetPartitionDagRun.partition_key == target_key,
-                    AssetPartitionDagRun.target_dag_id == target_dag.dag_id,
-                )
-                .order_by(AssetPartitionDagRun.id.desc())
-                .limit(1)
-            )
-            if latest_apdr is not None and latest_apdr.created_dag_run_id is not None and asset_id is None:
-                raise ValueError("asset_id is required to seed sibling asset-key logs for a refire.")
-
         if allow_reuse and (
             pending_apdr := cls._get_latest_pending_apdr(
                 target_key=target_key, target_dag_id=target_dag.dag_id, session=session
@@ -800,40 +788,72 @@ class AssetManager(LoggingMixin):
             exc_info=True,
         )
 
-        if (
-            refire_policy is not None
-            and latest_apdr is not None
-            and latest_apdr.created_dag_run_id is not None
-        ):
-            prior_logs = session.scalars(
-                select(PartitionedAssetKeyLog).where(
-                    PartitionedAssetKeyLog.asset_partition_dag_run_id == latest_apdr.id,
-                    PartitionedAssetKeyLog.asset_id != asset_id,
-                )
-            ).all()
-            for prior in prior_logs:
-                session.add(
-                    PartitionedAssetKeyLog(
-                        asset_id=prior.asset_id,
-                        asset_event_id=prior.asset_event_id,
-                        asset_partition_dag_run_id=apdr.id,
-                        source_partition_key=prior.source_partition_key,
-                        target_dag_id=prior.target_dag_id,
-                        target_partition_key=prior.target_partition_key,
-                    )
-                )
-            if prior_logs:
-                session.flush()
-                cls.logger().info(
-                    "Refire: seeded %d sibling key-log row(s) from fired APDR %s into new APDR %s "
-                    "for key %s dag_id %s",
-                    len(prior_logs),
-                    latest_apdr.id,
-                    apdr.id,
-                    target_key,
-                    target_dag.dag_id,
-                )
+        if superseded_key_log is not None:
+            cls._seed_key_logs_from_fired_apdr(
+                apdr=apdr, superseded_key_log=superseded_key_log, session=session
+            )
         return apdr
+
+    @classmethod
+    def _seed_key_logs_from_fired_apdr(
+        cls,
+        *,
+        apdr: AssetPartitionDagRun,
+        superseded_key_log: tuple[int, str],
+        session: Session,
+    ) -> None:
+        """
+        Copy the key logs of the latest fired APDR for the same partition onto a new ``apdr``.
+
+        Only the logs for the ``(asset_id, source_partition_key)`` the arriving event replaces
+        are left out. Other source keys of the same asset, as a rollup mapper produces, are kept
+        so the new APDR still holds the complete set of inputs.
+        """
+        fired_apdr_id = session.scalar(
+            select(AssetPartitionDagRun.id)
+            .where(
+                AssetPartitionDagRun.target_dag_id == apdr.target_dag_id,
+                AssetPartitionDagRun.partition_key == apdr.partition_key,
+                AssetPartitionDagRun.created_dag_run_id.is_not(None),
+                AssetPartitionDagRun.id != apdr.id,
+            )
+            .order_by(AssetPartitionDagRun.id.desc())
+            .limit(1)
+        )
+        if fired_apdr_id is None:
+            return
+        superseded_asset_id, superseded_source_key = superseded_key_log
+        prior_logs = session.scalars(
+            select(PartitionedAssetKeyLog).where(
+                PartitionedAssetKeyLog.asset_partition_dag_run_id == fired_apdr_id,
+                ~and_(
+                    PartitionedAssetKeyLog.asset_id == superseded_asset_id,
+                    PartitionedAssetKeyLog.source_partition_key == superseded_source_key,
+                ),
+            )
+        ).all()
+        if not prior_logs:
+            return
+        session.add_all(
+            PartitionedAssetKeyLog(
+                asset_id=prior.asset_id,
+                asset_event_id=prior.asset_event_id,
+                asset_partition_dag_run_id=apdr.id,
+                source_partition_key=prior.source_partition_key,
+                target_dag_id=prior.target_dag_id,
+                target_partition_key=prior.target_partition_key,
+            )
+            for prior in prior_logs
+        )
+        session.flush()
+        cls.logger().info(
+            "Refire: seeded %d key-log row(s) from fired APDR %s into new APDR %s for key %s dag_id %s",
+            len(prior_logs),
+            fired_apdr_id,
+            apdr.id,
+            apdr.partition_key,
+            apdr.target_dag_id,
+        )
 
     @staticmethod
     def _get_latest_pending_apdr(
