@@ -47,6 +47,10 @@ example ``psycopg``, ``trino`` or ``oracledb`` in its default thin mode). Driver
 statement keeps running on the database until it completes. The same applies when the driver has no ``cancel()``
 extension, in which case a warning is logged, or when the hook runs statements without going through
 ``DbApiHook.run``. Hooks can override ``cancel_query`` to cancel the statement in a database specific way.
+A kill also keeps ``DbApiHook.run`` from going on to the next statement: a kill that comes while no statement is
+running (while connecting, or between two statements) keeps the next statement from starting, and a cancelled
+statement that the driver returns from normally (for example with ``trino``) raises ``RuntimeError`` instead of
+letting the run continue and commit.
 With ``cancel_on_kill=False`` the statement is not cancelled, but on ``execution_timeout`` the cursor and the
 connection are still closed, and some drivers stop the statement when that happens (for example ``trino``, whose
 cursor cancels its query when it is closed).

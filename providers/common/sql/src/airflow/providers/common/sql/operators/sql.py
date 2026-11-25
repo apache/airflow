@@ -555,6 +555,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.cancel_on_kill = cancel_on_kill
         # The hook ``execute`` runs the statements on, for ``on_kill``
         self._running_hook: DbApiHook | None = None
+        self._killed = False
 
     def _process_output(
         self, results: list[Any], descriptions: list[Sequence[Sequence] | None]
@@ -584,10 +585,14 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
+        self._killed = False
         hook = self.get_db_hook()
         # The hook cancels a statement interrupted by the ``execution_timeout`` itself, before ``on_kill``
         hook.cancel_on_interrupt = self.cancel_on_kill
         self._running_hook = hook
+        if self._killed:
+            # Killed while ``get_db_hook()`` ran, before ``on_kill`` could reach the hook
+            hook.cancel_query()
         if self.split_statements is not None:
             extra_kwargs = {"split_statements": self.split_statements}
         else:
@@ -627,10 +632,12 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         delegated to :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.cancel_query`, so every
         database hook can use the mechanism its driver offers. It is best effort and never raises. A
         statement interrupted by the ``execution_timeout`` of the task is already cancelled by the hook
-        before this method is called.
+        before this method is called. When the task instance is killed while ``execute`` is still creating
+        the hook, no statement is started.
         """
         if not self.cancel_on_kill:
             return
+        self._killed = True
         # Not ``get_db_hook()``: it can build a new hook, with a connection lookup inside the signal handler,
         # that has nothing to cancel
         hook = self._running_hook

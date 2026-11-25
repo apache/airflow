@@ -207,6 +207,8 @@ class DbApiHook(BaseHook):
         # The cursor whose statement is running right now (set by ``_track_running_cursor``), used by
         # ``cancel_query``
         self._running_cursor: Any = None
+        # Set by ``cancel_query`` so that ``run`` stops, see ``_track_running_cursor``
+        self._cancel_requested = False
         # Whether ``_track_running_cursor`` cancels a statement interrupted by a timeout or keyboard interrupt.
         # Off by default so that callers of ``run`` other than ``SQLExecuteQueryOperator`` keep their behaviour.
         self.cancel_on_interrupt = False
@@ -827,30 +829,35 @@ class DbApiHook(BaseHook):
         else:
             raise ValueError("List of SQL statements is empty")
         _last_result = None
-        with self._create_autocommit_connection(autocommit) as conn:
-            with closing(conn.cursor()) as cur:
-                results = []
-                for sql_statement in sql_list:
-                    # Tracked through the handler too: drivers such as ``trino`` return from ``execute``
-                    # with the first rows and keep the statement running while the handler fetches the rest.
-                    with self._track_running_cursor(cur):
-                        self._run_command(cur, sql_statement, parameters)
+        try:
+            with self._create_autocommit_connection(autocommit) as conn:
+                with closing(conn.cursor()) as cur:
+                    results = []
+                    for sql_statement in sql_list:
+                        # Tracked through the handler too: drivers such as ``trino`` return from ``execute``
+                        # with the first rows and keep the statement running while the handler fetches the
+                        # rest.
+                        with self._track_running_cursor(cur):
+                            self._run_command(cur, sql_statement, parameters)
+                            if handler is not None:
+                                result = self._make_common_data_structure(handler(cur))
+
                         if handler is not None:
-                            result = self._make_common_data_structure(handler(cur))
+                            if handlers.return_single_query_results(sql, return_last, split_statements):
+                                _last_result = result
+                                _last_description = cur.description
+                            else:
+                                results.append(result)
+                                self.descriptions.append(cur.description)
 
-                    if handler is not None:
-                        if handlers.return_single_query_results(sql, return_last, split_statements):
-                            _last_result = result
-                            _last_description = cur.description
-                        else:
-                            results.append(result)
-                            self.descriptions.append(cur.description)
-
-            # If autocommit was set to False or db does not support autocommit, we do a manual commit.
-            if not self.get_autocommit(conn):
-                conn.commit()
-            # Logs all database messages or errors sent to the client
-            self.get_db_log_messages(conn)
+                # If autocommit was set to False or db does not support autocommit, we do a manual commit.
+                if not self.get_autocommit(conn):
+                    conn.commit()
+                # Logs all database messages or errors sent to the client
+                self.get_db_log_messages(conn)
+        finally:
+            # A request that came after the last statement must not stop the next ``run`` of this hook
+            self._cancel_requested = False
 
         if handler is None:
             return None
@@ -914,12 +921,22 @@ class DbApiHook(BaseHook):
         called after it has unwound through ``run``, which closes the cursor and the connection on the way,
         so cancelling there would be too late.
 
+        After a call to ``cancel_query``, the block raises ``RuntimeError`` instead of running when the call
+        came before it, and once the statement returns normally when the call came during it (``trino``
+        returns normally from a cancelled statement), so that ``run`` neither starts the next statement nor
+        commits.
+
         Nested blocks for the same cursor leave the tracking to the outermost one, so that ``run`` keeps the
         cursor tracked from ``_run_command`` through the result handler.
         """
         if self._running_cursor is cur:
             yield
             return
+        if self._cancel_requested:
+            self._cancel_requested = False
+            raise RuntimeError(
+                f"{type(self).__name__}.cancel_query() was called before the SQL statement started"
+            )
         self._running_cursor = cur
         try:
             yield
@@ -934,6 +951,12 @@ class DbApiHook(BaseHook):
             raise
         finally:
             self._running_cursor = None
+            # Also cleared on failure, for hooks that call ``_run_command`` from their own ``run``
+            cancelled, self._cancel_requested = self._cancel_requested, False
+        if cancelled:
+            raise RuntimeError(
+                f"{type(self).__name__}.cancel_query() was called while the SQL statement was running"
+            )
 
     def cancel_query(self) -> bool:
         """
@@ -946,6 +969,11 @@ class DbApiHook(BaseHook):
         A statement is tracked from the moment ``run`` executes it until its result handler returns, in
         hooks that execute statements through ``run`` or ``_run_command``. Hooks that execute statements
         in another way can override this method.
+
+        Calling this method also stops ``run``, whether or not a statement is running: no further statement
+        is started, including when the call came while ``run`` was connecting or between two statements, and
+        a cancelled statement that the driver returns from normally (e.g. ``trino``) raises ``RuntimeError``.
+        The request is dropped when ``run`` returns.
 
         The default implementation relies on the cancellation extensions offered by many DB-API drivers:
         ``cursor.cancel()`` is used when the cursor provides it (e.g. ``trino``), otherwise
@@ -961,11 +989,11 @@ class DbApiHook(BaseHook):
         :return: ``True`` if a cancellation request was sent to the database, ``False`` if no running
             statement is tracked or the driver does not support cancelling a running statement.
         """
+        self._cancel_requested = True
         cur = self._running_cursor
         if cur is None:
-            # Not a problem: the statement has already completed, or was cancelled when it was interrupted
             self.log.info(
-                "No SQL statement is running in %s, there is nothing to cancel.", type(self).__name__
+                "No SQL statement is running in %s, the next one will not be started.", type(self).__name__
             )
             return False
         for name, target in (("cursor", cur), ("connection", getattr(cur, "connection", None))):

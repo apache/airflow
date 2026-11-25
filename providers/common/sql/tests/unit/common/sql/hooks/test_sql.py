@@ -21,7 +21,7 @@ from __future__ import annotations
 import inspect
 import logging
 import sqlite3
-from contextlib import closing
+from contextlib import closing, suppress
 from unittest.mock import MagicMock, PropertyMock, patch
 
 import pandas as pd
@@ -517,15 +517,21 @@ class TestDbApiHookCancelQuery:
         return hook
 
     @staticmethod
-    def _cancel_during(hook: DbApiHook, cursor_method: MagicMock) -> list[bool]:
-        """Record what ``cancel_query`` returns when it is called from inside ``cursor_method``."""
+    def _cancel_during(hook: DbApiHook, method: MagicMock, error: Exception | None = None) -> list[bool]:
+        """
+        Record what ``cancel_query`` returns when it is called from inside ``method``.
+
+        ``method`` then raises ``error`` like ``psycopg`` does, or returns normally like ``trino`` does.
+        """
         outcome: list[bool] = []
 
         def cancel(*args, **kwargs):
             outcome.append(hook.cancel_query())
+            if error is not None:
+                raise error
             return []
 
-        cursor_method.side_effect = cancel
+        method.side_effect = cancel
         return outcome
 
     def test_nothing_to_cancel_when_no_statement_is_running(self, caplog):
@@ -535,7 +541,7 @@ class TestDbApiHookCancelQuery:
         with caplog.at_level(logging.INFO):
             assert hook.cancel_query() is False
 
-        assert "there is nothing to cancel" in caplog.text
+        assert "the next one will not be started" in caplog.text
         assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
         cursor.cancel.assert_not_called()
 
@@ -544,7 +550,8 @@ class TestDbApiHookCancelQuery:
         hook = self._hook_with_cursor(cursor)
         outcome = self._cancel_during(hook, cursor.execute)
 
-        hook.run("select pg_sleep(600)")
+        with pytest.raises(RuntimeError, match="while the SQL statement was running"):
+            hook.run("select pg_sleep(600)")
 
         assert outcome == [True]
         cursor.cancel.assert_called_once_with()
@@ -556,7 +563,8 @@ class TestDbApiHookCancelQuery:
         hook = self._hook_with_cursor(cursor)
         outcome = self._cancel_during(hook, cursor.execute)
 
-        hook.run("select pg_sleep(600)")
+        with pytest.raises(RuntimeError, match="while the SQL statement was running"):
+            hook.run("select pg_sleep(600)")
 
         assert outcome == [True]
         cursor.connection.cancel.assert_called_once_with()
@@ -568,7 +576,10 @@ class TestDbApiHookCancelQuery:
         hook = self._hook_with_cursor(cursor)
         outcome = self._cancel_during(hook, cursor.execute)
 
-        with caplog.at_level(logging.WARNING):
+        with (
+            caplog.at_level(logging.WARNING),
+            pytest.raises(RuntimeError, match="while the SQL statement was running"),
+        ):
             hook.run("select pg_sleep(600)")
 
         assert outcome == [False]
@@ -579,22 +590,111 @@ class TestDbApiHookCancelQuery:
         hook = self._hook_with_cursor(cursor)
         outcome = self._cancel_during(hook, cursor.fetchall)
 
-        hook.run("select * from big_table", handler=fetch_all_handler)
+        with pytest.raises(RuntimeError, match="while the SQL statement was running"):
+            hook.run("select * from big_table", handler=fetch_all_handler)
 
         assert outcome == [True]
         cursor.cancel.assert_called_once_with()
         assert hook._running_cursor is None
 
-    def test_cancel_when_run_command_is_called_directly(self):
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(None, id="statement-returns"),
+            pytest.param(ValueError("canceling statement due to user request"), id="statement-fails"),
+        ],
+    )
+    def test_cancel_when_run_command_is_called_directly(self, error):
         # Hooks with their own ``run`` (e.g. ``DatabricksSqlHook``) only call ``_run_command``
         cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
         hook = self._hook_with_cursor(cursor)
-        outcome = self._cancel_during(hook, cursor.execute)
+        outcome = self._cancel_during(hook, cursor.execute, error)
 
-        hook._run_command(cursor, "select pg_sleep(600)", None)
+        with pytest.raises(RuntimeError if error is None else ValueError):
+            hook._run_command(cursor, "select pg_sleep(600)", None)
 
         assert outcome == [True]
         assert hook._running_cursor is None
+        # The request ended with the cancelled statement, so the hook's next statement runs
+        cursor.execute.side_effect = None
+        hook._run_command(cursor, "select 1", None)
+        cursor.execute.assert_called_with("select 1")
+
+    def test_cancel_before_run_command_only_stops_one_statement(self):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        hook = self._hook_with_cursor(cursor)
+        hook.cancel_query()
+
+        with pytest.raises(RuntimeError, match="before the SQL statement started"):
+            hook._run_command(cursor, "select pg_sleep(600)", None)
+        hook._run_command(cursor, "select 1", None)
+
+        cursor.execute.assert_called_once_with("select 1")
+
+    def test_statement_that_returns_normally_after_cancel_stops_the_run(self):
+        # ``trino``'s ``Cursor.cancel()`` only stops fetching: ``execute`` returns as if the statement had completed
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        hook = self._hook_with_cursor(cursor)
+        self._cancel_during(hook, cursor.execute)
+
+        with pytest.raises(RuntimeError, match="while the SQL statement was running"):
+            hook.run(["insert into t select * from big_table", "insert into log values (1)"])
+
+        cursor.execute.assert_called_once_with("insert into t select * from big_table")
+        hook.get_conn().commit.assert_not_called()
+
+    def test_statement_is_not_started_after_cancel_before_run(self):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        hook = self._hook_with_cursor(cursor)
+        hook.cancel_query()
+
+        with pytest.raises(RuntimeError, match="before the SQL statement started"):
+            hook.run("select pg_sleep(600)")
+
+        cursor.execute.assert_not_called()
+        hook.get_conn().commit.assert_not_called()
+
+    def test_next_statement_is_not_started_after_cancel_between_statements(self):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        hook = self._hook_with_cursor(cursor)
+
+        def cancel_after_statement():
+            hook.cancel_query()
+            return None
+
+        # ``run`` reads the description of a statement once the statement and its handler are done. The
+        # handler does not read it, unlike ``fetch_all_handler``.
+        type(cursor).description = PropertyMock(side_effect=cancel_after_statement)
+
+        with pytest.raises(RuntimeError, match="before the SQL statement started"):
+            hook.run(
+                ["select 1", "select pg_sleep(600)"], handler=lambda cur: cur.fetchall(), return_last=False
+            )
+
+        cursor.execute.assert_called_once_with("select 1")
+
+    @pytest.mark.parametrize(
+        ("cancelled_method", "error"),
+        [
+            pytest.param("execute", None, id="statement-returns"),
+            pytest.param(
+                "execute", ValueError("canceling statement due to user request"), id="statement-fails"
+            ),
+            pytest.param("commit", None, id="after-the-last-statement"),
+        ],
+    )
+    def test_cancel_does_not_stop_the_next_run(self, cancelled_method, error):
+        cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
+        hook = self._hook_with_cursor(cursor)
+        method = cursor.execute if cancelled_method == "execute" else hook.get_conn().commit
+        self._cancel_during(hook, method, error)
+        with suppress(RuntimeError, ValueError):
+            hook.run("select pg_sleep(600)")
+        method.side_effect = None
+
+        hook.run("select 1")
+
+        cursor.execute.assert_called_with("select 1")
 
     def test_running_cursor_is_cleared_when_statement_fails(self):
         cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
