@@ -23,7 +23,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from enum import Enum
+from enum import StrEnum
 from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
@@ -86,7 +86,7 @@ if TYPE_CHECKING:
 else:
     # For runtime - provides iteration and validation
 
-    class ResourceMethod(str, Enum):
+    class ResourceMethod(StrEnum):
         """HTTP methods (actions) a user can perform against a resource."""
 
         GET = "GET"
@@ -94,10 +94,7 @@ else:
         PUT = "PUT"
         DELETE = "DELETE"
 
-        def __str__(self) -> str:
-            return self.value
-
-    class ExtendedResourceMethod(str, Enum):
+    class ExtendedResourceMethod(StrEnum):
         """Extended HTTP methods including MENU for UI resource authorization."""
 
         GET = "GET"
@@ -105,9 +102,6 @@ else:
         PUT = "PUT"
         DELETE = "DELETE"
         MENU = "MENU"
-
-        def __str__(self) -> str:
-            return self.value
 
 
 log = logging.getLogger(__name__)
