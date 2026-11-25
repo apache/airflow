@@ -1349,10 +1349,12 @@ class AsyncPodManager(LoggingMixin):
         )
         containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
         for container_name in containers_to_log:
-            await self._await_init_container_start(pod, container_name)
+            if not await self._await_init_container_start(pod, container_name):
+                return
             await self._stream_init_container_logs_until_completion(pod, container_name, poll_interval)
 
-    async def _await_init_container_start(self, pod: V1Pod, container_name: str) -> None:
+    async def _await_init_container_start(self, pod: V1Pod, container_name: str) -> bool:
+        """Return ``False`` if the pod finished before the init container ever started."""
         while True:
             remote_pod = await self.read_pod(pod)
             if (
@@ -1361,7 +1363,10 @@ class AsyncPodManager(LoggingMixin):
                 and get_container_status(remote_pod, container_name) is not None
                 and not container_is_wait(remote_pod, container_name)
             ):
-                return
+                return True
+            # With restartPolicy=Never a failed init container leaves later ones waiting forever.
+            if remote_pod.status is not None and remote_pod.status.phase in PodPhase.terminal_states:
+                return False
             await asyncio.sleep(1)
 
     async def _stream_init_container_logs_until_completion(

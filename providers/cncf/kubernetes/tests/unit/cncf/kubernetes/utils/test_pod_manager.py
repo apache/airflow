@@ -1947,6 +1947,7 @@ class TestAsyncPodManager:
 
         async def fake_await_start(_pod, container_name):
             calls.append(("start", container_name))
+            return True
 
         async def fake_stream(_pod, container_name, _poll_interval):
             calls.append(("stream", container_name))
@@ -1977,6 +1978,7 @@ class TestAsyncPodManager:
 
         async def fake_await_start(_pod, container_name):
             calls.append(container_name)
+            return True
 
         with (
             mock.patch.object(
@@ -2013,6 +2015,44 @@ class TestAsyncPodManager:
             await self.async_pod_manager._await_init_container_start(mock.MagicMock(), "init-a")
 
         assert self.mock_async_hook.get_pod.await_count == 2
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("phase", [PodPhase.FAILED, PodPhase.SUCCEEDED])
+    async def test_await_init_container_start_returns_false_when_pod_finished_before_start(self, phase):
+        waiting_status = mock.MagicMock()
+        waiting_status.name = "init-b"
+        waiting_status.state.waiting = mock.MagicMock()
+        finished_pod = mock.MagicMock()
+        finished_pod.status.phase = phase
+        finished_pod.status.container_statuses = None
+        finished_pod.status.init_container_statuses = [waiting_status]
+
+        self.mock_async_hook.get_pod = mock.AsyncMock(return_value=finished_pod)
+
+        assert await self.async_pod_manager._await_init_container_start(mock.MagicMock(), "init-b") is False
+
+    @pytest.mark.asyncio
+    async def test_fetch_requested_init_container_logs_stops_when_pod_finished_before_start(self):
+        pod = mock.MagicMock()
+        init_a, init_b = mock.MagicMock(), mock.MagicMock()
+        init_a.name = "init-a"
+        init_b.name = "init-b"
+        pod.spec.init_containers = [init_a, init_b]
+
+        stream = mock.AsyncMock()
+        with (
+            mock.patch.object(
+                self.async_pod_manager,
+                "_await_init_container_start",
+                new=mock.AsyncMock(side_effect=[True, False]),
+            ),
+            mock.patch.object(
+                self.async_pod_manager, "_stream_init_container_logs_until_completion", new=stream
+            ),
+        ):
+            await self.async_pod_manager.fetch_requested_init_container_logs(pod, init_containers=True)
+
+        assert [call.args[1] for call in stream.await_args_list] == ["init-a"]
 
     @pytest.mark.asyncio
     async def test_stream_init_container_logs_until_completion_polls_until_terminated(self):
