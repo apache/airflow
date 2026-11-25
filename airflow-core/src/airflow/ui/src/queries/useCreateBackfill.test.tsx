@@ -33,12 +33,8 @@ vi.mock("openapi/queries", async (importOriginal) => {
   return { ...actual, useBackfillServiceCreateBackfill: vi.fn() };
 });
 
-const {
-  useBackfillServiceCreateBackfill,
-  UseDagServiceGetDagDetailsKeyFn,
-  UseDagServiceGetDagKeyFn,
-  useDagServiceGetDagsUiKey,
-} = await import("openapi/queries");
+const { useBackfillServiceCreateBackfill, UseDagServiceGetDagDetailsKeyFn, UseDagServiceGetDagKeyFn } =
+  await import("openapi/queries");
 
 const DAG_ID = "paused_dag";
 const mutate = vi.fn();
@@ -87,7 +83,6 @@ describe("useCreateBackfill", () => {
     for (const queryKey of [
       UseDagServiceGetDagKeyFn({ dagId: DAG_ID }, [{ dagId: DAG_ID }]),
       UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }, [{ dagId: DAG_ID }]),
-      [useDagServiceGetDagsUiKey],
     ]) {
       if (drainDag) {
         expect(invalidateSpy).toHaveBeenCalledWith({ queryKey });

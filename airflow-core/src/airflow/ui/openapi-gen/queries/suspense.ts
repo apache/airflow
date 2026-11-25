@@ -214,6 +214,27 @@ export const useAssetServiceNextRunAssetsSuspense = <TData = Common.AssetService
   dagId: string;
 }, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey), queryFn: () => AssetService.nextRunAssets({ dagId }) as TData, ...options });
 /**
+* Get Asset Partitions
+* Return the partition keys of an asset with the status of each.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.status
+* @param data.partitionKeyPattern
+* @param data.orderBy
+* @param data.limit
+* @param data.offset
+* @returns AssetPartitionCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const useAssetServiceGetAssetPartitionsSuspense = <TData = Common.AssetServiceGetAssetPartitionsDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ assetId, limit, offset, orderBy, partitionKeyPattern, status }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  partitionKeyPattern?: string;
+  status?: ("materialized" | "in_progress" | "failed")[];
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, orderBy, partitionKeyPattern, status }, queryKey), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, orderBy, partitionKeyPattern, status }) as TData, ...options });
+/**
 * List Backfills
 * @param data The data for the request.
 * @param data.dagId
@@ -2431,13 +2452,29 @@ export const useGridServiceGetGridRunsSuspense = <TData = Common.GridServiceGetG
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runIds
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
 * @throws ApiError
 */
-export const useGridServiceGetGridTiSummariesStreamSuspense = <TData = Common.GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, runIds }: {
+export const useGridServiceGetGridTiSummariesStreamSuspense = <TData = Common.GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown, TQueryKey extends Array<unknown> = unknown[]>({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runIds?: string[];
-}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }, queryKey), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) as TData, ...options });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}, queryKey?: TQueryKey, options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">) => useSuspenseQuery<TData, TError>({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }, queryKey), queryFn: () => GridService.getGridTiSummariesStream({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }) as TData, ...options });
 /**
 * Get Loop Summary
 * Summarize one loop invocation from the run's live task instances.

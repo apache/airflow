@@ -113,6 +113,17 @@ export const useAssetServiceNextRunAssetsKey = "AssetServiceNextRunAssets";
 export const UseAssetServiceNextRunAssetsKeyFn = ({ dagId }: {
   dagId: string;
 }, queryKey?: Array<unknown>) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export type AssetServiceGetAssetPartitionsDefaultResponse = Awaited<ReturnType<typeof AssetService.getAssetPartitions>>;
+export type AssetServiceGetAssetPartitionsQueryResult<TData = AssetServiceGetAssetPartitionsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
+export const useAssetServiceGetAssetPartitionsKey = "AssetServiceGetAssetPartitions";
+export const UseAssetServiceGetAssetPartitionsKeyFn = ({ assetId, limit, offset, orderBy, partitionKeyPattern, status }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  partitionKeyPattern?: string;
+  status?: ("materialized" | "in_progress" | "failed")[];
+}, queryKey?: Array<unknown>) => [useAssetServiceGetAssetPartitionsKey, ...(queryKey ?? [{ assetId, limit, offset, orderBy, partitionKeyPattern, status }])];
 export type BackfillServiceListBackfillsDefaultResponse = Awaited<ReturnType<typeof BackfillService.listBackfills>>;
 export type BackfillServiceListBackfillsQueryResult<TData = BackfillServiceListBackfillsDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useBackfillServiceListBackfillsKey = "BackfillServiceListBackfills";
@@ -1225,10 +1236,18 @@ export const UseGridServiceGetGridRunsKeyFn = ({ dagId, limit, offset, orderBy, 
 export type GridServiceGetGridTiSummariesStreamDefaultResponse = Awaited<ReturnType<typeof GridService.getGridTiSummariesStream>>;
 export type GridServiceGetGridTiSummariesStreamQueryResult<TData = GridServiceGetGridTiSummariesStreamDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetGridTiSummariesStreamKey = "GridServiceGetGridTiSummariesStream";
-export const UseGridServiceGetGridTiSummariesStreamKeyFn = ({ dagId, runIds }: {
+export const UseGridServiceGetGridTiSummariesStreamKeyFn = ({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runIds?: string[];
-}, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesStreamKey, ...(queryKey ?? [{ dagId, runIds }])];
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}, queryKey?: Array<unknown>) => [useGridServiceGetGridTiSummariesStreamKey, ...(queryKey ?? [{ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }])];
 export type GridServiceGetLoopSummaryDefaultResponse = Awaited<ReturnType<typeof GridService.getLoopSummary>>;
 export type GridServiceGetLoopSummaryQueryResult<TData = GridServiceGetLoopSummaryDefaultResponse, TError = unknown> = UseQueryResult<TData, TError>;
 export const useGridServiceGetLoopSummaryKey = "GridServiceGetLoopSummary";

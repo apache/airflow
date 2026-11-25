@@ -79,14 +79,26 @@ export const ClipboardLink = forwardRef<HTMLButtonElement, ButtonProps>((props, 
   </ChakraClipboard.Trigger>
 ));
 
-export const ClipboardIconButton = forwardRef<HTMLButtonElement, ButtonProps>((props, ref) => (
-  <ChakraClipboard.Trigger asChild>
-    <IconButton ref={ref} size="xs" variant="ghost" {...props}>
-      <ClipboardIcon />
-      <ClipboardCopyText srOnly />
-    </IconButton>
-  </ChakraClipboard.Trigger>
-));
+export const ClipboardIconButton = forwardRef<HTMLButtonElement, { readonly label?: string } & ButtonProps>(
+  ({ label, ...props }, ref) => {
+    const { t: translate } = useTranslation("components");
+
+    return (
+      <ChakraClipboard.Trigger asChild>
+        <IconButton
+          label={label ?? translate("clipboard.copy")}
+          ref={ref}
+          size="xs"
+          variant="ghost"
+          {...props}
+        >
+          <ClipboardIcon />
+          <ClipboardCopyText srOnly />
+        </IconButton>
+      </ChakraClipboard.Trigger>
+    );
+  },
+);
 
 export const ClipboardInput = forwardRef<HTMLInputElement, InputProps>((props, ref) => (
   <ChakraClipboard.Input asChild>

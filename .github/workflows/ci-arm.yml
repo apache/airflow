@@ -1306,7 +1306,7 @@ jobs:
       - name: "RunsOn cost summary"
         uses: ./.github/actions/runs-on-cost-summary
       - name: Setup Java
-        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880  # v6.3.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}
@@ -1348,7 +1348,7 @@ jobs:
           cache-dependency-path: go-sdk/go.sum
       - name: Setup Java
         if: matrix.sdk == 'java'
-        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880  # v6.3.0
         with:
           distribution: 'temurin'
           java-version: ${{ env.JAVA_VERSION }}

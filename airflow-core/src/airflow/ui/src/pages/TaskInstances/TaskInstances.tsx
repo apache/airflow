@@ -49,6 +49,10 @@ import { TeamName } from "src/components/TeamName";
 import Time from "src/components/Time";
 import { TruncatedText } from "src/components/TruncatedText";
 
+import {
+  mergePersistentSearchParams,
+  usePersistentSearchParamKeys,
+} from "src/constants/persistentSearchParams";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
 import { usePluginActions } from "src/hooks/usePluginActions";
@@ -85,6 +89,8 @@ const {
   POOL_NAME_PATTERN: POOL_NAME_PATTERN_PARAM,
   QUEUE_NAME_PATTERN: QUEUE_NAME_PATTERN_PARAM,
   RENDERED_MAP_INDEX: RENDERED_MAP_INDEX_PARAM,
+  RUN_AFTER_GTE: RUN_AFTER_GTE_PARAM,
+  RUN_AFTER_LTE: RUN_AFTER_LTE_PARAM,
   RUN_ID_PATTERN: RUN_ID_PATTERN_PARAM,
   START_DATE: START_DATE_PARAM,
   TASK_STATE: STATE_PARAM,
@@ -94,6 +100,7 @@ const {
 
 type ColumnProps = {
   readonly dagId?: string;
+  readonly getLink: (ti: TaskInstanceResponse) => string;
   readonly hasLoopIteration: boolean;
   readonly runId?: string;
   readonly taskId?: string;
@@ -102,6 +109,7 @@ type ColumnProps = {
 
 const taskInstanceColumns = ({
   dagId,
+  getLink,
   hasLoopIteration,
   multiTeam,
   runId,
@@ -139,7 +147,7 @@ const taskInstanceColumns = ({
           accessorKey: "run_after",
           cell: ({ row: { original } }: TaskInstanceRow) =>
             Boolean(taskId) ? (
-              <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+              <RouterLink fontWeight="bold" to={getLink(original)}>
                 <Time datetime={original.run_after} />
               </RouterLink>
             ) : (
@@ -164,7 +172,7 @@ const taskInstanceColumns = ({
         {
           accessorKey: "task_display_name",
           cell: ({ row: { original } }: TaskInstanceRow) => (
-            <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+            <RouterLink fontWeight="bold" to={getLink(original)}>
               <TruncatedText text={original.task_display_name} />
             </RouterLink>
           ),
@@ -177,7 +185,7 @@ const taskInstanceColumns = ({
     // Map index remains visible before a mapped task instance starts.
     cell: ({ row: { original } }) =>
       original.map_index >= 0 ? (
-        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+        <RouterLink fontWeight="bold" to={getLink(original)}>
           {original.rendered_map_index ?? original.map_index}
         </RouterLink>
       ) : (
@@ -233,7 +241,7 @@ const taskInstanceColumns = ({
     accessorKey: "start_date",
     cell: ({ row: { original } }) =>
       Boolean(taskId) && Boolean(runId) ? (
-        <RouterLink fontWeight="bold" to={getTaskInstanceLink(original)}>
+        <RouterLink fontWeight="bold" to={getLink(original)}>
           <Time datetime={original.start_date} />
         </RouterLink>
       ) : (
@@ -339,6 +347,8 @@ export const TaskInstances = () => {
   const durationLte = searchParams.get(DURATION_LTE_PARAM);
   const logicalDateGte = searchParams.get(LOGICAL_DATE_GTE_PARAM);
   const logicalDateLte = searchParams.get(LOGICAL_DATE_LTE_PARAM);
+  const runAfterGte = searchParams.get(RUN_AFTER_GTE_PARAM);
+  const runAfterLte = searchParams.get(RUN_AFTER_LTE_PARAM);
   const tryNumberFilter = searchParams.get(TRY_NUMBER_PARAM);
   const mapIndexFilter = searchParams.get(MAP_INDEX_PARAM);
   const loopFilter = searchParams.get(SearchParamsKeys.LOOP_ID);
@@ -355,7 +365,9 @@ export const TaskInstances = () => {
   const operatorNamePattern = searchParams.get(OPERATOR_NAME_PATTERN_PARAM);
   const renderedMapIndexFilter = searchParams.get(RENDERED_MAP_INDEX_PARAM);
   const filteredDagIdPattern = searchParams.get(DAG_ID_PATTERN_PARAM);
-  const filteredRunId = searchParams.get(RUN_ID_PATTERN_PARAM);
+  // TaskInstancesFilter only offers a run id filter when no run is in the route. Applying one anyway
+  // lets a pattern carried over from the grid empty this table with no filter chip there to clear it.
+  const filteredRunId = runId === undefined ? searchParams.get(RUN_ID_PATTERN_PARAM) : null;
   const hasFilteredState = filteredState.length > 0;
   const taskDisplayNamePattern = searchParams.get(NAME_PATTERN_PARAM);
   const teams = searchParams.getAll(TEAMS_PARAM);
@@ -423,6 +435,8 @@ export const TaskInstances = () => {
       logicalDateLte: logicalDateLte ?? undefined,
       loopId: loopInScope ? loopFilter : undefined,
       mapIndex: mapIndexFilter !== null && mapIndexFilter !== "" ? [Number(mapIndexFilter)] : undefined,
+      runAfterGte: runAfterGte ?? undefined,
+      runAfterLte: runAfterLte ?? undefined,
       ...operatorNameArg,
       orderBy,
       ...poolNameArg,
@@ -465,8 +479,24 @@ export const TaskInstances = () => {
 
   const pluginActions = usePluginActions("task_instance");
 
+  const persistentKeys = usePersistentSearchParamKeys();
+  // Inside a Dag the grid and the log panel stay on screen, so a row link keeps their filters
+  // the way a tab link does.
+  const getLink = (ti: TaskInstanceResponse) => {
+    const link = getTaskInstanceLink(ti);
+
+    if (dagId === undefined) {
+      return link;
+    }
+    const [pathname = "", linkSearch] = link.split("?");
+    const query = mergePersistentSearchParams(searchParams.toString(), linkSearch, persistentKeys);
+
+    return query === "" ? pathname : `${pathname}?${query}`;
+  };
+
   const columns = taskInstanceColumns({
     dagId,
+    getLink,
     hasLoopIteration: (data?.task_instances ?? []).some(
       (ti) => ti.loop_iteration !== null && ti.loop_iteration !== undefined,
     ),
