@@ -3287,12 +3287,46 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         return locked_backfills
 
+    def _lock_dags(self, dag_runs: Collection[DagRun], session: Session) -> set[str]:
+        """
+        Lock Dag rows of non-backfill runs to prevent races when multiple schedulers run concurrently.
+
+        Without this, two schedulers can each lock different queued runs of the same Dag, both count
+        zero running runs (neither has committed yet), and both start a run -- exceeding max_active_runs.
+
+        :param dag_runs: Collection of Dag runs to process
+        :param session: DB session
+        :return: Set of dag_ids whose Dag rows were locked
+        """
+        if not (dag_ids := {dr.dag_id for dr in dag_runs if dr.backfill_id is None}):
+            return set()
+
+        locked_dag_ids = set(
+            session.scalars(
+                with_row_locks(
+                    select(DagModel.dag_id).where(DagModel.dag_id.in_(dag_ids)),
+                    of=DagModel,
+                    session=session,
+                    skip_locked=True,
+                )
+            )
+        )
+
+        if skipped_dag_ids := dag_ids - locked_dag_ids:
+            self.log.debug(
+                "Skipping queued runs for dag_ids=%s - locked by another scheduler", skipped_dag_ids
+            )
+
+        return locked_dag_ids
+
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         dag_runs: Collection[DagRun] = list(DagRun.get_queued_dag_runs_to_set_running(session))
 
         # Lock backfills to prevent race conditions with concurrent schedulers
         locked_backfills = self._lock_backfills(dag_runs, session)
+        # Same for Dags of non-backfill runs; must happen before counting running runs below
+        locked_dag_ids = self._lock_dags(dag_runs, session)
 
         query = (
             select(
@@ -3372,6 +3406,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         run_id,
                     )
                     continue
+            elif dag_id not in locked_dag_ids:
+                # Another scheduler has this Dag locked, skip this run
+                continue
             elif dag_run.max_active_runs:
                 # Using dag_run.max_active_runs which links to DagModel to ensure we are checking
                 # against the most recent changes on the dag and not using stale serialized dag
