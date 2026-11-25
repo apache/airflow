@@ -2207,6 +2207,7 @@ export type ProviderInfoResponse = {
     bundles?: Array<ProviderIntegrationModulesInfo> | null;
     asset_uris?: Array<ProviderAssetUriInfo> | null;
     dialects?: Array<ProviderDialectInfo> | null;
+    object_storage_providers?: Array<ProviderObjectStorageProviderInfo> | null;
     transfers?: Array<ProviderTransferInfo> | null;
     connection_types?: Array<ProviderConnectionTypeInfo> | null;
     extra_links?: Array<(string)> | null;
@@ -2245,6 +2246,14 @@ export type ProviderIntegrationInfo = {
 export type ProviderIntegrationModulesInfo = {
     integration_name: string;
     python_modules: Array<(string)>;
+};
+
+/**
+ * DataFusion object storage provider provided by a provider.
+ */
+export type ProviderObjectStorageProviderInfo = {
+    storage_type?: string | null;
+    provider_class_name?: string | null;
 };
 
 /**
