@@ -44,6 +44,7 @@
   "dagBundle_other": "Col·leccions de Dags",
   "dagDetails": {
     "activeRuns": "Execucions actives",
+    "bundleVersion": "Versió de la col·lecció",
     "catchup": "Recuperar (catchup)",
     "dagRunTimeout": "Temps d'espera de l'execució del Dag",
     "defaultArgs": "Arguments per defecte",
@@ -138,18 +139,25 @@
     "all": "Tots",
     "and": "I",
     "any": "Qualsevol",
+    "hiddenAsset": "Asset ocult",
     "or": "O"
   },
   "filter": "Filtre",
   "filters": {
     "addFilter": "Afegir filtre",
+    "allIterations": "Totes",
     "completedAt": "Completat a",
     "date": "Data",
     "durationFrom": "Duració Des de",
     "durationTo": "Duració Fins a",
     "endTime": "Hora de finalització",
+    "iteration": "Iteració",
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
+    "loop": "Bucle",
+    "loopAllIterations": "{{loop}} (totes les iteracions)",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "Seleccioneu un bucle",
     "maxActiveRunsFrom": "Màxim d'execucions actives des de",
     "maxActiveRunsTo": "Màxim d'execucions actives fins a",
     "removeFilter": "Eliminar filtre",
@@ -159,6 +167,7 @@
     "selectDateRange": "Seleccionar interval de dates",
     "selectDateTime": "Seleccionar data i hora",
     "startTime": "Hora d'inici",
+    "switchIteration": "Canviar d'iteració",
     "time": "Hora"
   },
   "fullscreen": {
@@ -167,6 +176,7 @@
   "generateToken": "Generar token",
   "includedIn": "Inclòs a",
   "key": "Clau",
+  "loading": "S'està carregant…",
   "logLevel": {
     "hide": "Amagar nivells de registre",
     "hotkey": "l",
@@ -186,6 +196,7 @@
     },
     "save": "Desar"
   },
+  "moreTabs": "Més",
   "nav": {
     "admin": "Configuració",
     "assets": "Assets",
@@ -245,6 +256,7 @@
     "asset_triggered": "Executat per Asset",
     "backfill": "Reomplir",
     "manual": "Manual",
+    "operator_triggered": "Executat per un operador",
     "scheduled": "Programat"
   },
   "scroll": {
@@ -288,6 +300,13 @@
         "label": "Selecció predeterminada per rellançar tasques"
       },
       "title": "Rellançament"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "Mostra l'estat de les tasques recents de cada Dag a la llista de Dags. Desactiveu aquesta opció per evitar carregar-les. Això pot millorar el rendiment en desplegaments amb molts Dags.",
+        "label": "Mostrar les tasques recents"
+      },
+      "title": "Llista de Dags"
     },
     "description": "Aquestes preferències només es desen en aquest navegador i s'apliquen a tota l'aplicació.",
     "general": {
@@ -398,6 +417,7 @@
     "no_status": "Sense estat",
     "none": "Sense estat",
     "open": "Obert",
+    "pending": "Pendent",
     "planned": "Planificat",
     "queued": "En cua",
     "removed": "Eliminat",
@@ -411,6 +431,8 @@
     "upstream_failed": "Fallit aigües amunt"
   },
   "switchDag": "Canviar a $t(dag_one)",
+  "switchDagRun": "Canviar a $t(dagRun_one)",
+  "switchMapIndex": "Canviar a $t(mapIndex)",
   "table": {
     "completedAt": "Completat a",
     "createdAt": "Creat a",
@@ -456,6 +478,9 @@
     "executorConfig": "Configuració de l'executor",
     "hostname": "Nom del Host",
     "id": "ID",
+    "iteration": "Iteració",
+    "loopDecision": "Decisió",
+    "loopIterations": "Iteracions executades",
     "maxTries": "Màxim de reintents",
     "pid": "PID",
     "pool": "Pool",
@@ -464,6 +489,7 @@
     "queue": "Cua",
     "queuedWhen": "Enviat a cua a les",
     "renderedMapIndex": "Índex del mapa renderitzat",
+    "retryAt": "Hora del reintent",
     "scheduledWhen": "Programat a les",
     "stateReason": "Motiu de l'estat",
     "stateReasonSummary": {
