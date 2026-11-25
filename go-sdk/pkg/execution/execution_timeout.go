@@ -86,7 +86,7 @@ func (t enabledExecutionTimeout) start(ctx context.Context, client *CoordinatorC
 	return err
 }
 
-// run cancels the task's ctx with sdk.ErrTaskTimeout at the timeout, then waits until the task
+// run cancels the task's ctx with sdk.TaskTimeout at the timeout, then waits until the task
 // returns or the supervisor's SIGTERM cancels stop. The task fails with the timeout either way.
 func (t enabledExecutionTimeout) run(
 	stop context.Context,
@@ -94,7 +94,7 @@ func (t enabledExecutionTimeout) run(
 	logger *slog.Logger,
 	run func(ctx context.Context) any,
 ) any {
-	timeoutErr := fmt.Errorf("%w after %g seconds", sdk.ErrTaskTimeout, t.seconds)
+	timeoutErr := fmt.Errorf("%w after %g seconds", sdk.TaskTimeout, t.seconds)
 	ctx, cancel := context.WithTimeoutCause(stop, secondsToDuration(t.seconds), timeoutErr)
 	defer cancel()
 
@@ -103,7 +103,7 @@ func (t enabledExecutionTimeout) run(
 		result := run(ctx)
 		// Whichever cancels ctx first wins, so after this the timer cannot change the cause.
 		cancel()
-		done <- taskOutcome{result, errors.Is(context.Cause(ctx), sdk.ErrTaskTimeout)}
+		done <- taskOutcome{result, errors.Is(context.Cause(ctx), sdk.TaskTimeout)}
 	}()
 
 	select {
@@ -112,7 +112,7 @@ func (t enabledExecutionTimeout) run(
 			return outcome.result
 		}
 	case <-ctx.Done():
-		if !errors.Is(context.Cause(ctx), sdk.ErrTaskTimeout) {
+		if !errors.Is(context.Cause(ctx), sdk.TaskTimeout) {
 			// A SIGTERM before the timeout, or the task has just returned: wait for its result.
 			return (<-done).result
 		}

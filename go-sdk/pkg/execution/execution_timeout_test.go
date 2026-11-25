@@ -161,7 +161,7 @@ func TestServeFailsWhenTheSupervisorRejectsExecutionTimeoutEndToEnd(t *testing.T
 }
 
 // TestServeFailsATaskAtItsExecutionTimeoutEndToEnd pins that the runtime cancels the task's ctx at
-// its execution_timeout with sdk.ErrTaskTimeout as the cause, and fails the task with the timeout
+// its execution_timeout with sdk.TaskTimeout as the cause, and fails the task with the timeout
 // whatever the task returns after it. A value returned after the timeout is not pushed as an XCom.
 func TestServeFailsATaskAtItsExecutionTimeoutEndToEnd(t *testing.T) {
 	tests := []struct {
@@ -195,7 +195,7 @@ func TestServeFailsATaskAtItsExecutionTimeoutEndToEnd(t *testing.T) {
 					"should_retry":      shouldRetry,
 				}, answerAll)
 
-				assert.ErrorIs(t, <-causes, sdk.ErrTaskTimeout)
+				assert.ErrorIs(t, <-causes, sdk.TaskTimeout)
 				assert.Equal(t, []map[string]any{
 					{"type": "SetExecutionTimeout", "timeout_seconds": 0.05},
 				}, requests)
