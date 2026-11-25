@@ -64,7 +64,7 @@ export const BackfillInProgressBadge = ({ dagId }: Props) => {
           {translate("banner.backfillInProgress")}
         </Badge>
       </RouterLink>
-      <BackfillProgressBar backfillId={inProgress.id} isRunning />
+      <BackfillProgressBar backfillId={inProgress.id} />
     </HStack>
   );
 };

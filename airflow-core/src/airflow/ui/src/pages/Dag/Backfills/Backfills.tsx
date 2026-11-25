@@ -151,9 +151,8 @@ const getColumns = ({
   },
   {
     accessorKey: "progress",
-    cell: ({ row }) => (
-      <BackfillProgressBar backfillId={row.original.id} isRunning={row.original.completed_at === null} />
-    ),
+    cell: ({ row }) =>
+      row.original.completed_at === null ? <BackfillProgressBar backfillId={row.original.id} /> : undefined,
     enableSorting: false,
     header: translate("components:backfill.progress"),
   },

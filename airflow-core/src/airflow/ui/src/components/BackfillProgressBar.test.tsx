@@ -28,26 +28,16 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import { BackfillProgressBar } from "./BackfillProgressBar";
 
-const REFRESH_MS = 20;
-
 const { listBackfillDagRuns, mockCounts } = vi.hoisted(() => {
-  const counts = {
-    afterSuccessCount: undefined as Record<string, number> | undefined,
-    current: {} as Record<string, number>,
-  };
+  const counts = { current: {} as Record<string, number> };
 
   return {
-    listBackfillDagRuns: vi.fn(({ state }: { state: Array<string> }) => {
-      const totalEntries = state.reduce((sum, st) => sum + (counts.current[st] ?? 0), 0);
-
-      // Lets a test move a run to another state between the requests of a single refresh.
-      if (state.length === 1 && state[0] === "success" && counts.afterSuccessCount !== undefined) {
-        counts.current = counts.afterSuccessCount;
-        counts.afterSuccessCount = undefined;
-      }
-
-      return Promise.resolve({ backfill_dag_runs: [], total_entries: totalEntries });
-    }),
+    listBackfillDagRuns: vi.fn(({ state }: { state: Array<string> }) =>
+      Promise.resolve({
+        backfill_dag_runs: [],
+        total_entries: state.reduce((sum, st) => sum + (counts.current[st] ?? 0), 0),
+      }),
+    ),
     mockCounts: counts,
   };
 });
@@ -59,27 +49,19 @@ vi.mock("openapi/requests/services.gen", async (importOriginal) => ({
 
 vi.mock("src/utils", async (importOriginal) => ({
   ...(await importOriginal<typeof Utils>()),
-  useAutoRefresh: () => REFRESH_MS,
+  useAutoRefresh: () => 20,
 }));
-
-const countRefreshes = () => listBackfillDagRuns.mock.calls.length / 3;
-
-const waitForSeveralRefreshIntervals = () =>
-  new Promise((resolve) => {
-    setTimeout(resolve, REFRESH_MS * 6);
-  });
 
 afterEach(() => {
   mockCounts.current = {};
-  mockCounts.afterSuccessCount = undefined;
   listBackfillDagRuns.mockClear();
 });
 
 describe("BackfillProgressBar", () => {
-  it("shows finished over created runs", async () => {
-    mockCounts.current = { failed: 1, queued: 2, running: 1, success: 3 };
+  it("shows finished over created runs, ignoring skipped slots", async () => {
+    mockCounts.current = { failed: 1, none: 2, queued: 2, running: 1, success: 3 };
 
-    render(<BackfillProgressBar backfillId={1} isRunning />, { wrapper: Wrapper });
+    render(<BackfillProgressBar backfillId={1} />, { wrapper: Wrapper });
 
     expect(await screen.findByText("4/7")).toBeInTheDocument();
     expect(
@@ -90,56 +72,20 @@ describe("BackfillProgressBar", () => {
   });
 
   it("renders nothing when the backfill has created no runs", async () => {
-    const { container } = render(<BackfillProgressBar backfillId={1} isRunning={false} />, {
-      wrapper: Wrapper,
-    });
+    const { container } = render(<BackfillProgressBar backfillId={1} />, { wrapper: Wrapper });
 
     await waitFor(() => expect(listBackfillDagRuns).toHaveBeenCalled());
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("stops polling a completed backfill once all its runs have finished", async () => {
-    mockCounts.current = { failed: 1, success: 4 };
+  it("refreshes the counts while shown", async () => {
+    mockCounts.current = { running: 1 };
 
-    render(<BackfillProgressBar backfillId={1} isRunning={false} />, { wrapper: Wrapper });
-    await screen.findByText("5/5");
-    await waitForSeveralRefreshIntervals();
+    render(<BackfillProgressBar backfillId={1} />, { wrapper: Wrapper });
+    await screen.findByText("0/1");
 
-    expect(countRefreshes()).toBe(1);
-  });
-
-  it("keeps polling a completed backfill until its remaining runs finish", async () => {
-    // A cancelled backfill is completed while its running Dag runs carry on.
-    mockCounts.current = { failed: 4, running: 1 };
-
-    render(<BackfillProgressBar backfillId={1} isRunning={false} />, { wrapper: Wrapper });
-    await screen.findByText("4/5");
-
-    mockCounts.current = { failed: 4, success: 1 };
-
-    expect(await screen.findByText("5/5")).toBeInTheDocument();
-    const refreshes = countRefreshes();
-
-    await waitForSeveralRefreshIntervals();
-    expect(countRefreshes()).toBe(refreshes);
-  });
-
-  it("keeps polling when a run finishes between the count requests of one refresh", async () => {
-    mockCounts.current = { failed: 4, running: 1 };
-    mockCounts.afterSuccessCount = { failed: 4, success: 1 };
-
-    render(<BackfillProgressBar backfillId={1} isRunning={false} />, { wrapper: Wrapper });
-
-    expect(await screen.findByText("4/5")).toBeInTheDocument();
-    expect(await screen.findByText("5/5")).toBeInTheDocument();
-  });
-
-  it("keeps polling while the backfill is running", async () => {
     mockCounts.current = { success: 1 };
 
-    render(<BackfillProgressBar backfillId={1} isRunning />, { wrapper: Wrapper });
-    await screen.findByText("1/1");
-
-    await waitFor(() => expect(countRefreshes()).toBeGreaterThan(2));
+    expect(await screen.findByText("1/1")).toBeInTheDocument();
   });
 });

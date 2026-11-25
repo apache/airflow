@@ -25,12 +25,11 @@ import { useBackfillProgress } from "src/queries/useBackfillProgress";
 
 type Props = {
   readonly backfillId: number;
-  readonly isRunning: boolean;
 };
 
-export const BackfillProgressBar = ({ backfillId, isRunning }: Props) => {
+export const BackfillProgressBar = ({ backfillId }: Props) => {
   const { t: translate } = useTranslation("components");
-  const progress = useBackfillProgress(backfillId, isRunning);
+  const progress = useBackfillProgress(backfillId);
 
   if (progress === undefined || progress.total === 0) {
     return undefined;
