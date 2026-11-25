@@ -600,6 +600,8 @@ class TestDbApiHookCancelQuery:
         cursor = MagicMock(spec=[*CURSOR_SPEC, "cancel"])
         cursor.execute.side_effect = RuntimeError("boom")
         hook = self._hook_with_cursor(cursor)
+        # A failing statement is not cancelled even when interruptions are
+        hook.cancel_on_interrupt = True
 
         with pytest.raises(RuntimeError, match="boom"):
             hook.run("select 1")
