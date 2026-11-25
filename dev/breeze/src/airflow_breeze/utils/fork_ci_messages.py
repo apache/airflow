@@ -72,6 +72,15 @@ CONTRIBUTING_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst"
     "#ci-in-your-fork"
 )
+BASE_BRANCH_FAILURE_URL = (
+    "https://github.com/apache/airflow/blob/main/contributing-docs/18_contribution_workflow.rst"
+    "#when-fork-ci-fails-in-code-you-did-not-change"
+)
+BASE_BRANCH_FAILURE_TEXT = (
+    "A job can also fail because of the base branch and not because of your change. If a job fails in "
+    "code this pull request does not change, see "
+    f"[When fork CI fails in code you did not change]({BASE_BRANCH_FAILURE_URL})."
+)
 OPEN_PR_LIMIT_URL = (
     "https://github.com/apache/airflow/blob/main/contributing-docs/32_open_pull_request_limit.rst"
 )
@@ -404,6 +413,8 @@ def state_comment(
         parts.append(f"Latest run: {run_url}")
     if marker.state == "failed" and failed_jobs:
         parts.append(build_failed_job_list(failed_jobs))
+    if marker.state == "failed" and not startup_failure:
+        parts.append(BASE_BRANCH_FAILURE_TEXT)
     if marker.state == "setup_required" and fork:
         parts.append(_setup_instructions(fork))
     parts.append(f"How this works: [CI in your fork]({CONTRIBUTING_URL}).")

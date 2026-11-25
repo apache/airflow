@@ -521,9 +521,10 @@ anything, with the `merge-with-base` action (`.github/actions/merge-with-base`):
   `summarize-warnings` are exempt: they read the pushed commit or only report on the run.
 - `build-info` names the merge in a step, "Test merged with apache/airflow
   `<branch>`@`<commit>`, merge base `<commit>`", from which the reconciler learns what the run
-  tested (see "Tested base"). When the conflict check cannot fetch the target branch or find the
-  merge base, `merge-with` is empty, the jobs test the pushed commit as it is, and the step is
-  skipped.
+  tested (see "Tested base"). The step also writes that commit of the target branch, with a link,
+  to the summary page of the run, for the contributor whose job fails because of the target
+  branch. When the conflict check cannot fetch the target branch or find the merge base,
+  `merge-with` is empty, the jobs test the pushed commit as it is, and the step is skipped.
 
 `breeze ci selective-check` gets the compare result through a new `--changed-files-from-api`
 path taken automatically when `is_fork_push` holds; the `git diff-tree` path stays for every
@@ -637,7 +638,7 @@ since the draft-state job runs after the close and GitHub refuses to draft a clo
 | **setup_required**: workflow state is `disabled_fork`, `disabled_manually` or `disabled_inactivity`, or the fork has no `ci-amd.yml` | `error` (red), link to the fork's Actions page for `ci-amd.yml` | create or update: how to enable, with the exact `gh repo sync <fork> --branch main` and `gh workflow enable ci-amd.yml -R <fork>` lines, and `breeze ci audit`; on transition from any other state but `closed` (the workflow stopped running after it worked): also post a **new** comment saying why it stopped |
 | **awaiting_push**: enabled, no run for the head SHA | `pending` (yellow), link to the fork's Actions page | on transition from setup_required: post a **new** comment asking to push again (an edit would not notify) |
 | **running**: run in progress | `pending` (yellow), link to the run | update state and run link |
-| **failed**: conclusion is failure, cancelled, timed out or startup failure | `failure` (red), link to the run; for a startup failure the description says the run could not start | update with the run link and the jobs that did not pass; for a startup failure the text says no job ran and points to the fork's Actions settings |
+| **failed**: conclusion is failure, cancelled, timed out or startup failure | `failure` (red), link to the run; for a startup failure the description says the run could not start | update with the run link, the jobs that did not pass and a note that a job can fail because of the base branch, with a link to the contributor documentation on telling such a failure apart; for a startup failure the text says no job ran and points to the fork's Actions settings |
 | **green**: conclusion success and the pull request does not change CI-defining files | `success` (green), link to the run | update: ready for review, run link; on the author's draft: mark it ready for review when it is |
 | **green_unverified**: conclusion success, but the pull request changes CI-defining files (see "Trusting a green fork run") | `pending` (yellow), link to the run | update: a maintainer must run project CI; on the author's draft: mark it ready for review, then a maintainer runs project CI |
 | **closed**: setup_required or awaiting_push for `close_after_days` without human comments | unchanged | close with a new comment; reopening restarts the clock |

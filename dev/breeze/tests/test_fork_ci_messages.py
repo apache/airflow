@@ -25,6 +25,8 @@ import pytest
 from airflow_breeze.utils.fork_ci_messages import (
     _STATE_TEXTS,
     _STATUS_DESCRIPTIONS,
+    BASE_BRANCH_FAILURE_TEXT,
+    BASE_BRANCH_FAILURE_URL,
     CI_CHANGE_MARKER,
     CI_MODIFICATION_MARKER,
     CI_PASSED_REVOKED_DESCRIPTION,
@@ -216,6 +218,41 @@ def test_state_comment_links_the_contributor_documentation(startup_failure):
     assert CONTRIBUTING_URL.endswith("18_contribution_workflow.rst#ci-in-your-fork")
     assert "08_fork_ci_for_external_contributors" not in text
     assert text.endswith(FOOTER)
+
+
+@pytest.mark.parametrize(
+    ("state", "startup_failure", "points_to_the_base"),
+    [
+        pytest.param("failed", False, True, id="failed"),
+        pytest.param("failed", True, False, id="could-not-start"),
+        pytest.param("running", False, False, id="running"),
+        pytest.param("green", False, False, id="green"),
+        pytest.param("setup_required", False, False, id="setup-required"),
+    ],
+)
+def test_state_comment_points_a_failed_run_to_the_base_branch(state, startup_failure, points_to_the_base):
+    text = state_comment(
+        Marker(state, "a", MARKER.since), fork="u/airflow", run_url=None, startup_failure=startup_failure
+    )
+
+    assert (BASE_BRANCH_FAILURE_TEXT in text) is points_to_the_base
+    assert BASE_BRANCH_FAILURE_URL in BASE_BRANCH_FAILURE_TEXT
+    assert BASE_BRANCH_FAILURE_URL.endswith(
+        "18_contribution_workflow.rst#when-fork-ci-fails-in-code-you-did-not-change"
+    )
+
+
+def test_state_comment_points_to_the_base_branch_once_after_the_failed_jobs():
+    jobs = [FailedJob("Static checks", "https://job/1", "failure")]
+
+    text = state_comment(
+        Marker("failed", "a", MARKER.since), fork="u/airflow", run_url=None, failed_jobs=jobs
+    )
+
+    assert text.count(BASE_BRANCH_FAILURE_TEXT) == 1
+    assert (
+        f"- [`Static checks`](https://job/1): failed\n\n{BASE_BRANCH_FAILURE_TEXT}\n\nHow this works:" in text
+    )
 
 
 def test_failed_job_list_is_safe_markdown_and_capped():

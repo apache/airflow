@@ -232,6 +232,34 @@ fewer than 200 commits behind the target branch. Otherwise the pull request comm
 rebase on ``upstream/main`` (or the target branch) and push, which runs fork CI again. Details:
 `Tested base <../dev/breeze/doc/ci/08_fork_ci_for_external_contributors.md#tested-base>`__.
 
+When fork CI fails in code you did not change
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Because fork CI tests your commit merged with the target branch, a job can fail because of a commit
+on the target branch and not because of your change. The summary page of the run in your fork names
+the commit of the target branch that the run merged with, and every job that tests your code logs
+it in its ``Merge with the base branch`` step, as
+``Testing <merge>: <your commit> merged into apache/airflow <target branch commit>``.
+
+To tell whether a failure comes from the target branch:
+
+* Look at what failed. A test or a static check in files that your pull request does not change is
+  a first hint, not proof: your change can break a test in another file, and a flaky test fails on
+  its own.
+* Look at the `scheduled runs of Tests (AMD) on main
+  <https://github.com/apache/airflow/actions/workflows/ci-amd.yml?query=event%3Aschedule+branch%3Amain>`__.
+  They run all tests twice a day. The run that a push to ``main`` starts tests nothing, so the
+  green check on a commit of ``main`` says nothing about it. The same job failing in a scheduled
+  run means that the failure is most likely not yours.
+* Look for a fix. After ``git fetch upstream``,
+  ``git log <target branch commit>..upstream/<target branch> -- <failing file>`` lists the commits
+  that changed the file since.
+
+Once the target branch is fixed, merge it into your branch, or rebase on it, and push. Fork CI then
+tests your commit merged with the fixed target branch. **Re-run failed jobs** in your fork helps
+with a flaky test, but not here: it keeps the commit of the target branch that the first attempt
+used. Do not change your pull request to work around a failure that it did not cause.
+
 Changes to CI files
 ^^^^^^^^^^^^^^^^^^^
 

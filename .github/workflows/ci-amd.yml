@@ -492,7 +492,23 @@ jobs:
           steps.merge-base.outputs.target-sha }}, merge base ${{ steps.merge-base.outputs.merge-base }}
         if: steps.merge-base.outputs.merge-with != ''
         shell: bash
-        run: echo "The jobs of this run test the pushed commit merged with apache/airflow."
+        env:
+          TARGET_BRANCH: ${{ steps.merge-base.outputs.target-branch }}
+          TARGET_SHA: ${{ steps.merge-base.outputs.target-sha }}
+          FAILURE_DOC_URL: "https://github.com/apache/airflow/blob/main/contributing-docs/\
+            18_contribution_workflow.rst#when-fork-ci-fails-in-code-you-did-not-change"
+        run: |
+          echo "The jobs of this run test the pushed commit merged with apache/airflow."
+          {
+            echo "### Merged with apache/airflow \`${TARGET_BRANCH}\`"
+            echo
+            echo "The jobs of this run test the pushed commit merged with" \
+              "[\`${TARGET_SHA:0:10}\`](https://github.com/apache/airflow/commit/${TARGET_SHA})," \
+              "the head of \`${TARGET_BRANCH}\` when this run started."
+            echo
+            echo "A job that fails in code your branch does not change can fail because of" \
+              "\`${TARGET_BRANCH}\`: see [When fork CI fails in code you did not change](${FAILURE_DOC_URL})."
+          } >> "${GITHUB_STEP_SUMMARY}"
       - name: "Fetch the last tested push commit"
         # Selective checks of a push diff against this commit. A two-commit diff only needs the
         # commit itself, not the history in between; if it cannot be fetched, all tests run.
