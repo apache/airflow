@@ -351,7 +351,7 @@ def _build_scheduled_asset_event_clause(dag_id: str) -> ColumnElement[bool]:
 
 
 def _associate_asset_events_with_dag_run(
-    *, dag_run: DagRun, asset_event_ids_select: Select[tuple[int]], session: Session
+    *, dag_run: DagRun, asset_event_ids_select: Select[int], session: Session
 ) -> int:
     """Associate selected asset events with a Dag run without loading them, returning the row count."""
     selected_event_ids = asset_event_ids_select.subquery()
@@ -3305,7 +3305,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _collect_gated_asset_events(
         self, *, dag: SerializedDAG, session: Session
-    ) -> tuple[Sequence[AssetDagRunQueue], Select[tuple[int]]] | None:
+    ) -> tuple[Sequence[AssetDagRunQueue], Select[int]] | None:
         """
         Check an asset-gated Dag's asset condition and collect what a new run consumes.
 
