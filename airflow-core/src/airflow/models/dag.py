@@ -838,7 +838,6 @@ class DagModel(Base):
                 cls.is_stale == expression.false(),
                 cls.has_import_errors == expression.false(),
                 cls.exceeds_max_non_backfill == expression.false(),
-                cls.dag_id.not_in(exclude_dag_ids),
                 or_(
                     cls.dag_id.in_(asset_triggered_dag_ids),
                     and_(cls.dag_id.in_(asset_gated_ready_dag_ids), time_due),
@@ -848,6 +847,8 @@ class DagModel(Base):
             .order_by(cls.next_dagrun_create_after)
             .limit(cls.NUM_DAGS_PER_DAGRUN_QUERY)
         )
+        if exclude_dag_ids:
+            query = query.where(cls.dag_id.not_in(exclude_dag_ids))
 
         return (
             session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True)),

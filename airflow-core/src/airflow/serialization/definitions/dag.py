@@ -77,8 +77,8 @@ if TYPE_CHECKING:
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
     from pydantic import NonNegativeInt
-    from sqlalchemy.engine import Engine
-    from sqlalchemy.orm import Session, sessionmaker
+    from sqlalchemy.engine import Connection, Engine
+    from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
     from typing_extensions import TypeIs
 
     from airflow.models.taskinstance import TaskInstance
@@ -145,7 +145,9 @@ def _create_alert_session() -> Iterator[Session]:
     with session_maker() as alert_session:
         if read_only_statement := _READ_ONLY_TRANSACTION_STATEMENTS.get(engine.dialect.name):
 
-            def set_transaction_read_only(session, transaction, connection) -> None:
+            def set_transaction_read_only(
+                session: Session, transaction: SessionTransaction, connection: Connection
+            ) -> None:
                 connection.exec_driver_sql(read_only_statement)
 
             # Per transaction: a rollback() inside the alert starts a new one.
@@ -872,9 +874,25 @@ class SerializedDAG:
             if alert
         ]
 
+        build_rolled_back_error = functools.partial(
+            DagRunRolledBackError,
+            f"Dag run {run_id} of Dag {self.dag_id} was discarded by a session rollback "
+            "while processing deadline alerts",
+            dag_id=dagrun_dag_id,
+            dag_version_id=dag_version_id,
+        )
+
+        def is_dagrun_discarded() -> bool:
+            # Leaving the session is not enough: a commit and close() outside the scheduler's commit
+            # guard (e.g. ``dag.test``) detaches the DagRun but keeps its row.
+            if orm_dagrun in session:
+                return False
+            return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
+
         with _create_alert_session() as alert_session:
             for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
-                # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest or abort the DagRun.
+                # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest
+                # or abort the DagRun.
                 try:
                     deserialized_deadline_alert = decode_deadline_alert(
                         {
@@ -923,7 +941,16 @@ class SerializedDAG:
                                 required_dagrun_column=required_dagrun_column,
                             )
                 except Exception as exc:
-                    if isinstance(exc, RuntimeError) and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc):
+                    # On PostgreSQL a failed statement aborts the transaction, failing every later alert.
+                    alert_session.rollback()
+                    # Also true when create_session() commits the scheduler's session: the guard rejects
+                    # the commit, and create_session() then rolls the session back.
+                    dagrun_discarded = is_dagrun_discarded()
+                    if (
+                        not dagrun_discarded
+                        and isinstance(exc, RuntimeError)
+                        and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc)
+                    ):
                         # A rejected commit means the scheduler's HA locking is already broken. Recording
                         # that as a skipped alert would hide it, so let it escape instead.
                         raise
@@ -934,18 +961,15 @@ class SerializedDAG:
                         deadline_alert_id=alert_id,
                     )
                     stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
+                    if dagrun_discarded:
+                        raise build_rolled_back_error() from exc
 
                 # Alerts get their own session, but one that reaches for the scheduler's session
                 # (provide_session, settings.Session) can still roll it back, discarding the pending
                 # DagRun. Carrying on would add Deadlines that violate the dagrun_id foreign key, and
                 # returning normally would let the caller treat the missing run as created.
-                if orm_dagrun not in session:
-                    raise DagRunRolledBackError(
-                        f"Dag run {run_id} of Dag {self.dag_id} was discarded by a session rollback "
-                        "while processing deadline alerts",
-                        dag_id=dagrun_dag_id,
-                        dag_version_id=dag_version_id,
-                    )
+                if is_dagrun_discarded():
+                    raise build_rolled_back_error()
 
     @provide_session
     def set_task_instance_state(

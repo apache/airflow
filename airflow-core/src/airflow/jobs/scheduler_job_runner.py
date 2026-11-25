@@ -467,7 +467,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def heartbeat_callback(self, *, session: Session = NEW_SESSION) -> None:
         stats.incr("scheduler_heartbeat", 1, 1)
 
-    def _get_dag_ids_rolling_back_session(self, *, session: Session) -> set[str]:
+    def _prune_dag_versions_rolling_back_session(self, *, session: Session) -> set[str]:
         """Return the Dags to leave out of Dag run creation, forgetting those with a newer version parsed."""
         for dag_id, dag_version_id in list(self._dag_versions_rolling_back_session.items()):
             latest_version = DagVersion.get_latest_version(dag_id, session=session)
@@ -2619,16 +2619,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
         # two APDRs share a `created_at` under bulk asset-event ingestion.
         # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
+        pending_apdrs_query = (
+            select(AssetPartitionDagRun)
+            .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+            .where(*_build_pending_partitioned_apdr_filters())
+            .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+            .limit(self._max_partition_dag_runs_per_loop)
+        )
+        if exclude_dag_ids:
+            pending_apdrs_query = pending_apdrs_query.where(
+                AssetPartitionDagRun.target_dag_id.not_in(exclude_dag_ids)
+            )
         pending_apdrs = session.scalars(
             with_row_locks(
-                select(AssetPartitionDagRun)
-                .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                .where(
-                    *_build_pending_partitioned_apdr_filters(),
-                    AssetPartitionDagRun.target_dag_id.not_in(exclude_dag_ids),
-                )
-                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
-                .limit(self._max_partition_dag_runs_per_loop),
+                pending_apdrs_query,
                 of=AssetPartitionDagRun,
                 skip_locked=True,
                 key_share=False,
@@ -2816,7 +2820,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
         # Excluded in the queries rather than skipped afterwards, so they don't use up the per-loop limits.
-        excluded_dag_ids = self._get_dag_ids_rolling_back_session(session=session)
+        excluded_dag_ids = self._prune_dag_versions_rolling_back_session(session=session)
         partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(
             session, exclude_dag_ids=excluded_dag_ids
         )

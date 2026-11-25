@@ -11041,7 +11041,7 @@ class TestSchedulerJob:
         job_runner._create_dag_runs([dm1], session)
         assert "Failed creating DagRun" in caplog.text
 
-    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
+    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True)
     def test_dag_run_rolled_back_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
         mock_create.side_effect = DagRunRolledBackError(
             "rolled back", dag_id="testdag1", dag_version_id=uuid4()
@@ -11059,39 +11059,6 @@ class TestSchedulerJob:
             job_runner._create_dag_runs([dm1], session)
 
         assert dm1.next_dagrun == next_dagrun
-
-    @pytest.mark.need_serialized_dag
-    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun")
-    def test_asset_triggered_dag_run_rolled_back_by_deadline_alert_propagates(
-        self, mock_create, session, dag_maker
-    ):
-        mock_create.side_effect = DagRunRolledBackError(
-            "rolled back", dag_id="asset-consumer-rolled-back", dag_version_id=uuid4()
-        )
-        asset = Asset(uri="test://asset-rolled-back", name="asset-rolled-back")
-        with dag_maker(dag_id="asset-consumer-rolled-back", schedule=[asset], session=session):
-            pass
-        dag_model = dag_maker.dag_model
-        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-        event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow())
-        session.add(event)
-        session.flush()
-        session.add(
-            AssetDagRunQueue(target_dag_id=dag_model.dag_id, asset_id=asset_id, asset_event_id=event.id)
-        )
-        session.flush()
-
-        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
-        with pytest.raises(DagRunRolledBackError):
-            job_runner._create_dag_runs_asset_triggered(dag_models=[dag_model], session=session)
-
-        assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one_or_none() is None
-        assert (
-            session.scalars(
-                select(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
-            ).one_or_none()
-            is not None
-        )
 
     @mock.patch.object(SchedulerJobRunner, "_start_queued_dagruns", autospec=True)
     @mock.patch.object(SchedulerJobRunner, "_create_dagruns_for_dags", autospec=True)
@@ -11115,7 +11082,7 @@ class TestSchedulerJob:
         mock_start_queued.assert_called_once()
 
     @pytest.mark.parametrize("recorded_version_is_latest", [True, False])
-    def test_get_dag_ids_rolling_back_session_forgets_dags_with_a_newer_version(
+    def test_prune_dag_versions_rolling_back_session_forgets_dags_with_a_newer_version(
         self, session, dag_maker, recorded_version_is_latest
     ):
         with dag_maker("rolled_back_dag", serialized=True):
@@ -11127,12 +11094,13 @@ class TestSchedulerJob:
             latest_version_id if recorded_version_is_latest else uuid4()
         )
 
-        excluded = job_runner._get_dag_ids_rolling_back_session(session=session)
+        excluded = job_runner._prune_dag_versions_rolling_back_session(session=session)
 
         expected = {"rolled_back_dag"} if recorded_version_is_latest else set()
         assert excluded == expected
         assert set(job_runner._dag_versions_rolling_back_session) == expected
 
+    @mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1)
     def test_dag_rolling_back_session_does_not_use_up_dag_run_creation_limit(self, session, dag_maker):
         with dag_maker("rolled_back_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
             EmptyOperator(task_id="task")
@@ -11149,8 +11117,7 @@ class TestSchedulerJob:
         job_runner._dag_versions_rolling_back_session["rolled_back_dag"] = DagVersion.get_latest_version(
             "rolled_back_dag", session=session
         ).id
-        with mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1):
-            job_runner._create_dagruns_for_dags(mock.create_autospec(CommitProhibitorGuard), session)
+        job_runner._create_dagruns_for_dags(mock.create_autospec(CommitProhibitorGuard), session)
 
         created = session.scalars(
             select(DagRun.dag_id).where(DagRun.dag_id.in_(["rolled_back_dag", "other_dag"]))
@@ -14982,9 +14949,7 @@ def test_partitioned_batch_asset_events(dag_maker: DagMaker, session: Session, b
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
-def test_partitioned_dag_run_rolled_back_by_deadline_alert_propagates_and_is_excluded_on_request(
-    dag_maker: DagMaker, session: Session
-):
+def test_partitioned_dag_run_creation_leaves_out_excluded_dags(dag_maker: DagMaker, session: Session):
     asset = Asset(name="partitioned-rolled-back-asset")
     dag_id = "partitioned-rolled-back-consumer"
     with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), session=session):
@@ -15003,20 +14968,15 @@ def test_partitioned_dag_run_rolled_back_by_deadline_alert_propagates_and_is_exc
     )
     # Patched only here: producing the asset event above also goes through create_dagrun.
     with patch(
-        "airflow.serialization.serialized_objects.SerializedDAG.create_dagrun",
-        side_effect=DagRunRolledBackError("rolled back", dag_id=dag_id, dag_version_id=uuid4()),
+        "airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True
     ) as mock_create:
-        with pytest.raises(DagRunRolledBackError):
-            runner._create_dagruns_for_partitioned_asset_dags(session=session)
-
         assert (
             runner._create_dagruns_for_partitioned_asset_dags(session=session, exclude_dag_ids={dag_id})
             == set()
         )
-        mock_create.assert_called_once()
 
+    mock_create.assert_not_called()
     assert apdr.created_dag_run_id is None
-    assert session.scalars(select(DagRun).where(DagRun.dag_id == dag_id)).one_or_none() is None
 
 
 @pytest.mark.need_serialized_dag

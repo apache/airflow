@@ -2300,10 +2300,27 @@ class TestDagRun:
             tags={"dag_id": scheduler_dag.dag_id},
         )
 
-    @mock.patch.object(Deadline, "prune_deadlines")
-    @mock.patch.object(Variable, "get")
-    def test_dagrun_deadline_alert_rolling_back_its_own_session_keeps_dagrun_and_later_alerts(
-        self, mock_variable_get, _, session, deadline_test_dag
+    @staticmethod
+    def _rollback_given_session_and_raise(key, session):
+        session.rollback()
+        raise KeyError(key)
+
+    @staticmethod
+    def _write_through_given_session(key, session):
+        session.execute(text("UPDATE variable SET val = val WHERE id = -1"))
+        return "60"
+
+    @pytest.mark.parametrize(
+        "misbehave",
+        [
+            pytest.param(_rollback_given_session_and_raise, id="rollback"),
+            pytest.param(_write_through_given_session, id="write"),
+        ],
+    )
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True)
+    def test_dagrun_deadline_alert_misusing_its_own_session_keeps_dagrun_and_later_alerts(
+        self, mock_variable_get, _, misbehave, session, deadline_test_dag
     ):
         scheduler_dag = deadline_test_dag(
             deadline=[
@@ -2323,11 +2340,7 @@ class TestDagRun:
         )
         session.commit()
 
-        def rollback_given_session_and_raise(key, session):
-            session.rollback()
-            raise KeyError(key)
-
-        mock_variable_get.side_effect = rollback_given_session_and_raise
+        mock_variable_get.side_effect = misbehave
 
         dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
 
@@ -2363,43 +2376,8 @@ class TestDagRun:
         # The connection goes back to the shared pool and must not stay read-only.
         session.execute(text("UPDATE variable SET val = val WHERE id = -1"))
 
-    @mock.patch.object(Deadline, "prune_deadlines")
-    @mock.patch.object(Variable, "get")
-    def test_dagrun_deadline_alert_writing_through_its_session_is_skipped(
-        self, mock_variable_get, _, session, deadline_test_dag
-    ):
-        scheduler_dag = deadline_test_dag(
-            deadline=[
-                DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(
-                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
-                    ),
-                    interval=VariableInterval("some_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-                DeadlineAlert(
-                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
-                    interval=datetime.timedelta(hours=1),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-            ],
-        )
-        session.commit()
-
-        def write_through_given_session(key, session):
-            session.execute(text("UPDATE variable SET val = val WHERE id = -1"))
-
-        mock_variable_get.side_effect = write_through_given_session
-
-        dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
-
-        assert dag_run in session
-        session.flush()
-        deadlines = session.scalars(select(Deadline)).all()
-        assert [deadline.dagrun_id for deadline in deadlines] == [dag_run.id]
-
-    @mock.patch.object(Deadline, "prune_deadlines")
-    @mock.patch.object(Variable, "get")
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True)
     def test_dagrun_deadline_alert_rolling_back_schedulers_session_raises_instead_of_orphaning_deadline(
         self, mock_variable_get, _, session, deadline_test_dag
     ):
@@ -2435,6 +2413,84 @@ class TestDagRun:
         assert exc_info.value.dag_version_id == dag_version_id
         assert session.scalars(select(Deadline)).all() == []
         assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
+
+    @pytest.mark.parametrize(
+        "under_commit_guard",
+        [pytest.param(True, id="scheduler_guarded"), pytest.param(False, id="unguarded_caller")],
+    )
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True)
+    def test_dagrun_deadline_alert_committing_callers_session(
+        self, mock_variable_get, _, under_commit_guard, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(
+                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
+                    ),
+                    interval=VariableInterval("interval_key"),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                ),
+            ],
+        )
+        session.commit()
+
+        def commit_callers_session(key, session):
+            with create_session():
+                pass
+            return "60"
+
+        mock_variable_get.side_effect = commit_callers_session
+
+        if under_commit_guard:
+            # The guard rejects the commit and create_session() rolls back, discarding the Dag run.
+            with prohibit_commit(session), pytest.raises(DagRunRolledBackError):
+                self.create_dag_run(dag=scheduler_dag, session=session)
+            assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
+        else:
+            # The commit goes through and only detaches the Dag run, which is kept.
+            dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+            session.flush()
+            assert session.scalars(select(DagRun.id).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == [
+                dag_run.id
+            ]
+            assert [deadline.dagrun_id for deadline in session.scalars(select(Deadline))] == [dag_run.id]
+
+    @pytest.mark.backend("postgres")
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True)
+    def test_dagrun_deadline_alert_failing_statement_does_not_fail_later_alerts(
+        self, mock_variable_get, _, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.FIXED_DATETIME(
+                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
+                    ),
+                    interval=VariableInterval(key),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                )
+                for key in ("failing_key", "working_key")
+            ],
+        )
+        session.commit()
+
+        # PostgreSQL aborts the transaction after a failed statement; without a rollback in between
+        # the second alert's statement would fail too.
+        def run_statement(key, session):
+            if key == "failing_key":
+                session.execute(text("SELECT missing_column FROM variable"))
+            session.execute(text("SELECT 1"))
+            return "60"
+
+        mock_variable_get.side_effect = run_statement
+
+        dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+
+        session.flush()
+        assert [deadline.dagrun_id for deadline in session.scalars(select(Deadline))] == [dag_run.id]
 
     @pytest.mark.parametrize(
         ("interval", "expect_deadline", "variable_value"),
