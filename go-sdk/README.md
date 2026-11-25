@@ -121,6 +121,8 @@ Generated from capabilities.yaml by the update-go-sdk-readme-matrix prek hook: e
 
 *Min. Airflow version: 3.5.0 · supervisor schema: 2027-02-28*
 
+*Marks: ✓ supported · ✗ not supported · n/a not applicable. Tiers: MUST is required, SHOULD is expected, MAY is optional. A tier marked † applies only when `dag-definition-authoring` is supported.*
+
 | Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |
 |---|---|---|---|---|---|
 | **Dag definition** |  |  |  |  |  |
@@ -176,8 +178,6 @@ Generated from capabilities.yaml by the update-go-sdk-readme-matrix prek hook: e
 | state: `up_for_reschedule` | MAY | ✗ | – | – | runtime does not emit RescheduleTask yet |
 | state: `awaiting_input` | MAY | ✗ | – | – | runtime does not emit AwaitInputTask yet |
 | state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
-
-*Marks: ✓ supported · ✗ not supported · n/a not applicable. Tiers: MUST is required, SHOULD is expected, MAY is optional. A tier marked † applies only when `dag-definition-authoring` is supported.*
 
 <!-- END AUTO-GENERATED LANG-SDK COMPAT MATRIX -->
 

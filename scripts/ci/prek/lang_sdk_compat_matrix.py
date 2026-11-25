@@ -413,6 +413,8 @@ def render_markdown_table(doc: Capabilities) -> list[str]:
         f"*Min. Airflow version: {doc.min_airflow_version} · "
         f"supervisor schema: {doc.supervisor_schema_version}*\n",
         "\n",
+        f"*{LEGEND}*\n",
+        "\n",
         "| Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |\n",
         "|---|---|---|---|---|---|\n",
     ]
@@ -426,7 +428,5 @@ def render_markdown_table(doc: Capabilities) -> list[str]:
                     f"{_format_version(entry, 'since')} | {_format_version(entry, 'sdk_version')} | "
                     f"{_format_note(entry)} |\n"
                 )
-    lines.append("\n")
-    lines.append(f"*{LEGEND}*\n")
     lines.append("\n")
     return lines

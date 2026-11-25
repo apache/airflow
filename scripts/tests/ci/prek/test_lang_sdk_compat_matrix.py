@@ -241,6 +241,13 @@ class TestRenderMarkdownTable:
             assert f"| capability: `{cap.name}` |" in rendered
         assert "supervisor schema: 2026-06-16" in rendered
 
+    def test_legend_renders_before_the_table(self, capabilities_doc):
+        rendered = "".join(
+            matrix.render_markdown_table(matrix.parse_capabilities(capabilities_doc(), source="test"))
+        )
+
+        assert rendered.index(matrix.LEGEND) < rendered.index("| Dimension |")
+
     def test_dag_definition_has_timetable_and_local_testing_rows(self):
         rows = {row.name: row for row in matrix.build_matrix_parts().dag_definition.groups[0].rows}
 

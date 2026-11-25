@@ -457,6 +457,8 @@ shows the SDK release that shipped it. Each row and its tier (MUST, SHOULD, MAY)
 
 .. BEGIN AUTO-GENERATED LANG-SDK COMPAT MATRIX
 
+*Marks:* ``✓`` supported (with the SDK release that shipped it, when known) · ``✗`` not supported · ``n/a`` not applicable · ``n/p`` not published. Tiers: MUST is required, SHOULD is expected, MAY is optional. A tier marked ``†`` applies only when ``dag-definition-authoring`` is supported.
+
 .. list-table:: Language SDK versions
    :header-rows: 1
    :widths: 30 15 15 15
@@ -704,8 +706,6 @@ shows the SDK release that shipped it. Each row and its tier (MUST, SHOULD, MAY)
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0
-
-*Marks:* ``✓`` supported (with the SDK release that shipped it, when known) · ``✗`` not supported · ``n/a`` not applicable · ``n/p`` not published. Tiers: MUST is required, SHOULD is expected, MAY is optional. A tier marked ``†`` applies only when ``dag-definition-authoring`` is supported.
 
 .. END AUTO-GENERATED LANG-SDK COMPAT MATRIX
 

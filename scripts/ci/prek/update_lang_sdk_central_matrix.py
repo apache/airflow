@@ -102,7 +102,15 @@ def _get_cell(sdk: SdkCapabilities, row: matrix.MatrixRow) -> str:
 
 def render_central_table(sdk_capabilities: Sequence[SdkCapabilities]) -> list[str]:
     """Render the consolidated cross-SDK RST ``list-table`` for each part of the matrix."""
-    lines = _render_table_header("Language SDK versions", sdk_capabilities, first_column="Version")
+    lines = [
+        "\n",
+        f"*Marks:* ``{matrix.SUPPORTED_MARK}`` supported (with the SDK release that shipped it, when known) · "
+        f"``{matrix.UNSUPPORTED_MARK}`` not supported · ``{matrix.NA_MARK}`` not applicable · "
+        f"``{ABSENT_MARK}`` not published. Tiers: MUST is required, SHOULD is expected, MAY is optional. "
+        f"A tier marked ``†`` applies only when "
+        f"``{matrix.DAG_DEFINITION_GATE}`` is supported.\n",
+    ]
+    lines += _render_table_header("Language SDK versions", sdk_capabilities, first_column="Version")
     lines += _render_row(
         "Min. Airflow version",
         [sdk.doc.min_airflow_version if sdk.doc else ABSENT_MARK for sdk in sdk_capabilities],
@@ -121,15 +129,7 @@ def render_central_table(sdk_capabilities: Sequence[SdkCapabilities]) -> list[st
                     f"``{row.name}`` ({matrix.format_tier(row)})",
                     [_get_cell(sdk, row) for sdk in sdk_capabilities],
                 )
-    lines += [
-        "\n",
-        f"*Marks:* ``{matrix.SUPPORTED_MARK}`` supported (with the SDK release that shipped it, when known) · "
-        f"``{matrix.UNSUPPORTED_MARK}`` not supported · ``{matrix.NA_MARK}`` not applicable · "
-        f"``{ABSENT_MARK}`` not published. Tiers: MUST is required, SHOULD is expected, MAY is optional. "
-        f"A tier marked ``†`` applies only when "
-        f"``{matrix.DAG_DEFINITION_GATE}`` is supported.\n",
-        "\n",
-    ]
+    lines.append("\n")
     return lines
 
 
