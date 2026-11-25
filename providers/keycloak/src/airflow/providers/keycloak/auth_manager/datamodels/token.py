@@ -27,6 +27,7 @@ from airflow.providers.keycloak.auth_manager.services.token import (
     create_jwt_federated_token,
     create_token_for,
     create_token_from_authorization_code,
+    create_token_from_device_code,
     refresh_cli_token,
 )
 
@@ -121,6 +122,30 @@ class TokenAuthorizationCodeBody(StrictBaseModel):
         )
 
 
+class TokenDeviceCodeBody(StrictBaseModel):
+    """Device code grant serializer for post bodies, used by the device code login of CLI clients."""
+
+    grant_type: Literal["urn:ietf:params:oauth:grant-type:device_code"]
+    device_code: str = Field()
+
+    def create_token(self, expiration_time_in_seconds: int) -> str:
+        """Create token from a device code that the user approved."""
+        return create_token_from_device_code(
+            self.device_code, expiration_time_in_seconds=expiration_time_in_seconds
+        )
+
+
+class DeviceAuthorizationResponse(BaseModel):
+    """Device authorization response (RFC 8628 section 3.2) for the device code login of CLI clients."""
+
+    device_code: str
+    user_code: str
+    verification_uri: str
+    verification_uri_complete: str | None = None
+    expires_in: int
+    interval: int = 5
+
+
 TokenUnion = Annotated[
     TokenPasswordBody | TokenClientCredentialsBody | TokenJwtFederatedBody,
     Field(discriminator="grant_type"),
@@ -137,7 +162,7 @@ class TokenBody(RootModel[TokenUnion]):
 
 
 TokenCliUnion = Annotated[
-    TokenPasswordBody | TokenRefreshBody | TokenAuthorizationCodeBody,
+    TokenPasswordBody | TokenRefreshBody | TokenAuthorizationCodeBody | TokenDeviceCodeBody,
     Field(discriminator="grant_type"),
 ]
 

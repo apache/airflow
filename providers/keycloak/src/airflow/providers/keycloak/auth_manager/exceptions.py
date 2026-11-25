@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from keycloak import KeycloakConnectionError, KeycloakError
 
+from airflow.providers.common.compat.sdk import AirflowException
+
 try:
     from airflow.api_fastapi.auth.managers.exceptions import AuthManagerRefreshTokenExpiredException
 except ImportError:
@@ -27,9 +29,27 @@ except ImportError:
         """In case it is using a version of Airflow without ``AuthManagerRefreshTokenExpiredException``."""
 
 
+class KeycloakAuthorizationError(AirflowException):
+    """Keycloak could not answer an authorization request."""
+
+
+class KeycloakAuthorizationRequestError(KeycloakAuthorizationError):
+    """Keycloak rejected an authorization request as invalid."""
+
+
+class KeycloakUnexpectedResponseError(KeycloakAuthorizationError):
+    """Keycloak answered an authorization request with an unexpected HTTP status."""
+
+
 def is_keycloak_outage(error: KeycloakError) -> bool:
     """Return whether ``error`` means Keycloak could not be reached or failed on its side."""
     return isinstance(error, KeycloakConnectionError) or (error.response_code or 0) >= 500
 
 
-__all__ = ["AuthManagerRefreshTokenExpiredException", "is_keycloak_outage"]
+__all__ = [
+    "AuthManagerRefreshTokenExpiredException",
+    "KeycloakAuthorizationError",
+    "KeycloakAuthorizationRequestError",
+    "KeycloakUnexpectedResponseError",
+    "is_keycloak_outage",
+]

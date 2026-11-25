@@ -60,6 +60,48 @@
     },
     "title": "截止期限"
   },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "受影响的 Dags",
+      "failures": "失败次数",
+      "kind": "类型",
+      "lastError": "最后错误",
+      "lastEvent": "最后事件",
+      "status": "状态",
+      "triggerer": "触发器进程",
+      "usedBy": "使用者"
+    },
+    "detail": {
+      "firstFailedAt": "开始失败时间",
+      "lastFailedAt": "最后失败时间",
+      "noReadableScheduledDags": "没有您可查看的 Dags",
+      "scheduledDags": "已调度的 Dags"
+    },
+    "filters": {
+      "triggererHostname": "触发器进程主机名称"
+    },
+    "forbidden": {
+      "description": "触发器仅对能查看其服务对象的用户显示：Dag 的任务实例或 Dag 执行，或其监听的资源。您无法查看其中任何一项。",
+      "title": "没有可显示的触发器"
+    },
+    "kind": {
+      "asset_watcher": "资源监听器",
+      "callback": "回调",
+      "task": "任务"
+    },
+    "notFound": {
+      "backToList": "返回触发器",
+      "description": "触发器在触发后或其服务对象完成后即被移除，因此该触发器很可能已经结束。",
+      "title": "此触发器已不存在"
+    },
+    "status": {
+      "failing": "持续失败",
+      "orphaned": "已孤立"
+    },
+    "statusHint": {
+      "orphaned": "其触发器进程已停止，正在等待其他触发器进程接管。"
+    }
+  },
   "xcom": {
     "add": {
       "error": "添加 XCom 失败",

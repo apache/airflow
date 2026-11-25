@@ -65,17 +65,14 @@ _PATH_TYPE = LargeBinary().with_variant(VARBINARY(300), "mysql", "mariadb")
 _pack_index = struct.Struct(">I").pack
 
 if TYPE_CHECKING:
-    from sqlalchemy import Select
     from sqlalchemy.engine import Connection
     from sqlalchemy.orm import Mapper
     from sqlalchemy.orm.session import SessionTransaction
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.taskinstance import TaskInstance
-    from airflow.utils.sqlalchemy import UUIDSelect
+    from airflow.utils.sqlalchemy import Select
 
-# Bound unparameterised: no ``Select[...]`` spelling accepts every arity on both SQLAlchemy 2.0 and 2.1.
-# TODO: parameterise the bound with the variadic Select once the minimum SQLAlchemy is 2.1.
 _SelectT = TypeVar("_SelectT", bound="Select")
 
 
@@ -846,7 +843,7 @@ def select_current_producer_ids(
     region_id: UUID | None = None,
     region_index: int | None = None,
     session: Session,
-) -> UUIDSelect:
+) -> Select[UUID]:
     """
     Select the ids of the live producers :func:`resolve_current_producers` would return.
 
@@ -951,7 +948,7 @@ def _build_pass_ownership_filter(
 
 def select_loop_producer_ids(
     *, dag_id: str, run_id: str, loop_node_id: str, task_id: str, is_mapped: bool, session: Session
-) -> UUIDSelect:
+) -> Select[UUID]:
     """
     Select every live execution of ``task_id`` across all passes of the loop ``loop_node_id``.
 

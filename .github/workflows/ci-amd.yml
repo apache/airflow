@@ -420,6 +420,8 @@ jobs:
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
       testable-core-integrations: ${{ steps.selective-checks.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ steps.selective-checks.outputs.testable-providers-integrations }}
+      testable-providers-integrations-matrix: >
+        ${{ steps.selective-checks.outputs.testable-providers-integrations-matrix }}
       use-uv: ${{ steps.selective-checks.outputs.force-pip == 'true' && 'false' || 'true' }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       is-uv-lock-update: ${{ steps.selective-checks.outputs.is-uv-lock-update }}
@@ -1189,6 +1191,8 @@ jobs:
       platform: ${{ needs.build-info.outputs.platform }}
       testable-core-integrations: ${{ needs.build-info.outputs.testable-core-integrations }}
       testable-providers-integrations: ${{ needs.build-info.outputs.testable-providers-integrations }}
+      testable-providers-integrations-matrix: >
+        ${{ needs.build-info.outputs.testable-providers-integrations-matrix }}
       run-system-tests: ${{ needs.build-info.outputs.run-system-tests }}
       default-python-version: "${{ needs.build-info.outputs.default-python-version }}"
       default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
@@ -1197,7 +1201,9 @@ jobs:
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       skip-providers-tests: ${{ needs.build-info.outputs.skip-providers-tests }}
       use-uv: ${{ needs.build-info.outputs.use-uv }}
-    if: needs.build-info.outputs.run-unit-tests == 'true'
+    if: >
+      needs.build-info.outputs.run-unit-tests == 'true' ||
+      needs.build-info.outputs.testable-providers-integrations != '[]'
 
   tests-with-lowest-direct-resolution-core:
     name: "Low dep tests:core"

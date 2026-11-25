@@ -18,12 +18,11 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 import pydantic
 
 from airflow.sdk.module_loading import qualname
-from airflow.sdk.serde.typing import is_pydantic_model
 
 # lazy loading for performance reasons
 serializers = [
@@ -69,39 +68,59 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
     return "", "", 0, False
 
 
-def deserialize(cls: type, version: int, data: dict) -> Any:
+def deserialize(cls: type, version: int, data: dict) -> pydantic.BaseModel:
     if version > __version__:
         raise TypeError(f"serialized version {version} is newer than class version {__version__}")
 
-    if not is_pydantic_model(cls):
+    if not issubclass(cls, pydantic.BaseModel):
         raise TypeError(f"do not know how to deserialize {qualname(cls)}")
-    model = cast("type[pydantic.BaseModel]", cls)
 
     try:
-        return model.model_validate(data)
+        return cls.model_validate(data)
     except pydantic.ValidationError as e:
         try:
-            coerced = _coerce_legacy_values(data, e)
+            _coerce_legacy_values(data, e)
         except (KeyError, TypeError, ValueError):
             raise e
-        return model.model_validate(coerced)
+        return cls.model_validate(data)
 
 
-def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> dict:
+def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> None:
     # kubernetes<37 stored numeric quantities/labels, string booleans and fields since
     # removed, all of which the pydantic models of kubernetes>=37 reject.
     for err in error.errors():
         *path, key = err["loc"]
-        parent: Any = data
-        for part in path:
-            parent = parent[part]
-        value = parent[key]
-        if err["type"] == "extra_forbidden":
+        parent = _find_parent(data, path)
+        value = err["input"]
+        new: str | bool
+        if err["type"] == "extra_forbidden" and isinstance(parent, dict):
             del parent[key]
-        elif err["type"] == "string_type" and isinstance(value, bool):
-            parent[key] = str(value).lower()
+            continue
+        if err["type"] == "string_type" and isinstance(value, bool):
+            new = str(value).lower()
         elif err["type"] == "string_type" and isinstance(value, (int, float)):
-            parent[key] = str(value)
-        elif err["type"] == "bool_type" and str(value).lower() in ("true", "false"):
-            parent[key] = str(value).lower() == "true"
-    return data
+            new = str(value)
+        elif err["type"] == "bool_type" and isinstance(value, str) and value.lower() in ("true", "false"):
+            new = value.lower() == "true"
+        else:
+            continue
+        if isinstance(parent, dict):
+            parent[key] = new
+        elif isinstance(key, int):
+            parent[key] = new
+
+
+def _find_parent(data: dict, path: list[int | str]) -> dict | list:
+    # Union fields add type tags to ``loc`` that are not keys in the data.
+    parent: dict | list = data
+    for part in path:
+        if isinstance(parent, dict):
+            child = parent[part]
+        elif isinstance(part, int):
+            child = parent[part]
+        else:
+            raise TypeError(f"cannot index a list with {part!r}")
+        if not isinstance(child, (dict, list)):
+            raise TypeError(f"{part!r} does not point to a dict or list")
+        parent = child
+    return parent

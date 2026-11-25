@@ -211,6 +211,14 @@ Runs mongo providers integration tests:
 
        breeze testing providers-integration-tests  --db-reset --integration mongo
 
+The ``elasticsearch`` and ``opensearch`` integrations start the latest server version by default. Pick another
+supported version with ``--elasticsearch-version`` or ``--opensearch-version`` (``--help`` lists them).
+CI runs their tests once per supported version.
+
+  .. code-block:: bash
+
+       breeze testing providers-integration-tests  --db-reset --integration elasticsearch --elasticsearch-version <VERSION>
+
 
 Runs kerberos core integration tests:
 

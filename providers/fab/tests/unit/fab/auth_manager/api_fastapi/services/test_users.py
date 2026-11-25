@@ -20,11 +20,13 @@ import types
 from unittest.mock import MagicMock, call, patch
 
 import pytest
+from cachetools import TTLCache
 from fastapi import HTTPException
 from pydantic import SecretStr
 
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role
 from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 
 
 @pytest.fixture
@@ -690,6 +692,26 @@ class TestUsersService:
         assert user_obj.roles == []
         security_manager.session.delete.assert_called_once_with(user_obj)
         security_manager.session.commit.assert_called_once()
+
+    @patch.object(FabAuthManager, "cache", new_callable=lambda: TTLCache(maxsize=8, ttl=60))
+    def test_delete_user_drops_cached_user(
+        self, cache, get_fab_auth_manager, fab_auth_manager, security_manager
+    ):
+        user_obj = _make_user_obj(
+            id=7,
+            username="alice",
+            email="alice@example.com",
+            first_name="Alice",
+            last_name="Liddell",
+        )
+        cache[user_obj.id] = user_obj
+        security_manager.find_user.return_value = user_obj
+        fab_auth_manager.security_manager = security_manager
+        get_fab_auth_manager.return_value = fab_auth_manager
+
+        FABAuthManagerUsers.delete_user("alice")
+
+        assert user_obj.id not in cache
 
     def test_delete_user_not_found(self, get_fab_auth_manager, fab_auth_manager, security_manager):
         security_manager.find_user.return_value = None

@@ -27,6 +27,7 @@ from airflow.providers.databricks.hooks.genie import DatabricksGenieHook
 from airflow.providers.databricks.operators.genie import DatabricksGenieOperator
 from airflow.providers.databricks.triggers.genie import DatabricksGenieMessageTrigger
 
+from tests_common.test_utils.task_state import RESERVED_KEY_PREFIX
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 SPACE_ID = "space/1"
@@ -88,6 +89,9 @@ class FakeStore:
         return self.data.get(key, default)
 
     def set(self, key, value, *, retention=None):
+        # Airflow 3.5+ also writes the logs banner record; only the operator's own keys are under test.
+        if key.startswith(RESERVED_KEY_PREFIX):
+            return
         self.journal.append(("set", key))
         self.data[key] = value
 

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type ComponentType, lazy, Suspense } from "react";
+import { type ComponentType, lazy, Suspense, useState } from "react";
 
 import { Spinner } from "@chakra-ui/react";
 import { useParams } from "react-router-dom";
@@ -34,6 +34,8 @@ import type {
   ReactAppResponse,
   TaskInstanceResponse,
 } from "openapi/requests/types.gen";
+
+import { PluginBoundary } from "src/components/PluginBoundary";
 
 import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { loadRouteModule, reloadAfterFailedRouteModuleLoad } from "src/utils/routeModule";
@@ -105,6 +107,10 @@ export const loadPlugin = (
 export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse }) => {
   const { assetId, dagId, mapIndex, runId, taskId } = useParams();
   const coordinates = useTaskInstanceCoordinates();
+  // A `lazy()` call in render is a new component type each render unless the compiler memoizes it;
+  // holding it in state keeps it to one per mount without depending on that. Callers key by plugin.
+  // oxlint-disable-next-line react/hook-use-state -- the lazy component is never replaced
+  const [LazyPlugin] = useState(() => lazy(() => loadPlugin(reactApp)));
 
   // Context objects are not part of the route, so resolve them from the query cache. Each query
   // is gated on the route params it needs, so it stays disabled where those params are absent
@@ -154,22 +160,21 @@ export const ReactPlugin = ({ reactApp }: { readonly reactApp: ReactAppResponse 
   // If the plugin component was already registered on the global object by a previous load,
   // render it directly without going through Suspense/lazy (avoids flashing the spinner).
   const existing = (globalThis as Record<string, unknown>)[reactApp.name];
-
-  if (typeof existing === "function") {
-    const Plugin = existing as PluginComponentType;
-
-    return <Plugin {...pluginProps} />;
-  }
-
-  // Otherwise, lazy-load the bundle once. When it resolves, it must set a function component
-  // under globalThis[reactApp.name], which we then use as the default export.
-  const LazyPlugin = lazy(() => loadPlugin(reactApp));
   // A base plugin sits above every page, so a spinner there shows on every full page load.
   const fallback = reactApp.destination === "base" ? null : <Spinner />;
+  const Plugin = typeof existing === "function" ? (existing as PluginComponentType) : undefined;
 
   return (
-    <Suspense fallback={fallback}>
-      <LazyPlugin {...pluginProps} />
-    </Suspense>
+    // The route element stays mounted across Dags, runs and tasks, so a plugin that failed on one
+    // gets another try on the next instead of staying hidden until a full reload.
+    <PluginBoundary name={reactApp.name} resetKey={[assetId, dagId, runId, taskId, mapIndex].join("/")}>
+      {Plugin === undefined ? (
+        <Suspense fallback={fallback}>
+          <LazyPlugin {...pluginProps} />
+        </Suspense>
+      ) : (
+        <Plugin {...pluginProps} />
+      )}
+    </PluginBoundary>
   );
 };

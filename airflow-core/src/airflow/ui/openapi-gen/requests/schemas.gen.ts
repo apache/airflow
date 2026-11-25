@@ -8196,6 +8196,20 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Dialects'
         },
+        object_storage_providers: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderObjectStorageProviderInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Object Storage Providers'
+        },
         transfers: {
             anyOf: [
                 {
@@ -8521,6 +8535,36 @@ export const $ProviderIntegrationModulesInfo = {
     required: ['integration_name', 'python_modules'],
     title: 'ProviderIntegrationModulesInfo',
     description: 'Python modules an integration contributes for one kind of functionality.'
+} as const;
+
+export const $ProviderObjectStorageProviderInfo = {
+    properties: {
+        storage_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Storage Type'
+        },
+        provider_class_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Provider Class Name'
+        }
+    },
+    type: 'object',
+    title: 'ProviderObjectStorageProviderInfo',
+    description: 'DataFusion object storage provider provided by a provider.'
 } as const;
 
 export const $ProviderPluginInfo = {

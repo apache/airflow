@@ -32,6 +32,9 @@ CONF_REQUESTS_RETRIES_KEY = "requests_retries"
 CONF_JWT_FEDERATED_CLIENT_IDS_KEY = "jwt_federated_client_ids"
 CONF_TEAM_LEVEL_AUTHORIZATION_KEY = "team_level_authorization"
 CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY = "cli_authorization_code_enabled"
+CONF_CLI_DEVICE_CODE_ENABLED_KEY = "cli_device_code_enabled"
+
+DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"
 
 # Extra Cookie names
 COOKIE_NAME_ACCESS_TOKEN = "_access_token"

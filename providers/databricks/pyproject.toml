@@ -132,6 +132,8 @@ dev = [
     "apache-airflow-providers-common-sql[pandas,polars]",
     "apache-airflow-providers-fab",
     "apache-airflow-providers-databricks[common.ai,sqlalchemy]",
+    # The Model Serving hook tests build real OpenAI models; the common.ai extra does not install the client.
+    "openai>=2.47.0",
 ]
 
 # To build docs:
