@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Run coroutines to completion from synchronous code."""
+"""Run a coroutine to completion from synchronous code."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def run_coroutine_on_thread_loop(coroutine: Coroutine[Any, Any, Any]) -> Any:
     OpenAI Agents SDK uses and keeps open between calls. An async client is tied to the loop
     it first runs in, so the SDK's shared HTTP client, or one ``AsyncOpenAI`` given to several
     runs, keeps working across calls only on that loop. An ``asyncio.run()`` between two
-    calls unsets the thread's current loop; the next call puts the kept one back. Tasks the
+    calls clears the thread's current loop; the next call puts the kept one back. Tasks the
     call started and left unfinished are cancelled before it returns. When a loop is already
     running in this thread, the coroutine runs as :func:`run_coroutine_sync` runs it, on a
     new loop each time.
@@ -104,7 +104,7 @@ def _get_thread_event_loop() -> asyncio.AbstractEventLoop:
     # Python 3.11 leaves the parent's loop current in a forked child (3.12+ clears it), and
     # its selector is shared with the parent, so a child never uses the loop its parent kept.
     if loop is None or loop.is_closed() or (loop is _kept.loop and _kept.pid != os.getpid()):
-        # asyncio.run(), run_coroutine_sync() included, unsets the current loop when it
+        # asyncio.run(), run_coroutine_sync() included, clears the current loop when it
         # finishes. Put back the loop the last call kept, unless it belongs to the process
         # this one was forked from.
         kept = _kept.loop if _kept.pid == os.getpid() else None
