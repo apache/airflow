@@ -371,6 +371,14 @@ class TestStatsAllowAndBlockLists:
         else:
             statsd_client.assert_not_called()
 
+    @pytest.mark.parametrize("validate_list", ["stats_one", "stats_one,", ",stats_one", " , stats_one , , "])
+    def test_empty_entries_are_ignored(self, validate_list):
+        validator = PatternAllowListValidator(validate_list)
+
+        assert validator.validate_list == ("stats_one",)
+        assert validator.test("stats_one.metric")
+        assert not validator.test("unrelated.metric")
+
 
 class TestPatternValidatorConfigOption:
     def teardown_method(self):

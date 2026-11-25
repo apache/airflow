@@ -241,7 +241,9 @@ class ListValidator(metaclass=abc.ABCMeta):
 
     def __init__(self, validate_list: str | None = None) -> None:
         self.validate_list: tuple[str, ...] | None = (
-            tuple(item.strip().lower() for item in validate_list.split(",")) if validate_list else None
+            tuple(item.strip().lower() for item in validate_list.split(",") if item.strip())
+            if validate_list
+            else None
         )
 
     @classmethod
