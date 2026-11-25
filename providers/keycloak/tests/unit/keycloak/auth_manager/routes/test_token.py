@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import fastapi
 import pytest
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
@@ -219,3 +220,53 @@ class TestTokenRouter:
         response = client.post(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/cli", json=body)
 
         assert response.status_code == 422
+
+    @conf_vars({("api_auth", "jwt_cli_expiration_time"): "10"})
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_token_from_device_code")
+    def test_create_token_cli_device_code_grant(self, mock_create_token, client):
+        mock_create_token.return_value = self.token
+        response = client.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/cli",
+            json={"grant_type": "urn:ietf:params:oauth:grant-type:device_code", "device_code": "device"},
+        )
+
+        assert response.status_code == 201
+        assert response.json() == {"access_token": self.token}
+        mock_create_token.assert_called_once_with("device", expiration_time_in_seconds=10)
+
+    @patch("airflow.providers.keycloak.auth_manager.datamodels.token.create_token_from_device_code")
+    def test_create_token_rejects_device_code_grant(self, mock_create_token, client):
+        response = client.post(
+            AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token",
+            json={"grant_type": "urn:ietf:params:oauth:grant-type:device_code", "device_code": "device"},
+        )
+
+        assert response.status_code == 422
+        mock_create_token.assert_not_called()
+
+    @patch("airflow.providers.keycloak.auth_manager.routes.token.start_device_authorization")
+    def test_create_device_authorization_cli(self, mock_start_device_authorization, client):
+        mock_start_device_authorization.return_value = {
+            "device_code": "device",
+            "user_code": "WDJB-MJHT",
+            "verification_uri": "https://keycloak/realms/airflow/device",
+            "verification_uri_complete": "https://keycloak/realms/airflow/device?user_code=WDJB-MJHT",
+            "expires_in": 600,
+            "interval": 5,
+        }
+
+        response = client.post(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/cli/device")
+
+        assert response.status_code == 200
+        assert response.json() == mock_start_device_authorization.return_value
+
+    @patch("airflow.providers.keycloak.auth_manager.routes.token.start_device_authorization")
+    def test_create_device_authorization_cli_error(self, mock_start_device_authorization, client):
+        mock_start_device_authorization.side_effect = fastapi.HTTPException(
+            status_code=400, detail="disabled"
+        )
+
+        response = client.post(AUTH_MANAGER_FASTAPI_APP_PREFIX + "/token/cli/device")
+
+        assert response.status_code == 400
+        assert response.json() == {"detail": "disabled"}

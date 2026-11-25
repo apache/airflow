@@ -22,22 +22,23 @@ type Props = {
   readonly children: ReactNode;
   /** Named in the console message, so the failing plugin is identifiable. */
   readonly name: string;
+  /** A failed plugin renders again when this changes, e.g. on navigating to another Dag. */
+  readonly resetKey?: string;
 };
 
 /**
  * Keeps a plugin component's render failure inside the plugin's own slot.
  *
- * Without this the error reaches the route's error element and replaces the whole list or
- * detail page, so one plugin takes down the page it was only meant to add a button to. A
- * plausible way in: an action named `History` or `Image` finds the browser's own constructor
- * already on `globalThis`, which shadows the bundle's own registration, and React throws
- * calling it.
+ * Without this the error reaches the route's error element and replaces the whole page, so one
+ * plugin takes down the page it was only meant to add to. A plausible way in: a plugin named
+ * `History` or `Image` finds the browser's own constructor already on `globalThis`, which shadows
+ * the bundle's own registration, and React throws calling it.
  *
- * Renders nothing once it has caught, which matches how a bundle that fails to load behaves --
- * the button stays, its surface does not open. A class is required: there is still no hook
+ * Renders nothing once it has caught, which matches how a bundle that fails to load behaves: the
+ * page shows as it would without the plugin. A class is required: there is still no hook
  * equivalent of `componentDidCatch`.
  */
-export class PluginActionBoundary extends Component<Props, { hasError: boolean }> {
+export class PluginBoundary extends Component<Props, { hasError: boolean }> {
   public constructor(props: Props) {
     super(props);
     this.state = { hasError: false };
@@ -51,7 +52,16 @@ export class PluginActionBoundary extends Component<Props, { hasError: boolean }
     const { name } = this.props;
 
     // eslint-disable-next-line no-console
-    console.error(`Plugin action "${name}" failed to render`, error, info.componentStack);
+    console.error(`Plugin "${name}" failed to render`, error, info.componentStack);
+  }
+
+  public componentDidUpdate(prevProps: Props) {
+    const { resetKey } = this.props;
+    const { hasError } = this.state;
+
+    if (hasError && prevProps.resetKey !== resetKey) {
+      this.setState({ hasError: false });
+    }
   }
 
   public render() {

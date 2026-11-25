@@ -64,3 +64,7 @@ Provides type checking support for Airflow decorators that modify function signa
 ### outputs Plugin
 
 Handles type checking for operator outputs and XComArg types, allowing proper type inference when passing task outputs between tasks.
+
+### sqlalchemy_version Plugin
+
+Used by the Airflow codebase itself. Registers `SQLALCHEMY_2_1` as a constant that is always true when the installed SQLAlchemy is 2.1 or later, and always false otherwise, so type aliases can follow the `Select` parameterisation that changed in SQLAlchemy 2.1.

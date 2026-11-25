@@ -122,7 +122,7 @@ type XComClient interface {
 	//   - For a mapped task, nil reads the values of all its instances as a
 	//     []any ordered by map index. Instances that pushed nothing are left
 	//     out. If none pushed a value, including when the task expanded to no
-	//     instances, the result is an empty slice, or nil on Airflow 3.4.
+	//     instances, the result is nil.
 	//
 	// A map index reads that one instance's value. One that selects no task
 	// instance of the task, such as any map index of a task that is not
@@ -140,7 +140,8 @@ type XComClient interface {
 
 	// PushXCom stores value under key for the given task instance ti.
 	//
-	// value must be JSON serializable; nil is allowed and is pushed as null.
+	// value must be JSON serializable; nil, including a nil pointer, slice or
+	// map, is allowed and is pushed as null.
 	// A time.Time, a byte slice or array such as a uuid.UUID, or a non-finite
 	// float is rejected before it is sent.
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error

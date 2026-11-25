@@ -52,13 +52,12 @@ if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Sequence
     from datetime import datetime
 
-    from sqlalchemy import Select
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.serialization.definitions.dag import SerializedDAG, SerializedOperator
     from airflow.serialization.definitions.mappedoperator import Operator
-    from airflow.utils.sqlalchemy import UUIDSelect
+    from airflow.utils.sqlalchemy import Select
 
 
 LOOP_GATE_OPERATOR = "LoopGateOperator"
@@ -489,7 +488,7 @@ class TaskCoordinateResolver:
         run_id: str,
         task_ids: Collection[str],
         slots: Collection[tuple[str, int]],
-    ) -> UUIDSelect:
+    ) -> Select[UUID]:
         """Select, in one statement, the region-less task instances that the named tasks or slots address."""
         targets = []
         if task_ids:
@@ -858,7 +857,7 @@ class TaskCoordinateResolver:
 
     def select_skip_target_ids(
         self, *, caller: TaskInstance, task_id: str, map_indexes: int | None = None
-    ) -> UUIDSelect:
+    ) -> Select[UUID]:
         """
         Select the task instance ids a skip request from ``caller`` reaches for ``task_id``.
 
@@ -893,7 +892,7 @@ class TaskCoordinateResolver:
             map_indexes=map_indexes,
         )
 
-    def _select_loop_producer_ids(self, request: _ProducerRequest) -> UUIDSelect:
+    def _select_loop_producer_ids(self, request: _ProducerRequest) -> Select[UUID]:
         if TYPE_CHECKING:
             assert request.loop_node_id is not None
         return select_loop_producer_ids(
@@ -917,7 +916,7 @@ class TaskCoordinateResolver:
         map_indexes: int | Collection[int] | None = None,
         previous_iteration: bool = False,
         all_iterations: bool = False,
-    ) -> UUIDSelect:
+    ) -> Select[UUID]:
         """Select the task instance ids :meth:`resolve` returns, without loading the producers."""
         if region_index is not None and region_id is None:
             raise ValueError("region_index requires an explicit producer region_id")

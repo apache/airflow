@@ -150,7 +150,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
     from sqlalchemy.sql.elements import ColumnElement
-    from sqlalchemy.sql.selectable import Select, Subquery
+    from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
@@ -159,7 +159,7 @@ if TYPE_CHECKING:
     from airflow.models.pool import PoolStats
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
-    from airflow.utils.sqlalchemy import CommitProhibitorGuard
+    from airflow.utils.sqlalchemy import CommitProhibitorGuard, Select
 
 TI = TaskInstance
 DR = DagRun
@@ -1109,7 +1109,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         max_tis: int,
         *,
         excluded_ti_ids: Collection[UUID] = (),
-    ) -> Select[tuple[TI]]:
+    ) -> Select[TI]:
         """
         Build a query that fetches SCHEDULED TIs eligible for execution this cycle.
 

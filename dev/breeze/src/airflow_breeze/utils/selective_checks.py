@@ -59,6 +59,7 @@ from airflow_breeze.global_constants import (
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDER_TEST_SPLITS,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
+    PROVIDERS_INTEGRATION_SERVER_VERSIONS,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
     RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE,
@@ -1627,6 +1628,11 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_task_sdk_tests(self) -> bool:
+        # A uv.lock bump can upgrade a library the Task SDK imports, e.g. kubernetes in serde.
+        return self._task_sdk_files_changed or self.is_uv_lock_update
+
+    @cached_property
+    def _task_sdk_files_changed(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
@@ -1780,6 +1786,7 @@ class SelectiveChecks:
             or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
+            or self.is_uv_lock_update
             or self.prod_image_build
             # prek hooks no longer force the full test matrix (they are static checks, not
             # tests), but they still need the CI image so mypy-scripts and the image-based
@@ -1937,7 +1944,7 @@ class SelectiveChecks:
             return []
         if self.upgrade_to_newer_dependencies:
             return ["Providers"]
-        if self.full_tests_needed or self.run_task_sdk_tests:
+        if self.full_tests_needed or self._task_sdk_files_changed:
             if split_to_individual_providers:
                 return list(providers_test_type())
             return ["Providers"]
@@ -2463,7 +2470,10 @@ class SelectiveChecks:
                 prek_hooks_to_skip.add("mypy-dev")
             if not self._matching_files(FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-scripts")
-            if not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            if (
+                not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES)
+                and not self.is_uv_lock_update
+            ):
                 prek_hooks_to_skip.add("mypy-task-sdk")
             if not self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-devel-common")
@@ -2816,7 +2826,14 @@ class SelectiveChecks:
 
     @cached_property
     def testable_providers_integrations(self) -> list[str]:
-        if not self.run_unit_tests:
+        # A provider dependency bump runs no unit tests, but it can break the client/server
+        # compatibility that the provider's integration tests check.
+        provider_config_changed = bool(
+            self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
+            )
+        )
+        if not self.run_unit_tests and not provider_config_changed:
             return []
         if self.full_tests_needed or self._is_canary_run():
             # All tests are running - exercise every provider integration.
@@ -2837,6 +2854,31 @@ class SelectiveChecks:
                 # No providers affected by the change.
                 selected = []
         return [integration for integration in selected if not self._is_disabled_integration(integration)]
+
+    @cached_property
+    def testable_providers_integrations_matrix(self) -> str:
+        """
+        GitHub matrix ``include`` entries for the provider integration test jobs.
+
+        An integration listed in ``PROVIDERS_INTEGRATION_SERVER_VERSIONS`` gets one entry per server
+        version, carrying that version as ``<integration>-version``. The ``id`` is unique per entry so
+        each job gets distinct names and artifacts.
+        """
+        entries: list[dict[str, str]] = []
+        for integration in self.testable_providers_integrations:
+            versions = PROVIDERS_INTEGRATION_SERVER_VERSIONS.get(integration)
+            if not versions:
+                entries.append({"integration": integration, "id": integration})
+                continue
+            entries.extend(
+                {
+                    "integration": integration,
+                    "id": f"{integration}-{version}",
+                    f"{integration}-version": version,
+                }
+                for version in versions
+            )
+        return json.dumps(entries)
 
     @cached_property
     def is_committer_build(self):

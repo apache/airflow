@@ -4177,7 +4177,9 @@ class TestSchedulerJob:
                 if future.done():
                     pytest.fail(f"the selection did not wait on the writer's locks: {future.result()}")
                 assert time.monotonic() < deadline, "the selection did not wait on the writer's locks"
-                time.sleep(0.05)
+                # MySQL refreshes information_schema.innodb_trx only after it has gone unread for 100ms,
+                # so polling faster keeps returning the state from before the selection waited.
+                time.sleep(0.2)
             # A user marks one of the task instances success while the selection runs.
             writer.execute(
                 update(TaskInstance)

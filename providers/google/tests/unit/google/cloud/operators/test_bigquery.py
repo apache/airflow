@@ -85,6 +85,10 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.utils.task_group import TaskGroup
 
+from tests_common.test_utils.task_state import (
+    drop_reserved_task_state_keys,
+    get_non_reserved_task_state_writes,
+)
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 TASK_ID = "test-bq-generic-operator"
@@ -2489,7 +2493,7 @@ class TestBigQueryInsertJobOperatorDurable:
         with pytest.raises(RuntimeError, match="worker failed"):
             op.execute(self._context(task_store))
 
-        assert values == {
+        assert drop_reserved_task_state_keys(values) == {
             "bigquery_job_id": "original-job",
             "bigquery_job_location": {"job_id": "original-job", "location": "asia-northeast3"},
         }
@@ -2515,7 +2519,7 @@ class TestBigQueryInsertJobOperatorDurable:
         context = self._context(task_store)
         result = op.execute(context)
 
-        hook.get_job.assert_called_once_with(
+        assert hook.get_job.call_args_list[0] == mock.call(
             project_id=TEST_GCP_PROJECT_ID, location="asia-northeast3", job_id="original-job"
         )
         if status in ("error", "not_found"):
@@ -2615,7 +2619,7 @@ class TestBigQueryInsertJobOperatorDurable:
         result = op.execute(self._context(task_store))
 
         mock_hook.return_value.insert_job.assert_called_once()
-        assert task_store.set.call_args_list == [
+        assert get_non_reserved_task_state_writes(task_store) == [
             mock.call(
                 "bigquery_job_location", {"job_id": "generated-job-id", "location": TEST_DATASET_LOCATION}
             ),
@@ -2640,7 +2644,7 @@ class TestBigQueryInsertJobOperatorDurable:
 
         mock_hook.return_value.insert_job.assert_not_called()
         mock_hook.return_value.generate_job_id.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         job.result.assert_called_once()
         assert result == "stored-job-id"
 
@@ -2691,7 +2695,7 @@ class TestBigQueryInsertJobOperatorDurable:
         result = op.execute(self._context(task_store))
 
         mock_hook.return_value.insert_job.assert_called_once()
-        assert task_store.set.call_args_list == [
+        assert get_non_reserved_task_state_writes(task_store) == [
             mock.call("bigquery_job_location", {"job_id": "new-job-id", "location": TEST_DATASET_LOCATION}),
             mock.call("bigquery_job_id", "new-job-id"),
         ]
@@ -2770,7 +2774,7 @@ class TestBigQueryInsertJobOperatorDurable:
         result = op.execute(self._context(task_store))
 
         mock_hook.return_value.insert_job.assert_called_once()
-        assert task_store.set.call_args_list == [
+        assert get_non_reserved_task_state_writes(task_store) == [
             mock.call("bigquery_job_location", {"job_id": "new-job-id", "location": TEST_DATASET_LOCATION}),
             mock.call("bigquery_job_id", "new-job-id"),
         ]
@@ -2789,7 +2793,7 @@ class TestBigQueryInsertJobOperatorDurable:
 
         mock_hook.return_value.insert_job.assert_called_once()
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_deferrable_unaffected_by_durable(self, mock_hook):
@@ -2805,7 +2809,7 @@ class TestBigQueryInsertJobOperatorDurable:
 
         assert isinstance(exc.value.trigger, BigQueryInsertJobTrigger)
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_get_job_status_success_when_done_without_error(self, mock_hook):

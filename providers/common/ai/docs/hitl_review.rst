@@ -318,10 +318,28 @@ All keys use the prefix ``airflow_hitl_review_``.
        feedback, iteration
    * - ``airflow_hitl_review_agent_output_1``, ``_2``, …
      - Worker
-     - Per-iteration AI output (string or JSON)
+     - Per-iteration AI output (string or JSON), as ``{"text": ..., "dag_id": ...}``
    * - ``airflow_hitl_review_human_feedback_1``, ``_2``, …
      - Plugin, and the worker when it resumes
-     - Per-iteration human feedback text
+     - Per-iteration human feedback text, as ``{"text": ..., "dag_id": ...}``
+
+The plugin reads these XComs through the configured ``[core] xcom_backend``, as the
+worker does. A custom backend that keeps values outside the metadata database, such as
+``XComObjectStorageBackend`` from the ``common.io`` provider, must therefore also be
+installed and configured on the API server, with access to its storage. The plugin
+writes its own entries straight to the metadata database, all of them dictionaries, so the
+backend must return a dictionary it did not store itself unchanged, as
+``XComObjectStorageBackend`` does.
+
+Outputs and feedback are stored as ``{"text": ..., "dag_id": ...}`` rather than as bare
+strings because their text comes from the model and the reviewer: a bare string that is a
+path under ``xcom_objectstorage_path`` would be opened by the backend on the API server,
+with its storage credentials, even when it holds another Dag's XCom. The plugin shows only
+the ``text`` of such a dictionary written for the Dag under review. Any other value under
+these keys, such as one written before this format, is shown as stored, never what a
+reference in it points to. An output or feedback written by an earlier version of the
+provider is therefore shown as the reference, not the text, when the backend kept it in its
+storage.
 
 Session lifecycle
 ^^^^^^^^^^^^^^^^^

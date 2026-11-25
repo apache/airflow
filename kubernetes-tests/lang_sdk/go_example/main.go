@@ -79,27 +79,9 @@ func goTransform(actx airflow.Context) error {
 	if err != nil {
 		return err
 	}
-	values, ok := fanout.([]any)
-	if !ok || len(values) != 3 {
-		return fmt.Errorf("python_fanout result is %#v, want []any{1, 2, 3}", fanout)
-	}
-	for i, v := range values {
-		if n, ok := asInt64(v); !ok || n != int64(i+1) {
-			return fmt.Errorf("python_fanout result is %#v, want []any{1, 2, 3}", fanout)
-		}
+	want := []any{int64(1), int64(2), int64(3)}
+	if !reflect.DeepEqual(fanout, want) {
+		return fmt.Errorf("python_fanout result is %#v, want %#v", fanout, want)
 	}
 	return nil
-}
-
-// asInt64 returns v as an int64 if it is an integer. An integer XCom value arrives
-// as a Go integer type whose width depends on the value.
-func asInt64(v any) (int64, bool) {
-	switch n := reflect.ValueOf(v); {
-	case n.CanInt():
-		return n.Int(), true
-	case n.CanUint():
-		return int64(n.Uint()), true
-	default:
-		return 0, false
-	}
 }
