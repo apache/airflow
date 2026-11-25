@@ -36,6 +36,7 @@ from airflow.sdk._shared.module_loading.dag_file import get_unique_dag_module_na
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.contextmanager import DagContext
 from airflow.sdk.definitions.dag import DAG
+from airflow.sdk.definitions.parse_warning import drain_parse_warnings
 from airflow.sdk.exceptions import AirflowConfigException
 from airflow.sdk.execution_time.timeout import timeout
 from airflow.sdk.importers.base import (
@@ -178,6 +179,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
         """Import DAGs from a Python DAG definition."""
         result = DagImportResult(definition=definition)
         DagContext.autoregistered_dags.clear()
+        DagContext.parse_warnings.clear()
         captured_warnings: list[warnings.WarningMessage] = []
 
         try:
@@ -211,6 +213,8 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
             )
 
         self._process_modules(modules, result, bundle=bundle)
+
+        result.parse_warnings.extend(drain_parse_warnings())
         return result
 
     def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
@@ -270,6 +274,7 @@ class PythonDagImporter(AbstractDagImporter[FileDagDefinition]):
             except BaseException as e:
                 sys.modules.pop(mod_name, None)
                 DagContext.autoregistered_dags.clear()
+                DagContext.parse_warnings.clear()
                 log.exception("Failed to import: %r", definition)
                 if self._dagbag_import_error_tracebacks:
                     stacktrace = traceback.format_exc(limit=-self._dagbag_import_error_traceback_depth)

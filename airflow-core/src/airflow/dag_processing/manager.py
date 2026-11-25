@@ -70,7 +70,11 @@ from airflow.dag_processing.bundles.base import (
 )
 from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.claims import get_available_work_filter
-from airflow.dag_processing.collection import is_source_discovery_failed, update_dag_parsing_results_in_db
+from airflow.dag_processing.collection import (
+    clear_orphaned_file_scoped_parse_failure_warnings,
+    is_source_discovery_failed,
+    update_dag_parsing_results_in_db,
+)
 from airflow.dag_processing.importer_routing import get_claiming_importer
 from airflow.dag_processing.lang_sdk_processor import LangSDKDagFileProcessorProcess
 from airflow.dag_processing.processor import (
@@ -1420,6 +1424,10 @@ class DagFileProcessorManager(LoggingMixin):
                     bundle_name=bundle.name,
                     observed_filelocs=self._get_observed_filelocs(found_files),
                 )
+            self.clear_orphaned_parse_failure_warnings(
+                bundle_name=bundle.name,
+                observed_filelocs=self._get_observed_filelocs(found_files),
+            )
 
         if self.api_client is not None:
             any_refreshed = self._publish_pending_inventories(known_files) or any_refreshed
@@ -1578,6 +1586,14 @@ class DagFileProcessorManager(LoggingMixin):
                     session.delete(error)
         except Exception:
             self.log.exception("Error removing old import errors")
+
+    @provide_session
+    def clear_orphaned_parse_failure_warnings(
+        self, bundle_name: str, observed_filelocs: set[str], *, session: Session = NEW_SESSION
+    ):
+        """Clear parse-failure warnings for files that no longer exist in the bundle."""
+        self.log.debug("Removing old parse-failure DAG warnings")
+        clear_orphaned_file_scoped_parse_failure_warnings(bundle_name, observed_filelocs, session=session)
 
     def _log_file_processing_stats(self, known_files: dict[str, set[DagFileInfo]]):
         """
@@ -2153,6 +2169,8 @@ class DagFileProcessorManager(LoggingMixin):
         if warnings and isinstance(warnings[0], dict):
             warnings = [DagWarning(**warn) for warn in warnings]
 
+        parse_failure_warnings = [DagWarning(**row) for row in (parsing_result.parse_warnings or [])]
+
         update_dag_parsing_results_in_db(
             bundle_name=bundle_name,
             bundle_version=bundle_version,
@@ -2164,6 +2182,7 @@ class DagFileProcessorManager(LoggingMixin):
             session=session,
             files_parsed=files_parsed,
             dag_source_codes=parsing_result.dag_source_codes,
+            parse_failure_warnings=parse_failure_warnings,
         )
 
     def _collect_results(self):

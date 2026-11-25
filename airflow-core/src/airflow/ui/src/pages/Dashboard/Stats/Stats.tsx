@@ -29,6 +29,7 @@ import { useAutoRefresh } from "src/utils";
 
 import { DagImportErrors } from "./DagImportErrors";
 import { FailingTriggers } from "./FailingTriggers";
+import { ParseFailureWarnings } from "./ParseFailureWarnings";
 import { PluginImportErrors } from "./PluginImportErrors";
 
 export const Stats = () => {
@@ -70,6 +71,8 @@ export const Stats = () => {
         <FailingTriggers />
 
         <DagImportErrors />
+
+        <ParseFailureWarnings />
 
         <PluginImportErrors />
 

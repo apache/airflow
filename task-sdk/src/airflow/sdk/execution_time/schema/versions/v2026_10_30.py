@@ -105,6 +105,15 @@ class AddDagDefinitionsToDagFileParsingResult(VersionChange):
     )
 
 
+class AddParseWarningsToDagFileParsingResult(VersionChange):
+    """Add parse-time DAG warnings collected while importing a DAG file to `DagFileParsingResult`."""
+
+    description = __doc__
+    instructions_to_migrate_to_previous_version = (
+        schema(DagFileParsingResult).field("parse_warnings").didnt_exist,
+    )
+
+
 class AddFirstTaskRescheduleStartDateToSupervisorTIRunContext(VersionChange):
     """
     Add the ``first_task_reschedule_start_date`` field carrying the earliest reschedule start date.
