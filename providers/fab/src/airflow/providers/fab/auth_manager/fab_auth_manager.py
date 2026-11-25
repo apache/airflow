@@ -30,7 +30,7 @@ from weakref import WeakValueDictionary
 from cachetools import TTLCache
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
-from flask import current_app, g
+from flask import current_app, g, has_app_context
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -438,23 +438,22 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         Return the role granted to anonymous users, or ``None`` if public access is disabled.
 
-        Reads ``[fab] auth_role_public`` from the Airflow config first so this works
-        during FastAPI startup, before any Flask application context exists. Falls back
-        to ``AUTH_ROLE_PUBLIC`` on the Flask app config when an app context is available,
-        which covers the legacy ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py``.
+        Reads ``[fab] auth_role_public`` from the Airflow config first, then falls back to
+        ``AUTH_ROLE_PUBLIC`` on the Flask app config, which covers the legacy entry in
+        ``webserver_config.py``.
         """
         role_public = conf.get("fab", "auth_role_public", fallback="") or None
         if role_public:
             return role_public
         if self.appbuilder is None:
             return None
-        try:
-            return self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
-        except RuntimeError:
-            # ``appbuilder.app`` is a werkzeug ``LocalProxy``; accessing it outside a
-            # Flask application context raises ``RuntimeError``. This happens during
-            # FastAPI startup when ``get_fastapi_middlewares`` is invoked.
-            return None
+        # The API server runs FastAPI requests and startup without a Flask app context, where
+        # ``current_app`` raises, so read the Flask app it built in ``get_fastapi_app``.
+        if has_app_context():
+            return current_app.config.get("AUTH_ROLE_PUBLIC")
+        if self.flask_app is not None:
+            return self.flask_app.config.get("AUTH_ROLE_PUBLIC")
+        return None
 
     @provide_session
     def build_public_user(self, *, session: Session = NEW_SESSION) -> AnonymousUser | None:
@@ -475,10 +474,16 @@ class FabAuthManager(BaseAuthManager[User]):
 
         user = AnonymousUser()
         role = session.scalar(select(Role).where(Role.name == public_role_name))
-        if role is not None:
-            # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
-            # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
-            # the lifetime of a single FastAPI authorization check.
+        # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
+        # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
+        # the lifetime of a single FastAPI authorization check.
+        if role is None:
+            log.debug(
+                "The public role %r does not exist, so anonymous users get no permissions", public_role_name
+            )
+            user._roles = set()
+            user._perms = set()
+        else:
             user._roles = {role}
             user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
         return user
