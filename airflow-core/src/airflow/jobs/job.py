@@ -61,7 +61,7 @@ class JobState(StrEnum):
 EXECUTOR_JOB_TYPE = "ExecutorJob"
 
 
-class HealthCheckResult(str, Enum):
+class HealthCheckResult(StrEnum):
     """
     Explicit outcome of a component's own last health check.
 
@@ -75,9 +75,6 @@ class HealthCheckResult(str, Enum):
     HEALTHY = "healthy"
     UNHEALTHY = "unhealthy"
     UNKNOWN = "unknown"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 if TYPE_CHECKING:
