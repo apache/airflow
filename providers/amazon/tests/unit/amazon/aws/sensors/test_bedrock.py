@@ -193,6 +193,13 @@ class TestBedrockKnowledgeBaseActiveSensor:
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
 
+    @pytest.mark.parametrize("state", ["DELETE_UNSUCCESSFUL", "UPDATE_UNSUCCESSFUL"])
+    @mock.patch.object(BedrockAgentHook, "conn")
+    def test_poke_fails_on_unsuccessful_states(self, mock_conn, state):
+        mock_conn.get_knowledge_base.return_value = {"knowledgeBase": {"status": state}}
+        with pytest.raises(AirflowException, match=self.sensor.FAILURE_MESSAGE):
+            self.sensor.poke({})
+
 
 class TestBedrockIngestionJobSensor:
     SENSOR = BedrockIngestionJobSensor
@@ -259,6 +266,13 @@ class TestBedrockIngestionJobSensor:
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE) as exception_info:
             sensor.poke({})
         assert str(exception_info.value) == f"{sensor.FAILURE_MESSAGE}{expected_suffix}"
+
+    @pytest.mark.parametrize("state", ["STOPPING", "STOPPED"])
+    @mock.patch.object(BedrockAgentHook, "conn")
+    def test_poke_fails_on_stopped_job(self, mock_conn, state):
+        mock_conn.get_ingestion_job.return_value = {"ingestionJob": {"status": state}}
+        with pytest.raises(AirflowException, match=self.sensor.FAILURE_MESSAGE):
+            self.sensor.poke({})
 
 
 class TestBedrockBatchInferenceSensor:

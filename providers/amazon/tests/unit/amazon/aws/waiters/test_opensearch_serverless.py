@@ -58,7 +58,7 @@ class TestCollectionAvailableWaiter(TestOpenSearchServerlessCustomWaitersBase):
     def test_model_customization_job_failed(self, state, mock_getter):
         mock_getter.return_value = {"collectionDetails": [{"status": state}]}
 
-        with pytest.raises(botocore.exceptions.WaiterError):
+        with pytest.raises(botocore.exceptions.WaiterError, match="terminal failure"):
             OpenSearchServerlessHook().get_waiter(self.WAITER_NAME).wait(collection_id="collection_id")
 
     def test_model_customization_job_wait(self, mock_getter):

@@ -62,10 +62,11 @@ class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerl
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    INTERMEDIATE_STATES = ("CREATING",)
+    INTERMEDIATE_STATES = ("CREATING", "UPDATING")
     FAILURE_STATES = (
         "DELETING",
         "FAILED",
+        "UPDATE_FAILED",
     )
     SUCCESS_STATES = ("ACTIVE",)
     FAILURE_MESSAGE = "OpenSearch Serverless Collection sensor failed"

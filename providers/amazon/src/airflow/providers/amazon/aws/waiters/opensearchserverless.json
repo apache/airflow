@@ -29,6 +29,18 @@
                     "argument": "collectionDetails[0].status",
                     "expected": "FAILED",
                     "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "collectionDetails[0].status",
+                    "expected": "UPDATING",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "collectionDetails[0].status",
+                    "expected": "UPDATE_FAILED",
+                    "state": "failure"
                 }
             ]
         }

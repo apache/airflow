@@ -62,7 +62,7 @@ class TestKnowledgeBaseActiveWaiter(TestBedrockAgentCustomWaitersBase):
     def test_knowledge_base_active_failed(self, state, mock_getter):
         mock_getter.return_value = {"knowledgeBase": {"status": state}}
 
-        with pytest.raises(botocore.exceptions.WaiterError):
+        with pytest.raises(botocore.exceptions.WaiterError, match="terminal failure"):
             BedrockAgentHook().get_waiter(self.WAITER_NAME).wait(**self.WAITER_ARGS)
 
     @pytest.mark.parametrize("state", SENSOR.INTERMEDIATE_STATES)
@@ -97,7 +97,7 @@ class TestIngestionJobWaiter(TestBedrockAgentCustomWaitersBase):
     def test_knowledge_base_active_failed(self, state, mock_getter):
         mock_getter.return_value = {"ingestionJob": {"status": state}}
 
-        with pytest.raises(botocore.exceptions.WaiterError):
+        with pytest.raises(botocore.exceptions.WaiterError, match="terminal failure"):
             BedrockAgentHook().get_waiter(self.WAITER_NAME).wait(**self.WAITER_ARGS)
 
     @pytest.mark.parametrize("state", SENSOR.INTERMEDIATE_STATES)

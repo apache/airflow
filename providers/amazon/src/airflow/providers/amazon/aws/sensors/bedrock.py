@@ -277,7 +277,7 @@ class BedrockKnowledgeBaseActiveSensor(BedrockBaseSensor[BedrockAgentHook]):
     """
 
     INTERMEDIATE_STATES: tuple[str, ...] = ("CREATING", "UPDATING")
-    FAILURE_STATES: tuple[str, ...] = ("DELETING", "FAILED")
+    FAILURE_STATES: tuple[str, ...] = ("DELETING", "FAILED", "DELETE_UNSUCCESSFUL", "UPDATE_UNSUCCESSFUL")
     SUCCESS_STATES: tuple[str, ...] = ("ACTIVE",)
     FAILURE_MESSAGE = "Bedrock Knowledge Base Active sensor failed."
 
@@ -351,7 +351,7 @@ class BedrockIngestionJobSensor(BedrockBaseSensor[BedrockAgentHook]):
     """
 
     INTERMEDIATE_STATES: tuple[str, ...] = ("STARTING", "IN_PROGRESS")
-    FAILURE_STATES: tuple[str, ...] = ("FAILED",)
+    FAILURE_STATES: tuple[str, ...] = ("FAILED", "STOPPING", "STOPPED")
     SUCCESS_STATES: tuple[str, ...] = ("COMPLETE",)
     FAILURE_MESSAGE = "Bedrock ingestion job sensor failed."
 
