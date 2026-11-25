@@ -3239,9 +3239,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # a later loop retries it.
                 if (gate := self._collect_gated_asset_events(dag=serdag, session=session)) is None:
                     continue
-                gated_locked_records, gated_asset_event_ids = gate
             else:
-                gated_locked_records, gated_asset_event_ids = None, None
+                gate = None
 
             try:
                 next_info = serdag.timetable.next_run_info_from_dag_model(dag_model=dag_model)
@@ -3276,13 +3275,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session=session,
                     active_non_backfill_runs=active_runs_of_dags[dag_model.dag_id],
                 )
-                if gated_asset_event_ids is not None:
-                    if TYPE_CHECKING:
-                        assert gated_locked_records is not None
+                if gate is not None:
+                    gated_locked_records, gated_asset_event_ids = gate
                     _associate_asset_events_with_dag_run(
                         dag_run=created_run, asset_event_ids_select=gated_asset_event_ids, session=session
                     )
-                    session.flush()
                     self._delete_consumed_asset_records(
                         serdag,
                         locked_records=gated_locked_records,
@@ -3398,7 +3395,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         rows locked elsewhere (e.g. by the API) and can deadlock. Of those, only
         consumed rows are deleted to keep events not yet consumed queued.
         Consumed events are matched against the Dag's runs with a subquery, so
-        the caller must flush newly consumed events before calling this.
+        events consumed through the ORM collection must be flushed first.
 
         :param locked_records: The ADRQ rows locked by this scheduler.
         """
