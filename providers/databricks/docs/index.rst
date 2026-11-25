@@ -33,7 +33,7 @@
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/databricks>
+    Connection types <connections/index>
     Operators <operators/index>
     Toolsets <toolsets/index>
     Plugins <plugins/index>

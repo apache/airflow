@@ -1,0 +1,317 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""Expose Databricks Model Serving's OpenAI-compatible chat endpoint as a pydantic-ai model hook."""
+
+from __future__ import annotations
+
+import asyncio
+import concurrent.futures
+import contextvars
+import functools
+import inspect
+from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urlsplit
+
+from tenacity import RetryError
+
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+
+_COMMON_AI_REQUIREMENT_MESSAGE = (
+    "This feature requires apache-airflow-providers-common-ai>=1.0.0 (a PydanticAIHook with "
+    "'fallback_conn_ids'). "
+    "Install with apache-airflow-providers-databricks[common.ai]."
+)
+
+try:
+    import httpx2
+
+    from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+except ImportError:
+    raise AirflowOptionalProviderFeatureException(_COMMON_AI_REQUIREMENT_MESSAGE)
+
+if "fallback_conn_ids" not in inspect.signature(PydanticAIHook.__init__).parameters:
+    raise AirflowOptionalProviderFeatureException(_COMMON_AI_REQUIREMENT_MESSAGE)
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator, Generator
+
+    from httpx2 import Request, Response
+
+# OpenAIProvider rejects an empty api_key, but _DatabricksServingAuth overwrites Authorization on
+# every request, so this value is never sent.
+_UNUSED_TOKEN_PLACEHOLDER = "unused-overridden-per-request"
+
+_TOKEN_FETCH_ERRORS = (AirflowException, ConnectionError)
+
+# Token refreshes run here, never on asyncio's default executor: ``asend()`` reads its reply on that
+# executor while holding the comms lock, so blocking lookups that fill it leave nothing to run the
+# read and the task hangs (common.ai>=1.1.0 guards against the same thing with ``_executor`` in
+# ``hooks/pydantic_ai.py``). Some ``_get_token`` paths do such lookups at request time (AWS
+# federation resolves a second Airflow connection through ``StsHook``). Kept local: common.ai's
+# ``_run_off_loop`` only exists from 1.1.0.
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="databricks-serving-auth")
+
+
+def _is_valid_host(host: str | None) -> bool:
+    """Return whether ``host`` is a bare ``hostname[:port]`` as left by ``BaseDatabricksHook._parse_host``."""
+    if not host or host.endswith(":") or any(char.isspace() for char in host):
+        return False
+    parsed = urlsplit(f"//{host}")
+    if not parsed.hostname or parsed.netloc != host or parsed.username is not None:
+        return False
+    try:
+        parsed.port
+    except ValueError:
+        return False
+    return True
+
+
+def _is_transient_token_failure(error: BaseException) -> bool:
+    """Return whether ``error`` follows an exhausted retry of a token request."""
+    # BaseDatabricksHook has no dedicated exception type: a tenacity RetryError on the chain is the
+    # only signal that the token endpoint was unreachable, not misconfigured.
+    seen: set[int] = set()
+    node: BaseException | None = error
+    while node is not None and id(node) not in seen:
+        if isinstance(node, RetryError):
+            return True
+        seen.add(id(node))
+        node = node.__cause__ or node.__context__
+    return False
+
+
+def _get_databricks_token(databricks_hook: BaseDatabricksHook) -> str:
+    """Return the token for ``databricks_hook``, accepting Login ``token`` with a Password as a PAT."""
+    # ``_get_token`` returns None only when no other auth setting applies, so a PAT login never
+    # takes over from OAuth, Azure or federation settings. The base hook sends such a connection as
+    # Basic auth, which this hook cannot use against /serving-endpoints.
+    token = databricks_hook._get_token()
+    if token:
+        return token
+    conn = databricks_hook.databricks_conn
+    if conn.login == "token" and conn.password:
+        return conn.password
+    return cast("str", databricks_hook._get_token(raise_error=True))
+
+
+class _DatabricksServingAuth(httpx2.Auth):
+    """
+    Refresh the ``Authorization`` header on every request from a Databricks hook.
+
+    ``_get_token()`` may block: the OAuth service principal, Azure AD and federation paths make
+    HTTP or SDK calls, with retries, to fetch an expiring token. ``async_auth_flow`` is overridden
+    to run the refresh on a worker thread instead of the httpx2 default of driving the sync
+    ``auth_flow`` inline on the event loop. ``auth_flow`` itself is kept for sync ``httpx2.Client``
+    callers, which have no event loop to block.
+
+    A token fetch that keeps failing after the hook's own retries, which cover requests to the
+    Databricks token endpoint and to the Azure instance metadata service, raises
+    ``httpx2.ConnectError`` so that ``fallback_conn_ids`` can fail over. Any other failure, such as
+    missing credentials, a rejected secret, or an error raised by an Azure or AWS credential library,
+    keeps its original exception.
+    ``PydanticAIDatabricksHook._get_provider_kwargs`` already raises such an error when
+    the model is built, on any openai version. One that first appears while a request is being sent
+    fails the task only with ``openai>=3.15.0``: earlier versions catch every exception raised while
+    sending a request and re-raise it as ``openai.APIConnectionError``, so in a ``fallback_conn_ids``
+    chain it fails over instead of failing the task.
+    """
+
+    def __init__(self, databricks_hook: BaseDatabricksHook) -> None:
+        self._databricks_hook = databricks_hook
+
+    def _get_auth_header(self, request: Request) -> str:
+        try:
+            return f"Bearer {_get_databricks_token(self._databricks_hook)}"
+        except _TOKEN_FETCH_ERRORS as e:
+            if _is_transient_token_failure(e):
+                raise httpx2.ConnectError(f"Could not fetch a Databricks token: {e}", request=request) from e
+            raise
+
+    def auth_flow(self, request: Request) -> Generator[Request, Response, None]:
+        request.headers["Authorization"] = self._get_auth_header(request)
+        yield request
+
+    async def async_auth_flow(self, request: Request) -> AsyncGenerator[Request, Response]:
+        call = functools.partial(contextvars.copy_context().run, self._get_auth_header, request)
+        request.headers["Authorization"] = await asyncio.get_running_loop().run_in_executor(_executor, call)
+        yield request
+
+
+class PydanticAIDatabricksHook(PydanticAIHook):
+    """
+    Hook for Databricks Model Serving's OpenAI-compatible chat endpoint via pydantic-ai.
+
+    Unlike the other ``PydanticAI*`` hooks, credentials do not live on this connection: they are
+    read from an existing ``databricks`` connection (personal access token, OAuth, Azure or
+    federated credentials -- whichever that connection is configured for) and refreshed on every
+    request through ``BaseDatabricksHook._get_token``. Username/password basic auth is not
+    supported. The underlying ``httpx2.AsyncClient`` is built once and lives as long as this hook
+    instance; nothing currently closes it.
+
+    Connection fields:
+        - **extra** JSON: ``{"model": "my-serving-endpoint",
+          "databricks_conn_id": "databricks_default"}``
+
+    A bare model name is a serving endpoint name and is qualified as ``openai-chat:<endpoint>``,
+    so requests use the Chat Completions API. Databricks documents that API for chat endpoints
+    (Foundation Model APIs, external models and custom LLM endpoints), not for every endpoint
+    type. Databricks' own limits on function calling and structured outputs apply; see the
+    connection documentation for pointers.
+
+    A Databricks connection that sets the ``proxies`` or ``azure_resource_id`` extra is rejected,
+    because this hook does not route requests through a proxy or send the Azure workspace resource
+    headers.
+
+    :param llm_conn_id: Airflow connection ID for this ``pydanticai_databricks`` connection.
+    :param model_id: Serving endpoint name, e.g. ``"my-serving-endpoint"``.
+    :param fallback_conn_ids: See :class:`~airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook`.
+    :param databricks_conn_id: Connection ID of an existing Databricks connection to source the
+        workspace host and credentials from. Takes precedence over the connection extra's
+        ``databricks_conn_id``; one of the two is required.
+    """
+
+    conn_type = "pydanticai_databricks"
+    default_conn_name = "pydanticai_databricks_default"
+    hook_name = "Pydantic AI (Databricks Model Serving)"
+    model_provider = "openai-chat"
+
+    def __init__(
+        self,
+        llm_conn_id: str | None = None,
+        model_id: str | None = None,
+        fallback_conn_ids: list[str] | None = None,
+        *,
+        databricks_conn_id: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(llm_conn_id, model_id, fallback_conn_ids, **kwargs)
+        self.databricks_conn_id = databricks_conn_id
+        self._databricks_hook: BaseDatabricksHook | None = None
+        self._base_url: str | None = None
+        self._http_client: httpx2.AsyncClient | None = None
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Return custom field behaviour for the Airflow connection form."""
+        return {
+            "hidden_fields": ["schema", "port", "login", "host", "password"],
+            "relabeling": {},
+            "placeholders": {
+                "extra": '{"model": "my-serving-endpoint", "databricks_conn_id": "databricks_default"}',
+            },
+        }
+
+    def _get_databricks_conn_id(self, extra: dict[str, Any]) -> str:
+        databricks_conn_id = self.databricks_conn_id or extra.get("databricks_conn_id")
+        if not databricks_conn_id:
+            raise ValueError(
+                f"Connection '{self.llm_conn_id}' has no Databricks connection to source credentials "
+                "from. Set databricks_conn_id on the hook or the connection's extra field, pointing "
+                "at an existing Databricks connection."
+            )
+        return databricks_conn_id
+
+    def _get_databricks_hook(self, extra: dict[str, Any]) -> BaseDatabricksHook:
+        """
+        Build the Databricks hook, base URL, and HTTP client once.
+
+        Reused for this hook's lifetime -- including the ``httpx2.AsyncClient``, which nothing
+        else owns or closes, so building a fresh one on every call would leak one per call.
+        """
+        if self._databricks_hook is None:
+            databricks_hook = BaseDatabricksHook(
+                databricks_conn_id=self._get_databricks_conn_id(extra),
+                caller="PydanticAIDatabricksHook",
+            )
+            if not _is_valid_host(databricks_hook.host):
+                # Must not include the host: it may carry credentials (``user:password@host``).
+                raise ValueError(
+                    f"Databricks connection '{databricks_hook.databricks_conn_id}' has no valid host. "
+                    "Set the workspace host (hostname and optional port, no path or credentials) on "
+                    "the connection or in its extra field."
+                )
+            if databricks_hook.proxies:
+                raise ValueError(
+                    f"Databricks connection '{databricks_hook.databricks_conn_id}' sets the 'proxies' "
+                    "extra, which PydanticAIDatabricksHook does not support. Remove it, or use a "
+                    "Databricks connection without a proxy."
+                )
+            if "azure_resource_id" in databricks_hook.databricks_conn.extra_dejson:
+                raise ValueError(
+                    f"Databricks connection '{databricks_hook.databricks_conn_id}' sets the "
+                    "'azure_resource_id' extra, which PydanticAIDatabricksHook does not support. "
+                    "Remove it, or use a Databricks connection that does not need it."
+                )
+            base_url = databricks_hook._endpoint_url("serving-endpoints")
+            http_client = httpx2.AsyncClient(auth=_DatabricksServingAuth(databricks_hook))
+            self._databricks_hook = databricks_hook
+            self._base_url = base_url
+            self._http_client = http_client
+        return self._databricks_hook
+
+    def _get_provider_kwargs(
+        self,
+        api_key: str | None,
+        base_url: str | None,
+        extra: dict[str, Any],
+    ) -> dict[str, Any]:
+        """
+        Return kwargs for ``OpenAIProvider``.
+
+        .. note::
+            ``api_key`` and ``base_url`` (sourced from ``conn.password`` and ``conn.host``) are
+            intentionally ignored: this connection hides those fields in the UI, and credentials
+            and host come from the Databricks connection named by ``databricks_conn_id`` instead.
+
+        A token is fetched once here so that a non-transient token error fails when the model is built.
+        """
+        databricks_hook = self._get_databricks_hook(extra)
+        # A transient failure is left for request time, where _DatabricksServingAuth turns it into
+        # httpx2.ConnectError so that fail-over works.
+        try:
+            _get_databricks_token(databricks_hook)
+        except _TOKEN_FETCH_ERRORS as e:
+            if not _is_transient_token_failure(e):
+                raise
+        return {
+            "base_url": self._base_url,
+            "api_key": _UNUSED_TOKEN_PLACEHOLDER,
+            "http_client": self._http_client,
+        }
+
+    def test_connection(self) -> tuple[bool, str]:
+        """
+        Test connection by resolving the model and obtaining a Databricks token.
+
+        A missing or unusable credential is reported here. A personal access token is only checked
+        for being set: it is not sent to the workspace, so a revoked or mistyped one still passes.
+        Token types that are fetched from an identity provider are validated by that fetch. Does NOT
+        call the serving endpoint.
+        """
+        ok, message = super().test_connection()
+        if not ok:
+            return ok, message
+        try:
+            _get_databricks_token(self._get_databricks_hook(self._get_conn_and_extra()[1]))
+        except Exception as e:
+            return False, str(e)
+        return (
+            True,
+            "Model resolved and a Databricks token is available. A personal access token is only "
+            "checked for being set, not validated against the workspace.",
+        )
