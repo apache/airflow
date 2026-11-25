@@ -38,6 +38,8 @@ from airflowctl.ctl import cli_parser
 from airflowctl.ctl.commands import task_command
 
 MAPPED_TASK_DETAIL = "Task instance is mapped, add the map_index value to the URL"
+REGION_NOT_SELECTED_DETAIL = "Select a region and index for this task instance"
+REGION_ID = "0199a4c1-2b3c-7d4e-8f50-6a7b8c9d0e1f"
 
 
 def _make_server_error(status_code: int, detail: str = "boom") -> ServerResponseError:
@@ -192,6 +194,38 @@ class TestFailedDeps:
         assert capsys.readouterr().out == (
             "Task instance dependencies not met:\nPool Slots Available: pool is full\n"
         )
+
+    def test_failed_deps_with_region(self):
+        api_client = self._make_api_client(state=TaskInstanceState.SUCCESS)
+
+        task_command.failed_deps(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "failed-deps",
+                    self.dag_id,
+                    self.task_id,
+                    self.run_id,
+                    "--region-id",
+                    REGION_ID,
+                    "--region-index",
+                    "2",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        expected_call = mock.call(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=-1,
+            region_id=REGION_ID,
+            region_index=2,
+            suppress_error_log=True,
+        )
+        assert api_client.task_instances.get_dependencies.call_args_list == [expected_call]
+        assert api_client.task_instances.get.call_args_list == [expected_call]
 
     def test_failed_deps_does_not_look_up_the_dag_run_for_a_given_run_id(self):
         api_client = self._make_api_client()
@@ -418,6 +452,9 @@ class TestStatesForDagRun:
         state: TaskInstanceState | None = TaskInstanceState.SUCCESS,
         start_date: datetime.datetime | None = None,
         end_date: datetime.datetime | None = None,
+        in_loop: bool = False,
+        region_id: str | None = None,
+        region_index: int | None = None,
     ) -> TaskInstanceResponse:
         return TaskInstanceResponse(
             id=uuid.uuid4(),
@@ -425,7 +462,9 @@ class TestStatesForDagRun:
             dag_id=self.dag_id,
             dag_run_id=self.run_id,
             map_index=map_index,
-            in_loop=False,
+            region_id=uuid.UUID(region_id) if region_id else None,
+            region_index=region_index,
+            in_loop=in_loop,
             logical_date=self.logical_date,
             run_after=self.logical_date,
             state=state,
@@ -571,6 +610,33 @@ class TestStatesForDagRun:
 
         rows = mock_console_cls.return_value.print_as.call_args.kwargs["data"]
         assert [row["map_index"] for row in rows] == ["", "0", "1"]
+        assert all("region_id" not in row for row in rows)
+
+    @mock.patch("airflowctl.ctl.commands.task_command.AirflowConsole")
+    def test_states_for_dag_run_includes_region_for_task_instances_in_a_loop(self, mock_console_cls):
+        other_region = "0199a4c1-2b3c-7d4e-8f50-000000000000"
+        api_client = self._make_api_client(
+            [
+                self._make_task_instance("before_loop"),
+                # A mapped task outside a loop has a region too, but is selected by its map index.
+                self._make_task_instance("mapped_task", map_index=0, region_id=other_region, region_index=0),
+                self._make_task_instance("body.step", in_loop=True, region_id=REGION_ID, region_index=1),
+                self._make_task_instance("body.step", in_loop=True, region_id=REGION_ID, region_index=2),
+            ]
+        )
+
+        task_command.states_for_dag_run(
+            self.parser.parse_args(["tasks", "states-for-dag-run", self.dag_id, self.run_id]),
+            api_client=api_client,
+        )
+
+        rows = mock_console_cls.return_value.print_as.call_args.kwargs["data"]
+        assert [(row["task_id"], row["region_id"], row["region_index"]) for row in rows] == [
+            ("before_loop", "", ""),
+            ("mapped_task", "", ""),
+            ("body.step", REGION_ID, "1"),
+            ("body.step", REGION_ID, "2"),
+        ]
 
     @pytest.mark.parametrize(
         "extra_args",
@@ -799,6 +865,37 @@ class TestState:
         )
         assert capsys.readouterr().out == "success\n"
 
+    def test_state_with_region(self, capsys):
+        api_client = self._make_api_client(state=TaskInstanceState.SUCCESS)
+
+        task_command.state(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "state",
+                    self.dag_id,
+                    self.task_id,
+                    self.run_id,
+                    "--region-id",
+                    REGION_ID,
+                    "--region-index",
+                    "2",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.get.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            map_index=-1,
+            region_id=REGION_ID,
+            region_index=2,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == "success\n"
+
     def test_state_prints_none_when_task_instance_has_no_state(self, capsys):
         api_client = self._make_api_client(state=None)
 
@@ -1018,6 +1115,41 @@ class TestLogs:
             suppress_error_log=True,
         )
 
+    def test_logs_with_region(self, capsys):
+        api_client = mock.MagicMock()
+        api_client.task_instances.logs.return_value = self._make_log_response(["line"])
+
+        task_command.logs(
+            self.parser.parse_args(
+                [
+                    "tasks",
+                    "logs",
+                    self.dag_id,
+                    self.run_id,
+                    self.task_id,
+                    "--try-number",
+                    "1",
+                    "--region-id",
+                    REGION_ID,
+                    "--region-index",
+                    "2",
+                ]
+            ),
+            api_client=api_client,
+        )
+
+        api_client.task_instances.logs.assert_called_once_with(
+            dag_id=self.dag_id,
+            dag_run_id=self.run_id,
+            task_id=self.task_id,
+            try_number=1,
+            map_index=-1,
+            region_id=REGION_ID,
+            region_index=2,
+            suppress_error_log=True,
+        )
+        assert capsys.readouterr().out == "line\n"
+
     def test_logs_task_instance_not_found(self, capsys):
         api_client = mock.MagicMock()
         api_client.task_instances.logs.side_effect = _make_server_error(404)
@@ -1078,3 +1210,90 @@ def test_task_instance_not_found_prints_task_id_containing_markup(command, argv,
         command(cli_parser.get_parser().parse_args(argv), api_client=api_client)
 
     assert "'my_task[/x]'" in _normalize_rich_output(capsys.readouterr().out)
+
+
+TASK_INSTANCE_COMMANDS = [
+    pytest.param(
+        task_command.failed_deps,
+        ["tasks", "failed-deps", "my_dag", "body.step", "my_run"],
+        "get_dependencies",
+        id="failed-deps",
+    ),
+    pytest.param(
+        task_command.state,
+        ["tasks", "state", "my_dag", "body.step", "my_run"],
+        "get",
+        id="state",
+    ),
+    pytest.param(
+        task_command.logs,
+        ["tasks", "logs", "my_dag", "my_run", "body.step", "--try-number", "1"],
+        "logs",
+        id="logs",
+    ),
+]
+
+
+@pytest.mark.parametrize(("command", "argv", "api_method"), TASK_INSTANCE_COMMANDS)
+def test_task_instance_in_a_loop_asks_for_its_region(command, argv, api_method, capsys):
+    api_client = mock.MagicMock(spec=Client)
+    getattr(api_client.task_instances, api_method).side_effect = _make_server_error(
+        400, REGION_NOT_SELECTED_DETAIL
+    )
+
+    with pytest.raises(SystemExit, match="1"):
+        command(cli_parser.get_parser().parse_args(argv), api_client=api_client)
+
+    assert _normalize_rich_output(capsys.readouterr().out) == (
+        "Task 'body.step' in Dag run 'my_run' of Dag 'my_dag' runs inside a task loop; "
+        "pass --region-id and --region-index to select one of its task instances. "
+        "'airflowctl tasks states-for-dag-run' lists them"
+    )
+
+
+@pytest.mark.parametrize(("command", "argv", "api_method"), TASK_INSTANCE_COMMANDS)
+def test_other_bad_request_errors_are_reraised(command, argv, api_method):
+    api_client = mock.MagicMock(spec=Client)
+    getattr(api_client.task_instances, api_method).side_effect = _make_server_error(400, "something else")
+
+    with pytest.raises(ServerResponseError):
+        command(cli_parser.get_parser().parse_args(argv), api_client=api_client)
+
+
+@pytest.mark.parametrize(("command", "argv", "api_method"), TASK_INSTANCE_COMMANDS)
+def test_task_instance_not_found_in_region(command, argv, api_method, capsys):
+    api_client = mock.MagicMock(spec=Client)
+    getattr(api_client.task_instances, api_method).side_effect = _make_server_error(404)
+
+    with pytest.raises(SystemExit, match="1"):
+        command(
+            cli_parser.get_parser().parse_args([*argv, "--region-id", REGION_ID, "--region-index", "2"]),
+            api_client=api_client,
+        )
+
+    assert _normalize_rich_output(capsys.readouterr().out) == (
+        f"Task instance for task 'body.step' in region {REGION_ID} at index 2 in Dag run 'my_run' "
+        "of Dag 'my_dag' not found"
+    )
+
+
+@pytest.mark.parametrize(("command", "argv", "api_method"), TASK_INSTANCE_COMMANDS)
+@pytest.mark.parametrize(
+    "region_args", [["--region-id", REGION_ID], ["--region-index", "2"]], ids=["id-only", "index-only"]
+)
+def test_region_id_and_index_must_be_passed_together(command, argv, api_method, region_args, capsys):
+    api_client = mock.MagicMock(spec=Client)
+
+    with pytest.raises(SystemExit, match="1"):
+        command(cli_parser.get_parser().parse_args([*argv, *region_args]), api_client=api_client)
+
+    assert _normalize_rich_output(capsys.readouterr().out) == "Pass --region-id and --region-index together"
+    getattr(api_client.task_instances, api_method).assert_not_called()
+
+
+@pytest.mark.parametrize(("command", "argv", "api_method"), TASK_INSTANCE_COMMANDS)
+def test_region_id_must_be_a_uuid(command, argv, api_method, capsys):
+    with pytest.raises(SystemExit, match="2"):
+        cli_parser.get_parser().parse_args([*argv, "--region-id", "not-a-uuid", "--region-index", "2"])
+
+    assert "argument --region-id: invalid UUID value: 'not-a-uuid'" in capsys.readouterr().err
