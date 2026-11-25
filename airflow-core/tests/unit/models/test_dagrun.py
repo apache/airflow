@@ -2401,19 +2401,23 @@ class TestDagRun:
         assert dbapi_connection.execute("PRAGMA query_only").fetchone()[0] == 0
 
     @pytest.mark.backend("sqlite")
-    def test_sqlite_deadline_alert_session_connection_is_invalidated_when_it_cannot_be_reset(self, session):
+    @pytest.mark.parametrize(
+        "reset_error",
+        [
+            pytest.param(OperationalError("ROLLBACK", None, Exception()), id="database_error"),
+            pytest.param(KeyboardInterrupt(), id="interrupt"),
+        ],
+    )
+    def test_sqlite_deadline_alert_session_connection_is_invalidated_when_it_cannot_be_reset(
+        self, reset_error, session
+    ):
         alert_session_context = _create_alert_session(session=session)
         connection = alert_session_context.__enter__().connection()
         dbapi_connection = connection.connection.dbapi_connection
 
         with (
-            mock.patch.object(
-                connection,
-                "rollback",
-                autospec=True,
-                side_effect=OperationalError("ROLLBACK", None, Exception()),
-            ),
-            pytest.raises(OperationalError),
+            mock.patch.object(connection, "rollback", autospec=True, side_effect=reset_error),
+            pytest.raises(type(reset_error)),
         ):
             alert_session_context.__exit__(None, None, None)
 
@@ -2432,6 +2436,18 @@ class TestDagRun:
         ):
             # False: the alert's own error is re-raised to the caller, not replaced by the reset failure.
             assert alert_session_context.__exit__(DagRunRolledBackError, error, None) is False
+
+    @pytest.mark.backend("sqlite")
+    def test_sqlite_deadline_alert_session_does_not_swallow_an_interrupt_during_reset(self, session):
+        alert_session_context = _create_alert_session(session=session)
+        connection = alert_session_context.__enter__().connection()
+        error = DagRunRolledBackError("rolled back", dag_id="dag", dag_version_id=None)
+
+        with (
+            mock.patch.object(connection, "rollback", autospec=True, side_effect=KeyboardInterrupt()),
+            pytest.raises(KeyboardInterrupt),
+        ):
+            alert_session_context.__exit__(DagRunRolledBackError, error, None)
 
     @pytest.mark.parametrize(
         ("execute_error", "expected"),

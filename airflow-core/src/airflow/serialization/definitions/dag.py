@@ -131,13 +131,14 @@ def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Ses
             try:
                 connection.rollback()
                 connection.exec_driver_sql("PRAGMA query_only = OFF")
-            except BaseException:
+            except BaseException as reset_error:
                 # A connection left read-only must not go back to the pool, where the scheduler's own
                 # writes would fail on it.
                 connection.invalidate()
-                if not alert_failed:
+                # Keep the alert's error, which the caller acts on (e.g. DagRunRolledBackError), over an
+                # ordinary reset failure, but never swallow an interrupt or SystemExit.
+                if not alert_failed or not isinstance(reset_error, Exception):
                     raise
-                # Keep the alert's error: the caller acts on it, e.g. on DagRunRolledBackError.
                 log.warning("failed to reset the deadline alert connection", exc_info=True)
 
 

@@ -577,8 +577,9 @@ followed by a more urgent escalation if the Dag is still running.
 
   Do not open another session either (for example with ``provide_session`` or ``create_session``),
   because that returns the scheduler's session. Rolling it back, committing it (the scheduler rejects the
-  commit and rolls the session back), or on PostgreSQL running a statement that fails on it discards the
-  Dag run being created, and the scheduler then stops creating Dag runs for that Dag until it restarts.
+  commit and rolls the session back), a flush that fails on it, or on PostgreSQL any statement that fails
+  on it discards the Dag run being created, and the scheduler then stops creating Dag runs for that Dag
+  until it restarts.
   Fix the reference, then restart the scheduler.
 
   When task instances are cleared, references anchored to the time the Dag run was queued are
