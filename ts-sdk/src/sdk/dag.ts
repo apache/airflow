@@ -1613,15 +1613,11 @@ function rejectUnknownRules(spec: Record<string, unknown>, owner: string): void 
     );
   }
   const weightRule = spec["weightRule"];
-  // A dotted value is the import path of a PriorityWeightStrategy class registered by a plugin.
-  if (
-    typeof weightRule === "string" &&
-    !WEIGHT_RULES.has(weightRule) &&
-    !weightRule.includes(".")
-  ) {
+  // Python also accepts a plugin's PriorityWeightStrategy import path; like the Go SDK, this does not.
+  if (typeof weightRule === "string" && !WEIGHT_RULES.has(weightRule)) {
     throw new Error(
-      `weightRule in the spec for ${owner} is ${JSON.stringify(weightRule)}; use one of ` +
-        `${[...WEIGHT_RULES].join(", ")}, or the import path of a registered priority weight strategy`,
+      `weightRule in the spec for ${owner} is ${JSON.stringify(weightRule)}; ` +
+        `use one of ${[...WEIGHT_RULES].join(", ")}`,
     );
   }
 }

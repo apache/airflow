@@ -434,23 +434,25 @@ describe("Dag", () => {
     },
   );
 
-  it.each(["upwards", "Upstream", ""])("rejects the unknown weight rule %j", (weightRule) => {
-    const dag = new Dag("example_dag");
-    expect(() => dag.task("transform", async () => undefined, { weightRule })).toThrowError(
-      `weightRule in the spec for Dag "example_dag" task "transform" is ${JSON.stringify(weightRule)}; ` +
-        "use one of downstream, upstream, absolute,",
-    );
-    expect(dag.taskIds).toEqual([]);
-  });
+  it.each(["upwards", "Upstream", "", "my_plugin.strategies.DecreasingPriorityStrategy"])(
+    "rejects the unknown weight rule %j",
+    (weightRule) => {
+      const dag = new Dag("example_dag");
+      expect(() => dag.task("transform", async () => undefined, { weightRule })).toThrowError(
+        `weightRule in the spec for Dag "example_dag" task "transform" is ${JSON.stringify(weightRule)}; ` +
+          "use one of downstream, upstream, absolute",
+      );
+      expect(dag.taskIds).toEqual([]);
+    },
+  );
 
-  it("accepts every trigger rule and weight rule, and a plugin's weight rule import path", () => {
+  it("accepts every trigger rule and weight rule", () => {
     const dag = new Dag("example_dag");
     for (const triggerRule of TRIGGER_RULES)
       dag.task(`t_${triggerRule}`, async () => undefined, { triggerRule });
-    for (const weightRule of [...WEIGHT_RULES, "my_plugin.strategies.DecreasingPriorityStrategy"]) {
-      dag.task(`w_${weightRule.replaceAll(".", "_")}`, async () => undefined, { weightRule });
-    }
-    expect(dag.taskIds).toHaveLength(TRIGGER_RULES.size + WEIGHT_RULES.size + 1);
+    for (const weightRule of WEIGHT_RULES)
+      dag.task(`w_${weightRule}`, async () => undefined, { weightRule });
+    expect(dag.taskIds).toHaveLength(TRIGGER_RULES.size + WEIGHT_RULES.size);
   });
 
   it.each([
