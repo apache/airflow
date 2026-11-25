@@ -337,9 +337,9 @@ path under ``xcom_objectstorage_path`` would be opened by the backend on the API
 with its storage credentials, even when it holds another Dag's XCom. The plugin shows only
 the ``text`` of such a dictionary written for the Dag under review. Any other value under
 these keys, such as one written before this format, is shown as stored, never what a
-reference in it points to. A review that started on an earlier version of the provider
-therefore shows the reference, not the text, for an output or feedback the backend kept in
-its storage.
+reference in it points to. An output or feedback written by an earlier version of the
+provider is therefore shown as the reference, not the text, when the backend kept it in its
+storage.
 
 Session lifecycle
 ^^^^^^^^^^^^^^^^^

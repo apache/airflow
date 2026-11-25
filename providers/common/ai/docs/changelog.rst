@@ -80,6 +80,12 @@ Changelog
   typed ``str``; in 1.1.0 it defaulted to ``None`` and was typed ``str | None``. This changes
   only the signature and the annotated type, not the behaviour.
 
+.. note::
+  The HITL review XComs ``airflow_hitl_review_agent_output_<n>`` and
+  ``airflow_hitl_review_human_feedback_<n>`` now hold ``{"text": ..., "dag_id": ...}``; in
+  1.1.0 they held the text itself. A task that pulls them reads the text from ``["text"]``.
+  See :doc:`hitl_review`.
+
 1.1.0
 .....
 

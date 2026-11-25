@@ -37,7 +37,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     AgentSessionData,
     HumanActionData,
     SessionStatus,
-    review_text_xcom,
+    wrap_review_text,
 )
 from airflow.providers.common.ai.utils.output_type import dump_output_for_display
 from airflow.providers.common.ai.utils.prompt import describe_prompt
@@ -263,7 +263,7 @@ class HITLReviewMixin:
                 )
 
         ti.xcom_push(key=XCOM_AGENT_SESSION, value=session.model_dump(mode="json"))
-        ti.xcom_push(key=f"{XCOM_AGENT_OUTPUT_PREFIX}1", value=review_text_xcom(output_str, dag_id=ti.dag_id))
+        ti.xcom_push(key=f"{XCOM_AGENT_OUTPUT_PREFIX}1", value=wrap_review_text(output_str, dag_id=ti.dag_id))
 
         self.log.info(
             "Feedback session created for %s/%s/%s (poll every %ds).",
@@ -310,11 +310,11 @@ class HITLReviewMixin:
             # The HITL Review tab shows each round from these.
             ti.xcom_push(
                 key=f"{XCOM_AGENT_OUTPUT_PREFIX}{session.iteration}",
-                value=review_text_xcom(session.current_output, dag_id=ti.dag_id),
+                value=wrap_review_text(session.current_output, dag_id=ti.dag_id),
             )
             ti.xcom_push(
                 key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{session.iteration}",
-                value=review_text_xcom(feedback, dag_id=ti.dag_id),
+                value=wrap_review_text(feedback, dag_id=ti.dag_id),
             )
             session, message_history = self._regenerate_next_round(session, feedback, message_history)
         state = self.dump_review_state(message_history)
@@ -392,7 +392,7 @@ class HITLReviewMixin:
         ti.xcom_push(key=XCOM_AGENT_SESSION, value=session.model_dump(mode="json"))
         ti.xcom_push(
             key=f"{XCOM_AGENT_OUTPUT_PREFIX}{session.iteration}",
-            value=review_text_xcom(session.current_output, dag_id=ti.dag_id),
+            value=wrap_review_text(session.current_output, dag_id=ti.dag_id),
         )
         self.log.info("Waiting for review of iteration %d.", session.iteration)
         raise TaskAwaitingInput(
@@ -480,7 +480,7 @@ class HITLReviewMixin:
                 # The HITL Review tab shows the feedback from this XCom.
                 ti.xcom_push(
                     key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}",
-                    value=review_text_xcom(feedback, dag_id=ti.dag_id),
+                    value=wrap_review_text(feedback, dag_id=ti.dag_id),
                 )
             if iteration >= self.max_hitl_iterations:
                 _push_session(ti, session, SessionStatus.MAX_ITERATIONS_EXCEEDED)
@@ -602,7 +602,7 @@ class HITLReviewMixin:
                 ti.xcom_push(key=XCOM_AGENT_SESSION, value=session.model_dump(mode="json"))
                 ti.xcom_push(
                     key=f"{XCOM_AGENT_OUTPUT_PREFIX}{new_iteration}",
-                    value=review_text_xcom(new_output, dag_id=ti.dag_id),
+                    value=wrap_review_text(new_output, dag_id=ti.dag_id),
                 )
 
                 self.log.info("Regenerated output (iteration %d) — waiting for review.", new_iteration)

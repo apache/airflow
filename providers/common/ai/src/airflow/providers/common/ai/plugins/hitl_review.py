@@ -64,8 +64,8 @@ if AIRFLOW_V_3_1_PLUS:
         HumanActionType,
         HumanFeedbackRequest,
         SessionStatus,
-        read_review_text_xcom,
-        review_text_xcom,
+        unwrap_review_text,
+        wrap_review_text,
     )
     from airflow.providers.common.compat.sdk import XCom, timezone
     from airflow.sdk import TaskInstanceState
@@ -134,7 +134,7 @@ if AIRFLOW_V_3_1_PLUS:
         """
         Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``).
 
-        Each entry is read through the XCom backend, and its text is taken from what ``review_text_xcom``
+        Each entry is read through the XCom backend, and its text is taken from what ``wrap_review_text``
         wrapped for this Dag. Any other value, such as one written before entries were wrapped, is returned
         as stored: a reference in it may point to another Dag's XCom, so what it resolves to is not shown.
         """
@@ -161,7 +161,7 @@ if AIRFLOW_V_3_1_PLUS:
         for row in session.scalars(query):
             suffix = row.key[len(prefix) :]
             if suffix.isdigit():
-                text = read_review_text_xcom(_load_xcom_value(row), dag_id=dag_id)
+                text = unwrap_review_text(_load_xcom_value(row), dag_id=dag_id)
                 result[int(suffix)] = row.value if text is None else text
         return result
 
@@ -524,7 +524,7 @@ if AIRFLOW_V_3_1_PLUS:
                 session,
                 **coordinates,
                 key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}",
-                value=review_text_xcom(feedback, dag_id=dag_id),
+                value=wrap_review_text(feedback, dag_id=dag_id),
             )
         if not sess_data.parked:
             # A polling task reads the action from this XCom; a parked one gets it on resume.

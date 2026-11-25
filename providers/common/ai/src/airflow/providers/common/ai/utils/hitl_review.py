@@ -59,14 +59,14 @@ XCOM_AGENT_OUTPUT_PREFIX = f"{_XCOM_PREFIX}agent_output_"
 """Per-iteration AI output (append-only, written by worker).
 
 Actual key: ``airflow_hitl_review_agent_output_1``, ``_2``, ...
-Value: ``{"text": "...", "dag_id": "..."}`` (see :func:`review_text_xcom`).
+Value: ``{"text": "...", "dag_id": "..."}`` (see :func:`wrap_review_text`).
 """
 
 XCOM_HUMAN_FEEDBACK_PREFIX = f"{_XCOM_PREFIX}human_feedback_"
 """Per-iteration human feedback (append-only, written by the plugin, and by the worker when it resumes).
 
 Actual key: ``airflow_hitl_review_human_feedback_1``, ``_2``, ...
-Value: ``{"text": "...", "dag_id": "..."}`` (see :func:`review_text_xcom`).
+Value: ``{"text": "...", "dag_id": "..."}`` (see :func:`wrap_review_text`).
 """
 
 # On Airflow 3.3+ each review round is also a Human-in-the-loop request on the task instance, which
@@ -77,7 +77,7 @@ HITL_OPTION_REJECT = "Reject"
 HITL_FEEDBACK_PARAM = "feedback"
 
 
-def review_text_xcom(text: str, *, dag_id: str) -> dict[str, str]:
+def wrap_review_text(text: str, *, dag_id: str) -> dict[str, str]:
     """
     Wrap an agent output or human feedback for its per-iteration XCom.
 
@@ -89,8 +89,8 @@ def review_text_xcom(text: str, *, dag_id: str) -> dict[str, str]:
     return {"text": text, "dag_id": dag_id}
 
 
-def read_review_text_xcom(value: Any, *, dag_id: str) -> str | None:
-    """Return the text :func:`review_text_xcom` wrapped for ``dag_id``, or ``None`` for any other value."""
+def unwrap_review_text(value: Any, *, dag_id: str) -> str | None:
+    """Return the text :func:`wrap_review_text` wrapped for ``dag_id``, or ``None`` for any other value."""
     if (
         isinstance(value, dict)
         and value.get("dag_id") == dag_id

@@ -38,8 +38,8 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     HumanFeedbackRequest,
     SessionStatus,
-    read_review_text_xcom,
-    review_text_xcom,
+    unwrap_review_text,
+    wrap_review_text,
 )
 
 
@@ -56,10 +56,10 @@ class TestXComConstants:
 
 class TestReviewTextXCom:
     def test_text_is_wrapped_with_the_dag(self):
-        wrapped = review_text_xcom("s3://bucket/xcom/other_dag/run/task/key.json", dag_id="d")
+        wrapped = wrap_review_text("s3://bucket/xcom/other_dag/run/task/key.json", dag_id="d")
 
         assert wrapped == {"text": "s3://bucket/xcom/other_dag/run/task/key.json", "dag_id": "d"}
-        assert read_review_text_xcom(wrapped, dag_id="d") == "s3://bucket/xcom/other_dag/run/task/key.json"
+        assert unwrap_review_text(wrapped, dag_id="d") == "s3://bucket/xcom/other_dag/run/task/key.json"
 
     @pytest.mark.parametrize(
         "value",
@@ -72,7 +72,7 @@ class TestReviewTextXCom:
         ],
     )
     def test_anything_not_wrapped_for_the_dag_has_no_text(self, value):
-        assert read_review_text_xcom(value, dag_id="d") is None
+        assert unwrap_review_text(value, dag_id="d") is None
 
 
 class TestConversationEntry:

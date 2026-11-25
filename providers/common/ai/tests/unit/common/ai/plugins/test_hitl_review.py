@@ -52,7 +52,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_HUMAN_FEEDBACK_PREFIX,
     AgentSessionData,
     SessionStatus,
-    review_text_xcom,
+    wrap_review_text,
 )
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
@@ -139,7 +139,7 @@ def _create_hitl_session(
     _write_xcom(
         session,
         key=f"{XCOM_AGENT_OUTPUT_PREFIX}{iteration}",
-        value=review_text_xcom(current_output, dag_id=dag_id),
+        value=wrap_review_text(current_output, dag_id=dag_id),
         region_id=NO_REGION,
         dag_id=dag_id,
         task_id=task_id,
@@ -315,12 +315,12 @@ class TestReadXcomByPrefix:
                 {1: "a", 2: "b", 99: "d"},
             ),
             (
-                [("1", review_text_xcom("v1", dag_id="d")), ("2", "v2")],
+                [("1", wrap_review_text("v1", dag_id="d")), ("2", "v2")],
                 XCOM_HUMAN_FEEDBACK_PREFIX,
                 {1: "v1", 2: "v2"},
             ),
             (
-                [("1", review_text_xcom("v1", dag_id="other_dag"))],
+                [("1", wrap_review_text("v1", dag_id="other_dag"))],
                 XCOM_AGENT_OUTPUT_PREFIX,
                 {1: {"text": "v1", "dag_id": "other_dag"}},
             ),
@@ -1811,11 +1811,11 @@ class TestReferenceStoringXComBackend:
         )
         by_reference = {
             XCOM_AGENT_SESSION: sess.model_dump(mode="json"),
-            f"{XCOM_AGENT_OUTPUT_PREFIX}2": review_text_xcom("Second output", dag_id=TEST_DAG_ID),
+            f"{XCOM_AGENT_OUTPUT_PREFIX}2": wrap_review_text("Second output", dag_id=TEST_DAG_ID),
         }
         stored_natively = {
-            f"{XCOM_AGENT_OUTPUT_PREFIX}1": review_text_xcom("First output", dag_id=TEST_DAG_ID),
-            f"{XCOM_HUMAN_FEEDBACK_PREFIX}1": review_text_xcom("Add more detail", dag_id=TEST_DAG_ID),
+            f"{XCOM_AGENT_OUTPUT_PREFIX}1": wrap_review_text("First output", dag_id=TEST_DAG_ID),
+            f"{XCOM_HUMAN_FEEDBACK_PREFIX}1": wrap_review_text("Add more detail", dag_id=TEST_DAG_ID),
         }
         for key, value in by_reference.items():
             reference = f"file:///xcom-store/{key}.json"
@@ -1918,12 +1918,22 @@ class TestReviewTextHoldingAStoragePath:
             cache.cache_clear()
         _clear_db()
 
-    def test_feedback_submitted_as_a_path(self, test_client, other_dag_xcom):
+    def test_feedback_submitted_as_a_path(self, test_client, session, other_dag_xcom):
         response = test_client.post(
             "/hitl-review/sessions/feedback", params=self.PARAMS, json={"feedback": other_dag_xcom}
         )
 
         assert response.status_code == 200
+        stored = _read_xcom(
+            session,
+            dag_id=TEST_DAG_ID,
+            run_id=TEST_RUN_ID,
+            task_id=TEST_TASK_ID,
+            map_index=MAP_INDEX,
+            region_id=NO_REGION,
+            key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
+        )
+        assert stored == wrap_review_text(other_dag_xcom, dag_id=TEST_DAG_ID)
         assert self.SECRET not in response.text
         assert response.json()["conversation"][-1]["content"] == other_dag_xcom
         found = test_client.get("/hitl-review/sessions/find", params=self.PARAMS)
@@ -1972,7 +1982,7 @@ class TestReviewTextHoldingAStoragePath:
     )
     def test_wrapped_path_is_shown_as_text(self, test_client, session, other_dag_xcom, prefix, role):
         """A model output or Required Actions feedback that is a path, as the worker pushes it now."""
-        wrapped = review_text_xcom(other_dag_xcom, dag_id=TEST_DAG_ID)
+        wrapped = wrap_review_text(other_dag_xcom, dag_id=TEST_DAG_ID)
 
         response = self._find_after_writing(test_client, session, f"{prefix}1", wrapped)
 
@@ -1985,7 +1995,7 @@ class TestReviewTextHoldingAStoragePath:
         """From ``xcom_objectstorage_threshold`` up, the row holds a reference to the wrapped output, which is shown."""
         stored = tmp_path / TEST_DAG_ID / TEST_RUN_ID / TEST_TASK_ID / "output.json"
         stored.parent.mkdir(parents=True)
-        stored.write_text(json.dumps(review_text_xcom("Stored output", dag_id=TEST_DAG_ID)))
+        stored.write_text(json.dumps(wrap_review_text("Stored output", dag_id=TEST_DAG_ID)))
 
         response = self._find_after_writing(
             test_client, session, f"{XCOM_AGENT_OUTPUT_PREFIX}1", f"file://{stored}"
