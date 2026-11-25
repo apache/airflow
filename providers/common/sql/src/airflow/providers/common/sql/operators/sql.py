@@ -552,7 +552,10 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         self.return_last = return_last
         self.show_return_value_in_logs = show_return_value_in_logs
         self.requires_result_fetch = requires_result_fetch
-        self.cancel_on_kill = cancel_on_kill
+        # Kept when a subclass set it before calling this ``__init__``, as ``SnowflakeSqlApiOperator`` does
+        # (released in apache-airflow-providers-snowflake 6.17.0 and later)
+        if "cancel_on_kill" not in self.__dict__:
+            self.cancel_on_kill = cancel_on_kill
         # The hook ``execute`` runs the statements on, for ``on_kill``
         self._running_hook: DbApiHook | None = None
         self._killed = False

@@ -212,6 +212,17 @@ class TestSQLExecuteQueryOperator:
         assert descriptions == ("id", "name")
         assert result == [(1, "Alice"), (2, "Bob")]
 
+    def test_cancel_on_kill_set_by_a_subclass_before_init_is_kept(self):
+        class PresetOperator(SQLExecuteQueryOperator):
+            # What ``SnowflakeSqlApiOperator`` does since apache-airflow-providers-snowflake 6.17.0
+            def __init__(self, *, cancel_on_kill: bool = True, **kwargs):
+                self.cancel_on_kill = cancel_on_kill
+                super().__init__(**kwargs)
+
+        operator = PresetOperator(task_id="test_task", sql="SELECT 1", cancel_on_kill=False)
+
+        assert operator.cancel_on_kill is False
+
     @staticmethod
     def _kill_during_run(operator: SQLExecuteQueryOperator, hook: MagicMock) -> None:
         """Make ``hook.run`` call ``on_kill``, as the ``SIGTERM`` handler does while a statement runs."""

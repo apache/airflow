@@ -418,6 +418,7 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         self.execute_async = False
         self.snowflake_api_retry_args = snowflake_api_retry_args or {}
         self.deferrable = deferrable
+        self.cancel_on_kill = cancel_on_kill
         self.query_ids: list[str] = []
         if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
             hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
@@ -431,8 +432,6 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 **hook_params,
             }
         super().__init__(conn_id=snowflake_conn_id, **kwargs)  # pragma: no cover
-        # Assigned after super().__init__ to override its default; older common-sql has no cancel_on_kill
-        self.cancel_on_kill = cancel_on_kill
 
     @cached_property
     def _hook(self):
