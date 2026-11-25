@@ -324,6 +324,11 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
         try:
             self.on_kill()
         except ApiException as e:
+            if e.status == 404:
+                self.log.info("The job '%s' was already deleted", name)
+            else:
+                self.log.warning("Could not delete the job '%s': %s", name, e)
+        except HTTPError as e:
             self.log.warning("Could not delete the job '%s': %s", name, e)
 
     def on_kill(self) -> None:

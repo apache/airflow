@@ -38,6 +38,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
     create_unique_id,
+    generic_api_retry,
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
@@ -400,7 +401,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
-            self.job_client.delete_namespaced_job(**kwargs)
+            self._delete_job(**kwargs)
         if self.on_kill_action == OnKillAction.KEEP_POD:
             self.log.info(
                 "Skipping monitoring pod deletion since on_kill_action is set to %r.",
@@ -417,6 +418,10 @@ class KubernetesJobOperator(KubernetesPodOperator):
                     "Unable to delete monitoring pod %s",
                     getattr(pod.metadata, "name", "<unknown>"),
                 )
+
+    @generic_api_retry
+    def _delete_job(self, **kwargs: Any) -> None:
+        self.job_client.delete_namespaced_job(**kwargs)
 
     def _cleanup_monitoring_pods(self, context: Context) -> None:
         """

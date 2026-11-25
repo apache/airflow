@@ -453,6 +453,45 @@ class TestKubernetesStartKueueJobOperatorWait:
             name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Foreground"
         )
 
+    @pytest.mark.parametrize(
+        ("delete_errors", "expected_calls"),
+        [
+            ([ApiException(status=503), None], 2),
+            ([ProtocolError("connection reset"), None], 2),
+            ([ApiException(status=503), ApiException(status=404)], 2),
+            ([ApiException(status=403)], 1),
+        ],
+        ids=["retried-api-error", "retried-connection-error", "deleted-by-first-try", "not-retried"],
+    )
+    @mock.patch.object(KubernetesJobOperator._delete_job.retry, "wait", tenacity.wait_none())
+    @mock.patch.object(KubernetesJobOperator, "resume_execution", autospec=True)
+    @mock.patch.object(
+        KubernetesStartKueueJobOperator,
+        "job_client",
+        new_callable=lambda: mock.create_autospec(BatchV1Api, instance=True),
+    )
+    def test_resume_execution_retries_job_deletion_when_deferral_timed_out(
+        self, mock_job_client, mock_resume_execution, delete_errors, expected_calls
+    ):
+        mock_resume_execution.side_effect = AirflowException("Trigger timeout")
+        mock_job_client.delete_namespaced_job.side_effect = delete_errors
+        context = self.build_context()
+        context["ti"].xcom_pull.side_effect = lambda task_ids, key, map_indexes: {
+            "job_name": JOB_NAME,
+            "job_namespace": NAMESPACE,
+        }[key]
+
+        # The deferral timeout is raised, whatever happened to the Job
+        with pytest.raises(AirflowException, match="Trigger timeout"):
+            self.build_operator(deferrable=True).resume_execution(
+                "__fail__", {"error": "Trigger timeout"}, context
+            )
+        assert (
+            mock_job_client.delete_namespaced_job.call_args_list
+            == [mock.call(name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Foreground")]
+            * expected_calls
+        )
+
     @mock.patch.object(KubernetesJobOperator, "resume_execution", autospec=True)
     def test_resume_execution_keeps_job_when_deferral_timed_out_with_keep_pod(self, mock_resume_execution):
         mock_resume_execution.side_effect = AirflowException("Trigger timeout")
