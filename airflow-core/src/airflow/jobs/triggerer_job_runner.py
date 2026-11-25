@@ -99,6 +99,7 @@ from airflow.sdk.execution_time.comms import (
     PutVariable,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetRenderedFields,
     SetXCom,
     TaskStatesResult,
     TICount,
@@ -137,7 +138,9 @@ from airflow.sdk.execution_time.request_handlers import (
     handle_set_xcom,
 )
 from airflow.sdk.execution_time.supervisor import WatchedSubprocess, make_buffered_socket_reader
-from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+
+# _serialize_rendered_fields is reused so core cannot drift from the worker's redaction.
+from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _serialize_rendered_fields
 from airflow.serialization.serialized_objects import DagSerialization
 from airflow.triggers.base import BaseEventTrigger, BaseTrigger, DiscrimatedTriggerEvent, TriggerEvent
 from airflow.triggers.shared_stream import SharedStreamManager
@@ -523,6 +526,7 @@ ToTriggerSupervisor = Annotated[
     | GetAssetStateStoreByUri
     | SetAssetStateStoreByName
     | SetAssetStateStoreByUri
+    | SetRenderedFields
     | GetDagRunState
     | GetDRCount
     | GetPreviousTI
@@ -915,6 +919,15 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             resp = OKResponse(ok=True)
         elif isinstance(msg, SetAssetStateStoreByUri):
             handle_set_asset_state_store_by_uri(self.client, msg)
+            resp = OKResponse(ok=True)
+        elif isinstance(msg, SetRenderedFields):
+            # Sent only by a task that starts from the triggerer, so the fields belong to the
+            # task instance whose trigger the runner was handling when it sent the request.
+            if (ti_id := _handling_trigger_ti_id.get()) is not None:
+                self.client.task_instances.set_rtif(ti_id, msg.rendered_fields)
+            else:
+                # The runner is answered OK either way, so nothing else would show the drop.
+                log.warning("Dropping rendered fields sent outside a trigger request")
             resp = OKResponse(ok=True)
         else:
             raise ValueError(f"Unknown message type {type(msg)}")
@@ -1835,6 +1848,30 @@ class TriggerRunner:
             ),
         )
 
+    async def record_rendered_fields(self, trigger: BaseTrigger) -> None:
+        """
+        Record the template fields a task that starts from the triggerer renders here.
+
+        Such a task never starts in a worker, so a task that also ends there has nothing else to
+        record its rendered fields and shows none for the whole run. Only the operator fields that
+        ``start_trigger_args.trigger_kwargs`` carries reach the triggerer, and those are exactly
+        the ones ``BaseTrigger`` renders, so those are what this records. Rendering the rest would
+        need the Dag file, which the triggerer deliberately does not load.
+
+        Call this after ``trigger.render_template_fields()``, so the values are the rendered ones.
+        """
+        if not trigger.template_fields:
+            return
+
+        try:
+            rendered_fields = _serialize_rendered_fields(trigger)
+            if rendered_fields:
+                await self.comms_decoder.asend(SetRenderedFields(rendered_fields=rendered_fields))
+        except Exception:
+            # These fields are only ever displayed, so no failure here may end the trigger -- a
+            # task instance cleared meanwhile answers the write with a 410.
+            self.log.exception("Failed to record rendered template fields", task_id=trigger.task_id)
+
     async def create_triggers(self):
         """Drain the to_create queue and create all new triggers that have been requested in the DB."""
         # Emit batch creation duration only when triggers were processed.
@@ -2144,6 +2181,9 @@ class TriggerRunner:
             try:
                 if context is not None:
                     trigger.render_template_fields(context=context)
+                    # A context is built only for a task that starts from the triggerer, and one
+                    # that also ends there has no worker run to record its fields.
+                    await self.record_rendered_fields(trigger)
 
                 if event_trigger is not None:
                     try:

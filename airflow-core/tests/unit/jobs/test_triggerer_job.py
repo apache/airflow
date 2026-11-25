@@ -81,6 +81,7 @@ from airflow.jobs.triggerer_job_runner import (
     TriggerRunner,
     TriggerRunnerSupervisor,
     WatcherLoggingFactory,
+    _handling_trigger_ti_id,
     _make_trigger_span,
     format_trigger_error,
     messages,
@@ -97,14 +98,15 @@ from airflow.models.trigger import RecordedFailure
 from airflow.models.xcom import XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.sensors.date_time import DateTimeSensorAsync
 from airflow.providers.standard.triggers.file import FileDeleteTrigger
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.sdk import DAG, Asset, BaseHook, BaseOperator, task_group
-from airflow.sdk.api.client import Client
+from airflow.sdk.api.client import Client, TaskInstanceOperations
 from airflow.sdk.api.datamodels._generated import AssetStateStoreResponse
 from airflow.sdk.bases.xcom import _current_trigger_ti
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
     AssetStateStoreResult,
@@ -120,6 +122,7 @@ from airflow.sdk.execution_time.comms import (
     OKResponse,
     SetAssetStateStoreByName,
     SetAssetStateStoreByUri,
+    SetRenderedFields,
     ToSupervisor,
     ToTask,
     XComSequenceSliceResult,
@@ -475,15 +478,25 @@ class InProcessTriggerComms:
         self._request_decoder = msgspec.msgpack.Decoder(_RequestFrame)
         self._response_decoder = msgspec.msgpack.Decoder(_ResponseFrame)
         self._body_decoder: TypeAdapter[ToTriggerRunner] = TypeAdapter(ToTriggerRunner)
+        self._error_decoder: TypeAdapter[ErrorResponse] = TypeAdapter(ErrorResponse)
 
     async def asend(self, msg: ToTriggerSupervisor) -> ToTriggerRunner | None:
-        frame = _RequestFrame(id=next(self._ids), body=msg.model_dump())
+        # Stamped the way TriggerCommsDecoder.asend does it: with no TI in scope the
+        # SetRenderedFields handler skips its write and still answers OK, which a test that
+        # asserts only on the send cannot see.
+        trigger_ti = _current_trigger_ti.get()
+        frame = _RequestFrame(
+            id=next(self._ids), body=msg.model_dump(), ti_id=trigger_ti.id if trigger_ti else None
+        )
         self._stdin.sendall.reset_mock()
         self._requests.send(self._request_decoder.decode(frame.as_bytes()[4:]))
         (raw,), _ = self._stdin.sendall.call_args
         response = self._response_decoder.decode(raw[4:])
         assert response.id == frame.id
-        assert response.error is None, response.error
+        if response.error is not None:
+            # Raised, not asserted, so a caller meets the exception CommsDecoder._from_frame
+            # raises for the same response.
+            raise AirflowRuntimeError(error=self._error_decoder.validate_python(response.error))
         return self._body_decoder.validate_python(response.body)
 
 
@@ -6209,3 +6222,136 @@ class TestCreationFailureInFinished:
         runner.process_trigger_events(finished_ids=finished_ids)
 
         assert finished_ids == [10]
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("testing_dag_bundle")
+async def test_start_from_trigger_task_records_its_rendered_fields(session, supervisor_builder, mocker):
+    """
+    A task that runs entirely in the triggerer still has its rendered fields recorded.
+
+    Driven through the supervisor and the serialized Dag, so the operator is the
+    ``SerializedBaseOperator`` production builds rather than an SDK one, and only the operator
+    fields carried in ``start_trigger_args.trigger_kwargs`` are recorded.
+    """
+
+    target_time = "{{ data_interval_end }}"
+    sensor = DateTimeSensorAsync(
+        task_id="test_ti",
+        target_time=target_time,
+        start_from_trigger=True,
+        end_from_trigger=True,
+    )
+    _, _, trigger_orm, ti = create_trigger_in_db(
+        session,
+        DateTimeTrigger(target_time=target_time, end_from_trigger=True),
+        operator=sensor,
+    )
+
+    supervisor = supervisor_builder()
+    runner = TriggerRunner()
+    runner.comms_decoder = InProcessTriggerComms(supervisor)
+    set_rtif = mocker.patch.object(
+        TaskInstanceOperations, "set_rtif", autospec=True, return_value=OKResponse(ok=True)
+    )
+
+    supervisor.load_triggers()
+    await runner.sync_state_to_supervisor(finished_ids=[])
+    await runner.create_triggers()
+    await asyncio.wait([runner.triggers[trigger_orm.id]["task"]], timeout=10)
+
+    # Asserted on the API call, not the send, so the TI the supervisor resolves is covered too.
+    set_rtif.assert_called_once_with(mocker.ANY, ti.id, {"target_time": "2023-01-01 00:00:00+00:00"})
+
+
+@pytest.mark.asyncio
+@pytest.mark.usefixtures("testing_dag_bundle")
+async def test_a_rejected_rendered_fields_write_does_not_end_the_trigger(
+    session, supervisor_builder, mocker, cap_structlog
+):
+    """A write the supervisor rejects is logged, and the trigger still fires its event.
+
+    The task instance can be cleared between the trigger starting and the write landing, which
+    answers that write with a 410. The fields are only ever displayed, so losing them must not
+    cost the task its run.
+    """
+
+    target_time = "{{ data_interval_end }}"
+    sensor = DateTimeSensorAsync(
+        task_id="test_ti",
+        target_time=target_time,
+        start_from_trigger=True,
+        end_from_trigger=True,
+    )
+    _, _, trigger_orm, _ = create_trigger_in_db(
+        session,
+        DateTimeTrigger(target_time=target_time, end_from_trigger=True),
+        operator=sensor,
+    )
+
+    supervisor = supervisor_builder()
+    runner = TriggerRunner()
+    runner.comms_decoder = InProcessTriggerComms(supervisor)
+    mocker.patch.object(
+        TaskInstanceOperations,
+        "set_rtif",
+        autospec=True,
+        side_effect=RuntimeError("task instance is gone"),
+    )
+
+    supervisor.load_triggers()
+    await runner.sync_state_to_supervisor(finished_ids=[])
+    await runner.create_triggers()
+    await asyncio.wait([runner.triggers[trigger_orm.id]["task"]], timeout=10)
+
+    assert not runner.failed_triggers
+    assert [entry.trigger_id for entry in runner.events] == [trigger_orm.id]
+    assert "Failed to record rendered template fields" in cap_structlog
+
+
+def test_supervisor_drops_rendered_fields_sent_outside_a_trigger_request(jobless_supervisor, mocker):
+    """Fields that arrive with no task instance in scope are dropped, and the drop is logged."""
+    jobless_supervisor.client = mocker.MagicMock(spec=Client)
+    send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    log = MagicMock(spec=FilteringBoundLogger)
+
+    jobless_supervisor._handle_request(
+        SetRenderedFields(rendered_fields={"target_time": "2026-01-01"}), log=log, req_id=7
+    )
+
+    jobless_supervisor.client.task_instances.set_rtif.assert_not_called()
+    log.warning.assert_called_once_with("Dropping rendered fields sent outside a trigger request")
+    send_msg.assert_called_once_with(jobless_supervisor, OKResponse(ok=True), request_id=7, error=None)
+
+
+@pytest.mark.asyncio
+async def test_record_rendered_fields_skips_a_trigger_with_no_template_fields(mocker):
+    """A trigger the task passed no template fields to has nothing to record."""
+    runner = TriggerRunner()
+    runner.comms_decoder = mocker.AsyncMock(spec=TriggerCommsDecoder)
+
+    await runner.record_rendered_fields(TimeDeltaTrigger(datetime.timedelta(days=1)))
+
+    runner.comms_decoder.asend.assert_not_awaited()
+
+
+def test_supervisor_records_rendered_fields_for_the_handled_trigger(jobless_supervisor, mocker):
+    """The supervisor records the fields against the task instance whose trigger sent them."""
+    jobless_supervisor.client = mocker.MagicMock(spec=Client)
+    send_msg = mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+    ti_id = uuid.uuid4()
+
+    token = _handling_trigger_ti_id.set(ti_id)
+    try:
+        jobless_supervisor._handle_request(
+            SetRenderedFields(rendered_fields={"target_time": "2026-01-01"}),
+            log=MagicMock(spec=FilteringBoundLogger),
+            req_id=7,
+        )
+    finally:
+        _handling_trigger_ti_id.reset(token)
+
+    jobless_supervisor.client.task_instances.set_rtif.assert_called_once_with(
+        ti_id, {"target_time": "2026-01-01"}
+    )
+    send_msg.assert_called_once_with(jobless_supervisor, OKResponse(ok=True), request_id=7, error=None)
