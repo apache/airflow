@@ -114,12 +114,17 @@ const addAnsiWithLinks = (line: string) => {
 
 const sourceFields = ["logger", "chan", "lineno", "filename", "loc"];
 
-// Bound for external log routing; the UI already shows Dag tags on the Dag page.
-const hiddenFields = ["dag_tags"];
-
 // Fields bound once per task-instance process via bind_contextvars — identical on every log line,
 // so we strip them from per-line rendering and show them once as a preamble instead.
-export const tiContextFields = ["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index"];
+export const tiContextFields = [
+  "ti_id",
+  "dag_id",
+  "task_id",
+  "run_id",
+  "try_number",
+  "map_index",
+  "dag_tags",
+];
 
 export const renderTIContextPreamble = (
   context: Record<string, unknown>,
@@ -167,18 +172,34 @@ const extractFromStructuredDatum = (
   return Object.keys(ctx).length > 0 ? ctx : undefined;
 };
 
+export const maxContextSearchRecords = 100;
+
 export const extractTIContext = (
   data: TaskInstancesLogResponse["content"],
 ): Record<string, unknown> | undefined => {
-  for (const datum of data) {
+  const merged: Record<string, unknown> = {};
+  let firstIndex: number | undefined;
+
+  // dag_tags is bound after the TI identity fields, so look a bounded distance past the first
+  // record; with dag_tags_in_logs off, an unbounded search would scan the whole log.
+  for (const [index, datum] of data.entries()) {
+    if (firstIndex !== undefined && index - firstIndex > maxContextSearchRecords) {
+      break;
+    }
     const ctx = extractFromStructuredDatum(datum);
 
     if (ctx !== undefined) {
-      return ctx;
+      firstIndex ??= index;
+      for (const [field, value] of Object.entries(ctx)) {
+        merged[field] ??= value;
+      }
+      if (Object.keys(merged).length === tiContextFields.length) {
+        break;
+      }
     }
   }
 
-  return undefined;
+  return Object.keys(merged).length > 0 ? merged : undefined;
 };
 
 const renderStructuredLogImpl = ({
@@ -330,7 +351,7 @@ const renderStructuredLogImpl = ({
       if (!showSource && sourceFields.includes(key)) {
         continue; // eslint-disable-line no-continue
       }
-      if (tiContextFields.includes(key) || hiddenFields.includes(key)) {
+      if (tiContextFields.includes(key)) {
         continue; // eslint-disable-line no-continue
       }
       const val = reStructured[key] as boolean | number | object | string | null;
