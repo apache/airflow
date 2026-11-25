@@ -61,7 +61,8 @@ This ADR records the Go spelling of it.
 8. **Inlet events take `sdk.InletEventQueryParams`**, which `airflow` re-exports with
    `airflow.Ascending` and `airflow.Descending`. `Order` replaces Python's `ascending` because its
    zero value, `Ascending`, is Python's default. `Limit: 0` means no limit. Durations are
-   `time.Duration` and datetimes are `time.Time`.
+   `time.Duration` and datetimes are `time.Time`. `RunImmediately.Within` is sent as a `float64`,
+   as Python writes it.
 
 ## Signatures
 
@@ -104,7 +105,8 @@ type TaskSpec struct { Inlets, Outlets []AssetLike ; /* ... */ }
 func (c Context) OutletEvents(asset AssetLike) *OutletEventAccessor
 func (c Context) TriggeringAssetEvents(asset AssetLike) []sdk.TriggeringAssetEvent
 type OutletEventAccessor struct{ /* unexported */ }
-func (a *OutletEventAccessor) SetExtra(extra AssetExtra)
+// Every method returns an error when the asset is not an outlet or the task is a stub TaskHandler.
+func (a *OutletEventAccessor) SetExtra(extra AssetExtra) error
 func (a *OutletEventAccessor) AddPartitions(keys ...string) error            // error on an alias
 func (a *OutletEventAccessor) Add(asset AssetLike, extra AssetExtra) error  // error on a non-alias accessor or an alias argument
 
@@ -418,7 +420,9 @@ func load(actx airflow.Context) error {
     for _, e := range why {
         sources = append(sources, e.SourceAliases...)
     }
-    actx.OutletEvents(orders).SetExtra(map[string]any{"rows": len(recent), "raw": len(all), "sources": sources})
+    if err := actx.OutletEvents(orders).SetExtra(airflow.AssetExtra{"rows": len(recent), "raw": len(all), "sources": sources}); err != nil {
+        return err
+    }
     if err := actx.OutletEvents(orders).AddPartitions("2026-11-22"); err != nil {
         return err
     }
@@ -452,6 +456,7 @@ func load(actx airflow.Context) error {
 - Every existing `Schedule: "..."` must become `Schedule: schedule.Literal("...")`. The schema that
   `internal/genspec` injects for `schedule`, its test and the field's doc comment change with it.
 - Every fake `sdk.Client`, such as in tests, gains the `AssetClient` methods.
-- `Add` on a non-alias accessor returns an error, where Python ignores it.
+- The accessor returns an error for an asset outside the task's outlets, in a stub TaskHandler, and
+  for `Add` on a non-alias accessor, where Python drops the event silently.
 - The builders must change whenever a Python built-in's `serialize()` changes; the golden fixtures
   from core ADR-0019 catch that in CI.

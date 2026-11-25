@@ -60,7 +60,8 @@ surface of [ADR-0002](0002-native-dag-interface.md).
    nothing return `null`, as the existing `Client` methods do.
 9. **Inlet events take a `Consumer<InletEventQueryParams>`**, applied once when `query`, `first` or
    `last` is called. `extra(key, value)` is repeatable, as in Python.
-10. **Durations are `java.time.Duration`; datetimes are `OffsetDateTime` or `Instant`.**
+10. **Durations are `java.time.Duration`; datetimes are `OffsetDateTime` or `Instant`.** A
+    `runImmediately` duration is sent as a `Double`, as Python writes it.
     `LocalDateTime` is not accepted, since it has no offset.
 
 ## Signatures
@@ -113,7 +114,8 @@ TaskRef<T> inlets(AssetLike... assets);
 TaskRef<T> outlets(AssetLike... assets);
 
 // Context
-OutletEventAccessor outletEvents(AssetLike asset);
+OutletEventAccessor outletEvents(AssetLike asset);          // IllegalStateException if asset is not an
+                                                            //   outlet, or in a stub TaskHandler
 List<TriggeringAssetEvent> triggeringAssetEvents(AssetLike asset);
 interface OutletEventAccessor {
   void setExtra(Map<String, Object> extra);
@@ -422,6 +424,7 @@ public class CronReport { /* ... */ }
 
 - Existing `config("schedule", "...")` calls and `@Airflow.Dag(schedule = "...")` attributes keep
   working.
-- `add` on a non-alias accessor throws, where Python ignores it.
+- `outletEvents` for an asset outside the task's outlets or in a stub TaskHandler, and `add` on a
+  non-alias accessor, throw where Python drops the event silently.
 - The builders must change whenever a Python built-in's `serialize()` changes; the golden fixtures
   from core ADR-0019 catch that in CI.

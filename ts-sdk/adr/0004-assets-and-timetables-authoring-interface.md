@@ -47,7 +47,11 @@ This ADR records the TypeScript spelling of it.
    `TaskStateStore` without the retention option, which the asset messages do not carry.
 6. **Inlet event methods take an `InletEventQueryParams` object** and return promises.
 7. **`AssetExtra` aliases `JsonObject`** for asset and event `extra`.
-8. **Durations are seconds as a `number`; datetimes are a `Date` or an ISO 8601 string with an
+8. **A `runImmediately` duration is sent as a msgpack float**, as Python writes it. A JS number
+   with no fraction would encode as an integer, so the frame encoder subclasses the
+   `@msgpack/msgpack` `Encoder` to write a wrapped value as a float. The override uses private
+   methods, so a test checks the encoded bytes.
+9. **Durations are seconds as a `number`; datetimes are a `Date` or an ISO 8601 string with an
    offset.** A string without an offset is rejected at build time.
 
 ## Signatures
@@ -85,7 +89,7 @@ interface DagSpec { readonly schedule?: string | Timetable; /* ... */ }
 interface TaskSpec { readonly inlets?: AssetLike[]; readonly outlets?: AssetLike[]; /* ... */ }
 
 interface TaskContext {
-  outletEvents(asset: AssetLike): OutletEventAccessor;
+  outletEvents(asset: AssetLike): OutletEventAccessor;     // throws if asset is not an outlet, or in a stub TaskHandler
   triggeringAssetEvents(asset: AssetLike): readonly TriggeringAssetEvent[];
 }
 interface OutletEventAccessor {
@@ -308,6 +312,7 @@ dag.task("load", async () => {
 ## Consequences
 
 - Widening `DagSpec.schedule` keeps every existing Dag compiling, since a string is still accepted.
-- `add()` on a non-alias accessor throws, where Python ignores it.
+- `outletEvents()` for an asset outside the task's outlets or in a stub TaskHandler, and `add()` on
+  a non-alias accessor, throw where Python drops the event silently.
 - The builders must change whenever a Python built-in's `serialize()` changes; the golden fixtures
   from ADR-0019 catch that in CI.

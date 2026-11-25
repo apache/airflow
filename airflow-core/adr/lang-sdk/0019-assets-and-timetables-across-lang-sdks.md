@@ -56,12 +56,17 @@ This ADR fixes the contract every SDK shares. Each SDK records its own spelling 
    defined in Python and in a Lang SDK therefore gets the same key. The Dag processor also derives
    the asset `dag_dependencies` from the timetable and the outlets, as Python's serializer does. An
    SDK checks a subset that needs no Python, such as a non-empty name or URI, a scheme other than
-   `airflow`, a JSON `extra` and cron syntax.
-5. **The Python supervisor normalizes every URI a Lang SDK runtime sends**, in `task_outlets`, outlet
-   events, inlet event queries and asset state store calls, before forwarding it, since the runtime
-   holds the raw URI and cannot run `_sanitize_uri`. The call runs in the per-task Python helper
-   process that runs the XCom backend for Lang SDK tasks, generalized for this, so the API server
-   loads no provider code. The helper starts on the first URI and caches results per URI.
+   `airflow`, a JSON `extra` and cron syntax. The Lang SDK Dag processor runs these steps in
+   `_handle_parsing_result`, beside `normalize_loops`, and rewrites the serialized Dag in place, so
+   the stored Dag, the UI and `dag_dependencies` show the normalized URI.
+5. **The supervisor normalizes every URI a Lang SDK runtime sends** before it calls the Execution
+   API, since the runtime holds the raw URI and cannot run `_sanitize_uri`. The
+   `_PopenActivitySubprocess` request handlers, which serve only Lang SDK runtimes, do this for
+   `SucceedTask` (`task_outlets` and each outlet event's destination asset), `GetAssetEventByAsset`
+   and the asset state store messages that address an asset by URI. `_sanitize_uri` runs in the
+   per-task Python sidecar process, the process that runs the XCom backend today
+   (`coordinators/_xcom_backend.py`), so provider code runs in neither the supervisor nor the API
+   server. The sidecar starts on the first URI and caches each result.
 6. **Python references keep the existing envelopes for now.** Each SDK has a `python` module with
    `timetableRef(path, data)`, `partitionMapperRef(path, data)` and `triggerRef(path, kwargs)`.
    `data` is the class's `serialize()` output, which its `deserialize()` reads back, so a custom
@@ -77,7 +82,8 @@ This ADR fixes the contract every SDK shares. Each SDK records its own spelling 
    built-in, and each SDK's conformance tests check that its builders produce the same JSON.
    When `batch_asset_events` is left unset, the SDK omits it and the Dag processor fills Python's
    default, which depends on `[scheduler] batch_asset_events` and on the condition. A duration is
-   sent as seconds; the decoder of `run_immediately` accepts an integer as well as a float.
+   sent as seconds, with the msgpack type Python's encoder writes. `run_immediately` must be a
+   float, since its decoder reads an integer as no duration.
 8. **`schedule` is widened in place.** Cron expressions and presets keep their current meaning, and
    a timetable is now accepted too. Durations are seconds and datetimes carry an offset. Calendar
    durations (`relativedelta`) are out of scope; use `timetableRef`.
@@ -93,22 +99,124 @@ This ADR fixes the contract every SDK shares. Each SDK records its own spelling 
    key/value pairs that must all match, as `GetAssetEventByAsset` and `GetAssetEventByAssetAlias`
    define them. Each SDK names its parameter type `InletEventQueryParams` and adds `first()` and
    `last()`, which send `limit: 1` in ascending or descending order.
-11. **Outlet events serialize as `_serialize_outlet_events` does.** `extra` is a JSON object. A
+11. **Outlet events serialize as
+    [`_serialize_outlet_events`](https://github.com/apache/airflow/blob/76c71156732a1bb39c7e67bf4d4fd5a756953bd3/task-sdk/src/airflow/sdk/execution_time/task_runner.py#L1516)
+    does.** `extra` is a JSON object. A
     partition key is a non-blank string of at most 250 characters, and is rejected on an alias, as
     in Python. An alias event names a destination asset or ref and its `extra`; it registers only
-    when the alias is among the task's outlets. Adding an alias event on a non-alias accessor throws,
-    where Python ignores it silently.
+    when the alias is among the task's outlets. Three cases throw where Python drops the event
+    silently: an alias event on a non-alias accessor, an outlet event for an asset that is not among
+    the task's outlets, and any outlet event from a stub TaskHandler.
 12. **Not supported for now**: an `@asset`-style asset-producing Dag, outlets on a stub
     TaskHandler, and a trigger written in a Lang SDK. An asset watcher takes a `triggerRef` only.
+
+## Flows
+
+Parsing a Lang SDK Dag. The asset rows come from the existing `AssetModelOperation`.
+
+```mermaid
+sequenceDiagram
+    participant RT as Lang SDK runtime
+    participant DP as Lang SDK Dag processor
+    participant DB as Metadata DB
+    RT->>DP: Dag JSON with raw asset URIs
+    DP->>DP: validate_serialized_dag, team rules, normalize_loops
+    DP->>DP: normalize_assets: sanitize URIs, check assets, fill defaults, derive dag_dependencies
+    alt an asset is invalid
+        DP->>DB: import error
+    else all assets are valid
+        DP->>DB: serialized Dag with normalized URIs
+        DP->>DB: assets, aliases, schedule and task references, watcher triggers
+    end
+```
+
+Task success. Everything after the supervisor is the Python task path, unchanged.
+
+```mermaid
+sequenceDiagram
+    participant RT as Lang SDK runtime
+    participant SV as Supervisor handler
+    participant HP as Python sidecar
+    participant API as Execution API
+    participant DB as Metadata DB
+    RT->>SV: SucceedTask with task_outlets and outlet_events
+    SV->>HP: raw URIs
+    HP-->>SV: normalized URIs
+    SV->>API: set the task instance state to success
+    API->>DB: an asset event per outlet asset, or per outlet event on it
+    API->>DB: alias events link the alias and create a missing destination asset
+    API->>DB: queue the Dag runs of consumers, partitioned or not
+```
+
+Task start. Triggering events need no core change.
+
+```mermaid
+sequenceDiagram
+    participant SCH as Scheduler
+    participant SV as Supervisor
+    participant API as Execution API
+    participant RT as Lang SDK runtime
+    SCH->>SCH: create a Dag run from queued asset events
+    SV->>API: start the task instance
+    API-->>SV: run context with consumed_asset_events
+    SV-->>RT: start-up details
+    RT->>RT: triggeringAssetEvents filters them by asset or alias
+```
+
+Inlet event queries.
+
+```mermaid
+sequenceDiagram
+    participant RT as Lang SDK runtime
+    participant SV as Supervisor handler
+    participant HP as Python sidecar
+    participant API as Execution API
+    RT->>SV: GetAssetEventByAsset or GetAssetEventByAssetAlias with filters
+    opt the asset is addressed by URI
+        SV->>HP: raw URI
+        HP-->>SV: normalized URI
+    end
+    SV->>API: get asset events by asset or by alias
+    API-->>SV: asset events
+    SV-->>RT: asset events
+```
+
+Asset state store calls.
+
+```mermaid
+sequenceDiagram
+    participant RT as Lang SDK runtime
+    participant SV as Supervisor handler
+    participant HP as Python sidecar
+    participant API as Execution API
+    RT->>SV: get, set, delete or clear, by name or by URI
+    opt the asset is addressed by URI
+        SV->>HP: raw URI
+        HP-->>SV: normalized URI
+    end
+    SV->>API: asset state store call
+    API-->>SV: result
+    SV-->>RT: result
+```
+
+Asset watchers and asset-triggered scheduling run as they do for a Python Dag, from the rows the
+parsing flow writes.
 
 ## Consequences
 
 - No scheduler, triggerer or Execution API change. The core changes are:
-  - the Python supervisor: URI normalization for Lang SDK runtimes, through the generalized Python
-    helper, which must land first;
-  - the Dag processor: the checks, `dag_dependencies` and the `batch_asset_events` default for Lang
-    SDK Dags, with decoders that no longer default a missing `batch_asset_events` to true for them;
-  - the `run_immediately` decoder, and the golden fixtures.
+  - the supervisor: URI normalization in the Lang SDK request handlers, through the Python
+    sidecar process, which must land first;
+  - the Lang SDK Dag processor: `normalize_assets` with the checks, `dag_dependencies` and the
+    `batch_asset_events` default, with decoders that no longer default a missing
+    `batch_asset_events` to true for Lang SDK Dags;
+  - the golden fixtures.
+- The XCom backend process becomes a per-task Python sidecar process. It runs every partial Python
+  step of a Lang SDK task that involves user code or provider code, starting with the XCom backend
+  and URI normalization.
+- Each SDK gains a `python` module as a public interface for referring to objects on the Python
+  side. It is the escape hatch for timetables, partition mappers and triggers from providers and
+  plugins that have no typed builder.
 - Each new built-in timetable or mapper needs a builder in each SDK; the golden fixtures fail CI
   until it has one.
 - A custom timetable or mapper written through `timetableRef` or `partitionMapperRef` breaks if its
