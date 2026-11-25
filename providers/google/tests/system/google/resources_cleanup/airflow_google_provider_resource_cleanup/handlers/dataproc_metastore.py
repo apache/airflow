@@ -18,23 +18,53 @@
 from __future__ import annotations
 
 from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
-from airflow_google_provider_resource_cleanup.helpers import get_resource_path, run_command_async
+from airflow_google_provider_resource_cleanup.helpers import (
+    build_project_flag,
+    get_resource_path,
+    run_command_async,
+)
 
 
-async def _delete_dataproc_metastore_service(resource: dict, log_prefix: str):
-    location = resource.get("location")
-    name = get_resource_path(resource)
-    cmd = f"gcloud metastore services delete {name} --location={location} --quiet"
-    await run_command_async(cmd, log_prefix)
-
-
-async def _delete_dataproc_metastore_backup(resource: dict, log_prefix: str):
-    location = resource.get("location")
+def _extract_service_params(resource: dict) -> tuple[str, str]:
     path_parts = get_resource_path(resource).split("/")
+    location = resource.get("location") or path_parts[3]
+    service = path_parts[-1]
+    return service, location
+
+
+def _extract_backup_params(resource: dict) -> tuple[str, str, str]:
+    path_parts = get_resource_path(resource).split("/")
+    location = resource.get("location") or path_parts[3]
     service = path_parts[-3]
     backup = path_parts[-1]
-    cmd = f"gcloud metastore backups delete {backup} --service={service} --location={location} --quiet"
-    await run_command_async(cmd, log_prefix)
+    return backup, service, location
+
+
+async def _delete_dataproc_metastore_service(
+    resource: dict,
+    log_prefix: str,
+    *,
+    project_id: str | None = None,
+):
+    service, location = _extract_service_params(resource)
+    project_flag = build_project_flag(resource, project_id=project_id)
+    cmd = f"gcloud metastore services delete {service} --location={location}{project_flag} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
+
+
+async def _delete_dataproc_metastore_backup(
+    resource: dict,
+    log_prefix: str,
+    *,
+    project_id: str | None = None,
+):
+    backup, service, location = _extract_backup_params(resource)
+    project_flag = build_project_flag(resource, project_id=project_id)
+    cmd = (
+        f"gcloud metastore services backups delete {backup} "
+        f"--service={service} --location={location}{project_flag} --quiet"
+    )
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 class DataprocMetastoreDeleteHandler(BaseDeleteHandler):
