@@ -11073,19 +11073,19 @@ class TestSchedulerJob:
         job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
         job_runner._do_scheduling(session)
 
-        assert job_runner._dag_ids_rolling_back_session == {"rolled_back_dag"}
+        assert job_runner._dag_ids_stopped_by_deadline_alerts == {"rolled_back_dag"}
         mock_stats_incr.assert_any_call(
             "deadline_alerts.dag_run_creation_stopped", tags={"dag_id": "rolled_back_dag"}
         )
         assert {
-            "event": "A deadline alert rolled back the scheduler's session; no more Dag runs are "
+            "event": "A deadline alert broke the scheduler's session; no more Dag runs are "
             "created for the Dag until the scheduler restarts",
             "dag_id": "rolled_back_dag",
         } in caplog
         mock_start_queued.assert_called_once()
 
     @mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1)
-    def test_dag_rolling_back_session_does_not_use_up_dag_run_creation_limit(self, session, dag_maker):
+    def test_dag_stopped_by_deadline_alerts_does_not_use_up_dag_run_creation_limit(self, session, dag_maker):
         with dag_maker("rolled_back_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
             EmptyOperator(task_id="task")
         rolled_back_dag_model = dag_maker.dag_model
@@ -11098,7 +11098,7 @@ class TestSchedulerJob:
         session.flush()
 
         job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
-        job_runner._dag_ids_rolling_back_session.add("rolled_back_dag")
+        job_runner._dag_ids_stopped_by_deadline_alerts.add("rolled_back_dag")
         job_runner._create_dagruns_for_dags(mock.create_autospec(CommitProhibitorGuard), session)
 
         created = session.scalars(

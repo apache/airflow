@@ -73,7 +73,6 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import datetime
-    import sqlite3
     from collections.abc import Collection, Iterable, Iterator, Sequence
     from typing import Any, Literal
     from uuid import UUID
@@ -116,38 +115,13 @@ _READ_ONLY_TRANSACTION_STATEMENTS = {
 
 @contextlib.contextmanager
 def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Session]) -> Iterator[Session]:
-    # query_only belongs to the connection, not the transaction. The session is bound to a connection
-    # owned here so it is switched off on that same connection before it returns to the pool, even if
-    # the alert closes the session.
+    # query_only belongs to the connection, not the transaction. Detached from the pool, the connection
+    # is closed after the alert instead of going back to the pool read-only, even if the alert closes it.
     with engine.connect() as connection:
+        connection.detach()
         connection.exec_driver_sql("PRAGMA query_only = ON")
-        # Reset through the driver connection: an alert can close the Connection, which returns the
-        # driver connection to the pool still read-only.
-        driver_connection = cast("sqlite3.Connection", connection.connection.driver_connection)
-        alert_failed = False
-        try:
-            with session_maker(bind=connection) as alert_session:
-                yield alert_session
-        except BaseException:
-            alert_failed = True
-            raise
-        finally:
-            try:
-                if not connection.closed:
-                    connection.rollback()
-                driver_connection.execute("PRAGMA query_only = OFF")
-            except BaseException as reset_error:
-                # A connection left read-only must not go back to the pool, where the scheduler's own
-                # writes would fail on it.
-                if connection.closed:
-                    driver_connection.close()
-                else:
-                    connection.invalidate()
-                # Keep the alert's error, which the caller acts on (e.g. DagRunRolledBackError), over an
-                # ordinary reset failure, but never swallow an interrupt or SystemExit.
-                if not alert_failed or not isinstance(reset_error, Exception):
-                    raise
-                log.warning("failed to reset the deadline alert connection", exc_info=True)
+        with session_maker(bind=connection) as alert_session:
+            yield alert_session
 
 
 # SQLSTATE in_failed_sql_transaction: PostgreSQL rejects every statement after one failed in the transaction.
@@ -177,8 +151,8 @@ def _create_alert_session(*, session: Session) -> Iterator[Session]:
     if engine is None or session_maker is None:
         raise RuntimeError("Session must be set before!")
     if isinstance(engine.pool, (SingletonThreadPool, StaticPool)):
-        # In-memory SQLite: every session in the thread shares the caller's one connection, so a
-        # separate session would end the caller's transaction. Evaluate on the caller's session instead.
+        # Every session in the thread shares the caller's one connection, so a separate session would end
+        # the caller's transaction.
         yield session
         return
     if engine.dialect.name == "sqlite":

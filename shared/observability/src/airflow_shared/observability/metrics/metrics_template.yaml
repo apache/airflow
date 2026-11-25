@@ -434,8 +434,8 @@ metrics:
 
   - name: "deadline_alerts.dag_run_creation_stopped"
     description: "Number of times a scheduler stopped creating Dag runs for a Dag, until it restarts, because
-    a deadline alert rolled back its session. Counted once per Dag per scheduler process. Metric with dag_id
-    tagging."
+    a deadline alert rolled back its session or tried to commit it. Counted once per Dag per scheduler
+    process. Metric with dag_id tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []

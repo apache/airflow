@@ -436,12 +436,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Process-local and deliberately not de-duplicated across schedulers: in an HA deployment
         # each scheduler writes its own row, so a Dag gets one row per scheduler per episode.
         self._partition_cap_reported_dag_ids: set[str] = set()
-        # Dags whose deadline alerts rolled back the scheduler's session. A failing Dag keeps the
+        # Dags whose deadline alerts broke the scheduler's session. A failing Dag keeps the
         # oldest next_dagrun_create_after, so without skipping it every loop would end on it and no
-        # other Dag in its batch would get a run. Kept until the scheduler restarts: the rollback comes
-        # from deadline reference code in a plugin, and fixing that needs a restart anyway. Per scheduler
+        # other Dag in its batch would get a run. Kept until the scheduler restarts: the cause is deadline
+        # reference code in a plugin, and fixing that needs a restart anyway. Per scheduler
         # process, so in HA each scheduler hits the failing Dag once before skipping it.
-        self._dag_ids_rolling_back_session: set[str] = set()
+        self._dag_ids_stopped_by_deadline_alerts: set[str] = set()
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -2323,12 +2323,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 try:
                     self._create_dagruns_for_dags(guard, session)
                 except DagRunRolledBackError as e:
-                    # The rollback released the DagModel row locks and discarded every Dag run
-                    # created so far in this loop. Creating more without those locks could race
-                    # another scheduler, so stop here; the discarded runs are retried next loop.
-                    self._dag_ids_rolling_back_session.add(e.dag_id)
+                    # The alert rolled back the session or tried to commit it. Rolling back below discards
+                    # every Dag run created so far in this loop and releases the DagModel row locks, so
+                    # creating more could race another scheduler; stop here. The others are retried next loop.
+                    self._dag_ids_stopped_by_deadline_alerts.add(e.dag_id)
                     self.log.exception(
-                        "A deadline alert rolled back the scheduler's session; no more Dag runs are "
+                        "A deadline alert broke the scheduler's session; no more Dag runs are "
                         "created for the Dag until the scheduler restarts",
                         dag_id=e.dag_id,
                         dag_version_id=e.dag_version_id,
@@ -2809,7 +2809,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
         # Excluded in the queries rather than skipped afterwards, so they don't use up the per-loop limits.
-        excluded_dag_ids = self._dag_ids_rolling_back_session
+        excluded_dag_ids = self._dag_ids_stopped_by_deadline_alerts
         partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(
             session, exclude_dag_ids=excluded_dag_ids
         )
