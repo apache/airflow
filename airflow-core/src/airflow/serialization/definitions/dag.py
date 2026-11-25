@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Literal, TypedDict, cast, overload
 
 import attrs
 import structlog
-from sqlalchemy import event, func, literal, or_, select, tuple_
+from sqlalchemy import event, func, or_, select, tuple_
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.pool import SingletonThreadPool, StaticPool
 
@@ -73,6 +73,7 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import datetime
+    import sqlite3
     from collections.abc import Collection, Iterable, Iterator, Sequence
     from typing import Any, Literal
     from uuid import UUID
@@ -120,6 +121,9 @@ def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Ses
     # the alert closes the session.
     with engine.connect() as connection:
         connection.exec_driver_sql("PRAGMA query_only = ON")
+        # Reset through the driver connection: an alert can close the Connection, which returns the
+        # driver connection to the pool still read-only.
+        driver_connection = cast("sqlite3.Connection", connection.connection.driver_connection)
         alert_failed = False
         try:
             with session_maker(bind=connection) as alert_session:
@@ -129,12 +133,16 @@ def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Ses
             raise
         finally:
             try:
-                connection.rollback()
-                connection.exec_driver_sql("PRAGMA query_only = OFF")
+                if not connection.closed:
+                    connection.rollback()
+                driver_connection.execute("PRAGMA query_only = OFF")
             except BaseException as reset_error:
                 # A connection left read-only must not go back to the pool, where the scheduler's own
                 # writes would fail on it.
-                connection.invalidate()
+                if connection.closed:
+                    driver_connection.close()
+                else:
+                    connection.invalidate()
                 # Keep the alert's error, which the caller acts on (e.g. DagRunRolledBackError), over an
                 # ordinary reset failure, but never swallow an interrupt or SystemExit.
                 if not alert_failed or not isinstance(reset_error, Exception):
@@ -146,20 +154,13 @@ def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Ses
 _IN_FAILED_SQL_TRANSACTION = "25P02"
 
 
-def _is_transaction_aborted(session: Session) -> bool:
-    """Whether ``session``'s transaction was aborted by a failed statement and must be rolled back."""
-    try:
-        session.execute(select(literal(1)))
-    except DBAPIError as error:
-        # psycopg2 names the code ``pgcode``, psycopg 3 ``sqlstate``. Any other error, such as a dropped
-        # connection, is not caused by the alert, so it propagates as it would without the probe.
-        if _IN_FAILED_SQL_TRANSACTION in (
-            getattr(error.orig, "pgcode", None),
-            getattr(error.orig, "sqlstate", None),
-        ):
-            return True
-        raise
-    return False
+def _is_in_failed_sql_transaction(error: DBAPIError) -> bool:
+    """Whether ``error`` reports a PostgreSQL transaction aborted by an earlier failed statement."""
+    # psycopg2 names the code ``pgcode``, psycopg 3 ``sqlstate``.
+    return _IN_FAILED_SQL_TRANSACTION in (
+        getattr(error.orig, "pgcode", None),
+        getattr(error.orig, "sqlstate", None),
+    )
 
 
 @contextlib.contextmanager
@@ -170,6 +171,7 @@ def _create_alert_session(*, session: Session) -> Iterator[Session]:
     A ``rollback()`` on the scheduler's session would discard the pending Dag run and every other Dag run
     created in the same tick. This one is never committed and is read-only: a write or row lock would
     otherwise wait on a lock the scheduler's own transaction holds, and the scheduler waits on the alert.
+    With a single-connection pool (in-memory SQLite) it is the caller's own ``session`` instead.
     """
     engine, session_maker = settings.engine, settings.NonScopedSession
     if engine is None or session_maker is None:
@@ -924,15 +926,22 @@ class SerializedDAG:
         )
 
         def is_dagrun_discarded() -> bool:
-            # Leaving the session is not enough: a commit and close() outside the scheduler's commit
-            # guard (e.g. ``dag.test``) detaches the Dag run but keeps its row.
             if not session.is_active:
                 # A failed flush left the caller's transaction to be rolled back, with the Dag run in it.
                 return True
-            if orm_dagrun not in session:
+            # Checked on the row rather than on the session: a rollback by the database itself (e.g. a
+            # MySQL deadlock) leaves the Dag run in the session, while a commit and close() outside the
+            # scheduler's commit guard (e.g. ``dag.test``) detaches it but keeps its row.
+            try:
                 return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
-            # A failed statement aborts the caller's PostgreSQL transaction without detaching anything.
-            return _is_transaction_aborted(session)
+            except DBAPIError as error:
+                # A failed statement aborts the caller's PostgreSQL transaction. Any other error, such as
+                # a dropped connection, is not caused by the alert and propagates as before.
+                if _is_in_failed_sql_transaction(error):
+                    return True
+                raise
+
+        created_deadlines = 0
 
         with contextlib.ExitStack() as exit_stack:
             try:
@@ -999,17 +1008,12 @@ class SerializedDAG:
                     # On PostgreSQL a failed statement aborts the transaction, failing every later alert.
                     if alert_session is not session:
                         alert_session.rollback()
-                    # Also true when create_session() commits the scheduler's session: the guard rejects
-                    # the commit, and create_session() then rolls the session back.
-                    dagrun_discarded = is_dagrun_discarded()
-                    if (
-                        not dagrun_discarded
-                        and isinstance(exc, RuntimeError)
-                        and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc)
-                    ):
-                        # A rejected commit means the scheduler's HA locking is already broken. Recording
-                        # that as a skipped alert would hide it, so let it escape instead.
-                        raise
+                    # A commit the scheduler's guard rejected may leave the transaction intact, but the
+                    # reference misuses the scheduler's session just as a rollback does, and is handled the
+                    # same way rather than escaping into the scheduler loop.
+                    dagrun_discarded = (
+                        isinstance(exc, RuntimeError) and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc)
+                    ) or is_dagrun_discarded()
                     log.exception(
                         "skipping deadline alert because creating its deadline failed",
                         dag_id=self.dag_id,
@@ -1026,10 +1030,21 @@ class SerializedDAG:
                 # Dag run. Carrying on would add Deadlines that violate the dagrun_id foreign key, and
                 # returning normally would let the caller treat the missing run as created.
                 if is_dagrun_discarded():
+                    log.error(
+                        "deadline alert discarded the Dag run being created",
+                        dag_id=self.dag_id,
+                        run_id=run_id,
+                        deadline_alert_id=alert_id,
+                    )
+                    stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
                     raise build_rolled_back_error()
                 if new_deadline is not None:
                     session.add(new_deadline)
-                    stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
+                    created_deadlines += 1
+
+        # Counted once every alert has run: a later alert can still discard the Dag run and its Deadlines.
+        if created_deadlines:
+            stats.incr("deadline_alerts.deadline_created", count=created_deadlines, tags=metrics_tags)
 
     @provide_session
     def set_task_instance_state(

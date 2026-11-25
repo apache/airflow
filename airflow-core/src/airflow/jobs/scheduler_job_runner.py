@@ -3010,12 +3010,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         session=session,
                     )
 
+            except DagRunRolledBackError:
+                raise
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
             # crash due to misconfigured dags. We should log any exception encountered
             # and continue to the next serdag.
-            except DagRunRolledBackError:
-                raise
             except Exception:
                 self.log.exception("Failed creating DagRun", dag_id=dag_model.dag_id)
                 # todo: if you get a database error here, continuing does not work because

@@ -110,7 +110,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
-from airflow.serialization.definitions.dag import _create_alert_session, _is_transaction_aborted
+from airflow.serialization.definitions.dag import _create_alert_session, _is_in_failed_sql_transaction
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -2308,7 +2308,7 @@ class TestDagRun:
         raise KeyError(key)
 
     @staticmethod
-    def _rollback_given_session_and_raise(key, session):
+    def _roll_back_given_session_and_raise(key, session):
         session.rollback()
         raise KeyError(key)
 
@@ -2320,7 +2320,7 @@ class TestDagRun:
     @pytest.mark.parametrize(
         "misbehave",
         [
-            pytest.param(_rollback_given_session_and_raise, id="rollback"),
+            pytest.param(_roll_back_given_session_and_raise, id="rollback"),
             pytest.param(_write_through_given_session, id="write"),
         ],
     )
@@ -2403,6 +2403,18 @@ class TestDagRun:
         assert dbapi_connection.execute("PRAGMA query_only").fetchone()[0] == 0
 
     @pytest.mark.backend("sqlite")
+    def test_sqlite_deadline_alert_session_connection_is_writable_again_after_the_alert_closes_it(
+        self, session
+    ):
+        with _create_alert_session(session=session) as alert_session:
+            connection = alert_session.connection()
+            driver_connection = connection.connection.driver_connection
+            # Closing the Connection returns the driver connection to the pool before the reset runs.
+            connection.close()
+
+        assert driver_connection.execute("PRAGMA query_only").fetchone()[0] == 0
+
+    @pytest.mark.backend("sqlite")
     @pytest.mark.parametrize(
         "reset_error",
         [
@@ -2452,35 +2464,16 @@ class TestDagRun:
             alert_session_context.__exit__(DagRunRolledBackError, error, None)
 
     @pytest.mark.parametrize(
-        ("execute_error", "expected"),
+        ("driver_error", "expected"),
         [
-            pytest.param(
-                DBAPIError("SELECT 1", None, mock.Mock(spec=["pgcode"], pgcode="25P02")),
-                True,
-                id="psycopg2_aborted",
-            ),
-            pytest.param(
-                DBAPIError("SELECT 1", None, mock.Mock(spec=["sqlstate"], sqlstate="25P02")),
-                True,
-                id="psycopg3_aborted",
-            ),
-            pytest.param(None, False, id="usable"),
+            pytest.param(mock.Mock(spec=["pgcode"], pgcode="25P02"), True, id="psycopg2_aborted"),
+            pytest.param(mock.Mock(spec=["sqlstate"], sqlstate="25P02"), True, id="psycopg3_aborted"),
+            pytest.param(mock.Mock(spec=["pgcode"], pgcode="08006"), False, id="connection_failure"),
+            pytest.param(Exception(), False, id="other_driver"),
         ],
     )
-    def test_is_transaction_aborted(self, execute_error, expected):
-        session = mock.create_autospec(Session, instance=True)
-        session.execute.side_effect = execute_error
-
-        assert _is_transaction_aborted(session) is expected
-
-    def test_is_transaction_aborted_leaves_other_errors_to_the_caller(self):
-        session = mock.create_autospec(Session, instance=True)
-        session.execute.side_effect = OperationalError(
-            "SELECT 1", None, mock.Mock(spec=["pgcode"], pgcode="08006")
-        )
-
-        with pytest.raises(OperationalError):
-            _is_transaction_aborted(session)
+    def test_is_in_failed_sql_transaction(self, driver_error, expected):
+        assert _is_in_failed_sql_transaction(DBAPIError("SELECT 1", None, driver_error)) is expected
 
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch.object(Variable, "get", autospec=True)
@@ -2566,6 +2559,69 @@ class TestDagRun:
         ]
         assert [deadline.dagrun_id for deadline in session.scalars(select(Deadline))] == [dag_run.id]
 
+    @staticmethod
+    def _commit_callers_session_directly(key, session):
+        settings.Session().commit()
+        return "60"
+
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True, side_effect=_commit_callers_session_directly)
+    def test_dagrun_deadline_alert_committing_guarded_session_directly_raises_rolled_back_error(
+        self, _, __, session, deadline_test_dag
+    ):
+        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
+        session.commit()
+
+        # The guard rejects the commit and nothing rolls the session back, yet the Dag must still stop.
+        with prohibit_commit(session), pytest.raises(DagRunRolledBackError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
+
+    @staticmethod
+    def _roll_back_callers_transaction_in_the_driver(key, session):
+        # Like a MySQL deadlock: the database rolls back while the session still holds the Dag run.
+        settings.Session().connection().connection.driver_connection.rollback()
+        return "60"
+
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(
+        Variable, "get", autospec=True, side_effect=_roll_back_callers_transaction_in_the_driver
+    )
+    def test_dagrun_deadline_alert_rolling_back_callers_transaction_in_the_database_raises_rolled_back_error(
+        self, _, __, session, deadline_test_dag
+    ):
+        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
+        session.commit()
+
+        with pytest.raises(DagRunRolledBackError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
+
+    @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    def test_dagrun_deadlines_are_counted_once_every_alert_has_run(
+        self, _, mock_stats_incr, session, deadline_test_dag
+    ):
+        scheduler_dag = deadline_test_dag(
+            deadline=[
+                DeadlineAlert(
+                    reference=DeadlineReference.DAGRUN_LOGICAL_DATE,
+                    interval=datetime.timedelta(hours=hours),
+                    callback=AsyncCallback(empty_callback_for_deadline),
+                )
+                for hours in (1, 2)
+            ],
+        )
+
+        self.create_dag_run(dag=scheduler_dag, session=session)
+
+        created_calls = [
+            call
+            for call in mock_stats_incr.call_args_list
+            if call.args[0] == "deadline_alerts.deadline_created"
+        ]
+        assert created_calls == [
+            mock.call("deadline_alerts.deadline_created", count=2, tags={"dag_id": scheduler_dag.dag_id})
+        ]
+
     @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch.object(Variable, "get", autospec=True)
@@ -2584,7 +2640,9 @@ class TestDagRun:
         with pytest.raises(DagRunRolledBackError):
             self.create_dag_run(dag=scheduler_dag, session=session)
 
-        assert mock.call("deadline_alerts.deadline_created", tags=mock.ANY) not in mock_stats_incr.mock_calls
+        counted = [call.args[0] for call in mock_stats_incr.call_args_list]
+        assert "deadline_alerts.deadline_created" not in counted
+        assert "deadline_alerts.deadline_creation_failed" in counted
 
     @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
@@ -2711,7 +2769,7 @@ class TestDagRun:
         else:
             # A real row committed before the guard opens, so resolve() has to go through
             # MetastoreBackend. Drop the session forwarding and the backend opens the same scoped
-            # session and commits it, which the guard rejects and the lookup then reports as missing.
+            # session and commits it, which the guard rejects, discarding the Dag run.
             Variable.set(key=interval.key, value=variable_value, session=session)
             session.commit()
             variable_lookup = nullcontext()

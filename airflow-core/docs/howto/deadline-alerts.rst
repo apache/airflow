@@ -576,11 +576,11 @@ followed by a more urgent escalation if the Dag is still running.
   SQLite database, which has a single connection, the session is the scheduler's own and is not read-only.
 
   Do not open another session either (for example with ``provide_session`` or ``create_session``),
-  because that returns the scheduler's session. Rolling it back, committing it (the scheduler rejects the
-  commit and rolls the session back), a flush that fails on it, or on PostgreSQL any statement that fails
-  on it discards the Dag run being created, and the scheduler then stops creating Dag runs for that Dag
-  until it restarts.
-  Fix the reference, then restart the scheduler.
+  because that returns the scheduler's session. Rolling it back, committing it (which the scheduler
+  rejects), a flush that fails on it, or on PostgreSQL any statement that fails on it discards the Dag run
+  being created, and the scheduler then stops creating Dag runs for that Dag until it restarts. Fix the
+  reference, then restart the scheduler. While a Dag run that has deadline alerts is created, they are
+  evaluated on a second connection from the database connection pool, so size the pool for it.
 
   When task instances are cleared, references anchored to the time the Dag run was queued are
   re-evaluated on the session of the clearing request, with the full Dag run. That session is not isolated,
