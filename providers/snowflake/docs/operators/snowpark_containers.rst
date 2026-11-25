@@ -95,6 +95,19 @@ On retry the operator checks the prior job's status:
 
 ``timeout`` applies per try, so a retry that reconnects to a running job gets a full ``timeout`` again.
 
+Unlike a retry, clearing the task instance from the UI or the REST API discards the stored job name by
+default, so the next try submits a fresh job. To have it handled like a retry instead, tick
+**Keep task state and resume** in the Clear dialog or pass ``keep_task_state=true`` to the clear
+endpoint. A job that already succeeded is then not run again, unless ``[state_store] clear_on_success``
+is on.
+Clearing a running task drops its service through ``on_kill``. With ``cancel_on_kill=False`` the job
+keeps running, so keep the task state to reconnect to it rather than starting a second job.
+
+Before Airflow 3.5, clearing the whole Dag run, marking a task as success or failed, and
+``airflow tasks clear`` / ``airflow dags clear`` keep the stored job name, so clear the task instance
+itself to start fresh. From Airflow 3.5, every way of clearing discards it by default. See
+:ref:`apache-airflow:concepts-resumable-tasks` for details.
+
 Durable execution requires Airflow 3.3 or newer, since it relies on the task state store. On
 earlier versions the flag is a no-op (setting it only emits a warning) and the operator always
 submits a fresh job on retry. Durable execution only applies to the synchronous polling path. It has no effect when
