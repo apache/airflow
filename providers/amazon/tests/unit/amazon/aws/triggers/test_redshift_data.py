@@ -123,6 +123,7 @@ class TestRedshiftDataTrigger:
                     "status": "error",
                     "statement_id": "uuid",
                     "message": "Failed",
+                    "error_type": "RedshiftDataQueryFailedError",
                     "type": FAILED_STATE,
                 },
             ),
@@ -132,12 +133,18 @@ class TestRedshiftDataTrigger:
                     "status": "error",
                     "statement_id": "uuid",
                     "message": "Aborted",
+                    "error_type": "RedshiftDataQueryAbortedError",
                     "type": ABORTED_STATE,
                 },
             ),
             (
                 Exception(f"{TEST_TASK_ID} failed"),
-                {"status": "error", "statement_id": "uuid", "message": f"{TEST_TASK_ID} failed"},
+                {
+                    "status": "error",
+                    "statement_id": "uuid",
+                    "message": f"{TEST_TASK_ID} failed",
+                    "error_type": "Exception",
+                },
             ),
         ],
     )

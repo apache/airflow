@@ -104,7 +104,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
                         self.status_message,
                         self.status_queries,
                     )
-                except Exception:
+                except Exception as error:
                     # Get detailed invocation information to determine failure type
                     invocation = await client.get_command_invocation(
                         CommandId=self.command_id, InstanceId=instance_id
@@ -148,6 +148,7 @@ class SsmRunCommandTrigger(AwsBaseWaiterTrigger):
                             {
                                 "status": "failed",
                                 "message": f"Command failed with status {status} (exit code: {response_code})",
+                                "error_type": type(error).__name__,
                                 "command_status": status,
                                 "exit_code": response_code,
                                 "instance_id": instance_id,

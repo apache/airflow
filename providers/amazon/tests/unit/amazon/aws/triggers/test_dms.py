@@ -227,6 +227,7 @@ class TestDmsTaskModifyCompleteTrigger:
             {
                 "status": "error",
                 "message": "Replication task modification failed to complete.",
+                "error_type": "AirflowException",
                 "replication_task_arn": self.TASK_ARN,
             }
         )
@@ -379,6 +380,7 @@ class TestDmsTableReloadCompleteTrigger:
         assert response.payload == {
             "status": "error",
             "message": "DMS table reload failed.",
+            "error_type": "AirflowException",
             "replication_task_arn": self.TASK_ARN,
         }
         mock_async_wait.assert_awaited_once()

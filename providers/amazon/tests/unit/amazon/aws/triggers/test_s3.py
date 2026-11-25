@@ -87,6 +87,22 @@ class TestS3KeyTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async",
+        autospec=True,
+        side_effect=ValueError("Bad bucket"),
+    )
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
+    async def test_run_error(self, mock_client, mock_check_key_async):
+        trigger = S3KeyTrigger(bucket_key="test_bucket/file", bucket_name="test_bucket")
+
+        events = [event async for event in trigger.run()]
+
+        assert events == [
+            TriggerEvent({"status": "error", "message": "Bad bucket", "error_type": "ValueError"})
+        ]
+
+    @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_files_async")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async")
@@ -243,6 +259,22 @@ class TestS3KeysUnchangedTrigger:
         generator = trigger.run()
         actual = await generator.asend(None)
         assert TriggerEvent({"status": "success"}) == actual
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async",
+        autospec=True,
+        side_effect=ValueError("Bad bucket"),
+    )
+    async def test_run_error(self, mock_is_keys_unchanged, mock_client):
+        trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test")
+
+        events = [event async for event in trigger.run()]
+
+        assert events == [
+            TriggerEvent({"status": "error", "message": "Bad bucket", "error_type": "ValueError"})
+        ]
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")

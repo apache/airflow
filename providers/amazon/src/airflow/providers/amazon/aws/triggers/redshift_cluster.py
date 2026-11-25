@@ -342,7 +342,7 @@ class RedshiftClusterTrigger(BaseTrigger):
                     return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})
+            yield TriggerEvent({"status": "error", "message": str(e), "error_type": type(e).__name__})
 
 
 class RedshiftClusterSettledTrigger(AwsBaseWaiterTrigger):

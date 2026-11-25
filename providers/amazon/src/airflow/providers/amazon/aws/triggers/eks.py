@@ -98,7 +98,7 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
                 )
             except AirflowException as exception:
                 self.log.error("Error creating cluster: %s", exception)
-                yield TriggerEvent({"status": "failed"})
+                yield TriggerEvent({"status": "failed", "error_type": type(exception).__name__})
             else:
                 yield TriggerEvent({"status": "success"})
 

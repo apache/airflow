@@ -85,7 +85,7 @@ class TestEksCreateClusterTrigger(TestEksTrigger):
         generator = self.trigger.run()
         response = await generator.asend(None)
 
-        assert response == TriggerEvent({"status": "failed"})
+        assert response == TriggerEvent({"status": "failed", "error_type": "AirflowException"})
         self.trigger.log.error.assert_called_once_with("Error creating cluster: %s", EXCEPTION_MOCK)
 
     @pytest.mark.asyncio
