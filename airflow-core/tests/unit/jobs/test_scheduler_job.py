@@ -11042,7 +11042,7 @@ class TestSchedulerJob:
         assert "Failed creating DagRun" in caplog.text
 
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True)
-    def test_dag_run_rolled_back_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
+    def test_dag_run_discarded_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
         mock_create.side_effect = DagRunDiscardedError(
             "rolled back", dag_id="testdag1", dag_version_id=uuid4()
         )
@@ -11063,7 +11063,7 @@ class TestSchedulerJob:
     @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
     @mock.patch.object(SchedulerJobRunner, "_start_queued_dagruns", autospec=True)
     @mock.patch.object(SchedulerJobRunner, "_create_dagruns_for_dags", autospec=True)
-    def test_do_scheduling_ends_dag_run_creation_when_deadline_alert_rolls_back_session(
+    def test_do_scheduling_ends_dag_run_creation_when_deadline_alert_discards_dag_run(
         self, mock_create_dagruns, mock_start_queued, mock_stats_incr, session, caplog
     ):
         mock_create_dagruns.side_effect = DagRunDiscardedError(

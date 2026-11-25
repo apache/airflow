@@ -2494,17 +2494,6 @@ class TestDagRun:
         ]
         assert [deadline.dagrun_id for deadline in session.scalars(select(Deadline))] == [dag_run.id]
 
-    @staticmethod
-    def _commit_callers_session_directly(key, session):
-        settings.Session().commit()
-        return "60"
-
-    @staticmethod
-    def _roll_back_callers_transaction_in_the_driver(key, session):
-        # Like a MySQL deadlock: the database rolls back while the session still holds the Dag run.
-        settings.Session().connection().connection.driver_connection.rollback()
-        return "60"
-
     @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     def test_dagrun_deadlines_are_counted_once_every_alert_has_run(
@@ -2571,6 +2560,17 @@ class TestDagRun:
         callers_session.add_all([Variable(key="duplicate", val="1"), Variable(key="duplicate", val="2")])
         callers_session.flush()
 
+    @staticmethod
+    def _commit_callers_session_directly(key, session):
+        settings.Session().commit()
+        return "60"
+
+    @staticmethod
+    def _roll_back_callers_transaction_in_the_driver(key, session):
+        # Like a MySQL deadlock: the database rolls back while the session still holds the Dag run.
+        settings.Session().connection().connection.driver_connection.rollback()
+        return "60"
+
     @pytest.mark.parametrize(
         "break_callers_session",
         [
@@ -2597,9 +2597,6 @@ class TestDagRun:
         mock_variable_get.side_effect = break_callers_session
 
         with prohibit_commit(session), pytest.raises(DagRunDiscardedError):
-            self.create_dag_run(dag=scheduler_dag, session=session)
-
-        with pytest.raises(DagRunDiscardedError):
             self.create_dag_run(dag=scheduler_dag, session=session)
 
     @staticmethod

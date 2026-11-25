@@ -892,7 +892,7 @@ class SerializedDAG:
             if alert
         ]
 
-        build_rolled_back_error = functools.partial(
+        build_discarded_error = functools.partial(
             DagRunDiscardedError,
             f"Dag run {run_id} of Dag {self.dag_id} was discarded while processing deadline alerts: "
             "a deadline reference rolled back, committed or broke the transaction it was created in",
@@ -999,7 +999,7 @@ class SerializedDAG:
                     )
                     stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
                     if dagrun_discarded:
-                        raise build_rolled_back_error() from exc
+                        raise build_discarded_error() from exc
                     continue
 
                 # Alerts get their own session, but one that reaches for the scheduler's session
@@ -1014,7 +1014,7 @@ class SerializedDAG:
                         deadline_alert_id=alert_id,
                     )
                     stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
-                    raise build_rolled_back_error()
+                    raise build_discarded_error()
                 if new_deadline is not None:
                     session.add(new_deadline)
                     created_deadlines += 1
