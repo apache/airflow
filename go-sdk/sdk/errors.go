@@ -36,7 +36,8 @@ var ConnectionNotFound = errors.New("connection not found")
 // XComNotFound is an error value used to signal that an XCom value could not be found (and that there were
 // no communication issues with the API server).
 //
-// See the “GetXCom“ method of [XComClient] for an example
+// [XComClient]'s GetXCom does not return it yet: Airflow reports a missing XCom as a null value, so GetXCom
+// returns nil and no error.
 var XComNotFound = errors.New("xcom not found")
 
 // TaskStateNotFound is an error value used to signal that a task state value could not be found (and that

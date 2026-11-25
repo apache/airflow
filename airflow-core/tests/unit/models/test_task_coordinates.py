@@ -646,7 +646,7 @@ def test_xcom_read_of_one_mapped_slot_loads_no_producer_rows(mapped_run, session
             task_id="mapped",
             key="return_value",
             session=session,
-            dag_bag=DBDagBag(),
+            resolver=TaskCoordinateResolver(DBDagBag(), session),
             token=token,
             map_index=2,
         )
@@ -695,7 +695,7 @@ def test_loop_read_of_one_mapped_slot_loads_no_producer_rows(dag_maker, session,
             task_id="body.mapped",
             key="return_value",
             session=session,
-            dag_bag=DBDagBag(),
+            resolver=TaskCoordinateResolver(DBDagBag(), session),
             token=token,
             map_index=2,
         )
