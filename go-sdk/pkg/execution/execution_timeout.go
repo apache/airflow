@@ -29,12 +29,22 @@ import (
 	"github.com/apache/airflow/go-sdk/sdk"
 )
 
-// resolveExecutionTimeout returns the task's execution_timeout in seconds from ti_context, or nil
-// when the task has no timeout. The coordinator has already filled in the worker's default.
-// As in the Python task runner, zero means no timeout and a negative value has already elapsed.
-func resolveExecutionTimeout(fromContext any) (*float64, error) {
+// executionTimeout is a task's execution_timeout. Call start before run.
+type executionTimeout interface {
+	start(ctx context.Context, client *CoordinatorClient) error
+	run(
+		stop context.Context,
+		shouldRetry bool,
+		logger *slog.Logger,
+		run func(ctx context.Context) any,
+	) any
+}
+
+// resolveExecutionTimeout reads ti_context.execution_timeout. As in Python, zero means no timeout
+// and a negative value has already elapsed.
+func resolveExecutionTimeout(fromContext any) (executionTimeout, error) {
 	if fromContext == nil {
-		return nil, nil
+		return disabledExecutionTimeout{}, nil
 	}
 	seconds, ok := ifaceFloat(fromContext)
 	switch {
@@ -44,39 +54,48 @@ func resolveExecutionTimeout(fromContext any) (*float64, error) {
 			fromContext,
 		)
 	case seconds == 0:
-		return nil, nil
+		return disabledExecutionTimeout{}, nil
 	case seconds < 0:
 		return nil, fmt.Errorf("execution_timeout of %g seconds has already elapsed", seconds)
 	}
-	return &seconds, nil
+	return enabledExecutionTimeout{seconds: seconds}, nil
 }
 
-// setExecutionTimeout tells the supervisor the task's execution_timeout and restarts its clock from
-// when the supervisor receives it. The supervisor sends SIGTERM killed_task_cleanup_time after the
-// timeout, which ends the cleanup time runWithExecutionTimeout gives the task.
-func (c *CoordinatorClient) setExecutionTimeout(ctx context.Context, seconds float64) error {
-	_, err := c.comm.Communicate(ctx, genmodels.SetExecutionTimeout{TimeoutSeconds: seconds})
+type disabledExecutionTimeout struct{}
+
+func (disabledExecutionTimeout) start(context.Context, *CoordinatorClient) error {
+	return nil
+}
+
+func (disabledExecutionTimeout) run(
+	stop context.Context,
+	_ bool,
+	_ *slog.Logger,
+	run func(ctx context.Context) any,
+) any {
+	return run(stop)
+}
+
+type enabledExecutionTimeout struct {
+	seconds float64
+}
+
+// start arms the supervisor, which sends SIGTERM killed_task_cleanup_time after the timeout.
+func (t enabledExecutionTimeout) start(ctx context.Context, client *CoordinatorClient) error {
+	_, err := client.comm.Communicate(ctx, genmodels.SetExecutionTimeout{TimeoutSeconds: t.seconds})
 	return err
 }
 
-// runWithExecutionTimeout runs the task and returns its terminal body, failing the task when it
-// runs past the timeout. Call it after setExecutionTimeout returns, so that its clock starts after
-// the supervisor's, as in the Python task runner.
-//
-// At the timeout, the task's ctx is cancelled with sdk.ErrTaskTimeout as its cause. The task then
-// has until it returns, or until the supervisor's SIGTERM cancels stop, to clean up. Either way the
-// task fails with the timeout, so a task that returns nil after the timeout does not succeed. A
-// task that ignores its ctx keeps running in its goroutine until the runtime process exits after
-// reporting the timeout.
-func runWithExecutionTimeout(
+// run cancels the task's ctx with sdk.ErrTaskTimeout at the timeout, then waits until the task
+// returns or the supervisor's SIGTERM cancels stop. The task fails with the timeout either way.
+func (t enabledExecutionTimeout) run(
 	stop context.Context,
-	seconds float64,
 	shouldRetry bool,
 	logger *slog.Logger,
 	run func(ctx context.Context) any,
 ) any {
-	timeoutErr := fmt.Errorf("%w after %g seconds", sdk.ErrTaskTimeout, seconds)
-	ctx, cancel := context.WithTimeoutCause(stop, secondsToDuration(seconds), timeoutErr)
+	timeoutErr := fmt.Errorf("%w after %g seconds", sdk.ErrTaskTimeout, t.seconds)
+	ctx, cancel := context.WithTimeoutCause(stop, secondsToDuration(t.seconds), timeoutErr)
 	defer cancel()
 
 	done := make(chan any, 1)
@@ -93,7 +112,7 @@ func runWithExecutionTimeout(
 			return <-done
 		}
 		logger.Warn("Task reached its execution_timeout; waiting for it to stop",
-			"timeout_seconds", seconds,
+			"timeout_seconds", t.seconds,
 		)
 		select {
 		case <-done:

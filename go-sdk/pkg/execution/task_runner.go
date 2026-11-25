@@ -41,7 +41,7 @@ import (
 // is the only one that defers, and RunTask runs it without a Go function. When RunTask cannot
 // delete an XCom, cannot resolve the execution_timeout, finds it has already elapsed, or
 // arg_bindings is invalid, the task fails without running. A task that runs past its
-// execution_timeout fails; see runWithExecutionTimeout.
+// execution_timeout fails; see enabledExecutionTimeout.run.
 //
 // The supervisor owns the Execution-API state transitions, so the runtime only
 // invokes the user's task function and returns its terminal response.
@@ -117,9 +117,9 @@ func RunTask(
 		}
 	}
 
-	timeoutSeconds, err := resolveExecutionTimeout(details.TIContext.ExecutionTimeout)
-	if err == nil && timeoutSeconds != nil {
-		err = client.setExecutionTimeout(ctx, *timeoutSeconds)
+	timeout, err := resolveExecutionTimeout(details.TIContext.ExecutionTimeout)
+	if err == nil {
+		err = timeout.start(ctx, client)
 	}
 	if err != nil {
 		logger.Error("Unable to apply execution_timeout",
@@ -130,15 +130,9 @@ func RunTask(
 		return failTask(details.TIContext.ShouldRetry, err)
 	}
 
-	run := func(ctx context.Context) any {
+	return timeout.run(ctx, details.TIContext.ShouldRetry, logger, func(ctx context.Context) any {
 		return runTask(ctx, task, details, client, logger)
-	}
-	if timeoutSeconds == nil {
-		return run(ctx)
-	}
-	return runWithExecutionTimeout(
-		ctx, *timeoutSeconds, details.TIContext.ShouldRetry, logger, run,
-	)
+	})
 }
 
 // runTask runs the task and returns its terminal body.

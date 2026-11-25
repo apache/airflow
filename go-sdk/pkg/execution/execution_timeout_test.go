@@ -211,17 +211,17 @@ func TestServeFailsATaskAtItsExecutionTimeoutEndToEnd(t *testing.T) {
 	}
 }
 
-// TestRunWithExecutionTimeoutReportsAtTheSupervisorStop pins that the runtime waits for a task that
+// TestEnabledExecutionTimeoutReportsAtTheSupervisorStop pins that the runtime waits for a task that
 // ignores its ctx after the timeout until the supervisor's SIGTERM, and then reports the timeout
 // without waiting for the task any longer.
-func TestRunWithExecutionTimeoutReportsAtTheSupervisorStop(t *testing.T) {
+func TestEnabledExecutionTimeoutReportsAtTheSupervisorStop(t *testing.T) {
 	stop, sigterm := context.WithCancel(context.Background())
 	defer sigterm()
 	release := make(chan struct{})
 	defer close(release)
 	results := make(chan any, 1)
 	go func() {
-		results <- runWithExecutionTimeout(stop, 0.01, true, discardLogger(), func(context.Context) any {
+		results <- enabledExecutionTimeout{seconds: 0.01}.run(stop, true, discardLogger(), func(context.Context) any {
 			<-release
 			return succeedTask()
 		})
@@ -242,9 +242,9 @@ func TestRunWithExecutionTimeoutReportsAtTheSupervisorStop(t *testing.T) {
 	}
 }
 
-// TestRunWithExecutionTimeoutKeepsTheResultOnAStopBeforeTheTimeout pins that a SIGTERM before the
+// TestEnabledExecutionTimeoutKeepsTheResultOnAStopBeforeTheTimeout pins that a SIGTERM before the
 // timeout is not reported as a timeout: the runtime waits for the task and returns its result.
-func TestRunWithExecutionTimeoutKeepsTheResultOnAStopBeforeTheTimeout(t *testing.T) {
+func TestEnabledExecutionTimeoutKeepsTheResultOnAStopBeforeTheTimeout(t *testing.T) {
 	stop, sigterm := context.WithCancel(context.Background())
 	causes := make(chan error, 1)
 	// The task cannot return before the test closes cleanedUp, so the runtime sees the cancelled
@@ -252,9 +252,8 @@ func TestRunWithExecutionTimeoutKeepsTheResultOnAStopBeforeTheTimeout(t *testing
 	cleanedUp := make(chan struct{})
 	results := make(chan any, 1)
 	go func() {
-		results <- runWithExecutionTimeout(
+		results <- enabledExecutionTimeout{seconds: 3600}.run(
 			stop,
-			3600,
 			true,
 			discardLogger(),
 			func(ctx context.Context) any {
