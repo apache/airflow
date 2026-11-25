@@ -55,7 +55,7 @@ class Resource:
         return self.__dict__ == other.__dict__
 
     def __hash__(self):
-        return hash(self.__dict__)
+        return hash((self._name, self._units_str, self._qty))
 
     def __repr__(self):
         return str(self.__dict__)
@@ -141,7 +141,7 @@ class Resources:
         return self.__dict__ == other.__dict__
 
     def __hash__(self):
-        return hash(self.__dict__)
+        return hash((self.cpus, self.ram, self.disk, self.gpus))
 
     def __repr__(self):
         return str(self.__dict__)

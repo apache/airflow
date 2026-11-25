@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.sdk.definitions.operator_resources import Resources
+from airflow.sdk.definitions.operator_resources import CpuResource, Resources
 
 from tests_common.test_utils.config import conf_vars
 
@@ -34,6 +34,15 @@ class TestResources:
 
         r3 = Resources(cpus=0.2, ram=2048)
         assert r != r3
+
+    def test_resource_instances_are_hashable(self):
+        assert hash(CpuResource(1)) == hash(CpuResource(1))
+        assert len({CpuResource(1), CpuResource(1)}) == 1
+
+    def test_resources_are_hashable(self):
+        r = Resources(cpus=1, ram=2048)
+        assert hash(r) == hash(Resources(cpus=1, ram=2048))
+        assert len({r, Resources(cpus=1, ram=2048)}) == 1
 
     def test_to_dict(self):
         r = Resources(cpus=0.1, ram=2048, disk=1024, gpus=1)
