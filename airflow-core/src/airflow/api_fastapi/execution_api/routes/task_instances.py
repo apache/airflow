@@ -1294,19 +1294,40 @@ async def ti_heartbeat(
     bind_contextvars(ti_id=str(task_instance_id))
     log.debug("Processing heartbeat", hostname=ti_payload.hostname, pid=ti_payload.pid)
 
-    # Hot path: in the common case the TI is still running on the same host and pid,
-    # so we can update last_heartbeat_at directly without first taking a row lock.
+    # Hot path: in the common case the TI is still running on the same host and pid, so a plain read
+    # (no row lock) confirms it. last_heartbeat_at is indexed, so every write is a non-HOT update that
+    # touches all of task_instance's indexes; only write once the stored value is older than the interval.
+    fast_path_key = (
+        TI.id == task_instance_id,
+        TI.state == TaskInstanceState.RUNNING,
+        TI.hostname == ti_payload.hostname,
+        TI.pid == ti_payload.pid,
+    )
+    # Capped at half the scheduler timeout so a stored value never lags a live task by more than the
+    # scheduler tolerates, even when the timeout is configured below heartbeat_write_interval.
+    write_interval = min(
+        conf.getint("execution_api", "heartbeat_write_interval"),
+        conf.getint("scheduler", "task_instance_heartbeat_timeout") // 2,
+    )
+    now = timezone.utcnow()
+    if write_interval > 0:
+        heartbeat_row = (
+            await session.execute(select(TI.last_heartbeat_at).where(*fast_path_key))
+        ).one_or_none()
+        # A stored value in the future (clock skew between API servers) is stale: rewrite it.
+        if (
+            heartbeat_row is not None
+            and heartbeat_row.last_heartbeat_at is not None
+            and 0 <= (now - heartbeat_row.last_heartbeat_at).total_seconds() < write_interval
+        ):
+            log.debug("Heartbeat is recent enough; skipping write")
+            return
     fast_path_result = cast(
         "CursorResult[Any]",
         await session.execute(
             update(TI)
-            .where(
-                TI.id == task_instance_id,
-                TI.state == TaskInstanceState.RUNNING,
-                TI.hostname == ti_payload.hostname,
-                TI.pid == ti_payload.pid,
-            )
-            .values(last_heartbeat_at=timezone.utcnow())
+            .where(*fast_path_key)
+            .values(last_heartbeat_at=now)
             .execution_options(synchronize_session=False)
         ),
     )

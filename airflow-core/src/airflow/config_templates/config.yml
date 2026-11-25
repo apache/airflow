@@ -2435,6 +2435,22 @@ execution_api:
       type: integer
       example: ~
       default: "600"
+    heartbeat_write_interval:
+      description: |
+        Minimum number of seconds between two writes of a task instance's ``last_heartbeat_at`` by the
+        Execution API. A heartbeat that arrives sooner than this after the stored value is acknowledged
+        without updating the row, which avoids a non-HOT update of ``task_instance`` (and of every index
+        on it) for each heartbeat.
+
+        The scheduler fails a running task whose stored heartbeat is older than
+        ``[scheduler] task_instance_heartbeat_timeout``, so the stored value can lag a live task by up to this
+        interval. The effective interval is capped at half of that timeout, which the Execution API reads from
+        its own configuration, so keep ``[scheduler] task_instance_heartbeat_timeout`` identical on the API
+        server and the scheduler. Set to ``0`` to write on every heartbeat.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "30"
     otel_trace_propagation:
       version_added: 3.3.0
       description: |

@@ -1260,7 +1260,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         Index("ti_state_lkp", dag_id, task_id, run_id, state),
         Index("ti_pool", pool, state, priority_weight),
         Index("ti_trigger_id", trigger_id),
-        Index("ti_heartbeat", last_heartbeat_at),
         Index("ti_dag_version_id", dag_version_id),
         Index(
             "ti_current_state",
