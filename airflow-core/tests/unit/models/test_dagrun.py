@@ -2303,6 +2303,11 @@ class TestDagRun:
         )
 
     @staticmethod
+    def _roll_back_callers_session_and_raise(key, session):
+        settings.Session().rollback()
+        raise KeyError(key)
+
+    @staticmethod
     def _rollback_given_session_and_raise(key, session):
         session.rollback()
         raise KeyError(key)
@@ -2352,16 +2357,13 @@ class TestDagRun:
         assert [deadline.dagrun_id for deadline in deadlines] == [dag_run.id]
 
     @pytest.mark.parametrize("pool_class", [SingletonThreadPool, StaticPool])
+    @mock.patch.object(settings, "engine", autospec=True)
     def test_deadline_alert_session_is_callers_session_when_the_pool_has_one_connection(
-        self, pool_class, session
+        self, mock_engine, pool_class, session
     ):
-        engine = mock.create_autospec(settings.engine, instance=True)
-        engine.pool = mock.create_autospec(pool_class, instance=True)
+        mock_engine.pool = mock.create_autospec(pool_class, instance=True)
 
-        with (
-            mock.patch.object(settings, "engine", engine),
-            _create_alert_session(session=session) as alert_session,
-        ):
+        with _create_alert_session(session=session) as alert_session:
             assert alert_session is session
 
     @pytest.mark.parametrize(
@@ -2503,11 +2505,7 @@ class TestDagRun:
         )
         session.commit()
 
-        def rollback_and_raise(*args, **kwargs):
-            session.rollback()
-            raise KeyError("missing_key")
-
-        mock_variable_get.side_effect = rollback_and_raise
+        mock_variable_get.side_effect = self._roll_back_callers_session_and_raise
         dag_version_id = DagVersion.get_latest_version(scheduler_dag.dag_id, session=session).id
 
         with pytest.raises(DagRunRolledBackError) as exc_info:
