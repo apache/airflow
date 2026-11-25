@@ -135,7 +135,6 @@ func RunTask(
 	})
 }
 
-// runTask runs the task and returns its terminal body.
 func runTask(
 	ctx context.Context,
 	task bundle.Task,

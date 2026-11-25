@@ -386,7 +386,6 @@ func TestTriggerDagRunPollHonorsTheStatesOfTheTask(t *testing.T) {
 	assert.Equal(t, 4, len(supervisor.types())-2-1, "four polls after the link, trigger and run_id")
 }
 
-// sleepUntilCancelled sleeps for d, or until ctx is cancelled.
 func sleepUntilCancelled(ctx context.Context, d time.Duration) error {
 	timer := time.NewTimer(d)
 	defer timer.Stop()
