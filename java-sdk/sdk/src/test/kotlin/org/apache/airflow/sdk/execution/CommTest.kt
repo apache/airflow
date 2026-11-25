@@ -640,6 +640,28 @@ class CommsTest {
   }
 
   @Test
+  @DisplayName("setXCom keeps a null value on the wire so the supervisor stores a null XCom")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComKeepsNullValueOnTheWire() {
+    val details =
+      StartupDetails().also {
+        it.ti =
+          TaskInstance().also { ti ->
+            ti.dagId = "d"
+            ti.taskId = "t"
+            ti.runId = "r"
+          }
+      }
+    val (body, failure) = roundTrip(::emptyResponseFrame, details) { it.setXCom(value = null) }
+
+    Assertions.assertNull(failure, "setXCom should return normally on an empty response, got $failure")
+    Assertions.assertEquals("SetXCom", body["type"])
+    Assertions.assertEquals("return_value", body["key"])
+    Assertions.assertTrue(body.containsKey("value"), "value must be sent even when null: $body")
+    Assertions.assertNull(body["value"])
+  }
+
+  @Test
   @DisplayName("setVariable sends the description when one is given")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun setVariableSendsDescription() {
@@ -667,6 +689,20 @@ class CommsTest {
     val (_, failure) = roundTrip(::errorResponseFrame) { it.deleteVariable("k") }
 
     Assertions.assertInstanceOf(ApiError::class.java, failure)
+  }
+
+  @Test
+  @DisplayName("getXCom sends a null map index, which the server resolves by the task's definition")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getXComSendsNullMapIndex() {
+    val (body, failure) =
+      roundTrip({ responseFrame(it) }) {
+        it.getXCom(dagId = "dag", runId = "run", taskId = "upstream")
+      }
+
+    Assertions.assertNull(failure, "getXCom should return normally on XComResult, got $failure")
+    Assertions.assertEquals("GetXCom", body["type"])
+    Assertions.assertNull(body["map_index"])
   }
 
   private val tiId: UUID = UUID.fromString("0199a5d6-1c2e-7c6a-9c1e-7a2f7f0d1e42")

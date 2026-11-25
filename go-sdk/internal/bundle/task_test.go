@@ -316,7 +316,8 @@ func (s *TaskSuite) TestBranchFunctionPushesTheValueAndSkipsTheTasksThatDecideRe
 	}, client.calls)
 }
 
-func (s *TaskSuite) TestBranchFunctionPushesNoNilPointer() {
+// The decider's choice is pushed even when it is nil, which stores null.
+func (s *TaskSuite) TestBranchFunctionPushesANilPointer() {
 	task, err := NewPositionalBranchFunction(
 		func(contexttest.Context) (bool, error) { return true, nil },
 		func(any) (any, []string, error) { return (*int)(nil), []string{"load"}, nil },
@@ -327,6 +328,7 @@ func (s *TaskSuite) TestBranchFunctionPushesNoNilPointer() {
 	s.Require().NoError(runTask(task, client, true, true))
 
 	s.Equal([]string{
+		"PushXCom decide return_value <nil>",
 		"PushXCom decide skipmixin_key map[skipped:[load]]",
 		"SkipDownstreamTasks [load]",
 	}, client.calls)
@@ -479,8 +481,57 @@ func (s *TaskSuite) TestPushesTheReturnValue() {
 	s.Equal([]string{"PushXCom decide return_value 7"}, client.calls)
 }
 
-func (s *TaskSuite) TestPushesNoNilPointer() {
-	task, err := NewTaskFunction(func(contexttest.Context) (*int, error) { return nil, nil })
+// A function that declares a result pushes it even when it is nil, which stores null.
+func (s *TaskSuite) TestPushesANilResult() {
+	cases := map[string]any{
+		"nil pointer":   func(contexttest.Context) (*int, error) { return nil, nil },
+		"nil interface": func(contexttest.Context) (any, error) { return nil, nil },
+	}
+	for name, fn := range cases {
+		s.Run(name, func() {
+			task, err := NewTaskFunction(fn)
+			s.Require().NoError(err)
+
+			client := &recordingClient{}
+			s.Require().NoError(runTask(task, client, true, false))
+
+			s.Equal([]string{"PushXCom decide return_value <nil>"}, client.calls)
+		})
+	}
+}
+
+// A nil slice or map result is Go's empty one, so it pushes an empty list or mapping, not null.
+func (s *TaskSuite) TestPushesANilCollectionResultAsEmpty() {
+	cases := map[string]struct {
+		fn   any
+		want any
+	}{
+		"nil slice": {
+			fn:   func(contexttest.Context) ([]string, error) { return nil, nil },
+			want: []string{},
+		},
+		"nil map": {
+			fn:   func(contexttest.Context) (map[string]int, error) { return nil, nil },
+			want: map[string]int{},
+		},
+	}
+	for name, tt := range cases {
+		s.Run(name, func() {
+			task, err := NewTaskFunction(tt.fn)
+			s.Require().NoError(err)
+
+			client := &recordingClient{}
+			s.Require().NoError(runTask(task, client, true, false))
+
+			// %v prints a nil and an empty slice alike, so the value itself is compared.
+			s.Equal(tt.want, client.values[sdk.XComReturnValueKey])
+		})
+	}
+}
+
+// A function that returns only an error has no result, so it pushes nothing.
+func (s *TaskSuite) TestErrorOnlyFunctionPushesNothing() {
+	task, err := NewTaskFunction(func(contexttest.Context) error { return nil })
 	s.Require().NoError(err)
 
 	client := &recordingClient{}

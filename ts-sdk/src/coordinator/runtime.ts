@@ -37,7 +37,7 @@
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
 import { resolveArgs, type BoundArgs } from "./arg-binding.js";
-import { createCoordinatorClient, type CoordinatorClient } from "./client.js";
+import { createCoordinatorClient, XCOM_RETURN_KEY, type CoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
@@ -314,7 +314,7 @@ function handleParse(
         },
       });
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = errorMessage(err);
       logs.error("Dag could not be serialized", { dag_id: dag.dagId, detail });
       failures.push(`Dag "${dag.dagId}": ${detail}`);
     }
@@ -386,7 +386,7 @@ async function handleTask(
         );
     }
   } catch (err) {
-    return fail((err as Error).message ?? String(err));
+    return fail(errorMessage(err));
   }
 }
 
@@ -408,7 +408,7 @@ async function runHandler(
     });
   } catch (err) {
     // Before the handler ran, so nothing it might have written is at stake.
-    const message = (err as Error).message ?? String(err);
+    const message = errorMessage(err);
     logs.error("Cannot bind this task's call arguments", {
       task_id: ctx.taskId,
       error: message,
@@ -425,7 +425,7 @@ async function runHandler(
     // `getClient()` work at any depth without the handler being handed either.
     const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
     if (result !== undefined) {
-      await client.setXCom({ key: "return_value", value: result as JsonValue });
+      await client.setXCom({ key: XCOM_RETURN_KEY, value: result as JsonValue });
     }
     // SucceedTask MUST include task_outlets and outlet_events as
     // empty lists, since the Execution API's TISuccessStatePayload
@@ -438,11 +438,11 @@ async function runHandler(
     };
     return response;
   } catch (err) {
-    const message = (err as Error).message ?? String(err);
+    const message = errorMessage(err);
     logs.error("Task failed", {
       task_id: ctx.taskId,
       error: message,
-      stack: (err as Error).stack ?? null,
+      stack: (err as { stack?: unknown } | null | undefined)?.stack ?? null,
       // A handler that destructured a bound argument under a name nothing
       // folds to gets no error of its own, so a failing task says what its
       // call actually delivered.
@@ -464,7 +464,7 @@ async function sendSupervisorResponse(
   } catch (err) {
     logs.error("Failed to send response to supervisor", {
       response_type: responseType(body),
-      error: (err as Error).message ?? String(err),
+      error: errorMessage(err),
     });
     throw err;
   }
@@ -487,6 +487,12 @@ function buildFailureResponse(
     state: "failed",
     end_date: endDate,
   };
+}
+
+// User code can throw anything, including undefined, null or an Error from another realm.
+function errorMessage(err: unknown): string {
+  const message = (err as { message?: unknown } | null | undefined)?.message;
+  return typeof message === "string" ? message : String(err);
 }
 
 function responseType(body: unknown): string {

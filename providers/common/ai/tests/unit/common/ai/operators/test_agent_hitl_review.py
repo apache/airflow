@@ -38,6 +38,7 @@ from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_AGENT_OUTPUT_PREFIX,
     XCOM_HUMAN_ACTION,
     XCOM_HUMAN_FEEDBACK_PREFIX,
+    unwrap_review_text,
 )
 from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY, TaskStateStoreUsageBudget
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
@@ -101,6 +102,11 @@ def _operator(model_fn=_summarizer, **kwargs) -> AgentOperator:
     return op
 
 
+def _unwrap_pushed(ctx, key: str) -> str | None:
+    """Return the text the HITL Review tab shows for an output or feedback XCom the task pushed."""
+    return unwrap_review_text(ctx["task_instance"].xcoms[key], dag_id=ctx["task_instance"].dag_id)
+
+
 @pytest.fixture
 def ctx(review_context) -> Any:
     return review_context
@@ -114,8 +120,8 @@ def test_review_resumes_in_a_new_operator_and_returns_the_approved_model(park, c
     second = park(lambda: _operator().resume_hitl_review(ctx, **first.kwargs, event=REQUEST_CHANGES))
     result = _operator().resume_hitl_review(ctx, **second.kwargs, event=APPROVE)
 
-    assert ctx["task_instance"].xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}1"] == '{"text":"A long summary","words":3}'
-    assert ctx["task_instance"].xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}2"] == '{"text":"Short","words":1}'
+    assert _unwrap_pushed(ctx, f"{XCOM_AGENT_OUTPUT_PREFIX}1") == '{"text":"A long summary","words":3}'
+    assert _unwrap_pushed(ctx, f"{XCOM_AGENT_OUTPUT_PREFIX}2") == '{"text":"Short","words":1}'
     assert result == Summary(text="Short", words=1)
     assert ctx["task_state_store"].get("common_ai_hitl_review_state") is None
 
@@ -271,17 +277,19 @@ class TestDurable:
         with patch(UPSERT, autospec=True) as upsert:
             third = park(lambda: self._operator(writer).execute(ctx))
 
-        xcoms = ctx["task_instance"].xcoms
         assert third.kwargs["iteration"] == 3
         upsert.assert_called_once()
         # Fetch and first summary, the regeneration, the failed one, and the failed one again on retry.
         assert (writer.requests, writer.fetches) == (5, 1)
-        assert [xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}{n}"] for n in (1, 2, 3)] == [
+        assert [_unwrap_pushed(ctx, f"{XCOM_AGENT_OUTPUT_PREFIX}{n}") for n in (1, 2, 3)] == [
             "summary 2 after []",
             "summary 3 after ['Shorter']",
             "summary 5 after ['Shorter', 'Add the margin']",
         ]
-        assert [xcoms[f"{XCOM_HUMAN_FEEDBACK_PREFIX}{n}"] for n in (1, 2)] == ["Shorter", "Add the margin"]
+        assert [_unwrap_pushed(ctx, f"{XCOM_HUMAN_FEEDBACK_PREFIX}{n}") for n in (1, 2)] == [
+            "Shorter",
+            "Add the margin",
+        ]
 
     def test_the_new_first_output_after_a_reject_replays_on_later_retries(self, park, ctx):
         """The reject told the journal to ask the model again; the run that did so takes that back."""
@@ -298,7 +306,7 @@ class TestDurable:
         again = park(lambda: self._operator(writer).execute(ctx))
 
         assert again.kwargs["iteration"] == 2
-        assert ctx["task_instance"].xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}1"] == "summary 3 after []"
+        assert _unwrap_pushed(ctx, f"{XCOM_AGENT_OUTPUT_PREFIX}1") == "summary 3 after []"
         assert (writer.requests, writer.fetches) == (5, 1)
 
     def test_a_retry_after_the_review_timed_out_asks_about_the_same_round_again(self, park, ctx):
@@ -316,7 +324,7 @@ class TestDurable:
         again = park(lambda: self._operator(writer).execute(ctx))
 
         assert again.kwargs["iteration"] == 2
-        assert ctx["task_instance"].xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}2"] == "summary 3 after ['Shorter']"
+        assert _unwrap_pushed(ctx, f"{XCOM_AGENT_OUTPUT_PREFIX}2") == "summary 3 after ['Shorter']"
         assert (writer.requests, writer.fetches) == (3, 1)
 
     @pytest.mark.parametrize(
@@ -354,7 +362,7 @@ class TestDurable:
         assert writer.fetches == 1
         assert writer.requests == requests_before_retry + 1
         assert (
-            ctx["task_instance"].xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}1"]
+            _unwrap_pushed(ctx, f"{XCOM_AGENT_OUTPUT_PREFIX}1")
             == f"summary {requests_before_retry + 1} after []"
         )
         assert _HITL_REVIEW_ANSWERS_KEY not in ctx["task_state_store"].data
@@ -372,7 +380,7 @@ class TestDurable:
         again = park(lambda: self._operator(writer, live=True).execute(ctx))
 
         assert again.kwargs["iteration"] == 1
-        assert ctx["task_instance"].xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}1"] == "summary 4 after []"
+        assert _unwrap_pushed(ctx, f"{XCOM_AGENT_OUTPUT_PREFIX}1") == "summary 4 after []"
         assert f"{XCOM_HUMAN_FEEDBACK_PREFIX}1" not in ctx["task_instance"].xcoms
         assert "is not the one the reviewer asked to change" in caplog.text
 
@@ -420,9 +428,7 @@ class TestDurable:
         assert [key for key in store if "run_2_" in key] == []
         # The regeneration started run 1 over, rather than finding the old branch's run 1 there.
         assert "took a different path" not in caplog.text
-        assert (
-            ctx["task_instance"].xcoms[f"{XCOM_AGENT_OUTPUT_PREFIX}2"] == "summary 6 after ['Shorter please']"
-        )
+        assert _unwrap_pushed(ctx, f"{XCOM_AGENT_OUTPUT_PREFIX}2") == "summary 6 after ['Shorter please']"
 
     @pytest.mark.parametrize(
         ("requires_approval", "match"),

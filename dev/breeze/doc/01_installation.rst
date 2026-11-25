@@ -34,8 +34,9 @@ Docker Desktop
 - **Disk space**: On macOS, increase your available disk space before starting to work with
   the environment. At least 20 GB of free disk space is recommended. You can also get by with a
   smaller space but make sure to clean up the Docker disk space periodically.
-  See also `Docker for Mac - Space <https://docs.docker.com/docker-for-mac/space>`_ for details
-  on increasing disk space available for Docker on Mac.
+  See the `Docker Desktop disk usage settings
+  <https://docs.docker.com/desktop/settings-and-maintenance/settings/#advanced>`_ for details on
+  increasing the disk usage limit on macOS.
 - **Docker problems**: Sometimes it is not obvious that space is an issue when you run into
   a problem with Docker. If you see a weird behaviour, try ``breeze cleanup`` command.
   Also see `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
@@ -105,10 +106,7 @@ Docker in WSL 2
     `WSL 2 Installation Guide <https://docs.microsoft.com/en-us/windows/wsl/install-win10>`_ for details.
 
 - **Docker Desktop installation** :
-    Install Docker Desktop for Windows. For Windows Home follow the
-    `Docker Windows Home Installation Guide <https://docs.docker.com/docker-for-windows/install-windows-home>`_.
-    For Windows Pro, Enterprise, or Education follow the
-    `Docker Windows Installation Guide <https://docs.docker.com/docker-for-windows/install/>`_.
+    Follow the `Docker Desktop installation guide for Windows <https://docs.docker.com/desktop/setup/install/windows-install/>`_.
 
 - **Docker setting** :
     WSL integration needs to be enabled
@@ -217,9 +215,10 @@ Memory
 
 Minimum 4GB RAM for Docker Engine is required to run the full Breeze environment.
 
-On macOS, 2GB of RAM are available for your Docker containers by default, but more memory is recommended
-(4GB should be comfortable). For details see
-`Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
+On macOS, Docker Desktop allocates 50% of the host's memory to its virtual machine by default.
+An allocation of 4 GB is a reasonable starting point for Breeze. If you need more memory,
+increase the memory limit in the
+`Docker Desktop resource settings <https://docs.docker.com/desktop/settings-and-maintenance/settings/#advanced>`_.
 
 On Windows WSL 2 expect the Linux Distro and Docker containers to use 7 - 8 GB of RAM.
 
@@ -228,9 +227,10 @@ Disk
 
 Minimum 40GB free disk space is required for your Docker Containers.
 
-On Mac OS This might deteriorate over time so you might need to increase it or run ``breeze cleanup``
-periodically. For details see
-`Docker for Mac - Advanced tab <https://docs.docker.com/v17.12/docker-for-mac/#advanced-tab>`_.
+On macOS, Docker images and containers can take up more disk space over time. Run
+``breeze cleanup`` periodically to reclaim space. If Docker Desktop reaches its disk usage
+limit and your Mac has enough free disk space, see the `Docker Desktop disk usage settings
+<https://docs.docker.com/desktop/settings-and-maintenance/settings/#advanced>`_ to increase the limit.
 
 On WSL2 you might want to increase your Virtual Hard Disk by following:
 `Expanding the size of your WSL 2 Virtual Hard Disk <https://docs.microsoft.com/en-us/windows/wsl/compare-versions#expanding-the-size-of-your-wsl-2-virtual-hard-disk>`_
@@ -259,7 +259,7 @@ If you run into disk space errors, consider pruning your Docker images with the 
 command. You may need to restart the Docker Engine before running this command.
 
 In case of disk space errors on macOS, increase the disk space available for Docker. See
-`Prerequisites <#prerequisites>`_ for details.
+`Disk <#disk>`_ for details.
 
 
 Installation

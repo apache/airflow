@@ -105,7 +105,7 @@ Apache Airflow is tested with:
 | Python     | 3.11, 3.12, 3.13, 3.14                   | 3.11, 3.12, 3.13, 3.14                   |
 | Platform   | AMD64/ARM64                              | AMD64/ARM64                              |
 | Kubernetes | 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37 | 1.31, 1.32, 1.33, 1.34, 1.35, 1.36, 1.37 |
-| PostgreSQL | 14, 15, 16, 17, 18                       | 14, 15, 16, 17, 18                       |
+| PostgreSQL | 15, 16, 17, 18, 19                       | 14, 15, 16, 17, 18                       |
 | MySQL      | 8.0, 8.4, Innovation                     | 8.0, 8.4, Innovation                     |
 | SQLite     | 3.15.0+                                  | 3.15.0+                                  |
 

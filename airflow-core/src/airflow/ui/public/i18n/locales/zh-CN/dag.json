@@ -85,6 +85,8 @@
     "upcomingCount_other": "{{count, number}} 个即将到期的截止期限"
   },
   "extraLinks": "额外链接",
+  "failingWatcherTriggers_one": "1 个持续失败的监听器触发器",
+  "failingWatcherTriggers_other": "{{count, number}} 个持续失败的监听器触发器",
   "grid": {
     "buttons": {
       "newerRuns": "较新的执行",

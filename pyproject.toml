@@ -236,7 +236,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=3.6.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=3.10.2" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -473,7 +473,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=3.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=3.10.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -560,13 +560,13 @@ apache-airflow = "airflow.__main__:main"
     "cloudpickle>=2.2.1,<3.1.2",
 ]
 "fab-oauth" = [
-    "apache-airflow-providers-fab[oauth]",
+    "apache-airflow-providers-fab[oauth]>=3.10.2",
 ]
 "github-enterprise" = [
-    "apache-airflow-providers-fab[oauth]",
+    "apache-airflow-providers-fab[oauth]>=3.10.2",
 ]
 "google-auth" = [
-    "apache-airflow-providers-fab[oauth]",
+    "apache-airflow-providers-fab[oauth]>=3.10.2",
 ]
 "ldap" = [
     "python-ldap>=3.4.4",
@@ -945,6 +945,8 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 
 # Deprecated imports
+"airflow.utils.operator_helpers.KeywordParameters".msg = "Use airflow.providers.common.compat.sdk.KeywordParameters or airflow.sdk.bases.decorator.KeywordParameters"
+"airflow.utils.operator_helpers.determine_kwargs".msg = "Use airflow.providers.common.compat.sdk.determine_kwargs or airflow.sdk.bases.decorator.determine_kwargs"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 "airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 
@@ -1032,6 +1034,7 @@ filterwarnings = [
     # Avoid building cartesian product which might impact performance
     "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
+    'error:implicitly coercing SELECT object to scalar subquery:sqlalchemy.exc.SAWarning:airflow',
     'error:Class.*will not make use of SQL compilation caching',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
@@ -1107,6 +1110,7 @@ warn_unused_ignores = false
 plugins = [
     "airflow_mypy.plugins.decorators",
     "airflow_mypy.plugins.outputs",
+    "airflow_mypy.plugins.sqlalchemy_version",
 ]
 pretty = true
 show_error_codes = true

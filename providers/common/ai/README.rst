@@ -57,7 +57,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.22.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
 ``httpx2``                                  ``>=2.7``
-``pydantic-ai-slim``                        ``>=2.46.0``
+``pydantic-ai-slim``                        ``>=2.66.0``
 ``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 

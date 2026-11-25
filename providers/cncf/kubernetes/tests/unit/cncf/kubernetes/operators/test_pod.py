@@ -239,6 +239,7 @@ class TestKubernetesPodOperator:
         self.await_start_mock = self.await_pod_patch.start()
         self.await_pod_mock = self.await_pod_completion_patch.start()
         self._default_client_mock = self._default_client_patch.start()
+        patch("kubernetes.client.CoreV1Api.read_namespaced_pod", autospec=True).start()
 
         try:
             from airflow.sdk.execution_time.context import TaskStateStoreAccessor
@@ -477,6 +478,29 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.security_context == security_context
 
+    @pytest.mark.parametrize(
+        ("security_context", "expected_user"),
+        [(None, 1000), ({}, 1000), ({"runAsUser": 2000}, 2000)],
+    )
+    def test_inherits_pod_template_security_context(self, security_context, expected_user):
+        template = {
+            "spec": {
+                "containers": [{"name": "base", "image": "alpine"}],
+                "securityContext": {"runAsUser": 1000, "runAsNonRoot": True},
+            }
+        }
+        operator = KubernetesPodOperator(
+            task_id="task",
+            pod_template_dict=template,
+            security_context=security_context,
+        )
+
+        pod = operator.build_pod_request_obj(dry_run=True)
+
+        assert pod.spec.security_context.run_as_user == expected_user
+        if not security_context:
+            assert pod.spec.security_context.run_as_non_root is True
+
     def test_host_aliases(self):
         host_aliases = [k8s.V1HostAlias(ip="192.0.2.1", hostnames=["my.service.com"])]
         k = KubernetesPodOperator(
@@ -493,7 +517,10 @@ class TestKubernetesPodOperator:
             task_id="task",
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[0].security_context == container_security_context
+        assert (
+            self.sanitize_for_serialization(pod.spec.containers[0].security_context)
+            == container_security_context
+        )
 
     def test_envs_from_configmaps(self):
         env_from = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name="test-config-map"))]
@@ -641,6 +668,7 @@ class TestKubernetesPodOperator:
         type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
             side_effect=RuntimeError("kube config not available")
         )
+        hook_mock.return_value.get_namespace.return_value = "default"
         k = KubernetesPodOperator(
             name="test",
             task_id="task",
@@ -777,7 +805,7 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(
         "val",
         [
-            pytest.param([k8s.V1LocalObjectReference("fakeSecret")], id="current"),
+            pytest.param([k8s.V1LocalObjectReference(name="fakeSecret")], id="current"),
             pytest.param("fakeSecret", id="backcompat"),
         ],
     )
@@ -1133,7 +1161,7 @@ class TestKubernetesPodOperator:
                 do_xcom_push=True,
             )
             pod = k.build_pod_request_obj(create_context(k))
-            assert pod.spec.containers[1].resources == resources
+            assert self.sanitize_for_serialization(pod.spec.containers[1].resources) == resources
 
     def test_xcom_sidecar_container_security_context_default(self):
         k = KubernetesPodOperator(
@@ -1158,7 +1186,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=True,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].security_context == security_context
+        assert self.sanitize_for_serialization(pod.spec.containers[1].security_context) == security_context
 
     @patch(f"{HOOK_CLASS}.get_xcom_sidecar_container_security_context")
     def test_xcom_sidecar_container_security_context_operator_overrides_connection(
@@ -1173,7 +1201,10 @@ class TestKubernetesPodOperator:
             xcom_sidecar_container_security_context=operator_security_context,
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].security_context == operator_security_context
+        assert (
+            self.sanitize_for_serialization(pod.spec.containers[1].security_context)
+            == operator_security_context
+        )
 
     @patch(f"{HOOK_CLASS}.get_xcom_sidecar_container_security_context")
     def test_xcom_sidecar_container_security_context_empty_operator_overrides_connection(
@@ -1187,7 +1218,7 @@ class TestKubernetesPodOperator:
             xcom_sidecar_container_security_context={},
         )
         pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].security_context == {}
+        assert self.sanitize_for_serialization(pod.spec.containers[1].security_context) == {}
 
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
@@ -2123,7 +2154,7 @@ class TestKubernetesPodOperator:
     @patch(HOOK_CLASS, new=MagicMock)
     def test_patch_already_checked(self):
         """Make sure we patch the pods with the right label"""
-        k = KubernetesPodOperator(task_id="task")
+        k = KubernetesPodOperator(task_id="task", namespace="default")
         pod = k.build_pod_request_obj()
         k.patch_already_checked(pod)
         k.client.patch_namespaced_pod.assert_called_once_with(
@@ -2824,6 +2855,7 @@ class TestKubernetesPodOperatorDurableExecution:
         self.create_mock = self.create_pod_patch.start()
         self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
         self._default_client_mock = self._default_client_patch.start()
+        patch("kubernetes.client.CoreV1Api.read_namespaced_pod", autospec=True).start()
 
         yield
 
@@ -3319,6 +3351,7 @@ class TestKubernetesPodOperatorAsync:
         self.await_start_mock = self.await_pod_patch.start()
         self.await_pod_mock = self.await_pod_completion_patch.start()
         self._default_client_mock = self._default_client_patch.start()
+        patch("kubernetes.client.CoreV1Api.read_namespaced_pod", autospec=True).start()
         self.await_pod_get = self.await_pod_get_patch.start()
         self.dag_maker = dag_maker
 

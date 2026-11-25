@@ -152,7 +152,6 @@ class TestKubernetesPodOperatorSystem:
                 },
             },
             "spec": {
-                "affinity": {},
                 "containers": [
                     {
                         "image": "ubuntu:24.04",
@@ -171,7 +170,6 @@ class TestKubernetesPodOperatorSystem:
                 "initContainers": [],
                 "nodeSelector": {},
                 "restartPolicy": "Never",
-                "securityContext": {},
                 "tolerations": [],
                 "volumes": [],
             },
@@ -428,7 +426,7 @@ class TestKubernetesPodOperatorSystem:
     def test_pod_resources(self):
         resources = k8s.V1ResourceRequirements(
             requests={"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
-            limits={"memory": "64Mi", "cpu": 0.25, "nvidia.com/gpu": None, "ephemeral-storage": "2Gi"},
+            limits={"memory": "64Mi", "cpu": "0.25", "ephemeral-storage": "2Gi"},
         )
         k = KubernetesPodOperator(
             namespace="default",
@@ -446,7 +444,7 @@ class TestKubernetesPodOperatorSystem:
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         self.expected_pod["spec"]["containers"][0]["resources"] = {
             "requests": {"memory": "64Mi", "cpu": "250m", "ephemeral-storage": "1Gi"},
-            "limits": {"memory": "64Mi", "cpu": 0.25, "nvidia.com/gpu": None, "ephemeral-storage": "2Gi"},
+            "limits": {"memory": "64Mi", "cpu": "0.25", "ephemeral-storage": "2Gi"},
         }
         assert self.expected_pod == actual_pod
 
@@ -1040,7 +1038,6 @@ class TestKubernetesPodOperatorSystem:
                 "namespace": "mem-example",
             },
             "spec": {
-                "affinity": {},
                 "containers": [
                     {
                         "args": ["--vm", "1", "--vm-bytes", "150M", "--vm-hang", "1"],
@@ -1069,7 +1066,6 @@ class TestKubernetesPodOperatorSystem:
                 "initContainers": [],
                 "nodeSelector": {},
                 "restartPolicy": "Never",
-                "securityContext": {},
                 "tolerations": [],
                 "volumes": [{"emptyDir": {}, "name": "xcom"}],
             },

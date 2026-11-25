@@ -552,6 +552,20 @@ class RuntimeTaskInstance(TaskInstance):
             return None
         return LazyXComSequence(xcom_arg=PlainXComArg(producer, key), ti=self)
 
+    def _is_task_mapped(self, dag_id: str, run_id: str, task_id: str) -> bool:
+        """
+        Whether a task of this Dag run is mapped, by this task's Dag.
+
+        A task of another run or Dag reads False, since its Dag version may
+        differ; the server decides for those.
+        """
+        if not (dag_id == self.dag_id and run_id == self.run_id):
+            return False
+        try:
+            return self.task.dag.get_task(task_id).get_needs_expansion()
+        except TaskNotFound:
+            return False
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -578,8 +592,8 @@ class RuntimeTaskInstance(TaskInstance):
         :param dag_id: If provided, only pulls XComs from this Dag. If *None*
             (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
-            If *None* (default), this is inferred from the task(s) being pulled
-            (see below for details).
+            If not provided (default), every instance of the task(s) being pulled
+            is pulled (see below for details).
         :param include_prior_dates: If False, only XComs from the current
             logical_date are returned. If *True*, XComs from previous dates
             are returned as well.
@@ -587,14 +601,15 @@ class RuntimeTaskInstance(TaskInstance):
             If *None* (default), the run_id of the calling task is used.
 
         When pulling one single task (``task_id`` is *None* or a str) without
-        specifying ``map_indexes``, the return value is a single XCom entry
-        (map_indexes is set to map_index of the calling task instance).
+        specifying ``map_indexes``, the XComs of all its instances are pulled. If
+        exactly one is found, it is returned on its own; otherwise they are
+        returned as a list.
 
-        When pulling task is mapped the specified ``map_index`` is used, so by default
-        pulling on mapped task will result in no matching XComs if the task instance
-        of the method call is not mapped. Otherwise, the map_index of the calling task
-        instance is used. Setting ``map_indexes`` to *None* will pull XCom as it would
-        from a non mapped task.
+        Setting ``map_indexes`` to *None* pulls the task's result: the XCom of a
+        non-mapped task, or for a mapped task the XComs of all its instances as a
+        list. A mapped task with no XComs, or one pulled with
+        ``include_prior_dates``, matches no XCom. A map index the task has no
+        instance at matches no XCom either.
 
         In either case, ``default`` (*None* if not specified) is returned if no
         matching XComs are found.
@@ -639,14 +654,17 @@ class RuntimeTaskInstance(TaskInstance):
             return xcoms
 
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
-            value = XCom.get_one(
-                run_id=run_id,
-                key=key,
-                task_id=t_id,
-                dag_id=dag_id,
-                map_index=m_idx,
-                include_prior_dates=include_prior_dates,
-            )
+            if m_idx is None and not include_prior_dates and self._is_task_mapped(dag_id, run_id, t_id):
+                value = XCom.get_all(run_id=run_id, key=key, task_id=t_id, dag_id=dag_id)
+            else:
+                value = XCom.get_one(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    map_index=m_idx,
+                    include_prior_dates=include_prior_dates,
+                )
             xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
@@ -702,14 +720,17 @@ class RuntimeTaskInstance(TaskInstance):
             return xcoms
 
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
-            value = await XCom.aget_one(
-                run_id=run_id,
-                key=key,
-                task_id=t_id,
-                dag_id=dag_id,
-                map_index=m_idx,
-                include_prior_dates=include_prior_dates,
-            )
+            if m_idx is None and not include_prior_dates and self._is_task_mapped(dag_id, run_id, t_id):
+                value = await XCom.aget_all(run_id=run_id, key=key, task_id=t_id, dag_id=dag_id)
+            else:
+                value = await XCom.aget_one(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    map_index=m_idx,
+                    include_prior_dates=include_prior_dates,
+                )
             xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
@@ -1241,6 +1262,34 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 # - By defining `SUPERVISOR_COMMS` as a global, it ensures that this communication mechanism is readily
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
+
+# True while code serves an in-process supervisor request (dag.test()). That code acts as
+# the server side, so get_supervisor_comms() returns None there. Other task threads are unaffected.
+_supervisor_comms_hidden: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_supervisor_comms_hidden", default=False
+)
+
+
+def get_supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
+    """
+    Return the comms to the supervisor, or ``None``.
+
+    ``None`` outside a task execution context and inside :func:`hide_supervisor_comms`. Code that
+    decides whether it runs inside a task should ask this instead of checking for ``SUPERVISOR_COMMS``.
+    """
+    if _supervisor_comms_hidden.get():
+        return None
+    return globals().get("SUPERVISOR_COMMS")
+
+
+@contextmanager
+def hide_supervisor_comms() -> Iterator[None]:
+    """Hide the comms from the code run inside this block, and only from it."""
+    token = _supervisor_comms_hidden.set(True)
+    try:
+        yield
+    finally:
+        _supervisor_comms_hidden.reset(token)
 
 
 # State machine!

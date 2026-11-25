@@ -133,9 +133,10 @@ know about yet. Options worth knowing about:
   ``previous_response_id`` cannot reference it.
 - ``previous_response_id``: the id of a prior response to continue a multi-turn conversation from.
   Cannot be used together with ``conversation`` — pass one or the other, not both.
-- ``reasoning``: configuration for reasoning models, for example ``{"effort": ...}``. The example
-  Dag above (and the operator's own default) uses ``gpt-4o-mini``, which is not a reasoning model,
-  so this option only takes effect if ``model`` is also set to a reasoning model.
+- ``reasoning``: configuration for reasoning models, for example ``{"effort": ...}`` (supported
+  values include ``"none"``, ``"low"``, ``"medium"``, ``"high"``, ``"xhigh"``, and ``"max"``).
+  The operator's default model (``gpt-6-luna``) is a reasoning model that defaults to
+  ``"medium"`` effort, so this option takes effect by default.
 - ``service_tier``: the processing tier the request is served from.
 - ``prompt_cache_key``: an identifier used to route requests to the same prompt cache. How long a
   cache entry is retained is a separate option whose name depends on the installed package:
@@ -231,12 +232,6 @@ For example, to create a conversation and continue it across responses:
     hook = OpenAIHook()
     conversation = hook.create_conversation()
     hook.create_response(input="Hello", conversation=conversation.id)
-
-.. note::
-
-    The Assistants/Threads hook methods (``create_assistant``, ``create_thread``, ``create_run`` and
-    related) are deprecated, mirroring OpenAI's deprecation of the Assistants API. Migrate to the
-    Responses and Conversations methods above.
 
 .. _howto/operator:OpenAITriggerBatchOperator:
 

@@ -20,11 +20,14 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.utils.container import (
+    container_is_completed,
     container_is_running,
     container_is_succeeded,
     container_is_terminated,
+    container_is_wait,
     has_sidecar_containers,
 )
 
@@ -56,6 +59,30 @@ def pod_with_containers(*names: str, init_containers: tuple[str, ...] = ()) -> S
 )
 def test_has_sidecar_containers(remote_pod, result):
     assert has_sidecar_containers(remote_pod, "base") is result
+
+
+@pytest.mark.parametrize(
+    "check_state",
+    [
+        container_is_running,
+        container_is_completed,
+        container_is_succeeded,
+        container_is_terminated,
+        container_is_wait,
+    ],
+)
+def test_container_without_state_does_not_match(check_state):
+    pod = k8s.V1Pod(
+        status=k8s.V1PodStatus(
+            container_statuses=[
+                k8s.V1ContainerStatus(
+                    name="base", image="image", image_id="image-id", ready=False, restart_count=0
+                )
+            ]
+        )
+    )
+
+    assert check_state(pod, "base") is False
 
 
 @pytest.mark.parametrize(

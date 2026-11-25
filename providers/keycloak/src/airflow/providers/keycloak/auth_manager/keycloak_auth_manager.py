@@ -51,10 +51,17 @@ except ImportError:
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod as ExtendedResourceMethod
 
 from airflow.api_fastapi.common.types import MenuItem
+
+try:
+    from airflow.api_fastapi.common.types import CliLoginMethods
+except ImportError:
+    # Airflow versions without CLI login discovery never call ``get_cli_login_methods``.
+    CliLoginMethods = None  # type: ignore[assignment,misc]
 from airflow.cli.cli_config import CLICommand
 from airflow.providers.common.compat.sdk import AirflowException, conf
 from airflow.providers.keycloak.auth_manager.cache import single_flight
 from airflow.providers.keycloak.auth_manager.constants import (
+    CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY,
     CONF_CLIENT_ID_KEY,
     CONF_CLIENT_SECRET_KEY,
     CONF_REALM_KEY,
@@ -70,6 +77,8 @@ from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_3_PLUS
 from airflow.utils.helpers import prune_dict
 
 if TYPE_CHECKING:
+    from starlette.middleware import _MiddlewareFactory
+
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
     from airflow.api_fastapi.auth.managers.models.batch_apis import (
         IsAuthorizedConnectionRequest,
@@ -107,6 +116,10 @@ TEAM_SCOPED_RESOURCES = frozenset(
         KeycloakResource.VARIABLE,
     }
 )
+
+
+def is_cli_authorization_code_enabled() -> bool:
+    return conf.getboolean(CONF_SECTION_NAME, CONF_CLI_AUTHORIZATION_CODE_ENABLED_KEY, fallback=False)
 
 
 class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
@@ -195,39 +208,25 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             }
         )
 
-    async def get_user_from_token(
-        self, token: str, access_token: str | None = None, refresh_token: str | None = None
-    ):
+    async def get_user_from_token(self, token: str, *, should_return_user: bool = False):
         """
         Get the user from the Airflow and Keycloak Tokens.
 
         :param token: Airflow JWT
-        :param access_token: Keycloak access JWT
-        :param refresh_token: Keycloak refresh JWT
+        :param should_return_user: Flag to prevent JWTRefreshMiddleware from returning an incomplete KeycloakAuthManagerUser model.
         """
         user = cast("KeycloakAuthManagerUser", await super().get_user_from_token(token))
-        if not AIRFLOW_V_3_3_PLUS:
+        if should_return_user:
+            # For Airflow v3.3.0+ the access_token and refresh_token are
+            # added to the user from the request cookies by
+            # KeycloakJWTMiddleware.refresh_user().
             return user
-        if access_token:
-            # The Airflow JWT is signed and establishes who the caller is. The Keycloak
-            # tokens arrive in separate cookies that the signature does not cover, so
-            # pairing them unchecked would let a caller combine their own Airflow session
-            # with somebody else's Keycloak token: every authorization decision is then
-            # made for that subject, while the session identity, audit trail and logs
-            # continue to show this one.
-            if self._token_subject(access_token) != user.get_id():
-                raise InvalidTokenError("Keycloak access token does not belong to this Airflow session")
-            user.access_token = access_token
-            user.refresh_token = refresh_token
-            return user
-        # No cookie-supplied tokens. A token minted for an API client carries the
-        # Keycloak JWTs in its own claims, so the user is already complete -- and unlike
-        # the cookie path those claims are covered by the Airflow JWT signature, so they
-        # need no separate subject check. A browser token does not carry them and can
-        # only be completed by KeycloakJWTMiddleware from the cookies; without them
-        # there is nothing to authorize against. Return None rather than raise: the
-        # core JWTRefreshMiddleware resolves this token on every request without the
-        # cookies, and an exception there would end every browser session.
+        # For Airflow v3.2.0- The Keycloak JWTs are included as claims on the Airflow JWT.
+        # For Airflow v3.3.0+ A browser token does not carry them and can
+        # only be completed by KeycloakJWTMiddleware from the cookies.
+        # Return None rather than raise: the core JWTRefreshMiddleware
+        # resolves this token on every request without the cookies, and
+        # an exception there would end every browser session.
         return user if user.access_token else None
 
     def get_url_login(self, **kwargs) -> str:
@@ -240,6 +239,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
     def get_url_logout(self) -> str | None:
         base_url = conf.get("api", "base_url", fallback="/")
         return urljoin(base_url, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout")
+
+    def get_cli_login_methods(self) -> CliLoginMethods:
+        token_endpoint = f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli"
+        if not is_cli_authorization_code_enabled():
+            return CliLoginMethods(
+                grant_types_supported=["password", "refresh_token"], token_endpoint=token_endpoint
+            )
+        return CliLoginMethods(
+            grant_types_supported=["password", "refresh_token", "authorization_code"],
+            code_challenge_methods_supported=["S256"],
+            authorization_endpoint=f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli",
+            token_endpoint=token_endpoint,
+        )
 
     def refresh_user(self, *, user: KeycloakAuthManagerUser | None) -> KeycloakAuthManagerUser | None:
         # According to RFC6749 section 4.4.3, a refresh token should not be included when using
@@ -453,10 +465,20 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         return app
 
-    def get_fastapi_middlewares(self):
+    def get_jwt_refresh_middleware(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        from airflow.api_fastapi.core_api.app import _STATIC_URL_PATH
         from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
 
-        return [(KeycloakJWTMiddleware, {})]
+        return [(KeycloakJWTMiddleware, {"skip_path_prefixes": (f"{_STATIC_URL_PATH}/",)})]
+
+    def get_fastapi_middlewares(self) -> list[tuple[_MiddlewareFactory, dict[str, Any]]]:
+        if not KeycloakAuthManager._middleware_handles_cookies():
+            from airflow.providers.keycloak.auth_manager.middleware import KeycloakJWTMiddleware
+
+            _STATIC_URL_PATH = "/static"
+
+            return [(KeycloakJWTMiddleware, {"skip_path_prefixes": (f"{_STATIC_URL_PATH}/",)})]
+        return []
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
@@ -944,3 +966,23 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         payload_bytes = urlsafe_b64decode(payload_b64)
         payload = json.loads(payload_bytes)
         return payload["exp"] < int(time.time())
+
+    @staticmethod
+    def _middleware_handles_cookies():
+        """Compatibility helper that checks if JWTRefreshMiddleware is overridden through ``BaseAuthManager.get_jwt_refresh_middleware``."""
+        return hasattr(BaseAuthManager, "get_jwt_refresh_middleware")
+
+    @staticmethod
+    def _attach_keycloak_tokens(user: KeycloakAuthManagerUser, access_token: str, refresh_token: str | None):
+        """Attach Keycloak tokens to a user model."""
+        # The Airflow JWT is signed and establishes who the caller is. The Keycloak
+        # tokens arrive in separate cookies that the signature does not cover, so
+        # pairing them unchecked would let a caller combine their own Airflow session
+        # with somebody else's Keycloak token: every authorization decision is then
+        # made for that subject, while the session identity, audit trail and logs
+        # continue to show this one.
+        if KeycloakAuthManager._token_subject(access_token) != user.get_id():
+            raise InvalidTokenError("Keycloak access token does not belong to this Airflow session")
+        user.access_token = access_token
+        user.refresh_token = refresh_token
+        return user

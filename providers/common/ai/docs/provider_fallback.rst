@@ -33,7 +33,7 @@ Put the chain in the primary connection's extra:
 .. code-block:: json
 
     {
-      "model": "openai:gpt-5",
+      "model": "openai:gpt-6.1-sol",
       "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]
     }
 
@@ -46,7 +46,7 @@ That is the point of configuring it here rather than in Dag code: the Dag keeps 
 connection, and whoever administers the connections owns the failover topology. Changing a
 standby provider is a connection edit, not a Dag deployment.
 
-A *bare* model name (e.g. ``"gpt-5"`` rather than ``"openai:gpt-5"``) is forwarded down
+A *bare* model name (e.g. ``"gpt-6.1-sol"`` rather than ``"openai:gpt-6.1-sol"``) is forwarded down
 the chain as a logical model name: each connection that has no ``model`` of its own
 resolves that name against its own platform, so one bare name can reach a primary and
 every fallback without repeating it per connection. It does not matter where the primary's
@@ -55,11 +55,11 @@ or hook are forwarded alike. A fallback with its own ``model`` in
 extra always uses that instead -- this is how a fallback pins a spelling the forwarded
 name would not produce, such as Bedrock's region-prefixed ``us.anthropic.`` model ids. A
 name that already pins a platform (its segment before the first ``:`` is itself a
-recognized provider, e.g. ``"openai:gpt-5"``) is *not* forwarded; a fallback with no
+recognized provider, e.g. ``"openai:gpt-6.1-sol"``) is *not* forwarded; a fallback with no
 ``model`` of its own still raises "no model specified" rather than trying a prefixed name
 meant for a different provider.
 
-A bare name with no ``:`` of its own (e.g. ``"gpt-5"``) forwards to any fallback
+A bare name with no ``:`` of its own (e.g. ``"gpt-6.1-sol"``) forwards to any fallback
 regardless of platform, since nothing about the spelling is vendor-specific. A bare name
 that itself contains a ``:`` -- a vendor's own native model id, such as Bedrock's
 version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"`` -- only forwards to a fallback on

@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from uuid import UUID
@@ -80,7 +80,7 @@ def _format_kwargs_for_display(kwargs: dict | None) -> Any:
     return format_encoded_value_for_display(kwargs) if kwargs else ""
 
 
-class CallbackType(str, Enum):
+class CallbackType(StrEnum):
     """
     Types of Callbacks.
 
@@ -90,9 +90,6 @@ class CallbackType(str, Enum):
     TRIGGERER = "triggerer"
     EXECUTOR = "executor"
     DAG_PROCESSOR = "dag_processor"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class CallbackDefinitionProtocol(Protocol):

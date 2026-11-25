@@ -229,7 +229,7 @@ export const useFilterConfigs = () => {
     [SearchParamsKeys.EVENT_DATE_RANGE]: {
       endKey: SearchParamsKeys.BEFORE,
       icon: <MdDateRange />,
-      label: translate("common:logicalDate"),
+      label: translate("browse:auditLog.columns.when"),
       startKey: SearchParamsKeys.AFTER,
       type: FilterTypes.DATERANGE,
     },

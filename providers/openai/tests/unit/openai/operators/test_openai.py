@@ -332,7 +332,7 @@ class TestOpenAIResponseOperatorTokenCeilings:
         operator.execute(_build_execute_context())
 
         mock_hook_instance.create_response.assert_called_once_with(
-            input="Write a haiku.", model="gpt-4o-mini", **expected_extra
+            input="Write a haiku.", model="gpt-6-luna", **expected_extra
         )
 
     @pytest.mark.parametrize(
