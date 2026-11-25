@@ -1387,6 +1387,15 @@ class ProviderIntegrationModulesInfo(BaseModel):
     python_modules: Annotated[list[str], Field(title="Python Modules")]
 
 
+class ProviderObjectStorageProviderInfo(BaseModel):
+    """
+    DataFusion object storage provider provided by a provider.
+    """
+
+    storage_type: Annotated[str | None, Field(title="Storage Type")] = None
+    provider_class_name: Annotated[str | None, Field(title="Provider Class Name")] = None
+
+
 class ProviderPluginInfo(BaseModel):
     """
     Plugin provided by a provider.
@@ -2955,6 +2964,9 @@ class ProviderInfoResponse(BaseModel):
     bundles: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Bundles")] = None
     asset_uris: Annotated[list[ProviderAssetUriInfo] | None, Field(title="Asset Uris")] = None
     dialects: Annotated[list[ProviderDialectInfo] | None, Field(title="Dialects")] = None
+    object_storage_providers: Annotated[
+        list[ProviderObjectStorageProviderInfo] | None, Field(title="Object Storage Providers")
+    ] = None
     transfers: Annotated[list[ProviderTransferInfo] | None, Field(title="Transfers")] = None
     connection_types: Annotated[list[ProviderConnectionTypeInfo] | None, Field(title="Connection Types")] = (
         None

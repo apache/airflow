@@ -38,6 +38,8 @@ from airflow.providers.common.ai.utils.hitl_review import (
     HumanActionData,
     HumanFeedbackRequest,
     SessionStatus,
+    unwrap_review_text,
+    wrap_review_text,
 )
 
 
@@ -50,6 +52,27 @@ class TestXComConstants:
 
     def test_xcom_agent_output_prefix_ends_with_underscore(self):
         assert XCOM_AGENT_OUTPUT_PREFIX.endswith("_")
+
+
+class TestReviewTextXCom:
+    def test_text_is_wrapped_with_the_dag(self):
+        wrapped = wrap_review_text("s3://bucket/xcom/other_dag/run/task/key.json", dag_id="d")
+
+        assert wrapped == {"text": "s3://bucket/xcom/other_dag/run/task/key.json", "dag_id": "d"}
+        assert unwrap_review_text(wrapped, dag_id="d") == "s3://bucket/xcom/other_dag/run/task/key.json"
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            pytest.param("Plain text", id="unwrapped_text"),
+            pytest.param({"text": "Output", "dag_id": "other_dag"}, id="another_dag"),
+            pytest.param({"text": ["Output"], "dag_id": "d"}, id="text_not_a_string"),
+            pytest.param({"dag_id": "d"}, id="no_text"),
+            pytest.param(None, id="none"),
+        ],
+    )
+    def test_anything_not_wrapped_for_the_dag_has_no_text(self, value):
+        assert unwrap_review_text(value, dag_id="d") is None
 
 
 class TestConversationEntry:

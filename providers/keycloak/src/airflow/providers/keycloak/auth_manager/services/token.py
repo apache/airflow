@@ -40,6 +40,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_REALM_KEY,
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
+    DEVICE_CODE_GRANT_TYPE,
 )
 from airflow.providers.keycloak.auth_manager.exceptions import (
     AuthManagerRefreshTokenExpiredException,
@@ -48,6 +49,7 @@ from airflow.providers.keycloak.auth_manager.exceptions import (
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     KeycloakAuthManager,
     is_cli_authorization_code_enabled,
+    is_cli_device_code_enabled,
 )
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_2_PLUS
@@ -56,6 +58,10 @@ from airflow.providers.keycloak.version_compat import AIRFLOW_V_3_2_PLUS
 # to a non-loopback interface.
 CLI_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1"})
 CLI_CALLBACK_PATH = "/callback"
+# RFC 8628 section 3.5 errors that the polling client acts on, so they are passed on as-is.
+DEVICE_CODE_CLIENT_ERRORS = frozenset(
+    {"authorization_pending", "slow_down", "access_denied", "expired_token"}
+)
 
 log = logging.getLogger(__name__)
 
@@ -305,6 +311,67 @@ def create_token_from_authorization_code(
             redirect_uri=redirect_uri,
             code_verifier=code_verifier,
             scope="openid",
+        )
+    with translate_keycloak_outage():
+        return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)
+
+
+def _require_cli_device_code_enabled() -> None:
+    if not is_cli_device_code_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Device code login is not enabled for command-line clients",
+        )
+
+
+def _find_oauth_error(error: KeycloakError) -> str | None:
+    """Return the RFC 6749 ``error`` code of a Keycloak error response, or ``None``."""
+    try:
+        body = json.loads(error.response_body or b"")
+    except (TypeError, ValueError):
+        return None
+    code = body.get("error") if isinstance(body, dict) else None
+    return code if isinstance(code, str) else None
+
+
+def start_device_authorization() -> dict:
+    """Start a device code login of a command-line client and return Keycloak's RFC 8628 response."""
+    _require_cli_device_code_enabled()
+    client = KeycloakAuthManager.get_keycloak_client()
+    try:
+        with translate_keycloak_outage():
+            return client.device(scope="openid")
+    except KeycloakError as e:
+        # Usually the Keycloak client does not have the OAuth 2.0 Device Authorization Grant turned on.
+        log.error("Keycloak refused the device authorization request: %s", _find_oauth_error(e) or e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Keycloak refused the device authorization request",
+        )
+
+
+def create_token_from_device_code(device_code: str, expiration_time_in_seconds: int) -> str:
+    """
+    Create a CLI token from a device code that the user approved.
+
+    While the login is not approved, this raises a ``400`` whose ``detail`` is the RFC 8628 error code.
+    """
+    _require_cli_device_code_enabled()
+    client = KeycloakAuthManager.get_keycloak_client()
+    try:
+        with translate_keycloak_outage():
+            tokens = client.token(grant_type=DEVICE_CODE_GRANT_TYPE, device_code=device_code, scope="openid")
+    except KeycloakError as e:
+        error = _find_oauth_error(e)
+        if error in DEVICE_CODE_CLIENT_ERRORS:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error)
+        if error == "invalid_grant":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid device code")
+        # Not the user's fault: e.g. a wrong client secret or the device grant turned off in Keycloak.
+        log.error("Keycloak refused the device code token request: %s", error or e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Keycloak refused the device code token request",
         )
     with translate_keycloak_outage():
         return _create_api_jwt_from_keycloak_tokens(client, tokens, expiration_time_in_seconds)

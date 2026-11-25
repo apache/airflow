@@ -2211,6 +2211,7 @@ export type ProviderInfoResponse = {
     bundles?: Array<ProviderIntegrationModulesInfo> | null;
     asset_uris?: Array<ProviderAssetUriInfo> | null;
     dialects?: Array<ProviderDialectInfo> | null;
+    object_storage_providers?: Array<ProviderObjectStorageProviderInfo> | null;
     transfers?: Array<ProviderTransferInfo> | null;
     connection_types?: Array<ProviderConnectionTypeInfo> | null;
     extra_links?: Array<(string)> | null;
@@ -2249,6 +2250,14 @@ export type ProviderIntegrationInfo = {
 export type ProviderIntegrationModulesInfo = {
     integration_name: string;
     python_modules: Array<(string)>;
+};
+
+/**
+ * DataFusion object storage provider provided by a provider.
+ */
+export type ProviderObjectStorageProviderInfo = {
+    storage_type?: string | null;
+    provider_class_name?: string | null;
 };
 
 /**
@@ -3396,6 +3405,28 @@ export type DeadlineResponse = {
      */
     callback_trigger_id?: number | null;
 };
+
+/**
+ * Durable execution history of a task instance, read by the logs banner.
+ */
+export type DurableExecutionResponse = {
+    tries: Array<DurableTryResponse>;
+};
+
+/**
+ * What one try did with the external job.
+ */
+export type DurableTryResponse = {
+    try_number: number | null;
+    decision: 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
+    external_id: JsonValue;
+    status: TaskInstanceState | null;
+    submitted_at?: string | null;
+    saved_seconds: number | null;
+    previous_external_id?: JsonValue;
+};
+
+export type decision = 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
 
 /**
  * Duration statistics for a DAG across historical runs.
@@ -5617,6 +5648,10 @@ export type DeleteAssetStateStoreResponse = void;
 export type ListTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
+    /**
+     * Include keys starting with ``__airflow_``, which Airflow writes.
+     */
+    includeReserved?: boolean;
     limit?: number;
     mapIndex?: number;
     offset?: number;
@@ -6042,6 +6077,17 @@ export type GetCallbackLogsData = {
 };
 
 export type GetCallbackLogsResponse = TaskInstancesLogResponse;
+
+export type GetDurableExecutionData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
+    taskId: string;
+};
+
+export type GetDurableExecutionResponse = DurableExecutionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -10571,6 +10617,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/durable': {
+        get: {
+            req: GetDurableExecutionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DurableExecutionResponse;
                 /**
                  * Validation Error
                  */

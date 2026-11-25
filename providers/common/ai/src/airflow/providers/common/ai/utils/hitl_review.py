@@ -59,12 +59,14 @@ XCOM_AGENT_OUTPUT_PREFIX = f"{_XCOM_PREFIX}agent_output_"
 """Per-iteration AI output (append-only, written by worker).
 
 Actual key: ``airflow_hitl_review_agent_output_1``, ``_2``, ...
+Value: ``{"text": "...", "dag_id": "..."}`` (see :func:`wrap_review_text`).
 """
 
 XCOM_HUMAN_FEEDBACK_PREFIX = f"{_XCOM_PREFIX}human_feedback_"
 """Per-iteration human feedback (append-only, written by the plugin, and by the worker when it resumes).
 
 Actual key: ``airflow_hitl_review_human_feedback_1``, ``_2``, ...
+Value: ``{"text": "...", "dag_id": "..."}`` (see :func:`wrap_review_text`).
 """
 
 # On Airflow 3.3+ each review round is also a Human-in-the-loop request on the task instance, which
@@ -73,6 +75,29 @@ HITL_OPTION_APPROVE = "Approve"
 HITL_OPTION_REQUEST_CHANGES = "Request changes"
 HITL_OPTION_REJECT = "Reject"
 HITL_FEEDBACK_PARAM = "feedback"
+
+
+def wrap_review_text(text: str, *, dag_id: str) -> dict[str, str]:
+    """
+    Wrap an agent output or human feedback for its per-iteration XCom.
+
+    The plugin reads these XComs through the XCom backend, which may open a string that looks like a
+    reference to its storage (``XComObjectStorageBackend`` does), and the text comes from the model or
+    the reviewer. Wrapped, the text is never such a string, and naming the Dag keeps the plugin from
+    showing another Dag's entry that a stored reference resolves to.
+    """
+    return {"text": text, "dag_id": dag_id}
+
+
+def unwrap_review_text(value: Any, *, dag_id: str) -> str | None:
+    """Return the text :func:`wrap_review_text` wrapped for ``dag_id``, or ``None`` for any other value."""
+    if (
+        isinstance(value, dict)
+        and value.get("dag_id") == dag_id
+        and isinstance(text := value.get("text"), str)
+    ):
+        return text
+    return None
 
 
 class SessionStatus(str, Enum):

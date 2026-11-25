@@ -17,7 +17,7 @@
 ---
 services:
   opensearch:
-    image: opensearchproject/opensearch:2.19.0
+    image: opensearchproject/opensearch:${OPENSEARCH_VERSION}
     labels:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
@@ -54,3 +54,4 @@ volumes:
       org.apache.airflow.breeze: "true"
       org.apache.airflow.breeze.worktree: "${BREEZE_WORKTREE_PATH:-}"
       org.apache.airflow.breeze.host: "${BREEZE_HOST_ID:-}"
+    name: "${COMPOSE_PROJECT_NAME}-opensearch${OPENSEARCH_VERSION}-db-volume"

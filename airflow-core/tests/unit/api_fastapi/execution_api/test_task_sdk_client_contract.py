@@ -58,6 +58,7 @@ from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 pytestmark = pytest.mark.db_test
 
 MAPPED_VALUES = ["a", "b"]
+SLASHED_KEY = "nested/key"
 
 
 class TestXComOperations:
@@ -70,6 +71,8 @@ class TestXComOperations:
         for ti in dag_run.get_task_instances(session=session):
             value = "plain" if ti.task_id == "plain" else MAPPED_VALUES[ti.region_index]
             session.add(XComModelV2(key=XCOM_RETURN_KEY, value=value, task_instance_id=ti.id))
+            if ti.task_id == "mapped":
+                session.add(XComModelV2(key=SLASHED_KEY, value=value, task_instance_id=ti.id))
         session.commit()
         return dag_run
 
@@ -85,6 +88,11 @@ class TestXComOperations:
     def test_get(self, task_sdk_client, task_id, map_index, expected):
         result = task_sdk_client.xcoms.get("dag", "runid", task_id, XCOM_RETURN_KEY, map_index)
         assert result == XComResponse(key=XCOM_RETURN_KEY, value=expected)
+
+    @pytest.mark.parametrize("key", [XCOM_RETURN_KEY, SLASHED_KEY])
+    def test_get_mapped_omitted(self, task_sdk_client, key):
+        result = task_sdk_client.xcoms.get("dag", "runid", "mapped", key)
+        assert result == XComSequenceSliceResponse(MAPPED_VALUES)
 
     def test_get_missing_key(self, task_sdk_client):
         result = task_sdk_client.xcoms.get("dag", "runid", "plain", "missing")

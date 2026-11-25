@@ -67,7 +67,7 @@ from airflow.providers.common.ai.durable.journal import _EXECUTING_STEP, current
 from airflow.providers.common.ai.exceptions import DurableJournalError, UnsupportedToolDeferralError
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.tools.openai_agents import _REPLAY_RETRY, _RETRY_COUNT, _RetryLimitReached
-from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
+from airflow.providers.common.ai.utils.coroutines import run_coroutine_on_thread_loop
 from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.sdk import Param, get_current_context
@@ -242,8 +242,14 @@ def run_durably_sync(
     run_config: RunConfig | None = None,
     **kwargs: Any,
 ) -> RunResult:
-    """Run :func:`run_durably` from synchronous code, such as a plain ``@task``."""
-    return run_coroutine_sync(run_durably(starting_agent, input, run_config=run_config, **kwargs))
+    """
+    Run :func:`run_durably` from synchronous code, such as a plain ``@task``.
+
+    Like ``Runner.run_sync``, it runs on the thread's event loop and leaves it open, so several
+    calls in one task can share a client: the SDK's own shared HTTP client, or one ``AsyncOpenAI``.
+    That holds for calls from synchronous code; in async code, ``await run_durably(...)``.
+    """
+    return run_coroutine_on_thread_loop(run_durably(starting_agent, input, run_config=run_config, **kwargs))
 
 
 def _answer_approvals(
