@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Literal, TypedDict, cast, overload
 import attrs
 import structlog
 from sqlalchemy import event, func, or_, select, tuple_
+from sqlalchemy.pool import SingletonThreadPool
 
 from airflow import settings
 from airflow._shared.observability.metrics import stats
@@ -127,9 +128,9 @@ def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Ses
 
 
 @contextlib.contextmanager
-def _create_alert_session() -> Iterator[Session]:
+def _create_alert_session(*, session: Session) -> Iterator[Session]:
     """
-    Yield the session deadline alerts are evaluated on, separate from the scheduler's.
+    Yield the session deadline alerts are evaluated on, separate from the caller's ``session``.
 
     A ``rollback()`` on the scheduler's session would discard the pending Dag run and every other Dag run
     created in the same tick. This one is never committed and is read-only: a write or row lock would
@@ -138,6 +139,11 @@ def _create_alert_session() -> Iterator[Session]:
     engine, session_maker = settings.engine, settings.NonScopedSession
     if engine is None or session_maker is None:
         raise RuntimeError("Session must be set before!")
+    if isinstance(engine.pool, SingletonThreadPool):
+        # In-memory SQLite: every session in the thread shares the caller's one connection, so a
+        # separate session would end the caller's transaction. Evaluate on the caller's session instead.
+        yield session
+        return
     if engine.dialect.name == "sqlite":
         with _create_sqlite_alert_session(engine, session_maker) as alert_session:
             yield alert_session
@@ -831,18 +837,18 @@ class SerializedDAG:
         from airflow.models.serialized_dag import SerializedDagModel
 
         # Get the serialized_dag ID for this DAG
-        serialized_dag_row = session.execute(
-            select(SerializedDagModel.id, SerializedDagModel.dag_hash).where(
+        serialized_dag_id = session.scalar(
+            select(SerializedDagModel.id).where(
                 SerializedDagModel.dag_version_id == orm_dagrun.created_dag_version_id
             )
-        ).one_or_none()
+        )
 
-        if not serialized_dag_row:
+        if not serialized_dag_id:
             return
 
         # Query deadline alerts by serialized_dag_id
         deadline_alert_records = session.scalars(
-            select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_row.id)
+            select(DeadlineAlertModel).where(DeadlineAlertModel.serialized_dag_id == serialized_dag_id)
         ).all()
 
         if not deadline_alert_records:
@@ -880,7 +886,6 @@ class SerializedDAG:
             "while processing deadline alerts",
             dag_id=dagrun_dag_id,
             dag_version_id=dag_version_id,
-            dag_hash=serialized_dag_row.dag_hash,
         )
 
         def is_dagrun_discarded() -> bool:
@@ -890,7 +895,7 @@ class SerializedDAG:
                 return False
             return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
 
-        with _create_alert_session() as alert_session:
+        with _create_alert_session(session=session) as alert_session:
             for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
                 # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest
                 # or abort the DagRun.
@@ -943,7 +948,8 @@ class SerializedDAG:
                             )
                 except Exception as exc:
                     # On PostgreSQL a failed statement aborts the transaction, failing every later alert.
-                    alert_session.rollback()
+                    if alert_session is not session:
+                        alert_session.rollback()
                     # Also true when create_session() commits the scheduler's session: the guard rejects
                     # the commit, and create_session() then rolls the session back.
                     dagrun_discarded = is_dagrun_discarded()

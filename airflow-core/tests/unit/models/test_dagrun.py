@@ -50,6 +50,7 @@ from sqlalchemy import (
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.pool import SingletonThreadPool
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -2349,6 +2350,16 @@ class TestDagRun:
         deadlines = session.scalars(select(Deadline)).all()
         assert [deadline.dagrun_id for deadline in deadlines] == [dag_run.id]
 
+    def test_deadline_alert_session_is_callers_session_when_the_pool_has_one_connection(self, session):
+        engine = mock.create_autospec(settings.engine, instance=True)
+        engine.pool = mock.create_autospec(SingletonThreadPool, instance=True)
+
+        with (
+            mock.patch.object(settings, "engine", engine),
+            _create_alert_session(session=session) as alert_session,
+        ):
+            assert alert_session is session
+
     @pytest.mark.parametrize(
         "statement",
         [
@@ -2361,7 +2372,7 @@ class TestDagRun:
         ],
     )
     def test_deadline_alert_session_is_read_only(self, statement, session):
-        with _create_alert_session() as alert_session:
+        with _create_alert_session(session=session) as alert_session:
             assert alert_session.execute(text("SELECT 1")).scalar() == 1
             with pytest.raises(DBAPIError):
                 alert_session.execute(text(statement))
@@ -2405,16 +2416,12 @@ class TestDagRun:
 
         mock_variable_get.side_effect = rollback_and_raise
         dag_version_id = DagVersion.get_latest_version(scheduler_dag.dag_id, session=session).id
-        dag_hash = session.scalar(
-            select(SerializedDagModel.dag_hash).where(SerializedDagModel.dag_version_id == dag_version_id)
-        )
 
         with pytest.raises(DagRunRolledBackError) as exc_info:
             self.create_dag_run(dag=scheduler_dag, session=session)
 
         assert exc_info.value.dag_id == scheduler_dag.dag_id
         assert exc_info.value.dag_version_id == dag_version_id
-        assert exc_info.value.dag_hash == dag_hash
         assert session.scalars(select(Deadline)).all() == []
         assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
 

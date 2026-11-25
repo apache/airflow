@@ -575,7 +575,7 @@ followed by a more urgent escalation if the Dag is still running.
   wait for the scheduler, which in turn waits for your reference. Do not open another session either
   (for example with ``provide_session`` or ``create_session``), because that returns the scheduler's
   session. Committing or rolling it back discards the Dag run being created, and the scheduler then stops
-  creating Dag runs for that Dag until the Dag file is changed and parsed again, or the scheduler restarts.
+  creating Dag runs for that Dag until it restarts. Fix the reference, then restart the scheduler.
 
   When Task Instances are cleared, references anchored to the time the Dag run was queued are
   re-evaluated on the session of the clearing request, with the full Dag run. That session is not isolated,
