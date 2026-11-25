@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 from azure.identity import ClientSecretCredential
 
@@ -30,25 +30,37 @@ if TYPE_CHECKING:
 schemes = ["abfs", "abfss", "adl"]
 
 
+def _parsed_host(host: str | None) -> ParseResult | None:
+    """
+    Parse a connection host as a URL, treating a scheme-less host as a netloc.
+
+    Returns ``None`` for an empty host. The scheme-less handling lives here
+    alone, so the hostname and the account host are always read from the
+    same parse.
+    """
+    if not host:
+        return None
+    return urlparse(host if "://" in host else f"//{host}")
+
+
 def _hostname_from_host(host: str | None) -> str | None:
-    if not host:
-        return None
-    return urlparse(host if "://" in host else f"//{host}").hostname
+    parsed = _parsed_host(host)
+    return parsed.hostname if parsed is not None else None
 
 
-def _account_host_from_host(host: str | None) -> str | None:
-    if not host:
+def _account_host_from_parsed(parsed: ParseResult | None) -> str | None:
+    """
+    Return the blob account host for a parsed endpoint host, else ``None``.
+
+    adlfs is a Blob client, so a Data Lake (dfs) endpoint is mapped back to
+    its blob form wherever the ".dfs.core." labels appear in the hostname.
+    An invalid port raises ValueError: a malformed host is a configuration
+    error, and dropping the port silently would connect to the wrong endpoint.
+    """
+    if parsed is None or not parsed.hostname:
         return None
-    parsed = urlparse(host if "://" in host else f"//{host}")
-    if not parsed.hostname:
-        return None
-    # adlfs is a Blob client, so a Data Lake (dfs) endpoint is mapped back to
-    # its blob form wherever the ".dfs.core." labels appear in the hostname.
     hostname = parsed.hostname.replace(".dfs.core.", ".blob.core.")
-    try:
-        port = parsed.port
-    except ValueError:
-        port = None
+    port = parsed.port
     return f"{hostname}:{port}" if port is not None else hostname
 
 
@@ -110,12 +122,12 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         # service principal client id, so without an endpoint host nothing is
         # derived and adlfs falls back to account_name from extras or the
         # AZURE_STORAGE_ACCOUNT_NAME env var.
-        conn_hostname = _hostname_from_host(conn.host)
-        host_is_endpoint = conn_hostname is not None and "." in conn_hostname
-        if host_is_endpoint:
+        parsed_host = _parsed_host(conn.host)
+        conn_hostname = parsed_host.hostname if parsed_host is not None else None
+        if conn_hostname and "." in conn_hostname:
             derived_account_name = conn_hostname.split(".")[0]
             options["account_name"] = derived_account_name
-            account_host = _account_host_from_host(conn.host)
+            account_host = _account_host_from_parsed(parsed_host)
             if account_host and account_host != f"{derived_account_name}.blob.core.windows.net":
                 options["account_host"] = account_host
         elif conn.login and not tenant_id:

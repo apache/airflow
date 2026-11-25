@@ -526,6 +526,31 @@ def test_bare_account_name_from_host(host, expected):
 @pytest.mark.parametrize(
     "mocked_connection",
     [
+        # An invalid port is a configuration error: it must raise instead of
+        # being dropped silently and connecting to the wrong endpoint.
+        Connection(
+            conn_id="testconn",
+            conn_type="wasb",
+            host="testaccountname.blob.core.windows.net:99999",
+            password="account_key",
+        ),
+        Connection(
+            conn_id="testconn",
+            conn_type="wasb",
+            host="testaccountname.blob.core.windows.net:notaport",
+            password="account_key",
+        ),
+    ],
+    indirect=["mocked_connection"],
+)
+def test_get_fs_invalid_port_raises(mocked_connection, mocked_blob_file_system):
+    with pytest.raises(ValueError, match="Port"):
+        get_fs(mocked_connection.conn_id)
+
+
+@pytest.mark.parametrize(
+    "mocked_connection",
+    [
         Connection(
             conn_id="testconn",
             conn_type="wasb",
