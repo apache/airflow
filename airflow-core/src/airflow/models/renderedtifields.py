@@ -322,8 +322,11 @@ class RenderedTaskInstanceFields(Base):
         from airflow.models.dagrun import DagRun
 
         # Use run_after instead of logical_date since logical_date can be NULL for manual runs.
+        # DagRun.id breaks run_after ties so the kept and cleared windows cannot overlap.
         recent_run_ids = (
-            select(DagRun.run_id).where(DagRun.dag_id == dag_id).order_by(DagRun.run_after.desc())
+            select(DagRun.run_id)
+            .where(DagRun.dag_id == dag_id)
+            .order_by(DagRun.run_after.desc(), DagRun.id.desc())
         )
 
         run_ids_to_keep: list[str] | ScalarSelect[str]
