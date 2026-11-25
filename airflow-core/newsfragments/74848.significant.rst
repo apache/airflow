@@ -1,0 +1,18 @@
+Datadog timer metrics are now reported in milliseconds
+
+With the Datadog (DogStatsD) metrics backend, ``Stats.timer()`` metrics such as
+``scheduler.scheduler_loop_duration`` were sent in seconds, while they are documented in milliseconds
+and reported in milliseconds by the StatsD and OpenTelemetry backends. They are now sent in
+milliseconds, so their values become 1000x larger after upgrading. Update Datadog dashboards, monitors
+and SLOs that use these timers accordingly.
+
+* Types of change
+
+  * [ ] Dag changes
+  * [ ] Config changes
+  * [ ] API changes
+  * [ ] CLI changes
+  * [x] Behaviour changes
+  * [ ] Plugin changes
+  * [ ] Dependency changes
+  * [ ] Code interface changes

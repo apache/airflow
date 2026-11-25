@@ -34,6 +34,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider_class
 from typing_extensions import ParamSpec
 
+from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
 from airflow.providers.common.ai.hooks.ollama import OllamaBackend
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
@@ -176,13 +177,13 @@ class PydanticAIHook(BaseHook):
     Connection fields:
         - **password**: API key
         - **host**: Base URL (optional, e.g. ``https://api.openai.com/v1``)
-        - **extra** JSON: ``{"model": "openai:gpt-5",
+        - **extra** JSON: ``{"model": "openai:gpt-6.1-sol",
           "fallback_conn_ids": ["anthropic_prod", "bedrock_dr"]}``; add
           ``"model_provider": "openai-chat"`` to resolve bare model names on this connection
 
     :param llm_conn_id: Airflow connection ID for the LLM provider.
     :param model_id: Model identifier. A name whose segment before the first ``:``
-        is itself a pydantic-ai provider (e.g. ``"openai:gpt-5"``) pins the
+        is itself a pydantic-ai provider (e.g. ``"openai:gpt-6.1-sol"``) pins the
         platform and is used verbatim -- a plain ``:`` alone is not enough, since
         some vendors' native model ids contain one of their own (e.g. Bedrock's
         version-suffixed ``"us.anthropic.claude-opus-4-6-v1:0"``, which is still a
@@ -236,6 +237,7 @@ class PydanticAIHook(BaseHook):
         self._model: Model | None = None
         self._conn: Connection | None = None
         self._conn_extra_dejson: dict[str, Any] = {}
+        self._logged_explicit_credentials = False
 
     @classmethod
     def get_hook(cls, conn_id: str, hook_params: dict | None = None):
@@ -248,7 +250,19 @@ class PydanticAIHook(BaseHook):
         :raises ValueError: if the connection's type is registered to a hook that is not a
             ``PydanticAIHook``.
         """
-        conn = cls.get_connection(conn_id)
+        return cls.get_hook_for_connection(cls.get_connection(conn_id), hook_params)
+
+    @classmethod
+    def get_hook_for_connection(cls, conn: Connection, hook_params: dict | None = None):
+        """
+        Return the hook for an already-fetched ``conn``, built with ``hook_params``.
+
+        Does what :meth:`get_hook` does after its lookup, so a caller that holds the
+        connection does not fetch it a second time.
+
+        :raises ValueError: if the connection's type is registered to a hook that is not a
+            ``PydanticAIHook``.
+        """
         hooks = _get_registered_hooks()
         # Resolved from the registry rather than from ``cls.conn_type`` or the subclasses
         # imported so far: operators call this on the base class, and a subclass from another
@@ -264,9 +278,9 @@ class PydanticAIHook(BaseHook):
         ):
             expected_types = sorted(conn_type for conn_type in hooks if conn_type.startswith("pydanticai"))
             raise ValueError(
-                f"Connection {conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
+                f"Connection {conn.conn_id!r} has type {conn.conn_type!r}, but a Pydantic AI hook needs "
                 f"one of {expected_types}. Change the connection type to 'pydanticai', put the API key "
-                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-5') in Model."
+                "in the API Key field (stored as the password) and the model (e.g. 'openai:gpt-6.1-sol') in Model."
             )
         # The check above guarantees a ``PydanticAIHook``. Seeding saves the second fetch of
         # this same connection its first ``get_conn`` would make.
@@ -298,7 +312,7 @@ class PydanticAIHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5"}',
+                "extra": '{"model": "openai:gpt-6.1-sol"}',
             },
         }
 
@@ -394,15 +408,47 @@ class PydanticAIHook(BaseHook):
             return self._model
 
         model = self._resolve_own_model()
-        fallback_models = self._resolve_fallback_models()
+        fallback_members = self._resolve_fallback_models()
         # Pin pydantic-ai's own default explicitly: the retry-layers docs pin this exact
         # scope (UnexpectedModelBehavior, UsageLimitExceeded, and ContentFilterError are
         # deliberately excluded), and pyproject has no upper bound on pydantic-ai-slim, so
         # an upstream default change would otherwise move that documented behaviour silently.
         self._model = (
-            FallbackModel(model, *fallback_models, fallback_on=(ModelAPIError,)) if fallback_models else model
+            FallbackModel(
+                *(
+                    MemberStampingModel(member, conn_id=conn_id)
+                    for conn_id, member in ((self.llm_conn_id, model), *fallback_members)
+                ),
+                fallback_on=(ModelAPIError,),
+            )
+            if fallback_members
+            else model
         )
         return self._model
+
+    def get_primary_model(self, model_id: str | None = None) -> Model:
+        """
+        Return the concrete ``Model`` for this connection, without the fallback chain.
+
+        :meth:`get_conn` wraps the primary model in a ``FallbackModel`` when fallback
+        connections are configured. A caller that needs the provider's own model class
+        (for the batch methods on ``Model``, which a ``FallbackModel`` does not have) uses
+        this instead. Every call builds a new model, so one model is never shared across
+        event loops.
+
+        :param model_id: Model to build instead of this hook's own. Resolved the same way
+            as the hook's ``model_id``: a bare name takes this connection's platform.
+        """
+        return self._resolve_own_model(model_id=model_id)
+
+    async def aget_primary_model(self, model_id: str | None = None) -> Model:
+        """
+        Return the concrete ``Model`` for this connection, for use inside an async task.
+
+        The async counterpart of :meth:`get_primary_model`; the resolution runs on the hook's
+        own worker thread for the reason given in :meth:`aget_conn`.
+        """
+        return await _run_off_loop(self.get_primary_model, model_id)
 
     async def aget_conn(self) -> Model:
         """
@@ -521,6 +567,7 @@ class PydanticAIHook(BaseHook):
     def _resolve_own_model(
         self,
         *,
+        model_id: str | None = None,
         forwarded_model_id: str | None = None,
         forwarded_from_conn_id: str | None = None,
         forwarded_model_provider: str | None = None,
@@ -528,6 +575,7 @@ class PydanticAIHook(BaseHook):
         """
         Resolve the ``Model`` for this hook's own connection, ignoring any fallback chain.
 
+        :param model_id: Model to resolve instead of the one this hook configures.
         :param forwarded_model_id: The primary connection's configured model name,
             forwarded down a fallback chain by :meth:`_resolve_fallback_models` --
             see that method's docstring for when a name is eligible to forward. A
@@ -545,7 +593,7 @@ class PydanticAIHook(BaseHook):
         # Read up front, so a bad ``model_provider`` in the extra fails even when the model name pins its own.
         model_provider = self._get_model_provider()
 
-        model_name: str | KnownModelName | None = self._get_configured_model_name()
+        model_name: str | KnownModelName | None = model_id or self._get_configured_model_name()
         forwarded = False
         if (
             not model_name
@@ -568,11 +616,14 @@ class PydanticAIHook(BaseHook):
         provider_kwargs = self._get_provider_kwargs(api_key, base_url, extra)
         if provider_kwargs:
             _kwargs = provider_kwargs  # capture for closure
-            self.log.info(
+            # Batch polling builds a model per call; the first line says it, the rest would only repeat it.
+            log_credentials = self.log.debug if self._logged_explicit_credentials else self.log.info
+            log_credentials(
                 "Using explicit credentials for provider with model '%s': %s",
                 model_name,
                 list(provider_kwargs),
             )
+            self._logged_explicit_credentials = True
 
             def _provider_factory(pname: str) -> Any:
                 try:
@@ -682,9 +733,9 @@ class PydanticAIHook(BaseHook):
             )
         return [stripped for item in raw if (stripped := item.strip())]
 
-    def _resolve_fallback_models(self) -> list[Model]:
+    def _resolve_fallback_models(self) -> list[tuple[str, Model]]:
         """
-        Resolve one ``Model`` per fallback connection, in the configured order.
+        Resolve each fallback connection's ID and ``Model``, in the configured order.
 
         Each connection is resolved through the hook registered for its own
         ``conn_type``, so a chain can mix providers whose credentials live in
@@ -694,7 +745,7 @@ class PydanticAIHook(BaseHook):
         ``model`` in ``extra`` uses that instead, but a fallback with none falls
         back to the forwarded name, qualified with *its own* platform prefix.
         Only a *bare* forwarded name is usable this way -- a forwarded name that
-        already pins a platform (e.g. ``"openai:gpt-5"``) names a model of the
+        already pins a platform (e.g. ``"openai:gpt-6.1-sol"``) names a model of the
         primary's provider, not this fallback's, so it is not applied; that
         fallback still raises "no model specified" unless its own ``extra`` sets
         a ``model``. Whether a name already pins a platform is decided by
@@ -709,7 +760,7 @@ class PydanticAIHook(BaseHook):
 
         self.log.info("Resolving LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
 
-        models: list[Model] = []
+        members: list[tuple[str, Model]] = []
         seen: set[str] = set()
         for conn_id in fallback_conn_ids:
             if conn_id == self.llm_conn_id:
@@ -746,15 +797,18 @@ class PydanticAIHook(BaseHook):
                     f"{FALLBACK_CONN_IDS_EXTRA_KEY}. Chains are not resolved recursively -- list "
                     f"every provider directly on '{self.llm_conn_id}' instead."
                 )
-            models.append(
-                hook._resolve_own_model(
-                    forwarded_model_id=forwarded_model_id,
-                    forwarded_from_conn_id=self.llm_conn_id,
-                    forwarded_model_provider=forwarded_model_provider,
+            members.append(
+                (
+                    conn_id,
+                    hook._resolve_own_model(
+                        forwarded_model_id=forwarded_model_id,
+                        forwarded_from_conn_id=self.llm_conn_id,
+                        forwarded_model_provider=forwarded_model_provider,
+                    ),
                 )
             )
 
-        return models
+        return members
 
     def _get_conn_if_model_configured(self) -> Model | None:
         """Return the hook model only when the hook or connection explicitly configures one."""

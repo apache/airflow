@@ -52,6 +52,7 @@ from airflow.sdk.api.datamodels._generated import (
     TerminalTIState,
     VariableResponse,
     XComResponse,
+    XComSequenceSliceResponse,
 )
 from airflow.sdk.exceptions import ErrorType, TaskAlreadyRunningError
 from airflow.sdk.execution_time.comms import (
@@ -67,6 +68,8 @@ from airflow.sdk.execution_time.comms import (
 
 if TYPE_CHECKING:
     from time_machine import TimeMachineFixture
+
+MAP_INDEX_UNRESOLVED_SERVER_HEADERS = {"Airflow-API-Version": "2026-10-30"}
 
 
 @pytest.fixture
@@ -1281,6 +1284,146 @@ class TestXCOMOperations:
         assert result.key == "test_key"
         assert result.value == "test_value"
 
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_params"),
+        [
+            pytest.param({}, {}, id="omitted"),
+            pytest.param({"map_index": None}, {}, id="none"),
+            pytest.param({"map_index": -1}, {"map_index": "-1"}, id="minus-one"),
+            pytest.param({"map_index": 2}, {"map_index": "2"}, id="index"),
+        ],
+    )
+    def test_xcom_get_sends_map_index_as_given(self, kwargs, expected_params):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            return httpx2.Response(status_code=200, json={"key": "key", "value": ["a", "b"]})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", **kwargs)
+
+        assert dict(requests[0].url.params) == expected_params
+        assert result == XComResponse(key="key", value=["a", "b"])
+
+    @pytest.mark.parametrize(
+        ("slice_values", "expected"),
+        [
+            pytest.param(["a", "b"], XComSequenceSliceResponse(["a", "b"]), id="mapped"),
+            pytest.param([], XComResponse(key="key", value=None), id="nothing"),
+        ],
+    )
+    def test_xcom_get_follows_a_redirect_to_the_slice(self, slice_values, expected):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            if request.url.path.endswith("/slice"):
+                return httpx2.Response(status_code=200, json=slice_values)
+            location = request.url.copy_with(path=f"{request.url.path}/slice")
+            return httpx2.Response(status_code=307, headers={"Location": str(location)})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get(
+            dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", previous_iteration=True
+        )
+
+        assert result == expected
+        assert [request.url.path for request in requests] == [
+            "/xcoms/dag_id/run_id/task_id/key",
+            "/xcoms/dag_id/run_id/task_id/key/slice",
+        ]
+        assert requests[1].url.params["previous_iteration"] == "true"
+
+    def test_xcom_get_does_not_read_another_redirect_as_a_slice(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path.endswith("/slice"):
+                return httpx2.Response(status_code=200, json=["a", "b"])
+            location = request.url.copy_with(path="/xcoms/dag_id/run_id/other/key/slice")
+            return httpx2.Response(status_code=307, headers={"Location": str(location)})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(httpx2.HTTPStatusError):
+            client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key")
+
+    def test_redirect_on_another_endpoint_raises(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(status_code=307, headers={"Location": str(request.url)})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(httpx2.HTTPStatusError):
+            client.variables.get("key")
+
+    @pytest.mark.parametrize(
+        ("slice_values", "expected"),
+        [
+            pytest.param(["a", "b"], XComSequenceSliceResponse(["a", "b"]), id="mapped"),
+            pytest.param([], XComResponse(key="key", value=None), id="nothing"),
+        ],
+    )
+    def test_xcom_get_omitted_map_index_reads_the_slice_when_not_found(self, slice_values, expected):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            if request.url.path.endswith("/slice"):
+                return httpx2.Response(status_code=200, json=slice_values)
+            return httpx2.Response(
+                status_code=404,
+                headers=MAP_INDEX_UNRESOLVED_SERVER_HEADERS,
+                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key")
+
+        assert result == expected
+        assert [request.url.path for request in requests] == [
+            "/xcoms/dag_id/run_id/task_id/key",
+            "/xcoms/dag_id/run_id/task_id/key/slice",
+        ]
+
+    def test_xcom_get_omitted_map_index_raises_when_the_slice_fails(self):
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path.endswith("/slice"):
+                return httpx2.Response(status_code=403, json={"detail": "Forbidden"})
+            return httpx2.Response(
+                status_code=404,
+                headers=MAP_INDEX_UNRESOLVED_SERVER_HEADERS,
+                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        with pytest.raises(ServerResponseError) as ctx:
+            client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key")
+
+        assert ctx.value.response.status_code == 403
+
+    @pytest.mark.parametrize(
+        ("kwargs", "headers"),
+        [
+            pytest.param({"map_index": -1}, {}, id="explicit-map-index"),
+            pytest.param({"include_prior_dates": True}, {}, id="prior-dates"),
+            pytest.param({}, {"Airflow-API-Version": "2027-02-28"}, id="server-resolves-map-index"),
+        ],
+    )
+    def test_xcom_get_does_not_read_the_slice(self, kwargs, headers):
+        requests = []
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            return httpx2.Response(
+                status_code=404,
+                headers=headers,
+                json={"detail": {"reason": "not_found", "message": "XCom not found"}},
+            )
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        result = client.xcoms.get(dag_id="dag_id", run_id="run_id", task_id="task_id", key="key", **kwargs)
+
+        assert result == XComResponse(key="key", value=None)
+        assert len(requests) == 1
+
     def test_xcom_get_500_error(self):
         with time_machine.travel("2023-01-01T00:00:00Z", tick=False):
             # Simulate a successful response from the server returning a 500 error
@@ -1312,6 +1455,8 @@ class TestXCOMOperations:
                     status_code=404,
                     json={"detail": {"reason": "not_found", "message": "XCom not found"}},
                 )
+            if request.url.path == "/xcoms/dag_id/run_id/task_id/key/slice":
+                return httpx2.Response(status_code=200, json=[])
             return httpx2.Response(status_code=400, json={"detail": "Bad Request"})
 
         client = make_client(transport=httpx2.MockTransport(handle_request))

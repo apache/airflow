@@ -39,6 +39,7 @@ from airflow.models.asset import (
     TaskOutletAssetReference,
 )
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import RollupMapper
@@ -47,6 +48,8 @@ from airflow.partition_mappers.window import HourWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
@@ -56,6 +59,7 @@ from tests_common.test_utils.db import (
     clear_db_dag_bundles,
     clear_db_dags,
     clear_db_pakl,
+    clear_db_runs,
     clear_db_serialized_dags,
     clear_db_teams,
 )
@@ -1101,3 +1105,473 @@ class TestGetAssetsUi:
         assets_by_name = {asset["name"]: asset for asset in response.json()["assets"]}
         assert assets_by_name["asset0"]["scheduled_dags"][0]["team_name"] == "owning-team"
         assert assets_by_name["asset0"]["producing_tasks"][0]["team_name"] == "owning-team"
+
+
+RUN_START = pendulum.datetime(2026, 1, 2, 10, tz="UTC")
+BEFORE_RUN_START = RUN_START.subtract(hours=1)
+AFTER_RUN_START = RUN_START.add(minutes=30)
+
+
+class TestGetAssetPartitions:
+    @pytest.fixture(autouse=True)
+    def cleanup_assets(self):
+        clear_db_assets()
+        clear_db_runs()
+
+        yield
+
+        clear_db_assets()
+        clear_db_runs()
+
+    @pytest.fixture
+    def asset(self, session):
+        asset = AssetModel(name="partitioned", uri="s3://bucket/partitioned", group="asset")
+        session.add_all([asset, DagBundleModel(name="testing")])
+        session.flush()
+        return asset
+
+    @staticmethod
+    def _add_producer(session, asset, dag_id="producer"):
+        session.add_all(
+            [
+                DagModel(dag_id=dag_id, bundle_name="testing"),
+                TaskOutletAssetReference(dag_id=dag_id, task_id="produce", asset_id=asset.id),
+            ]
+        )
+
+    @staticmethod
+    def _add_run(session, key, state, start_date=RUN_START, dag_id="producer", queued_at=None):
+        run = DagRun(
+            dag_id=dag_id,
+            run_id=f"run_{key}_{state}",
+            run_type=DagRunType.SCHEDULED,
+            state=state,
+            start_date=start_date,
+            partition_key=key,
+            queued_at=queued_at,
+            run_after=RUN_START,
+        )
+        session.add(run)
+        session.flush()
+        return run
+
+    @staticmethod
+    def _add_event(session, asset, key, timestamp=BEFORE_RUN_START, source_run=None):
+        event = AssetEvent(
+            asset_id=asset.id,
+            partition_key=key,
+            timestamp=timestamp,
+            source_dag_id=source_run and source_run.dag_id,
+            source_run_id=source_run and source_run.run_id,
+        )
+        session.add(event)
+        session.flush()
+        return event
+
+    def test_should_respond_401(self, unauthenticated_test_client):
+        response = unauthenticated_test_client.get("/assets/1/partitions")
+        assert response.status_code == 401
+
+    def test_should_respond_403(self, unauthorized_test_client):
+        response = unauthorized_test_client.get("/assets/1/partitions")
+        assert response.status_code == 403
+
+    def test_should_respond_404(self, test_client):
+        response = test_client.get("/assets/9999/partitions")
+        assert response.status_code == 404
+
+    @pytest.mark.parametrize(
+        ("run_state", "run_start_date", "event_timestamp", "expected_status"),
+        [
+            pytest.param(None, None, BEFORE_RUN_START, "materialized", id="event-without-run"),
+            pytest.param(DagRunState.RUNNING, RUN_START, None, "in_progress", id="running-without-event"),
+            pytest.param(DagRunState.QUEUED, None, BEFORE_RUN_START, "in_progress", id="cleared-run"),
+            pytest.param(DagRunState.FAILED, RUN_START, None, "failed", id="failed-without-event"),
+            pytest.param(DagRunState.FAILED, None, BEFORE_RUN_START, "failed", id="failed-before-start"),
+            pytest.param(
+                DagRunState.FAILED, RUN_START, BEFORE_RUN_START, "failed", id="old-event-then-failed-run"
+            ),
+            pytest.param(
+                DagRunState.FAILED, RUN_START, AFTER_RUN_START, "materialized", id="event-before-run-fails"
+            ),
+            pytest.param(
+                DagRunState.RUNNING, RUN_START, AFTER_RUN_START, "materialized", id="event-of-running-run"
+            ),
+            pytest.param(
+                DagRunState.SUCCESS, RUN_START, BEFORE_RUN_START, "materialized", id="old-event-then-success"
+            ),
+            pytest.param(DagRunState.SUCCESS, RUN_START, None, None, id="success-without-event"),
+        ],
+    )
+    def test_status_of_a_key(
+        self, test_client, session, asset, run_state, run_start_date, event_timestamp, expected_status
+    ):
+        self._add_producer(session, asset)
+        if run_state is not None:
+            self._add_run(session, "2026-01-01", run_state, run_start_date)
+        if event_timestamp is not None:
+            self._add_event(session, asset, "2026-01-01", event_timestamp)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        assert response.status_code == 200
+        statuses = [partition["status"] for partition in response.json()["partitions"]]
+        assert statuses == ([expected_status] if expected_status else [])
+
+    def test_newest_run_across_producers_decides(self, test_client, session, asset):
+        self._add_producer(session, asset, "producer_a")
+        self._add_producer(session, asset, "producer_b")
+        self._add_run(session, "2026-01-01", DagRunState.FAILED, dag_id="producer_a")
+        newest = self._add_run(session, "2026-01-01", DagRunState.RUNNING, dag_id="producer_b")
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        assert response.json()["partitions"] == [
+            {
+                "partition_key": "2026-01-01",
+                "status": "in_progress",
+                "last_event_id": None,
+                "last_event_timestamp": None,
+                "last_producer_run": {
+                    "dag_id": "producer_b",
+                    "run_id": newest.run_id,
+                    "state": "running",
+                    "start_date": "2026-01-02T10:00:00Z",
+                    "end_date": None,
+                },
+                "consumer_runs": [],
+            }
+        ]
+
+    def test_cleared_older_run_is_the_newest_attempt(self, test_client, session, asset):
+        self._add_producer(session, asset)
+        cleared = self._add_run(session, "2026-01-01", DagRunState.QUEUED, None, queued_at=AFTER_RUN_START)
+        newer_row = self._add_run(session, "2026-01-01", DagRunState.SUCCESS, queued_at=BEFORE_RUN_START)
+        self._add_event(session, asset, "2026-01-01", RUN_START, source_run=newer_row)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        [partition] = response.json()["partitions"]
+        assert partition["status"] == "in_progress"
+        assert partition["last_producer_run"]["run_id"] == cleared.run_id
+
+    def test_run_that_emitted_under_another_key_is_not_tied_to_its_own_key(self, test_client, session, asset):
+        self._add_producer(session, asset)
+        run = self._add_run(session, "batch-42", DagRunState.FAILED)
+        self._add_event(session, asset, "emea", AFTER_RUN_START, source_run=run)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        assert [(p["partition_key"], p["status"]) for p in response.json()["partitions"]] == [
+            ("emea", "materialized")
+        ]
+
+    def test_run_that_also_emitted_under_its_own_key_stays_tied_to_it(self, test_client, session, asset):
+        self._add_producer(session, asset, "producer_a")
+        self._add_producer(session, asset, "producer_b")
+        self._add_run(
+            session, "2026-01-01", DagRunState.QUEUED, None, dag_id="producer_a", queued_at=BEFORE_RUN_START
+        )
+        newest = self._add_run(session, "2026-01-01", DagRunState.FAILED, dag_id="producer_b")
+        self._add_event(session, asset, "2026-01-01", AFTER_RUN_START, source_run=newest)
+        self._add_event(session, asset, "emea", AFTER_RUN_START, source_run=newest)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions", params={"partition_key_pattern": "2026"})
+
+        [partition] = response.json()["partitions"]
+        assert partition["status"] == "materialized"
+        assert partition["last_producer_run"]["dag_id"] == "producer_b"
+
+    def test_clearing_a_task_of_a_running_run_makes_its_event_stale(self, test_client, session, asset):
+        self._add_producer(session, asset)
+        # Clearing resets queued_at; a run that is still running keeps its start_date.
+        run = self._add_run(
+            session, "2026-01-01", DagRunState.RUNNING, BEFORE_RUN_START, queued_at=AFTER_RUN_START
+        )
+        self._add_event(session, asset, "2026-01-01", RUN_START, source_run=run)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        [partition] = response.json()["partitions"]
+        assert partition["status"] == "in_progress"
+
+    def test_ignores_runs_of_dags_that_do_not_produce_the_asset(self, test_client, session, asset):
+        session.add(DagModel(dag_id="unrelated", bundle_name="testing"))
+        self._add_run(session, "2026-01-01", DagRunState.FAILED, dag_id="unrelated")
+        self._add_producer(session, asset)
+        self._add_run(session, None, DagRunState.FAILED)
+        self._add_event(session, asset, None)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        assert response.json() == {
+            "partitions": [],
+            "total_entries": 0,
+            "status_counts": {"materialized": 0, "in_progress": 0, "failed": 0},
+        }
+
+    def test_latest_event_is_the_one_with_the_latest_timestamp(self, test_client, session, asset):
+        self._add_producer(session, asset)
+        self._add_run(session, "2026-01-01", DagRunState.FAILED)
+        latest = self._add_event(session, asset, "2026-01-01", AFTER_RUN_START)
+        # Written later, but for an earlier moment: a higher id is not a later event.
+        self._add_event(session, asset, "2026-01-01", BEFORE_RUN_START)
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        [partition] = response.json()["partitions"]
+        assert partition["status"] == "materialized"
+        assert partition["last_event_id"] == latest.id
+        assert partition["last_event_timestamp"] == "2026-01-02T10:30:00Z"
+
+    @pytest.fixture
+    def three_statuses(self, session, asset):
+        self._add_producer(session, asset)
+        self._add_event(session, asset, "2026-01-01")
+        self._add_event(session, asset, "2026-01-02")
+        self._add_run(session, "2026-01-03", DagRunState.FAILED)
+        self._add_run(session, "2026-01-04", DagRunState.RUNNING)
+        self._add_event(session, asset, "100%")
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("params", "expected_keys", "expected_total", "expected_counts"),
+        [
+            pytest.param(
+                {},
+                ["2026-01-04", "2026-01-03", "2026-01-02", "2026-01-01", "100%"],
+                5,
+                {"materialized": 3, "in_progress": 1, "failed": 1},
+                id="all-newest-key-first",
+            ),
+            pytest.param(
+                {"status": ["failed", "in_progress"]},
+                ["2026-01-04", "2026-01-03"],
+                2,
+                {"materialized": 3, "in_progress": 1, "failed": 1},
+                id="status-filter-keeps-counts",
+            ),
+            pytest.param(
+                {"partition_key_pattern": "01-0"},
+                ["2026-01-04", "2026-01-03", "2026-01-02", "2026-01-01"],
+                4,
+                {"materialized": 2, "in_progress": 1, "failed": 1},
+                id="pattern-narrows-counts",
+            ),
+            pytest.param(
+                {"partition_key_pattern": "%"},
+                ["100%"],
+                1,
+                {"materialized": 1, "in_progress": 0, "failed": 0},
+                id="pattern-is-literal",
+            ),
+            pytest.param(
+                {"status": ["in_progress"], "partition_key_pattern": "2026-01-0"},
+                ["2026-01-04"],
+                1,
+                {"materialized": 2, "in_progress": 1, "failed": 1},
+                id="single-status",
+            ),
+            pytest.param(
+                {"status": ["failed"], "partition_key_pattern": "01-01"},
+                [],
+                0,
+                {"materialized": 1, "in_progress": 0, "failed": 0},
+                id="selected-status-without-keys-keeps-counts",
+            ),
+            pytest.param(
+                {"limit": 2, "offset": 10},
+                [],
+                5,
+                {"materialized": 3, "in_progress": 1, "failed": 1},
+                id="offset-past-the-end-keeps-counts",
+            ),
+            pytest.param(
+                {"limit": 2, "offset": 1},
+                ["2026-01-03", "2026-01-02"],
+                5,
+                {"materialized": 3, "in_progress": 1, "failed": 1},
+                id="pagination",
+            ),
+        ],
+    )
+    @pytest.mark.usefixtures("three_statuses")
+    def test_filters_counts_and_pagination(
+        self, test_client, asset, params, expected_keys, expected_total, expected_counts
+    ):
+        response = test_client.get(f"/assets/{asset.id}/partitions", params=params)
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [partition["partition_key"] for partition in body["partitions"]] == expected_keys
+        assert body["total_entries"] == expected_total
+        assert body["status_counts"] == expected_counts
+
+    @pytest.mark.usefixtures("three_statuses")
+    def test_should_respond_422_for_unknown_status(self, test_client, asset):
+        response = test_client.get(f"/assets/{asset.id}/partitions", params={"status": "missing"})
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize(
+        ("fixture_name", "expected_queries"),
+        [
+            pytest.param("three_statuses", 6, id="no-consumer-runs"),
+            pytest.param("consumed_events", 7, id="consumer-runs"),
+        ],
+    )
+    def test_number_of_queries_does_not_grow_with_keys(
+        self, test_client, asset, request, fixture_name, expected_queries
+    ):
+        # The asset lookup, counts with the page, the last events and their consumer runs, plus
+        # two for the access check and the caller's readable Dags. A further query ranks the events
+        # a consumer run consumed, but only when there is one. Nothing runs once per key or per run.
+        request.getfixturevalue(fixture_name)
+        with assert_queries_count(expected_queries):
+            test_client.get(f"/assets/{asset.id}/partitions")
+
+    @pytest.fixture
+    def consumed_events(self, session, asset):
+        """An old and a latest event of one key, each consumed by runs of two consumer Dags."""
+        self._add_producer(session, asset)
+        old = self._add_event(session, asset, "2026-01-01", BEFORE_RUN_START)
+        latest = self._add_event(session, asset, "2026-01-01", AFTER_RUN_START)
+        session.add_all(
+            DagModel(dag_id=dag_id, bundle_name="testing") for dag_id in ("consumer_a", "consumer_b")
+        )
+        consumptions = [
+            (event, key, dag_id)
+            for event, key in ((old, "old"), (latest, "latest"))
+            for dag_id in ("consumer_a", "consumer_b")
+        ]
+        for event, key, dag_id in [*consumptions, (old, "again", "consumer_a")]:
+            run = self._add_run(session, key, DagRunState.SUCCESS, dag_id=dag_id)
+            run.consumed_asset_events.append(event)
+        session.commit()
+
+    @pytest.mark.usefixtures("consumed_events")
+    def test_consumer_runs_are_those_of_the_latest_event(self, test_client, asset):
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        [partition] = response.json()["partitions"]
+        assert sorted((run["dag_id"], run["run_id"]) for run in partition["consumer_runs"]) == [
+            ("consumer_a", "run_latest_success"),
+            ("consumer_b", "run_latest_success"),
+        ]
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    @pytest.mark.usefixtures("consumed_events")
+    def test_consumer_runs_leave_out_dags_the_caller_may_not_read(
+        self, mock_get_authorized_dag_ids, test_client, asset
+    ):
+        mock_get_authorized_dag_ids.return_value = {"consumer_b"}
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        [partition] = response.json()["partitions"]
+        assert [run["dag_id"] for run in partition["consumer_runs"]] == ["consumer_b"]
+
+    def test_only_the_newest_consumed_event_triggers_a_consumer_run(self, test_client, session, asset):
+        self._add_producer(session, asset)
+        session.add(DagModel(dag_id="consumer", bundle_name="testing"))
+        older = self._add_event(session, asset, "2026-01-01", BEFORE_RUN_START)
+        newer = self._add_event(session, asset, "2026-01-02", AFTER_RUN_START)
+        run = self._add_run(session, "consumed", DagRunState.SUCCESS, dag_id="consumer")
+        run.consumed_asset_events.extend([older, newer])
+        session.commit()
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        triggering_by_key = {
+            partition["partition_key"]: [r["triggering"] for r in partition["consumer_runs"]]
+            for partition in response.json()["partitions"]
+        }
+        assert triggering_by_key == {"2026-01-02": [True], "2026-01-01": [False]}
+
+    @pytest.fixture
+    def sortable_keys(self, session, asset):
+        """Keys b and d tie on the event time; c has no event, d has no producer run."""
+        self._add_producer(session, asset)
+        self._add_run(session, "a", DagRunState.FAILED, start_date=RUN_START.add(hours=2))
+        self._add_run(session, "b", DagRunState.RUNNING, start_date=RUN_START.add(hours=1))
+        self._add_run(session, "c", DagRunState.RUNNING, start_date=RUN_START)
+        self._add_event(session, asset, "a", BEFORE_RUN_START)
+        self._add_event(session, asset, "b", AFTER_RUN_START.add(hours=3))
+        self._add_event(session, asset, "d", AFTER_RUN_START.add(hours=3))
+        session.commit()
+
+    @pytest.mark.parametrize(
+        ("order_by", "expected_keys"),
+        [
+            pytest.param("partition_key", ["a", "b", "c", "d"], id="partition_key-asc"),
+            pytest.param("-partition_key", ["d", "c", "b", "a"], id="partition_key-desc"),
+            pytest.param("status", ["a", "c", "b", "d"], id="status-asc"),
+            pytest.param("-status", ["b", "d", "c", "a"], id="status-desc"),
+            pytest.param("last_event_timestamp", ["a", "b", "d", "c"], id="last_event_timestamp-asc"),
+            pytest.param("-last_event_timestamp", ["b", "d", "a", "c"], id="last_event_timestamp-desc"),
+            pytest.param("last_producer_run", ["c", "b", "a", "d"], id="last_producer_run-asc"),
+            pytest.param("-last_producer_run", ["a", "b", "c", "d"], id="last_producer_run-desc"),
+        ],
+    )
+    @pytest.mark.usefixtures("sortable_keys")
+    def test_order_by(self, test_client, asset, order_by, expected_keys):
+        response = test_client.get(f"/assets/{asset.id}/partitions", params={"order_by": order_by})
+
+        assert response.status_code == 200
+        assert [p["partition_key"] for p in response.json()["partitions"]] == expected_keys
+
+    @pytest.mark.parametrize(("offset", "expected_key"), [(0, "b"), (1, "d")])
+    @pytest.mark.usefixtures("sortable_keys")
+    def test_order_by_splits_a_tie_across_pages_of_a_status(self, test_client, asset, offset, expected_key):
+        response = test_client.get(
+            f"/assets/{asset.id}/partitions",
+            params={
+                "order_by": "-last_event_timestamp",
+                "status": "materialized",
+                "limit": 1,
+                "offset": offset,
+            },
+        )
+
+        body = response.json()
+        assert [p["partition_key"] for p in body["partitions"]] == [expected_key]
+        assert body["total_entries"] == 2
+        assert body["status_counts"] == {"materialized": 2, "in_progress": 1, "failed": 1}
+
+    @pytest.mark.parametrize("order_by", ["missing", "-missing", "consumer_runs", ""])
+    @pytest.mark.usefixtures("sortable_keys")
+    def test_should_respond_400_for_unknown_order_by(self, test_client, asset, order_by):
+        response = test_client.get(f"/assets/{asset.id}/partitions", params={"order_by": order_by})
+
+        assert response.status_code == 400
+
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_leaves_out_runs_and_events_of_dags_the_caller_may_not_read(
+        self, mock_get_authorized_dag_ids, test_client, session, asset
+    ):
+        self._add_producer(session, asset, "hidden")
+        self._add_producer(session, asset, "readable")
+        self._add_run(session, "hidden-run", DagRunState.FAILED, dag_id="hidden")
+        hidden_source = self._add_run(session, "hidden-event", DagRunState.SUCCESS, dag_id="hidden")
+        self._add_event(session, asset, "hidden-event", AFTER_RUN_START, source_run=hidden_source)
+        self._add_run(session, "readable-run", DagRunState.FAILED, dag_id="readable")
+        self._add_event(session, asset, "without-source")
+        session.commit()
+        mock_get_authorized_dag_ids.return_value = {"readable"}
+
+        response = test_client.get(f"/assets/{asset.id}/partitions")
+
+        body = response.json()
+        assert [(p["partition_key"], p["status"]) for p in body["partitions"]] == [
+            ("without-source", "materialized"),
+            ("readable-run", "failed"),
+        ]
+        assert body["total_entries"] == 2
+        assert body["status_counts"] == {"materialized": 1, "in_progress": 0, "failed": 1}

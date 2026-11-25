@@ -34,7 +34,7 @@ scheduler, metadata database, or ``airflow db migrate`` is involved:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_MY_LLM='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-5"}}'
+    export AIRFLOW_CONN_MY_LLM='{"conn_type": "pydanticai", "password": "sk-...", "extra": {"model": "openai:gpt-6.1-sol"}}'
     export AIRFLOW_CONN_ORDERS_DB='{"conn_type": "sqlite", "host": "/tmp/orders.db"}'
 
 .. code-block:: python
@@ -131,7 +131,7 @@ key:
 
 .. code-block:: bash
 
-    export AIRFLOW_CONN_MY_LLM='{"conn_type": "pydanticai", "extra": {"model": "openai:gpt-5"}}'
+    export AIRFLOW_CONN_MY_LLM='{"conn_type": "pydanticai", "extra": {"model": "openai:gpt-6.1-sol"}}'
 
 ``dag.test()`` needs a metadata database, so run ``airflow db migrate`` once in the
 test environment. It also looks the Dag up in your Dags folder, so import the Dag

@@ -81,6 +81,7 @@ from airflow_breeze.utils.fork_ci_reconcile import (
     compute_job_status_budget,
     compute_projection,
     count_jobs,
+    describe_error,
     discover,
     drop_reported,
     fetch_fork_observations,
@@ -2410,7 +2411,7 @@ def test_discover_keeps_going_when_the_project_ci_lookup_of_one_pull_request_fai
 
     discover(client, configs, repo=REPO, now=NOW, unknown=unknown, ci_passed_written=[])
 
-    assert unknown == [(1, "`CI passed` not updated: GitHubError")]
+    assert unknown == [(1, "`CI passed` not updated: GitHubError: HTTP 502")]
     assert client.rest_get.call_count == 2
 
 
@@ -4507,7 +4508,7 @@ def test_run_reconcile_marks_older_pilot_pull_requests_and_reports_project_ci_ru
     mock_reporter.assert_called_once_with(client, repo=REPO, budget=job_status_budget, now=NOW, read_jobs={})
     assert has_alerts is fails
     if fails:
-        assert "reporting `CI run started` for project CI failed: GitHubError" in output.read_text()
+        assert "reporting `CI run started` for project CI failed: GitHubError: HTTP 502" in output.read_text()
 
 
 @pytest.mark.parametrize(
@@ -4985,7 +4986,7 @@ def test_report_project_ci_passed_keeps_going_after_an_error(client):
     attention: list[tuple[int, str]] = []
 
     assert report_project_ci_passed(client, repo=REPO, attention=attention) == [2]
-    assert attention == [(1, "`CI passed` not updated: GitHubError")]
+    assert attention == [(1, "`CI passed` not updated: GitHubError: HTTP 502")]
 
 
 def _rest_for_project_ci_passed(runs, checks):
@@ -5321,7 +5322,8 @@ def test_run_reconcile_reports_project_ci_passed_failure(mock_report_project_ci_
 
     assert has_alerts is True
     assert (
-        "reporting `CI passed` for `use project ci` failed: GitHubError" in (tmp_path / "s.json").read_text()
+        "reporting `CI passed` for `use project ci` failed: GitHubError: HTTP 502"
+        in (tmp_path / "s.json").read_text()
     )
 
 
@@ -5519,3 +5521,43 @@ def test_run_reconcile_compares_the_merge_the_fork_run_tested(mock_classify, moc
 
     compare_base = mock_classify.call_args.kwargs["compare_base"]
     assert compare_base.keywords["find_tested_merge"].func is read_tested_merge
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        pytest.param(
+            GitHubError("gh api graphql -f query=query { long } failed: HTTP 502: Bad Gateway\nmore"),
+            "GitHubError: HTTP 502: Bad Gateway",
+            id="gh-arguments-left-out",
+        ),
+        pytest.param(
+            GitHubError("GraphQL errors: [x]"), "GitHubError: GraphQL errors: [x]", id="other-message"
+        ),
+        pytest.param(
+            GitHubError(
+                "gh api repos/apache/airflow/commits/"
+                + "a" * 40
+                + "/check-runs?check_name=CI+passed&per_page=100"
+                " --paginate still failing after 4 attempts: HTTP 502: Bad Gateway"
+            ),
+            "GitHubError: still failing after 4 attempts: HTTP 502: Bad Gateway",
+            id="retries-exhausted",
+        ),
+        pytest.param(
+            GitHubError("gh api graphql -f query=q still rate limited after 3 attempts"),
+            "GitHubError: still rate limited after 3 attempts",
+            id="rate-limited",
+        ),
+        pytest.param(
+            GitHubError("gh api repos/apache/airflow/pulls/1 timed out after 60s"),
+            "GitHubError: timed out after 60s",
+            id="timed-out",
+        ),
+        pytest.param(KeyError("sha"), "KeyError: 'sha'", id="other-exception"),
+        pytest.param(RuntimeError(), "RuntimeError", id="no-message"),
+        pytest.param(GitHubError("x" * 300), "GitHubError: " + "x" * 186 + "…", id="shortened"),
+    ],
+)
+def test_describe_error(error, expected):
+    assert describe_error(error) == expected

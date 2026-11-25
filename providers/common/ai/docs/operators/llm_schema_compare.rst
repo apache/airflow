@@ -184,7 +184,7 @@ Parameters
 
 - ``prompt``: Instructions for the LLM on what to compare and flag.
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the
   connection's extra field.
 - ``system_prompt``: Instructions included in the LLM system prompt. Defaults to
   ``DEFAULT_SYSTEM_PROMPT`` which contains cross-system type equivalences and

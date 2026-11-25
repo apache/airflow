@@ -29,8 +29,10 @@ from flask_login import LoginManager, current_user, login_user
 
 from airflow.providers.fab.www.extensions.init_session import (
     SESSION_LOGIN_TIME_KEY,
+    SESSION_TOKEN_GENERATION_KEY,
     get_remaining_session_lifetime,
     init_session_max_lifetime,
+    init_session_token_generation,
 )
 
 from tests_common.test_utils.config import conf_vars
@@ -42,6 +44,9 @@ class FakeUser:
     is_authenticated = True
     is_active = True
     is_anonymous = False
+
+    def __init__(self, token_generation: int = 0):
+        self.token_generation = token_generation
 
     def get_id(self):
         return "1"
@@ -71,6 +76,29 @@ def build_client(max_lifetime_minutes: int, remember_cookie_name: str | None = N
     with conf_vars({("fab", "session_max_lifetime_minutes"): str(max_lifetime_minutes)}):
         init_session_max_lifetime(app)
         yield app.test_client()
+
+
+@contextmanager
+def build_token_generation_client(user: FakeUser):
+    """Yield a test client for an app that ends sessions created before a password change."""
+    app = Flask(__name__)
+    app.secret_key = "test-secret-key"
+
+    login_manager = LoginManager(app)
+    login_manager.session_protection = None
+    login_manager.user_loader(lambda user_id: user if user_id == "1" else None)
+
+    @app.route("/login")
+    def login():
+        login_user(user)
+        return ""
+
+    @app.route("/whoami")
+    def whoami():
+        return "authenticated" if current_user.is_authenticated else "anonymous"
+
+    init_session_token_generation(app)
+    yield app.test_client()
 
 
 def get_body(response) -> str:
@@ -155,3 +183,41 @@ def test_remaining_session_lifetime_is_unknown_without_a_login_stamp():
 
     with conf_vars({("fab", "session_max_lifetime_minutes"): "30"}), app.test_request_context():
         assert get_remaining_session_lifetime() is None
+
+
+def test_login_records_token_generation_only_on_the_fab_app():
+    """
+    A login on the FAB app records the user's ``token_generation`` in its session, while a login
+    on another Flask app in the same process leaves that app's session alone.
+    """
+    user = FakeUser(token_generation=3)
+    other_app = Flask(__name__)
+    other_app.secret_key = "test-secret-key"
+    LoginManager(other_app)
+
+    with build_token_generation_client(user) as client:
+        client.get("/login")
+        with client.session_transaction() as flask_session:
+            assert flask_session[SESSION_TOKEN_GENERATION_KEY] == 3
+        with other_app.test_request_context():
+            assert login_user(user)
+            assert SESSION_TOKEN_GENERATION_KEY not in builtin_flask_session
+
+
+@pytest.mark.parametrize(("password_changes", "expected"), [(0, "authenticated"), (1, "anonymous")])
+def test_session_ends_once_its_user_changes_password(password_changes, expected):
+    user = FakeUser(token_generation=3)
+    with build_token_generation_client(user) as client:
+        client.get("/login")
+        assert get_body(client.get("/whoami")) == "authenticated"
+        user.token_generation += password_changes
+        assert get_body(client.get("/whoami")) == expected
+
+
+@pytest.mark.parametrize(("token_generation", "expected"), [(0, "authenticated"), (1, "anonymous")])
+def test_session_predating_the_key_counts_as_the_initial_generation(token_generation, expected):
+    with build_token_generation_client(FakeUser(token_generation=token_generation)) as client:
+        with client.session_transaction() as flask_session:
+            flask_session["_user_id"] = "1"
+
+        assert get_body(client.get("/whoami")) == expected

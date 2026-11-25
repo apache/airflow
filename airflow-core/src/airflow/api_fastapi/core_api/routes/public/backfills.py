@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import sqlite3
 from typing import Annotated, NoReturn
 
 from fastapi import Depends, HTTPException, status
@@ -78,13 +79,13 @@ def _raise_locked_response_or_reraise(e: OperationalError, action: str) -> NoRet
     """Map a database lock OperationalError to HTTP 503, or re-raise if not a lock error."""
     if not is_lock_not_available_error(e):
         raise
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail=(
-            f"Database is locked. Backfill {action} is not supported on SQLite "
-            "under concurrent access. Please use PostgreSQL or MySQL."
-        ),
+    detail = (
+        f"Backfill {action} could not acquire a database lock because another transaction holds it. "
+        "Retry the request."
     )
+    if isinstance(e.orig, sqlite3.OperationalError):
+        detail += " SQLite does not support concurrent writers; use PostgreSQL or MySQL."
+    raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=detail)
 
 
 @backfills_router.get(

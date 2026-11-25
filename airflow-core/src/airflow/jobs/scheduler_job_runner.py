@@ -71,7 +71,7 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.dag_processing.maintenance import cleanup_processor_metadata
-from airflow.exceptions import DagNotFound, TaskNotFound, UnknownExecutorException
+from airflow.exceptions import DagNotFound, ParamValidationError, TaskNotFound, UnknownExecutorException
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.types import TaskInstanceUuid
@@ -149,7 +149,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.orm.interfaces import LoaderOption
     from sqlalchemy.sql.elements import ColumnElement
-    from sqlalchemy.sql.selectable import Select, Subquery
+    from sqlalchemy.sql.selectable import Subquery
 
     from airflow._shared.logging.types import Logger
     from airflow.executors.base_executor import BaseExecutor
@@ -158,7 +158,7 @@ if TYPE_CHECKING:
     from airflow.models.pool import PoolStats
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
-    from airflow.utils.sqlalchemy import CommitProhibitorGuard
+    from airflow.utils.sqlalchemy import CommitProhibitorGuard, Select
 
 TI = TaskInstance
 DR = DagRun
@@ -847,8 +847,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             timer.start()
 
             try:
-                locked_query = with_row_locks(query, of=TI, session=session, skip_locked=True)
-                task_instances_to_examine = session.scalars(locked_query).all()
+                # The ranking subquery reads the statement's snapshot, but a locking read returns the latest
+                # version of the rows it locks, which can have left SCHEDULED since. The state is read as a
+                # column so that the check sees the locked row whatever TIs the session already holds. It is
+                # not checked in the outer WHERE: when the statistics show no SCHEDULED rows, PostgreSQL
+                # then joins through the ti_state index instead of the primary key.
+                locked_query = with_row_locks(
+                    query.add_columns(TI.state), of=TI, session=session, skip_locked=True
+                )
+                locked_rows = session.execute(locked_query).all()
+                task_instances_to_examine = [
+                    ti for ti, state in locked_rows if state == TaskInstanceState.SCHEDULED
+                ]
+
+                if skipped := len(locked_rows) - len(task_instances_to_examine):
+                    self.log.debug(
+                        "Skipped locked task instances that are no longer SCHEDULED", count=skipped
+                    )
 
                 if self.log.isEnabledFor(logging.DEBUG):
                     self.log.debug("Length of the tis to examine is %d", len(task_instances_to_examine))
@@ -1092,7 +1107,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         max_tis: int,
         *,
         excluded_ti_ids: Collection[UUID] = (),
-    ) -> Select[tuple[TI]]:
+    ) -> Select[TI]:
         """
         Build a query that fetches SCHEDULED TIs eligible for execution this cycle.
 
@@ -2521,12 +2536,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
 
-        Returns the set of ``dag_id`` strings that received a new partition-driven Dag run in this
-        tick. The caller (:meth:`_create_dagruns_for_dags`) uses this set to exclude the same Dags
-        from the standard schedule-driven and asset-triggered creation paths so a single Dag never
-        gets two Dag runs for the same tick when it appears in more than one creation path. We
-        return ``dag_id`` strings rather than full Dag/DagRun objects because the only downstream
-        use is membership lookup, and a heavier return type would just be discarded.
+        Returns the set of ``dag_id`` strings with a satisfied partition in this tick, whether or not
+        creating the Dag run succeeded. The caller (:meth:`_create_dagruns_for_dags`) uses this set to
+        exclude the same Dags from the standard schedule-driven and asset-triggered creation paths so a
+        single Dag never gets two Dag runs for the same tick when it appears in more than one creation
+        path. We return ``dag_id`` strings rather than full Dag/DagRun objects because the only
+        downstream use is membership lookup, and a heavier return type would just be discarded.
 
         Asset deactivation freezes pending APDRs: when an asset becomes inactive
         (orphan — no Dag declares it any more), its ``PartitionedAssetKeyLog`` rows
@@ -2555,9 +2570,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # scheduling work isn't starved. Remaining APDRs drain across subsequent ticks.
         # FIFO is intentional: the oldest pending APDR fires first. A persistently
         # unsatisfiable APDR at the head (e.g. broken mapper, upstream that will
-        # never arrive) blocks newer ones until an operator removes it or fixes
-        # the underlying mapper. We surface the stuck state rather than silently
-        # rotating past it.
+        # never arrive, a stored Dag whose Param default fails validation until a
+        # re-parse marks the Dag stale) blocks newer ones until an operator removes
+        # it or fixes the underlying mapper. We surface the stuck state rather than
+        # silently rotating past it.
         # `with_row_locks(skip_locked=True)` mirrors the sibling ADRQ claim path:
         # in HA two schedulers can otherwise both grab the same satisfied APDR
         # and race the `created_dag_run_id` UPDATE, orphaning whichever DagRun
@@ -2721,21 +2737,26 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=apdr.target_dag_id,
                     carried_partition_date=apdr.partition_date,
                 )
-            dag_run = dag.create_dagrun(
-                run_id=DagRun.generate_run_id(
-                    run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
-                ),
-                logical_date=None,
-                data_interval=None,
-                partition_key=apdr.partition_key,
-                partition_date=partition_date,
-                run_after=run_after,
-                run_type=DagRunType.ASSET_TRIGGERED,
-                triggered_by=DagRunTriggeredByType.ASSET,
-                state=DagRunState.QUEUED,
-                creating_job_id=self.job.id,
-                session=session,
-            )
+            try:
+                dag_run = dag.create_dagrun(
+                    run_id=DagRun.generate_run_id(
+                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                    ),
+                    logical_date=None,
+                    data_interval=None,
+                    partition_key=apdr.partition_key,
+                    partition_date=partition_date,
+                    run_after=run_after,
+                    run_type=DagRunType.ASSET_TRIGGERED,
+                    triggered_by=DagRunTriggeredByType.ASSET,
+                    state=DagRunState.QUEUED,
+                    creating_job_id=self.job.id,
+                    session=session,
+                )
+            except ParamValidationError:
+                # A stored Dag can hold a default that became invalid after an upgrade, until re-parsed.
+                self.log.exception("Failed creating DagRun", dag_id=apdr.target_dag_id)
+                continue
             asset_events = session.scalars(
                 select(AssetEvent).where(
                     PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
@@ -3162,29 +3183,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 if self._multi_team
                 else None
             )
-            for run_after, events in dag.timetable.group_asset_events(asset_events, triggered_date):
-                dag_run = dag.create_dagrun(
-                    run_id=DagRun.generate_run_id(
-                        run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
-                    ),
-                    logical_date=None,
-                    data_interval=None,
-                    run_after=run_after,
-                    run_type=DagRunType.ASSET_TRIGGERED,
-                    triggered_by=DagRunTriggeredByType.ASSET,
-                    state=DagRunState.QUEUED,
-                    creating_job_id=self.job.id,
-                    session=session,
-                )
-                remaining_runs -= 1
-                stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
-                dag_run.consumed_asset_events.extend(events)
-                self.log.info(
-                    "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
-                    dag.dag_id,
-                    dag_run.run_id,
-                    len(events),
-                )
+            try:
+                for run_after, events in dag.timetable.group_asset_events(asset_events, triggered_date):
+                    dag_run = dag.create_dagrun(
+                        run_id=DagRun.generate_run_id(
+                            run_type=DagRunType.ASSET_TRIGGERED, logical_date=None, run_after=run_after
+                        ),
+                        logical_date=None,
+                        data_interval=None,
+                        run_after=run_after,
+                        run_type=DagRunType.ASSET_TRIGGERED,
+                        triggered_by=DagRunTriggeredByType.ASSET,
+                        state=DagRunState.QUEUED,
+                        creating_job_id=self.job.id,
+                        session=session,
+                    )
+                    remaining_runs -= 1
+                    stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
+                    dag_run.consumed_asset_events.extend(events)
+                    self.log.info(
+                        "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
+                        dag.dag_id,
+                        dag_run.run_id,
+                        len(events),
+                    )
+            except ParamValidationError:
+                # ADRQ rows stay queued so the run is created once the Dag is fixed.
+                self.log.exception("Failed creating DagRun", dag_id=dag.dag_id)
+                continue
             session.flush()  # Make consumed events visible to ADRQ cleanup.
             # Dequeue rows for events just consumed above and any stale ones.
             self._delete_consumed_asset_records(dag, locked_records=queued_adrqs, session=session)

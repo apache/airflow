@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import logging
 import threading
 import warnings
@@ -24,15 +25,15 @@ from contextlib import suppress
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urljoin
+from weakref import WeakValueDictionary
 
-from cachetools import TTLCache, cachedmethod
+from cachetools import TTLCache
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
 from flask import current_app, g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
-from sqlalchemy.exc import NoResultFound, SQLAlchemyError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.exc import SQLAlchemyError
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
@@ -62,7 +63,7 @@ from airflow.providers.common.compat.security.access_view import (
     IMPORT_ERRORS_ALL_ACCESS_VIEW,
     REPARSE_ALL_ACCESS_VIEW,
 )
-from airflow.providers.fab.auth_manager.models import Permission, Role, User
+from airflow.providers.fab.auth_manager.models import Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.app import create_app
@@ -100,10 +101,11 @@ from airflow.providers.fab.www.security.permissions import (
 )
 from airflow.providers.fab.www.security_appless import ApplessAirflowSecurityManager
 from airflow.providers.fab.www.utils import get_fab_action_from_method_map
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, create_session_async, provide_session
 
 if TYPE_CHECKING:
     from flask import Flask
+    from sqlalchemy.orm import Session
     from starlette.middleware import _MiddlewareFactory
 
     from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
@@ -183,6 +185,8 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
 }
 
 CACHE_TTL = conf.getint("fab", "cache_ttl", fallback=30)
+TOKEN_GENERATION_CLAIM = "token_generation"
+
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
@@ -212,9 +216,24 @@ class FabAuthManager(BaseAuthManager[User]):
     """
 
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
+    # ``TTLCache`` is not thread-safe: requests read it on the event loop, while user updates pop
+    # from it in threadpool and WSGI threads. Hold this lock for every access to ``cache``.
+    cache_lock = threading.Lock()
+    _user_fetch_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
     _flask_app_lock = threading.Lock()
+
+    @classmethod
+    def evict_cached_user(cls, user_id: int) -> None:
+        """
+        Drop a user from the cache so that their next request reloads them from the database.
+
+        Call it only after the change to the user is committed: a request served in between would
+        cache the row as it was before the change.
+        """
+        with cls.cache_lock:
+            cls.cache.pop(user_id, None)
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
@@ -310,24 +329,60 @@ class FabAuthManager(BaseAuthManager[User]):
     def session(self):
         return self.appbuilder.session
 
-    @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
+    @staticmethod
+    def _validate_user(user: User | None, user_id: str) -> User:
+        if user is None:
+            raise ValueError(f"User with id {user_id} not found")
+        # A token stays syntactically valid until it expires, so the account it
+        # names has to be re-checked on every request rather than trusted from
+        # the signature alone. ``is_active`` reads the nullable ``active``
+        # column, and a null is treated as inactive here for the same reason it
+        # is on the password path in ``auth_user_db``.
+        if not user.is_active:
+            raise ValueError(f"User with id {user_id} is not active")
+        return user
+
+    @staticmethod
+    def _get_token_generation(token: dict[str, Any]) -> int:
+        # Tokens issued before the claim existed count as the initial generation.
+        token_generation = token.get(TOKEN_GENERATION_CLAIM, 0)
+        if type(token_generation) is not int:
+            raise ValueError(
+                f"Token of user with id {token['sub']} has an invalid {TOKEN_GENERATION_CLAIM} claim"
+            )
+        return token_generation
+
+    def _get_cached_user(self, user_id: int, token_generation: int) -> User | None:
+        """
+        Return the cached user, unless the token is newer than it.
+
+        A newer token was issued after a password change that the cached user predates, so the
+        cached user is dropped: it must not match tokens from before the change either.
+        """
+        with self.cache_lock:
+            user = self.cache.get(user_id)
+            if user is not None and user.token_generation < token_generation:
+                self.cache.pop(user_id, None)
+                return None
+        return user
+
     def deserialize_user(self, token: dict[str, Any]) -> User:
         user_id = int(token["sub"])
+        token_generation = self._get_token_generation(token)
+        user = self._get_cached_user(user_id, token_generation)
+        if user is None:
+            user = self._load_active_user(user_id)
+            with self.cache_lock:
+                self.cache[user_id] = user
+        if token_generation != user.token_generation:
+            raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
+        return user
 
+    def _load_active_user(self, user_id: int) -> User:
         def _fetch_user() -> User:
             with create_session() as session:
-                try:
-                    user = session.scalars(select(User).where(User.id == user_id)).one()
-                except NoResultFound:
-                    raise ValueError(f"User with id {token['sub']} not found")
-                # A token stays syntactically valid until it expires, so the account it
-                # names has to be re-checked on every request rather than trusted from
-                # the signature alone. ``is_active`` reads the nullable ``active``
-                # column, and a null is treated as inactive here for the same reason it
-                # is on the password path in ``auth_user_db``.
-                if not user.is_active:
-                    raise ValueError(f"User with id {token['sub']} is not active")
-                return user
+                user = session.scalars(select(User).where(User.id == user_id)).one_or_none()
+                return self._validate_user(user, str(user_id))
 
         try:
             return _fetch_user()
@@ -345,8 +400,32 @@ class FabAuthManager(BaseAuthManager[User]):
                     self.session.remove()
                 raise
 
+    async def deserialize_user_async(self, token: dict[str, Any]) -> User:
+        """Deserialize a user for FastAPI JWT authentication without blocking its event loop."""
+        # Preserve legacy synchronous overrides while the default FAB implementation uses async lookup below.
+        deserialize_user_owner = next(cls for cls in type(self).__mro__ if "deserialize_user" in cls.__dict__)
+        if deserialize_user_owner is not FabAuthManager:
+            return self.deserialize_user(token)
+
+        user_id = int(token["sub"])
+        token_generation = self._get_token_generation(token)
+        user = self._get_cached_user(user_id, token_generation)
+        if user is None:
+            lock = self._user_fetch_locks.setdefault(user_id, asyncio.Lock())
+            async with lock:
+                user = self._get_cached_user(user_id, token_generation)
+                if user is None:
+                    async with create_session_async() as session:
+                        user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
+                        user = self._validate_user(user, token["sub"])
+                    with self.cache_lock:
+                        self.cache[user_id] = user
+        if token_generation != user.token_generation:
+            raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
+        return user
+
     def serialize_user(self, user: User) -> dict[str, Any]:
-        return {"sub": str(user.id)}
+        return {"sub": str(user.id), TOKEN_GENERATION_CLAIM: user.token_generation}
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
@@ -644,33 +723,11 @@ class FabAuthManager(BaseAuthManager[User]):
         if self._is_authorized(method=method, resource_type=RESOURCE_DAG, user=user):
             # If user is authorized to access all DAGs, return all DAGs
             return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-        if isinstance(user, AnonymousUser):
-            return set()
-        user_query = (
-            session.scalars(
-                select(User)
-                .options(
-                    joinedload(User.roles)
-                    .subqueryload(Role.permissions)
-                    .options(joinedload(Permission.action), joinedload(Permission.resource))
-                )
-                .where(User.id == user.id)
-            )
-            .unique()
-            .one()
-        )
-        roles = user_query.roles
-
         fab_action = get_fab_action_from_method_map().get(method)
         resources = set()
-        for role in roles:
-            for permission in role.permissions:
-                if permission.action.name == fab_action:
-                    resource = permission.resource.name
-                    if resource == permissions.RESOURCE_DAG:
-                        return {dag.dag_id for dag in session.execute(select(DagModel.dag_id))}
-                    if resource.startswith(permissions.RESOURCE_DAG_PREFIX):
-                        resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
+        for action, resource in self._get_user_permissions(user):
+            if action == fab_action and resource.startswith(RESOURCE_DAG_PREFIX):
+                resources.add(resource[len(RESOURCE_DAG_PREFIX) :])
         return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @provide_session
