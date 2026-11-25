@@ -96,13 +96,14 @@ def test_rejects(base, new, message):
     assert message in violations[0]
 
 
+@mock.patch("check_fork_ci_gate_config.read_airflow_branch", autospec=True, return_value="main")
 @mock.patch("check_fork_ci_gate_config._git", autospec=True)
 @pytest.mark.parametrize(
     ("base_ref_env", "git_results", "expected"),
     [
         pytest.param("v3-1-test", {"fetch": ""}, "FETCH_HEAD", id="ci-fetches-base-branch"),
         pytest.param(None, {"rev-parse": "x", "merge-base": "abc\n"}, "abc", id="local-merge-base"),
-        pytest.param(None, {"fetch": ""}, "FETCH_HEAD", id="fork-push-fetches-upstream-main"),
+        pytest.param(None, {"fetch": ""}, "FETCH_HEAD", id="fork-push-fetches-upstream-branch"),
         pytest.param(
             None,
             {"rev-parse": "x\n", "merge-base": "x\n", "fetch": ""},
@@ -112,7 +113,7 @@ def test_rejects(base, new, message):
         pytest.param(None, {}, None, id="no-base-available"),
     ],
 )
-def test_resolve_base_ref(mock_git, monkeypatch, base_ref_env, git_results, expected):
+def test_resolve_base_ref(mock_git, mock_branch, monkeypatch, base_ref_env, git_results, expected):
     monkeypatch.setenv("GITHUB_REPOSITORY", "apache/airflow" if base_ref_env else "contributor/airflow")
     monkeypatch.setenv("GITHUB_EVENT_NAME", "pull_request" if base_ref_env else "push")
     monkeypatch.delenv("GITHUB_SHA", raising=False)
