@@ -29,6 +29,7 @@ from packaging.version import parse as parse_version
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.utils.container import container_is_succeeded
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.providers.common.compat.sdk import AirflowException
@@ -43,6 +44,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 if TYPE_CHECKING:
     from datetime import datetime
 
+    from kubernetes.client.models.v1_pod import V1Pod
     from kubernetes_asyncio.client import V1Job
 
 
@@ -359,7 +361,7 @@ class GKEJobTrigger(BaseTrigger):
                     namespace=self.pod_namespace,
                     label_selector=label_selector,
                 )
-                succeeded_pods = [p for p in current_pods if p.status and p.status.phase == "Succeeded"]
+                succeeded_pods = [p for p in current_pods if self._is_pod_succeeded(p)]
                 if succeeded_pods:
                     break
                 self.log.info(
@@ -373,7 +375,7 @@ class GKEJobTrigger(BaseTrigger):
                     "No succeeded pods found for job %s after timeout, falling back to original pod list",
                     self.job_name,
                 )
-                succeeded_pods = [p for p in current_pods if p.metadata.name in self.pod_names]
+                succeeded_pods = [p for p in current_pods if p.metadata and p.metadata.name in self.pod_names]
 
             xcom_results = []
             for pod in succeeded_pods:
@@ -414,6 +416,16 @@ class GKEJobTrigger(BaseTrigger):
                 "xcom_result": xcom_results if self.do_xcom_push else None,
             }
         )
+
+    def _is_pod_succeeded(self, pod: V1Pod) -> bool:
+        """Check if pod or its base container has completed successfully."""
+        if not pod or not pod.status:
+            return False
+        if pod.status.phase == "Failed":
+            return False
+        if pod.status.phase == "Succeeded":
+            return True
+        return container_is_succeeded(pod, self.base_container_name)
 
     @cached_property
     def hook(self) -> GKEKubernetesAsyncHook:
