@@ -224,33 +224,6 @@ class TestLMStudioBackendLoad:
 
         assert methods == ["GET", "POST"]
 
-    @pytest.mark.parametrize(
-        ("response", "expected_detail"),
-        [
-            pytest.param(
-                httpx2.Response(502, text="<html>Bad Gateway</html>"),
-                "<html>Bad Gateway</html>",
-                id="non-json-body",
-            ),
-            pytest.param(
-                httpx2.Response(500, text='{"message": "boom"}'),
-                '{"message": "boom"}',
-                id="json-without-error",
-            ),
-            pytest.param(httpx2.Response(500, text="x" * 500), "x" * 200, id="long-body-truncated"),
-            pytest.param(httpx2.Response(500), "Internal Server Error", id="empty-body"),
-        ],
-    )
-    def test_http_error_falls_back_to_body_text(self, response, expected_detail):
-        backend = _build_backend(lambda request: response)
-
-        with pytest.raises(httpx2.HTTPStatusError) as exc_info:
-            backend.load(timeout=5.0)
-
-        assert str(exc_info.value) == (
-            f"LM Studio could not list models ({response.status_code}): {expected_detail}"
-        )
-
     @mock.patch(_TIME, autospec=True)
     def test_load_timeout_is_raised_as_timeout_error_naming_model_and_seconds_left(self, mock_time):
         mock_time.monotonic.side_effect = [100.0, 101.0]

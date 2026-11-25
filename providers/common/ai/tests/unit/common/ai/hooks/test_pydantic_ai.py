@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import json
 import logging
 import re
@@ -2057,9 +2058,7 @@ class TestPydanticAIHookEnsureModelReady:
 
         with patch.object(hook, "get_connection", return_value=conn):
             hook.ensure_model_ready(
-                backend_factory=lambda model_name, base_url: LMStudioBackend(
-                    base_url, model_name, transport=httpx2.MockTransport(handler)
-                )
+                backend_factory=functools.partial(LMStudioBackend, transport=httpx2.MockTransport(handler))
             )
 
         assert [(r.method, r.url.path) for r in requests] == [

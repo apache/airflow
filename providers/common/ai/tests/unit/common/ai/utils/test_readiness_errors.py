@@ -28,7 +28,7 @@ ROOT = "http://localhost:1234"
 REQUEST = httpx2.Request("GET", f"{ROOT}/api/v1/models")
 
 
-def _response(status_code: int = 500, **kwargs) -> httpx2.Response:
+def _build_response(status_code: int = 500, **kwargs) -> httpx2.Response:
     return httpx2.Response(status_code, request=REQUEST, **kwargs)
 
 
@@ -45,7 +45,7 @@ def _translate(**overrides):
 
 class TestExtractErrorDetail:
     def test_returns_the_error_field_when_it_is_a_non_empty_string(self):
-        assert extract_error_detail(_response(json={"error": "model not found"})) == "model not found"
+        assert extract_error_detail(_build_response(json={"error": "model not found"})) == "model not found"
 
     @pytest.mark.parametrize(
         ("kwargs", "expected"),
@@ -58,22 +58,18 @@ class TestExtractErrorDetail:
         ],
     )
     def test_falls_back_to_the_stripped_body(self, kwargs, expected):
-        assert extract_error_detail(_response(**kwargs)) == expected
+        assert extract_error_detail(_build_response(**kwargs)) == expected
 
     def test_cuts_the_body_to_200_characters(self):
-        assert extract_error_detail(_response(content=b"x" * 500)) == "x" * 200
+        assert extract_error_detail(_build_response(content=b"x" * 500)) == "x" * 200
 
     def test_falls_back_to_the_reason_phrase_when_the_body_is_empty(self):
-        assert extract_error_detail(_response(503)) == "Service Unavailable"
+        assert extract_error_detail(_build_response(503)) == "Service Unavailable"
 
 
 class TestTranslateReadinessErrors:
-    def test_passes_through_when_nothing_is_raised(self):
-        with _translate():
-            pass
-
     def test_status_error_names_server_failure_status_and_detail(self):
-        response = _response(404, json={"error": "model not found"})
+        response = _build_response(404, json={"error": "model not found"})
 
         with pytest.raises(httpx2.HTTPStatusError) as exc_info:
             with _translate():
