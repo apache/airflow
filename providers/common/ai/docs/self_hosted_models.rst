@@ -317,9 +317,9 @@ replicas behind a load balancer, the load request can reach a different server
 than the LLM call, and then it has no effect on that call.
 
 ``timeout`` is passed as is to the load request. Running out ends in a
-``TimeoutError`` naming the model, or the server when it cannot be reached.
-Nothing is retried, so a wrong host, a server error or a request timing out is
-raised right away.
+``TimeoutError`` naming the model. A server that cannot be reached raises
+``httpx2.ConnectError`` naming the server. Nothing is retried, so a wrong host,
+a server error or a request timing out is raised right away.
 
 .. _self_hosted_models_readiness_backend:
 

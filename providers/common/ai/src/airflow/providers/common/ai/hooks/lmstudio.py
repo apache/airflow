@@ -72,8 +72,8 @@ class LMStudioBackend:
         """
         Load the model unless LM Studio already lists it with a loaded instance, within *timeout* seconds.
 
-        :raises TimeoutError: If the server cannot be reached, or a request exceeds the time it was given
-            (see the class docstring).
+        :raises TimeoutError: If a request exceeds the time it was given (see the class docstring).
+        :raises httpx2.ConnectError: If the server cannot be reached.
         :raises httpx2.HTTPStatusError: If the server answers with an error status; the message says
             whether listing or loading failed and carries the ``error`` text when the body has one,
             otherwise the start of the response body.

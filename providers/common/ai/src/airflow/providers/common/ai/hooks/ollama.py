@@ -62,7 +62,8 @@ class OllamaBackend:
         """
         Load the model, waiting at most *timeout* seconds.
 
-        :raises TimeoutError: If the server cannot be reached or does not finish loading within *timeout*.
+        :raises TimeoutError: If a request times out or the model does not finish loading within *timeout*.
+        :raises httpx2.ConnectError: If the server cannot be reached.
         :raises httpx2.HTTPStatusError: If the server answers with an error status; the message names the
             model and carries the server's ``error`` text (the response body when it has none).
         """

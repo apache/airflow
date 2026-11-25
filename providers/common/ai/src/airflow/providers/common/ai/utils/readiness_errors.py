@@ -47,6 +47,8 @@ def translate_readiness_errors(
     :param timeout_failure: Message after *server* for a read timeout, followed by *timeout*.
 
     :raises httpx2.HTTPStatusError: On an error status, with the server's error text in the message.
+    :raises httpx2.ConnectError: When the server cannot be reached, with the server and root named in
+        the message.
     :raises TimeoutError: On a connect timeout or any other timeout.
     """
     try:
@@ -57,7 +59,9 @@ def translate_readiness_errors(
             request=e.request,
             response=e.response,
         ) from e
+    except httpx2.ConnectError as e:
+        raise httpx2.ConnectError(f"Could not reach {server} at {root}: {e}", request=e.request) from e
     except httpx2.ConnectTimeout as e:
-        raise TimeoutError(f"Could not reach {server} at {root} within {timeout} seconds.") from e
+        raise TimeoutError(f"Could not reach {server} at {root} within {timeout:.1f} seconds.") from e
     except httpx2.TimeoutException as e:
-        raise TimeoutError(f"{server} {timeout_failure} within {timeout} seconds.") from e
+        raise TimeoutError(f"{server} {timeout_failure} within {timeout:.1f} seconds.") from e

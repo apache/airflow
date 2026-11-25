@@ -99,6 +99,37 @@ class TestTranslateReadinessErrors:
             with _translate():
                 raise exc_type("boom")
 
+    def test_connect_error_names_server_and_root_and_keeps_the_original_text(self):
+        original = httpx2.ConnectError("refused", request=REQUEST)
+
+        with pytest.raises(httpx2.ConnectError) as exc_info:
+            with _translate():
+                raise original
+
+        assert str(exc_info.value) == "Could not reach LM Studio at http://localhost:1234: refused"
+        assert exc_info.value.request is REQUEST
+        assert exc_info.value.__cause__ is original
+
+    @pytest.mark.parametrize(
+        ("exc_type", "message"),
+        [
+            pytest.param(
+                httpx2.ConnectTimeout,
+                r"^Could not reach LM Studio at http://localhost:1234 within 12\.3 seconds\.$",
+                id="connect-timeout",
+            ),
+            pytest.param(
+                httpx2.ReadTimeout,
+                r"^LM Studio timed out listing models within 12\.3 seconds\.$",
+                id="read-timeout",
+            ),
+        ],
+    )
+    def test_timeout_is_shown_with_one_decimal(self, exc_type, message):
+        with pytest.raises(TimeoutError, match=message):
+            with _translate(timeout=12.345678901234567):
+                raise exc_type("boom")
+
     def test_unrelated_exceptions_are_not_translated(self):
         with pytest.raises(ValueError, match="unrelated"):
             with _translate():

@@ -692,7 +692,7 @@ class PydanticAIHook(BaseHook):
         :raises ValueError: If *timeout* is not a positive finite number or no model is configured;
             also from the default ``OllamaBackend`` when neither the connection host nor the
             ``OLLAMA_BASE_URL`` environment variable is set, and from ``LMStudioBackend`` when the
-            model list has an unexpected shape.
+            connection has no host or the model list has an unexpected shape.
         :raises NotImplementedError: If *backend_factory* is not given and the model's provider
             prefix has no built-in backend (only ``ollama`` has one).
         :raises TimeoutError: If a request times out.
