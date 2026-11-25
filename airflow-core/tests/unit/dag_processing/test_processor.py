@@ -78,7 +78,7 @@ from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
 from airflow.sdk.definitions._internal.loop import create_loop
-from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, get_parsing_context
+from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME
 from airflow.sdk.execution_time import comms, supervisor
 from airflow.sdk.execution_time.comms import (
     GetConnection,
