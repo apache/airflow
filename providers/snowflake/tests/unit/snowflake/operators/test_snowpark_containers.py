@@ -31,6 +31,7 @@ from airflow.providers.snowflake.utils.snowpark_containers import (
     OBJECT_NOT_EXIST_ERROR_CODE,
 )
 
+from tests_common.test_utils.task_state import get_non_reserved_task_state_writes
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 TASK_ID = "test_spcs_job"
@@ -523,8 +524,7 @@ class TestSnowparkContainerJobOperatorDurable:
 
         op.execute(context=_context(task_store=task_store))
 
-        task_store.get.assert_called_once_with(op.external_id_key)
-        assert task_store.set.call_args_list == [
+        assert get_non_reserved_task_state_writes(task_store) == [
             mock.call(op.external_id_key, JOB_NAME),
             mock.call(op._job_done_marker_key, {JOB_NAME: "DONE"}),
         ]
@@ -549,11 +549,9 @@ class TestSnowparkContainerJobOperatorDurable:
 
         result = op.execute(context=_context(task_store=task_store))
 
-        assert task_store.get.call_args_list == [
-            mock.call(op.external_id_key),
-            mock.call(op._job_done_marker_key),
+        assert get_non_reserved_task_state_writes(task_store) == [
+            mock.call(op._job_done_marker_key, {JOB_NAME: "DONE"})
         ]
-        task_store.set.assert_called_once_with(op._job_done_marker_key, {JOB_NAME: "DONE"})
         mock_submit_job.assert_not_called()
         mock_handle.assert_called_once_with(status="DONE")
         assert result == JOB_NAME
@@ -574,10 +572,6 @@ class TestSnowparkContainerJobOperatorDurable:
 
         op.execute(context=_context(task_store=task_store))
 
-        assert task_store.get.call_args_list == [
-            mock.call(op.external_id_key),
-            mock.call(op._job_done_marker_key),
-        ]
         mock_submit_job.assert_not_called()
         mock_poll_until_complete.assert_not_called()
         mock_handle.assert_called_once_with(status="DONE")
@@ -599,9 +593,10 @@ class TestSnowparkContainerJobOperatorDurable:
 
         op.execute(context=_context(task_store=task_store))
 
-        task_store.get.assert_called_once_with(op.external_id_key)
         mock_submit_job.assert_called_once()
-        task_store.set.assert_called_once_with(op.external_id_key, f"{JOB_NAME}_2")
+        assert get_non_reserved_task_state_writes(task_store) == [
+            mock.call(op.external_id_key, f"{JOB_NAME}_2")
+        ]
         mock_poll_until_complete.assert_called_once_with(f"{JOB_NAME}_2", mock.ANY)
 
     @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
@@ -623,12 +618,10 @@ class TestSnowparkContainerJobOperatorDurable:
 
         op.execute(context=_context(task_store=task_store))
 
-        assert task_store.get.call_args_list == [
-            mock.call(op.external_id_key),
-            mock.call(op._job_done_marker_key),
-        ]
         mock_submit_job.assert_called_once()
-        task_store.set.assert_called_once_with(op.external_id_key, f"{JOB_NAME}_2")
+        assert get_non_reserved_task_state_writes(task_store) == [
+            mock.call(op.external_id_key, f"{JOB_NAME}_2")
+        ]
 
     @mock.patch.object(SnowparkContainerJobOperator, "_handle_final_status")
     @mock.patch.object(SnowparkContainerJobOperator, "submit_job", return_value=JOB_NAME)
