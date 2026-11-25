@@ -998,7 +998,9 @@ def test_enter_shell_openlineage_allows_current_postgres_versions(
 @mock.patch("airflow_breeze.utils.docker_command_utils.console_print")
 @mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
 @pytest.mark.parametrize("integration", [("openlineage",), ("all",)])
-@pytest.mark.parametrize("postgres_version", set(ALLOWED_POSTGRES_VERSIONS) - set(CURRENT_POSTGRES_VERSIONS))
+@pytest.mark.parametrize(
+    "postgres_version", sorted(set(ALLOWED_POSTGRES_VERSIONS) - set(CURRENT_POSTGRES_VERSIONS))
+)
 def test_enter_shell_openlineage_rejects_stale_postgres_versions(
     mock_run_command,
     mock_console_print,
