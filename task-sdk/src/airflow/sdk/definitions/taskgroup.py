@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions._internal.mixins import DependencyMixin
     from airflow.sdk.definitions.dag import DAG
     from airflow.sdk.definitions.edges import EdgeModifier
-    from airflow.sdk.types import Operator
+    from airflow.sdk.types import Operator, RuntimeTaskInstanceProtocol
 
 
 def _default_parent_group() -> TaskGroup | None:
@@ -780,3 +780,14 @@ class MappedTaskGroup(TaskGroup):
 
         for op, _ in XComArg.iter_xcom_references(self._expand_input):
             yield op
+
+    def resolve_mapped_argument(self, key: str, ti: RuntimeTaskInstanceProtocol) -> Any:
+        """
+        Resolve the group argument *key* for the expansion *ti* belongs to.
+
+        Called from the Jinja expression produced by ``MappedArgument.__str__``.
+
+        :meta private:
+        """
+        data, _ = self._expand_input.resolve({"ti": ti})
+        return data[key]
