@@ -4543,7 +4543,7 @@ def test_update_triggers_delegates_workload_creation(supervisor_builder, mocker)
     build_trigger_workloads.assert_called_once_with(supervisor, {2})
     assert list(supervisor.creating_triggers) == [workload]
     assert workload.queued_at == 100.0
-    monotonic.assert_called_once_with()
+    monotonic.assert_called()
     assert supervisor.cancelling_triggers == {1}
 
 
@@ -5776,7 +5776,9 @@ class TestTriggerFailureRecording:
         assert submit.call_args.kwargs["failure"].consecutive_failures == 1
 
     @pytest.mark.parametrize("kind", ["asset_watcher", "callback"])
-    def test_new_owner_continues_the_recorded_count(self, supervisor, mocker, kind):
+    def test_new_owner_continues_the_recorded_count_and_waits_for_the_backoff(
+        self, supervisor, mocker, clock, kind
+    ):
         callback = mocker.Mock(data={}, id=uuid.uuid4()) if kind == "callback" else None
         trigger = mocker.Mock(
             spec=Trigger,
@@ -5791,19 +5793,29 @@ class TestTriggerFailureRecording:
         )
         for asset in trigger.assets:
             asset.name = "a"
+        mocker.patch("airflow.jobs.triggerer_job_runner.create_session")
+        mocker.patch("airflow.jobs.triggerer_job_runner.DBDagBag")
+        mocker.patch("airflow.jobs.triggerer_job_runner.prepare_task_log_contexts", return_value={})
         mocker.patch.object(
-            TriggerRunnerSupervisor,
-            "build_trigger_workloads",
-            autospec=True,
-            side_effect=lambda sup, ids: [
-                sup._create_workload(trigger, dag_bag=None, render_log_fname=None, session=None) for _ in ids
-            ],
+            TriggerRunnerSupervisor, "fetch_trigger_details", autospec=True, return_value={1: trigger}
+        )
+        mocker.patch.object(
+            TriggerRunnerSupervisor, "fetch_non_task_trigger_ids", autospec=True, return_value={1}
         )
 
-        supervisor.update_triggers({1})
+        with conf_vars(
+            {
+                ("triggerer", "failed_trigger_retry_delay"): "5",
+                ("triggerer", "failed_trigger_retry_max_delay"): "30",
+            }
+        ):
+            supervisor.update_triggers({1})
+            assert supervisor.failure_tracker.consecutive(1) == 4
+            assert not supervisor.creating_triggers
 
-        assert supervisor.failure_tracker.consecutive(1) == 4
-        # Without a backoff it is re-created right away, as before.
+            clock.return_value += 20.0
+            supervisor.update_triggers({1})
+
         assert [w.id for w in supervisor.creating_triggers] == [1]
 
     def test_a_trigger_no_longer_assigned_here_is_forgotten(self, supervisor):
@@ -6209,3 +6221,105 @@ class TestCreationFailureInFinished:
         runner.process_trigger_events(finished_ids=finished_ids)
 
         assert finished_ids == [10]
+
+
+class TestTriggerFailureBackoff:
+    BACKOFF = {
+        ("triggerer", "failed_trigger_retry_delay"): "5",
+        ("triggerer", "failed_trigger_retry_max_delay"): "30",
+    }
+
+    def test_retry_delay_grows_with_consecutive_failures(self):
+        with conf_vars(self.BACKOFF):
+            tracker = TriggerFailureTracker(recovery_uptime=10)
+            assert tracker._retry_delay(1) == 5
+            assert tracker._retry_delay(3) == 15
+            assert tracker._retry_delay(7) == 30  # capped at the configured cap
+
+    def test_retry_delay_rejects_negative_values(self):
+        with conf_vars({("triggerer", "failed_trigger_retry_delay"): "-1"}):
+            tracker = TriggerFailureTracker(recovery_uptime=10)
+            with pytest.raises(ValueError, match="failed_trigger_retry_delay"):
+                tracker._retry_delay(1)
+
+    def test_record_failure_sets_next_attempt(self):
+        with conf_vars(self.BACKOFF):
+            tracker = TriggerFailureTracker(recovery_uptime=10)
+            tracker.record_failure(1, now=1000.0)
+            assert not tracker.attempt_ready(1, 1004.9)
+            assert tracker.attempt_ready(1, 1005.0)
+            tracker.record_failure(1, now=1005.0)
+            assert not tracker.attempt_ready(1, 1014.9)
+            assert tracker.attempt_ready(1, 1015.0)
+
+    def test_continue_from_backs_off_immediately(self, mocker):
+        mocker.patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=100.0)
+        with conf_vars(self.BACKOFF):
+            tracker = TriggerFailureTracker(recovery_uptime=10)
+            tracker.continue_from(7, 3)
+
+            assert not tracker.attempt_ready(7, 100.0)
+            assert tracker.attempt_ready(7, 115.0)
+
+    @pytest.fixture
+    def clock(self, mocker):
+        return mocker.patch("airflow.jobs.triggerer_job_runner.time.monotonic", return_value=100.0)
+
+    @pytest.fixture
+    def supervisored(self, jobless_supervisor, mocker, clock):
+        mocker.patch.object(TriggerRunnerSupervisor, "send_msg", autospec=True)
+        return jobless_supervisor
+
+    @staticmethod
+    def _fail(supervisor, trigger_id, req_id=1, error="ValueError: boom\n"):
+        supervisor._handle_request(
+            messages.TriggerStateChanges(failures=[(trigger_id, [error])], finished=[trigger_id]),
+            log=MagicMock(),
+            req_id=req_id,
+        )
+
+    def test_update_triggers_waits_for_backoff(self, supervisored, mocker, clock):
+        mocker.patch.object(Trigger, "submit_failure", autospec=True)
+        build = mocker.patch.object(
+            TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[]
+        )
+
+        with conf_vars(self.BACKOFF):
+            self._fail(supervisored, 1)
+            supervisored.handle_failed_triggers()
+            supervisored.update_triggers({1})
+            build.assert_not_called()
+
+            clock.return_value += 5.0
+            supervisored.update_triggers({1})
+            build.assert_called_once_with(supervisored, {1})
+
+    def test_backed_off_triggers_still_reported(self, supervisored, mocker, clock):
+        mocker.patch.object(Trigger, "submit_failure", autospec=True)
+        mocker.patch.object(
+            TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[]
+        )
+
+        with conf_vars(self.BACKOFF):
+            self._fail(supervisored, 1)
+            supervisored.handle_failed_triggers()
+            supervisored.update_triggers({1})
+            assert 1 not in supervisored.running_triggers
+            assert 1 in supervisored.failure_tracker.failures
+
+    def test_watchers_on_a_shared_stream_back_off_together(self, supervisored, mocker, clock):
+        mocker.patch.object(Trigger, "submit_failure", autospec=True)
+        build = mocker.patch.object(
+            TriggerRunnerSupervisor, "build_trigger_workloads", autospec=True, return_value=[]
+        )
+
+        with conf_vars(self.BACKOFF):
+            for trigger_id in (1, 2):
+                self._fail(supervisored, trigger_id, req_id=trigger_id)
+            supervisored.handle_failed_triggers()
+            supervisored.update_triggers({1, 2})
+            build.assert_not_called()
+
+            clock.return_value += 5.0
+            supervisored.update_triggers({1, 2})
+            build.assert_called_once_with(supervisored, {1, 2})
