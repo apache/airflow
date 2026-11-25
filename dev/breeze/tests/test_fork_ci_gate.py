@@ -324,7 +324,7 @@ def test_monitor_wake_up_sets_the_gate_step_env_names():
     gate = _find_step("ci-amd.yml", "gate", "gate")
     wake = _find_step("fork-ci-monitor-wake.yml", "wake", "gate")
 
-    assert wake["env"].keys() - {"RUN_ID"} == gate["env"].keys()
+    assert wake["env"].keys() == gate["env"].keys() | {"RUN_ID"}
 
 
 @pytest.mark.parametrize(

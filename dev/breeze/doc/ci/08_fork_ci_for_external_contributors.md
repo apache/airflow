@@ -95,7 +95,7 @@ Four pieces, in dependency order:
 2. **Project CI gate** — a `gate` job at the head of `ci-amd.yml`.
 3. **Fork mode CI** — a push trigger plus fork-aware selective checks.
 4. **Reconciler** — `breeze ci fork-ci-reconcile`, run by `fork-ci-monitor.yml` on a schedule
-   and when a gated pull request to `main` is opened, reopened or pushed.
+   and when a gated pull request to `main` is opened, reopened, pushed or marked ready for review.
 
 Plus `breeze ci audit` for the contributor's local setup, and documentation.
 
@@ -536,9 +536,10 @@ which is how contributors run CI in forks today via pull requests against their 
 
 ## Reconciler
 
-`breeze ci fork-ci-reconcile` is the only writer. It runs on a schedule and is idempotent: its
-inputs are the current state of GitHub, its outputs are the minimal set of mutations to reach
-the desired state. It never depends on having seen an earlier event.
+`breeze ci fork-ci-reconcile` is the only writer. It runs on a schedule, and when
+`fork-ci-monitor-wake.yml` starts it, and is idempotent: its inputs are the current state of
+GitHub, its outputs are the minimal set of mutations to reach the desired state. It never depends
+on having seen an earlier event.
 
 ### Discovery
 
@@ -1097,8 +1098,12 @@ the run counts before a Slack note, so those caps allow more per hour and a pers
 reported sooner than the 30 and 45 minutes those counts are derived from. Each such run also costs
 a run's reads, about 45 today. The concurrency group runs them one after another, and a whole run,
 with the time its jobs wait for runners, took 3.3 minutes at the median and 8 minutes at the 90th
-percentile (100 runs on 2026-11-23 and 2026-11-24), so the monitor runs at most about 18 times an
-hour in total, against 5.4 an hour from the schedule alone in that period.
+percentile (100 runs on 2026-11-23 and 2026-11-24), so runs that follow one another without a gap
+come to about 18 an hour at that median, against 5.4 an hour from the schedule alone in that
+period. A run that another run replaced while it waited in the concurrency group never ran, but
+the budget counts it as the previous run, so the run after it gets the budget for a shorter time
+and the job statuses left over follow on a later run. Scheduled runs already replace one another
+this way, and a wake-up that arrives while a run waits does the same.
 
 These are estimates: the share of gated runs, the jobs per push and the pushes per pull request
 are assumptions, not measurements. Watch the monitor's call counts in its run log after enabling
@@ -1191,9 +1196,10 @@ run.
 
 ### The `CI run started` check
 
-Fork CI reports to the pull request only when the scheduled monitor runs, about every 5 minutes
-and later when GitHub delays scheduled workflows, and until then a gated pull request shows only
-skipped checks. The gate cannot say more itself: it runs on the contributor's `pull_request`
+Fork CI reports to the pull request only when the monitor runs, on its schedule about every 5
+minutes, later when GitHub delays scheduled workflows, or after a push when
+`fork-ci-monitor-wake.yml` starts it, and until then a gated pull request shows only skipped
+checks. The gate cannot say more itself: it runs on the contributor's `pull_request`
 event with a read-only token. Instead both CI rulesets in `.asf.yaml` also require a
 `CI run started` check, which nothing reports when a commit is pushed, so GitHub lists it on every
 pull request as expected and waiting for its status. The reconciler reports it, as a commit status
@@ -1550,7 +1556,7 @@ as a failed check rather than a crash.
 ## Known limitations
 
 - Opening or pushing a gated pull request to `main` starts a monitor run, so its first state
-  comment no longer waits for the schedule. It still waits for a runner twice, for the wake-up job
+  comment does not wait for the schedule. It still waits for a runner twice, for the wake-up job
   and for the monitor, each from seconds to several minutes when runners are busy, for a monitor
   run already in progress, and for the search index to list the pull request. Everything else,
   such as the start or end of the fork run, arrives within one cadence (5 minutes) plus
