@@ -2389,12 +2389,13 @@ class TestDagRun:
     def test_sqlite_deadline_alert_session_connection_is_closed_after_use(self, alert_action, session):
         with _create_alert_session(session=session) as alert_session:
             connection = alert_session.connection()
-            driver_connection = connection.connection.driver_connection
+            # Held by the detached connection itself: driver_connection goes through the pool record.
+            dbapi_connection = connection.connection.dbapi_connection
             alert_action(connection)
 
         # Closed rather than returned to the pool, where it would still be read-only.
         with pytest.raises(sqlite3.ProgrammingError):
-            driver_connection.execute("SELECT 1")
+            dbapi_connection.execute("SELECT 1")
 
     @pytest.mark.parametrize(
         ("driver_error", "expected"),
