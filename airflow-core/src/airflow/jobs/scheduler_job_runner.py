@@ -394,6 +394,15 @@ def _build_consumable_asset_event_clause(
 
 
 def _has_default_asset_event_grouping(timetable: Timetable) -> bool:
+    """
+    Check whether ``group_asset_events`` is not overridden by the timetable's class.
+
+    This compares the function on the class, so only a subclass override is detected. Patching
+    ``Timetable.group_asset_events`` itself, or ``group_asset_events`` on a timetable instance whose
+    class does not override it, is not detected: the timetable is treated as using the default grouping,
+    so the patch may never be called.
+    Custom grouping must be implemented by overriding the method in a subclass.
+    """
     return type(timetable).group_asset_events is Timetable.group_asset_events
 
 
