@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable, Collection
+from contextlib import nullcontext
 from datetime import datetime, timedelta
 from threading import Lock
 from typing import TYPE_CHECKING, Any, cast
@@ -26,7 +27,7 @@ from typing import TYPE_CHECKING, Any, cast
 import pendulum
 import sqlalchemy as sa
 import structlog
-from cachetools import TTLCache, cached
+from cachetools import TTLCache
 from dateutil.relativedelta import relativedelta
 from sqlalchemy import (
     Boolean,
@@ -68,12 +69,13 @@ from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.team import Team
 from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
 from airflow.serialization.encoders import DAT, encode_deadline_alert
 from airflow.serialization.enums import Encoding
 from airflow.timetables.base import DataInterval, PartitionMapperInfo, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, with_row_locks
 from airflow.utils.state import DagRunState, DagSchedulingState
 from airflow.utils.types import DagRunType
@@ -120,6 +122,16 @@ def clear_team_name_cache() -> None:
     """Drop all cached Dag team names (test isolation; the cache is keyed by dag_id)."""
     with _team_name_cache_lock:
         _team_name_cache.clear()
+
+
+def _get_cached_team_name(dag_id: str) -> str | None | ArgNotSet:
+    with _team_name_cache_lock:
+        return _team_name_cache.get(dag_id, NOTSET)
+
+
+def _cache_team_name(dag_id: str, team_name: str | None) -> str | None:
+    with _team_name_cache_lock:
+        return _team_name_cache.setdefault(dag_id, team_name)
 
 
 def infer_automated_data_interval(timetable: Timetable, logical_date: datetime) -> DataInterval:
@@ -907,25 +919,19 @@ class DagModel(Base):
         )
 
     @staticmethod
-    @cached(_team_name_cache, key=lambda dag_id, **_: dag_id, lock=_team_name_cache_lock)
-    @provide_session
-    def get_team_name(dag_id: str, *, session: Session = NEW_SESSION) -> str | None:
+    def get_team_name(dag_id: str, *, session: Session | None = None) -> str | None:
         """Return the team name associated to a Dag or None if it is not owned by a specific team."""
-        return session.scalar(DagModel._build_team_name_query(dag_id))
+        if is_arg_set(team_name := _get_cached_team_name(dag_id)):
+            return team_name
+        with create_session() if session is None else nullcontext(session) as session:
+            return _cache_team_name(dag_id, session.scalar(DagModel._build_team_name_query(dag_id)))
 
     @staticmethod
     async def get_team_name_async(dag_id: str, *, session: AsyncSession) -> str | None:
         """Return the team name of a Dag like :meth:`get_team_name`, sharing its cache."""
-        # The lock is a threading.Lock: held across the await, it would deadlock the next coroutine
-        # on this event loop that looks up a team name.
-        with _team_name_cache_lock:
-            try:
-                return _team_name_cache[dag_id]
-            except KeyError:
-                pass
-        team_name = await session.scalar(DagModel._build_team_name_query(dag_id))
-        with _team_name_cache_lock:
-            return _team_name_cache.setdefault(dag_id, team_name)
+        if is_arg_set(team_name := _get_cached_team_name(dag_id)):
+            return team_name
+        return _cache_team_name(dag_id, await session.scalar(DagModel._build_team_name_query(dag_id)))
 
     @staticmethod
     @provide_session

@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from json import JSONDecodeError
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -109,6 +110,26 @@ def test_build_dag_run_access_requests_includes_team_name(testing_team):
     assert len(requests) == 1
     assert requests[0]["details"].id == "team_owned_dag"
     assert requests[0]["details"].team_name == "testing"
+
+
+@pytest.fixture
+def backfill_session_events():
+    return []
+
+
+@pytest.fixture
+def backfill_lookup_session(backfill_session_events):
+    """Stand in for the short session ``requires_access_backfill`` opens for its lookups."""
+    session = Mock(spec=AsyncSession)
+
+    @asynccontextmanager
+    async def create_session_async():
+        backfill_session_events.append("open")
+        yield session
+        backfill_session_events.append("close")
+
+    with patch("airflow.api_fastapi.core_api.security.create_session_async", create_session_async):
+        yield session
 
 
 @pytest.mark.asyncio
@@ -432,7 +453,7 @@ class TestFastApiSecurity:
     @patch.object(DagModel, "get_team_name_async")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_backfill_authorized_from_path(
-        self, mock_get_auth_manager, mock_get_team_name
+        self, mock_get_auth_manager, mock_get_team_name, backfill_lookup_session
     ):
         """When backfill_id is in path and Backfill exists, dag_id from backfill is used."""
         auth_manager = Mock()
@@ -440,8 +461,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
 
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = "backfill_dag_id"
+        backfill_lookup_session.scalar.return_value = "backfill_dag_id"
 
         request = Mock()
         request.path_params = {"backfill_id": "42"}
@@ -450,7 +470,7 @@ class TestFastApiSecurity:
         user = Mock()
 
         inner = requires_access_backfill("PUT")
-        await inner(request, user, session)
+        await inner(request, user)
 
         auth_manager.is_authorized_dag.assert_called_once_with(
             method="PUT",
@@ -464,15 +484,13 @@ class TestFastApiSecurity:
     @patch.object(DagModel, "get_team_name_async")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_backfill_authorized_from_body(
-        self, mock_get_auth_manager, mock_get_team_name
+        self, mock_get_auth_manager, mock_get_team_name, backfill_lookup_session
     ):
         """With no backfill_id in the path, dag_id comes from the request body (POST backfill)."""
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = True
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
-
-        session = Mock(spec=AsyncSession)
 
         request = Mock()
         request.path_params = {}
@@ -481,7 +499,7 @@ class TestFastApiSecurity:
         user = Mock()
 
         inner = requires_access_backfill("POST")
-        await inner(request, user, session)
+        await inner(request, user)
 
         auth_manager.is_authorized_dag.assert_called_once_with(
             method="POST",
@@ -494,15 +512,16 @@ class TestFastApiSecurity:
     @pytest.mark.asyncio
     @patch.object(DagModel, "get_team_name_async")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
-    async def test_requires_access_backfill_unauthorized(self, mock_get_auth_manager, mock_get_team_name):
+    async def test_requires_access_backfill_unauthorized(
+        self, mock_get_auth_manager, mock_get_team_name, backfill_lookup_session
+    ):
         """A caller who may not read the backfill's Dag is told it does not exist."""
         auth_manager = Mock()
         auth_manager.is_authorized_dag.return_value = False
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = None
 
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = "unauthorized_dag"
+        backfill_lookup_session.scalar.return_value = "unauthorized_dag"
 
         request = Mock()
         request.path_params = {"backfill_id": "1"}
@@ -510,7 +529,7 @@ class TestFastApiSecurity:
 
         inner = requires_access_backfill("GET")
         with pytest.raises(HTTPException) as exc_info:
-            await inner(request, user, session)
+            await inner(request, user)
 
         assert exc_info.value.status_code == 404
         assert exc_info.value.detail == "Backfill not found"
@@ -526,7 +545,7 @@ class TestFastApiSecurity:
     @patch.object(DagModel, "get_team_name_async")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_backfill_forbidden_when_the_dag_is_readable(
-        self, mock_get_auth_manager, mock_get_team_name
+        self, mock_get_auth_manager, mock_get_team_name, backfill_lookup_session
     ):
         """A caller who may read the Dag but not write it keeps the Forbidden answer."""
         auth_manager = Mock(spec=BaseAuthManager)
@@ -534,15 +553,14 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = None
 
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = "readable_dag"
+        backfill_lookup_session.scalar.return_value = "readable_dag"
 
         request = Mock(spec=Request)
         request.path_params = {"backfill_id": "1"}
         user = Mock(spec=BaseUser)
 
         with pytest.raises(HTTPException) as exc_info:
-            await requires_access_backfill("PUT")(request, user, session)
+            await requires_access_backfill("PUT")(request, user)
 
         assert exc_info.value.status_code == 403
 
@@ -551,7 +569,7 @@ class TestFastApiSecurity:
     @patch.object(DagModel, "get_team_name_async")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_backfill_unknown_id_ignores_the_request_dag_id(
-        self, mock_get_auth_manager, mock_get_team_name
+        self, mock_get_auth_manager, mock_get_team_name, backfill_lookup_session
     ):
         """An unknown backfill is not authorized against a Dag the caller names."""
         auth_manager = Mock(spec=BaseAuthManager)
@@ -559,8 +577,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
 
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = None
+        backfill_lookup_session.scalar.return_value = None
 
         request = Mock(spec=Request)
         request.path_params = {"backfill_id": "999"}
@@ -570,7 +587,7 @@ class TestFastApiSecurity:
         user = Mock(spec=BaseUser)
 
         with pytest.raises(HTTPException) as exc_info:
-            await requires_access_backfill("PUT")(request, user, session)
+            await requires_access_backfill("PUT")(request, user)
 
         assert exc_info.value.status_code == 404
         assert exc_info.value.detail == "Backfill not found"
@@ -582,7 +599,7 @@ class TestFastApiSecurity:
     @patch.object(DagModel, "get_team_name_async")
     @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
     async def test_requires_access_backfill_authorizes_the_backfill_the_handler_will_act_on(
-        self, mock_get_auth_manager, mock_get_team_name, backfill_id
+        self, mock_get_auth_manager, mock_get_team_name, backfill_id, backfill_lookup_session
     ):
         """The dependency must resolve the same backfill the handler does, for every spelling.
 
@@ -596,8 +613,7 @@ class TestFastApiSecurity:
         mock_get_auth_manager.return_value = auth_manager
         mock_get_team_name.return_value = "team1"
 
-        session = Mock(spec=AsyncSession)
-        session.scalar.return_value = "backfill_dag"
+        backfill_lookup_session.scalar.return_value = "backfill_dag"
 
         request = Mock(spec=Request)
         request.path_params = {"backfill_id": backfill_id}
@@ -606,7 +622,7 @@ class TestFastApiSecurity:
 
         user = Mock(spec=BaseUser)
 
-        await requires_access_backfill("PUT")(request, user, session)
+        await requires_access_backfill("PUT")(request, user)
 
         # the backfill's own Dag, not the one supplied on the request
         auth_manager.is_authorized_dag.assert_called_once_with(
@@ -615,6 +631,47 @@ class TestFastApiSecurity:
             details=DagDetails(id="backfill_dag", team_name="team1"),
             user=user,
         )
+
+    @pytest.mark.db_test
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("path_params", "body"),
+        [
+            pytest.param({"backfill_id": "1"}, {}, id="backfill-in-path"),
+            pytest.param({}, {"dag_id": "body_dag"}, id="dag-in-body"),
+        ],
+    )
+    @patch.object(DagModel, "get_team_name_async")
+    @patch("airflow.api_fastapi.core_api.security.get_auth_manager")
+    async def test_requires_access_backfill_closes_its_session_before_authorizing(
+        self,
+        mock_get_auth_manager,
+        mock_get_team_name,
+        path_params,
+        body,
+        backfill_lookup_session,
+        backfill_session_events,
+    ):
+        """The lookup session is gone before the handler runs, rather than held idle through it."""
+
+        def authorize(**_):
+            backfill_session_events.append("authorize")
+            return True
+
+        auth_manager = Mock(spec=BaseAuthManager)
+        auth_manager.is_authorized_dag.side_effect = authorize
+        mock_get_auth_manager.return_value = auth_manager
+        mock_get_team_name.return_value = None
+        backfill_lookup_session.scalar.return_value = "backfill_dag"
+
+        request = Mock(spec=Request)
+        request.path_params = path_params
+        request.query_params = {}
+        request.json = AsyncMock(return_value=body)
+
+        await requires_access_backfill("GET")(request, Mock(spec=BaseUser))
+
+        assert backfill_session_events == ["open", "close", "authorize"]
 
     @pytest.mark.db_test
     @pytest.mark.asyncio
@@ -1122,10 +1179,9 @@ class TestFastApiSecurity:
         fastapi_request.path_params = {}
         fastapi_request.json = AsyncMock(return_value={"dag_id": bad_dag_id})
         user = Mock()
-        session = Mock(spec=AsyncSession)
 
         with pytest.raises(HTTPException) as exc_info:
-            await requires_access_backfill("POST")(fastapi_request, user, session)
+            await requires_access_backfill("POST")(fastapi_request, user)
 
         assert exc_info.value.status_code == 400
         assert "dag_id" in exc_info.value.detail
