@@ -110,6 +110,24 @@
     "allSources": "Totes les fonts",
     "critical": "CRÍTIC",
     "debug": "DEPURACIÓ",
+    "durable": {
+      "detail": {
+        "already_succeeded": "El procés ja havia acabat i no ha calgut tornar-lo a executar.",
+        "reconnected": "S'ha evitat tornar a executar un procés d'uns {{duration}}.",
+        "reconnectedFailed": "S'ha esperat que acabés el procés existent sense iniciar-ne cap altra còpia, però el procés ha fallat.",
+        "reconnectedNoDuration": "S'ha aprofitat el procés existent sense iniciar-ne cap altra còpia.",
+        "reconnectedRunning": "S'està esperant que acabi el procés en curs sense tornar-lo a iniciar."
+      },
+      "job": {
+        "id": "ID del procés: {{id}}",
+        "runTime": "Durada de l'execució: {{duration}}",
+        "submittedAt": "Enviat:"
+      },
+      "title": {
+        "already_succeeded": "S'ha reutilitzat el resultat d'un procés ja finalitzat",
+        "reconnected": "S'ha restablert la connexió amb el procés existent"
+      }
+    },
     "error": "ERROR",
     "info": "INFO",
     "noTryNumber": "Sense número d'intent",
@@ -288,7 +306,7 @@
     "clearAll": {
       "resource": "tot el magatzem de tasca",
       "title": "Netejar tot el magatzem de tasca",
-      "warning": "S'esborrarà tot el magatzem de tasca. Les tasques que utilitzen aquest magatzem per fer seguiment de feina externa no podran reprendre-la sense tornar a executar-se des de zero."
+      "warning": "S'esborrarà tot el magatzem de tasca, inclòs l'historial d'execucions duradores que es mostra a la pàgina de registres de la tasca. Les tasques que utilitzen aquest magatzem per fer seguiment de feina externa no podran reprendre-la sense tornar a executar-se des de zero."
     },
     "delete": "Eliminar magatzem de tasca",
     "deleteWarning": "La tasca perdrà aquesta memòria persistent. Si la tasca utilitza aquesta clau per fer seguiment de feina externa (p. ex., un ID de treball extern), no podrà reprendre-la.",
