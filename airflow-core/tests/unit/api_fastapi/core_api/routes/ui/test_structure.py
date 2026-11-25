@@ -53,6 +53,8 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "trigger_id": None,
+            "trigger_status": None,
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
         },
@@ -71,6 +73,8 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "trigger_id": None,
+            "trigger_status": None,
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
         },
@@ -89,6 +93,8 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "trigger_id": None,
+            "trigger_status": None,
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
         },
@@ -194,6 +200,8 @@ class TestStructureDataEndpoint:
                     "nodes": [
                         {
                             "asset_condition_type": None,
+                            "trigger_id": None,
+                            "trigger_status": None,
                             "ui_color": "#e8f7e4",
                             "ui_fgcolor": "#000",
                             "children": None,
@@ -212,6 +220,8 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "asset_condition_type": None,
+                            "trigger_id": None,
+                            "trigger_status": None,
                             "ui_color": "#4db7db",
                             "ui_fgcolor": "#000",
                             "children": None,
@@ -230,6 +240,8 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "asset_condition_type": None,
+                            "trigger_id": None,
+                            "trigger_status": None,
                             "ui_color": "#e8f7e4",
                             "ui_fgcolor": "#000",
                             "children": None,
@@ -270,6 +282,8 @@ class TestStructureDataEndpoint:
                     "nodes": [
                         {
                             "asset_condition_type": None,
+                            "trigger_id": None,
+                            "trigger_status": None,
                             "ui_color": "#e8f7e4",
                             "ui_fgcolor": "#000",
                             "children": None,

@@ -52,7 +52,7 @@ export const DagImportErrorDetails = ({ importError }: { readonly importError: I
         <PiFilePy />
         {importError.filename}
         <ClipboardRoot value={importError.stack_trace}>
-          <ClipboardIconButton variant="outline" />
+          <ClipboardIconButton label={translate("importErrors.copyStackTrace")} variant="outline" />
         </ClipboardRoot>
         <IconButton
           data-testid="reparse-import-error"

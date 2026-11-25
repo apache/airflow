@@ -28,10 +28,9 @@ the external job identifier to task state store before polling begins. If the wo
 or the host is preempted, the next retry reconnects to the already running job instead of submitting
 a duplicate.
 
-This mixin is not a replacement for deferrable operators. Deferrable operators free the
-worker slot during polling and are the recommended approach when a Triggerer is available.
-Use this mixin when you want crash safety on an existing synchronous operator without
-migrating to the deferrable pattern, or when your deployment does not include a Triggerer.
+The mixin works with both synchronous and deferrable operators. A synchronous operator calls
+``execute_resumable``. A deferrable operator calls two smaller methods before ``defer()``, see
+:ref:`sdk-resumable-job-mixin-deferrable`.
 
 For guidance on choosing between deferrable, resumable, and async approaches, see
 :ref:`apache-airflow:concepts-resumable-tasks`.
@@ -119,6 +118,27 @@ to check the current state of the job:
    longer than ``default_retention_days``, the identifier could be gone by the next retry,
    causing the operator to submit a fresh job instead of reconnecting.
 
+.. _sdk-resumable-job-mixin-banner:
+
+Durable execution banner
+------------------------
+
+When a retry reconnects to a running job, or uses the result of a job that already finished, the
+task logs page shows a banner saying so. The mixin records what each try did under the
+``__airflow_durable__`` task state store key, and the banner reads it. A deferrable operator that
+reconnects shows the banner without a job status, because the outcome is known only after the
+Triggerer fires and nothing records it there. Deployments that set ``[workers] state_store_backend``
+do not show the banner, because the record is offloaded with every other value and the banner reads
+only what is stored in the metadata database.
+
+.. note::
+
+   Only operators that use ``ResumableJobMixin`` show the banner. ``KubernetesPodOperator``,
+   ``MSGraphAsyncOperator`` and ``AgentOperator`` implement durable execution on their own and do
+   not record what each try did, so they reconnect without a banner. ``GlueJobOperator`` with
+   ``deferrable=True`` uses the mixin but finds a retry's run by searching Glue job runs instead,
+   so it shows no banner either.
+
 Example
 -------
 
@@ -152,6 +172,35 @@ Example
 
         def get_job_result(self, external_id: JsonValue, context):
             return None
+
+.. _sdk-resumable-job-mixin-deferrable:
+
+Deferrable operators
+--------------------
+
+A deferrable operator can't use ``execute_resumable``, because the Triggerer does the polling.
+Call these two methods before ``defer()`` instead:
+
+* ``get_resume_decision(context)`` checks the stored job and returns a
+  :class:`~airflow.sdk.ResumeDecision`. Its ``action`` is ``"submit"``, ``"reconnect"`` or
+  ``"already_succeeded"``. It never submits or polls. It records a reconnect or an already
+  succeeded job for the :ref:`durable execution banner <sdk-resumable-job-mixin-banner>`.
+* ``persist_job_id(context, job_id)`` saves a new job's id so a retry can find it.
+
+.. code-block:: python
+
+    def execute(self, context):
+        decision = self.get_resume_decision(context)
+        if decision.action == "already_succeeded":
+            return self.get_job_result(decision.external_id, context)
+
+        if decision.action == "reconnect":
+            job_id = decision.external_id
+        else:
+            job_id = self.submit_job(context)
+            self.persist_job_id(context, job_id)
+
+        self.defer(trigger=MyBatchTrigger(job_id=job_id), method_name="execute_complete")
 
 .. _sdk-resumable-job-mixin-resume-on-retry:
 

@@ -157,13 +157,13 @@ class TestVariable:
     @conf_vars({("core", "multi_team"): "True"})
     def test_get_variable_with_team(self, testing_team, session):
         Variable.set(key="key", value="value", team_name=testing_team.name, session=session)
-        result = Variable.get(key="key", team_name=testing_team.name)
+        result = Variable.get(key="key", team_name=testing_team.name, session=session)
         assert result == "value"
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_get_global_variable_with_team(self, testing_team, session):
         Variable.set(key="key", value="value", session=session)
-        result = Variable.get(key="key", team_name=testing_team.name)
+        result = Variable.get(key="key", team_name=testing_team.name, session=session)
         assert result == "value"
 
     @conf_vars({("core", "multi_team"): "True"})
@@ -192,7 +192,7 @@ class TestVariable:
         # invalidate the cache to re-evaluate value
         SecretCache.invalidate_variable("key")
         # now that env var is not here anymore, we see the value we set before.
-        assert Variable.get("key") == "new-db-value"
+        assert Variable.get("key", session=session) == "new-db-value"
 
         assert caplog.messages[0] == (
             "The variable key is defined in the EnvironmentVariablesBackend secrets backend, "
@@ -379,9 +379,9 @@ class TestVariable:
 
     def test_variable_update(self, session):
         Variable.set(key="test_key", value="value1", session=session)
-        assert Variable.get(key="test_key") == "value1"
+        assert Variable.get(key="test_key", session=session) == "value1"
         Variable.update(key="test_key", value="value2", session=session)
-        assert Variable.get("test_key") == "value2"
+        assert Variable.get("test_key", session=session) == "value2"
 
     def test_variable_update_fails_on_non_metastore_variable(self, session):
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
@@ -390,7 +390,7 @@ class TestVariable:
 
     def test_variable_update_preserves_description(self, session):
         Variable.set(key="key", value="value", description="a test variable", session=session)
-        assert Variable.get("key") == "value"
+        assert Variable.get("key", session=session) == "value"
         Variable.update("key", "value2")
         test_var = session.scalar(select(Variable).where(Variable.key == "key"))
         assert test_var.val == "value2"
@@ -400,13 +400,13 @@ class TestVariable:
     def test_variable_update_with_team(self, testing_team, session):
         Variable.set(key="test_key", value="value1", team_name=testing_team.name, session=session)
         Variable.update(key="test_key", value="value2", team_name=testing_team.name, session=session)
-        assert Variable.get("test_key", team_name=testing_team.name) == "value2"
+        assert Variable.get("test_key", team_name=testing_team.name, session=session) == "value2"
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_variable_update_with_team_global(self, testing_team, session):
         Variable.set(key="test_key", value="value1", session=session)
         Variable.update(key="test_key", value="value2", team_name=testing_team.name, session=session)
-        assert Variable.get("test_key", team_name=testing_team.name) == "value2"
+        assert Variable.get("test_key", team_name=testing_team.name, session=session) == "value2"
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_variable_update_with_wrong_team(self, testing_team, session):
@@ -436,7 +436,7 @@ class TestVariable:
         test_key = "test_key"
         Variable.set(key=test_key, value=test_value, session=session)
         Variable.set(key=test_key, value="", session=session)
-        assert Variable.get("test_key") == ""
+        assert Variable.get("test_key", session=session) == ""
 
     def test_get_non_existing_var_should_return_default(self):
         default_value = "some default val"
@@ -491,12 +491,12 @@ class TestVariable:
 
         # Set the variable
         Variable.set(key=key, value=value, session=session)
-        assert value == Variable.get(key)
+        assert value == Variable.get(key, session=session)
 
         # Delete the variable
         Variable.delete(key=key, session=session)
         with pytest.raises(KeyError):
-            Variable.get(key)
+            Variable.get(key, session=session)
 
     @conf_vars({("core", "multi_team"): "True"})
     def test_variable_delete_with_team(self, testing_team, session):
@@ -555,7 +555,7 @@ class TestVariable:
 
         Variable.set(key="k", value="v2", team_name=testing_team.name, session=session)
 
-        assert Variable.get("k") == "v2"
+        assert Variable.get("k", session=session) == "v2"
 
     @mock.patch("airflow.models.variable.ensure_secrets_loaded")
     def test_caching_caches(self, mock_ensure_secrets: mock.Mock):
@@ -581,7 +581,7 @@ class TestVariable:
         # setting a new value invalidates the cache
         Variable.set(key="key", value="new_value", session=session)
 
-        c = Variable.get("key")  # cache should not be used
+        c = Variable.get("key", session=session)  # cache should not be used
 
         assert c != b
 

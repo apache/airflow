@@ -380,6 +380,14 @@ def test_provider_index_template_renders_optional_dependencies():
     assert "``aiobotocore``" in rendered
 
 
+def test_provider_commits_template_starts_with_license_header():
+    context = get_provider_jinja_context("amazon", current_release_version="1.0.0", version_suffix="")
+    rendered = render_template(
+        template_name="PROVIDER_COMMITS", context=context, extension=".rst", keep_trailing_newline=True
+    )
+    assert rendered.startswith(" .. Licensed to the Apache Software Foundation (ASF) under one\n")
+
+
 def test_provider_index_template_omits_optional_dependencies_when_none():
     context = get_provider_jinja_context("amazon", current_release_version="1.0.0", version_suffix="")
     context["OPTIONAL_DEPENDENCIES"] = {}

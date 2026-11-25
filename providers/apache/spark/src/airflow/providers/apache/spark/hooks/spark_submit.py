@@ -31,7 +31,7 @@ from collections import deque
 from collections.abc import Iterator
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 
@@ -48,6 +48,7 @@ with contextlib.suppress(ImportError, NameError):
     from airflow.providers.cncf.kubernetes import kube_client
 
 if TYPE_CHECKING:
+    from kubernetes.client import V1PodStatus
     from requests.auth import AuthBase
 
 DEFAULT_SPARK_BINARY = "spark-submit"
@@ -1302,11 +1303,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     time.sleep(poll_interval)
                     continue
 
-                phase = pod.status.phase or "Initializing"
+                status = cast("V1PodStatus", pod.status)
+                phase = status.phase or "Initializing"
                 self.log.info("Application status for %s (phase: %s)", app_id, phase)
                 if phase == "Succeeded":
-                    if pod.status.container_statuses:
-                        cs = pod.status.container_statuses[0]
+                    if status.container_statuses:
+                        cs = status.container_statuses[0]
                         if cs.state and cs.state.terminated:
                             t = cs.state.terminated
                             self.log.info(
@@ -1320,8 +1322,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     break
                 if phase == "Failed":
                     container_state = ""
-                    if pod.status.container_statuses:
-                        cs = pod.status.container_statuses[0]
+                    if status.container_statuses:
+                        cs = status.container_statuses[0]
                         if cs.state and cs.state.terminated:
                             container_state = f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
                     raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
@@ -1400,10 +1402,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         try:
             client = kube_client.get_kube_client()
             client.delete_namespaced_pod(
-                self._kubernetes_driver_pod,
+                cast("str", self._kubernetes_driver_pod),
                 self._connection["namespace"],
                 body=kubernetes.client.V1DeleteOptions(),
-                pretty=True,
+                pretty="true",
             )
             self.log.info("Deleted driver pod %s", self._kubernetes_driver_pod)
         except kube_client.ApiException:

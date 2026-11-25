@@ -24,6 +24,9 @@ import org.apache.airflow.sdk.Client
 import org.apache.airflow.sdk.ConditionTask
 import org.apache.airflow.sdk.Context
 import org.apache.airflow.sdk.DagDef
+import org.apache.airflow.sdk.PlainCheckingTask
+import org.apache.airflow.sdk.PlainWaitingTask
+import org.apache.airflow.sdk.StoppableTask
 import org.apache.airflow.sdk.SwitchTask
 import org.apache.airflow.sdk.Task
 import org.apache.airflow.sdk.TaskDef
@@ -39,10 +42,14 @@ import org.apache.airflow.sdk.execution.comm.TaskState
 import org.junit.jupiter.api.Assertions
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Timeout
+import sun.misc.Signal
 import java.io.ByteArrayOutputStream
 import java.io.PrintStream
 import java.time.OffsetDateTime
 import java.util.UUID
+import java.util.concurrent.CancellationException
+import java.util.concurrent.TimeUnit
 
 class TaskTest {
   @Test
@@ -51,6 +58,39 @@ class TaskTest {
     val result = runTask(bundleWith("success", SuccessTask::class.java), startupDetails(taskId = "success"), noOpClient())
 
     Assertions.assertInstanceOf(SucceedTask::class.java, result)
+  }
+
+  @Test
+  @DisplayName("Should return failed when a task throws CancellationException, as a future it waits for does")
+  fun shouldReturnFailedWhenTaskThrowsCancellationException() {
+    val result = runTask(bundleWith("cancelled", CancelledTask::class.java), startupDetails(taskId = "cancelled"), noOpClient())
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
+  @Test
+  @DisplayName("Should leave signals alone when a stoppable task runs without a server")
+  @Timeout(value = 60, unit = TimeUnit.SECONDS)
+  fun shouldLeaveSignalsAloneWithoutServer() =
+    withSignalRecorder("TERM") { recorded ->
+      val result = runTask(bundleWith("stoppable", StoppableSuccessTask::class.java), startupDetails(taskId = "stoppable"), noOpClient())
+
+      Assertions.assertInstanceOf(SucceedTask::class.java, result)
+      Signal.raise(Signal("TERM"))
+      Assertions.assertEquals(listOf("SIGTERM"), pollSignals(recorded, 1), "running the task should not leave a trap open")
+    }
+
+  @Test
+  @DisplayName("Should push a null result as a null XCom")
+  fun shouldPushNullResult() {
+    val transport = RecordingTransport()
+
+    val details = startupDetails(taskId = "null_result")
+    val result = runTask(bundleWith("null_result", NullResultTask::class.java), details, Client(details, transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals(listOf("return_value" to null), transport.xComs)
   }
 
   @Test
@@ -166,6 +206,19 @@ class TaskTest {
       val details = startupDetails(taskId = "uninstantiable")
       details.tiContext?.shouldRetry = true
       val result = runTask(bundleWith("uninstantiable", taskClass), details, noOpClient())
+
+      Assertions.assertInstanceOf(TaskState::class.java, result) { "unexpected result for ${taskClass.simpleName}: $result" }
+      Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+    }
+  }
+
+  @Test
+  @DisplayName("Should fail a plain task that checks for a stop request, without a retry even if should_retry is true")
+  fun shouldReturnFailedWithoutRetryWhenPlainTaskChecksForStopRequest() {
+    for (taskClass in listOf(PlainCheckingTask::class.java, PlainWaitingTask::class.java)) {
+      val details = startupDetails(taskId = "checking")
+      details.tiContext?.shouldRetry = true
+      val result = Cancellation().use { TaskRunner.runTask(bundleWith("checking", taskClass), details, noOpClient(), it) }
 
       Assertions.assertInstanceOf(TaskState::class.java, result) { "unexpected result for ${taskClass.simpleName}: $result" }
       Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
@@ -308,15 +361,17 @@ class TaskTest {
   }
 
   @Test
-  @DisplayName("Should fail a trigger task whose client throws")
+  @DisplayName("Should fail a trigger task whose client throws, including when the client throws CancellationException")
   fun shouldFailTriggerTaskWhenClientThrows() {
-    val transport = RecordingTransport().also { it.triggerFailure = IllegalStateException("boom") }
+    for (failure in listOf(IllegalStateException("boom"), CancellationException("the request was cancelled"))) {
+      val transport = RecordingTransport().also { it.triggerFailure = failure }
 
-    val result = runTask(triggerBundle(), startupDetails(taskId = "trigger"), Client(startupDetails("trigger"), transport))
+      val result = runTask(triggerBundle(), startupDetails(taskId = "trigger"), Client(startupDetails("trigger"), transport))
 
-    Assertions.assertInstanceOf(TaskState::class.java, result)
-    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
-    Assertions.assertFalse("trigger_run_id" in transport.xComs.map { it.first })
+      Assertions.assertInstanceOf(TaskState::class.java, result, failure.javaClass.simpleName)
+      Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state, failure.javaClass.simpleName)
+      Assertions.assertFalse("trigger_run_id" in transport.xComs.map { it.first }, failure.javaClass.simpleName)
+    }
   }
 
   private fun triggerBundle(): Bundle {
@@ -406,7 +461,7 @@ class TaskTest {
 
         override fun setXCom(
           key: String,
-          value: Any,
+          value: Any?,
           dagId: String,
           taskId: String,
           runId: String,
@@ -508,7 +563,7 @@ class TaskTest {
 
   /** Records what a deciding task pushed and asked to skip, and the order of the two. */
   private class RecordingTransport : org.apache.airflow.sdk.execution.Client {
-    val xComs = mutableListOf<Pair<String, Any>>()
+    val xComs = mutableListOf<Pair<String, Any?>>()
     val skipped = mutableListOf<String>()
     val events = mutableListOf<String>()
     val triggered = mutableListOf<String>()
@@ -516,7 +571,7 @@ class TaskTest {
 
     override fun setXCom(
       key: String,
-      value: Any,
+      value: Any?,
       dagId: String,
       taskId: String,
       runId: String,
@@ -598,6 +653,33 @@ class TaskTest {
       context: Context,
       client: Client,
     ) {
+    }
+  }
+
+  class StoppableSuccessTask : StoppableTask {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+    }
+
+    override fun onKill(context: Context) = Unit
+  }
+
+  class CancelledTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ): Unit = throw CancellationException("the future this task waits for was cancelled")
+  }
+
+  /** What the processor generates for a task method that returns a reference type and returns null. */
+  class NullResultTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      client.setXCom(value = null)
     }
   }
 

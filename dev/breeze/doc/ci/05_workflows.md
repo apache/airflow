@@ -68,6 +68,15 @@ for these builds, we only execute Python tests if significant files have
 changed. For instance, if the PR involves a "no-code" change, no tests
 will be executed.
 
+Draft PRs get these runs too, on `opened` and `synchronize`. Marking a draft
+ready for review starts another run, which finishes at once when the head of
+the PR already has a passing `CI passed` check: its first job, `Check if the run
+is needed`, finds that check and every other job is skipped. The earlier
+`CI passed` stays on the commit, so the PR can merge on it. When there is no
+passing `CI passed` for the head, the run tests it in full. That is how a PR whose
+earlier runs failed, were cancelled or still wait for approval, such as the
+scheduled CI upgrade PRs, gets a fresh run when a maintainer marks it ready.
+
 Regular PR builds run in a "stable" environment:
 
 - fixed set of constraints (constraints that passed the tests) - except

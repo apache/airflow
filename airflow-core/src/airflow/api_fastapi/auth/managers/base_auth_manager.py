@@ -23,7 +23,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from enum import Enum
+from enum import StrEnum
 from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
@@ -86,7 +86,7 @@ if TYPE_CHECKING:
 else:
     # For runtime - provides iteration and validation
 
-    class ResourceMethod(str, Enum):
+    class ResourceMethod(StrEnum):
         """HTTP methods (actions) a user can perform against a resource."""
 
         GET = "GET"
@@ -94,10 +94,7 @@ else:
         PUT = "PUT"
         DELETE = "DELETE"
 
-        def __str__(self) -> str:
-            return self.value
-
-    class ExtendedResourceMethod(str, Enum):
+    class ExtendedResourceMethod(StrEnum):
         """Extended HTTP methods including MENU for UI resource authorization."""
 
         GET = "GET"
@@ -105,9 +102,6 @@ else:
         PUT = "PUT"
         DELETE = "DELETE"
         MENU = "MENU"
-
-        def __str__(self) -> str:
-            return self.value
 
 
 log = logging.getLogger(__name__)
@@ -147,6 +141,10 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     def deserialize_user(self, token: dict[str, Any]) -> T:
         """Create a user object from dict."""
 
+    async def deserialize_user_async(self, token: dict[str, Any]) -> T:
+        """Extension point for asynchronously creating a user object from token claims."""
+        return self.deserialize_user(token)
+
     @abstractmethod
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a subject and extra claims dict from a user object."""
@@ -168,7 +166,7 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             raise InvalidTokenError("Token has been revoked")
 
         try:
-            return self.deserialize_user(payload)
+            return await self.deserialize_user_async(payload)
         except (ValueError, KeyError) as e:
             log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
             raise InvalidTokenError(str(e))

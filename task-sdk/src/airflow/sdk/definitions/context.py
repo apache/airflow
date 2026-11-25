@@ -24,14 +24,11 @@ from collections.abc import MutableMapping
 from typing import TYPE_CHECKING, Any, NamedTuple, NotRequired, TypedDict, cast
 
 
-class CallbackSource(str, enum.Enum):
+class CallbackSource(enum.StrEnum):
     """Whether a callback was triggered at the Dag level or the task level."""
 
     DAG = "dag"
     TASK = "task"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class CallbackMeta(NamedTuple):

@@ -614,6 +614,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         method = current_app.config.get("FAB_PASSWORD_HASH_METHOD", "scrypt")
         return generate_password_hash(password, method=method)
 
+    def set_user_password(self, user: User, password: str) -> None:
+        """
+        Set a new password and invalidate the API tokens and Flask sessions issued under the old one.
+
+        Nothing is committed: the caller persists both changes together, normally with
+        ``update_user``.
+        """
+        user.password = self._hash_password(password)
+        # Incremented in SQL so that concurrent password changes cannot write the same value.
+        user.token_generation = self.user_model.token_generation + 1
+
     def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
@@ -626,7 +637,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         if not user:
             return False
-        user.password = self._hash_password(password)
+        self.set_user_password(user, password)
         self.reset_user_sessions(user)
         return self.update_user(user)
 
@@ -660,17 +671,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     if session_user_id is not None and str(session_user_id) == str(user.id):
                         session.delete(s)
                 session.commit()
-        else:
-            safe_username = escape(user.username)
-            self._cli_safe_flash(
-                "Since you are using `securecookie` session backend mechanism, we cannot prevent "
-                f"some old sessions for user {safe_username} to be reused.<br> If you want to make sure "
-                "that the user is logged out from all sessions, you should consider using "
-                "`database` session backend mechanism.<br> You can also change the 'secret_key` "
-                "webserver configuration for all your webserver instances and restart the webserver. "
-                "This however will logout all users from all sessions.",
-                "warning",
-            )
 
     def load_user_jwt(self, _jwt_header, jwt_data) -> User | None:
         identity = jwt_data["sub"]
@@ -1569,8 +1569,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         password: str = "",
         hashed_password: str = "",
         groups: list[Group] | None = None,
-    ) -> User:
-        """Create a user."""
+    ) -> User | None:
+        """Create a user; return ``None`` if it cannot be saved."""
         roles: list[Role] = []
         if role:
             roles = role if isinstance(role, list) else [role]
@@ -1596,7 +1596,32 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
             self.session.rollback()
-            raise FabException(const.LOGMSG_ERR_SEC_ADD_USER) from e
+            return None
+
+    def _register_user_on_login(
+        self,
+        username: str,
+        first_name: str,
+        last_name: str,
+        email: str,
+        role: list[Role] | Role | None,
+    ) -> User | None:
+        """
+        Create a user on first login; return ``None`` if no active user can be used.
+
+        A parallel first login for the same username can win the insert, so the
+        user it created is used instead of denying this login.
+        """
+        user = self.add_user(
+            username=username, first_name=first_name, last_name=last_name, email=email, role=role
+        )
+        if user is None:
+            user = self.find_user(username=username)
+            if user is not None:
+                log.info("User %s was registered by a parallel login, using that user", username)
+        if user is None or not user.is_active:
+            return None
+        return user
 
     def load_user(self, pk: int) -> User | None:
         try:
@@ -1687,6 +1712,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.session.rollback()
             return False
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+        FabAuthManager.evict_cached_user(user.id)
         return True
 
     @staticmethod
@@ -2219,7 +2247,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             # If the user is new, register them
             if (not user) and user_attributes and self.auth_user_registration:
-                user = self.add_user(
+                user = self._register_user_on_login(
                     username=username,
                     first_name=self.ldap_extract(user_attributes, self.auth_ldap_firstname_field, ""),
                     last_name=self.ldap_extract(user_attributes, self.auth_ldap_lastname_field, ""),
@@ -2378,7 +2406,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # If the user is new, register them
         if (not user) and self.auth_user_registration:
-            user = self.add_user(
+            user = self._register_user_on_login(
                 username=username,
                 first_name=userinfo.get("first_name", ""),
                 last_name=userinfo.get("last_name", ""),
@@ -2550,7 +2578,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # User does not exist, create one if auto user registration.
         if user is None and self.auth_user_registration:
-            user = self.add_user(
+            user = self._register_user_on_login(
                 # All we have is REMOTE_USER, so we set
                 # the other fields to blank.
                 username=username,
@@ -2561,8 +2589,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             )
 
         # If user does not exist on the DB and not auto user registration,
-        # or user is inactive, go away.
-        elif user is None or (not user.is_active):
+        # registration failed, or user is inactive, go away.
+        if user is None or (not user.is_active):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 
