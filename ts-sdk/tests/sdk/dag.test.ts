@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
@@ -455,14 +455,14 @@ describe("Dag", () => {
     expect(dag.taskIds).toHaveLength(TRIGGER_RULES.size + WEIGHT_RULES.size);
   });
 
-  it.each([
+  const coreDir = join(dirname(fileURLToPath(import.meta.url)), "../../../airflow-core");
+
+  // Skipped outside the monorepo, such as in an extracted source release.
+  it.skipIf(!existsSync(coreDir)).each([
     ["trigger_rule.py", TRIGGER_RULES],
     ["weight_rule.py", WEIGHT_RULES],
   ])("matches the values of Airflow's %s", (file, rules) => {
-    const source = readFileSync(
-      join(dirname(fileURLToPath(import.meta.url)), "../../../airflow-core/src/airflow/task", file),
-      "utf8",
-    );
+    const source = readFileSync(join(coreDir, "src/airflow/task", file), "utf8");
     const values = [...source.matchAll(/^ {4}[A-Z_]+ = "([a-z_]+)"$/gm)].map((match) => match[1]);
     expect(new Set(values)).toEqual(rules);
   });
