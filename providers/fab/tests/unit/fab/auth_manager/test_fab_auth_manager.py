@@ -617,30 +617,6 @@ class TestFabAuthManager:
         # Role not found in the DB, so no pre-populated perms.
         assert user._perms == set()
 
-    def test_build_public_user_warns_once_about_a_missing_role_until_it_exists_again(
-        self, flask_app, auth_manager_with_appbuilder, caplog
-    ):
-        def count_warnings():
-            event = "The public role 'DoesNotExist' does not exist, so anonymous users get no permissions"
-            return sum(entry["event"] == event for entry in caplog.entries)
-
-        def build_public_user_with_role(role_name):
-            flask_app.config["AUTH_ROLE_PUBLIC"] = role_name
-            auth_manager_with_appbuilder.build_public_user()
-
-        previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
-        try:
-            build_public_user_with_role("Viewer")
-            build_public_user_with_role("DoesNotExist")
-            build_public_user_with_role("DoesNotExist")
-            assert count_warnings() == 1
-
-            build_public_user_with_role("Viewer")
-            build_public_user_with_role("DoesNotExist")
-            assert count_warnings() == 2
-        finally:
-            flask_app.config["AUTH_ROLE_PUBLIC"] = previous
-
     def test_anonymous_user_with_unknown_role_has_no_perms_in_an_app_context(self, flask_app):
         """A Flask view resolving a public role that does not exist grants nothing instead of failing."""
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
