@@ -13931,6 +13931,77 @@ def test_create_dagruns_asset_gated_dequeues_already_consumed_events(
     assert set(session.scalars(query)) == {event.id for event in events[1:]}
 
 
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+@mock.patch("airflow.jobs.scheduler_job_runner._associate_asset_events_with_dag_run", autospec=True)
+def test_create_dagruns_asset_gated_event_queued_during_association_waits_for_next_run(
+    mock_associate_asset_events, session: Session, dag_maker
+):
+    asset = Asset(uri="test://asset-gated-late-event", name="asset-gated-late-event")
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    with dag_maker(
+        dag_id="asset-gated-late-event",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        catchup=True,
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    first_event = AssetEvent(id=1000, asset_id=asset_id, timestamp=logical_date)
+    session.add(first_event)
+    session.flush()
+    session.add(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=first_event.id)
+    )
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+    session.flush()
+
+    second_event_ids: list[int] = []
+
+    def queue_second_event_then_associate(*, dag_run, asset_event_ids_select, session):
+        if not second_event_ids:
+            second_event = AssetEvent(id=2000, asset_id=asset_id, timestamp=logical_date)
+            session.add(second_event)
+            session.flush()
+            second_event_ids.append(second_event.id)
+            session.add(
+                AssetDagRunQueue(
+                    asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=second_event.id
+                )
+            )
+            session.flush()
+        return _associate_asset_events_with_dag_run(
+            dag_run=dag_run,
+            asset_event_ids_select=asset_event_ids_select,
+            session=session,
+        )
+
+    mock_associate_asset_events.side_effect = queue_second_event_then_associate
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+
+    runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    first_run = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one()
+    assert [event.id for event in first_run.consumed_asset_events] == [first_event.id]
+    query = select(AssetDagRunQueue.asset_event_id).where(AssetDagRunQueue.target_dag_id == dag_model.dag_id)
+    assert session.scalars(query).all() == second_event_ids
+
+    runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    runs = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id).order_by(DagRun.id)).all()
+    assert len(runs) == 2
+    assert [event.id for event in runs[1].consumed_asset_events] == second_event_ids
+    assert session.scalars(query).all() == []
+
+
 @time_machine.travel("2026-03-29 19:00:00+00:00")
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
