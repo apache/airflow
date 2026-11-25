@@ -33,6 +33,7 @@ from ci.prek.common_prek_utils import (
     is_duplicated_namespace_init,
     is_hidden_within_root,
     pre_process_mypy_files,
+    read_airflow_branch,
     read_airflow_version,
     read_allowed_kubernetes_versions,
     read_allowed_python_major_minor_versions,
@@ -426,6 +427,33 @@ class TestReadCurrentMysqlVersions:
         # MYSQL_LTS_RELEASES is an annotated assignment (``NAME: list[str] = [...]``);
         # the reader must handle it, so its value must show up here.
         assert "8.4" in read_current_mysql_versions()
+
+
+class TestReadAirflowBranch:
+    @pytest.mark.parametrize(
+        ("content", "expected"),
+        [
+            pytest.param('    AIRFLOW_BRANCH = "v2-2-test"\nAIRFLOW_BRANCH = "main"\n', "main", id="main"),
+            pytest.param('AIRFLOW_BRANCH = "v3-4-test"\n', "v3-4-test", id="release-branch"),
+        ],
+    )
+    def test_reads_branch_defaults(self, monkeypatch, tmp_path, content, expected):
+        branch_defaults = tmp_path / "branch_defaults.py"
+        branch_defaults.write_text(content)
+        monkeypatch.setattr(common_prek_utils, "BRANCH_DEFAULTS_PATH", branch_defaults)
+
+        assert read_airflow_branch() == expected
+
+    def test_requires_the_branch_default(self, monkeypatch, tmp_path):
+        branch_defaults = tmp_path / "branch_defaults.py"
+        branch_defaults.write_text('DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"\n')
+        monkeypatch.setattr(common_prek_utils, "BRANCH_DEFAULTS_PATH", branch_defaults)
+
+        with pytest.raises(RuntimeError, match="No AIRFLOW_BRANCH"):
+            read_airflow_branch()
+
+    def test_this_checkout_has_a_branch(self):
+        assert read_airflow_branch()
 
 
 class TestConsoleDiff:

@@ -34,7 +34,6 @@ from __future__ import annotations
 
 import importlib.util
 import os
-import re
 import subprocess
 import sys
 import tomllib
@@ -43,13 +42,12 @@ from datetime import UTC, datetime
 from types import ModuleType
 
 import yaml
-from common_prek_utils import AIRFLOW_BREEZE_SOURCES_PATH, AIRFLOW_ROOT_PATH
+from common_prek_utils import AIRFLOW_BREEZE_SOURCES_PATH, AIRFLOW_ROOT_PATH, read_airflow_branch
 
 CONFIG_PATH = ".github/fork-ci-gate.toml"
 ASF_YAML_PATH = ".asf.yaml"
 UPSTREAM_URL = "https://github.com/apache/airflow.git"
 GATE_MODULE_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "utils" / "fork_ci_gate.py"
-BRANCH_DEFAULTS_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "branch_defaults.py"
 
 
 def load_gate_module() -> ModuleType:
@@ -174,15 +172,6 @@ def _git(*args: str) -> str | None:
     return result.stdout if result.returncode == 0 else None
 
 
-def get_airflow_branch() -> str:
-    """Read the upstream branch used by Breeze for this checkout."""
-    defaults = BRANCH_DEFAULTS_PATH.read_text(encoding="utf-8")
-    match = re.search(r'^AIRFLOW_BRANCH = "([^"]+)"$', defaults, re.MULTILINE)
-    if match is None:
-        raise ValueError(f"No AIRFLOW_BRANCH in {BRANCH_DEFAULTS_PATH}")
-    return match[1]
-
-
 def resolve_base_ref() -> str | None:
     """Return the revision to compare the configuration with, or None when there is none."""
     # CI checks out the pull request's merge commit shallowly, without any base branch ref, so
@@ -200,6 +189,8 @@ def resolve_base_ref() -> str | None:
             "schedule",
             "workflow_dispatch",
         ):
+            # Entries on a merged branch were checked before their merge, and an entry merged
+            # after its instant passed must not fail every later run of the branch.
             return "HEAD"
         if event_name == "push":
             # merge-with-base sets the tested base as the first parent and the pushed SHA as the second.
@@ -207,7 +198,7 @@ def resolve_base_ref() -> str | None:
             if pushed_sha and _git("rev-parse", "--verify", "--quiet", "HEAD^2") == f"{pushed_sha}\n":
                 return "HEAD^1"
 
-    branch = base_branch or get_airflow_branch()
+    branch = base_branch or read_airflow_branch()
     head = (_git("rev-parse", "HEAD") or "").strip()
     for candidate in (f"upstream/{branch}", f"origin/{branch}", branch):
         if _git("rev-parse", "--verify", "--quiet", candidate) is not None:

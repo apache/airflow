@@ -24,7 +24,6 @@ from check_fork_ci_gate_config import (
     UPSTREAM_URL,
     find_asf_yaml_sync_violations,
     find_violations,
-    get_airflow_branch,
     main,
     resolve_base_ref,
 )
@@ -139,6 +138,7 @@ def test_resolve_official_snapshot_base_ref(mock_git, monkeypatch, event):
     mock_git.assert_not_called()
 
 
+@mock.patch("check_fork_ci_gate_config.read_airflow_branch", autospec=True, return_value="v3-4-test")
 @mock.patch("check_fork_ci_gate_config._git", autospec=True)
 @pytest.mark.parametrize(
     ("second_parent", "expected"),
@@ -148,14 +148,11 @@ def test_resolve_official_snapshot_base_ref(mock_git, monkeypatch, event):
         pytest.param("b" * 40 + "\n", "FETCH_HEAD", id="contributor-created-merge"),
     ],
 )
-def test_resolve_release_fork_push_base_ref(mock_git, monkeypatch, tmp_path, second_parent, expected):
+def test_resolve_release_fork_push_base_ref(mock_git, mock_branch, monkeypatch, second_parent, expected):
     monkeypatch.delenv("GITHUB_BASE_REF", raising=False)
     monkeypatch.setenv("GITHUB_REPOSITORY", "contributor/airflow")
     monkeypatch.setenv("GITHUB_EVENT_NAME", "push")
     monkeypatch.setenv("GITHUB_SHA", "a" * 40)
-    branch_defaults = tmp_path / "branch_defaults.py"
-    branch_defaults.write_text('AIRFLOW_BRANCH = "v3-4-test"\n')
-    monkeypatch.setattr("check_fork_ci_gate_config.BRANCH_DEFAULTS_PATH", branch_defaults)
     read_second_parent = ("rev-parse", "--verify", "--quiet", "HEAD^2")
     fetch_branch = ("fetch", "--quiet", "--depth=1", UPSTREAM_URL, "refs/heads/v3-4-test")
     git_results = {read_second_parent: second_parent, fetch_branch: ""}
@@ -168,7 +165,7 @@ def test_resolve_release_fork_push_base_ref(mock_git, monkeypatch, tmp_path, sec
         mock_git.assert_called_with(*fetch_branch)
 
 
-@mock.patch("check_fork_ci_gate_config.get_airflow_branch", autospec=True, return_value="v3-4-test")
+@mock.patch("check_fork_ci_gate_config.read_airflow_branch", autospec=True, return_value="v3-4-test")
 @mock.patch("check_fork_ci_gate_config._git", autospec=True)
 @pytest.mark.parametrize("base_branch", [None, "v3-4-test"], ids=["local", "pr-fetch-failed"])
 def test_resolve_local_release_merge_base(mock_git, mock_branch, monkeypatch, base_branch):
@@ -187,15 +184,6 @@ def test_resolve_local_release_merge_base(mock_git, mock_branch, monkeypatch, ba
     assert resolve_base_ref() == "base"
     if base_branch:
         mock_branch.assert_not_called()
-
-
-def test_get_airflow_branch_requires_the_branch_default(monkeypatch, tmp_path):
-    branch_defaults = tmp_path / "branch_defaults.py"
-    branch_defaults.write_text('DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"\n')
-    monkeypatch.setattr("check_fork_ci_gate_config.BRANCH_DEFAULTS_PATH", branch_defaults)
-
-    with pytest.raises(ValueError, match="No AIRFLOW_BRANCH"):
-        get_airflow_branch()
 
 
 @mock.patch("check_fork_ci_gate_config.resolve_base_ref", autospec=True, return_value=None)

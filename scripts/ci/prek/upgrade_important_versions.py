@@ -47,6 +47,7 @@ from common_prek_utils import (
     AIRFLOW_CORE_ROOT_PATH,
     AIRFLOW_ROOT_PATH,
     console,
+    read_airflow_branch,
     read_allowed_python_major_minor_versions,
     read_default_python_major_minor_version_for_images,
     retrieve_gh_token,
@@ -523,7 +524,6 @@ OS_DEPS_IMAGE_DIGESTS_PATH = (
     / "files"
     / "hardened_os_deps_image_digests.json"
 )
-BRANCH_DEFAULTS_PATH = AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "branch_defaults.py"
 
 
 def fetch_os_deps_image_digests(
@@ -559,15 +559,6 @@ def fetch_os_deps_image_digests(
                     "it stays unpinned and installs its OS dependencies from the apt repositories."
                 )
     return pins
-
-
-def get_airflow_branch() -> str:
-    """Return the branch this checkout belongs to - every branch sets AIRFLOW_BRANCH in its breeze."""
-    match = re.search(r'^AIRFLOW_BRANCH = "([^"]+)"$', BRANCH_DEFAULTS_PATH.read_text(), re.MULTILINE)
-    if not match:
-        console.print(f"[bright_red]No AIRFLOW_BRANCH in {BRANCH_DEFAULTS_PATH}")
-        sys.exit(1)
-    return match.group(1)
 
 
 def compute_os_deps_image_pins(
@@ -1465,7 +1456,9 @@ def main() -> None:
         changed = write_pins_file(PYTHON_IMAGE_DIGESTS_PATH, python_image_digests) or changed
         if OS_DEPS_IMAGE_DIGESTS_PATH.exists():
             os_deps_image_digests = compute_os_deps_image_pins(
-                python_image_digests, json.loads(OS_DEPS_IMAGE_DIGESTS_PATH.read_text()), get_airflow_branch()
+                python_image_digests,
+                json.loads(OS_DEPS_IMAGE_DIGESTS_PATH.read_text()),
+                read_airflow_branch(),
             )
             changed = write_pins_file(OS_DEPS_IMAGE_DIGESTS_PATH, os_deps_image_digests) or changed
     if legacy_python_versions:
