@@ -230,7 +230,7 @@ class TestTrigger:
         assert event.payload == "test_message"
 
     @pytest.mark.asyncio
-    async def test_cleanup_closes_consumer(self, mocker):
+    async def test_cleanup_does_not_block_on_consumer_close(self, mocker):
         consumer = MockedConsumer()
         close_mock = mocker.patch.object(consumer, "close")
 
@@ -249,7 +249,8 @@ class TestTrigger:
         await trigger.cleanup()
         await generator.aclose()
 
-        assert close_mock.mock_calls == [call()]
+        assert trigger._consumer is None
+        close_mock.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_cleanup_does_not_raise_without_consumer(self):

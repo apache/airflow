@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from collections.abc import Sequence
 from functools import partial
 from typing import Any
@@ -34,8 +33,6 @@ if AIRFLOW_V_3_0_PLUS:
     from airflow.triggers.base import BaseEventTrigger
 else:
     from airflow.triggers.base import BaseTrigger as BaseEventTrigger  # type: ignore
-
-log = logging.getLogger(__name__)
 
 
 class AwaitMessageTrigger(BaseEventTrigger):
@@ -154,7 +151,11 @@ class AwaitMessageTrigger(BaseEventTrigger):
         consumer = self._consumer
         if consumer is not None:
             self._consumer = None
-            try:
-                await sync_to_async(consumer.close)()
-            except Exception:
-                log.warning("Failed to close Kafka consumer", exc_info=True)
+            # Consumer.close() synchronously runs the rebalance callback while
+            # leaving the consumer group. That callback is controlled by
+            # librdkafka and can block while assigning partitions, holding the
+            # GIL and freezing the triggerer's event loop. Drop the reference
+            # instead so the native client can release its resources without
+            # running the blocking group-leave protocol. The broker removes
+            # the consumer from the group after session.timeout.ms.
+            del consumer
