@@ -233,7 +233,10 @@ export const BundleTaskKind = {
   OPERATOR: "operator",
 } as const;
 
-/** Internal: the task `taskId` of Dag `dagId`, or `undefined` when this bundle does not provide it. */
+/**
+ * Internal: the task `taskId` of Dag `dagId`, or `undefined` when this bundle does not provide it.
+ * Throws what {@link finalizeDag} throws for a Dag that cannot be read.
+ */
 export function getBundleTask(
   bundle: Bundle,
   dagId: string,

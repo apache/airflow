@@ -2244,6 +2244,76 @@ describe("coordinator runtime integration", () => {
       });
     });
 
+    it("logs what a throwing until handler was called with", async () => {
+      const group = testDag.taskGroup("g");
+      const leaf = group.task("leaf", async () => 1)();
+      group.loop(
+        async ({ value }: { value: number }) => {
+          throw new Error(`cannot decide on ${value}`);
+        },
+        { value: leaf },
+        { maxIterations: 3 },
+      );
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(1, { node_id: "g", terminal_task_id: "g.leaf" }),
+          arg_bindings: [{ name: "value", kind: "literal", value: 7 }],
+        }),
+      );
+
+      expect(result.logRecords).toContainEqual(
+        expect.objectContaining({
+          event: "[ts-sdk.runtime] Task failed",
+          error: "cannot decide on 7",
+          stack: expect.any(String),
+        }),
+      );
+      expect(result.logRecords).toContainEqual(
+        expect.objectContaining({
+          event: "[ts-sdk.runtime] Loop condition threw",
+          bound_args: ["value"],
+        }),
+      );
+    });
+
+    it("fails a task of a Dag that cannot be read, without a retry", async () => {
+      const group = testDag.taskGroup("g");
+      group.loop({ maxIterations: 2, taskId: "leaf" });
+      group.task("leaf", async () => 1)();
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.leaf", "test_dag", "r1", { should_retry: true }),
+      );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(result.logRecords).toContainEqual(
+        expect.objectContaining({
+          event: "[ts-sdk.runtime] Task failed",
+          error: expect.stringContaining('The gate of Loop "g" of Dag "test_dag" cannot be added'),
+        }),
+      );
+    });
+
+    it("lists a loop's gate among the tasks it registered", async () => {
+      const group = testDag.taskGroup("g");
+      group.task("leaf", async () => 1)();
+      group.loop({ maxIterations: 2 });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(1, { node_id: "g", terminal_task_id: "g.leaf" }),
+        }),
+      );
+
+      const started = result.logRecords.find(
+        (r) => r["event"] === "[ts-sdk.runtime] Coordinator runtime started",
+      );
+      expect(started!["registered_tasks"]).toMatchObject({
+        test_dag: ["g.leaf", "g.__loop_gate"],
+      });
+    });
+
     it("fails a gate Airflow ran with no loop context, without a retry", async () => {
       const group = testDag.taskGroup("g");
       group.task("leaf", async () => 1)();

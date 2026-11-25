@@ -63,6 +63,7 @@ import {
   BundleTaskKind,
   getBundleTask,
   type Bundle,
+  type BundleTask,
 } from "../sdk/bundle.js";
 import { finalizeDag, getAllIterationsArgNames, type Dag } from "../sdk/dag.js";
 import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
@@ -166,6 +167,14 @@ export async function startCoordinator(
     const runtimeLogs = logs.child("runtime");
     runtimeLogs.debug("Connecting log socket", { logs_addr: parsed.logsAddr });
     await logs.connect(parsed.logsAddr);
+    // A Dag gains its loop gates when it is read, so read each one for the list below.
+    for (const dag of bundleDags(bundle).values()) {
+      try {
+        finalizeDag(dag);
+      } catch {
+        // Fails the same way in handleParse and handleTask, which report it.
+      }
+    }
     const byDag = bundleDagTaskIds(bundle);
     runtimeLogs.info("Coordinator runtime started", {
       registered_tasks: Object.fromEntries(byDag),
@@ -359,7 +368,15 @@ async function handleTask(
   signal: AbortSignal,
 ): Promise<OperatorOutcome> {
   const ti = details.ti;
-  const task = getBundleTask(bundle, ti.dag_id, ti.task_id);
+  let task: BundleTask | undefined;
+  try {
+    task = getBundleTask(bundle, ti.dag_id, ti.task_id);
+  } catch (err) {
+    // Reading the Dag failed, and would fail the same way on a retry.
+    const message = (err as Error).message ?? String(err);
+    logs.error("Task failed", { task_id: ti.task_id, error: message });
+    return buildFailureResponse(details, message, { retry: false });
+  }
 
   if (!task) {
     logs.warning("No handler registered for task", {
@@ -393,8 +410,16 @@ async function handleTask(
   // How an operator ends the task as a failure: log the reason, then report the task
   // as failed (or for retry, if it has retries left). Each operator gets this, and the
   // catch below uses it for any error an operator throws.
-  const fail: OperatorContext["fail"] = (message, options) => {
-    logs.error("Task failed", { task_id: ctx.taskId, error: message });
+  const fail = (
+    message: string,
+    options?: Parameters<OperatorContext["fail"]>[1],
+    stack?: string | null,
+  ) => {
+    logs.error("Task failed", {
+      task_id: ctx.taskId,
+      error: message,
+      ...(stack !== undefined && { stack }),
+    });
     return buildFailureResponse(details, message, options);
   };
   try {
@@ -415,13 +440,7 @@ async function handleTask(
         );
     }
   } catch (err) {
-    const message = (err as Error).message ?? String(err);
-    logs.error("Task failed", {
-      task_id: ctx.taskId,
-      error: message,
-      stack: (err as Error).stack ?? null,
-    });
-    return buildFailureResponse(details, message);
+    return fail((err as Error).message ?? String(err), undefined, (err as Error).stack ?? null);
   }
 }
 

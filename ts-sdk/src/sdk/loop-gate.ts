@@ -76,7 +76,15 @@ async function executeLoopGate(
     decision = { stop: loop.index >= loop.max_iterations };
   } else {
     const args = await op.resolveArgs(getArgNames(until));
-    const returned = await op.runInScope(() => until(args as never));
+    let returned: unknown;
+    try {
+      returned = await op.runInScope(() => until(args as never));
+    } catch (err) {
+      // A handler that destructured an argument under a name nothing folds to gets no error of its
+      // own, so say what it was called with.
+      logs.error("Loop condition threw", { task_id: ctx.taskId, bound_args: Object.keys(args) });
+      throw err;
+    }
     try {
       decision = toLoopDecisionPayload(returned);
     } catch (err) {

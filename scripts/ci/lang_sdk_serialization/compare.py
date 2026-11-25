@@ -74,10 +74,14 @@ FEATURES = frozenset(
 # Name the file a Dag was declared in: Python's own Dag file, or the SDK's bundle.
 DAG_KEYS_NOT_COMPARED = frozenset({"fileloc", "relative_fileloc", "_processor_dags_folder"})
 
+# Core finds a loop's gate by this task type, whatever language runs it (ADR-0017 decision 2).
+LOOP_GATE_TASK_TYPE = "LoopGateOperator"
+
 TASK_KEYS_NOT_COMPARED = frozenset(
     {
         # Operator identity: Python names the Python class that ran, a language SDK a fixed pair.
-        # Neither is ever imported on the Airflow side.
+        # Neither is ever imported on the Airflow side. A loop's gate is the exception, since core
+        # finds it by this type; compare_dag checks it.
         "task_type",
         "_task_module",
         # The SDK's marker for a task in its language, which Python has no equivalent for.
@@ -95,19 +99,19 @@ TASK_KEYS_NOT_COMPARED = frozenset(
 
 
 def parse_features(value: str) -> frozenset[str]:
-    """Read the value of ``--supports``: names separated by commas, ``all`` for every feature and ``-name`` to take one out."""
+    """
+    Read the value of ``--supports``: names separated by commas, ``all`` for every feature.
+
+    A ``-name`` takes a feature out wherever it stands, so ``-loops,all`` and ``all,-loops`` agree.
+    """
     names = [name for name in value.split(",") if name]
-    if unknown := {name.removeprefix("-") for name in names} - FEATURES - {"all"}:
+    added = {name for name in names if not name.startswith("-")}
+    removed = {name.removeprefix("-") for name in names if name.startswith("-")}
+    if "all" in removed:
+        raise SystemExit("--supports cannot take out `all`; name the features the SDK has instead")
+    if unknown := (added | removed) - FEATURES - {"all"}:
         raise SystemExit(f"--supports names {sorted(unknown)}, which are not among {sorted(FEATURES)}")
-    features: set[str] = set()
-    for name in names:
-        if name == "all":
-            features |= FEATURES
-        elif name.startswith("-"):
-            features.discard(name.removeprefix("-"))
-        else:
-            features.add(name)
-    return frozenset(features)
+    return frozenset(FEATURES if "all" in added else added) - removed
 
 
 CASE_START = re.compile(r"^  - dag_id: (\S+)\s*$")
@@ -238,11 +242,12 @@ def compare_dag(python: dict[str, Any], sdk: dict[str, Any], defaults: dict[str,
         task_id = python_task["__var"]["task_id"]
         if sdk_task["__type"] != python_task["__type"]:
             problems.append(f"task {task_id} is a {sdk_task['__type']!r}, not a {python_task['__type']!r}")
+        not_compared = TASK_KEYS_NOT_COMPARED
+        if python_task["__var"].get("task_type") == LOOP_GATE_TASK_TYPE:
+            not_compared -= {"task_type"}
         problems.extend(
             f"task {task_id}: {problem}"
-            for problem in compare_fields(
-                python_task["__var"], sdk_task["__var"], TASK_KEYS_NOT_COMPARED, defaults
-            )
+            for problem in compare_fields(python_task["__var"], sdk_task["__var"], not_compared, defaults)
         )
     return problems
 

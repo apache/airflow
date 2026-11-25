@@ -745,7 +745,8 @@ export interface LoopRecord {
 interface LoopDeclaration {
   readonly maxIterations: number;
   readonly until: UntilCallable<never> | undefined;
-  readonly inputs: unknown;
+  /** What `until` is called with, as it was when `loop()` checked it. */
+  readonly inputs: RecordedInputs | undefined;
   readonly gateSpec: TaskOptions;
   /** The gate's id the author gave, used as it is, or the name it takes, numbered if taken. */
   readonly gateId: { readonly given: string } | { readonly name: string };
@@ -1507,11 +1508,14 @@ export class Dag {
     // Checked now, so a mistake in them is reported at this call rather than when the Dag is read.
     const shownId = this.#childId(groupId, "given" in gateId ? gateId.given : gateId.name);
     this.#taskSpecOf(shownId, gateSpec as TaskOptions);
-    if (until !== undefined) this.#checkInputs(shownId, this.#inputsByName(shownId, args[1]));
+    const inputs =
+      until === undefined
+        ? undefined
+        : this.#checkInputs(shownId, this.#inputsByName(shownId, args[1]));
     this.#loopDeclarations.set(groupId, {
       maxIterations,
       until,
-      inputs: args[1],
+      inputs,
       gateSpec: gateSpec as TaskOptions,
       gateId,
       declaredBefore: new Set(this.#tasks.keys()),
@@ -1545,26 +1549,37 @@ export class Dag {
       if (this.#loops.has(groupId)) continue;
       const { until, gateSpec, gateId } = loop;
       const gate = createLoopGate(until);
-      let factory;
-      if ("given" in gateId) {
-        factory = this.#addTask(groupId, gate, gateSpec);
-      } else {
-        const gateTaskIds = new Set([...this.#loops.values()].map((other) => other.gateTaskId));
-        const seen = (id: string) =>
-          loop.declaredBefore.has(id) ||
-          gateTaskIds.has(id) ||
-          this.#findEnclosingLoop(id) === groupId;
-        const taskId = this.#getUniqueGateId(groupId, gateId.name, seen);
-        factory = this.#addTask(groupId, taskId, gate, gateSpec);
+      let gateTask: TaskRef;
+      try {
+        let factory;
+        if ("given" in gateId) {
+          factory = this.#addTask(groupId, gate, gateSpec);
+        } else {
+          const gateTaskIds = new Set([...this.#loops.values()].map((other) => other.gateTaskId));
+          const seen = (id: string) =>
+            loop.declaredBefore.has(id) ||
+            gateTaskIds.has(id) ||
+            this.#findEnclosingLoop(id) === groupId;
+          const taskId = this.#getUniqueGateId(groupId, gateId.name, seen);
+          factory = this.#addTask(groupId, taskId, gate, gateSpec);
+        }
+        // The inputs were checked when loop() was called, so wiring cannot fail once the gate is
+        // registered and leave it half added.
+        gateTask = (factory as (inputs?: unknown) => TaskRef)(loop.inputs);
+      } catch (err) {
+        throw new Error(
+          `The gate of Loop "${groupId}" of Dag "${this.dagId}" cannot be added: ` +
+            (err as Error).message,
+          { cause: err },
+        );
       }
-      const { taskId } = (factory as (inputs?: unknown) => TaskRef)(loop.inputs);
       this.#loops.set(
         groupId,
         Object.freeze({
           groupId,
           maxIterations: loop.maxIterations,
           hasUntil: until !== undefined,
-          gateTaskId: taskId,
+          gateTaskId: gateTask.taskId,
         }),
       );
     }

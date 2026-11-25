@@ -166,6 +166,20 @@ def test_reports_each_difference(change, expected):
     assert compare(PYTHON, sdk, DEFAULTS) == expected
 
 
+def test_compares_the_task_type_of_a_loop_gate():
+    python = copy.deepcopy(PYTHON)
+    get_task(python)["task_type"] = "LoopGateOperator"
+    sdk = copy.deepcopy(SDK)
+
+    assert compare(python, sdk, DEFAULTS) == [
+        "d: task extract: task_type is 'Task', Python writes 'LoopGateOperator'"
+    ]
+
+    get_task(sdk)["task_type"] = "LoopGateOperator"
+
+    assert compare(python, sdk, DEFAULTS) == []
+
+
 def test_accepts_a_left_out_task_key_only_at_its_schema_default():
     python = copy.deepcopy(PYTHON)
     get_task(python)["retry_delay"] = 600.0
@@ -335,6 +349,9 @@ def test_parse_features():
     assert parse_features("") == frozenset()
     assert parse_features("branch,switch") == {"branch", "switch"}
     assert parse_features("all,-loops,-branch") == FEATURES - {"loops", "branch"}
+    assert parse_features("-loops,all") == FEATURES - {"loops"}
+    with pytest.raises(SystemExit, match="cannot take out `all`"):
+        parse_features("-all")
     with pytest.raises(SystemExit, match=r"--supports names \['nope'\]"):
         parse_features("branch,nope")
     with pytest.raises(SystemExit, match=r"--supports names \['nope'\]"):
