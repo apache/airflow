@@ -62,11 +62,6 @@ from airflow.utils.session import create_session
 
 from tests_common.test_utils.asserts import capture_orm_selects
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import (
-    clear_db_apdr,
-    clear_db_logs,
-    clear_db_pakl,
-)
 from unit.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
@@ -97,12 +92,6 @@ def clear_teams():
 def mock_task_instance():
     # TODO: Fixme - some mock_task_instance is needed here
     return None
-
-
-def _clear_partition_db() -> None:
-    clear_db_apdr()
-    clear_db_pakl()
-    clear_db_logs()
 
 
 class TestAssetManager:
@@ -481,7 +470,7 @@ class TestAssetManager:
         assert len(asms) == 1
         assert asset_listener.created[0].uri == asset.uri == asms[0].uri
 
-    @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle")
+    @pytest.mark.usefixtures("dag_maker", "testing_dag_bundle", "clear_asset_partition_rows")
     def test_get_or_create_apdr_race_condition(self, session, caplog):
         testing_dag = DagModel(dag_id="testing_dag", is_stale=False, bundle_name="testing")
         session.add(testing_dag)
@@ -690,15 +679,13 @@ class TestAssetManager:
         assert recovered.id == first.id
         assert recovered.partition_date == date_2
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows", "clear_audit_log_rows")
     def test_carry_partition_date_failure_degrades_to_none(self, session, dag_maker, mock_task_instance):
         """A mapper whose carry_partition_date raises must not abort the write.
 
         The consumer is still queued via partition_key; only the carried partition_date is lost
         (set to None), mirroring how a to_downstream failure is caught and handled in the loop.
         """
-        _clear_partition_db()
-
         asset_def = Asset(uri="s3://bucket/carry_raise", name="carry_raise")
         with dag_maker(
             dag_id="carry_raise_consumer",
@@ -732,11 +719,9 @@ class TestAssetManager:
         assert apdr.partition_date is None
         mock_log.exception.assert_called_once()
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows")
     @pytest.mark.parametrize("allow_reuse", [True, False])
     def test_get_or_create_apdr_allow_reuse(self, session, allow_reuse):
-        clear_db_apdr()
-        clear_db_pakl()
         dag = DagModel(dag_id="reuse_test_dag", is_stale=False, bundle_name="testing")
         session.add(dag)
         session.flush()
@@ -763,7 +748,7 @@ class TestAssetManager:
         assert {apdr.pending_partition_key for apdr in apdrs} == {"key-1" if allow_reuse else None}
 
     @pytest.mark.backend("postgres", "mysql")
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows", "clear_audit_log_rows")
     def test_concurrent_events_from_different_assets_share_one_pending_apdr(self, dag_maker, session):
         """Events from two producer assets racing on one partition key accumulate on one APDR.
 
@@ -771,59 +756,55 @@ class TestAssetManager:
         nothing and inserts its own. Two pending APDRs holding one event each can
         never satisfy ``asset_a & asset_b``, and the consumer Dag never runs.
         """
-        _clear_partition_db()
-        try:
-            asset_a = Asset(name="race-asset-a")
-            asset_b = Asset(name="race-asset-b")
-            with dag_maker(
-                dag_id="race-consumer",
-                schedule=PartitionedAssetTimetable(
-                    assets=asset_a & asset_b, default_partition_mapper=IdentityMapper()
-                ),
-                serialized=True,
+        asset_a = Asset(name="race-asset-a")
+        asset_b = Asset(name="race-asset-b")
+        with dag_maker(
+            dag_id="race-consumer",
+            schedule=PartitionedAssetTimetable(
+                assets=asset_a & asset_b, default_partition_mapper=IdentityMapper()
+            ),
+            serialized=True,
+        ):
+            EmptyOperator(task_id="hi")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
+
+        test_thread = threading.get_ident()
+        second_writer_inserting_apdr = threading.Event()
+
+        def on_execute(conn, cursor, statement, parameters, context, executemany):
+            if threading.get_ident() != test_thread and statement.startswith(
+                "INSERT INTO asset_partition_dag_run "
             ):
-                EmptyOperator(task_id="hi")
-            dag_maker.sync_dagbag_to_db()
-            session.commit()
+                second_writer_inserting_apdr.set()
 
-            test_thread = threading.get_ident()
-            second_writer_inserting_apdr = threading.Event()
+        def run_second_writer():
+            with create_session(scoped=False) as second:
+                AssetManager.register_asset_change(asset=asset_b, partition_key="day-1", session=second)
 
-            def on_execute(conn, cursor, statement, parameters, context, executemany):
-                if threading.get_ident() != test_thread and statement.startswith(
-                    "INSERT INTO asset_partition_dag_run "
-                ):
-                    second_writer_inserting_apdr.set()
-
-            def run_second_writer():
-                with create_session(scoped=False) as second:
-                    AssetManager.register_asset_change(asset=asset_b, partition_key="day-1", session=second)
-
-            event.listen(settings.engine, "before_cursor_execute", on_execute)
-            try:
-                with create_session(scoped=False) as first:
-                    AssetManager.register_asset_change(asset=asset_a, partition_key="day-1", session=first)
-                    first.flush()
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                        second_done = pool.submit(run_second_writer)
-                        assert second_writer_inserting_apdr.wait(timeout=30)
-                        first.commit()
-                        second_done.result(timeout=30)
-            finally:
-                event.remove(settings.engine, "before_cursor_execute", on_execute)
-
-            pending = session.scalars(
-                select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == "race-consumer")
-            ).all()
-            assert len(pending) == 1
-            logged_events = session.scalar(
-                select(func.count())
-                .select_from(PartitionedAssetKeyLog)
-                .where(PartitionedAssetKeyLog.asset_partition_dag_run_id == pending[0].id)
-            )
-            assert logged_events == 2
+        event.listen(settings.engine, "before_cursor_execute", on_execute)
+        try:
+            with create_session(scoped=False) as first:
+                AssetManager.register_asset_change(asset=asset_a, partition_key="day-1", session=first)
+                first.flush()
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    second_done = pool.submit(run_second_writer)
+                    assert second_writer_inserting_apdr.wait(timeout=30)
+                    first.commit()
+                    second_done.result(timeout=30)
         finally:
-            _clear_partition_db()
+            event.remove(settings.engine, "before_cursor_execute", on_execute)
+
+        pending = session.scalars(
+            select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == "race-consumer")
+        ).all()
+        assert len(pending) == 1
+        logged_events = session.scalar(
+            select(func.count())
+            .select_from(PartitionedAssetKeyLog)
+            .where(PartitionedAssetKeyLog.asset_partition_dag_run_id == pending[0].id)
+        )
+        assert logged_events == 2
 
     @pytest.mark.usefixtures("testing_dag_bundle")
     def test_get_or_create_apdr_inserts_again_when_winner_was_consumed(self, session, dag_maker):
@@ -905,44 +886,38 @@ class TestAssetManager:
             == 1
         )
 
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows", "clear_audit_log_rows")
     def test_queue_dagruns_creates_apdrs_in_dag_id_order(self, session, dag_maker):
         """Partitioned consumers get their APDRs in dag_id order whatever order the set iterates in."""
-        _clear_partition_db()
-        try:
-            asset = Asset(name="ordered-asset")
-            for dag_id in ("z-consumer", "a-consumer"):
-                with dag_maker(
-                    dag_id=dag_id,
-                    schedule=PartitionedAssetTimetable(
-                        assets=asset, default_partition_mapper=IdentityMapper()
-                    ),
-                    serialized=True,
-                ):
-                    EmptyOperator(task_id="hi")
-            dag_maker.sync_dagbag_to_db()
-            session.commit()
-
-            class ReverseOrderSet(set):
-                def __iter__(self):
-                    return iter(sorted(super().__iter__(), key=lambda d: d.dag_id, reverse=True))
-
-            real_queue_dagruns = AssetManager._queue_dagruns
-
-            def queue_dagruns_in_reverse_order(*, dags_to_queue, **kwargs):
-                real_queue_dagruns(dags_to_queue=ReverseOrderSet(dags_to_queue), **kwargs)
-
-            with mock.patch.object(
-                AssetManager, "_queue_dagruns", autospec=True, side_effect=queue_dagruns_in_reverse_order
+        asset = Asset(name="ordered-asset")
+        for dag_id in ("z-consumer", "a-consumer"):
+            with dag_maker(
+                dag_id=dag_id,
+                schedule=PartitionedAssetTimetable(assets=asset, default_partition_mapper=IdentityMapper()),
+                serialized=True,
             ):
-                AssetManager.register_asset_change(asset=asset, partition_key="day-1", session=session)
-            session.flush()
+                EmptyOperator(task_id="hi")
+        dag_maker.sync_dagbag_to_db()
+        session.commit()
 
-            assert session.scalars(
-                select(AssetPartitionDagRun.target_dag_id).order_by(AssetPartitionDagRun.id)
-            ).all() == ["a-consumer", "z-consumer"]
-        finally:
-            _clear_partition_db()
+        class ReverseOrderSet(set):
+            def __iter__(self):
+                return iter(sorted(super().__iter__(), key=lambda d: d.dag_id, reverse=True))
+
+        real_queue_dagruns = AssetManager._queue_dagruns
+
+        def queue_dagruns_in_reverse_order(*, dags_to_queue, **kwargs):
+            real_queue_dagruns(dags_to_queue=ReverseOrderSet(dags_to_queue), **kwargs)
+
+        with mock.patch.object(
+            AssetManager, "_queue_dagruns", autospec=True, side_effect=queue_dagruns_in_reverse_order
+        ):
+            AssetManager.register_asset_change(asset=asset, partition_key="day-1", session=session)
+        session.flush()
+
+        assert session.scalars(
+            select(AssetPartitionDagRun.target_dag_id).order_by(AssetPartitionDagRun.id)
+        ).all() == ["a-consumer", "z-consumer"]
 
     @pytest.mark.need_serialized_dag
     @pytest.mark.parametrize(
@@ -967,55 +942,51 @@ class TestAssetManager:
             ),
         ],
     )
+    @pytest.mark.usefixtures("clear_asset_partition_rows", "clear_audit_log_rows")
     @mock.patch.object(IdentityMapper, "to_downstream", autospec=True, return_value=["k-3", "k-2", "k-1"])
     def test_partition_fanout_creates_apdrs_in_key_order(
         self, mock_to_downstream, session, dag_maker, consumer_dag_ids, expected
     ):
-        _clear_partition_db()
-        try:
-            asset = Asset(name="fanout-order-asset")
-            for dag_id in consumer_dag_ids:
-                with dag_maker(
-                    dag_id=dag_id,
-                    schedule=PartitionedAssetTimetable(assets=asset, batch_asset_events=True),
-                    session=session,
-                ):
-                    EmptyOperator(task_id="consume")
+        asset = Asset(name="fanout-order-asset")
+        for dag_id in consumer_dag_ids:
             with dag_maker(
-                dag_id="fanout-producer", schedule=PartitionedAtRuntime(), session=session
-            ) as producer:
-                EmptyOperator(task_id="emit", outlets=[asset])
-            dag_run = dag_maker.create_dagrun(partition_key="source-key", session=session)
-            [ti] = dag_run.get_task_instances(session=session)
-
-            TaskInstance.register_asset_changes_in_db(
-                ti=ti,
-                task_outlets=[outlet.asprofile() for outlet in producer.get_task("emit").outlets],
-                outlet_events=[],
+                dag_id=dag_id,
+                schedule=PartitionedAssetTimetable(assets=asset, batch_asset_events=True),
                 session=session,
-            )
-            session.flush()
+            ):
+                EmptyOperator(task_id="consume")
+        with dag_maker(
+            dag_id="fanout-producer", schedule=PartitionedAtRuntime(), session=session
+        ) as producer:
+            EmptyOperator(task_id="emit", outlets=[asset])
+        dag_run = dag_maker.create_dagrun(partition_key="source-key", session=session)
+        [ti] = dag_run.get_task_instances(session=session)
 
-            assert (
-                session.execute(
-                    select(
-                        AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.pending_partition_key
-                    ).order_by(AssetPartitionDagRun.id)
-                ).all()
-                == expected
-            )
-            assert (
-                session.execute(
-                    select(
-                        PartitionedAssetKeyLog.target_dag_id, PartitionedAssetKeyLog.target_partition_key
-                    ).order_by(PartitionedAssetKeyLog.id)
-                ).all()
-                == expected
-            )
-            assert mock_to_downstream.call_count == len(consumer_dag_ids)
-        finally:
-            session.rollback()
-            _clear_partition_db()
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[outlet.asprofile() for outlet in producer.get_task("emit").outlets],
+            outlet_events=[],
+            session=session,
+        )
+        session.flush()
+
+        assert (
+            session.execute(
+                select(
+                    AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.pending_partition_key
+                ).order_by(AssetPartitionDagRun.id)
+            ).all()
+            == expected
+        )
+        assert (
+            session.execute(
+                select(
+                    PartitionedAssetKeyLog.target_dag_id, PartitionedAssetKeyLog.target_partition_key
+                ).order_by(PartitionedAssetKeyLog.id)
+            ).all()
+            == expected
+        )
+        assert mock_to_downstream.call_count == len(consumer_dag_ids)
 
     def test_assigning_created_dag_run_id_clears_pending_partition_key(self):
         apdr = AssetPartitionDagRun(target_dag_id="d", partition_key="k", pending_partition_key="k")
@@ -1166,7 +1137,7 @@ class TestAssetManager:
             pytest.param(6, True, id="one_over_cap_trips"),
         ],
     )
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows", "clear_audit_log_rows")
     def test_partition_fan_out_cap(self, session, dag_maker, mock_task_instance, cap, expect_trip):
         """The ``[scheduler] partition_mapper_max_downstream_keys`` cap gates fan-out.
 
@@ -1174,8 +1145,6 @@ class TestAssetManager:
         or skipped entirely — no APDR queued, ``log.error`` fired, and a Log row
         written — when it exceeds the cap.
         """
-        _clear_partition_db()
-
         asset_def = Asset(uri=f"s3://bucket/weekly_{cap}", name=f"weekly_{cap}")
         mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow())
         dag_id = f"fan_out_dag_cap_{cap}"
@@ -1223,7 +1192,7 @@ class TestAssetManager:
         assert error_call.kwargs["cap_source"] == f"[scheduler] partition_mapper_max_downstream_keys={cap}"
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "100"})
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows", "clear_audit_log_rows")
     def test_partition_fanout_per_mapper_override_stricter_than_global_trips(
         self, session, dag_maker, mock_task_instance
     ):
@@ -1233,10 +1202,6 @@ class TestAssetManager:
         The Log.extra must mention 'max_downstream_keys=3' and must NOT mention
         'partition_mapper_max_downstream_keys' (i.e. the global cap name is absent from the message).
         """
-        clear_db_apdr()
-        clear_db_pakl()
-        clear_db_logs()
-
         asset_def = Asset(uri="s3://bucket/per_mapper_strict", name="per_mapper_strict")
         # WeekWindow produces 7 daily keys; per-mapper cap of 3 must trip first.
         mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=3)
@@ -1270,7 +1235,7 @@ class TestAssetManager:
         assert error_call.kwargs["cap_source"] == "max_downstream_keys=3"
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "3"})
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows", "clear_audit_log_rows")
     def test_partition_fanout_per_mapper_override_looser_than_global_permits(
         self, session, dag_maker, mock_task_instance
     ):
@@ -1278,10 +1243,6 @@ class TestAssetManager:
 
         Proves the per-mapper override can relax, not just tighten, the cap.
         """
-        clear_db_apdr()
-        clear_db_pakl()
-        clear_db_logs()
-
         asset_def = Asset(uri="s3://bucket/per_mapper_loose", name="per_mapper_loose")
         # Global cap of 3 would block the 7-key WeekWindow fanout, but per-mapper
         # max_downstream_keys=10 overrides it and all 7 rows must be queued.
@@ -1314,17 +1275,13 @@ class TestAssetManager:
         )
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "1"})
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows", "clear_audit_log_rows")
     def test_partition_fanout_per_mapper_at_cap_is_allowed(self, session, dag_maker, mock_task_instance):
         """Per-mapper max_downstream_keys=7 with a 7-key fanout: exactly at cap is allowed.
 
         Pairs with test_partition_fanout_per_mapper_one_over_cap_trips to pin the
         boundary at '>' (not '>=') on the per-mapper branch.
         """
-        clear_db_apdr()
-        clear_db_pakl()
-        clear_db_logs()
-
         asset_def = Asset(uri="s3://bucket/per_mapper_at_cap", name="per_mapper_at_cap")
         mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=7)
         with dag_maker(
@@ -1353,17 +1310,13 @@ class TestAssetManager:
         )
 
     @conf_vars({("scheduler", "partition_mapper_max_downstream_keys"): "1"})
-    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.usefixtures("testing_dag_bundle", "clear_asset_partition_rows", "clear_audit_log_rows")
     def test_partition_fanout_per_mapper_one_over_cap_trips(self, session, dag_maker, mock_task_instance):
         """Per-mapper max_downstream_keys=6 with a 7-key fanout: one over cap trips the guard.
 
         Pairs with test_partition_fanout_per_mapper_at_cap_is_allowed to lock the
         boundary: 7 keys at cap=7 is allowed, but 7 keys at cap=6 is not.
         """
-        clear_db_apdr()
-        clear_db_pakl()
-        clear_db_logs()
-
         asset_def = Asset(uri="s3://bucket/per_mapper_over_cap", name="per_mapper_over_cap")
         mapper = FanOutMapper(upstream_mapper=StartOfWeekMapper(), window=WeekWindow(), max_downstream_keys=6)
         with dag_maker(

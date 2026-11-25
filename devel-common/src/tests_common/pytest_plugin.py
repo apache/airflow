@@ -2432,6 +2432,34 @@ def clean_dags_dagruns_and_dagbundles():
 
 
 @pytest.fixture
+def clear_asset_partition_rows():
+    """Fixture that cleans the asset partition tables before and after the test."""
+    from tests_common.test_utils.db import clear_db_apdr, clear_db_pakl
+
+    clear_db_apdr()
+    clear_db_pakl()
+    yield
+    clear_db_apdr()
+    clear_db_pakl()
+
+
+@pytest.fixture
+def clear_audit_log_rows():
+    """
+    Isolate ``Log`` rows for tests that assert on audit entries.
+
+    The partition-cap audit rows are written through an independent, self-committing session, so
+    they escape the test session's rollback in both directions: leftovers from earlier tests
+    would be counted here, and rows written here would leak into later ones.
+    """
+    from tests_common.test_utils.db import clear_db_logs
+
+    clear_db_logs()
+    yield
+    clear_db_logs()
+
+
+@pytest.fixture
 def clean_executor_loader():
     """Clean the executor_loader state, as it stores global variables in the module, causing side effects for some tests."""
     from airflow.executors.executor_loader import ExecutorLoader
