@@ -99,6 +99,12 @@ Changelog
 
   A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
 
+.. note::
+  The HITL review XComs ``airflow_hitl_review_agent_output_<n>`` and
+  ``airflow_hitl_review_human_feedback_<n>`` now hold ``{"text": ..., "dag_id": ...}``; in
+  1.2.0 they held the text itself. A task that pulls them reads the text from ``["text"]``.
+  See :doc:`hitl_review`.
+
 1.2.0
 .....
 
