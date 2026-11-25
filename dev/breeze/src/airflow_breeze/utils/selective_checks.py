@@ -1748,7 +1748,7 @@ class SelectiveChecks:
                 return True
             return False
 
-        if self.full_tests_needed:
+        if self.full_tests_needed or self.is_uv_lock_update:
             return True
         if self._is_canary_run():
             return True
@@ -1870,7 +1870,7 @@ class SelectiveChecks:
         return "allow suspended provider changes" not in self._pr_labels
 
     def _get_core_test_types_to_run(self) -> list[str]:
-        if self.full_tests_needed:
+        if self.full_tests_needed or self.is_uv_lock_update:
             return list(all_selective_core_test_types())
 
         candidate_test_types: set[str] = {"Always"}
@@ -2286,7 +2286,7 @@ class SelectiveChecks:
 
     @cached_property
     def is_uv_lock_update(self) -> bool:
-        """True when uv.lock changed — used to gate constraint branch commits on push."""
+        """True when uv.lock changed."""
         if len(self._matching_files(FileGroupForCi.UV_LOCK_FILE, CI_FILE_GROUP_MATCHES)) > 0:
             console_print("[warning]uv.lock file changed[/]")
             return True
@@ -2463,7 +2463,10 @@ class SelectiveChecks:
             self._matching_files(FileGroupForCi.DEVEL_TOML_FILES, CI_FILE_GROUP_MATCHES)
             and self._default_branch == "main"
         ):
-            if not self._matching_files(FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
+            if (
+                not self._matching_files(FileGroupForCi.ALL_AIRFLOW_PYTHON_FILES, CI_FILE_GROUP_MATCHES)
+                and not self.is_uv_lock_update
+            ):
                 prek_hooks_to_skip.add("mypy-airflow-core")
             if not self._matching_files(FileGroupForCi.ALL_DEV_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-dev")

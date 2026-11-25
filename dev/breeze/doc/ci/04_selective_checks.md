@@ -209,7 +209,7 @@ flowchart TD
     FTN{full_tests_needed?} -->|yes| ALL[every run_* area = ON<br/>all versions, all test types]
     FTN -->|no| SEL[selective: gate each area on its file group]
     SEL --> RUT{run_unit_tests?}
-    RUT -->|canary OR any source file matched| UNIT[unit tests ON<br/>test types chosen by matched files]
+    RUT -->|canary OR uv.lock changed OR any source file matched| UNIT[unit tests ON<br/>test types chosen by matched files]
     RUT -->|only new-UI files, or no source files| NOUNIT[unit tests OFF]
     SEL --> AREAS[run_ui_tests, run_kubernetes_tests,<br/>run_helm_tests*, docs_build, run_api_tests,<br/>run_python_scans, run_task_sdk_tests, ...]
     UNIT --> IMG
@@ -248,7 +248,7 @@ When unit tests run, selective checks narrow *which* test types execute, separat
   (`API`, `CLI`, `Serialization`, …) is added if its files matched. Then the **escape hatch**: if any
   changed source file is left over after removing provider files, test files, UI files, etc. — i.e.
   something "core/other" changed — *all* core test types are added, because a core change can affect
-  anything. In full mode, all core types run unconditionally.
+  anything. In full mode, or when `uv.lock` changed, all core types run unconditionally.
 * **Provider test types** (`_get_providers_test_types_to_run`): empty on non-`main` branches. In full
   mode (or when dependencies were upgraded) → `Providers` (all). Otherwise selective checks compute the
   **affected providers** from the changed files and add their **direct upstream and downstream
@@ -293,6 +293,7 @@ representative examples (file → effect):
 | `airflow-core/docs/...rst`                            | `docs_build` (+ CI image)                                             | matches `DOC_FILES`; docs need the CI image to render |
 | `providers/amazon/.../s3.py`                          | unit tests with `Providers[amazon, …dependents]` + `Always`          | a provider file → only that provider and its direct dependents |
 | `airflow-core/src/airflow/jobs/scheduler_job_runner.py` | unit tests with **all** core test types                            | a core/other file → escape hatch runs all core types |
+| `uv.lock` only                                         | unit tests with **all** core test types, Task SDK tests, `mypy-airflow-core` and `mypy-task-sdk`; no provider tests | a lock bump can upgrade a library that core or the Task SDK imports |
 | `pyproject.toml`                                       | **full matrix, all versions**                                        | dependency surface changed → `_should_run_all_tests_and_versions` |
 | `.github/workflows/ci-amd.yml` or `dev/breeze/src/...` | **full matrix**                                                      | environment files → can change the whole CI environment |
 | `.github/workflows/codeql-analysis.yml` (non-test workflow) | **basic checks only**                                           | non-test workflow → cannot affect tests (env-files carve-out) |
@@ -515,6 +516,9 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
 * `Task SDK tests` and the `mypy-task-sdk` check run when `Task SDK files` or `uv.lock` changed, because a
   lock file bump can upgrade a library the Task SDK imports (for example `kubernetes` in serde). Unlike a
   Task SDK file change, a `uv.lock` change alone does not select the tests of all providers.
+* For the same reason, a `uv.lock` change runs unit tests with all core test types and the
+  `mypy-airflow-core` check. The system tests follow the unit tests, so they run too. It does not select
+  provider tests.
 * Jobs that used to run for every change run only when a file they depend on changed. Full-test runs,
   which include the scheduled canary runs, still run all of them:
   * `Shared distributions tests` run when `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml`
@@ -689,7 +693,7 @@ when some files are not changed. Those are the rules implemented:
 * If "full tests" mode is detected, no more prek hooks are skipped - we run all of them
 * The following checks are skipped if those files are not changed:
   * if no `All Providers Python files` changed - `mypy-providers` check is skipped
-  * if no `All Airflow Python files` changed - `mypy-airflow-core` check is skipped
+  * if neither `All Airflow Python files` nor `uv.lock` changed - `mypy-airflow-core` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
   * if no `All Scripts Python files` changed - `mypy-scripts` check is skipped
   * if neither `Task SDK files` nor `uv.lock` changed - `mypy-task-sdk` check is skipped
@@ -829,7 +833,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
 | run-ts-sdk-tests                                        | Whether TypeScript SDK unit tests should be run — on `ts-sdk/` changes except Markdown, `api-docs/`, and `docs/` ("true"/"false") | true                                     |      |
 | run-ui-tests                                            | Whether UI tests should be run ("true"/"false")                                                         | true                                     |      |
-| run-unit-tests                                          | Whether unit tests should be run ("true"/"false")                                                       | true                                     |      |
+| run-unit-tests                                          | Whether unit tests should be run: a source file or `uv.lock` changed ("true"/"false")                   | true                                     |      |
 | run-www-tests                                           | Whether Legacy WWW tests should be run ("true"/"false")                                                 | true                                     |      |
 | run-yaml-dag-e2e-tests                                  | Whether YAML Dag e2e tests should be run — on YAML Dag fixture/suite, its Go handler, executable coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
 | amd-runners                                             | List of labels assigned for runners for that build for public AMD runners                               | \["ubuntu-22.04"\]                       |      |

@@ -1778,9 +1778,28 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             {
                 "run-task-sdk-tests": "true",
                 "ci-image-build": "true",
-                "providers-test-types-list-as-strings-in-json": "[]",
+                "providers-test-types-list-as-strings-in-json": "null",
             },
             id="Run Task SDK tests without all provider tests when the lock file changes",
+        ),
+        pytest.param(
+            ("uv.lock",),
+            {
+                "run-unit-tests": "true",
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+                "providers-test-types-list-as-strings-in-json": "null",
+                "skip-providers-tests": "true",
+                "full-tests-needed": "false",
+            },
+            id="Run all core tests without provider tests when the lock file changes",
+        ),
+        pytest.param(
+            ("uv.lock", "airflow-core/src/airflow/ui/src/pages/Dag/Dag.tsx"),
+            {
+                "run-unit-tests": "true",
+                "core-test-types-list-as-strings-in-json": ALL_CI_SELECTIVE_TEST_TYPES_AS_JSON,
+            },
+            id="Run all core tests when the lock file changes with only UI files",
         ),
         pytest.param(
             ("providers/common/ai/docs/frameworks/strands.rst",),
@@ -4110,13 +4129,19 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
 
 
 @pytest.mark.parametrize(
-    ("files", "skipped"),
+    ("files", "hook", "skipped"),
     [
-        pytest.param(("uv.lock",), False, id="lock file changed"),
-        pytest.param(("airflow-core/src/airflow/models/dag.py",), True, id="no Task SDK or lock file change"),
+        pytest.param(("uv.lock",), "mypy-task-sdk", False, id="mypy-task-sdk on lock file change"),
+        pytest.param(
+            ("airflow-core/src/airflow/models/dag.py",),
+            "mypy-task-sdk",
+            True,
+            id="mypy-task-sdk skipped without Task SDK or lock file change",
+        ),
+        pytest.param(("uv.lock",), "mypy-airflow-core", False, id="mypy-airflow-core on lock file change"),
     ],
 )
-def test_mypy_task_sdk_skipped(files: tuple[str, ...], skipped: bool):
+def test_mypy_hook_skipped(files: tuple[str, ...], hook: str, skipped: bool):
     skip_prek_hooks = SelectiveChecks(
         files=files,
         commit_ref=NEUTRAL_COMMIT,
@@ -4124,7 +4149,7 @@ def test_mypy_task_sdk_skipped(files: tuple[str, ...], skipped: bool):
         default_branch="main",
     ).skip_prek_hooks
 
-    assert ("mypy-task-sdk" in skip_prek_hooks.split(",")) is skipped
+    assert (hook in skip_prek_hooks.split(",")) is skipped
 
 
 @pytest.mark.parametrize(
