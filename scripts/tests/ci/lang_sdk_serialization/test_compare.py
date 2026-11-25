@@ -180,6 +180,15 @@ def test_compares_the_task_type_of_a_loop_gate():
     assert compare(python, sdk, DEFAULTS) == []
 
 
+def test_refuses_the_task_type_of_a_loop_gate_on_another_task():
+    sdk = copy.deepcopy(SDK)
+    get_task(sdk)["task_type"] = "LoopGateOperator"
+
+    assert compare(PYTHON, sdk, DEFAULTS) == [
+        "d: task extract: task_type is 'LoopGateOperator', Python writes 'NoopOperator'"
+    ]
+
+
 def test_accepts_a_left_out_task_key_only_at_its_schema_default():
     python = copy.deepcopy(PYTHON)
     get_task(python)["retry_delay"] = 600.0

@@ -75,15 +75,23 @@ async function executeLoopGate(
   if (until === undefined) {
     decision = { stop: loop.index >= loop.max_iterations };
   } else {
-    const args = await op.resolveArgs(getArgNames(until));
+    let args: object;
+    try {
+      args = await op.resolveArgs(getArgNames(until));
+    } catch (err) {
+      return op.fail((err as Error).message ?? String(err), {
+        logEvent: "Cannot bind this task's call arguments",
+      });
+    }
     let returned: unknown;
     try {
       returned = await op.runInScope(() => until(args as never));
     } catch (err) {
       // A handler that destructured an argument under a name nothing folds to gets no error of its
       // own, so say what it was called with.
-      logs.error("Loop condition threw", { task_id: ctx.taskId, bound_args: Object.keys(args) });
-      throw err;
+      return op.fail((err as Error).message ?? String(err), {
+        logFields: { stack: (err as Error).stack ?? null, bound_args: Object.keys(args) },
+      });
     }
     try {
       decision = toLoopDecisionPayload(returned);

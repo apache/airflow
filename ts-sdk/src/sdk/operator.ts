@@ -67,11 +67,16 @@ export interface OperatorContext {
   succeed(value?: JsonValue, options?: OperatorEndOptions): Promise<RuntimeSucceedTask>;
   /**
    * Fail, or hand the task back for retry when it has retries left and `retry` is not false. A
-   * `loopDecision` goes with the failure.
+   * `loopDecision` goes with the failure. Its log record is "Task failed" unless `logEvent` names
+   * another, and `logFields` join it.
    */
   fail(
     message: string,
-    options?: OperatorEndOptions & { readonly retry?: false },
+    options?: OperatorEndOptions & {
+      readonly retry?: false;
+      readonly logEvent?: string;
+      readonly logFields?: Readonly<Record<string, unknown>>;
+    },
   ): RuntimeRetryTask | RuntimeTaskState;
   /** Skip `taskIds`, as `SkipMixin.skip` does. */
   skip(taskIds: readonly string[]): Promise<void>;

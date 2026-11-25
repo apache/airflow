@@ -891,7 +891,10 @@ export class Dag {
     this.#definedIn = getCurrentModuleSource();
   }
 
-  /** Task IDs attached to this Dag, in attachment order. */
+  /**
+   * Task IDs attached to this Dag, in attachment order. A loop's gate is attached when the Dag is
+   * read, after its body is complete, so it is listed only from then on.
+   */
   get taskIds(): readonly string[] {
     return [...this.#tasks.keys()];
   }
@@ -1568,8 +1571,7 @@ export class Dag {
         gateTask = (factory as (inputs?: unknown) => TaskRef)(loop.inputs);
       } catch (err) {
         throw new Error(
-          `The gate of Loop "${groupId}" of Dag "${this.dagId}" cannot be added: ` +
-            (err as Error).message,
+          `The gate of Loop "${groupId}" cannot be added: ` + (err as Error).message,
           { cause: err },
         );
       }

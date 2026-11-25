@@ -285,7 +285,7 @@ describe("TaskGroupRef.loop", () => {
       group.loop({ maxIterations: 2, taskId: "leaf" });
 
       expect(() => finalizeDag(dag)).toThrow(
-        'The gate of Loop "g" of Dag "ts_gate_taskid_clash" cannot be added: ' +
+        'The gate of Loop "g" cannot be added: ' +
           'Task "g.leaf" is already registered for Dag "ts_gate_taskid_clash"',
       );
     });
@@ -297,7 +297,7 @@ describe("TaskGroupRef.loop", () => {
       group.task("leaf", async () => 1)();
 
       expect(() => finalizeDag(dag)).toThrow(
-        'The gate of Loop "g" of Dag "ts_gate_taskid_late_clash" cannot be added: ' +
+        'The gate of Loop "g" cannot be added: ' +
           'Task "g.leaf" is already registered for Dag "ts_gate_taskid_late_clash"',
       );
     });
@@ -313,7 +313,7 @@ describe("TaskGroupRef.loop", () => {
       group.loop(check, {}, { maxIterations: 2 });
 
       expect(() => finalizeDag(dag)).toThrow(
-        'The gate of Loop "g" of Dag "ts_gate_named_like_a_group" cannot be added: ' +
+        'The gate of Loop "g" cannot be added: ' +
           'Task "g.check" is already registered for Dag "ts_gate_named_like_a_group"',
       );
     });
@@ -352,7 +352,7 @@ describe("TaskGroupRef.loop", () => {
       group.task("check", async () => 1)();
 
       expect(() => finalizeDag(dag)).toThrow(
-        'The gate of Loop "g" of Dag "ts_gate_numbered_onto_a_group" cannot be added: ' +
+        'The gate of Loop "g" cannot be added: ' +
           'Task "g.check__1" is already registered for Dag "ts_gate_numbered_onto_a_group"',
       );
     });
@@ -367,7 +367,7 @@ describe("TaskGroupRef.loop", () => {
       dag.task("check", async () => 1)();
 
       expect(() => finalizeDag(dag)).toThrow(
-        'The gate of Loop "g" of Dag "ts_gate_late_outside" cannot be added: ' +
+        'The gate of Loop "g" cannot be added: ' +
           'Task "check" is already registered for Dag "ts_gate_late_outside"',
       );
     });

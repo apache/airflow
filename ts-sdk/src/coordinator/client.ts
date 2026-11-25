@@ -500,8 +500,7 @@ export function createCoordinatorClient(
       const msg: SetXCom = {
         type: "SetXCom",
         ...resolveXComTarget(opts, ctx),
-        // Awaited only for a sequence, so a push without one leaves before the next call does.
-        value: holdsXComSequence(client, opts.value)
+        value: holdsXComSequence(opts.value)
           ? ((await materializeXComSequences(opts.value)) as JsonValue)
           : opts.value,
       };

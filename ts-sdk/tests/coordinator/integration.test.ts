@@ -2244,7 +2244,7 @@ describe("coordinator runtime integration", () => {
       });
     });
 
-    it("logs what a throwing until handler was called with", async () => {
+    it("logs what a throwing until handler was called with, in the one failure record", async () => {
       const group = testDag.taskGroup("g");
       const leaf = group.task("leaf", async () => 1)();
       group.loop(
@@ -2262,22 +2262,43 @@ describe("coordinator runtime integration", () => {
         }),
       );
 
-      expect(result.logRecords).toContainEqual(
-        expect.objectContaining({
-          event: "[ts-sdk.runtime] Task failed",
-          error: "cannot decide on 7",
-          stack: expect.any(String),
+      const failures = result.logRecords.filter(
+        (r) => r["event"] === "[ts-sdk.runtime] Task failed",
+      );
+      expect(failures).toHaveLength(1);
+      expect(failures[0]).toMatchObject({
+        task_id: "g.__loop_gate",
+        error: "cannot decide on 7",
+        stack: expect.any(String),
+        bound_args: ["value"],
+      });
+    });
+
+    it("logs a gate whose arguments cannot be bound as a handler's are", async () => {
+      const group = testDag.taskGroup("g");
+      group.task("leaf", async () => 1)();
+      group.loop(async () => true, {}, { maxIterations: 3 });
+
+      const result = await driveSupervisor(
+        makeStartupDetails("g.__loop_gate", "test_dag", "r1", {
+          loop: loopContext(1, { node_id: "g", terminal_task_id: "g.leaf" }),
+          arg_bindings: [
+            { name: "region_code", kind: "literal", value: "uk" },
+            { name: "regionCode", kind: "literal", value: "de" },
+          ],
         }),
       );
+
+      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
       expect(result.logRecords).toContainEqual(
         expect.objectContaining({
-          event: "[ts-sdk.runtime] Loop condition threw",
-          bound_args: ["value"],
+          event: "[ts-sdk.runtime] Cannot bind this task's call arguments",
+          error: expect.stringContaining('both fold to "regioncode"'),
         }),
       );
     });
 
-    it("fails a task of a Dag that cannot be read, without a retry", async () => {
+    it("retries a task of a Dag that cannot be read, as a task that exits with an error", async () => {
       const group = testDag.taskGroup("g");
       group.loop({ maxIterations: 2, taskId: "leaf" });
       group.task("leaf", async () => 1)();
@@ -2286,11 +2307,12 @@ describe("coordinator runtime integration", () => {
         makeStartupDetails("g.leaf", "test_dag", "r1", { should_retry: true }),
       );
 
-      expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+      expect(result.firstResponse!.body).toMatchObject({ type: "RetryTask" });
       expect(result.logRecords).toContainEqual(
         expect.objectContaining({
           event: "[ts-sdk.runtime] Task failed",
-          error: expect.stringContaining('The gate of Loop "g" of Dag "test_dag" cannot be added'),
+          error: expect.stringContaining('The gate of Loop "g" cannot be added'),
+          stack: expect.any(String),
         }),
       );
     });

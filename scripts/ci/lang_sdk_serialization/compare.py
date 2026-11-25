@@ -243,7 +243,7 @@ def compare_dag(python: dict[str, Any], sdk: dict[str, Any], defaults: dict[str,
         if sdk_task["__type"] != python_task["__type"]:
             problems.append(f"task {task_id} is a {sdk_task['__type']!r}, not a {python_task['__type']!r}")
         not_compared = TASK_KEYS_NOT_COMPARED
-        if python_task["__var"].get("task_type") == LOOP_GATE_TASK_TYPE:
+        if LOOP_GATE_TASK_TYPE in (python_task["__var"].get("task_type"), sdk_task["__var"].get("task_type")):
             not_compared -= {"task_type"}
         problems.extend(
             f"task {task_id}: {problem}"

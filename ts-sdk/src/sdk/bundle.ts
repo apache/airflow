@@ -149,7 +149,8 @@ export class Bundle {
   }
 
   /** Look up a registered handler, the way the runtime dispatches a task.
-   *  Returns `undefined` when no handler exists. */
+   *  Returns `undefined` when no handler exists, as for a task the SDK runs itself,
+   *  such as a loop's gate. */
   getTaskHandler(dagId: string, taskId: string): TaskFunction | undefined {
     const dag = this.#dags.get(dagId);
     return dag === undefined
@@ -274,10 +275,18 @@ export function bundleDags(bundle: Bundle): ReadonlyMap<string, Dag> {
 
 /** Internal: the task IDs this bundle can dispatch, per Dag: the Dags declared
  *  in TypeScript first, then the Dags its task handlers name, each in
- *  registration order. A Dag declared in TypeScript with no tasks is included. */
+ *  registration order. A Dag declared in TypeScript with no tasks is included.
+ *
+ *  Reads each Dag declared in TypeScript, so a loop's gate is listed. A Dag that
+ *  cannot be read lists the tasks it has, and fails again for whoever uses it. */
 export function bundleDagTaskIds(bundle: Bundle): Map<string, string[]> {
   const byDag = new Map<string, string[]>();
   for (const [dagId, dag] of dagsOf(bundle)) {
+    try {
+      finalizeDag(dag);
+    } catch {
+      // Reported where the Dag is used: a parse request, or a task of that Dag.
+    }
     byDag.set(dagId, [...dag.taskIds]);
   }
   for (const [dagId, handlers] of taskHandlersOf(bundle)) {
