@@ -439,7 +439,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Dags whose deadline alerts rolled back the scheduler's session. A failing Dag keeps the
         # oldest next_dagrun_create_after, so without skipping it every loop would end on it and no
         # other Dag in its batch would get a run. Kept until the scheduler restarts: the rollback comes
-        # from deadline reference code in a plugin, and fixing that needs a restart anyway.
+        # from deadline reference code in a plugin, and fixing that needs a restart anyway. Per scheduler
+        # process, so in HA each scheduler hits the failing Dag once before skipping it.
         self._dag_ids_rolling_back_session: set[str] = set()
         self._dag_id_to_team_name: dict[str, str | None] = {}
 

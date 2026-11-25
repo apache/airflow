@@ -572,11 +572,15 @@ followed by a more urgent escalation if the Dag is still running.
   reference is evaluated. It is read-only on PostgreSQL, MySQL and SQLite, so writing through it or
   locking rows (``SELECT ... FOR UPDATE``) raises an error and the alert is skipped. Do not do either:
   the scheduler holds locks on the Dag's rows while it creates the Dag run, so a write or a row lock would
-  wait for the scheduler, which in turn waits for your reference. Do not open another session either
-  (for example with ``provide_session`` or ``create_session``), because that returns the scheduler's
-  session. Committing or rolling it back discards the Dag run being created, and the scheduler then stops
-  creating Dag runs for that Dag until it restarts. Fix the reference, then restart the scheduler.
+  wait for the scheduler, which in turn waits for your reference. With an in-memory SQLite database, which
+  has a single connection, the session is the scheduler's own and is not read-only.
+
+  Do not open another session either (for example with ``provide_session`` or ``create_session``),
+  because that returns the scheduler's session. Committing it, rolling it back, or running a statement
+  that fails on it discards the Dag run being created, and the scheduler then stops creating Dag runs for
+  that Dag until it restarts. Fix the reference, then restart the scheduler.
 
   When task instances are cleared, references anchored to the time the Dag run was queued are
   re-evaluated on the session of the clearing request, with the full Dag run. That session is not isolated,
-  so the same rules apply, and a ``commit()`` or ``rollback()`` on it makes the clear fail.
+  so the same rules apply: a ``commit()`` on it writes the clear's pending changes early, and a
+  ``rollback()`` silently discards them.

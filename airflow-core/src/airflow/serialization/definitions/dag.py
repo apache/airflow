@@ -124,8 +124,34 @@ def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Ses
             with session_maker(bind=connection) as alert_session:
                 yield alert_session
         finally:
-            connection.rollback()
-            connection.exec_driver_sql("PRAGMA query_only = OFF")
+            try:
+                connection.rollback()
+                connection.exec_driver_sql("PRAGMA query_only = OFF")
+            except Exception:
+                # A connection left read-only must not go back to the pool, where the scheduler's own
+                # writes would fail on it.
+                connection.invalidate()
+                raise
+
+
+# SQLSTATE in_failed_sql_transaction: PostgreSQL rejects every statement after one failed in the transaction.
+_IN_FAILED_SQL_TRANSACTION = "25P02"
+
+
+def _is_transaction_aborted(session: Session) -> bool:
+    """Whether ``session``'s transaction was aborted by a failed statement and must be rolled back."""
+    try:
+        session.execute(select(literal(1)))
+    except DBAPIError as error:
+        # psycopg2 names the code ``pgcode``, psycopg 3 ``sqlstate``. Any other error, such as a dropped
+        # connection, is not caused by the alert and is left to the caller's retry handling.
+        if _IN_FAILED_SQL_TRANSACTION in (
+            getattr(error.orig, "pgcode", None),
+            getattr(error.orig, "sqlstate", None),
+        ):
+            return True
+        raise
+    return False
 
 
 @contextlib.contextmanager
@@ -883,8 +909,8 @@ class SerializedDAG:
 
         build_rolled_back_error = functools.partial(
             DagRunRolledBackError,
-            f"Dag run {run_id} of Dag {self.dag_id} was discarded by a session rollback "
-            "while processing deadline alerts",
+            f"Dag run {run_id} of Dag {self.dag_id} was discarded while processing deadline alerts: "
+            "a deadline reference rolled back, committed or broke the transaction it was created in",
             dag_id=dagrun_dag_id,
             dag_version_id=dag_version_id,
         )
@@ -897,12 +923,8 @@ class SerializedDAG:
                 return True
             if orm_dagrun not in session:
                 return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
-            try:
-                # A failed statement aborts the caller's PostgreSQL transaction without detaching anything.
-                session.execute(select(literal(1)))
-            except DBAPIError:
-                return True
-            return False
+            # A failed statement aborts the caller's PostgreSQL transaction without detaching anything.
+            return _is_transaction_aborted(session)
 
         with contextlib.ExitStack() as exit_stack:
             try:

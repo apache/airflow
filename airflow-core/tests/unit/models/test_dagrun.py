@@ -47,7 +47,7 @@ from sqlalchemy import (
     text,
     update,
 )
-from sqlalchemy.exc import DBAPIError
+from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.pool import SingletonThreadPool, StaticPool
@@ -109,7 +109,7 @@ from airflow.sdk import (
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.callback import AsyncCallback
 from airflow.sdk.definitions.deadline import DeadlineAlert, DeadlineReference, VariableInterval
-from airflow.serialization.definitions.dag import _create_alert_session
+from airflow.serialization.definitions.dag import _create_alert_session, _is_transaction_aborted
 from airflow.serialization.definitions.deadline import SerializedReferenceModels
 from airflow.serialization.definitions.taskgroup import SerializedLoopTaskGroup
 from airflow.serialization.serialized_objects import DagSerialization, LazyDeserializedDAG
@@ -2399,6 +2399,43 @@ class TestDagRun:
 
         assert dbapi_connection.execute("PRAGMA query_only").fetchone()[0] == 0
 
+    @pytest.mark.backend("sqlite")
+    def test_sqlite_deadline_alert_session_connection_is_invalidated_when_it_cannot_be_reset(self, session):
+        alert_session_context = _create_alert_session(session=session)
+        connection = alert_session_context.__enter__().connection()
+        connection.rollback = mock.create_autospec(
+            connection.rollback, side_effect=OperationalError("ROLLBACK", None, Exception())
+        )
+
+        with pytest.raises(OperationalError):
+            alert_session_context.__exit__(None, None, None)
+
+        assert connection.invalidated
+
+    @pytest.mark.parametrize(
+        ("orig", "expected"),
+        [
+            pytest.param(mock.Mock(spec=["pgcode"], pgcode="25P02"), True, id="psycopg2_aborted"),
+            pytest.param(mock.Mock(spec=["sqlstate"], sqlstate="25P02"), True, id="psycopg3_aborted"),
+            pytest.param(None, False, id="usable"),
+        ],
+    )
+    def test_is_transaction_aborted(self, orig, expected):
+        session = mock.create_autospec(Session, instance=True)
+        if orig is not None:
+            session.execute.side_effect = DBAPIError("SELECT 1", None, orig)
+
+        assert _is_transaction_aborted(session) is expected
+
+    def test_is_transaction_aborted_leaves_other_errors_to_the_caller(self):
+        session = mock.create_autospec(Session, instance=True)
+        session.execute.side_effect = OperationalError(
+            "SELECT 1", None, mock.Mock(spec=["pgcode"], pgcode="08006")
+        )
+
+        with pytest.raises(OperationalError):
+            _is_transaction_aborted(session)
+
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch.object(Variable, "get", autospec=True)
     def test_dagrun_deadline_alert_rolling_back_schedulers_session_raises_instead_of_orphaning_deadline(
@@ -2437,16 +2474,8 @@ class TestDagRun:
         assert session.scalars(select(Deadline)).all() == []
         assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
 
-    @pytest.mark.parametrize(
-        "under_commit_guard",
-        [pytest.param(True, id="scheduler_guarded"), pytest.param(False, id="unguarded_caller")],
-    )
-    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
-    @mock.patch.object(Variable, "get", autospec=True)
-    def test_dagrun_deadline_alert_committing_callers_session(
-        self, mock_variable_get, _, under_commit_guard, session, deadline_test_dag
-    ):
-        scheduler_dag = deadline_test_dag(
+    def _create_dag_with_variable_interval_alert(self, deadline_test_dag):
+        return deadline_test_dag(
             deadline=[
                 DeadlineAlert(
                     reference=DeadlineReference.FIXED_DATETIME(
@@ -2457,30 +2486,45 @@ class TestDagRun:
                 ),
             ],
         )
+
+    @staticmethod
+    def _commit_callers_session(key, session):
+        with create_session():
+            pass
+        return "60"
+
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True, side_effect=_commit_callers_session)
+    def test_dagrun_deadline_alert_committing_guarded_session_raises_rolled_back_error(
+        self, _, __, session, deadline_test_dag
+    ):
+        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
         session.commit()
 
-        def commit_callers_session(key, session):
-            with create_session():
-                pass
-            return "60"
+        # The guard rejects the commit and create_session() rolls back, discarding the Dag run.
+        with prohibit_commit(session), pytest.raises(DagRunRolledBackError):
+            self.create_dag_run(dag=scheduler_dag, session=session)
 
-        mock_variable_get.side_effect = commit_callers_session
+        assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
 
-        if under_commit_guard:
-            # The guard rejects the commit and create_session() rolls back, discarding the Dag run.
-            with prohibit_commit(session), pytest.raises(DagRunRolledBackError):
-                self.create_dag_run(dag=scheduler_dag, session=session)
-            assert session.scalars(select(DagRun).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == []
-        else:
-            # The commit goes through and only detaches the Dag run, which is kept.
-            dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
-            session.flush()
-            assert session.scalars(select(DagRun.id).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == [
-                dag_run.id
-            ]
-            assert [deadline.dagrun_id for deadline in session.scalars(select(Deadline))] == [dag_run.id]
+    @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
+    @mock.patch.object(Variable, "get", autospec=True, side_effect=_commit_callers_session)
+    def test_dagrun_deadline_alert_committing_unguarded_session_keeps_dagrun(
+        self, _, __, session, deadline_test_dag
+    ):
+        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
+        session.commit()
 
-    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+        # Without the scheduler's commit guard the commit goes through and only detaches the Dag run.
+        dag_run = self.create_dag_run(dag=scheduler_dag, session=session)
+
+        session.flush()
+        assert session.scalars(select(DagRun.id).where(DagRun.dag_id == scheduler_dag.dag_id)).all() == [
+            dag_run.id
+        ]
+        assert [deadline.dagrun_id for deadline in session.scalars(select(Deadline))] == [dag_run.id]
+
+    @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch.object(Variable, "get", autospec=True)
     def test_dagrun_deadline_alert_silently_rolling_back_callers_session_creates_no_deadline(
@@ -2510,7 +2554,7 @@ class TestDagRun:
 
         assert mock.call("deadline_alerts.deadline_created", tags=mock.ANY) not in mock_stats_incr.mock_calls
 
-    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch("airflow.serialization.definitions.dag._create_alert_session", autospec=True)
     def test_dagrun_deadline_alerts_without_an_alert_session_are_skipped(

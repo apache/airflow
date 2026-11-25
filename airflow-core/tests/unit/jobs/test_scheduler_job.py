@@ -11060,7 +11060,7 @@ class TestSchedulerJob:
 
         assert dm1.next_dagrun == next_dagrun
 
-    @mock.patch("airflow._shared.observability.metrics.stats.incr")
+    @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
     @mock.patch.object(SchedulerJobRunner, "_start_queued_dagruns", autospec=True)
     @mock.patch.object(SchedulerJobRunner, "_create_dagruns_for_dags", autospec=True)
     def test_do_scheduling_ends_dag_run_creation_when_deadline_alert_rolls_back_session(

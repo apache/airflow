@@ -161,7 +161,7 @@ class InvalidPartitionKeyError(ValueError):
 
 
 class DagRunRolledBackError(RuntimeError):
-    """Raise when a Dag run was discarded by a rollback before its deadline alerts were processed."""
+    """Raise when a deadline alert rolled back, committed or broke the transaction creating a Dag run."""
 
     def __init__(self, message: str, *, dag_id: str, dag_version_id: UUID | None) -> None:
         super().__init__(message)
