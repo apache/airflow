@@ -287,7 +287,7 @@ def test_check_executor_health_marks_unhealthy_on_every_tick_while_stalled(sessi
     assert second_job.id != first_job.id
 
     runner._check_executor_health()
-    session.refresh(second_job)
+    second_job = runner._open_executor_job(key, session=session)
     assert second_job.health_check_result == HealthCheckResult.UNHEALTHY
 
     block_forever.set()
