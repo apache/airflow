@@ -543,7 +543,7 @@ def test_rendered_retention_deletes_both_stores_and_keeps_a_whole_mapped_run(own
                 pool_slots=1,
             )
         )
-    for attempt_id in (CURRENT_ID, *keep_ids):
+    for attempt_id in (HISTORY_ID, CURRENT_ID, *keep_ids):
         RenderedTaskInstanceFields.set_for_attempt(
             task_instance_id=attempt_id,
             rendered_fields={"field": "v2"},
@@ -584,6 +584,7 @@ def test_rendered_retention_deletes_both_stores_and_keeps_a_whole_mapped_run(own
 
     RenderedTaskInstanceFields.delete_old_records("task", "ownership", num_to_keep=1, session=session)
 
+    assert RenderedTaskInstanceFields.get_for_attempt(HISTORY_ID, session=session) is None
     assert RenderedTaskInstanceFields.get_for_attempt(CURRENT_ID, session=session) is None
     for attempt_id in keep_ids:
         assert RenderedTaskInstanceFields.get_for_attempt(attempt_id, session=session).rendered_fields == {
