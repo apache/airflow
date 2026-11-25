@@ -87,13 +87,7 @@ def real_app_client():
         {("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"}
     ):
         auth_manager = create_auth_manager()
-        # The auth manager is shared across tests, and the auth manager reads its Flask app's config
-        # (for example AUTH_ROLE_PUBLIC), so do not leave this test's app on it.
-        previous_flask_app = auth_manager.flask_app
-        try:
-            app = auth_manager.get_fastapi_app()
-            app.dependency_overrides[get_user_dep] = lambda: types.SimpleNamespace(id=1, username="tester")
-            with patch.object(auth_manager, "is_authorized_custom_view", return_value=True):
-                yield auth_manager, TestClient(app)
-        finally:
-            auth_manager.flask_app = previous_flask_app
+        app = auth_manager.get_fastapi_app()
+        app.dependency_overrides[get_user_dep] = lambda: types.SimpleNamespace(id=1, username="tester")
+        with patch.object(auth_manager, "is_authorized_custom_view", return_value=True):
+            yield auth_manager, TestClient(app)

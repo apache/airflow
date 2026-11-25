@@ -450,10 +450,10 @@ class FabAuthManager(BaseAuthManager[User]):
             return None
         # The API server runs FastAPI requests and startup without a Flask app context, where
         # ``current_app`` raises, so read the Flask app it built in ``get_fastapi_app``.
-        if self.flask_app is not None:
-            return self.flask_app.config.get("AUTH_ROLE_PUBLIC")
         if has_app_context():
             return current_app.config.get("AUTH_ROLE_PUBLIC")
+        if self.flask_app is not None:
+            return self.flask_app.config.get("AUTH_ROLE_PUBLIC")
         return None
 
     @provide_session

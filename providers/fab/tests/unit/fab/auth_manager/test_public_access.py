@@ -46,12 +46,7 @@ def run_api_server(tmp_path, *, webserver_config: str, auth_role_public: str = "
         }
     ):
         auth_manager = cast("FabAuthManager", create_auth_manager())
-        # The auth manager is shared across tests, so do not leave this server's Flask app on it.
-        previous_flask_app = auth_manager.flask_app
-        try:
-            yield auth_manager, TestClient(create_app(apps="core"), raise_server_exceptions=False)
-        finally:
-            auth_manager.flask_app = previous_flask_app
+        yield auth_manager, TestClient(create_app(apps="core"), raise_server_exceptions=False)
 
 
 def test_legacy_auth_role_public_grants_its_role_to_anonymous_requests(tmp_path):
