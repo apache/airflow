@@ -707,6 +707,28 @@ class TestLivyOperatorResumable:
         operator.hook.post_batch.assert_called_once()
         assert polled == [7]
 
+    @pytest.mark.parametrize(
+        ("stored", "prior_status", "expected_batch_id"),
+        [
+            pytest.param({}, None, BATCH_ID, id="fresh-submit"),
+            pytest.param({"livy_batch_id": 7}, "success", 7, id="already-succeeded"),
+            pytest.param({"livy_batch_id": 7}, "running", 7, id="reconnect"),
+        ],
+    )
+    def test_returns_batch_id_and_pushes_app_id_once(self, stored, prior_status, expected_batch_id):
+        """On reconnect the mixin never calls get_job_result, so the result must not depend on it."""
+        operator = self._make_operator()
+        operator.hook = self._make_hook()
+        operator.hook.get_batch_state.return_value = BatchState.SUCCESS
+        operator.get_job_status = lambda external_id, context: prior_status
+        ti = MagicMock()
+
+        result = operator.execute(context={"task_state_store": FakeTaskStateStore(stored), "ti": ti})
+
+        assert result == expected_batch_id
+        operator.hook.get_batch.assert_called_once_with(expected_batch_id)
+        ti.xcom_push.assert_called_once_with(key="app_id", value=APP_ID)
+
     def test_status_helpers_classify_real_batch_states(self):
         operator = self._make_operator()
         operator.hook = self._make_hook()
@@ -736,6 +758,6 @@ class TestLivyOperatorResumable:
         hook.get_batch_state.return_value = BatchState.SUCCESS
         operator.hook = hook
 
-        operator.poll_until_complete(55, {})
+        operator.poll_until_complete(55, {"ti": MagicMock()})
 
         assert operator._batch_id == 55
