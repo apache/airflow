@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
     from airflow.utils.state import TaskInstanceState
+    from airflow_shared.state import TaskFailureKind
 
 hookspec = HookspecMarker("airflow")
 
@@ -52,13 +53,16 @@ def on_task_instance_failed(
     previous_state: TaskInstanceState | None,
     task_instance: RuntimeTaskInstance | TaskInstance,
     error: None | str | BaseException,
-):
+    failure_kind: TaskFailureKind | None,
+    reason: str | None,
+) -> None:
     """
     Execute when a task instance attempt fails. previous_state can be None.
 
     This also runs for an attempt that will be retried. ``task_instance.state`` is then
     ``UP_FOR_RETRY``, and ``FAILED`` when the task instance will not be retried. A listener that
-    should only react to final failures can check ``task_instance.state``.
+    should only react to final failures can check ``task_instance.state``. ``failure_kind`` and
+    ``reason`` carry the failure cause when Airflow can establish it, and are ``None`` otherwise.
     """
 
 
