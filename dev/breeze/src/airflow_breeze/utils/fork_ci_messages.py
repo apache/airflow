@@ -77,8 +77,7 @@ BASE_BRANCH_FAILURE_URL = (
     "#when-fork-ci-fails-in-code-you-did-not-change"
 )
 BASE_BRANCH_FAILURE_TEXT = (
-    "A job can also fail because of the base branch and not because of your change. If a job fails in "
-    "code this pull request does not change, see "
+    "If a job fails in code you did not change, the failure may come from the base branch. See "
     f"[When fork CI fails in code you did not change]({BASE_BRANCH_FAILURE_URL})."
 )
 OPEN_PR_LIMIT_URL = (

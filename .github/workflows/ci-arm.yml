@@ -378,12 +378,12 @@ jobs:
           {
             echo "### Merged with apache/airflow \`${TARGET_BRANCH}\`"
             echo
-            echo "The jobs of this run test the pushed commit merged with" \
+            echo "This run tests your commit merged with" \
               "[\`${TARGET_SHA:0:10}\`](https://github.com/apache/airflow/commit/${TARGET_SHA})," \
-              "the head of \`${TARGET_BRANCH}\` when this run started."
+              "the head of \`${TARGET_BRANCH}\` when the run started."
             echo
-            echo "A job that fails in code your branch does not change can fail because of" \
-              "\`${TARGET_BRANCH}\`: see [When fork CI fails in code you did not change](${FAILURE_DOC_URL})."
+            echo "If a job fails in code you did not change, the failure may come from" \
+              "\`${TARGET_BRANCH}\`. See [When fork CI fails in code you did not change](${FAILURE_DOC_URL})."
           } >> "${GITHUB_STEP_SUMMARY}"
       - name: "Fetch the last tested push commit"
         # Selective checks of a push diff against this commit. A two-commit diff only needs the
