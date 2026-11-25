@@ -29,6 +29,7 @@ import kubernetes
 import pytest
 import requests
 from kubernetes.client import V1Pod, V1PodStatus
+from urllib3 import HTTPResponse
 
 from airflow.models import Connection
 from airflow.providers.apache.spark.hooks.spark_submit import SparkSubmitHook
@@ -1333,13 +1334,16 @@ class TestSparkSubmitHook:
         # Then
         import kubernetes
 
-        kwargs = {"pretty": True, "body": kubernetes.client.V1DeleteOptions()}
+        kwargs = {"pretty": "true", "body": kubernetes.client.V1DeleteOptions()}
         client.delete_namespaced_pod.assert_called_once_with(
             "spark-pi-edf2ace37be7353a958b38733a12f8e6-driver", "mynamespace", **kwargs
         )
 
-    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_on_kill_deletes_pod_when_k8s_api_tracking_and_submit_sp_already_exited(self, mock_get_client):
+    @patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client", autospec=True)
+    @patch("urllib3.PoolManager.request", autospec=True)
+    def test_on_kill_deletes_pod_when_k8s_api_tracking_and_submit_sp_already_exited(
+        self, mock_request, mock_get_client
+    ):
         """on_kill must delete the driver pod when K8s-API tracking is active even if spark-submit
         has already exited.
         """
@@ -1350,15 +1354,16 @@ class TestSparkSubmitHook:
         # spark-submit already exited
         hook._submit_sp.poll.return_value = 0
 
-        mock_client = mock_get_client.return_value
+        mock_request.return_value = HTTPResponse(body=b"{}", status=200)
+        configuration = kubernetes.client.Configuration(host="http://kubernetes.example")
+        with kubernetes.client.ApiClient(configuration) as api_client:
+            mock_get_client.return_value = kubernetes.client.CoreV1Api(api_client)
+            hook.on_kill()
 
-        hook.on_kill()
-
-        mock_client.delete_namespaced_pod.assert_called_once_with(
-            "spark-app-abc-driver",
-            "mynamespace",
-            body=kubernetes.client.V1DeleteOptions(),
-            pretty=True,
+        assert mock_request.call_count == 1
+        assert mock_request.call_args.args[1:3] == (
+            "DELETE",
+            "http://kubernetes.example/api/v1/namespaces/mynamespace/pods/spark-app-abc-driver?pretty=true",
         )
 
     @pytest.mark.parametrize(

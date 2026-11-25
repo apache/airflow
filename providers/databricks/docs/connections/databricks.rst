@@ -24,6 +24,9 @@ Databricks Connection
 
 The Databricks connection type enables the Databricks & Databricks SQL Integration.
 
+To use Databricks Model Serving as a common.ai model provider with this connection's credentials,
+see :ref:`Pydantic AI (Databricks Model Serving) <howto/connection:pydanticai_databricks>`.
+
 Authenticating to Databricks
 ----------------------------
 

@@ -27,6 +27,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
     UserResponse,
 )
 from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_ordering
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.utils import get_fab_auth_manager
@@ -185,7 +186,7 @@ class FABAuthManagerUsers:
 
         password_changed = False
         if "password" in fields_to_update and body.password is not None:
-            user.password = security_manager._hash_password(body.password.get_secret_value())
+            security_manager.set_user_password(user, body.password.get_secret_value())
             password_changed = True
 
         if "username" in fields_to_update and body.username is not None:
@@ -235,3 +236,4 @@ class FABAuthManagerUsers:
         user.roles = []
         security_manager.session.delete(user)
         security_manager.session.commit()
+        FabAuthManager.evict_cached_user(user.id)

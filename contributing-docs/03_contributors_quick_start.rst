@@ -237,7 +237,17 @@ Forking and cloning Project
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
    chapter below)
 
-4. Add ``apache/airflow`` as the ``upstream`` remote, following the
+   .. code-block:: bash
+
+      git clone https://github.com/<YOUR-USERNAME>/airflow.git
+
+4. Change the current working directory to the location where you want the cloned directory.
+
+   .. code-block:: bash
+
+      cd airflow
+
+5. Add ``apache/airflow`` as the ``upstream`` remote, following the
    `Git remote naming conventions <10_working_with_git.rst>`__:
 
    .. code-block:: bash
