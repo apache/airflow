@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 # RunContext and ModelRequestContext are runtime imports: pydantic-ai resolves a durable
 # operation's type hints when it builds the agent.
@@ -64,6 +65,26 @@ class ToolsetRebuiltForRun(AbstractCapability):
 
     async def for_run(self, ctx: RunContext) -> ToolsetRebuiltForRun:
         return ToolsetRebuiltForRun()
+
+
+@dataclass
+class PicksModel(AbstractCapability):
+    """A custom capability that selects the model for each request through ``get_model``."""
+
+    selector: Any
+
+    def get_model(self) -> Any:
+        return self.selector
+
+
+@dataclass
+class BuiltForRun(AbstractCapability):
+    """A capability that swaps itself for ``capability`` when the run starts, so nothing inspects it beforehand."""
+
+    capability: AbstractCapability
+
+    async def for_run(self, ctx: RunContext) -> AbstractCapability:
+        return await self.capability.for_run(ctx)
 
 
 @dataclass

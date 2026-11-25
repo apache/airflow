@@ -47,7 +47,7 @@ from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY, Tas
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
-from unit.common.ai.durable.capabilities import IdlessLedger
+from unit.common.ai.durable.capabilities import BuiltForRun, IdlessLedger
 from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.tool_parts import is_tool_result
 
@@ -554,13 +554,34 @@ def test_a_retry_pydantic_ai_refuses_after_a_review_round_fails_without_calling_
 @parks
 def test_a_review_task_pydantic_ai_refuses_once_running_fails_before_the_review(ctx, caplog):
     """Run again without durable execution, it would reach the review, and a resume decides again."""
-    op = _operator(retries=2, capabilities=[SelectModel(lambda selection: FunctionModel(_summarizer))])
+    op = _operator(
+        retries=2, capabilities=[BuiltForRun(SelectModel(lambda selection: FunctionModel(_summarizer)))]
+    )
 
     with caplog.at_level(logging.INFO), pytest.raises(UserError, match="was not registered"):
         op.execute(ctx)
 
     assert "the review's regenerations would be refused the same way, so the task fails" in caplog.text
     assert "Durable execution is off" not in caplog.text
+
+
+@parks
+def test_a_review_task_that_switches_models_runs_each_review_round_without_durable_execution(
+    park, ctx, caplog
+):
+    """The decision is taken up front, so the review's regenerations are never refused after the reviewer answered."""
+
+    def build_operator() -> AgentOperator:
+        return _operator(retries=2, capabilities=[SelectModel(lambda selection: FunctionModel(_summarizer))])
+
+    with caplog.at_level(logging.INFO):
+        first = park(lambda: build_operator().execute(ctx))
+        resumed = build_operator()
+        park(lambda: resumed.resume_hitl_review(ctx, **first.kwargs, event=REQUEST_CHANGES))
+
+    assert resumed._is_durable_run is False
+    assert caplog.text.count("Durable execution is off for this task: a SelectModel capability") == 2
+    assert [key for key in ctx["task_state_store"].data if key.startswith(DURABLE_KEY_PREFIX)] == []
 
 
 @parks

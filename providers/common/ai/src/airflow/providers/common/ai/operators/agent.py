@@ -35,6 +35,7 @@ from pydantic_ai import DeferredToolRequests, DeferredToolResults, ToolDenied
 from pydantic_ai.capabilities import (
     AbstractCapability,
     CapabilityOrdering,
+    ModelFallback,
     Toolset,
     WrapperCapability,
     durable_operation,
@@ -301,6 +302,30 @@ def _capability_toolset_without_id(capabilities: Iterable[AgentCapability[Any]])
                 "a toolset without an id sits inside a combined or wrapper capability, so durable "
                 "replay has no id to record its tool calls under. Give it an id, such as "
                 "FunctionToolset(id='orders')."
+            )
+    return None
+
+
+def _get_model_switch_problem(capabilities: Iterable[AgentCapability[Any]]) -> str | None:
+    """
+    Say why a capability may move a request to a model instance, or return ``None``.
+
+    pydantic-ai refuses, once the run reaches it, a request moved to a model the agent was not built
+    with, and the durable journal cannot hold it. That covers a ``ModelFallback`` whatever it holds,
+    and any capability whose ``get_model()`` selects a model instance or a function that picks one
+    per request, such as ``SelectModel``. What a function returns cannot be inspected here.
+    """
+    for capability, _ in _iter_capabilities(capabilities):
+        if isinstance(capability, ModelFallback):
+            return (
+                "a ModelFallback capability moves a request to a model durable execution has not "
+                "registered, which pydantic-ai refuses. A fallback_conn_ids chain keeps durable execution."
+            )
+        selected = capability.get_model()
+        if selected is not None and not isinstance(selected, str):
+            return (
+                f"a {type(capability).__name__} capability picks the model for each request, and durable "
+                "execution cannot record a request moved to a model instance."
             )
     return None
 
@@ -1492,7 +1517,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             )
         if "task_state_store" not in context:
             return "the task's context has no task state store to keep the journal in."
-        return self._durable_problem()
+        # Decided before the run: once steps ran, a run pydantic-ai refuses can only fail, and a
+        # switch to a fallback model is likeliest after the steps of a provider outage.
+        return self._durable_problem() or _get_model_switch_problem(self._declared_capabilities)
 
     @property
     def _durable_mode(self) -> str:

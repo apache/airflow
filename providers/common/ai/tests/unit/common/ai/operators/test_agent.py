@@ -131,8 +131,10 @@ from tests_common.test_utils.version_compat import (
     AIRFLOW_V_3_4_PLUS,
 )
 from unit.common.ai.durable.capabilities import (
+    BuiltForRun,
     IdlessLedger,
     LedgerRenamedForRun,
+    PicksModel,
     RouterThatActs,
     ToolsetRebuiltForRun,
 )
@@ -3055,10 +3057,16 @@ def _unavailable(messages, info) -> ModelResponse:
 # Agents pydantic-ai refuses only once their durable run has started, one per place it raises.
 _REFUSED_ONCE_RUNNING = [
     pytest.param(
-        _answer, SelectModel(lambda ctx: FunctionModel(_answer)), "The model instance", id="selected-model"
+        _answer,
+        BuiltForRun(SelectModel(lambda ctx: FunctionModel(_answer))),
+        "The model instance",
+        id="selected-model",
     ),
     pytest.param(
-        _unavailable, ModelFallback(FunctionModel(_answer)), "The model instance", id="fallback-model"
+        _unavailable,
+        BuiltForRun(ModelFallback(FunctionModel(_answer))),
+        "The model instance",
+        id="fallback-model",
     ),
     pytest.param(_answer, LedgerRenamedForRun(), "No capability with id 'ledger'", id="capability-renamed"),
     pytest.param(_answer, ToolsetRebuiltForRun(), "A toolset added at run time", id="toolset-rebuilt"),
@@ -3369,6 +3377,105 @@ class TestAgentOperatorDurableByDefault:
 
         assert _raised_by_durable_execution(raised.value)
 
+    @pytest.mark.parametrize(
+        "switch", ["fallback-instance", "fallback-name", "selected-model", "picked-model"]
+    )
+    def test_an_agent_that_moves_to_another_model_after_a_tool_ran_runs_without_durable_execution(
+        self, task_state_store_accessor, caplog, switch
+    ):
+        """The default must not fail what ``durable=False`` runs: such an agent cannot be durable at all."""
+        calls = {"tool": 0, "backup": 0}
+
+        def look_up() -> str:
+            calls["tool"] += 1
+            return "tool-result"
+
+        def answer_as_backup(messages, info):
+            calls["backup"] += 1
+            return ModelResponse(parts=[TextPart(content="done")])
+
+        def call_tool_then_fail(messages, info):
+            if any(isinstance(p, ToolReturnPart) for m in messages for p in m.parts):
+                raise ModelHTTPError(503, "primary", "unavailable")
+            return ModelResponse(parts=[ToolCallPart(tool_name="look_up", args={})])
+
+        backup = FunctionModel(answer_as_backup)
+        pick = lambda ctx: backup if ctx.run_step > 1 else ctx.model
+        capability, reason = {
+            "fallback-instance": (ModelFallback(backup), "ModelFallback capability moves a request"),
+            "fallback-name": (ModelFallback("test"), "ModelFallback capability moves a request"),
+            "selected-model": (SelectModel(pick), "SelectModel capability picks the model"),
+            "picked-model": (PicksModel(pick), "PicksModel capability picks the model"),
+        }[switch]
+        op = _agent_op(
+            call_tool_then_fail,
+            retries=2,
+            toolsets=[FunctionToolset(tools=[look_up], id="tools")],
+            capabilities=[capability],
+        )
+
+        with caplog.at_level(logging.INFO):
+            result = op.execute(context=_durable_context(task_state_store_accessor))
+
+        assert result == "done" or switch == "fallback-name"
+        assert calls["tool"] == 1
+        assert op._is_durable_run is False
+        assert f"Durable execution is off for this task: a {reason}" in caplog.text
+        assert "LLM run failed" not in caplog.text
+        assert not [key for key in task_state_store_accessor.data if key.startswith(DURABLE_KEY_PREFIX)]
+
+    @pytest.mark.parametrize(
+        "capability",
+        [
+            pytest.param(SelectModel(lambda ctx: FunctionModel(_answer)), id="selected-model"),
+            pytest.param(PicksModel(lambda ctx: FunctionModel(_answer)), id="custom-capability"),
+            pytest.param(CombinedCapability([SelectModel(lambda ctx: FunctionModel(_answer))]), id="nested"),
+        ],
+    )
+    def test_an_agent_with_tool_discovery_and_a_model_switch_runs_without_durable_execution(
+        self, task_state_store_accessor, capability
+    ):
+        """Discovering the tools ran a step before the switch, so a refusal at the switch would be kept."""
+
+        def ping() -> str:
+            return "pong"
+
+        op = _agent_op(
+            _answer,
+            retries=2,
+            toolsets=[DynamicToolset(lambda ctx: FunctionToolset(tools=[ping], id="inner"), id="remote")],
+            capabilities=[capability],
+        )
+
+        assert op.execute(context=_durable_context(task_state_store_accessor)) == "done"
+
+        assert op._is_durable_run is False
+
+    @pytest.mark.parametrize(
+        "capability",
+        [
+            pytest.param(Thinking(), id="selects-no-model"),
+            pytest.param(PicksModel("test"), id="selects-a-model-name"),
+        ],
+    )
+    def test_a_capability_that_selects_no_model_instance_stays_durable(
+        self, task_state_store_accessor, capability
+    ):
+        op = _agent_op(_answer, retries=2, capabilities=[capability])
+
+        op._decide_durable(_durable_context(task_state_store_accessor))
+
+        assert op._is_durable_run is True
+
+    def test_durable_true_keeps_a_model_switch(self, task_state_store_accessor):
+        """``durable=True`` asked for durable execution, so a switch to a model instance stays pydantic-ai's refusal."""
+        op = _agent_op(
+            _answer, retries=2, durable=True, capabilities=[SelectModel(lambda ctx: FunctionModel(_answer))]
+        )
+
+        with pytest.raises(UserError, match="The model instance"):
+            op.execute(context=_durable_context(task_state_store_accessor))
+
     def test_a_run_again_without_durable_reports_one_run(self, task_state_store_accessor, caplog):
         """The refused run sent no request, so one request fits the limit and the run's ids are this attempt's."""
         conversation_ids = []
@@ -3381,7 +3488,7 @@ class TestAgentOperatorDurableByDefault:
             answer,
             retries=2,
             usage_limits=UsageLimits(request_limit=1),
-            capabilities=[SelectModel(lambda ctx: FunctionModel(answer))],
+            capabilities=[BuiltForRun(SelectModel(lambda ctx: FunctionModel(answer)))],
         )
         context = _durable_context(task_state_store_accessor)
 
@@ -3404,7 +3511,7 @@ class TestAgentOperatorDurableByDefault:
             _answer,
             retries=2,
             usage_limits=UsageLimits(request_limit=5),
-            capabilities=[SelectModel(lambda ctx: FunctionModel(_unavailable))],
+            capabilities=[BuiltForRun(SelectModel(lambda ctx: FunctionModel(_unavailable)))],
         )
 
         with caplog.at_level(logging.INFO), pytest.raises(ModelHTTPError):
@@ -3443,7 +3550,7 @@ class TestAgentOperatorDurableByDefault:
 
         routed = FunctionModel(_answer)
         capabilities: list[AbstractCapability] = [
-            SelectModel(lambda ctx: routed if ctx.run_step > 1 else ctx.model)
+            BuiltForRun(SelectModel(lambda ctx: routed if ctx.run_step > 1 else ctx.model))
         ]
         if isinstance(tool_raises, RuntimeError):
             capabilities.append(Recover())
@@ -3484,7 +3591,11 @@ class TestAgentOperatorDurableByDefault:
 
         with pytest.raises(RuntimeError, match="transient"):
             _agent_op(transient, retries=2).execute(context=_durable_context(task_state_store_accessor))
-        op = _agent_op(_answer, retries=2, capabilities=[SelectModel(lambda ctx: FunctionModel(_answer))])
+        op = _agent_op(
+            _answer,
+            retries=2,
+            capabilities=[BuiltForRun(SelectModel(lambda ctx: FunctionModel(_answer)))],
+        )
 
         with caplog.at_level(logging.INFO), pytest.raises(UserError, match="was not registered"):
             op.execute(context=_durable_context(task_state_store_accessor, try_number=2))

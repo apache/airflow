@@ -157,11 +157,18 @@ reason, in these cases:
   the agent live would repeat its steps. Pass ``durable=False`` to such a task. A HITL
   review's regeneration still runs without durable execution: it continues from the
   conversation, so it repeats none of them.
+- A ``ModelFallback`` capability, or a capability that selects the model for each request, such
+  as ``SelectModel``, wherever it sits among the capabilities. Durable execution cannot record a
+  request moved to a model it was not given: pydantic-ai refuses it when the request is made,
+  which for a fallback is after the steps before the provider failed. Deciding before the run
+  keeps such a task working as it does with ``durable=False``. A function that picks the model
+  cannot be inspected for what it returns, so it counts whatever it returns. To keep durable
+  execution through a fallback, use a ``fallback_conn_ids`` chain (:doc:`provider_fallback`).
 - An agent pydantic-ai refuses only once its durable run has started, such as one that a
-  ``SelectModel`` or ``ModelFallback`` capability moves to a model instance the agent was not
-  built with, or a capability whose ``for_run`` returns one with another ``id``. The agent runs
-  again without durable execution, and the task log quotes pydantic-ai's error. Hooks such as
-  ``before_run`` run again, and so does a model request that failed, such as the one
+  capability whose ``for_run`` builds it when the run starts moves to a model
+  instance the agent was not built with, or whose ``for_run`` returns one with another ``id``.
+  The agent runs again without durable execution, and the task log quotes pydantic-ai's error.
+  Hooks such as ``before_run`` run again, and so does a model request that failed, such as the one
   ``ModelFallback`` falls back from. The task fails instead, and the log says why, when a step
   running live would repeat already ran: a model request that got an answer, or a tool call or a
   ``@durable_operation`` hook, even one that raised. It fails too when the task has a HITL

@@ -51,12 +51,16 @@ Changelog
 
   Where durable execution cannot apply (a ``SandboxToolset``, an ``MCPToolset`` without an
   ``id``, a toolset in a capability the operator cannot give an id to), it stays off and the
-  task log says why. A sandbox a function or ``DynamicToolset`` builds per run cannot be seen
-  before the run, so pass ``durable=False`` to that task. An agent pydantic-ai refuses only once
-  its durable run has started, such as one a capability moves to a model instance the agent was
-  not built with, runs again without durable execution; a task with a HITL review fails on it
-  instead, so pass ``durable=False`` to that task too (:ref:`durable-not-journaled`). On by
-  default, a step result the journal cannot hold is logged and runs again on retry;
+  task log says why; so does a ``ModelFallback`` capability, or one that selects the model for
+  each request such as ``SelectModel``, since pydantic-ai refuses a request moved to a model
+  under durable execution. A ``fallback_conn_ids`` chain keeps it. A sandbox a function or
+  ``DynamicToolset`` builds per run cannot be seen before the run, so pass ``durable=False`` to
+  that task. An agent pydantic-ai refuses only once its durable run has started, such as one a
+  capability whose ``for_run`` builds it when the run starts moves to a model instance the agent
+  was not built with, runs again without durable execution. The task
+  fails instead when a step a live run would repeat already ran, such as a tool call, or when it
+  has a HITL review, so pass ``durable=False`` to that task too (:ref:`durable-not-journaled`).
+  On by default, a step result the journal cannot hold is logged and runs again on retry;
   ``durable=True`` still fails the task on it.
 
   To keep the previous behaviour, pass ``durable=False`` to the task.
