@@ -222,11 +222,11 @@ class TestWeaviateSwapAliasOperator:
             target_collection=target_collection,
             **kwargs,
         )
-        operator.hook.get_alias = MagicMock(return_value=None)
-        operator.hook.create_alias = MagicMock()
-        operator.hook.update_alias = MagicMock(return_value=True)
-        operator.hook.list_aliases = MagicMock(return_value={})
-        operator.hook.delete_collections = MagicMock()
+        mock_hook = MagicMock()
+        mock_hook.get_alias.return_value = None
+        mock_hook.update_alias.return_value = True
+        mock_hook.list_aliases.return_value = {}
+        operator.__dict__["hook"] = mock_hook
         return operator
 
     def test_creates_missing_alias(self):
