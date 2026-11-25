@@ -83,13 +83,15 @@ export function buildOperatorContext(deps: OperatorContextDeps): OperatorContext
     client,
     logs,
     fail,
-    resolveArgs: (argNames = NO_ARG_NAMES) =>
-      resolveArgs(details.ti_context?.arg_bindings, {
+    async resolveArgs(argNames = NO_ARG_NAMES) {
+      const bound = await resolveArgs(details.ti_context?.arg_bindings, {
         client,
         signal: ctx.signal,
         logs,
         argNames,
-      }),
+      });
+      return bound.args;
+    },
     async succeed(value?: JsonValue): Promise<RuntimeSucceedTask> {
       if (value !== undefined) await client.setXCom({ key: XCOM_RETURN_KEY, value });
       // The Execution API's TISuccessStatePayload validator rejects null for
