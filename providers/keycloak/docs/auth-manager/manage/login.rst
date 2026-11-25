@@ -53,7 +53,7 @@ Login settings (After Client is Created)
     * - Service accounts roles
       - ON (by default if configuration overridden from Keycloak)
     * - OAuth 2.0 Device Authorization Grant
-      - OFF
+      - OFF (ON if ``cli_device_code_enabled`` is set, see :doc:`/auth-manager/token`)
     * - OIDC CIBA Grant
       - OFF
 

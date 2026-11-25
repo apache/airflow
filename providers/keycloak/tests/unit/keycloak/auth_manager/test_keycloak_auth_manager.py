@@ -357,9 +357,10 @@ class TestKeycloakAuthManager:
         CliLoginMethods is None, reason="CLI login discovery is not available in this Airflow"
     )
     @pytest.mark.parametrize(
-        ("authorization_code_enabled", "expected"),
+        ("authorization_code_enabled", "device_code_enabled", "expected"),
         [
             (
+                "False",
                 "False",
                 {
                     "grant_types_supported": ["password", "refresh_token"],
@@ -371,6 +372,7 @@ class TestKeycloakAuthManager:
             ),
             (
                 "True",
+                "False",
                 {
                     "grant_types_supported": ["password", "refresh_token", "authorization_code"],
                     "code_challenge_methods_supported": ["S256"],
@@ -379,10 +381,48 @@ class TestKeycloakAuthManager:
                     "token_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
                 },
             ),
+            (
+                "False",
+                "True",
+                {
+                    "grant_types_supported": [
+                        "password",
+                        "refresh_token",
+                        "urn:ietf:params:oauth:grant-type:device_code",
+                    ],
+                    "code_challenge_methods_supported": [],
+                    "authorization_endpoint": None,
+                    "device_authorization_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli/device",
+                    "token_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
+                },
+            ),
+            (
+                "True",
+                "True",
+                {
+                    "grant_types_supported": [
+                        "password",
+                        "refresh_token",
+                        "authorization_code",
+                        "urn:ietf:params:oauth:grant-type:device_code",
+                    ],
+                    "code_challenge_methods_supported": ["S256"],
+                    "authorization_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli",
+                    "device_authorization_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli/device",
+                    "token_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
+                },
+            ),
         ],
     )
-    def test_get_cli_login_methods(self, auth_manager, authorization_code_enabled, expected):
-        with conf_vars({(CONF_SECTION_NAME, "cli_authorization_code_enabled"): authorization_code_enabled}):
+    def test_get_cli_login_methods(
+        self, auth_manager, authorization_code_enabled, device_code_enabled, expected
+    ):
+        with conf_vars(
+            {
+                (CONF_SECTION_NAME, "cli_authorization_code_enabled"): authorization_code_enabled,
+                (CONF_SECTION_NAME, "cli_device_code_enabled"): device_code_enabled,
+            }
+        ):
             assert dataclasses.asdict(auth_manager.get_cli_login_methods()) == expected
 
     @patch.object(KeycloakAuthManager, "_token_expired")

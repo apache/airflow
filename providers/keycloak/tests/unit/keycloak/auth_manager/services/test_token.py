@@ -32,12 +32,15 @@ from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.exceptions import AuthManagerRefreshTokenExpiredException
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import KeycloakAuthManager
 from airflow.providers.keycloak.auth_manager.services.token import (
+    _find_oauth_error,
     create_client_credentials_token,
     create_jwt_federated_token,
     create_token_for,
     create_token_from_authorization_code,
+    create_token_from_device_code,
     is_cli_loopback_redirect_uri,
     refresh_cli_token,
+    start_device_authorization,
 )
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
 
@@ -919,3 +922,167 @@ class TestCliTokenService:
 
         assert exc_info.value.status_code == expected_status
         auth_manager.generate_api_jwt.assert_not_called()
+
+
+def _keycloak_oauth_error(error: str) -> KeycloakPostError:
+    return KeycloakPostError(
+        error, response_code=400, response_body=f'{{"error": "{error}", "error_description": "x"}}'.encode()
+    )
+
+
+class TestDeviceCodeService:
+    @pytest.mark.parametrize(
+        ("error", "expected"),
+        [
+            pytest.param(_keycloak_oauth_error("slow_down"), "slow_down", id="oauth-error"),
+            pytest.param(
+                KeycloakPostError("x", response_code=400, response_body=b"not json"), None, id="text"
+            ),
+            pytest.param(KeycloakPostError("x", response_code=400, response_body=b"[1]"), None, id="list"),
+            pytest.param(
+                KeycloakPostError("x", response_code=400, response_body=b'{"error": 1}'), None, id="int"
+            ),
+            pytest.param(KeycloakConnectionError("Can't connect to server"), None, id="no-body"),
+        ],
+    )
+    def test_find_oauth_error(self, error, expected):
+        assert _find_oauth_error(error) == expected
+
+    @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_start_device_authorization(self, mock_get_keycloak_client):
+        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
+        mock_get_keycloak_client.return_value.device.return_value = {"device_code": "device"}
+
+        assert start_device_authorization() == {"device_code": "device"}
+        mock_get_keycloak_client.return_value.device.assert_called_once_with(scope="openid")
+
+    @pytest.mark.parametrize(
+        ("error", "expected_status"),
+        [
+            pytest.param(_keycloak_oauth_error("unauthorized_client"), 500, id="grant-off-in-keycloak"),
+            pytest.param(KeycloakConnectionError("Can't connect to server"), 503, id="keycloak-down"),
+            pytest.param(KeycloakPostError("Unavailable", response_code=503), 503, id="keycloak-5xx"),
+        ],
+    )
+    @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_start_device_authorization_keycloak_error(
+        self, mock_get_keycloak_client, error, expected_status
+    ):
+        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
+        mock_get_keycloak_client.return_value.device.side_effect = error
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            start_device_authorization()
+
+        assert exc_info.value.status_code == expected_status
+
+    @pytest.mark.parametrize(
+        "call",
+        [
+            pytest.param(start_device_authorization, id="start"),
+            pytest.param(partial(create_token_from_device_code, "device", 10), id="token"),
+        ],
+    )
+    @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "False"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_device_code_disabled(self, mock_get_keycloak_client, call):
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            call()
+
+        assert exc_info.value.status_code == 400
+        assert exc_info.value.detail == "Device code login is not enabled for command-line clients"
+        mock_get_keycloak_client.assert_not_called()
+
+    @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_from_device_code(self, mock_get_keycloak_client, mock_get_auth_manager):
+        mock_keycloak_client = Mock(spec=KeycloakOpenID)
+        mock_keycloak_client.token.return_value = {"access_token": "access", "refresh_token": "refresh"}
+        mock_keycloak_client.userinfo.return_value = {"sub": "sub", "preferred_username": "username"}
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+        mock_get_auth_manager.return_value.generate_api_jwt.return_value = "token"
+
+        assert create_token_from_device_code("device", expiration_time_in_seconds=10) == "token"
+
+        mock_keycloak_client.token.assert_called_once_with(
+            grant_type="urn:ietf:params:oauth:grant-type:device_code", device_code="device", scope="openid"
+        )
+        user = mock_get_auth_manager.return_value.generate_api_jwt.call_args.args[0]
+        assert (user.get_id(), user.get_name(), user.access_token, user.refresh_token) == (
+            "sub",
+            "username",
+            "access",
+            "refresh",
+        )
+        mock_get_auth_manager.return_value.generate_api_jwt.assert_called_once_with(
+            user, expiration_time_in_seconds=10
+        )
+
+    @pytest.mark.parametrize(
+        ("error", "expected_status", "expected_detail"),
+        [
+            pytest.param(
+                _keycloak_oauth_error("authorization_pending"), 400, "authorization_pending", id="pending"
+            ),
+            pytest.param(_keycloak_oauth_error("slow_down"), 400, "slow_down", id="slow-down"),
+            pytest.param(_keycloak_oauth_error("access_denied"), 400, "access_denied", id="denied"),
+            pytest.param(_keycloak_oauth_error("expired_token"), 400, "expired_token", id="expired"),
+            pytest.param(_keycloak_oauth_error("invalid_grant"), 403, "Invalid device code", id="invalid"),
+            pytest.param(
+                _keycloak_oauth_error("unauthorized_client"),
+                500,
+                "Keycloak refused the device code token request",
+                id="grant-off-in-keycloak",
+            ),
+            pytest.param(
+                KeycloakAuthenticationError("unauthorized", response_code=401),
+                500,
+                "Keycloak refused the device code token request",
+                id="client-auth-failed",
+            ),
+            pytest.param(
+                KeycloakConnectionError("Can't connect to server"), 503, "Keycloak is unavailable", id="down"
+            ),
+            pytest.param(
+                KeycloakPostError("Unavailable", response_code=503), 503, "Keycloak is unavailable", id="5xx"
+            ),
+        ],
+    )
+    @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.log", spec=logging.Logger)
+    @patch("airflow.providers.keycloak.auth_manager.services.token.get_auth_manager")
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_from_device_code_keycloak_error(
+        self,
+        mock_get_keycloak_client,
+        mock_get_auth_manager,
+        mock_log,
+        error,
+        expected_status,
+        expected_detail,
+    ):
+        mock_get_keycloak_client.return_value = Mock(spec=KeycloakOpenID)
+        mock_get_keycloak_client.return_value.token.side_effect = error
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_token_from_device_code("device", expiration_time_in_seconds=10)
+
+        assert (exc_info.value.status_code, exc_info.value.detail) == (expected_status, expected_detail)
+        mock_get_auth_manager.return_value.generate_api_jwt.assert_not_called()
+        assert mock_log.error.called is (expected_status == 500)
+
+    @conf_vars({("keycloak_auth_manager", "cli_device_code_enabled"): "True"})
+    @patch("airflow.providers.keycloak.auth_manager.services.token.KeycloakAuthManager.get_keycloak_client")
+    def test_create_token_from_device_code_userinfo_keycloak_down(self, mock_get_keycloak_client):
+        mock_keycloak_client = Mock(spec=KeycloakOpenID)
+        mock_keycloak_client.token.return_value = {"access_token": "access"}
+        mock_keycloak_client.userinfo.side_effect = KeycloakConnectionError("Can't connect to server")
+        mock_get_keycloak_client.return_value = mock_keycloak_client
+
+        with pytest.raises(fastapi.exceptions.HTTPException) as exc_info:
+            create_token_from_device_code("device", expiration_time_in_seconds=10)
+
+        assert exc_info.value.status_code == 503
