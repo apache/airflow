@@ -4196,9 +4196,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         .values(state=JobState.FAILED, end_date=timezone.utcnow())
                     )
 
-                    # Every column but executor_config, and the Dag runs from the join: executors' adoption
-                    # code and the code below read various columns, and each one left to a lazy load would
-                    # cost a query per task instance while the jobs are locked.
+                    # Every column but executor_config, next_method and next_kwargs, and the Dag runs from
+                    # the join: executors' adoption code and the code below read various columns, and each
+                    # one left to a lazy load would cost a query per task instance while the jobs are locked.
                     query = (
                         select(TI)
                         .where(TI.state.in_(State.adoptable_states))
