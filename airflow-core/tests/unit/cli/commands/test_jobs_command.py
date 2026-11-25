@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import pytest
 
+from airflow._shared.timezones import timezone
 from airflow.cli import cli_parser
 from airflow.cli.commands import jobs_command
-from airflow.jobs.job import Job, JobState
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -70,6 +71,31 @@ class TestCliConfigList:
                 self.parser.parse_args(
                     ["jobs", "check", "--job-type", "SchedulerJob", "--hostname", "HOSTNAME"]
                 )
+            )
+        assert "Found one alive job." in temp_stdout.getvalue()
+
+    def test_without_job_type_ignores_executor_job_rows_on_the_same_host(self, stdout_capture):
+        with create_session() as session:
+            self.scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=self.scheduler_job)
+            self.scheduler_job.state = State.RUNNING
+            self.scheduler_job.hostname = "HOSTNAME"
+            session.add(self.scheduler_job)
+            session.commit()
+            self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
+
+            executor_job = Job(
+                job_type=EXECUTOR_JOB_TYPE,
+                state=State.RUNNING,
+                hostname="HOSTNAME",
+                latest_heartbeat=timezone.utcnow(),
+            )
+            session.add(executor_job)
+            session.commit()
+
+        with stdout_capture as temp_stdout:
+            jobs_command.check(
+                self.parser.parse_args(["jobs", "check", "--hostname", "HOSTNAME", "--limit", "0"])
             )
         assert "Found one alive job." in temp_stdout.getvalue()
 

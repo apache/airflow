@@ -1051,6 +1051,22 @@ class HTTPExceptionResponse(BaseModel):
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
 
 
+class HealthCheckResult(str, Enum):
+    """
+    Explicit outcome of a component's own last health check.
+
+    Separate from whether the Job row itself is alive: a row can be alive (recent heartbeat) while
+    this stays UNKNOWN because the check hasn't completed yet, raised, or was never implemented.
+    Collapsing all of that into "no heartbeat means unhealthy" makes a real failure indistinguishable
+    from "never checked" or "check is hanging", which is why this is a value of its own rather than
+    being inferred from heartbeat recency.
+    """
+
+    HEALTHY = "healthy"
+    UNHEALTHY = "unhealthy"
+    UNKNOWN = "unknown"
+
+
 class HealthStatus(str, Enum):
     """
     Aggregate health of a component: whether it has at least one live instance.
@@ -2777,6 +2793,18 @@ class EventLogCollectionResponse(BaseModel):
     ] = None
 
 
+class ExecutorInstanceInfoResponse(BaseModel):
+    """
+    Executor instance info serializer for responses.
+    """
+
+    hostname: Annotated[str | None, Field(title="Hostname")]
+    executor: Annotated[str | None, Field(title="Executor")]
+    latest_executor_heartbeat: Annotated[str | None, Field(title="Latest Executor Heartbeat")]
+    team_names: Annotated[list[str], Field(title="Team Names")]
+    health_check_result: HealthCheckResult | None
+
+
 class ExternalViewResponse(BaseModel):
     """
     Serializer for External View Plugin responses.
@@ -3462,6 +3490,17 @@ class DagStatsCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class ExecutorInfoResponse(BaseModel):
+    """
+    Executor info serializer for responses.
+    """
+
+    status: HealthStatus | None
+    latest_executor_heartbeat: Annotated[str | None, Field(title="Latest Executor Heartbeat")]
+    detailed_status: DetailedHealthStatus | None
+    instances: Annotated[list[ExecutorInstanceInfoResponse] | None, Field(title="Instances")] = None
+
+
 class HITLDetail(BaseModel):
     """
     Schema for Human-in-the-loop detail.
@@ -3522,6 +3561,7 @@ class HealthInfoResponse(BaseModel):
     scheduler: SchedulerInfoResponse
     triggerer: TriggererInfoResponse
     dag_processor: DagProcessorInfoResponse | None = None
+    executor: ExecutorInfoResponse | None = None
 
 
 class PluginCollectionResponse(BaseModel):
