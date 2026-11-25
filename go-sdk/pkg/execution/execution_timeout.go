@@ -98,18 +98,23 @@ func (t enabledExecutionTimeout) run(
 	ctx, cancel := context.WithTimeoutCause(stop, secondsToDuration(t.seconds), timeoutErr)
 	defer cancel()
 
-	done := make(chan any, 1)
-	go func() { done <- run(ctx) }()
+	done := make(chan taskOutcome, 1)
+	go func() {
+		result := run(ctx)
+		// Whichever cancels ctx first wins, so after this the timer cannot change the cause.
+		cancel()
+		done <- taskOutcome{result, errors.Is(context.Cause(ctx), sdk.ErrTaskTimeout)}
+	}()
 
 	select {
-	case result := <-done:
-		if !errors.Is(context.Cause(ctx), sdk.ErrTaskTimeout) {
-			return result
+	case outcome := <-done:
+		if !outcome.timedOut {
+			return outcome.result
 		}
 	case <-ctx.Done():
 		if !errors.Is(context.Cause(ctx), sdk.ErrTaskTimeout) {
-			// A SIGTERM before the timeout: wait for the task, as without a timeout.
-			return <-done
+			// A SIGTERM before the timeout, or the task has just returned: wait for its result.
+			return (<-done).result
 		}
 		logger.Warn("Task reached its execution_timeout; waiting for it to stop",
 			"timeout_seconds", t.seconds,
@@ -121,6 +126,11 @@ func (t enabledExecutionTimeout) run(
 	}
 	logger.Error("Task timed out", "error", timeoutErr)
 	return failTask(shouldRetry, timeoutErr)
+}
+
+type taskOutcome struct {
+	result   any
+	timedOut bool
 }
 
 // maxDurationSeconds is the longest timeout time.Duration can hold, about 292 years.
