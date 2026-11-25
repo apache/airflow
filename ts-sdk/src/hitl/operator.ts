@@ -66,7 +66,7 @@ async function executeHITL(task: HITLTask<never>, op: OperatorContext): Promise<
   const { details, ctx, client, logs } = op;
   // The inputs are read here only, for the text: the resumed run must not depend on upstream
   // XComs still being there.
-  const args = await op.resolveArgs(task.argNames);
+  const { args } = await op.resolveArgs(task.argNames);
   const render = (text: HITLText<never, string | null>) =>
     runInTaskScope({ ctx, client }, () => renderText(text, args));
   const subject = await render(task.subject);

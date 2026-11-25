@@ -1437,6 +1437,7 @@ describe("coordinator runtime integration", () => {
         next_method: "execute_complete",
         next_kwargs: {},
       });
+      expect(result.logRecords.filter((r) => r.level === "warning")).toEqual([]);
       expect(requestsOf(result, "SetXCom")).toEqual([]);
     });
 

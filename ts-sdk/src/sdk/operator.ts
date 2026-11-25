@@ -23,6 +23,7 @@
 // The coordinator types are imported as types only: the authoring layer must not load the
 // coordinator at run time.
 
+import type { BoundArgs } from "../coordinator/arg-binding.js";
 import type { CoordinatorClient } from "../coordinator/client.js";
 import type { LogChannel } from "../coordinator/log-channel.js";
 import type {
@@ -54,7 +55,7 @@ export interface OperatorContext {
   readonly client: CoordinatorClient;
   readonly logs: LogChannel;
   /** Bind the task's declared inputs, applying the `withArgNames` renames of `argNames`. */
-  resolveArgs(argNames?: ReadonlyMap<string, string>): Promise<object>;
+  resolveArgs(argNames?: ReadonlyMap<string, string>): Promise<BoundArgs>;
   /** Push `value` under `return_value` when it is given, then succeed. */
   succeed(value?: JsonValue): Promise<RuntimeSucceedTask>;
   /** Fail, or hand the task back for retry when it has retries left. */
