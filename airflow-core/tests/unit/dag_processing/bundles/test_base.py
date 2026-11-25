@@ -218,16 +218,39 @@ class TestBundleVersionLock:
         assert b.lock_file_path is None
         assert b.lock_file is None
 
-    def test_update_version_file_writes_parseable_timestamp_with_no_leftover_temp_files(self):
+    @patch("airflow.dag_processing.bundles.base.get_bundle_tracking_file")
+    def test_update_version_file_writes_parseable_timestamp(self, mock_get_tracking_file, tmp_path):
+        tracking_file = tmp_path / "v1"
+        mock_get_tracking_file.return_value = tracking_file
         lock = BundleVersionLock(
             bundle_name="abc",
             bundle_version="v1",
         )
         lock._update_version_file()
-        assert lock.lock_file_path is not None
-        assert lock.lock_file_path.exists()
-        assert BundleUsageTrackingManager()._parse_dt(lock.lock_file_path.read_text()) is not None
-        assert list(lock.lock_file_path.parent.iterdir()) == [lock.lock_file_path]
+        assert lock.lock_file_path == tracking_file
+        assert tracking_file.exists()
+        assert BundleUsageTrackingManager()._parse_dt(tracking_file.read_text()) is not None
+
+    @patch("airflow.dag_processing.bundles.base.get_bundle_tracking_file")
+    def test_update_version_file_keeps_held_flock_effective(self, mock_get_tracking_file, tmp_path):
+        """Rewriting the tracking file must not replace it: flock locks the open file, not its name."""
+        tracking_file = tmp_path / "v1"
+        mock_get_tracking_file.return_value = tracking_file
+        lock = BundleVersionLock(
+            bundle_name="abc",
+            bundle_version="v1",
+        )
+        with lock:
+            inode_before = tracking_file.stat().st_ino
+            # A second task acquiring the same version rewrites the tracking file.
+            BundleVersionLock(
+                bundle_name="abc",
+                bundle_version="v1",
+            )._update_version_file()
+            assert tracking_file.stat().st_ino == inode_before
+            with open(tracking_file, "a") as f:
+                with pytest.raises(BlockingIOError):
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
 
     def test_log_exc_formats_message_correctly(self):
         """Test that _log_exc correctly formats the log message with all parameters."""
