@@ -294,58 +294,6 @@ def test_check_executor_health_marks_unhealthy_on_every_tick_while_stalled(sessi
     stuck.join()
 
 
-def test_join_executor_health_check_threads_prevents_a_row_reappearing_after_shutdown(session):
-    """A check still running when the scheduler shuts down must not revive a row after it is closed."""
-    executor = _StubExecutor()
-    runner = _make_runner(executor, session)
-    key = _executor_health_key(executor)
-
-    runner._touch_executor_heartbeats(session=session)
-    session.commit()
-
-    release = threading.Event()
-
-    def delayed_check():
-        release.wait()
-        runner._run_executor_health_check(executor, key)
-
-    thread = threading.Thread(target=delayed_check, daemon=True)
-    thread.start()
-    runner._executor_health_check_threads[key] = (thread, time.monotonic())
-
-    threading.Timer(0.05, release.set).start()
-    runner._join_executor_health_check_threads()
-    runner._end_executor_jobs(JobState.SUCCESS, session=session)
-    session.commit()
-
-    rows = session.scalars(
-        select(Job).where(Job.job_type == EXECUTOR_JOB_TYPE, Job.owner_job_id == runner.job.id)
-    ).all()
-    assert len(rows) == 1
-    assert rows[0].end_date is not None
-
-
-def test_join_executor_health_check_threads_skips_a_check_already_marked_stalled(session):
-    """A check already known to be stalled isn't coming back; shutdown must not wait on it again."""
-    executor = _StubExecutor()
-    runner = _make_runner(executor, session)
-    key = _executor_health_key(executor)
-
-    block_forever = threading.Event()
-    stuck = threading.Thread(target=block_forever.wait, daemon=True)
-    stuck.start()
-    runner._executor_health_check_timeout = 5.0
-    runner._executor_health_check_threads[key] = (stuck, time.monotonic())
-    runner._stalled_health_checks.add(key)
-
-    started = time.monotonic()
-    runner._join_executor_health_check_threads()
-    assert time.monotonic() - started < 1.0
-
-    block_forever.set()
-    stuck.join()
-
-
 def test_end_executor_jobs_closes_this_scheduler_rows_with_the_given_state(session):
     executor = _StubExecutor()
     runner = _make_runner(executor, session)

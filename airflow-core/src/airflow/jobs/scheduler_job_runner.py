@@ -552,22 +552,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             thread.start()
             self._executor_health_check_threads[key] = (thread, time.monotonic())
 
-    def _join_executor_health_check_threads(self) -> None:
-        """
-        Wait for any in-flight executor health check before this scheduler's ExecutorJob rows are closed.
-
-        A check still running at that point can no longer revive a row -- only the main thread ever
-        creates one -- but joining first still keeps it from writing a result onto a row the scheduler
-        has already closed. All threads share one deadline, so shutdown is bounded by the timeout once,
-        not once per hung check. A check already marked stalled is skipped: it has ignored its own
-        timeout once already and isn't coming back.
-        """
-        deadline = time.monotonic() + self._executor_health_check_timeout
-        for key, (thread, _) in self._executor_health_check_threads.items():
-            if key in self._stalled_health_checks:
-                continue
-            thread.join(timeout=max(deadline - time.monotonic(), 0))
-
     def _run_executor_health_check(self, executor: BaseExecutor, key: str) -> None:
         """Run one executor's get_health() off the scheduler thread and record an explicit result."""
         try:
@@ -2232,11 +2216,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     executor.end()
                 except Exception:
                     self.log.exception("Exception when executing Executor.end on %s", executor)
-
-            try:
-                self._join_executor_health_check_threads()
-            except Exception:
-                self.log.exception("Failed to join in-flight executor health check threads")
 
             try:
                 self._end_executor_jobs(executor_jobs_state)
