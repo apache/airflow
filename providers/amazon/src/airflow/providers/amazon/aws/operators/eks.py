@@ -45,6 +45,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
 )
 from airflow.providers.amazon.aws.utils import (
     build_resource_in_use_retry_args,
+    is_update_in_progress_error,
     validate_execute_complete_event,
 )
 from airflow.providers.amazon.aws.utils.deferral import should_defer
@@ -192,13 +193,20 @@ def _create_compute(
                 )
             )
 
-        eks_hook.create_fargate_profile(
-            clusterName=cluster_name,
-            fargateProfileName=fargate_profile_name,
-            podExecutionRoleArn=fargate_pod_execution_role_arn,
-            selectors=fargate_selectors,
-            **create_fargate_profile_kwargs,
-        )
+        # A cluster that just turned ACTIVE can still reject CreateFargateProfile because it "currently
+        # has an update in progress". DescribeCluster does not expose that update, so it cannot be
+        # waited on; retry the call instead.
+        for attempt in tenacity.Retrying(
+            **build_resource_in_use_retry_args(log, predicate=is_update_in_progress_error)
+        ):
+            with attempt:
+                eks_hook.create_fargate_profile(
+                    clusterName=cluster_name,
+                    fargateProfileName=fargate_profile_name,
+                    podExecutionRoleArn=fargate_pod_execution_role_arn,
+                    selectors=fargate_selectors,
+                    **create_fargate_profile_kwargs,
+                )
         if wait_for_completion:
             log.info("Waiting for Fargate profile to provision.  This will take some time.")
             wait(

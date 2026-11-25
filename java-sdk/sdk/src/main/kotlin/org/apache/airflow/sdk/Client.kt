@@ -160,7 +160,7 @@ class Client internal constructor(
    * - For a mapped task, its "collective result": the values of all its
    *   instances in a list, ordered by map index. Instances that pushed nothing
    *   are left out. If none pushed a value, including when the task expanded
-   *   to no instances, the result is an empty list, or `null` on Airflow 3.4.
+   *   to no instances, the result is `null`.
    *
    * A map index reads that one instance's value. One that selects no task
    * instance of the task, such as any map index of a task that is not mapped,
@@ -188,15 +188,16 @@ class Client internal constructor(
    * Pushes an XCom value for downstream tasks to read.
    *
    * @param key XCom key; defaults to [XCOM_RETURN_KEY].
-   * @param value Value to push. Must be JSON-serializable. The SDK rejects byte
-   *    arrays, so encode binary data as a string first, for example with Base64.
+   * @param value Value to push. Must be JSON-serializable; `null` stores a null
+   *    XCom. The SDK rejects byte arrays, so encode binary data as a string
+   *    first, for example with Base64.
    * @throws ApiError if the API call fails.
    * @throws IllegalArgumentException if [value] is or contains a type that the
    *    SDK cannot send, such as a byte array.
    */
   @JvmOverloads fun setXCom(
     key: String = XCOM_RETURN_KEY,
-    value: Any,
+    value: Any?,
   ) = impl.setXCom(
     key = key,
     value = value,

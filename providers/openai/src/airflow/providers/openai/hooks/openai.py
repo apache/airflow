@@ -22,7 +22,6 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypeVar, overload
 
-from deprecated import deprecated
 from openai import AsyncOpenAI, OpenAI
 from openai.auth import (
     azure_managed_identity_token_provider,
@@ -40,8 +39,6 @@ if TYPE_CHECKING:
         VectorStoreDeleted,
     )
     from openai.types.batch import Batch
-    from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
-    from openai.types.beta.threads import Message, Run
     from openai.types.chat import (
         ChatCompletionAssistantMessageParam,
         ChatCompletionFunctionMessageParam,
@@ -56,7 +53,6 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
 
     from airflow.providers.common.compat.sdk import Connection
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
@@ -66,15 +62,6 @@ from airflow.providers.openai.exceptions import (
     OpenAIBatchJobException,
     OpenAIBatchTimeout,
     OpenAITriggerEventError,
-)
-
-#: The OpenAI Assistants API (``beta.assistants``/``beta.threads``) is deprecated by OpenAI. The hook
-#: methods wrapping it warn and point at the Responses and Conversations APIs (``create_response`` /
-#: ``create_conversation``); the removal date is stated once, in the reason string below.
-_ASSISTANTS_DEPRECATION_REASON = (
-    "The OpenAI Assistants API is deprecated and was removed by OpenAI on 2026-08-26. "
-    "Use the Responses API (create_response) and Conversations API (create_conversation) instead. "
-    "See https://platform.openai.com/docs/guides/migrate-to-responses."
 )
 
 #: Generic type variable for the Pydantic model used as the ``text_format`` in structured-output
@@ -427,175 +414,6 @@ class OpenAIHook(BaseHook):
         """
         return self.conn.conversations.delete(conversation_id)
 
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def create_assistant(self, model: str = "gpt-6-luna", **kwargs: Any) -> Assistant:
-        """
-        Create an OpenAI assistant using the given model.
-
-        :param model: The OpenAI model for the assistant to use.
-        """
-        assistant = self.conn.beta.assistants.create(model=model, **kwargs)
-        return assistant
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def get_assistant(self, assistant_id: str) -> Assistant:
-        """
-        Get an OpenAI assistant.
-
-        :param assistant_id: The ID of the assistant to retrieve.
-        """
-        assistant = self.conn.beta.assistants.retrieve(assistant_id=assistant_id)
-        return assistant
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def get_assistants(self, **kwargs: Any) -> list[Assistant]:
-        """Get a list of Assistant objects."""
-        assistants = self.conn.beta.assistants.list(**kwargs)
-        return assistants.data
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def modify_assistant(self, assistant_id: str, **kwargs: Any) -> Assistant:
-        """
-        Modify an existing Assistant object.
-
-        :param assistant_id: The ID of the assistant to be modified.
-        """
-        assistant = self.conn.beta.assistants.update(assistant_id=assistant_id, **kwargs)
-        return assistant
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def delete_assistant(self, assistant_id: str) -> AssistantDeleted:
-        """
-        Delete an OpenAI Assistant for a given ID.
-
-        :param assistant_id: The ID of the assistant to delete.
-        """
-        response = self.conn.beta.assistants.delete(assistant_id=assistant_id)
-        return response
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def create_thread(self, **kwargs: Any) -> Thread:
-        """Create an OpenAI thread."""
-        thread = self.conn.beta.threads.create(**kwargs)
-        return thread
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def modify_thread(self, thread_id: str, metadata: dict[str, Any]) -> Thread:
-        """
-        Modify an existing Thread object.
-
-        :param thread_id: The ID of the thread to modify. Only the metadata can be modified.
-        :param metadata: Set of 16 key-value pairs that can be attached to an object.
-        """
-        thread = self.conn.beta.threads.update(thread_id=thread_id, metadata=metadata)
-        return thread
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def delete_thread(self, thread_id: str) -> ThreadDeleted:
-        """
-        Delete an OpenAI thread for a given thread_id.
-
-        :param thread_id: The ID of the thread to delete.
-        """
-        response = self.conn.beta.threads.delete(thread_id=thread_id)
-        return response
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def create_message(
-        self, thread_id: str, role: Literal["user", "assistant"], content: str, **kwargs: Any
-    ) -> Message:
-        """
-        Create a message for a given Thread.
-
-        :param thread_id: The ID of the thread to create a message for.
-        :param role: The role of the entity that is creating the message. Allowed values include: 'user', 'assistant'.
-        :param content: The content of the message.
-        """
-        thread_message = self.conn.beta.threads.messages.create(
-            thread_id=thread_id, role=role, content=content, **kwargs
-        )
-        return thread_message
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def get_messages(self, thread_id: str, **kwargs: Any) -> list[Message]:
-        """
-        Return a list of messages for a given Thread.
-
-        :param thread_id: The ID of the thread the messages belong to.
-        """
-        messages = self.conn.beta.threads.messages.list(thread_id=thread_id, **kwargs)
-        return messages.data
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def modify_message(self, thread_id: str, message_id, **kwargs: Any) -> Message:
-        """
-        Modify an existing message for a given Thread.
-
-        :param thread_id: The ID of the thread to which this message belongs.
-        :param message_id: The ID of the message to modify.
-        """
-        thread_message = self.conn.beta.threads.messages.update(
-            thread_id=thread_id, message_id=message_id, **kwargs
-        )
-        return thread_message
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def create_run(self, thread_id: str, assistant_id: str, **kwargs: Any) -> Run:
-        """
-        Create a run for a given thread and assistant.
-
-        :param thread_id: The ID of the thread to run.
-        :param assistant_id: The ID of the assistant to use to execute this run.
-        """
-        run = self.conn.beta.threads.runs.create(thread_id=thread_id, assistant_id=assistant_id, **kwargs)
-        return run
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def create_run_and_poll(self, thread_id: str, assistant_id: str, **kwargs: Any) -> Run:
-        """
-        Create a run for a given thread and assistant and then polls until completion.
-
-        :param thread_id: The ID of the thread to run.
-        :param assistant_id: The ID of the assistant to use to execute this run.
-        :return: An OpenAI Run object
-        """
-        run = self.conn.beta.threads.runs.create_and_poll(
-            thread_id=thread_id, assistant_id=assistant_id, **kwargs
-        )
-        return run
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def get_run(self, thread_id: str, run_id: str) -> Run:
-        """
-        Retrieve a run for a given thread and run.
-
-        :param thread_id: The ID of the thread that was run.
-        :param run_id: The ID of the run to retrieve.
-        """
-        run = self.conn.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run_id)
-        return run
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def get_runs(self, thread_id: str, **kwargs: Any) -> list[Run]:
-        """
-        Return a list of runs belonging to a thread.
-
-        :param thread_id: The ID of the thread the run belongs to.
-        """
-        runs = self.conn.beta.threads.runs.list(thread_id=thread_id, **kwargs)
-        return runs.data
-
-    @deprecated(reason=_ASSISTANTS_DEPRECATION_REASON, category=AirflowProviderDeprecationWarning)
-    def modify_run(self, thread_id: str, run_id: str, **kwargs: Any) -> Run:
-        """
-        Modify a run on a given thread.
-
-        :param thread_id: The ID of the thread that was run.
-        :param run_id: The ID of the run to modify.
-        """
-        run = self.conn.beta.threads.runs.update(thread_id=thread_id, run_id=run_id, **kwargs)
-        return run
-
     @overload
     def create_embeddings(
         self,
@@ -678,7 +496,7 @@ class OpenAIHook(BaseHook):
 
         :param file: The File object (not file name) to be uploaded.
         :param purpose: The intended purpose of the uploaded file. Use "fine-tune" for
-            Fine-tuning, "assistants" for Assistants and Messages, and "batch" for Batch API.
+            Fine-tuning, "assistants" for file search and vector stores, and "batch" for Batch API.
         """
         with open(file, "rb") as file_stream:
             file_object = self.conn.files.create(file=file_stream, purpose=purpose)

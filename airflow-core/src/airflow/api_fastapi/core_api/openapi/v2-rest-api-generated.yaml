@@ -6614,6 +6614,15 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: include_reserved
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Include keys starting with ``__airflow_``, which Airflow writes.
+          default: false
+          title: Include Reserved
+        description: Include keys starting with ``__airflow_``, which Airflow writes.
       responses:
         '200':
           description: Successful Response
@@ -18333,6 +18342,13 @@ components:
             type: array
           - type: 'null'
           title: Dialects
+        object_storage_providers:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderObjectStorageProviderInfo'
+            type: array
+          - type: 'null'
+          title: Object Storage Providers
         transfers:
           anyOf:
           - items:
@@ -18506,6 +18522,21 @@ components:
       - python_modules
       title: ProviderIntegrationModulesInfo
       description: Python modules an integration contributes for one kind of functionality.
+    ProviderObjectStorageProviderInfo:
+      properties:
+        storage_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Storage Type
+        provider_class_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Provider Class Name
+      type: object
+      title: ProviderObjectStorageProviderInfo
+      description: DataFusion object storage provider provided by a provider.
     ProviderPluginInfo:
       properties:
         name:

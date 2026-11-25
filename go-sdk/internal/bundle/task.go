@@ -97,8 +97,8 @@ func NewPositionalTaskFunction(fn any) (Task, error) {
 
 // DecideFunc takes the result of the function of a task from NewPositionalBranchFunction. It
 // returns value, which the task pushes as its return_value XCom, and the task_ids of the tasks to
-// skip. When value is a nil pointer, the task does not push the return_value XCom. A non-nil error
-// fails the task.
+// skip. value is always pushed: a nil pointer or nil interface stores null, and a nil slice or map
+// is pushed as an empty one. A non-nil error fails the task.
 type DecideFunc func(result any) (value any, skipped []string, err error)
 
 // NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
@@ -192,16 +192,13 @@ func (f *taskFunction) call(
 		if err != nil {
 			return err
 		}
-		rv := reflect.ValueOf(value)
-		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
-			if err := pushReturnValue(ctx, value, sdkClient); err != nil {
-				return err
-			}
+		if err := pushReturnValue(ctx, value, sdkClient); err != nil {
+			return err
 		}
 		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
 	}
-	// If there are two results, convert the first only if it's not a nil pointer
-	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
+	// A function that returns only an error has no result to push.
+	if len(retValues) > 1 {
 		return pushReturnValue(ctx, retValues[0].Interface(), sdkClient)
 	}
 	return nil
@@ -283,10 +280,24 @@ func pushReturnValue(ctx context.Context, value any, c sdk.XComClient) error {
 	if err != nil {
 		return fmt.Errorf("setting the return value XCom: %w", err)
 	}
-	if err := c.PushXCom(ctx, ti, sdk.XComReturnValueKey, value); err != nil {
+	if err := c.PushXCom(ctx, ti, sdk.XComReturnValueKey, emptyIfNilCollection(value)); err != nil {
 		return fmt.Errorf("setting the return value XCom: %w", err)
 	}
 	return nil
+}
+
+// emptyIfNilCollection replaces a nil slice or map with an empty one. Go code
+// uses a nil slice as its empty slice, so a task that, say, filters out every
+// row means an empty list, not null.
+func emptyIfNilCollection(value any) any {
+	rv := reflect.ValueOf(value)
+	switch {
+	case rv.Kind() == reflect.Slice && rv.IsNil():
+		return reflect.MakeSlice(rv.Type(), 0, 0).Interface()
+	case rv.Kind() == reflect.Map && rv.IsNil():
+		return reflect.MakeMap(rv.Type()).Interface()
+	}
+	return value
 }
 
 func (f *taskFunction) validateFn(

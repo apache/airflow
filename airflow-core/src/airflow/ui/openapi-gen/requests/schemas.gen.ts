@@ -8196,6 +8196,20 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Dialects'
         },
+        object_storage_providers: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderObjectStorageProviderInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Object Storage Providers'
+        },
         transfers: {
             anyOf: [
                 {
@@ -8521,6 +8535,36 @@ export const $ProviderIntegrationModulesInfo = {
     required: ['integration_name', 'python_modules'],
     title: 'ProviderIntegrationModulesInfo',
     description: 'Python modules an integration contributes for one kind of functionality.'
+} as const;
+
+export const $ProviderObjectStorageProviderInfo = {
+    properties: {
+        storage_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Storage Type'
+        },
+        provider_class_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Provider Class Name'
+        }
+    },
+    type: 'object',
+    title: 'ProviderObjectStorageProviderInfo',
+    description: 'DataFusion object storage provider provided by a provider.'
 } as const;
 
 export const $ProviderPluginInfo = {
@@ -13157,6 +13201,86 @@ export const $DeadlineResponse = {
     required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id', 'callback_id', 'callback_type'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
+} as const;
+
+export const $DurableExecutionResponse = {
+    properties: {
+        tries: {
+            items: {
+                '$ref': '#/components/schemas/DurableTryResponse'
+            },
+            type: 'array',
+            title: 'Tries'
+        }
+    },
+    type: 'object',
+    required: ['tries'],
+    title: 'DurableExecutionResponse',
+    description: 'Durable execution history of a task instance, read by the logs banner.'
+} as const;
+
+export const $DurableTryResponse = {
+    properties: {
+        try_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Try Number'
+        },
+        decision: {
+            type: 'string',
+            enum: ['submitted', 'resubmitted', 'reconnected', 'already_succeeded'],
+            title: 'Decision'
+        },
+        external_id: {
+            '$ref': '#/components/schemas/JsonValue'
+        },
+        status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        submitted_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Submitted At'
+        },
+        saved_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Saved Seconds'
+        },
+        previous_external_id: {
+            '$ref': '#/components/schemas/JsonValue'
+        }
+    },
+    type: 'object',
+    required: ['try_number', 'decision', 'external_id', 'status', 'saved_seconds'],
+    title: 'DurableTryResponse',
+    description: 'What one try did with the external job.'
 } as const;
 
 export const $DurationStats = {

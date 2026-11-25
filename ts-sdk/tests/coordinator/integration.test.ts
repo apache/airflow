@@ -413,6 +413,24 @@ describe("coordinator runtime integration", () => {
     });
   });
 
+  it.each([
+    [undefined, "undefined"],
+    [null, "null"],
+    ["disk full", "disk full"],
+    [{ message: "quota exceeded", code: 429 }, "quota exceeded"],
+    [{ message: 429 }, "[object Object]"],
+  ])("returns RetryTask when the handler throws %s", async (thrown, reason) => {
+    testDag.task("throws_non_error", async () => {
+      throw thrown;
+    })();
+
+    const result = await driveSupervisor(
+      makeStartupDetails("throws_non_error", "test_dag", "r1", { should_retry: true }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "RetryTask", retry_reason: reason });
+  });
+
   it("dispatches to a task handler registered for a Python-owned Dag", async () => {
     // The mixed-language path: no Dag object exists for `py_dag` on this side,
     // only a handler bound to its dag_id and task_id.

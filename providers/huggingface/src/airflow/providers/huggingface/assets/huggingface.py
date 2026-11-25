@@ -33,6 +33,7 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
 
 
 def _sanitize_uri_string(uri: str) -> str:
+    """Return a string URI with the canonical form applied when needed."""
     parsed = urlsplit(uri)
     normalized = sanitize_uri(parsed)
     return uri if normalized == parsed else urlunsplit(normalized)
