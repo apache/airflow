@@ -120,18 +120,25 @@ def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Ses
     # the alert closes the session.
     with engine.connect() as connection:
         connection.exec_driver_sql("PRAGMA query_only = ON")
+        alert_failed = False
         try:
             with session_maker(bind=connection) as alert_session:
                 yield alert_session
+        except BaseException:
+            alert_failed = True
+            raise
         finally:
             try:
                 connection.rollback()
                 connection.exec_driver_sql("PRAGMA query_only = OFF")
-            except Exception:
+            except BaseException:
                 # A connection left read-only must not go back to the pool, where the scheduler's own
                 # writes would fail on it.
                 connection.invalidate()
-                raise
+                if not alert_failed:
+                    raise
+                # Keep the alert's error: the caller acts on it, e.g. on DagRunRolledBackError.
+                log.warning("failed to reset the deadline alert connection", exc_info=True)
 
 
 # SQLSTATE in_failed_sql_transaction: PostgreSQL rejects every statement after one failed in the transaction.
@@ -144,7 +151,7 @@ def _is_transaction_aborted(session: Session) -> bool:
         session.execute(select(literal(1)))
     except DBAPIError as error:
         # psycopg2 names the code ``pgcode``, psycopg 3 ``sqlstate``. Any other error, such as a dropped
-        # connection, is not caused by the alert and is left to the caller's retry handling.
+        # connection, is not caused by the alert, so it propagates as it would without the probe.
         if _IN_FAILED_SQL_TRANSACTION in (
             getattr(error.orig, "pgcode", None),
             getattr(error.orig, "sqlstate", None),

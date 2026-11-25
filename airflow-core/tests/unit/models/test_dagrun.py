@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import re
+import sqlite3
 from collections import defaultdict
 from collections.abc import Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -2403,27 +2404,54 @@ class TestDagRun:
     def test_sqlite_deadline_alert_session_connection_is_invalidated_when_it_cannot_be_reset(self, session):
         alert_session_context = _create_alert_session(session=session)
         connection = alert_session_context.__enter__().connection()
-        connection.rollback = mock.create_autospec(
-            connection.rollback, side_effect=OperationalError("ROLLBACK", None, Exception())
-        )
+        dbapi_connection = connection.connection.dbapi_connection
 
-        with pytest.raises(OperationalError):
+        with (
+            mock.patch.object(
+                connection,
+                "rollback",
+                autospec=True,
+                side_effect=OperationalError("ROLLBACK", None, Exception()),
+            ),
+            pytest.raises(OperationalError),
+        ):
             alert_session_context.__exit__(None, None, None)
 
-        assert connection.invalidated
+        # Invalidating closes the connection instead of returning it to the pool.
+        with pytest.raises(sqlite3.ProgrammingError):
+            dbapi_connection.execute("SELECT 1")
+
+    @pytest.mark.backend("sqlite")
+    def test_sqlite_deadline_alert_session_keeps_the_alerts_error_when_it_cannot_be_reset(self, session):
+        alert_session_context = _create_alert_session(session=session)
+        connection = alert_session_context.__enter__().connection()
+        error = DagRunRolledBackError("rolled back", dag_id="dag", dag_version_id=None)
+
+        with mock.patch.object(
+            connection, "rollback", autospec=True, side_effect=OperationalError("ROLLBACK", None, Exception())
+        ):
+            # False: the alert's own error is re-raised to the caller, not replaced by the reset failure.
+            assert alert_session_context.__exit__(DagRunRolledBackError, error, None) is False
 
     @pytest.mark.parametrize(
-        ("orig", "expected"),
+        ("execute_error", "expected"),
         [
-            pytest.param(mock.Mock(spec=["pgcode"], pgcode="25P02"), True, id="psycopg2_aborted"),
-            pytest.param(mock.Mock(spec=["sqlstate"], sqlstate="25P02"), True, id="psycopg3_aborted"),
+            pytest.param(
+                DBAPIError("SELECT 1", None, mock.Mock(spec=["pgcode"], pgcode="25P02")),
+                True,
+                id="psycopg2_aborted",
+            ),
+            pytest.param(
+                DBAPIError("SELECT 1", None, mock.Mock(spec=["sqlstate"], sqlstate="25P02")),
+                True,
+                id="psycopg3_aborted",
+            ),
             pytest.param(None, False, id="usable"),
         ],
     )
-    def test_is_transaction_aborted(self, orig, expected):
+    def test_is_transaction_aborted(self, execute_error, expected):
         session = mock.create_autospec(Session, instance=True)
-        if orig is not None:
-            session.execute.side_effect = DBAPIError("SELECT 1", None, orig)
+        session.execute.side_effect = execute_error
 
         assert _is_transaction_aborted(session) is expected
 
@@ -2530,17 +2558,7 @@ class TestDagRun:
     def test_dagrun_deadline_alert_silently_rolling_back_callers_session_creates_no_deadline(
         self, mock_variable_get, _, mock_stats_incr, session, deadline_test_dag
     ):
-        scheduler_dag = deadline_test_dag(
-            deadline=[
-                DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(
-                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
-                    ),
-                    interval=VariableInterval("interval_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-            ],
-        )
+        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
         session.commit()
 
         def roll_back_callers_session(key, session):
@@ -2586,17 +2604,7 @@ class TestDagRun:
     def test_dagrun_deadline_alert_aborting_callers_transaction_raises_rolled_back_error(
         self, mock_variable_get, _, session, deadline_test_dag
     ):
-        scheduler_dag = deadline_test_dag(
-            deadline=[
-                DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(
-                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
-                    ),
-                    interval=VariableInterval("interval_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-            ],
-        )
+        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
         session.commit()
 
         def run_failing_statement_on_callers_session(key, session):
@@ -2612,17 +2620,7 @@ class TestDagRun:
     def test_dagrun_deadline_alert_failing_flush_on_callers_session_raises_rolled_back_error(
         self, mock_variable_get, _, session, deadline_test_dag
     ):
-        scheduler_dag = deadline_test_dag(
-            deadline=[
-                DeadlineAlert(
-                    reference=DeadlineReference.FIXED_DATETIME(
-                        datetime.datetime(2037, 1, 1, tzinfo=datetime.UTC)
-                    ),
-                    interval=VariableInterval("interval_key"),
-                    callback=AsyncCallback(empty_callback_for_deadline),
-                ),
-            ],
-        )
+        scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
         session.commit()
 
         def fail_flush_on_callers_session(key, session):
