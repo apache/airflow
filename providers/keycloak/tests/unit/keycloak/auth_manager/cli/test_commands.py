@@ -20,6 +20,8 @@ import importlib
 from unittest.mock import Mock, call, patch
 
 import pytest
+from keycloak import KeycloakAdmin
+from keycloak.exceptions import KeycloakGetError
 
 from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.types import MenuItem
@@ -28,6 +30,7 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     SUPER_ADMIN_ROLE_NAME,
     TEAM_ROLE_NAMES,
     TEAM_SCOPED_RESOURCE_NAMES,
+    _ensure_role_policy,
     _get_extended_resource_methods,
     _get_resource_methods,
     _update_admin_permission_resources,
@@ -36,6 +39,7 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     create_all_command,
     create_permissions_command,
     create_resources_command,
+    create_roles_command,
     create_scopes_command,
     create_team_command,
 )
@@ -226,6 +230,40 @@ class TestCommands:
             if "payload" in call.kwargs
         }
         assert expected_team_resources.issubset(created_resource_names)
+
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
+    def test_create_roles(self, mock_get_client):
+        client = Mock(spec=KeycloakAdmin)
+        mock_get_client.return_value = client
+
+        client.get_clients.return_value = [
+            {"id": "dummy-id", "clientId": "dummy-client"},
+            {"id": "test-id", "clientId": "test_client_id"},
+        ]
+        client.get_realm_roles.return_value = [{"name": "Admin"}, {"name": "offline_access"}]
+        client.get_client_roles.return_value = [{"name": "Viewer"}]
+
+        params = [
+            "keycloak-auth-manager",
+            "create-roles",
+            "--username",
+            "test",
+            "--password",
+            "test",
+        ]
+        with conf_vars(
+            {
+                ("keycloak_auth_manager", "client_id"): "test_client_id",
+            }
+        ):
+            create_roles_command(self.arg_parser.parse_args(params))
+
+        client.get_clients.assert_called_once_with()
+        client.get_client_roles.assert_called_once_with("test-id")
+        assert client.create_client_role.call_args_list == [
+            call(client_role_id="test-id", payload={"name": role_name}, skip_exists=True)
+            for role_name in ("User", "Op", SUPER_ADMIN_ROLE_NAME)
+        ]
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_default_role_permissions")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._ensure_default_role_policies")
@@ -837,6 +875,7 @@ class TestCommands:
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_default_role_permissions")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._ensure_default_role_policies")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_permissions")
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_roles")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_resources")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_scopes")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
@@ -845,6 +884,7 @@ class TestCommands:
         mock_get_client,
         mock_create_scopes,
         mock_create_resources,
+        mock_create_roles,
         mock_create_permissions,
         mock_ensure_default_role_policies,
         mock_attach_default_role_permissions,
@@ -883,6 +923,7 @@ class TestCommands:
         client.get_clients.assert_called_once_with()
         mock_create_scopes.assert_called_once_with(client, "test-id", _dry_run=False)
         mock_create_resources.assert_called_once_with(client, "test-id", teams=[], _dry_run=False)
+        mock_create_roles.assert_called_once_with(client, "test-id", _dry_run=False)
         mock_create_permissions.assert_called_once_with(client, "test-id", teams=[], _dry_run=False)
         mock_ensure_default_role_policies.assert_called_once_with(client, "test-id", _dry_run=False)
         mock_attach_default_role_permissions.assert_called_once_with(client, "test-id", _dry_run=False)
@@ -950,6 +991,49 @@ class TestCommands:
         # In dry-run mode, no resources should be created
         client.create_client_authz_resource.assert_not_called()
 
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
+    def test_create_roles_dry_run(self, mock_get_client):
+        client = Mock(spec=KeycloakAdmin)
+        mock_get_client.return_value = client
+
+        client.get_clients.return_value = [
+            {"id": "dummy-id", "clientId": "dummy-client"},
+            {"id": "test-id", "clientId": "test_client_id"},
+        ]
+        client.get_realm_roles.return_value = []
+        client.get_client_roles.return_value = []
+
+        params = [
+            "keycloak-auth-manager",
+            "create-roles",
+            "--username",
+            "test",
+            "--password",
+            "test",
+            "--dry-run",
+        ]
+        with conf_vars(
+            {
+                ("keycloak_auth_manager", "client_id"): "test_client_id",
+            }
+        ):
+            create_roles_command(self.arg_parser.parse_args(params))
+
+        client.get_clients.assert_called_once_with()
+        client.get_client_roles.assert_called_once_with("test-id")
+        client.create_client_role.assert_not_called()
+
+    def test_ensure_role_policy_dry_run_does_not_need_the_role(self):
+        client = Mock(spec=KeycloakAdmin)
+        client.connection.realm_name = "test-realm"
+        client.connection.raw_get.return_value = Mock(text="[]")
+        client.get_realm_role.side_effect = KeycloakGetError(response_code=404)
+        client.get_client_role.side_effect = KeycloakGetError(response_code=404)
+
+        _ensure_role_policy(client, "test-id", "Viewer", _dry_run=True)
+
+        client.create_client_authz_role_based_policy.assert_not_called()
+
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_default_role_permissions")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._ensure_default_role_policies")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
@@ -999,6 +1083,7 @@ class TestCommands:
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_default_role_permissions")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._ensure_default_role_policies")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_permissions")
+    @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_roles")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_resources")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_scopes")
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
@@ -1007,6 +1092,7 @@ class TestCommands:
         mock_get_client,
         mock_create_scopes,
         mock_create_resources,
+        mock_create_roles,
         mock_create_permissions,
         mock_ensure_default_role_policies,
         mock_attach_default_role_permissions,
@@ -1045,6 +1131,7 @@ class TestCommands:
         # In dry-run mode, all helper functions should be called with dry_run=True
         mock_create_scopes.assert_called_once_with(client, "test-id", _dry_run=True)
         mock_create_resources.assert_called_once_with(client, "test-id", teams=[], _dry_run=True)
+        mock_create_roles.assert_called_once_with(client, "test-id", _dry_run=True)
         mock_create_permissions.assert_called_once_with(client, "test-id", teams=[], _dry_run=True)
         mock_ensure_default_role_policies.assert_called_once_with(client, "test-id", _dry_run=True)
         mock_attach_default_role_permissions.assert_called_once_with(client, "test-id", _dry_run=True)

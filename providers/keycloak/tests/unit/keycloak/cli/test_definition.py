@@ -48,11 +48,11 @@ class TestKeycloakCliDefinition:
                 self.arg_parser = cli_parser.get_parser()
 
     def test_keycloak_auth_manager_cli_commands(self):
-        assert len(KEYCLOAK_AUTH_MANAGER_COMMANDS) == 6
+        assert len(KEYCLOAK_AUTH_MANAGER_COMMANDS) == 7
 
     @pytest.mark.parametrize(
         "command",
-        ["create-scopes", "create-resources", "create-permissions", "create-all"],
+        ["create-scopes", "create-resources", "create-roles", "create-permissions", "create-all"],
     )
     def test_password_with_explicit_value(self, command):
         """Test commands are defined correctly to allow passing password explicitly via --password value."""
@@ -69,7 +69,7 @@ class TestKeycloakCliDefinition:
 
     @pytest.mark.parametrize(
         "command",
-        ["create-scopes", "create-resources", "create-permissions", "create-all"],
+        ["create-scopes", "create-resources", "create-roles", "create-permissions", "create-all"],
     )
     @patch("getpass.getpass", return_value="stdin_password")
     def test_password_from_stdin(self, mock_getpass, command):
