@@ -60,7 +60,8 @@ class TestCliJobsCheck:
         )
 
         jobs_command.check(
-            self.parser.parse_args(["jobs", "check", "--hostname", "HOSTNAME"]), api_client=api_client
+            self.parser.parse_args(["jobs", "check", "--hostname", "HOSTNAME", "--limit", "0"]),
+            api_client=api_client,
         )
 
         assert "Found one alive job." in capsys.readouterr().out

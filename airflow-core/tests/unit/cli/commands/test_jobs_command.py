@@ -94,7 +94,9 @@ class TestCliConfigList:
             session.commit()
 
         with stdout_capture as temp_stdout:
-            jobs_command.check(self.parser.parse_args(["jobs", "check", "--hostname", "HOSTNAME"]))
+            jobs_command.check(
+                self.parser.parse_args(["jobs", "check", "--hostname", "HOSTNAME", "--limit", "0"])
+            )
         assert "Found one alive job." in temp_stdout.getvalue()
 
     def test_should_report_success_for_ha_schedulers(self, stdout_capture):
