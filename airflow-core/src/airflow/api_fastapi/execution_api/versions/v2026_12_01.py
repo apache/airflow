@@ -34,10 +34,11 @@ class RemoveStringTriggerKwargs(VersionChange):
         schema(TIDeferredStatePayload).field("trigger_kwargs").had(type=dict[str, JsonValue] | str),
     )
 
-    @convert_request_to_next_version_for(TIDeferredStatePayload)  # type: ignore[arg-type]
+    # Keyed by path: cadwyn 8 can't match a body-schema converter to one member of the TIStateUpdate union.
+    @convert_request_to_next_version_for("/task-instances/{task_instance_id}/state", ["PATCH"])  # type: ignore[arg-type]
     def reject_string_trigger_kwargs(request: RequestInfo) -> None:
         """Reject a string from older clients; the server can't tell whether it is encrypted."""
-        if isinstance(request.body.get("trigger_kwargs"), str):
+        if isinstance(request.body, dict) and isinstance(request.body.get("trigger_kwargs"), str):
             raise HTTPException(
                 status_code=HTTP_422_UNPROCESSABLE_CONTENT,
                 detail={

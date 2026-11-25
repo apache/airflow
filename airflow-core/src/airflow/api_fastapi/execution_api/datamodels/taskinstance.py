@@ -188,7 +188,7 @@ class TIDeferredStatePayload(StrictBaseModel):
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
     next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
-    """Serde-encoded kwargs to pass to the above method, passed back to the TaskSDK as given upon resume."""
+    """Serde-encoded kwargs to pass to the above method; returned on resume with the event added under `event`."""
     rendered_map_index: str | None = None
 
 
@@ -229,7 +229,7 @@ class TIAwaitingInputStatePayload(StrictBaseModel):
     next_method: str
     """The name of the method on the operator to call in the worker after input is received."""
     next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
-    """Serde-encoded kwargs to pass to the above method, passed back to the TaskSDK as given upon resume."""
+    """Serde-encoded kwargs to pass to the above method; returned on resume with the event added under `event`."""
     rendered_map_index: str | None = None
 
 
