@@ -39,6 +39,7 @@ from airflow.dag_processing.bundles import (
 from airflow.dag_processing.bundles._filesystem import read_json_file
 from airflow.dag_processing.bundles.artifact_store import (
     ArtifactStore,
+    ArtifactStoreBusyError,
     BundleManifestNotFoundError,
     BundleManifestRefDurabilityError,
     PublishedSnapshot,
@@ -134,6 +135,10 @@ def _get_snapshots_dir(store: FilesystemArtifactStore) -> Path:
     return store.published_root / "versions" / BUNDLE_NAME
 
 
+def _get_state_path(store: FilesystemArtifactStore) -> Path:
+    return store.published_root / "_state" / BUNDLE_NAME / "auto-publish.json"
+
+
 def _write_source(root: Path) -> Path:
     (root / "dags").mkdir(parents=True, exist_ok=True)
     (root / "dags" / "example.py").write_text("print('dag')\n")
@@ -207,6 +212,37 @@ class TestFilesystemDocuments:
         _get_ref_path(store).write_bytes(content)
         with pytest.raises(BundleManifestError, match="release reference .* is not a JSON object"):
             store.read_ref()
+
+    def test_read_state_missing_raises_not_found(self, store):
+        with pytest.raises(
+            BundleManifestNotFoundError, match=f"Bundle '{BUNDLE_NAME}' has no automatic-publication state"
+        ):
+            store.read_state()
+
+    def test_state_roundtrip_and_replace(self, store):
+        store.write_state({"first_observed_at": 1.0})
+        store.write_state({"first_observed_at": 2.0})
+
+        assert store.read_state() == {"first_observed_at": 2.0}
+
+    @pytest.mark.parametrize("content", [b"{not json", b"\xff", b"[1, 2]"])
+    def test_read_state_invalid_document_raises(self, store, content):
+        store.write_state({})
+        _get_state_path(store).write_bytes(content)
+        with pytest.raises(BundleManifestError, match="automatic-publication state .* is not a JSON object"):
+            store.read_state()
+
+    def test_write_state_creates_a_readable_document(self, store):
+        old_umask = os.umask(0o077)
+        try:
+            store.write_state({"first_observed_at": 1.0})
+        finally:
+            os.umask(old_umask)
+
+        state_path = _get_state_path(store)
+        assert stat.S_IMODE(state_path.parent.stat().st_mode) == 0o755
+        assert stat.S_IMODE(state_path.stat().st_mode) == 0o644
+        assert list(state_path.parent.iterdir()) == [state_path]
 
 
 class TestFilesystemSnapshots:
@@ -314,12 +350,37 @@ class TestFilesystemSnapshots:
         orphan_snapshot.mkdir(parents=True)
         orphan_ref = _get_ref_path(store).parent / f".{_get_ref_path(store).name}.tmp123"
         orphan_ref.write_text("partial")
+        store.write_state({})
+        orphan_state = _get_state_path(store).parent / f".{_get_state_path(store).name}.tmp123"
+        orphan_state.write_text("partial")
 
         with store.publication_guard():
             pass
 
         assert not orphan_snapshot.exists()
         assert not orphan_ref.exists()
+        assert not orphan_state.exists()
+
+    def test_publication_guard_that_must_not_wait_reports_a_held_lock(self, tmp_path):
+        # A guard that waited would time out after a second instead of reporting the held lock.
+        store = FilesystemArtifactStore(
+            bundle_name=BUNDLE_NAME,
+            published_root=_create_published_root(tmp_path / "published"),
+            lock_timeout=1,
+        )
+        lock_path = _get_lock_path(store)
+        lock_path.parent.mkdir()
+        fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o664)
+        try:
+            flock(fd, LOCK_EX | LOCK_NB)
+            with pytest.raises(ArtifactStoreBusyError, match="held by another publisher"):
+                with store.publication_guard(wait=False):
+                    pass
+        finally:
+            os.close(fd)
+
+        with store.publication_guard(wait=False):
+            pass
 
     @mock.patch.object(store_module, "remove_orphaned_temp_snapshots", autospec=True)
     @mock.patch.object(store_module, "flock", autospec=True)
@@ -384,6 +445,7 @@ class TestFilesystemCoordination:
         published_root = tmp_path / "published"
         assert store.published_root == published_root
         assert store.ref_locator == str(published_root / "refs" / BUNDLE_NAME / "latest.json")
+        assert store.state_locator == str(published_root / "_state" / BUNDLE_NAME / "auto-publish.json")
         assert store.snapshot_locator(version) == str(published_root / "versions" / BUNDLE_NAME / version)
 
 
@@ -1133,6 +1195,30 @@ class TestFilesystemPublication:
         assert store.read_ref() == payload
         assert list(_get_ref_path(store).parent.iterdir()) == [_get_ref_path(store)]
 
+    @mock.patch.object(
+        store_module, "fsync_directory", autospec=True, side_effect=store_module.fsync_directory
+    )
+    def test_write_state_durability_failure_is_not_a_reference_error(self, mock_fsync, store):
+        original_error = OSError(errno.EIO, "state directory sync failed")
+        real_fsync_directory = mock_fsync.side_effect
+        state_path = _get_state_path(store)
+
+        def fail_after_replacement(path):
+            if path == state_path.parent and state_path.exists():
+                raise original_error
+            real_fsync_directory(path)
+
+        mock_fsync.side_effect = fail_after_replacement
+
+        with pytest.raises(
+            BundleManifestError, match="Cannot confirm that automatic-publication state"
+        ) as raised:
+            store.write_state({"version": "v1"})
+
+        assert not isinstance(raised.value, BundleManifestRefDurabilityError)
+        assert raised.value.__cause__.__cause__ is original_error
+        assert store.read_state() == {"version": "v1"}
+
     @pytest.mark.parametrize(
         ("existing_reference", "cleanup_fails"), [(False, False), (True, False), (True, True)]
     )
@@ -1270,6 +1356,8 @@ _STORAGE_FAULTS = [
     ("publication_guard", store_module, "remove_orphaned_temp_snapshots"),
     ("read_ref", Path, "read_text"),
     ("write_ref", store_module.os, "replace"),
+    ("read_state", Path, "read_text"),
+    ("write_state", store_module.os, "replace"),
 ]
 _STORAGE_ERRORS = [
     ("missing", FileNotFoundError(errno.ENOENT, "gone"), BundleManifestNotFoundError),
@@ -1284,9 +1372,10 @@ class TestFilesystemStorageErrors:
             pytest.param(operation, owner, name, error, expected, id=f"{operation}-{error_id}")
             for operation, owner, name in _STORAGE_FAULTS
             for error_id, error, expected in _STORAGE_ERRORS
-            # A missing reference is covered by test_read_ref_missing_raises_not_found, and a
+            # A missing document is covered by the read_*_missing_raises_not_found tests, and a
             # missing snapshot is not an error for snapshot_exists.
-            if (operation, error_id) not in {("read_ref", "missing"), ("snapshot_exists", "missing")}
+            if (operation, error_id)
+            not in {("read_ref", "missing"), ("read_state", "missing"), ("snapshot_exists", "missing")}
         ],
     )
     def test_storage_oserror_is_reported_as_bundle_error(
@@ -1306,6 +1395,8 @@ class TestFilesystemStorageErrors:
             "publication_guard": lambda: store.publication_guard().__enter__(),
             "read_ref": store.read_ref,
             "write_ref": partial(store.write_ref, {"version": "v1"}),
+            "read_state": store.read_state,
+            "write_state": partial(store.write_state, {"version": "v1"}),
         }
 
         with (

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import fcntl
 import logging
+import pickle
 import tempfile
 import threading
 from datetime import timedelta
@@ -31,6 +32,7 @@ import time_machine
 from airflow._shared.timezones import timezone as tz
 from airflow.dag_processing.bundles.base import (
     BaseDagBundle,
+    BundleNotReadyError,
     BundleUsageTrackingManager,
     BundleVersion,
     BundleVersionLock,
@@ -139,6 +141,24 @@ def test_lock_exception_handling():
         except OSError:
             acquired = False
         assert acquired
+
+
+@pytest.mark.non_db_test_override
+def test_nonblocking_lock_rejects_contention_and_can_be_retried():
+    holder = BasicBundle(name="locktest")
+    contender = BasicBundle(name="locktest")
+
+    with holder.lock():
+        with holder.lock(wait=False):
+            assert holder._locked
+        with pytest.raises(BlockingIOError), contender.lock(wait=False):
+            pytest.fail("Acquired another instance's lock")
+        assert not contender._locked
+        assert holder._locked
+
+    with contender.lock(wait=False):
+        assert contender._locked
+    assert not contender._locked
 
 
 LOCK_WAIT_TIMEOUT = 10
@@ -351,3 +371,13 @@ def test_version_data_defaults_to_none():
     """Test that version_data defaults to None when not provided."""
     bundle = BasicBundle(name="test")
     assert bundle.version_data is None
+
+
+def test_bundle_not_ready_error_survives_pickling():
+    error = BundleNotReadyError("source is settling", retry_after=12.5)
+
+    restored = pickle.loads(pickle.dumps(error))
+
+    assert type(restored) is BundleNotReadyError
+    assert str(restored) == "source is settling"
+    assert restored.retry_after == 12.5
