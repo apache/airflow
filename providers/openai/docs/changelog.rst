@@ -20,6 +20,34 @@
 Changelog
 ---------
 
+.. warning::
+    The Assistants and Threads methods of ``OpenAIHook`` are removed. OpenAI shut down the
+    Assistants API on 2026-08-26, so these methods, deprecated since 1.8.0, could only fail.
+    Calling one now raises ``AttributeError``. Use the Responses and Conversations methods instead
+    (see OpenAI's `migration guide <https://developers.openai.com/api/docs/assistants/migration>`__):
+
+    * ``create_assistant``, ``get_assistant``, ``get_assistants``, ``modify_assistant`` and
+      ``delete_assistant``: there is no stored assistant object any more. Pass ``model``,
+      ``instructions`` and ``tools`` to ``create_response`` on each call.
+    * ``create_thread``: use ``create_conversation``.
+    * ``modify_thread``: use ``update_conversation``.
+    * ``delete_thread``: use ``delete_conversation``.
+    * ``create_message``: to add a message without running the model, use
+      ``hook.conn.conversations.items.create(conversation_id, items=[{"role": ..., "content": ...}])``.
+      To add a message and get the model's reply in one call (the old ``create_message`` followed by
+      ``create_run``), pass it as ``input`` to ``create_response`` together with
+      ``conversation=<conversation id>``.
+    * ``get_messages``: use ``hook.conn.conversations.items.list(conversation_id)``.
+    * ``modify_message``: no replacement. Conversation items can be created, read and deleted,
+      but not modified.
+    * ``create_run`` and ``create_run_and_poll``: use ``create_response``, which returns once the
+      response is complete. For long-running work pass ``background=True`` and poll
+      ``get_response``.
+    * ``get_run``: use ``get_response``.
+    * ``get_runs``: no replacement. The Responses API cannot list responses; read a conversation's
+      history with ``hook.conn.conversations.items.list(conversation_id)``.
+    * ``modify_run``: no replacement. A response cannot be modified after it is created.
+
 2.2.0
 .....
 

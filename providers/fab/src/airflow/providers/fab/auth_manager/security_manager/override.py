@@ -614,6 +614,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         method = current_app.config.get("FAB_PASSWORD_HASH_METHOD", "scrypt")
         return generate_password_hash(password, method=method)
 
+    def set_user_password(self, user: User, password: str) -> None:
+        """
+        Set a new password and invalidate the API tokens and Flask sessions issued under the old one.
+
+        Nothing is committed: the caller persists both changes together, normally with
+        ``update_user``.
+        """
+        user.password = self._hash_password(password)
+        # Incremented in SQL so that concurrent password changes cannot write the same value.
+        user.token_generation = self.user_model.token_generation + 1
+
     def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
@@ -626,7 +637,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         if not user:
             return False
-        user.password = self._hash_password(password)
+        self.set_user_password(user, password)
         self.reset_user_sessions(user)
         return self.update_user(user)
 
@@ -660,17 +671,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     if session_user_id is not None and str(session_user_id) == str(user.id):
                         session.delete(s)
                 session.commit()
-        else:
-            safe_username = escape(user.username)
-            self._cli_safe_flash(
-                "Since you are using `securecookie` session backend mechanism, we cannot prevent "
-                f"some old sessions for user {safe_username} to be reused.<br> If you want to make sure "
-                "that the user is logged out from all sessions, you should consider using "
-                "`database` session backend mechanism.<br> You can also change the 'secret_key` "
-                "webserver configuration for all your webserver instances and restart the webserver. "
-                "This however will logout all users from all sessions.",
-                "warning",
-            )
 
     def load_user_jwt(self, _jwt_header, jwt_data) -> User | None:
         identity = jwt_data["sub"]
@@ -1712,6 +1712,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.session.rollback()
             return False
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+        FabAuthManager.evict_cached_user(user.id)
         return True
 
     @staticmethod
