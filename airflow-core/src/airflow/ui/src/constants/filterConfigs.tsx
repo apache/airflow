@@ -31,6 +31,7 @@ import {
   MdErrorOutline,
   MdHistory,
   MdHourglassEmpty,
+  MdLabelOff,
   MdLoop,
   MdPause,
   MdPendingActions,
@@ -237,6 +238,14 @@ export const useFilterConfigs = () => {
       label: translate("browse:auditLog.filters.eventType"),
       supportsAdvancedSearch: true,
       type: FilterTypes.TEXT,
+    },
+    [SearchParamsKeys.EXCLUDE_TAGS]: {
+      EditorComponent: TagsFilter,
+      icon: <MdLabelOff />,
+      label: translate("common:dagDetails.excludeTags"),
+      placeholder: translate("common:table.excludeTagPlaceholder"),
+      supportsAdvancedSearch: true,
+      type: FilterTypes.MULTISELECT,
     },
     [SearchParamsKeys.EXECUTOR_CLASS]: {
       hotkeyDisabled: true,

@@ -15,8 +15,10 @@ info:
     \ characters are stripped so the range scan stays index-compatible under locale-aware\
     \ collations (e.g. ``test_`` matches values starting with ``test``, and ``s3://``\
     \ matches ``s3``). In both, ``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches\
-    \ everything. Regular expressions are not supported by these parameters; regex-capable\
-    \ endpoints expose a separate parameter."
+    \ everything. Where a parameter's description says so, a term prefixed with ``-``\
+    \ excludes the values it matches (e.g. ``etl|-test``). Regular expressions are\
+    \ not supported by these parameters; regex-capable endpoints expose a separate\
+    \ parameter."
   version: '2'
 paths:
   /api/v2/assets:
@@ -4035,6 +4037,16 @@ paths:
             type: string
           - type: 'null'
           title: Tags Match Mode
+      - name: exclude_tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: Exclude Dags having any of these tags.
+          title: Exclude Tags
+        description: Exclude Dags having any of these tags.
       - name: owners
         in: query
         required: false
@@ -4076,11 +4088,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+          description: "Case-insensitive substring match (SQL `ILIKE`). A term prefixed\
+            \ with `-` excludes the values it matches (e.g. `etl|-test`). Slower than\
             \ `dag_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
             \ with pattern parameters\"."
           title: Dag Display Name Pattern
-        description: "Case-insensitive substring match (SQL `ILIKE`). Slower than\
+        description: "Case-insensitive substring match (SQL `ILIKE`). A term prefixed\
+          \ with `-` excludes the values it matches (e.g. `etl|-test`). Slower than\
           \ `dag_display_name_prefix_pattern` on large tables \u2014 see \"Filtering\
           \ with pattern parameters\"."
       - name: dag_display_name_prefix_pattern
@@ -4090,11 +4104,13 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
+          description: Case-sensitive, index-friendly prefix match. A term prefixed
+            with `-` excludes the values it matches (e.g. `etl|-test`). See "Filtering
             with pattern parameters".
           title: Dag Display Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive, index-friendly prefix match. A term prefixed
+          with `-` excludes the values it matches (e.g. `etl|-test`). See "Filtering
+          with pattern parameters".
       - name: exclude_stale
         in: query
         required: false
@@ -4367,6 +4383,16 @@ paths:
             type: string
           - type: 'null'
           title: Tags Match Mode
+      - name: exclude_tags
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          description: Exclude Dags having any of these tags.
+          title: Exclude Tags
+        description: Exclude Dags having any of these tags.
       - name: owners
         in: query
         required: false

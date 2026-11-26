@@ -51,6 +51,7 @@
     "defaultArgs": "Default Args",
     "description": "Description",
     "documentation": "Dag Documentation",
+    "excludeTags": "Exclude Tags",
     "fileLocation": "File Location",
     "hasTaskConcurrencyLimits": "Has Task Concurrency Limits",
     "lastExpired": "Last Expired",
@@ -446,6 +447,7 @@
   "table": {
     "completedAt": "Completed at",
     "createdAt": "Created at",
+    "excludeTagPlaceholder": "Exclude by tag",
     "filterByTag": "Filter Dags by tag",
     "filterColumns": "Filter table columns",
     "filterReset_one": "Reset filter",

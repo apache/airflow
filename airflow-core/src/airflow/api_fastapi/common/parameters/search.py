@@ -26,7 +26,7 @@ from typing import (
 )
 
 from fastapi import HTTPException, Query, status
-from sqlalchemy import and_, func, or_, true as sql_true
+from sqlalchemy import and_, func, not_, or_, true as sql_true
 
 from airflow.api_fastapi.common.db.common import SessionDep
 from airflow.api_fastapi.common.parameters.base import BaseParam
@@ -56,6 +56,7 @@ class _PrefixPatternParam(BaseParam[str], ABC):
     """
 
     pipe_as_or: bool = True
+    minus_as_not: bool = False
 
     @staticmethod
     def _prefix_range_upper(term: str) -> str | None:
@@ -119,6 +120,12 @@ class _PrefixPatternParam(BaseParam[str], ABC):
             return select
 
         val_str = str(self.value)
+        if (
+            self.minus_as_not
+            and (clause := _negated_terms_clause(val_str, self.pipe_as_or, self._prefix_clause)) is not None
+        ):
+            return select.where(clause)
+
         if self.pipe_as_or and "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
             if search_terms:
@@ -130,6 +137,31 @@ class _PrefixPatternParam(BaseParam[str], ABC):
         if value == "~":
             value = ""
         return value
+
+
+def _negated_terms_clause(
+    value: str, pipe_as_or: bool, term_clause: Callable[[str], ColumnElement[bool]]
+) -> ColumnElement[bool] | None:
+    """
+    Build the predicate for a value containing ``-term`` exclusions, or ``None`` if it has none.
+
+    Terms without ``-`` are OR-ed as usual; each ``-term`` excludes the values ``term`` matches.
+    A lone ``-`` is not an exclusion, so returning ``None`` leaves such values to the plain search.
+    """
+    terms = [term.strip() for term in (value.split("|") if pipe_as_or else [value]) if term.strip()]
+    excluded = [term[1:] for term in terms if term.startswith("-") and len(term) > 1]
+    if not excluded:
+        return None
+    clauses = [not_(term_clause(term)) for term in excluded]
+    if included := [term for term in terms if not term.startswith("-")]:
+        clauses.append(or_(*(term_clause(term) for term in included)))
+    return and_(*clauses)
+
+
+def _build_minus_clause(minus_as_not: bool) -> str:
+    return (
+        "A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). " if minus_as_not else ""
+    )
 
 
 def _build_pipe_clause(pipe_as_or: bool) -> str:
@@ -169,16 +201,34 @@ class _SearchParam(BaseParam[str]):
         is acceptable.
     """
 
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True, pipe_as_or: bool = True) -> None:
+    def __init__(
+        self,
+        attribute: ColumnElement,
+        skip_none: bool = True,
+        pipe_as_or: bool = True,
+        minus_as_not: bool = False,
+    ) -> None:
         super().__init__(skip_none=skip_none)
         self.attribute: ColumnElement = attribute
         self.pipe_as_or = pipe_as_or
+        self.minus_as_not = minus_as_not
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None and self.skip_none:
             return select
 
         val_str = str(self.value)
+        if (
+            self.minus_as_not
+            and (
+                clause := _negated_terms_clause(
+                    val_str, self.pipe_as_or, lambda term: self.attribute.ilike(f"%{term}%")
+                )
+            )
+            is not None
+        ):
+            return select.where(clause)
+
         if self.pipe_as_or and "|" in val_str:
             search_terms = [term.strip() for term in val_str.split("|") if term.strip()]
             if search_terms:
@@ -206,10 +256,17 @@ class _PrefixSearchParam(_PrefixPatternParam):
     :class:`_PrefixPatternParam` for why).
     """
 
-    def __init__(self, attribute: ColumnElement, skip_none: bool = True, pipe_as_or: bool = True) -> None:
+    def __init__(
+        self,
+        attribute: ColumnElement,
+        skip_none: bool = True,
+        pipe_as_or: bool = True,
+        minus_as_not: bool = False,
+    ) -> None:
         super().__init__(skip_none=skip_none)
         self.attribute: ColumnElement = attribute
         self.pipe_as_or = pipe_as_or
+        self.minus_as_not = minus_as_not
 
     def _prefix_clause(self, term: str):
         lower = self._prefix_lower_bound(term)
@@ -270,18 +327,20 @@ def search_param_factory(
     pattern_name: str,
     skip_none: bool = True,
     pipe_as_or: bool = True,
+    minus_as_not: bool = False,
 ) -> Callable[[str | None], _SearchParam]:
     prefix_pattern_name = pattern_name.replace("_pattern", "_prefix_pattern")
     DESCRIPTION = (
         "Case-insensitive substring match (SQL `ILIKE`). "
         f"{_build_pipe_clause(pipe_as_or)}"
+        f"{_build_minus_clause(minus_as_not)}"
         f'Slower than `{prefix_pattern_name}` on large tables — see "Filtering with pattern parameters".'
     )
 
     def depends_search(
         value: str | None = Query(alias=pattern_name, default=None, description=DESCRIPTION),
     ) -> _SearchParam:
-        search_parm = _SearchParam(attribute, skip_none, pipe_as_or=pipe_as_or)
+        search_parm = _SearchParam(attribute, skip_none, pipe_as_or=pipe_as_or, minus_as_not=minus_as_not)
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 
@@ -362,6 +421,7 @@ def prefix_search_param_factory(
     prefix_pattern_name: str,
     skip_none: bool = True,
     pipe_as_or: bool = True,
+    minus_as_not: bool = False,
 ) -> Callable[[str | None], _PrefixSearchParam]:
     """
     Build a FastAPI ``Depends`` returning a :class:`_PrefixSearchParam` for prefix matching.
@@ -372,13 +432,16 @@ def prefix_search_param_factory(
     DESCRIPTION = (
         "Case-sensitive, index-friendly prefix match. "
         f"{_build_pipe_clause(pipe_as_or)}"
+        f"{_build_minus_clause(minus_as_not)}"
         'See "Filtering with pattern parameters".'
     )
 
     def depends_prefix_search(
         value: str | None = Query(alias=prefix_pattern_name, default=None, description=DESCRIPTION),
     ) -> _PrefixSearchParam:
-        search_parm = _PrefixSearchParam(attribute, skip_none, pipe_as_or=pipe_as_or)
+        search_parm = _PrefixSearchParam(
+            attribute, skip_none, pipe_as_or=pipe_as_or, minus_as_not=minus_as_not
+        )
         value = search_parm.transform_aliases(value)
         return search_parm.set_value(value)
 

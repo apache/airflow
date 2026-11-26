@@ -1977,11 +1977,12 @@ export class DagService {
      * @param data.offset
      * @param data.tags
      * @param data.tagsMatchMode
+     * @param data.excludeTags Exclude Dags having any of these tags.
      * @param data.owners
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     * @param data.dagDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). See "Filtering with pattern parameters".
      * @param data.excludeStale
      * @param data.paused
      * @param data.hasImportErrors Filter Dags by having import errors. Only Dags that have been successfully loaded before will be returned.
@@ -2015,6 +2016,7 @@ export class DagService {
                 offset: data.offset,
                 tags: data.tags,
                 tags_match_mode: data.tagsMatchMode,
+                exclude_tags: data.excludeTags,
                 owners: data.owners,
                 dag_id_pattern: data.dagIdPattern,
                 dag_id_prefix_pattern: data.dagIdPrefixPattern,
@@ -2063,6 +2065,7 @@ export class DagService {
      * @param data.offset
      * @param data.tags
      * @param data.tagsMatchMode
+     * @param data.excludeTags Exclude Dags having any of these tags.
      * @param data.owners
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
@@ -2081,6 +2084,7 @@ export class DagService {
                 offset: data.offset,
                 tags: data.tags,
                 tags_match_mode: data.tagsMatchMode,
+                exclude_tags: data.excludeTags,
                 owners: data.owners,
                 dag_id_pattern: data.dagIdPattern,
                 dag_id_prefix_pattern: data.dagIdPrefixPattern,
@@ -2319,13 +2323,14 @@ export class DagService {
      * @param data.offset
      * @param data.tags
      * @param data.tagsMatchMode
+     * @param data.excludeTags Exclude Dags having any of these tags.
      * @param data.owners
      * @param data.teams
      * @param data.dagIds
      * @param data.dagIdPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      * @param data.dagIdPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
-     * @param data.dagDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
-     * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * @param data.dagDisplayNamePattern Case-insensitive substring match (SQL `ILIKE`). A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     * @param data.dagDisplayNamePrefixPattern Case-sensitive, index-friendly prefix match. A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). See "Filtering with pattern parameters".
      * @param data.excludeStale
      * @param data.paused
      * @param data.schedulingState
@@ -2355,6 +2360,7 @@ export class DagService {
                 offset: data.offset,
                 tags: data.tags,
                 tags_match_mode: data.tagsMatchMode,
+                exclude_tags: data.excludeTags,
                 owners: data.owners,
                 teams: data.teams,
                 dag_ids: data.dagIds,

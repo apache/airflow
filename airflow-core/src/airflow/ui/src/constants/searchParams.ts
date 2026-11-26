@@ -57,6 +57,7 @@ export enum SearchParamsKeys {
   END_DATE_RANGE = "end_date_range",
   EVENT_DATE_RANGE = "event_date_range",
   EVENT_TYPE = "event_type",
+  EXCLUDE_TAGS = "exclude_tags",
   EXCLUDED_EVENTS = "excluded_events",
   EXECUTION_OFFSET = "execution_offset",
   EXECUTOR_CLASS = "executor_class",

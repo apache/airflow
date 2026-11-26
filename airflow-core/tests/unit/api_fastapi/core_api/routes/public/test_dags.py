@@ -527,6 +527,9 @@ class TestGetDags(TestDagEndpoint):
             ({"limit": 1}, 2, [DAG1_ID]),
             ({"offset": 1}, 2, [DAG2_ID]),
             ({"tags": ["example"]}, 1, [DAG1_ID]),
+            ({"exclude_tags": ["example"]}, 1, [DAG2_ID]),
+            ({"exclude_tags": ["example", "nonexistent"]}, 1, [DAG2_ID]),
+            ({"tags": ["example"], "exclude_tags": ["example"]}, 0, []),
             (
                 {"exclude_stale": False},
                 3,
@@ -665,6 +668,15 @@ class TestGetDags(TestDagEndpoint):
             ({"dag_id_prefix_pattern": "test_dag1"}, 1, [DAG1_ID]),
             ({"dag_id_prefix_pattern": "test_dag1|test_dag2"}, 2, [DAG1_ID, DAG2_ID]),
             ({"dag_display_name_prefix_pattern": "test_dag2"}, 1, [DAG2_ID]),
+            # Search exclusions with "-"
+            ({"dag_display_name_pattern": "-display"}, 1, [DAG2_ID]),
+            ({"dag_display_name_pattern": "1|2|-dag2"}, 1, [DAG1_ID]),
+            ({"dag_display_name_pattern": "-display|-dag2"}, 0, []),
+            ({"dag_display_name_pattern": "-"}, 0, []),
+            ({"dag_display_name_prefix_pattern": "-display"}, 1, [DAG2_ID]),
+            ({"dag_display_name_prefix_pattern": "display|test|-test_dag2"}, 1, [DAG1_ID]),
+            # "-" is only an exclusion where the parameter opts in
+            ({"dag_id_pattern": "-1"}, 0, []),
             # Bundle filters
             (
                 {"bundle_name": "dag_maker"},

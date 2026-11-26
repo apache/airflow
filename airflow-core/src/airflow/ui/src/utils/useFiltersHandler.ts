@@ -75,6 +75,7 @@ export type FilterableSearchParamsKeys =
   | SearchParamsKeys.END_DATE_RANGE
   | SearchParamsKeys.EVENT_DATE_RANGE
   | SearchParamsKeys.EVENT_TYPE
+  | SearchParamsKeys.EXCLUDE_TAGS
   | SearchParamsKeys.EXECUTOR_CLASS
   | SearchParamsKeys.FAVORITE
   | SearchParamsKeys.FROM_RANGE
