@@ -435,7 +435,7 @@ class TestKeycloakJWTMiddleware:
 
     @patch(f"{MODULE}.KeycloakAuthManager.get_keycloak_client", autospec=True)
     def test_logout_completes_when_keycloak_cannot_end_the_session(
-        self, mock_get_keycloak_client, mock_auth_manager
+        self, mock_get_keycloak_client, mock_auth_manager, caplog
     ):
         mock_get_keycloak_client.return_value.logout.side_effect = KeycloakPostError(
             error_message="invalid_grant", response_code=400
@@ -458,6 +458,10 @@ class TestKeycloakJWTMiddleware:
             (COOKIE_NAME_ACCESS_TOKEN, "/"): None,
             (COOKIE_NAME_REFRESH_TOKEN, "/"): None,
         }
+        assert {
+            "event": "Could not end the Keycloak session on logout (KeycloakPostError, response code 400)",
+            "log_level": "warning",
+        } in caplog
 
     def test_root_cookie_cleared_when_route_sets_token(self, mock_get_cookie_path, mock_auth_manager):
         mock_auth_manager.get_user_from_token.side_effect = InvalidTokenError
