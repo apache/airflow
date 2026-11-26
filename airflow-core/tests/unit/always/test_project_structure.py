@@ -119,6 +119,13 @@ class TestProjectStructure:
             "providers/google/tests/unit/google/cloud/links/test_pubsub.py",
             "providers/google/tests/unit/google/cloud/links/test_spanner.py",
             "providers/google/tests/unit/google/cloud/links/test_workflows.py",
+            # Thrift-generated code — no logic to test
+            "providers/apache/hbase/tests/unit/apache/hbase/hbase_thrift2_generated/test_THBaseService.py",
+            "providers/apache/hbase/tests/unit/apache/hbase/hbase_thrift2_generated/test_constants.py",
+            "providers/apache/hbase/tests/unit/apache/hbase/hbase_thrift2_generated/test_ttypes.py",
+            # Simple utility modules with no logic worth testing
+            "providers/apache/hbase/tests/unit/apache/hbase/datasets/test_hbase.py",
+            "providers/apache/hbase/tests/unit/apache/hbase/test_connection_config.py",
         ]
         modules_files: list[pathlib.Path] = list(
             AIRFLOW_PROVIDERS_ROOT_PATH.glob("**/src/airflow/providers/**/*.py")

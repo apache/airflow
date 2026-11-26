@@ -51,6 +51,9 @@ labelPRBasedOnFilePath:
   provider:apache-flink:
     - providers/apache/flink/**
 
+  provider:apache-hbase:
+    - providers/apache/hbase/**
+
   provider:apache-hdfs:
     - providers/apache/hdfs/**
 
