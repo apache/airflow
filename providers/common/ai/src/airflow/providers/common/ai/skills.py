@@ -24,8 +24,9 @@ paths, the interchange format every Agent Skills implementation consumes
 (pydantic-ai-skills, LangChain DeepAgents, Strands), so the same Airflow
 credential handling works across frameworks.
 
-For pydantic-ai use the :class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset`
-binding. For other frameworks, resolve the directories yourself::
+For pydantic-ai use :class:`AirflowSkills`, or the older
+:class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` binding. For other frameworks,
+resolve the directories yourself::
 
     from airflow.providers.common.ai.skills import GitSkills, resolve_skills
 
@@ -42,16 +43,30 @@ manager removes any cloned directories on exit.
 
 from __future__ import annotations
 
+import copy
 import os
 import shutil
 import tempfile
-from collections.abc import Callable, Iterator
+import weakref
+from collections.abc import Callable, Collection, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Union
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, Union
 from urllib.parse import urlsplit
 
-__all__ = ["GitSkills", "SkillSource", "resolve_skills"]
+from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
+from pydantic_ai.tools import AgentDepsT
+
+from airflow.providers.common.ai.utils.skill_files import SkillRunState, build_skill_files_toolset
+
+if TYPE_CHECKING:
+    from pydantic_ai import RunContext
+    from pydantic_ai.capabilities import WrapRunHandler
+    from pydantic_ai.run import AgentRunResult
+    from pydantic_ai.toolsets import AbstractToolset
+
+__all__ = ["AirflowSkills", "GitSkills", "SkillSource", "resolve_skills"]
 
 
 @dataclass
@@ -238,3 +253,152 @@ def resolve_skills(sources: list[SkillSource]) -> Iterator[list[str]]:
         yield [location.directory for location in locations]
     finally:
         cleanup()
+
+
+def _import_harness_skills() -> tuple[Any, Any]:
+    try:
+        from pydantic_ai.workspaces import LocalWorkspaceBackend
+        from pydantic_ai_harness.skills import Skills
+    except ImportError as e:
+        raise ValueError(
+            "AirflowSkills requires pydantic-ai-harness. Install the 'skills' extra: "
+            "pip install 'apache-airflow-providers-common-ai[skills]'."
+        ) from e
+    return Skills, LocalWorkspaceBackend
+
+
+def _list_absolute_directories(locations: list[_SkillsLocation]) -> list[str]:
+    # Last first: the harness keeps the first of two same-named skills and pydantic-ai-skills 1.x kept the last.
+    return [os.path.abspath(location.directory) for location in reversed(locations)]
+
+
+def _discard_run(
+    runs: dict[str, SkillRunState], run_id: str, state: SkillRunState, cleanup: Callable[[], None]
+) -> None:
+    if runs.get(run_id) is state:
+        del runs[run_id]
+    cleanup()
+
+
+class AirflowSkills(AbstractCapability[AgentDepsT]):
+    """
+    Offer `Agent Skills <https://agentskills.io>`__ from local directories and Git repositories to an agent.
+
+    .. note::
+
+        Experimental: this can change or be removed in a minor release of this provider.
+        See :ref:`howto/stability`.
+
+    Builds on pydantic-ai-harness's ``Skills`` capability. The model sees each skill's name and
+    description and loads its instructions with ``load_capability``. Airflow adds what the harness
+    does not: sourcing from :class:`GitSkills` with credentials from an Airflow connection, and two
+    tools, ``read_skill_resource`` and ``run_skill_script``. Both refuse a skill until it is loaded.
+
+    Sources are resolved when a run starts, not when the Dag is parsed, and cloned repositories
+    are removed when the run ends. ``${SKILL_DIR}/`` and ``${CLAUDE_SKILL_DIR}/`` at the start of a
+    path given to either tool name the skill's own directory.
+
+    :param sources: Skill library directories and :class:`GitSkills` descriptors. Each directory
+        holds one sub-directory per skill. When two sources hold a skill of the same name, the one
+        from the later source is used and a warning is emitted, unless their ``SKILL.md`` files are
+        byte-identical: the harness then treats them as one skill and says nothing.
+    :param include: Names of the skills to offer; all others are left out. Cannot be combined with
+        ``exclude``.
+    :param exclude: Names of the skills to leave out. Cannot be combined with ``include``.
+    :param exclude_resources: Glob patterns for files the two tools refuse, matched against a
+        path relative to the skill or any one component of it, ignoring case. ``__pycache__``, ``*.pyc``, ``*.pyo``,
+        ``.DS_Store`` and ``.git`` are always excluded.
+    :param resources: Register ``read_skill_resource``. Defaults to ``True``.
+    :param scripts: ``"worker"`` registers ``run_skill_script``, which runs a script as a subprocess
+        of the worker, with the worker's permissions and a 30 second timeout. A script that prints more
+        than 50,000 bytes is killed and its output cut off there. ``None`` registers no script tool. Defaults to ``"worker"``.
+    :param max_retries: Correction attempts the model gets per tool call. Defaults to the agent's.
+    """
+
+    id = "airflow_skills"
+
+    def __init__(
+        self,
+        sources: list[SkillSource],
+        *,
+        include: Collection[str] | None = None,
+        exclude: Collection[str] | None = None,
+        exclude_resources: list[str] | None = None,
+        resources: bool = True,
+        scripts: Literal["worker"] | None = "worker",
+        max_retries: int | None = None,
+    ) -> None:
+        if not sources:
+            raise ValueError("AirflowSkills needs at least one source.")
+        if include is not None and exclude is not None:
+            raise ValueError("include and exclude cannot be used together.")
+        if scripts is not None and scripts != "worker":
+            raise ValueError(
+                f"AirflowSkills scripts must be 'worker' or None, got {scripts!r}. Running scripts in a "
+                "sandbox needs a way to copy skills into it, which is not available yet."
+            )
+        self._sources = list(sources)
+        self._include = include
+        self._exclude = exclude
+        self._runs: dict[str, SkillRunState] = {}
+        self._toolset = build_skill_files_toolset(
+            runs=self._runs,
+            resources=resources,
+            scripts=scripts is not None,
+            exclude_resources=exclude_resources or [],
+            max_retries=max_retries,
+        )
+        self._finalizer: weakref.finalize | None = None
+
+    @classmethod
+    def get_serialization_name(cls) -> str | None:
+        return None
+
+    @classmethod
+    def combine(cls, capabilities: Any) -> Any:
+        raise ValueError(
+            "An agent can have only one AirflowSkills, because its file tools share one toolset id. "
+            "Put every source in a single AirflowSkills."
+        )
+
+    def get_toolset(self) -> AbstractToolset[Any] | None:
+        return self._toolset
+
+    async def for_run(self, ctx: RunContext[AgentDepsT]) -> AbstractCapability[AgentDepsT]:
+        if self._finalizer is not None:
+            return self
+        skills_class, workspace_class = _import_harness_skills()
+        # The harness reads the directories as soon as the run starts, so the clone has to exist by now;
+        # the copy returned below removes it when the run ends, and the finalizer covers a run that never starts.
+        locations, cleanup = _materialize_skills(self._sources)
+        run_id = ctx.run_id or ""
+        state = SkillRunState(skill_dirs={})
+        try:
+            directories = _list_absolute_directories(locations)
+            selection = (
+                {"include": self._include} if self._include is not None else {"exclude": self._exclude}
+            )
+            skills = skills_class(
+                directories,
+                duplicate_names="keep_first",
+                workspace=workspace_class(Path.cwd()),
+                **selection,
+            )
+            catalog = await skills.load()
+            state.skill_dirs = {skill.name: Path(skill.directory) for skill in catalog.skills}
+            offered = await skills.for_run(ctx)
+        except BaseException:
+            cleanup()
+            raise
+        run = copy.copy(self)
+        self._runs[run_id] = state
+        run._finalizer = weakref.finalize(run, _discard_run, self._runs, run_id, state, cleanup)
+        return CombinedCapability([run, offered])
+
+    async def wrap_run(self, ctx: RunContext[AgentDepsT], *, handler: WrapRunHandler) -> AgentRunResult[Any]:
+        if self._finalizer is None:
+            return await handler()
+        try:
+            return await handler()
+        finally:
+            self._finalizer()
