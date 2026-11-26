@@ -246,6 +246,7 @@ duplicated. Once an identity is persisted, subsequent retries skip the label sea
 By default, a try interrupted by ``execution_timeout`` deletes the pod (per ``on_finish_action``), so the retry
 starts a fresh pod. To let the retry reattach instead, set ``on_kill_action="keep_pod"``: the pod is left running
 and is not marked as already checked. On the last try no retry follows, so the pod is cleaned up as usual.
+With a ``retry_policy`` set, the pod is cleaned up on timeout as well, since the policy may not retry.
 This applies to sync mode with ``durable=True`` (or ``reattach_on_restart=True`` below Airflow 3.3) only.
 
 To always create a fresh pod on retry rather than reattaching, set ``durable=False``:

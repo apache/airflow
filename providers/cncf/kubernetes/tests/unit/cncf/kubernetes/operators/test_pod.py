@@ -2932,8 +2932,10 @@ class TestKubernetesPodOperatorDurableExecution:
         succeeded_pod.status.reason = None
         succeeded_pod.metadata.name = "prior-pod"
         k.hook.get_pod = MagicMock(return_value=succeeded_pod)
+        mock_pod_request_obj = MagicMock()
+        mock_pod_request_obj.to_dict.return_value = {"metadata": {"name": "new-pod"}}
 
-        result = k.get_or_create_pod(pod_request_obj=MagicMock(), context=context)
+        result = k.get_or_create_pod(pod_request_obj=mock_pod_request_obj, context=context)
 
         mock_process_pod_deletion.assert_not_called()
         self.create_mock.assert_not_called()
@@ -2985,16 +2987,17 @@ class TestKubernetesPodOperatorDurableExecution:
         assert result == mock_pod_request_obj
 
     @pytest.mark.parametrize(
-        ("durable", "on_kill_action", "try_number", "expect_pod_kept"),
+        ("durable", "on_kill_action", "try_number", "has_retry_policy", "expect_pod_kept"),
         [
-            pytest.param(True, "keep_pod", 1, True, id="durable_keep_pod"),
-            pytest.param(True, "keep_pod", 2, False, id="durable_keep_pod_last_try"),
-            pytest.param(True, "delete_pod", 1, False, id="durable_default_on_kill"),
-            pytest.param(False, "keep_pod", 1, False, id="not_durable_keep_pod"),
+            pytest.param(True, "keep_pod", 1, False, True, id="durable_keep_pod"),
+            pytest.param(True, "keep_pod", 2, False, False, id="durable_keep_pod_last_try"),
+            pytest.param(True, "delete_pod", 1, False, False, id="durable_default_on_kill"),
+            pytest.param(False, "keep_pod", 1, False, False, id="not_durable_keep_pod"),
+            pytest.param(True, "keep_pod", 1, True, False, id="durable_keep_pod_with_retry_policy"),
         ],
     )
     def test_execution_timeout_keeps_pod_only_when_durable_and_keep_pod(
-        self, durable, on_kill_action, try_number, expect_pod_kept
+        self, durable, on_kill_action, try_number, has_retry_policy, expect_pod_kept
     ):
         k = KubernetesPodOperator(
             image="ubuntu:16.04",
@@ -3004,14 +3007,18 @@ class TestKubernetesPodOperatorDurableExecution:
             durable=durable,
             on_kill_action=on_kill_action,
         )
+        if has_retry_policy:
+            # Set directly: the retry_policy argument only exists on Airflow 3.3+.
+            k.retry_policy = MagicMock()
         context = create_context(k)
         context["ti"] = MagicMock(spec=TaskInstance, try_number=try_number, max_tries=1)
-        running_pod = MagicMock(spec=k8s.V1Pod)
-        running_pod.metadata.name = "running-pod"
-        running_pod.metadata.namespace = "default"
+        running_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="running-pod", namespace="default"),
+            status=k8s.V1PodStatus(phase="Running"),
+        )
 
         with (
-            patch.object(k, "build_pod_request_obj", return_value=MagicMock(spec=k8s.V1Pod)),
+            patch.object(k, "build_pod_request_obj", return_value=k8s.V1Pod(metadata=k8s.V1ObjectMeta())),
             patch.object(k, "get_or_create_pod", return_value=running_pod),
             patch.object(k, "find_pod", return_value=running_pod),
             patch.object(k, "await_pod_start"),

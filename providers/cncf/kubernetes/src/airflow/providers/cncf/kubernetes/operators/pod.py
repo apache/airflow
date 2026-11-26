@@ -958,12 +958,14 @@ class KubernetesPodOperator(BaseOperator):
             )
         except AirflowTaskTimeout:
             # The task runner calls on_kill only after this propagates, so cleanup has to know now
-            # that the pod must be left running for the next try to reattach.
+            # that the pod must be left running for the next try to reattach. A retry_policy (Airflow
+            # 3.3+) can fail the task with tries left, which would leave the kept pod running forever.
             ti = context["ti"]
             self._keep_pod_after_timeout = (
                 self.reattach_on_restart
                 and self.on_kill_action == OnKillAction.KEEP_POD
                 and ti.try_number <= ti.max_tries
+                and getattr(self, "retry_policy", None) is None
             )
             raise
         finally:
