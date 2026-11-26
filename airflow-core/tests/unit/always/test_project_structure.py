@@ -63,8 +63,6 @@ class TestProjectStructure:
         OVERLOOKED_TESTS = [
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/docker/test_app.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_sagemaker.py",
             "providers/amazon/tests/unit/amazon/aws/sensors/test_emr.py",
