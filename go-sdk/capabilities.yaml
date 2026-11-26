@@ -197,7 +197,7 @@ capabilities:
       supported: false
     stub-task-handler:
       supported: false
-      note: "not implemented yet; SDK 1.1.0 will add it"
+      note: "only literal expand() values bind; arguments read from upstream outputs do not yet"
   asset-inlets-outlets:
     dag-definition:
       supported: false
