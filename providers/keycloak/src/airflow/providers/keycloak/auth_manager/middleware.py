@@ -318,8 +318,10 @@ class KeycloakJWTMiddleware(JWTRefreshMiddleware):
     @staticmethod
     def _end_keycloak_session(refresh_token: str) -> None:
         """End the Keycloak session of ``refresh_token``."""
+        client = KeycloakAuthManager.get_keycloak_client()
+        client.connection.timeout = 5
         try:
-            KeycloakAuthManager.get_keycloak_client().logout(refresh_token)
+            client.logout(refresh_token)
         except KeycloakError as e:
             log.warning(
                 "Could not end the Keycloak session on logout (%s, response code %s)",

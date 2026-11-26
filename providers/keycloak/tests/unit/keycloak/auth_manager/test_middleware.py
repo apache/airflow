@@ -430,6 +430,8 @@ class TestKeycloakJWTMiddleware:
         TestClient(app, cookies=cookies).get("/api/v2/auth/logout", follow_redirects=False)
 
         assert mock_get_keycloak_client.return_value.logout.call_args_list == expected_calls
+        if expected_calls:
+            assert mock_get_keycloak_client.return_value.connection.timeout == 5
 
     @patch(f"{MODULE}.KeycloakAuthManager.get_keycloak_client", autospec=True)
     def test_logout_completes_when_keycloak_cannot_end_the_session(
