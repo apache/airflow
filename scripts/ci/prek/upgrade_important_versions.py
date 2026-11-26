@@ -1493,6 +1493,29 @@ def is_within_cooldown(cooldown_days: int) -> bool:
         return False
 
 
+SKILL_EVAL_PIN_PATTERN = re.compile(r"(?:promptfoo|@anthropic-ai/claude-agent-sdk|@openai/codex-sdk)@[0-9.]+")
+
+
+def get_skill_eval_pins(path: Path = AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml") -> set[str]:
+    return set(SKILL_EVAL_PIN_PATTERN.findall(path.read_text()))
+
+
+def report_skill_eval_pin_changes(
+    before: set[str], path: Path = AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml"
+) -> bool:
+    """Remind to run the skill eval when its tools moved: it never runs in CI, so nothing else will."""
+    after = get_skill_eval_pins(path)
+    if after == before:
+        return False
+    console.print(
+        "[bright_yellow]Skill-eval tool versions changed "
+        f"({', '.join(sorted(after - before))}). The skill eval does not run in CI, so run "
+        "`prek run run-skill-eval --hook-stage manual --all-files` (and `run-skill-eval-codex`) "
+        "soon to confirm its results did not shift."
+    )
+    return True
+
+
 def main() -> None:
     """Main entry point for the version upgrade script."""
     global _github_token
@@ -1511,7 +1534,9 @@ def main() -> None:
 
     legacy_python_versions = fetch_legacy_python_versions()
 
+    skill_eval_pins = get_skill_eval_pins()
     changed = process_all_files(versions, latest_python_versions, python_image_digests)
+    report_skill_eval_pin_changes(skill_eval_pins)
     if python_image_digests:
         changed = write_pins_file(PYTHON_IMAGE_DIGESTS_PATH, python_image_digests) or changed
         if OS_DEPS_IMAGE_DIGESTS_PATH.exists():

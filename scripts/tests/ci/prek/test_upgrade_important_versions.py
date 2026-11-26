@@ -697,3 +697,23 @@ def test_skill_eval_node_pins_are_upgraded(monkeypatch, path_parts):
         assert "'@anthropic-ai/claude-agent-sdk@8.8.8'" in new_content
         assert "'@openai/codex-sdk@7.7.7'" in new_content
         assert "promptfoo@0." not in new_content
+
+
+@pytest.mark.parametrize(
+    ("new_pins", "expected"),
+    [
+        pytest.param("'promptfoo@1.0.0', '@anthropic-ai/claude-agent-sdk@2.0.0'", False, id="unchanged"),
+        pytest.param("'promptfoo@1.1.0', '@anthropic-ai/claude-agent-sdk@2.0.0'", True, id="bumped"),
+    ],
+)
+def test_report_skill_eval_pin_changes(tmp_path, new_pins, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    config = tmp_path / ".pre-commit-config.yaml"
+    config.write_text(
+        "additional_dependencies: ['promptfoo@1.0.0', '@anthropic-ai/claude-agent-sdk@2.0.0']\n"
+    )
+    before = uiv.get_skill_eval_pins(config)
+    config.write_text(f"additional_dependencies: [{new_pins}]\n")
+
+    assert uiv.report_skill_eval_pin_changes(before, config) is expected

@@ -29,6 +29,7 @@
   - [Adding cases](#adding-cases)
   - [How it works](#how-it-works)
   - [Eval-run hash gate](#eval-run-hash-gate)
+  - [Tool upgrades: run the eval periodically](#tool-upgrades-run-the-eval-periodically)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -233,3 +234,15 @@ updated hash file together with your change.
   cases, so a hash over them would prove nothing. Extend
   `compute_guidance_hash` in `scripts/ci/prek/check_eval_hash.py` when
   per-skill cases land.
+
+## Tool upgrades: run the eval periodically
+
+`upgrade-important-versions` bumps the promptfoo, Claude Agent SDK and
+Codex SDK pins in `.pre-commit-config.yaml` automatically, and the gate
+above does not fire for them — the eval never runs in CI. Results are
+therefore only eventually consistent with the tool versions: the script
+prints a reminder when it moves these pins, and maintainers should run
+both eval hooks after such an upgrade, or at least periodically.
+
+If an eval fails in a way your `AGENTS.md` change cannot explain, check
+`git log -p .pre-commit-config.yaml` for a recent pin bump first.
