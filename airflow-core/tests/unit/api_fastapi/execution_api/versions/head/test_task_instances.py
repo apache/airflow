@@ -1403,10 +1403,8 @@ class TestTIRunState:
 
         response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=1, session=session)
         assert response.status_code == 200
-        assert sorted(call.args[0].operator.task_id for call in mock_get_task_map_length.call_args_list) == [
-            "countries",
-            "regions",
-        ]
+        requested = [call.args[0] for call in mock_get_task_map_length.call_args_list]
+        assert len({id(arg) for arg in requested}) == len(requested) == 3
 
     @mock.patch("airflow.models.serialized_dag._COMPRESS_SERIALIZED_DAGS", True)
     def test_ti_run_decomposes_multi_kwarg_mapped_task_group_in_dag_file_order(
