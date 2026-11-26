@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 from unittest import mock
 
 import httpx2
@@ -123,18 +124,35 @@ class TestLMStudioBackendLoad:
 
         assert methods == ["GET"]
 
-    def test_model_missing_from_the_list_is_still_loaded(self):
+    @pytest.mark.parametrize(
+        ("models", "listed"),
+        [
+            pytest.param(
+                [{"key": "qwen/qwen3-0.6b", "loaded_instances": []}, {"key": "other"}],
+                "'qwen/qwen3-0.6b', 'other'",
+                id="other-keys",
+            ),
+            pytest.param([], "none", id="empty-list"),
+            pytest.param([{"type": "llm"}, {"key": "other"}], "'other'", id="entry-without-key-not-listed"),
+        ],
+    )
+    def test_model_missing_from_the_list_raises_value_error_naming_listed_keys_without_loading(
+        self, models, listed
+    ):
         methods: list[str] = []
 
         def handler(request: httpx2.Request) -> httpx2.Response:
             methods.append(request.method)
-            if request.method == "GET":
-                return _build_models_response(loaded=True, key="another")
-            return httpx2.Response(200, json={"status": "loaded"})
+            return httpx2.Response(200, json={"models": models})
 
-        _build_backend(handler).load(timeout=5.0)
+        expected = (
+            "LM Studio at http://lmstudio:1234 lists no model with key 'qwen3'; "
+            f"listed keys: {listed}. Use one of the listed keys as the model name."
+        )
+        with pytest.raises(ValueError, match=f"^{re.escape(expected)}$"):
+            _build_backend(handler).load(timeout=5.0)
 
-        assert methods == ["GET", "POST"]
+        assert methods == ["GET"]
 
     def test_http_error_names_model_and_server_error_field(self):
         def handler(request: httpx2.Request) -> httpx2.Response:
@@ -194,7 +212,7 @@ class TestLMStudioBackendLoad:
 
         assert methods == ["GET"]
 
-    def test_model_entry_without_expected_fields_counts_as_not_loaded(self):
+    def test_matching_entry_without_loaded_instances_is_loaded(self):
         methods: list[str] = []
 
         def handler(request: httpx2.Request) -> httpx2.Response:

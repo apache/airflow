@@ -46,7 +46,8 @@ class LMStudioBackend:
 
     :param base_url: LM Studio URL; a trailing ``/v1`` (OpenAI-compatible) or ``/api/v1`` (native)
         is dropped to reach the server root.
-    :param model_name: Model key as listed by LM Studio.
+    :param model_name: Model key as listed by ``GET /api/v1/models``; any other name raises
+        ``ValueError`` instead of loading a model.
     :param transport: Optional httpx2 transport, mainly to stub the server in tests.
 
     :raises ValueError: If *base_url* is ``None`` or empty.
@@ -77,7 +78,8 @@ class LMStudioBackend:
         :raises httpx2.HTTPStatusError: If the server answers with an error status; the message says
             whether listing or loading failed and carries the ``error`` text when the body has one,
             otherwise the start of the response body.
-        :raises ValueError: If the model list is not a JSON object whose ``models`` is a list of objects.
+        :raises ValueError: If the model list is not a JSON object whose ``models`` is a list of objects,
+            or if none of its entries has a ``key`` equal to the model name; nothing is loaded then.
         """
         deadline = time.monotonic() + timeout
         with httpx2.Client(transport=self._transport) as client:
@@ -88,7 +90,7 @@ class LMStudioBackend:
                 failure="could not list models",
                 timeout_failure="did not list its models",
             ):
-                loaded = self._is_model_loaded(client, timeout=timeout)
+                loaded = self._check_model_loaded(client, timeout=timeout)
             if loaded:
                 return
             if (remaining := deadline - time.monotonic()) <= 0:
@@ -109,11 +111,22 @@ class LMStudioBackend:
                 )
                 response.raise_for_status()
 
-    def _is_model_loaded(self, client: httpx2.Client, *, timeout: float) -> bool:
-        """Return whether the model's entry in the model list has a loaded instance."""
+    def _check_model_loaded(self, client: httpx2.Client, *, timeout: float) -> bool:
+        """
+        Return whether the model's entry in the model list has a loaded instance.
+
+        :raises ValueError: If no entry in the model list has a ``key`` equal to the model name.
+        """
         response = client.get(f"{self.root}{_LIST_MODELS_PATH}", timeout=timeout)
         response.raise_for_status()
         models = self._extract_models(response)
+        keys = [key for m in models if isinstance(key := m.get("key"), str)]
+        if self.model_name not in keys:
+            listed = ", ".join(f"'{key}'" for key in keys) if keys else "none"
+            raise ValueError(
+                f"LM Studio at {self.root} lists no model with key '{self.model_name}'; "
+                f"listed keys: {listed}. Use one of the listed keys as the model name."
+            )
         return any(
             m.get("key") == self.model_name
             and isinstance(instances := m.get("loaded_instances"), list)

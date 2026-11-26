@@ -175,7 +175,8 @@ value must match a model your server is really serving:
 - vLLM -- defaults to its ``--model`` startup argument; the
   ``--served-model-name`` flag can set an alias explicitly (e.g. to
   ``gemma4``) if you want the served name to differ from ``--model``.
-- LM Studio -- the model identifier shown for whatever you loaded in its UI.
+- LM Studio -- the model ``key`` that ``GET /api/v1/models`` lists.
+  ``LMStudioBackend`` accepts only that key.
 - Any of the three (and any other OpenAI-compatible server) --
   ``curl <host>/v1/models`` lists what the server actually reports as
   available.
@@ -385,11 +386,13 @@ Things to know:
   reported with the server's error message when the response has one, or the
   start of the response body otherwise.
 - **Model name and list shape.** The model name is compared with the ``key`` of
-  the listed models, so use the model key that LM Studio lists. A
-  ``loaded_instances`` that is missing, empty or not a list counts as not
-  loaded, and an entry without a ``key`` never matches. If the list is not a
-  JSON object with a ``models`` list of objects, for example when a proxy
-  answers with a login page, ``ValueError`` is raised instead of loading anyway.
+  the listed models, so use the model key that LM Studio lists. If no listed
+  model has that key, ``ValueError`` names the listed keys and nothing is
+  loaded. A ``loaded_instances`` that is missing, empty or not a list counts as
+  not loaded, and an entry without a ``key`` never matches and is not listed. If
+  the list is not a JSON object with a ``models`` list of objects, for example
+  when a proxy answers with a login page, ``ValueError`` is raised instead of
+  loading anyway.
 - **Timeout.** The list request gets ``timeout`` seconds and the load request
   gets the time the list request left. Each is an httpx2 timeout, which applies
   to the connect, write and read phases separately, so both requests together
