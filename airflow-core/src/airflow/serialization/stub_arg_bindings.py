@@ -357,6 +357,13 @@ def _validate_expand_kwargs(
 ) -> None:
     """Validate an ``expand_kwargs()`` argument: an upstream output, or a list of per-index mappings."""
     task_id = op.task_id
+    reads_upstream = isinstance(value, XComArg) or any(isinstance(m, XComArg) for m in value)
+    if strict and partial_kwargs and reads_upstream:
+        raise ValueError(
+            f"@task.stub task {task_id!r} reads expand_kwargs() mappings from an upstream output with "
+            "partial() set, and no binding can check that a mapping does not repeat a partial() key; "
+            "pass strict=False to let the mapping override it"
+        )
     if _validate_xcom_value(value, task_id, "expand_kwargs()"):
         _validate_expand_shape(value, task_id, "expand_kwargs()")
         return

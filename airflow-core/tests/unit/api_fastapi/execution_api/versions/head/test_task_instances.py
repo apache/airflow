@@ -1873,32 +1873,7 @@ class TestTIRunState:
             },
         ]
 
-    @pytest.mark.parametrize(
-        ("strict", "region"),
-        [
-            pytest.param(
-                True,
-                {"name": "region", "kind": "literal", "value_schema": {"type": "string"}, "value": "eu"},
-                id="strict-binds-partial",
-            ),
-            pytest.param(
-                False,
-                {
-                    "name": "region",
-                    "kind": "xcom",
-                    "value_schema": {"type": "string"},
-                    "task_id": "extract",
-                    "element_index": 1,
-                    "kwarg": "region",
-                    "fallback": {"kind": "literal", "value": "eu"},
-                },
-                id="non-strict-falls-back-to-partial",
-            ),
-        ],
-    )
-    def test_ti_run_binds_expand_kwargs_over_upstream_output_by_kwarg(
-        self, client, dag_maker, session, strict, region
-    ):
+    def test_ti_run_binds_expand_kwargs_over_upstream_output_by_kwarg(self, client, dag_maker, session):
         with dag_maker("test_mapped_stub_expand_kwargs_xcom", serialized=True, session=session):
 
             @task.stub
@@ -1907,7 +1882,7 @@ class TestTIRunState:
             @task.stub
             def transform(country: str, region: str, scale: int = 2): ...
 
-            transform.partial(region="eu").expand_kwargs(extract(), strict=strict)
+            transform.partial(region="eu").expand_kwargs(extract(), strict=False)
 
         dr = dag_maker.create_dagrun()
 
@@ -1916,7 +1891,13 @@ class TestTIRunState:
         element = {"kind": "xcom", "task_id": "extract", "element_index": 1}
         assert response.json()["arg_bindings"] == [
             {"name": "country", "value_schema": {"type": "string"}, **element, "kwarg": "country"},
-            region,
+            {
+                "name": "region",
+                "value_schema": {"type": "string"},
+                **element,
+                "kwarg": "region",
+                "fallback": {"kind": "literal", "value": "eu"},
+            },
             {
                 "name": "scale",
                 "value_schema": {"type": "integer", "format": "int64"},
@@ -2060,32 +2041,6 @@ class TestTIRunState:
         response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=0, session=session)
         assert response.status_code == 200
         assert response.json()["arg_bindings"][1]["fallback"] == {"kind": "xcom", "task_id": "regions"}
-
-    def test_ti_run_binds_mapped_upstream_whole_output_through_strict_partial(
-        self, client, dag_maker, session
-    ):
-        with dag_maker("test_mapped_stub_expand_kwargs_sequence_partial", serialized=True, session=session):
-
-            @task.stub
-            def extract(): ...
-
-            @task.stub
-            def produce(n: int): ...
-
-            @task.stub
-            def transform(country: str, totals): ...
-
-            transform.partial(totals=produce.expand(n=[1, 2])).expand_kwargs(extract())
-
-        dr = dag_maker.create_dagrun()
-
-        response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=0, session=session)
-        assert response.status_code == 200
-        assert response.json()["arg_bindings"][1] == {
-            "name": "totals",
-            "kind": "sequence",
-            "task_id": "produce",
-        }
 
     def test_ti_run_binds_expand_kwargs_over_mapped_zip(self, client, dag_maker, session):
         with dag_maker("test_mapped_stub_expand_kwargs_zip_map", serialized=True, session=session):

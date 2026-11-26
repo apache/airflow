@@ -472,11 +472,37 @@ class TestMappedStubArgBindings:
                 .expand_kwargs(make_mappings(stub(fn_extract)()), strict=strict)
             )
 
-        if strict:
-            assert self.get_hook_fields(result.operator)["_arg_bindings"]
-        else:
-            with pytest.raises(ValueError, match="which no binding can carry"):
+        match = "does not repeat a partial" if strict else "which no binding can carry"
+        with pytest.raises(ValueError, match=match):
+            self.get_hook_fields(result.operator)
+
+    @pytest.mark.parametrize(
+        "make_mappings",
+        [
+            pytest.param(lambda out: out, id="upstream-output"),
+            pytest.param(lambda out: [{"country": "uk"}, out], id="upstream-item"),
+        ],
+    )
+    @pytest.mark.parametrize(("strict", "rejected"), [(True, True), (False, False)])
+    def test_strict_upstream_mapping_with_partial(self, make_mappings, strict, rejected):
+        with DAG(dag_id="d"):
+            result = (
+                stub(fn_transform)
+                .partial(extracted={})
+                .expand_kwargs(make_mappings(stub(fn_extract)()), strict=strict)
+            )
+
+        if rejected:
+            with pytest.raises(ValueError, match="does not repeat a partial"):
                 self.get_hook_fields(result.operator)
+        else:
+            assert self.get_hook_fields(result.operator)["_arg_bindings"]
+
+    def test_strict_upstream_mapping_without_partial(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_transform).expand_kwargs(stub(fn_extract)())
+
+        assert self.get_hook_fields(result.operator)["_arg_bindings"]
 
     def test_expand_kwargs_mapped_whole_output_item_rejected(self):
         def fn_produce(n: int): ...

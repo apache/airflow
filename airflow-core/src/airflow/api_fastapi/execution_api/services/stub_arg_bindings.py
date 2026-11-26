@@ -217,17 +217,12 @@ class _MappedArgBindingDeriver:
     def _bind_mapped_param(self, param: _ArgParam) -> TaskArgBinding:
         expand_input = self.task._get_specified_expand_input()
         partial_kwargs = self.task.partial_kwargs.get("op_kwargs") or {}
-        # With strict=True a mapping cannot override partial(), so the partial() value binds as it is.
-        # A mapping read from an upstream output that also has the key fails the Python task, but
-        # no binding can express that check.
-        if not (self.task._disallow_kwargs_override and param.name in partial_kwargs) and (
-            binding := expand_input.bind_stub_arg(
-                self,
-                param,
-                param.name,
-                owner_id=self.task.task_id,
-                fallback=lambda: self._get_fallback(param, partial_kwargs),
-            )
+        if binding := expand_input.bind_stub_arg(
+            self,
+            param,
+            param.name,
+            owner_id=self.task.task_id,
+            fallback=lambda: self._get_fallback(param, partial_kwargs),
         ):
             return binding
         if param.name in partial_kwargs:
