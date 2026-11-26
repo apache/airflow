@@ -489,7 +489,7 @@ describe("resolveArgs", () => {
       }),
     ).rejects.toThrowError(
       `Task argument "totals": ${what} needs mapped task support, which this version of ` +
-        "@apache-airflow/ts-sdk does not implement; version 1.1.0 will add it",
+        "@apache-airflow/ts-sdk does not have",
     );
     expect(getXComEntry).not.toHaveBeenCalled();
   });

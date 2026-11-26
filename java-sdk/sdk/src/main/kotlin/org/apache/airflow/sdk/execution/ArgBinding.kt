@@ -109,4 +109,4 @@ private fun mappedTaskNotImplemented(
   what: String,
 ): String =
   "Argument '$name': $what needs mapped task support, which this version of the Java SDK " +
-    "does not implement; version 1.1.0 will add it"
+    "does not have"

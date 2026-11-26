@@ -177,7 +177,7 @@ internal class TaskArgsTest {
       val error = assertThrows(IllegalStateException::class.java) { argsWith(listOf(binding)) }
       assertEquals(
         "Argument 'x': $what needs mapped task support, which this version of the Java SDK " +
-          "does not implement; version 1.1.0 will add it",
+          "does not have",
         error.message,
       )
     }

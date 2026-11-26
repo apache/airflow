@@ -545,7 +545,7 @@ func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
 				result,
 				fmt.Sprintf(
 					`("country"): %s needs mapped task support, which this version of the Go SDK `+
-						"does not implement; version 1.1.0 will add it",
+						"does not have",
 					tc.what,
 				),
 			)

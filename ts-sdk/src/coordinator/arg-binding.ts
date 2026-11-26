@@ -199,7 +199,7 @@ function checkBoundKeys(
 function mappedTaskNotImplemented(name: string, what: string): Error {
   return new Error(
     `Task argument "${name}": ${what} needs mapped task support, which this version of ` +
-      "@apache-airflow/ts-sdk does not implement; version 1.1.0 will add it",
+      "@apache-airflow/ts-sdk does not have",
   );
 }
 

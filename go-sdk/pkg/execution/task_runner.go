@@ -237,7 +237,7 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 func errMappedTaskNotImplemented(i int, name, what string) error {
 	return fmt.Errorf(
 		"arg_bindings[%d] (%q): %s needs mapped task support, which this version of the Go SDK "+
-			"does not implement; version 1.1.0 will add it",
+			"does not have",
 		i,
 		name,
 		what,
