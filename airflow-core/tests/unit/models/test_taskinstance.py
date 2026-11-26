@@ -44,6 +44,8 @@ from airflow import plugins_manager, settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
 from airflow._shared.observability.traces import new_dagrun_trace_carrier, new_task_run_carrier
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.datamodels.asset import AssetProfile
+from airflow.assets.manager import asset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
@@ -70,6 +72,7 @@ from airflow.models.taskinstance import (
     TaskInstance,
     TaskInstance as TI,
     TaskInstanceNote,
+    _stop_remaining_tasks,
     clear_loop_task_instances,
     clear_task_instances,
     find_relevant_relatives,
@@ -2869,6 +2872,54 @@ class TestTaskInstance:
             "reg_Task4": State.SKIPPED,
         }
 
+    @pytest.mark.parametrize("victim_state", [None, TaskInstanceState.SCHEDULED, TaskInstanceState.RUNNING])
+    def test_stop_remaining_tasks_skips_task_removed_from_dag(self, dag_maker, session, victim_state):
+        dag_id = "test_stop_remaining_tasks_skips_task_removed_from_dag"
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True, session=session):
+            EmptyOperator(task_id="boom")
+            EmptyOperator(task_id="victim")
+        dr = dag_maker.create_dagrun(session=session)
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        tis["boom"].state = TaskInstanceState.FAILED
+        tis["victim"].state = victim_state
+        session.flush()
+
+        # Re-parse without "victim"; the unversioned run resolves to this latest version.
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True, session=session):
+            EmptyOperator(task_id="boom")
+        latest_dag = DBDagBag().get_dag_for_run(dag_run=dr, session=session)
+        assert "victim" not in latest_dag.task_dict
+
+        _stop_remaining_tasks(task_instance=tis["boom"], dag=latest_dag, session=session)
+
+        assert tis["victim"].state == victim_state
+
+    def test_stop_remaining_tasks_leaves_finished_tis_unchanged(self, dag_maker, session):
+        with dag_maker(
+            dag_id="test_stop_remaining_tasks_leaves_finished_tis_unchanged",
+            fail_fast=True,
+            serialized=True,
+            session=session,
+        ):
+            for task_id in ("boom", "upstream_failed", "removed", "no_state"):
+                EmptyOperator(task_id=task_id)
+        dr = dag_maker.create_dagrun(session=session)
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        tis["boom"].state = TaskInstanceState.FAILED
+        tis["upstream_failed"].state = TaskInstanceState.UPSTREAM_FAILED
+        tis["removed"].state = TaskInstanceState.REMOVED
+        tis["no_state"].state = None
+        session.flush()
+
+        _stop_remaining_tasks(task_instance=tis["boom"], dag=dag_maker.serialized_dag, session=session)
+
+        assert {task_id: ti.state for task_id, ti in tis.items()} == {
+            "boom": TaskInstanceState.FAILED,
+            "upstream_failed": TaskInstanceState.UPSTREAM_FAILED,
+            "removed": TaskInstanceState.REMOVED,
+            "no_state": TaskInstanceState.SKIPPED,
+        }
+
     def test_retries_on_other_exceptions(self, dag_maker):
         def fail():
             raise AirflowException("maybe this will pass?")
@@ -3684,7 +3735,7 @@ def test_defer_task(create_task_instance):
     assert isinstance(trigger_row, Trigger)
     assert trigger_row.classpath == "trigger_cls"
     assert trigger_row.kwargs == {"key": "value"}
-    assert (trigger_row.dag_id, trigger_row.owner_ref) == ("test_defer_task", {"ti_id": str(ti.id)})
+    assert (trigger_row.dag_id, trigger_row.used_by_ref) == ("test_defer_task", {"ti_id": str(ti.id)})
 
     # Check that session.flush was called
     session.flush.assert_called_once()
@@ -4511,6 +4562,52 @@ def test_register_asset_changes_in_db_no_outlets_is_a_noop(dag_maker, session):
             outlet_events=[],
             session=session,
         )
+
+
+@pytest.mark.backend("postgres", "mysql")
+def test_register_asset_changes_in_db_alias_asset_created_concurrently(dag_maker, session):
+    """Another writer creates the alias-emitted asset after our lookup missed it."""
+    alias = AssetAlias("race_alias")
+    with dag_maker(dag_id="alias_race", schedule=None, session=session):
+        EmptyOperator(task_id="hi", outlets=[alias])
+    dr = dag_maker.create_dagrun(session=session)
+    [ti] = dr.get_task_instances(session=session)
+    session.commit()
+
+    real_register = asset_manager.register_asset_change
+    calls = 0
+
+    def _register_after_asset_appears(**kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            with create_session() as other:
+                other.add(AssetModel(name="race_asset", uri="s3://bucket/race_asset", group="asset"))
+            return None
+        return real_register(**kwargs)
+
+    with mock.patch.object(
+        asset_manager, "register_asset_change", side_effect=_register_after_asset_appears, autospec=True
+    ):
+        TaskInstance.register_asset_changes_in_db(
+            ti=ti,
+            task_outlets=[AssetProfile(name="race_alias", type="AssetAlias")],
+            outlet_events=[
+                {
+                    "source_alias_name": "race_alias",
+                    "dest_asset_key": {"name": "race_asset", "uri": "s3://bucket/race_asset"},
+                    "dest_asset_extra": {},
+                    "extra": {},
+                }
+            ],
+            session=session,
+        )
+    session.commit()
+
+    assert session.scalar(select(func.count()).select_from(AssetModel)) == 1
+    event = session.scalar(select(AssetEvent).where(AssetEvent.source_dag_id == "alias_race"))
+    assert event is not None
+    assert [a.name for a in event.source_aliases] == ["race_alias"]
 
 
 def test_when_dag_run_has_partition_then_asset_does(dag_maker, session):

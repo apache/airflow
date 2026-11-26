@@ -35,7 +35,7 @@ from tests_common.test_utils.integration_setup import (
     start_scheduler,
     terminate_process,
     unpause_trigger_dag_and_get_run_id,
-    wait_for_dag_run,
+    wait_for_dag_runs,
 )
 
 log = logging.getLogger(__name__)
@@ -136,7 +136,7 @@ class TestEventProducer:
         dag_id = "demo_dag"
         run_id = unpause_trigger_dag_and_get_run_id(dag_id=dag_id)
 
-        state = wait_for_dag_run(dag_id=dag_id, run_id=run_id, max_wait_time=90)
+        state = wait_for_dag_runs([(dag_id, run_id)], max_wait_time=90)[(dag_id, run_id)]
         assert state == State.SUCCESS, f"Dag run did not complete successfully. Final state: {state}."
 
         expected_events = [

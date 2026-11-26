@@ -21,17 +21,21 @@ import logging
 from contextlib import suppress
 from functools import partial
 from typing import TYPE_CHECKING, Annotated
+from urllib.parse import quote
 from uuid import UUID
 
 import attrs
 from cadwyn import current_dependency_solver
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, Request, Response, status
+from fastapi.datastructures import URL
+from fastapi.responses import RedirectResponse
 from pydantic import JsonValue
 from sqlalchemy import select
 from sqlalchemy.sql.selectable import Select
 
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.xcom import reject_reserved_xcom_key
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.execution_api.datamodels.token import DagParseToken, ExecutionToken, TIToken
 from airflow.api_fastapi.execution_api.datamodels.xcom import (
@@ -51,10 +55,10 @@ from airflow.api_fastapi.execution_api.security import (
     require_task_token,
 )
 from airflow.api_fastapi.execution_api.versions.v2026_10_30 import IdentifyArchivedTaskStateUpdates
+from airflow.api_fastapi.execution_api.versions.v2027_02_28 import ResolveOmittedXComMapIndexByTaskDefinition
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import (
-    LOOP_XCOM_PREFIX,
     SENTINEL_REGION_ID,
     AmbiguousProducerError,
     build_loop_sequence_order,
@@ -67,7 +71,7 @@ from airflow.models.task_coordinates import (
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XCOM_RETURN_KEY, XComModel, xcom_entity
+from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.utils.db import get_query_count
 from airflow.utils.state import TaskInstanceState
 
@@ -148,6 +152,10 @@ def has_xcom_access(
     )
 
 
+def _get_resolver(dag_bag: DagBagDep, session: SessionDep) -> TaskCoordinateResolver:
+    return TaskCoordinateResolver(dag_bag, session)
+
+
 router = APIRouter(
     route_class=ExecutionAPIRoute,
     responses={
@@ -159,6 +167,15 @@ router = APIRouter(
 )
 
 log = logging.getLogger(__name__)
+
+_ResolverDep = Annotated[TaskCoordinateResolver, Depends(_get_resolver)]
+
+
+def _get_calling_ti(token: ExecutionToken, *, session: Session) -> TaskInstance | None:
+    """Return the requesting task instance, or None for any other caller."""
+    if token.claims.scope != "execution":
+        return None
+    return session.get(TaskInstance, token.id)
 
 
 @attrs.frozen
@@ -184,13 +201,13 @@ def _build_xcom_read(
     run_id: str,
     task_id: str,
     key: str,
-    session: Session,
-    dag_bag: DBDagBag,
+    resolver: TaskCoordinateResolver,
     token: ExecutionToken,
     map_index: int | None = None,
     include_prior_dates: bool = False,
     previous_iteration: bool = False,
     sequence: bool = False,
+    session: Session,
 ) -> _XComRead:
     """
     Select the XCom rows of the producers visible to the calling task instance.
@@ -198,7 +215,6 @@ def _build_xcom_read(
     A ``sequence`` read returns several values in order. When it targets a loop task from outside that
     loop, it covers every iteration of the task rather than the one a caller inside the loop would see.
     """
-    resolver = TaskCoordinateResolver(dag_bag, session)
     read = partial(
         XComModel.get_many,
         dag_ids=dag_id,
@@ -214,7 +230,7 @@ def _build_xcom_read(
             dag_id, None if include_prior_dates else run_id, task_id
         ):
             return _XComRead(read(region_id=SENTINEL_REGION_ID, map_indexes=map_index))
-        caller = session.get(TaskInstance, token.id) if token.claims.scope == "execution" else None
+        caller = _get_calling_ti(token, session=session)
         if include_prior_dates:
             task = None
             if session.scalar(select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)):
@@ -357,7 +373,7 @@ def get_mapped_xcom_by_index(
     key: Annotated[str, Path(min_length=1)],
     offset: int,
     session: SessionDep,
-    dag_bag: DagBagDep,
+    resolver: _ResolverDep,
     previous_iteration: bool = False,
     token: ExecutionToken = _TriggerAwareToken,
 ) -> XComSequenceIndexResponse:
@@ -367,7 +383,7 @@ def get_mapped_xcom_by_index(
         task_id=task_id,
         key=key,
         session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         token=token,
         previous_iteration=previous_iteration,
         sequence=True,
@@ -379,7 +395,7 @@ def get_mapped_xcom_by_index(
     else:
         xcom_query = xcom_query.order_by(*xcom_read.get_order(entity, descending=True)).offset(-1 - offset)
 
-    result: tuple[XComModel] | None
+    result: XComModel | None
     if (result := session.scalars(xcom_query.limit(1)).first()) is None:
         message = (
             f"XCom with {key=} {offset=} not found for task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
@@ -388,10 +404,11 @@ def get_mapped_xcom_by_index(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"reason": "not_found", "message": message},
         )
-    return XComSequenceIndexResponse((result[0] if isinstance(result, tuple) else result).value)
+    return XComSequenceIndexResponse(result.value)
 
 
 def _get_sliced_query_or_empty(query: Select, low: int, high: int) -> Select:
+    low = max(low, 0)
     if high <= low:
         return query.limit(0)
     return query.slice(low, high)
@@ -415,7 +432,7 @@ def get_mapped_xcom_by_slice(
     key: Annotated[str, Path(min_length=1)],
     params: Annotated[GetXComSliceFilterParams, Query()],
     session: SessionDep,
-    dag_bag: DagBagDep,
+    resolver: _ResolverDep,
     token: ExecutionToken = _TriggerAwareToken,
 ) -> XComSequenceSliceResponse:
     xcom_read = _build_xcom_read(
@@ -424,7 +441,7 @@ def get_mapped_xcom_by_slice(
         task_id=task_id,
         key=key,
         session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         token=token,
         include_prior_dates=params.include_prior_dates,
         previous_iteration=params.previous_iteration,
@@ -524,7 +541,7 @@ def head_xcom(
     key: str,
     response: Response,
     session: SessionDep,
-    dag_bag: DagBagDep,
+    resolver: _ResolverDep,
     map_index: Annotated[int | None, Query()] = None,
     previous_iteration: bool = False,
     token: ExecutionToken = _TriggerAwareToken,
@@ -542,7 +559,7 @@ def head_xcom(
         task_id=task_id,
         key=key,
         session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         token=token,
         previous_iteration=previous_iteration,
         sequence=True,
@@ -553,28 +570,92 @@ def head_xcom(
     response.headers["Content-Range"] = f"map_indexes {count}"
 
 
+def _resolve_omitted_map_index(
+    *,
+    dag_id: str,
+    run_id: str,
+    task_id: str,
+    params: GetXcomFilterParams,
+    resolver: TaskCoordinateResolver,
+    caller: TaskInstance | None,
+) -> int | None:
+    """
+    Return the map index to read for an omitted one, or None for every instance.
+
+    A mapped operator, or a task in a mapped task group, reads every instance,
+    however many it expanded to. The task is looked up in the Dag version its
+    run uses, or the caller's own if the caller is in the same run, as reads of
+    a given map index do.
+
+    Everything else reads -1: an unmapped task, one that cannot be found, a read
+    with ``offset`` or ``include_prior_dates``, and older API versions. A task
+    with no regional instances in the run is never mapped, so the Dag is only
+    loaded for a task that has some.
+    """
+    if params.offset is not None or params.include_prior_dates:
+        return -1
+    if not ResolveOmittedXComMapIndexByTaskDefinition.is_applied:
+        return -1
+    if not resolver.has_regions(dag_id, run_id, task_id):
+        return -1
+    if caller is not None and (caller.dag_id, caller.run_id) == (dag_id, run_id):
+        dag_version_id = caller.dag_version_id
+    else:
+        dag_version_id = None
+    try:
+        task = resolver.get_task(dag_id, run_id, task_id, dag_version_id=dag_version_id)
+    except AmbiguousProducerError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    except (TaskNotFound, ValueError):
+        return -1
+    return None if task.get_needs_expansion() else -1
+
+
 @router.get(
     "/{dag_id}/{run_id}/{task_id}/{key:path}",
     dependencies=[ExecutionOrDagParseToken, DagInGrantedBundle],
-    responses=create_openapi_http_exception_doc(
-        [
-            (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
-            (status.HTTP_409_CONFLICT, "Several live task instances produce the requested value"),
-        ]
-    ),
+    responses={
+        **create_openapi_http_exception_doc(
+            [
+                (status.HTTP_400_BAD_REQUEST, "The request selects an invalid combination of producers"),
+                (status.HTTP_409_CONFLICT, "Several live task instances produce the requested value"),
+            ]
+        ),
+        status.HTTP_307_TEMPORARY_REDIRECT: {
+            "description": "An omitted map index reads every instance of a mapped task, from the slice",
+        },
+    },
     description="Get a single XCom Value",
+    response_model=XComResponse,
 )
 def get_xcom(
     dag_id: str,
     run_id: str,
     task_id: str,
     key: Annotated[str, Path(min_length=1)],
-    session: SessionDep,
     params: Annotated[GetXcomFilterParams, Query()],
-    dag_bag: DagBagDep,
+    request: Request,
+    session: SessionDep,
+    resolver: _ResolverDep,
     token: ExecutionToken = _TriggerAwareToken,
-) -> XComResponse:
-    """Get an Airflow XCom from database - not other XCom Backends."""
+) -> XComResponse | RedirectResponse:
+    """
+    Get an Airflow XCom from database - not other XCom Backends.
+
+    A read of every instance of a mapped task is redirected to the slice
+    endpoint, which lists one stored value per instance.
+    """
+    if params.map_index is not None:
+        map_index: int | None = params.map_index
+    else:
+        map_index = _resolve_omitted_map_index(
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            params=params,
+            resolver=resolver,
+            caller=_get_calling_ti(token, session=session),
+        )
     owner = None
     if token.claims.scope == "execution":
         owner = session.execute(
@@ -584,7 +665,7 @@ def get_xcom(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.task_id == task_id,
-                *build_coordinate_filters(TaskInstance, map_index=params.map_index),
+                *build_coordinate_filters(TaskInstance, map_index=map_index),
             )
             .limit(1)
             .execution_options(include_all_attempts=True)
@@ -607,15 +688,19 @@ def get_xcom(
                 ),
             },
         )
+    if map_index is None:
+        segment = quote(key, safe="")
+        segment = {".": "%2E", "..": "%2E%2E"}.get(segment, segment)
+        return RedirectResponse(URL(path=f"{segment}/slice", query=request.url.query))
     xcom_read = _build_xcom_read(
         dag_id=dag_id,
         run_id=run_id,
         task_id=task_id,
         key=key,
         session=session,
-        dag_bag=dag_bag,
+        resolver=resolver,
         token=token,
-        map_index=params.map_index if params.offset is None else None,
+        map_index=map_index if params.offset is None else None,
         include_prior_dates=params.include_prior_dates,
         previous_iteration=params.previous_iteration,
         sequence=params.offset is not None,
@@ -636,11 +721,11 @@ def get_xcom(
     # retrieves the raw serialized value from the database. By not relying on `XCom.get_many` or `XCom.get_one`
     # (which automatically deserializes using the backend), we avoid potential
     # performance hits from retrieving large data files into the API server.
-    result: tuple[XComModel] | None
+    result: XComModel | None
     if (result := session.scalars(xcom_query.limit(1)).first()) is None:
         if params.offset is None:
             message = (
-                f"XCom with {key=} map_index={params.map_index} not found for "
+                f"XCom with {key=} map_index={map_index} not found for "
                 f"task {task_id!r} in DAG run {run_id!r} of {dag_id!r}"
             )
         else:
@@ -653,7 +738,7 @@ def get_xcom(
             detail={"reason": "not_found", "message": message},
         )
 
-    return XComResponse(key=key, value=(result[0] if isinstance(result, tuple) else result).value)
+    return XComResponse(key=key, value=result.value)
 
 
 # TODO: once we have JWT tokens, then remove dag_id/run_id/task_id from the URL and just use the info in
@@ -712,10 +797,7 @@ def set_xcom(
     """Set an Airflow XCom."""
     from airflow.configuration import conf
 
-    if key.startswith(LOOP_XCOM_PREFIX):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved loop XCom key")
-    if key == EXTERNAL_CLEAR_TARGET_XCOM_KEY:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Reserved XCom key")
+    reject_reserved_xcom_key(key)
 
     # Validate that the provided key is not empty
     # XCom keys must be non-empty strings to ensure proper data retrieval and avoid ambiguity.
@@ -758,8 +840,8 @@ def set_xcom(
         run_id=run_id,
         task_id=task_id,
         map_index=map_index,
-        session=session,
         dag_bag=dag_bag,
+        session=session,
     )
     if owner is None:
         raise HTTPException(
@@ -796,7 +878,10 @@ def set_xcom(
     responses={
         **create_openapi_http_exception_doc(
             [
-                (status.HTTP_400_BAD_REQUEST, "The target is in a loop the caller is not in"),
+                (
+                    status.HTTP_400_BAD_REQUEST,
+                    "The key is reserved, or the target is in a loop the caller is not in",
+                ),
                 (status.HTTP_409_CONFLICT, "Several live task instances match the producer"),
             ]
         ),
@@ -815,14 +900,16 @@ def delete_xcom(
     token=_TriggerAwareTIToken,
 ):
     """Delete a single XCom Value."""
+    reject_reserved_xcom_key(key)
+
     owner = _find_writer_id(
         token,
         dag_id=dag_id,
         run_id=run_id,
         task_id=task_id,
         map_index=map_index,
-        session=session,
         dag_bag=dag_bag,
+        session=session,
     )
     if owner is not None:
         XComModel.delete_for_attempts(
@@ -840,8 +927,8 @@ def _find_writer_id(
     run_id: str,
     task_id: str,
     map_index: int,
-    session: Session,
     dag_bag: DBDagBag,
+    session: Session,
 ) -> UUID | None:
     """Resolve the task instance a write targets with the rule reads use, working from the caller."""
     caller = session.get(TaskInstance, token.id, execution_options={"include_all_attempts": True})

@@ -50,9 +50,7 @@ spec:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
-    {{- if ne .Values.workers.celery.name "default" }}
     worker-set: {{ .Values.workers.celery.name }}
-    {{- end }}
   ports:
     - name: worker-logs
       protocol: TCP

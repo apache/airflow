@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class CallbackState(str, Enum):
+class CallbackState(StrEnum):
     """All possible states of callbacks."""
 
     SCHEDULED = "scheduled"
@@ -30,11 +30,8 @@ class CallbackState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
 
-    def __str__(self) -> str:
-        return self.value
 
-
-class TerminalTIState(str, Enum):
+class TerminalTIState(StrEnum):
     """States that a Task Instance can be in that indicate it has reached a terminal state."""
 
     SUCCESS = "success"
@@ -43,11 +40,8 @@ class TerminalTIState(str, Enum):
     UPSTREAM_FAILED = "upstream_failed"
     REMOVED = "removed"
 
-    def __str__(self) -> str:
-        return self.value
 
-
-class IntermediateTIState(str, Enum):
+class IntermediateTIState(StrEnum):
     """States that a Task Instance can be in that indicate it is not yet in a terminal or running state."""
 
     SCHEDULED = "scheduled"
@@ -58,11 +52,8 @@ class IntermediateTIState(str, Enum):
     DEFERRED = "deferred"
     AWAITING_INPUT = "awaiting_input"
 
-    def __str__(self) -> str:
-        return self.value
 
-
-class TaskInstanceState(str, Enum):
+class TaskInstanceState(StrEnum):
     """
     All possible states that a Task Instance can be in.
 
@@ -90,11 +81,8 @@ class TaskInstanceState(str, Enum):
     DEFERRED = IntermediateTIState.DEFERRED  # Deferrable operator waiting on a trigger
     AWAITING_INPUT = IntermediateTIState.AWAITING_INPUT  # Parked waiting for human input (HITL)
 
-    def __str__(self) -> str:
-        return self.value
 
-
-class DagRunState(str, Enum):
+class DagRunState(StrEnum):
     """
     All possible states that a DagRun can be in.
 
@@ -108,19 +96,13 @@ class DagRunState(str, Enum):
     SUCCESS = "success"
     FAILED = "failed"
 
-    def __str__(self) -> str:
-        return self.value
 
-
-class DagSchedulingState(str, Enum):
+class DagSchedulingState(StrEnum):
     """States controlling whether a Dag can create and schedule work."""
 
     ACTIVE = "active"
     DRAINING = "draining"
     PAUSED = "paused"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class State:

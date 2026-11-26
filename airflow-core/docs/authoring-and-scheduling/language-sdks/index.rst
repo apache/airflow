@@ -81,7 +81,244 @@ from the same Dag bundle.
 
 The **Code** view in the Airflow UI shows the source the SDK embeds in the artifact.
 
-For TypeScript, see :ref:`typescript-sdk/dag-definition`.
+Each tab below declares the same Dag, ``orders_daily``:
+
+* the ``extract`` task group counts orders for two regions,
+* ``summarize`` adds them up,
+* ``has_orders`` runs ``load`` when there are orders, and ``alert`` when there are none,
+* ``pick_report`` picks a full or a brief report,
+* ``trigger_finance`` starts a run of the ``finance_close`` Dag after ``load``, on a labeled edge.
+
+.. tab-set::
+    :sync-group: sdk
+
+    .. tab-item:: TypeScript
+        :sync: typescript
+
+        A handler takes one object of named arguments, and calling a task names its inputs. The calls you
+        write are the dependencies, and the compiler checks each one.
+
+        .. code-block:: typescript
+
+            import { Bundle, Dag, Label, triggerDagRun } from "@apache-airflow/ts-sdk";
+
+            const dag = new Dag("orders_daily", { schedule: "@daily", tags: ["orders"], queue: "typescript" });
+
+            // A task group: its task ids are "extract.eu" and "extract.us".
+            const extract = dag.taskGroup("extract");
+            const eu = extract.task("eu", async (): Promise<number> => 120)();
+            const us = extract.task("us", async (): Promise<number> => 80)();
+
+            // Passing a task's result draws the dependency and delivers the value.
+            const summarize = dag.task("summarize", async ({ eu, us }: { eu: number; us: number }) => eu + us);
+            const total = summarize({ eu, us });
+
+            const load = dag.task("load", async ({ total, table }: { total: number; table: string }) => {
+              console.log(`Loading ${total} orders into ${table}`);
+            });
+            const loaded = load({ total, table: "warehouse.orders" });
+            const alerted = dag.task("alert", async () => console.log("No orders today"))();
+
+            // if / else: the side not taken is skipped.
+            const hasOrders = async ({ total }: { total: number }) => total > 0;
+            dag.if(hasOrders, { total }, { taskId: "has_orders" }).then(loaded).else(alerted);
+
+            // switch / case: the decider returns the task to run.
+            const full = dag.task("report_full", async () => console.log("Full report"))();
+            const brief = dag.task("report_brief", async () => console.log("Brief report"))();
+            const pickReport = async ({ total }: { total: number }) => (total > 1000 ? full : brief);
+            dag.switch(pickReport, { total }, { taskId: "pick_report" }).case(full).case(brief);
+
+            // Trigger another Dag after the load, on a labeled edge.
+            const triggered = dag.task("trigger_finance", triggerDagRun({ dagId: "finance_close" }))();
+            loaded.before(Label.of("hand off").on(triggered));
+
+            await new Bundle(dag).serve();
+
+        See :ref:`typescript-sdk/dag-definition`.
+
+    .. tab-item:: Java
+        :sync: java
+
+        Annotations carry the configuration. An ``@Airflow.Deps`` class wires the graph through a view that the
+        annotation processor generates, so ``javac`` type-checks every edge. An interface-based API is also
+        available.
+
+        .. code-block:: java
+
+            package com.example;
+
+            import static java.lang.System.Logger.Level.INFO;
+
+            import org.apache.airflow.sdk.*;
+
+            @Airflow.Dag(id = "orders_daily", schedule = "@daily", tags = {"orders"}, queue = "java")
+            public class OrdersDaily {
+              private static final System.Logger log = System.getLogger(OrdersDaily.class.getName());
+
+              // A task group: its task ids are "extract.eu" and "extract.us".
+              @Airflow.TaskGroup(id = "extract")
+              static class Extract {
+                @Airflow.Task
+                public long eu() { return 120L; }
+
+                @Airflow.Task
+                public long us() { return 80L; }
+              }
+
+              @Airflow.Task
+              public long summarize(long eu, long us) { return eu + us; }
+
+              @Airflow.Task
+              public void load(long total, String table) {
+                log.log(INFO, "Loading {0} orders into {1}", total, table);
+              }
+
+              @Airflow.Task
+              public void alert() { log.log(INFO, "No orders today"); }
+
+              // if / else: the side not taken is skipped.
+              @Airflow.If(id = "has_orders")
+              public boolean hasOrders(long total) { return total > 0; }
+
+              @Airflow.Task(id = "report_full")
+              public void reportFull() { log.log(INFO, "Full report"); }
+
+              @Airflow.Task(id = "report_brief")
+              public void reportBrief() { log.log(INFO, "Brief report"); }
+
+              // switch / case: the decider returns the class generated for the task to run.
+              @Airflow.Switch(id = "pick_report")
+              public Class<? extends Task> pickReport(long total) {
+                return total > 1000 ? OrdersDailyBuilder.ReportFull.class : OrdersDailyBuilder.ReportBrief.class;
+              }
+
+              // Trigger another Dag. This method runs when the Dag is built, not when the task runs.
+              @Airflow.Task(id = "trigger_finance")
+              public TriggerDagRun triggerFinance() { return new TriggerDagRun("finance_close"); }
+
+              // Each call is a task, and passing its result to another call draws the dependency.
+              @Airflow.Deps
+              static class Wiring implements OrdersDailyDeps {
+                void depends() {
+                  var total = summarize(extract().eu(), extract().us());
+                  var loaded = load(total, lit("warehouse.orders"));
+                  hasOrders(total).Then(loaded).Else(alert());
+                  pickReport(total).Case(reportFull()).Case(reportBrief());
+                  loaded.before(Label.of("hand off").on(triggerFinance()));
+                }
+              }
+
+              public static void main(String[] args) {
+                Server.create(args).serve(new Bundle().register(OrdersDaily.class));
+              }
+            }
+
+        See :ref:`java-sdk/dag-definition`.
+
+    .. tab-item:: Go
+        :sync: go
+
+        ``airflow.Inputs`` passes task results and literals to a task function, in parameter order. A task's id
+        is its function's name unless a ``TaskSpec`` sets one.
+
+        .. code-block:: go
+
+            package main
+
+            import (
+                "log"
+
+                "github.com/apache/airflow/go-sdk/airflow"
+            )
+
+            func main() {
+                bundle := airflow.Bundle()
+                bundle.Register(ordersDaily())
+                if err := bundle.Serve(); err != nil {
+                    log.Fatal(err)
+                }
+            }
+
+            func ordersDaily() *airflow.DagRef {
+                dag := airflow.Dag("orders_daily", airflow.DagSpec{
+                    Schedule: "@daily",
+                    Tags:     []string{"orders"},
+                    Queue:    "golang",
+                })
+
+                // A task group: its task ids are "extract.eu" and "extract.us".
+                extract := dag.TaskGroup("extract")
+                eu := extract.Task(countOrders, airflow.TaskSpec{TaskID: "eu"}, airflow.Inputs(airflow.Literal("eu")))
+                us := extract.Task(countOrders, airflow.TaskSpec{TaskID: "us"}, airflow.Inputs(airflow.Literal("us")))
+
+                // Passing a task's result draws the dependency and delivers the value.
+                total := dag.Task(summarize, airflow.Inputs(eu, us))
+                loaded := dag.Task(load, airflow.Inputs(total, airflow.Literal("warehouse.orders")))
+
+                // if / else: the side not taken is skipped.
+                dag.If(hasOrders, airflow.TaskSpec{TaskID: "has_orders"}, airflow.Inputs(total)).
+                    Then(loaded).
+                    Else(dag.Task(alert))
+
+                // switch / case: the decider returns the task to run.
+                r := &reports{
+                    full:  dag.Task(reportFull, airflow.TaskSpec{TaskID: "report_full"}),
+                    brief: dag.Task(reportBrief, airflow.TaskSpec{TaskID: "report_brief"}),
+                }
+                dag.Switch(r.pick, airflow.TaskSpec{TaskID: "pick_report"}, airflow.Inputs(total)).
+                    Case(r.full).
+                    Case(r.brief)
+
+                // Trigger another Dag after the load, on a labeled edge.
+                triggered := dag.Task(
+                    airflow.TriggerDagRun(airflow.TriggerDagRunSpec{DagID: "finance_close"}),
+                    airflow.TaskSpec{TaskID: "trigger_finance"},
+                )
+                loaded.Before(airflow.Label("hand off").On(triggered))
+
+                return dag
+            }
+
+            var ordersByRegion = map[string]int{"eu": 120, "us": 80}
+
+            func countOrders(_ airflow.Context, region string) (int, error) { return ordersByRegion[region], nil }
+
+            func summarize(_ airflow.Context, eu, us int) (int, error) { return eu + us, nil }
+
+            func load(actx airflow.Context, total int, table string) error {
+                actx.Logger().InfoContext(actx, "loading orders", "total", total, "table", table)
+                return nil
+            }
+
+            func alert(actx airflow.Context) error {
+                actx.Logger().InfoContext(actx, "no orders today")
+                return nil
+            }
+
+            func hasOrders(_ airflow.Context, total int) (bool, error) { return total > 0, nil }
+
+            func reportFull(actx airflow.Context) error {
+                actx.Logger().InfoContext(actx, "full report")
+                return nil
+            }
+
+            func reportBrief(actx airflow.Context) error {
+                actx.Logger().InfoContext(actx, "brief report")
+                return nil
+            }
+
+            // reports holds the switch's cases, because a decider returns a *TaskRef.
+            type reports struct{ full, brief *airflow.TaskRef }
+
+            func (r *reports) pick(_ airflow.Context, total int) (*airflow.TaskRef, error) {
+                if total > 1000 {
+                    return r.full, nil
+                }
+                return r.brief, nil
+            }
+
+        See :ref:`go-sdk/dag-definition`.
 
 .. _language-sdks/stub-taskhandler:
 
@@ -225,11 +462,11 @@ release that shipped it. See the legend below the tables for what each mark mean
      - TypeScript
    * - Min. Airflow version
      - 3.5.0
-     - 3.4.0
+     - 3.5.0
      - 3.5.0
    * - Current Supervisor Schema Version
      - 2027-02-28
-     - 2026-10-30
+     - 2027-02-28
      - 2027-02-28
 
 .. list-table:: Common to both authoring modes
@@ -285,6 +522,10 @@ release that shipped it. See the legend below the tables for what each mark mean
      - ✓ 1.0.0
      - ✓ 1.0.0
    * - ``xcom-read-write`` (MUST)
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+     - ✓ 1.0.0
+   * - ``custom-xcom-backend`` (MAY)
      - ✓ 1.0.0
      - ✓ 1.0.0
      - ✓ 1.0.0

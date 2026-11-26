@@ -21,7 +21,9 @@ import collections
 import contextlib
 import functools
 import inspect
+import itertools
 import json
+import os
 import warnings
 from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
 from contextvars import ContextVar
@@ -35,6 +37,7 @@ import structlog
 from pydantic import AwareDatetime, TypeAdapter
 
 from airflow.sdk._shared.observability.metrics import stats
+from airflow.sdk._shared.secrets_backend.base import call_secrets_backend_method
 from airflow.sdk._shared.state import AssetScope
 from airflow.sdk.configuration import conf
 from airflow.sdk.definitions._internal.contextmanager import _CURRENT_CONTEXT
@@ -109,7 +112,7 @@ if TYPE_CHECKING:
         ReceiveMsgType,
     )
     from airflow.sdk.state import BaseStoreBackend
-    from airflow.sdk.types import OutletEventAccessorsProtocol
+    from airflow.sdk.types import OutletEventAccessorsProtocol, RuntimeTaskInstanceProtocol
 
 
 DEFAULT_FORMAT_PREFIX = "airflow.ctx."
@@ -234,6 +237,22 @@ _preset_connections: ContextVar[dict[str, Connection] | None] = ContextVar(
     "_preset_connections", default=None
 )
 
+# A plain global rather than a ContextVar, so threads started by task code see it too.
+# Also exported to the environment, so child interpreters such as virtualenv tasks can
+# restore it in reinit_supervisor_comms.
+_current_team_name: str | None = None
+_CURRENT_TEAM_NAME_ENV_VAR = "_AIRFLOW__CURRENT_TEAM_NAME"
+
+
+def set_current_team_name(team_name: str | None) -> None:
+    """Set the team that Connection and Variable lookups in this process and its children belong to."""
+    global _current_team_name
+    _current_team_name = team_name
+    if team_name:
+        os.environ[_CURRENT_TEAM_NAME_ENV_VAR] = team_name
+    else:
+        os.environ.pop(_CURRENT_TEAM_NAME_ENV_VAR, None)
+
 
 def _get_connection(conn_id: str) -> Connection:
     preset = _preset_connections.get()
@@ -247,7 +266,7 @@ def _get_connection(conn_id: str) -> Connection:
 
     # Check cache first (optional; only on dag processor)
     try:
-        uri = SecretCache.get_connection_uri(conn_id)
+        uri = SecretCache.get_connection_uri(conn_id, team_name=_current_team_name)
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
@@ -261,9 +280,11 @@ def _get_connection(conn_id: str) -> Connection:
     backends = ensure_secrets_backend_loaded()
     for secrets_backend in backends:
         try:
-            conn = secrets_backend.get_connection(conn_id=conn_id)  # type: ignore[assignment]
+            conn = call_secrets_backend_method(
+                secrets_backend.get_connection, team_name=_current_team_name, conn_id=conn_id
+            )
             if conn:
-                SecretCache.save_connection_uri(conn_id, conn.get_uri())
+                SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=_current_team_name)
                 _mask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
@@ -295,7 +316,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
     # Check cache first
     try:
-        uri = SecretCache.get_connection_uri(conn_id)
+        uri = SecretCache.get_connection_uri(conn_id, team_name=_current_team_name)
         from airflow.sdk.definitions.connection import Connection
 
         conn = Connection.from_uri(uri, conn_id=conn_id)
@@ -314,10 +335,14 @@ async def _async_get_connection(conn_id: str) -> Connection:
             # getattr avoids triggering AsyncMock coroutine creation under Python 3.13
             async_method = getattr(secrets_backend, "aget_connection", None)
             if async_method is not None:
-                maybe_awaitable = async_method(conn_id)
+                maybe_awaitable = call_secrets_backend_method(
+                    async_method, team_name=_current_team_name, conn_id=conn_id
+                )
                 conn = await maybe_awaitable if inspect.isawaitable(maybe_awaitable) else maybe_awaitable
             else:
-                conn = await sync_to_async(secrets_backend.get_connection)(conn_id)  # type: ignore[assignment]
+                conn = await sync_to_async(call_secrets_backend_method)(
+                    secrets_backend.get_connection, team_name=_current_team_name, conn_id=conn_id
+                )
 
             if conn:
                 # Use aget_uri if the returned connection object supports it (the SDK's own
@@ -329,7 +354,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
                     uri = await aget_uri()
                 else:
                     uri = await sync_to_async(conn.get_uri)()
-                SecretCache.save_connection_uri(conn_id, uri)
+                SecretCache.save_connection_uri(conn_id, uri, team_name=_current_team_name)
                 await _amask_connection_secrets(conn)
                 return conn
         except AirflowSecretsBackendAccessDenied:
@@ -389,7 +414,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
 
     # Check cache first
     try:
-        var_val = SecretCache.get_variable(key)
+        var_val = SecretCache.get_variable(key, team_name=_current_team_name)
         if var_val is not None:
             return _mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
@@ -400,10 +425,12 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
     # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
         try:
-            var_val = secrets_backend.get_variable(key=key)
+            var_val = call_secrets_backend_method(
+                secrets_backend.get_variable, team_name=_current_team_name, key=key
+            )
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
-                SecretCache.save_variable(key, var_val)
+                SecretCache.save_variable(key, var_val, team_name=_current_team_name)
                 return _mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -428,7 +455,7 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
 
     # Check cache first
     try:
-        var_val = SecretCache.get_variable(key)
+        var_val = SecretCache.get_variable(key, team_name=_current_team_name)
         if var_val is not None:
             return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
     except SecretCache.NotPresentException:
@@ -441,12 +468,19 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
         try:
             async_method = getattr(secrets_backend, "aget_variable", None)
             if async_method is not None:
-                var_val = await async_method(key=key)
+                var_val = await call_secrets_backend_method(
+                    async_method, team_name=_current_team_name, key=key
+                )
             else:
-                var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+                var_val = await asyncio.to_thread(
+                    call_secrets_backend_method,
+                    secrets_backend.get_variable,
+                    team_name=_current_team_name,
+                    key=key,
+                )
             if var_val is not None:
                 # Save raw value before deserialization to maintain cache consistency
-                SecretCache.save_variable(key, var_val)
+                SecretCache.save_variable(key, var_val, team_name=_current_team_name)
                 return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
@@ -538,7 +572,9 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
         if isinstance(secrets_backend, ExecutionAPISecretsBackend):
             continue
         try:
-            var_val = secrets_backend.get_variable(key=key)
+            var_val = call_secrets_backend_method(
+                secrets_backend.get_variable, team_name=_current_team_name, key=key
+            )
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
@@ -569,7 +605,7 @@ def _set_variable(key: str, value: Any, description: str | None = None, serializ
     SUPERVISOR_COMMS.send(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 async def _async_set_variable(
@@ -595,7 +631,12 @@ async def _async_set_variable(
         if isinstance(secrets_backend, ExecutionAPISecretsBackend):
             continue
         try:
-            var_val = await asyncio.to_thread(secrets_backend.get_variable, key=key)
+            var_val = await asyncio.to_thread(
+                call_secrets_backend_method,
+                secrets_backend.get_variable,
+                team_name=_current_team_name,
+                key=key,
+            )
             if var_val is not None:
                 _backend_name = type(secrets_backend).__name__
                 log.warning(
@@ -626,7 +667,7 @@ async def _async_set_variable(
     await SUPERVISOR_COMMS.asend(PutVariable(key=key, value=value, description=description))
 
     # Invalidate cache after setting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 def _delete_variable(key: str) -> None:
@@ -643,7 +684,7 @@ def _delete_variable(key: str) -> None:
         assert isinstance(msg, OKResponse)
 
     # Invalidate cache after deleting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 async def _async_delete_variable(key: str) -> None:
@@ -660,7 +701,7 @@ async def _async_delete_variable(key: str) -> None:
         assert isinstance(msg, OKResponse)
 
     # Invalidate cache after deleting the variable
-    SecretCache.invalidate_variable(key)
+    SecretCache.invalidate_variable(key, team_name=_current_team_name)
 
 
 class ConnectionAccessor:
@@ -912,6 +953,7 @@ class TaskStateStoreAccessor:
             await backend.aclear(self._scope)
 
 
+@attrs.define(kw_only=True, unsafe_hash=True)
 class AssetStateStoreAccessor:
     """
     Accessor for asset store scoped to a single asset.
@@ -920,25 +962,16 @@ class AssetStateStoreAccessor:
     tasks, directly as ``context['asset_state_store']``.
     """
 
-    def __init__(
-        self, *, name: str | None = None, uri: str | None = None, stats_tags: dict[str, str] | None = None
-    ) -> None:
-        if not name and not uri:
+    _name: str | None = None
+    _uri: str | None = None
+    _stats_tags: dict[str, str] = attrs.field(factory=dict, eq=False)
+
+    def __attrs_post_init__(self) -> None:
+        if not self._name and not self._uri:
             raise ValueError("Either `name` or `uri` must be provided")
-        self._name = name
-        self._uri = uri
-        self._stats_tags = stats_tags or {}
 
     def _incr(self, event: str) -> None:
         stats.incr(f"asset_state_store.{event}", tags=self._stats_tags)
-
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, AssetStateStoreAccessor):
-            return False
-        return self._name == other._name and self._uri == other._uri
-
-    def __hash__(self) -> int:
-        return hash((self._name, self._uri))
 
     def __repr__(self) -> str:
         if self._name is not None:
@@ -1082,6 +1115,7 @@ class AssetStateStoreAccessor:
         return msg
 
 
+@attrs.define
 class AssetStateStoreAccessors:
     """
     Mapping of asset state accessors for all concrete inlets and outlets of a task.
@@ -1092,44 +1126,66 @@ class AssetStateStoreAccessors:
     For tasks with exactly one concrete inlet or outlet, the accessor methods (``get``,
     ``set``, ``delete``, ``clear``, and their async counterparts ``aget``, ``aset``,
     ``adelete``, ``aclear``) can be called directly without subscripting.
+
+    The accessors are built on first use, or by :meth:`build_lookups`. Building resolves
+    alias inlets through a blocking supervisor call, so the task runner calls
+    :meth:`build_lookups` before the task executes.
     """
 
-    def __init__(
-        self, inlets: list, outlets: list | None = None, stats_tags: dict[str, str] | None = None
-    ) -> None:
-        self._by_name: dict[str, AssetStateStoreAccessor] = {}
-        self._by_uri: dict[str, AssetStateStoreAccessor] = {}
-        self._stats_tags = stats_tags
+    @attrs.frozen
+    class _Lookups:
+        by_name: dict[str, AssetStateStoreAccessor]
+        by_uri: dict[str, AssetStateStoreAccessor]
 
-        for inlet in inlets:
+    _inlets: list
+    _outlets: list = attrs.field(factory=list)
+    _stats_tags: dict[str, str] = attrs.field(factory=dict)
+    _lookups: _Lookups | None = attrs.field(default=None, init=False, eq=False)
+
+    def build_lookups(self) -> AssetStateStoreAccessors._Lookups:
+        """Build the accessors if they are not built yet, and return them."""
+        if self._lookups is not None:
+            return self._lookups
+
+        by_name: dict[str, AssetStateStoreAccessor] = {}
+        by_uri: dict[str, AssetStateStoreAccessor] = {}
+
+        for inlet in self._inlets:
             if isinstance(inlet, (Asset, AssetNameRef)):
-                self._by_name[inlet.name] = AssetStateStoreAccessor(
-                    name=inlet.name, stats_tags=self._stats_tags
-                )
+                by_name[inlet.name] = AssetStateStoreAccessor(name=inlet.name, stats_tags=self._stats_tags)
             elif isinstance(inlet, AssetUriRef):
-                self._by_uri[inlet.uri] = AssetStateStoreAccessor(uri=inlet.uri, stats_tags=self._stats_tags)
+                by_uri[inlet.uri] = AssetStateStoreAccessor(uri=inlet.uri, stats_tags=self._stats_tags)
             elif isinstance(inlet, AssetAlias):
                 from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
                 resp = SUPERVISOR_COMMS.send(GetAssetsByAlias(alias_name=inlet.name))
                 if isinstance(resp, AssetsByAliasResult):
                     for asset in resp.assets:
-                        self._by_name[asset.name] = AssetStateStoreAccessor(
+                        by_name[asset.name] = AssetStateStoreAccessor(
                             name=asset.name, stats_tags=self._stats_tags
                         )
 
-        for outlet in outlets or []:
+        for outlet in self._outlets:
             # AssetAlias outlets are for dynamic event emission, not state access, so skip them
-            if isinstance(outlet, (Asset, AssetNameRef)) and outlet.name not in self._by_name:
-                self._by_name[outlet.name] = AssetStateStoreAccessor(
-                    name=outlet.name, stats_tags=self._stats_tags
-                )
-            elif isinstance(outlet, AssetUriRef) and outlet.uri not in self._by_uri:
-                self._by_uri[outlet.uri] = AssetStateStoreAccessor(
-                    uri=outlet.uri, stats_tags=self._stats_tags
-                )
+            if isinstance(outlet, (Asset, AssetNameRef)) and outlet.name not in by_name:
+                by_name[outlet.name] = AssetStateStoreAccessor(name=outlet.name, stats_tags=self._stats_tags)
+            elif isinstance(outlet, AssetUriRef) and outlet.uri not in by_uri:
+                by_uri[outlet.uri] = AssetStateStoreAccessor(uri=outlet.uri, stats_tags=self._stats_tags)
 
-        self._total = len(self._by_name) + len(self._by_uri)
+        self._lookups = self._Lookups(by_name, by_uri)
+        return self._lookups
+
+    @property
+    def _by_name(self) -> dict[str, AssetStateStoreAccessor]:
+        return self.build_lookups().by_name
+
+    @property
+    def _by_uri(self) -> dict[str, AssetStateStoreAccessor]:
+        return self.build_lookups().by_uri
+
+    @property
+    def _total(self) -> int:
+        return len(self._by_name) + len(self._by_uri)
 
     def __getitem__(self, key: Asset | AssetNameRef | AssetUriRef) -> AssetStateStoreAccessor:
         try:
@@ -1515,33 +1571,56 @@ class InletEventsAccessor(Sequence["AssetEventResult"]):
         return self._asset_events[key]
 
 
-@attrs.define(init=False)
+@attrs.define
 class InletEventsAccessors(
     Mapping["int | Asset | AssetAlias | AssetRef", Any],
     _AssetEventAccessorsMixin[Sequence["AssetEventResult"]],
 ):
-    """Lazy mapping of inlet asset event accessors."""
+    """
+    Lazy mapping of inlet asset event accessors.
+
+    The lookups are built on first use, or by :meth:`build_lookups`. Building resolves
+    asset references through a blocking supervisor call, so the task runner
+    calls :meth:`build_lookups` before the task executes.
+    """
+
+    @attrs.frozen
+    class _Lookups:
+        assets: dict[AssetUniqueKey, Asset]
+        asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
 
     _inlets: list[Any]
-    _assets: dict[AssetUniqueKey, Asset]
-    _asset_aliases: dict[AssetAliasUniqueKey, AssetAlias]
+    _lookups: _Lookups | None = attrs.field(default=None, init=False, eq=False)
 
-    def __init__(self, inlets: list) -> None:
-        self._inlets = inlets
-        self._assets = {}
-        self._asset_aliases = {}
+    def build_lookups(self) -> InletEventsAccessors._Lookups:
+        """Build the lookups if they are not built yet, and return them."""
+        if self._lookups is not None:
+            return self._lookups
 
-        for inlet in inlets:
+        assets: dict[AssetUniqueKey, Asset] = {}
+        asset_aliases: dict[AssetAliasUniqueKey, AssetAlias] = {}
+        for inlet in self._inlets:
             if isinstance(inlet, Asset):
-                self._assets[AssetUniqueKey.from_asset(inlet)] = inlet
+                assets[AssetUniqueKey.from_asset(inlet)] = inlet
             elif isinstance(inlet, AssetAlias):
-                self._asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
+                asset_aliases[AssetAliasUniqueKey.from_asset_alias(inlet)] = inlet
             elif isinstance(inlet, AssetNameRef):
                 asset = OutletEventAccessors._get_asset_from_db(name=inlet.name)
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+                assets[AssetUniqueKey.from_asset(asset)] = asset
             elif isinstance(inlet, AssetUriRef):
                 asset = OutletEventAccessors._get_asset_from_db(uri=inlet.uri)
-                self._assets[AssetUniqueKey.from_asset(asset)] = asset
+                assets[AssetUniqueKey.from_asset(asset)] = asset
+
+        self._lookups = self._Lookups(assets, asset_aliases)
+        return self._lookups
+
+    @property
+    def _assets(self) -> dict[AssetUniqueKey, Asset]:
+        return self.build_lookups().assets
+
+    @property
+    def _asset_aliases(self) -> dict[AssetAliasUniqueKey, AssetAlias]:
+        return self.build_lookups().asset_aliases
 
     def __iter__(self) -> Iterator[Asset | AssetAlias]:
         return iter(self._inlets)
@@ -1659,6 +1738,34 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
             )
 
 
+def build_state_store_stats_tags(ti: RuntimeTaskInstanceProtocol) -> dict[str, str]:
+    """
+    Build tags for metrics emitted by a task instance's state store accessors.
+
+    These are the task instance's stats tags plus the operator name, attached to
+    ``task_state_store.*`` and ``asset_state_store.*`` metrics.
+
+    :meta private:
+    """
+    return {**ti.stats_tags, "operator": ti.task.task_type}
+
+
+def create_asset_state_store(ti: RuntimeTaskInstanceProtocol) -> AssetStateStoreAccessors | None:
+    """
+    Create the asset state store accessors for a task instance's task.
+
+    Return *None* if the task has no asset (or asset reference or alias) in its
+    inlets or outlets. This makes no supervisor calls; the accessors are built
+    when first used, or by the task runner before the task executes.
+
+    :meta private:
+    """
+    all_lets = itertools.chain((inlets := ti.task.inlets), (outlets := ti.task.outlets))
+    if not any(isinstance(t, (Asset, AssetNameRef, AssetUriRef, AssetAlias)) for t in all_lets):
+        return None
+    return AssetStateStoreAccessors(inlets, outlets, stats_tags=build_state_store_stats_tags(ti))
+
+
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     """
     Update context after task unmapping.
@@ -1667,14 +1774,26 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
     contains information about the mapped task. We need to do some in-place
     updates to ensure the template context reflects the unmapped task instead.
 
+    This includes the asset accessors, since the operator's ``__init__`` (which
+    only runs on unmapping) may add inlets and outlets. Creating them makes no
+    supervisor calls; they are built later.
+
     :meta private:
     """
     from airflow.sdk.definitions.param import process_params
 
-    context["task"] = context["ti"].task = task
+    context["task"] = (ti := context["ti"]).task = task
     context["params"] = process_params(
         context["dag"], task, context["dag_run"].conf, suppress_exception=False
     )
+
+    context["inlets"] = task.inlets
+    context["outlets"] = task.outlets
+    context["inlet_events"] = InletEventsAccessors(task.inlets)
+    if (asset_state_store := create_asset_state_store(ti)) is None:
+        context.pop("asset_state_store", None)
+    else:
+        context["asset_state_store"] = asset_state_store
 
 
 def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:

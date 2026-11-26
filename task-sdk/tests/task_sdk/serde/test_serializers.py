@@ -430,14 +430,123 @@ class TestSerializers:
         with pytest.raises(TypeError, match=msg):
             deserialize(klass, version, payload)
 
-    def test_kubernetes_serializer(self, monkeypatch):
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+    @patch("kubernetes.client.ApiClient.sanitize_for_serialization", autospec=True, side_effect=Exception)
+    def test_kubernetes_serializer(self, _):
         from airflow.sdk.serde.serializers.kubernetes import serialize
 
         pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="foo"))
-        monkeypatch.setattr(PodGenerator, "serialize_pod", lambda o: (_ for _ in ()).throw(Exception("fail")))
         assert serialize(pod) == ("", "", 0, False)
         assert serialize(123) == ("", "", 0, False)
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(
+                {
+                    "metadata": {"name": "foo", "labels": {"a": "1", "enabled": "true"}},
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "foo",
+                                "imagePullPolicy": "Always",
+                                "resources": {"requests": {"cpu": "1"}},
+                                "tty": True,
+                            }
+                        ]
+                    },
+                },
+                id="camel-case",
+            ),
+            pytest.param(
+                {
+                    "metadata": {"name": "foo", "labels": {"a": 1, "enabled": True}},
+                    "spec": {
+                        "containers": [
+                            {
+                                "name": "foo",
+                                "imagePullPolicy": "Always",
+                                "resources": {"requests": {"cpu": 1}},
+                                "tty": "true",
+                            }
+                        ]
+                    },
+                },
+                id="legacy-values",
+            ),
+        ],
+    )
+    def test_kubernetes_deserialize(self, data):
+        from airflow.sdk.serde.serializers.kubernetes import deserialize
+
+        pod = deserialize(k8s.V1Pod, 1, data)
+
+        assert pod == k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="foo", labels={"a": "1", "enabled": "true"}),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="foo",
+                        image_pull_policy="Always",
+                        resources=k8s.V1ResourceRequirements(requests={"cpu": "1"}),
+                        tty=True,
+                    )
+                ]
+            ),
+        )
+
+    def test_kubernetes_deserialize_drops_removed_fields(self):
+        from airflow.sdk.serde.serializers.kubernetes import deserialize
+
+        # kubernetes 36 wrote "resources" here; kubernetes 37 replaced it with "mapping".
+        data = {
+            "status": {
+                "nodeAllocatableResourceClaimStatuses": [{"resourceClaimName": "x", "resources": ["cpu"]}]
+            }
+        }
+
+        pod = deserialize(k8s.V1Pod, 1, data)
+
+        assert pod == k8s.V1Pod(
+            status=k8s.V1PodStatus(
+                node_allocatable_resource_claim_statuses=[
+                    k8s.V1NodeAllocatableResourceClaimStatus(resource_claim_name="x")
+                ]
+            )
+        )
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            pytest.param(
+                {"spec": {"containers": [{"name": "foo"}], "hostNetwork": "yes"}}, id="not-coercible"
+            ),
+            pytest.param(
+                {"spec": {"containers": [{"name": "foo", "livenessProbe": {"httpGet": {"port": 8.5}}}]}},
+                id="union-field",
+            ),
+            pytest.param(None, id="no-data"),
+        ],
+    )
+    def test_kubernetes_deserialize_invalid_data(self, data):
+        from pydantic import ValidationError
+
+        from airflow.sdk.serde.serializers.kubernetes import deserialize
+
+        with pytest.raises(ValidationError):
+            deserialize(k8s.V1Pod, 1, data)
+
+    @pytest.mark.parametrize(
+        ("klass", "version", "msg"),
+        [
+            (k8s.V1Pod, 2, "serialized version 2 is newer than class version 1"),
+            (str, 1, r"do not know how to deserialize builtins\.str"),
+        ],
+    )
+    def test_kubernetes_deserialize_errors(self, klass, version, msg):
+        from airflow.sdk.serde.serializers.kubernetes import deserialize
+
+        with pytest.raises(TypeError, match=msg):
+            deserialize(klass, version, {})
 
     def test_pydantic(self):
         m = FooBarModel(banana=3.14, foo="hello")

@@ -263,13 +263,14 @@ def _import_users(users_list: list[dict[str, Any]]):
                 users_updated.append(user["email"])
             else:
                 print(f"Creating new user with email '{user['email']}'")
-                appbuilder.sm.add_user(
+                if not appbuilder.sm.add_user(
                     username=user["username"],
                     first_name=user["firstname"],
                     last_name=user["lastname"],
                     email=user["email"],
                     role=roles,
-                )
+                ):
+                    raise SystemExit(f"Failed to create user with email {user['email']!r}")
 
                 users_created.append(user["email"])
 

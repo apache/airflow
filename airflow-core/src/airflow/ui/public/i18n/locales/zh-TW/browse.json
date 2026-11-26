@@ -60,6 +60,48 @@
     },
     "title": "截止期限"
   },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "受影響的 Dags",
+      "failures": "連續失敗次數",
+      "kind": "類型",
+      "lastError": "最後錯誤",
+      "lastEvent": "最後事件",
+      "status": "狀態",
+      "triggerer": "觸發者",
+      "usedBy": "使用於"
+    },
+    "detail": {
+      "firstFailedAt": "開始失敗時間",
+      "lastFailedAt": "最後失敗時間",
+      "noReadableScheduledDags": "沒有您可檢視的 Dags",
+      "scheduledDags": "已排程的 Dags"
+    },
+    "filters": {
+      "triggererHostname": "觸發者主機名稱"
+    },
+    "forbidden": {
+      "description": "只有能檢視觸發器等待項目的使用者，才能看到觸發器：Dag 的任務實例、Dag 執行，或其監聽的資源。您目前無法檢視上述任何項目。",
+      "title": "沒有可顯示的觸發器"
+    },
+    "kind": {
+      "asset_watcher": "資源監聽器",
+      "callback": "回呼",
+      "task": "任務"
+    },
+    "notFound": {
+      "backToList": "返回觸發器列表",
+      "description": "觸發器一經觸發，或其等待的項目結束，就會被移除，因此這個觸發器很可能已經執行完畢。",
+      "title": "找不到觸發器"
+    },
+    "status": {
+      "failing": "持續失敗",
+      "orphaned": "已孤立"
+    },
+    "statusHint": {
+      "orphaned": "其觸發者已停止，正在等待其他觸發者接管。"
+    }
+  },
   "xcom": {
     "add": {
       "error": "新增 XCom 失敗",

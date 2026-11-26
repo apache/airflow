@@ -334,9 +334,10 @@ def selective_check(
         labels = tuple(ast.literal_eval(pr_labels)) if pr_labels else ()
         fork_owner = github_repository.split("/")[0]
         if fork_push and github_context_dict.get("ref_name"):
-            labels = get_fork_pull_request_labels(
+            fetched_labels = get_fork_pull_request_labels(
                 fork_owner=fork_owner, branch=github_context_dict["ref_name"], base=default_branch
             )
+            labels = tuple(sorted(set(labels) | set(fetched_labels)))
         if fork_push and commit_ref is not None:
             fork_changes = get_fork_changes(fork_owner=fork_owner, sha=commit_ref, base=default_branch)
             changed_files = fork_changes.files

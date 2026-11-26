@@ -155,7 +155,7 @@ with DAG(
         suspend=True,
         container_resources=k8s.V1ResourceRequirements(
             requests={
-                "cpu": 1,
+                "cpu": "1",
                 "memory": "200Mi",
             },
         ),

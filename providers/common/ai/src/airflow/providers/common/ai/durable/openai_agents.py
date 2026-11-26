@@ -67,7 +67,7 @@ from airflow.providers.common.ai.durable.journal import _EXECUTING_STEP, current
 from airflow.providers.common.ai.exceptions import DurableJournalError, UnsupportedToolDeferralError
 from airflow.providers.common.ai.mixins.approval import LLMApprovalMixin
 from airflow.providers.common.ai.tools.openai_agents import _REPLAY_RETRY, _RETRY_COUNT, _RetryLimitReached
-from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
+from airflow.providers.common.ai.utils.coroutines import run_coroutine_on_thread_loop
 from airflow.providers.common.ai.utils.masking import dumps_masked, mask_secrets
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 from airflow.providers.common.compat.sdk import Param, get_current_context
@@ -168,11 +168,12 @@ async def run_durably(
     function tools of an agent reached through ``handoff()``, and its model too unless the
     agent's ``model`` is a model name or not set, and streamed runs. A tool call that fails,
     including one whose exception ``failure_error_function`` turns into text for the model,
-    is not recorded either, so a retry runs it again. A failure the model could correct,
-    which an ``AirflowTools`` tool answers with ``{"error": ...}``, is recorded, and still
-    counts against the tool's retry limit when it replays; a run that used that limit up asks
-    the model again from its last request on a retry. A replayed model call reports no
-    usage, since it costs nothing.
+    is not recorded either, so a retry runs it again. Once a call has failed the run on two
+    attempts in a row, the next retry asks the model again from the request that chose it. A
+    failure the model could correct, which an ``AirflowTools`` tool answers with
+    ``{"error": ...}``, is recorded, and still counts against the tool's retry limit when it
+    replays; a run that used that limit up asks the model again from its last request on a
+    retry. A replayed model call reports no usage, since it costs nothing.
 
     A ``session`` makes every retry run live: the SDK adds the failed try's prompt to it
     before the first model call, so that call no longer asks what it asked then.
@@ -241,8 +242,14 @@ def run_durably_sync(
     run_config: RunConfig | None = None,
     **kwargs: Any,
 ) -> RunResult:
-    """Run :func:`run_durably` from synchronous code, such as a plain ``@task``."""
-    return run_coroutine_sync(run_durably(starting_agent, input, run_config=run_config, **kwargs))
+    """
+    Run :func:`run_durably` from synchronous code, such as a plain ``@task``.
+
+    Like ``Runner.run_sync``, it runs on the thread's event loop and leaves it open, so several
+    calls in one task can share a client: the SDK's own shared HTTP client, or one ``AsyncOpenAI``.
+    That holds for calls from synchronous code; in async code, ``await run_durably(...)``.
+    """
+    return run_coroutine_on_thread_loop(run_durably(starting_agent, input, run_config=run_config, **kwargs))
 
 
 def _answer_approvals(

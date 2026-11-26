@@ -895,6 +895,7 @@ ini
 init
 initdb
 initialisation
+initialised
 initialiser
 initialising
 initializer
@@ -1251,6 +1252,7 @@ ol
 Ollama
 onboarded
 onboarding
+OneLake
 OnFailure
 Oozie
 OPA
@@ -1550,6 +1552,7 @@ rowid
 rpc
 rsa
 rshift
+rss
 rst
 rtype
 ru
@@ -1709,6 +1712,7 @@ sslkey
 sslmode
 sslrootcert
 ssm
+sso
 Stackdriver
 stackdriver
 stacklevel
@@ -1772,6 +1776,8 @@ subprocess
 subprocesses
 subqueries
 subquery
+subresource
+subresources
 SubscriberClient
 subscriptionId
 substring

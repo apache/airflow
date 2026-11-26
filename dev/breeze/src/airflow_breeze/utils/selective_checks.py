@@ -59,6 +59,7 @@ from airflow_breeze.global_constants import (
     NUMBER_OF_LOW_DEP_SLICES,
     PROVIDER_TEST_SPLITS,
     PROVIDERS_COMPATIBILITY_TESTS_MATRIX,
+    PROVIDERS_INTEGRATION_SERVER_VERSIONS,
     PUBLIC_AMD_RUNNERS,
     PUBLIC_ARM_RUNNERS,
     RUNS_ON_AMD_IN_MEMORY_RUNNER_TEMPLATE,
@@ -175,6 +176,7 @@ class FileGroupForCi(Enum):
     OPENLINEAGE_E2E_COMPAT_FILES = auto()
     TS_SDK_E2E_FILES = auto()
     YAML_DAG_E2E_FILES = auto()
+    LANG_SDK_XCOM_E2E_FILES = auto()
     ALL_PYPROJECT_TOML_FILES = auto()
     ALL_PYTHON_FILES = auto()
     ALL_SOURCE_FILES = auto()
@@ -261,7 +263,8 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^\.github/workflows/(?!("
             r"asf-allowlist-check|automatic-backport|backport-cli|ci-duration-monitor|ci-notification|"
             r"codeql-analysis|e2e-flaky-tests-report|milestone-tag-assistant|notify-uv-lock-conflicts|"
-            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-release-calendar|stale"
+            r"publish-docs-to-s3|recheck-old-bug-report|scheduled-verify-improvement-proposals-wiki|"
+            r"scheduled-verify-release-calendar|stale"
             r")\.yml$)",
             r"^dev/breeze/src",
             r"^dev/breeze/pyproject\.toml",
@@ -370,6 +373,16 @@ CI_FILE_GROUP_MATCHES: HashableDict[FileGroupForCi] = HashableDict(
             r"^task-sdk/src/airflow/sdk/coordinators/_subprocess\.py$",
             r"^task-sdk/src/airflow/sdk/coordinators/executable/.*",
             *LANG_SDK_NATIVE_DAG_PARSING_FILES,
+        ],
+        FileGroupForCi.LANG_SDK_XCOM_E2E_FILES: [
+            # The coordinator-side backend, the base XCom class it calls, the object storage backend,
+            # and the mode's own compose override and tests. The language SDKs themselves are the
+            # business of their own e2e modes.
+            r"^task-sdk/src/airflow/sdk/coordinators/_xcom_backend\.py$",
+            r"^task-sdk/src/airflow/sdk/bases/xcom\.py$",
+            r"^providers/common/io/src/airflow/providers/common/io/xcom/.*",
+            r"^airflow-e2e-tests/docker/lang-sdk-xcom-object-storage\.yml$",
+            r"^airflow-e2e-tests/tests/airflow_e2e_tests/lang_sdk_xcom_object_storage_tests/.*",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             # Production Python source the runtime ships — excludes tests, docs,
@@ -1207,6 +1220,21 @@ class SelectiveChecks:
 
     def _get_previous_file_content(self, path: str) -> str | None:
         if self._fork_merge_base:
+            commit_check = run_command(
+                ["git", "cat-file", "-e", f"{self._fork_merge_base}^{{commit}}"],
+                capture_output=True,
+                cwd=AIRFLOW_ROOT_PATH,
+                check=False,
+            )
+            if commit_check.returncode == 0:
+                result = run_command(
+                    ["git", "show", f"{self._fork_merge_base}:{path}"],
+                    capture_output=True,
+                    text=True,
+                    cwd=AIRFLOW_ROOT_PATH,
+                    check=False,
+                )
+                return result.stdout if result.returncode == 0 else None
             return get_upstream_file(path=path, ref=self._fork_merge_base)
         result = run_command(
             ["git", "show", f"{self._commit_ref}^:{path}"],
@@ -1563,6 +1591,11 @@ class SelectiveChecks:
 
     @cached_property
     @_scoped_to_component_branch
+    def run_lang_sdk_xcom_e2e_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.LANG_SDK_XCOM_E2E_FILES)
+
+    @cached_property
+    @_scoped_to_component_branch
     def run_openlineage_e2e_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.OPENLINEAGE_E2E_FILES)
 
@@ -1595,6 +1628,11 @@ class SelectiveChecks:
     @cached_property
     @_scoped_to_component_branch
     def run_task_sdk_tests(self) -> bool:
+        # A uv.lock bump can upgrade a library the Task SDK imports, e.g. kubernetes in serde.
+        return self._task_sdk_files_changed or self.is_uv_lock_update
+
+    @cached_property
+    def _task_sdk_files_changed(self) -> bool:
         return self._should_be_run(FileGroupForCi.TASK_SDK_FILES)
 
     @cached_property
@@ -1748,6 +1786,7 @@ class SelectiveChecks:
             or self.run_ui_tests
             or self.pyproject_toml_changed
             or self.any_provider_yaml_or_pyproject_toml_changed
+            or self.is_uv_lock_update
             or self.prod_image_build
             # prek hooks no longer force the full test matrix (they are static checks, not
             # tests), but they still need the CI image so mypy-scripts and the image-based
@@ -1811,6 +1850,7 @@ class SelectiveChecks:
             or self.run_openlineage_e2e_compat_tests
             or self.run_ts_sdk_e2e_tests
             or self.run_yaml_dag_e2e_tests
+            or self.run_lang_sdk_xcom_e2e_tests
             or self.run_ui_e2e_tests
         )
 
@@ -1904,7 +1944,7 @@ class SelectiveChecks:
             return []
         if self.upgrade_to_newer_dependencies:
             return ["Providers"]
-        if self.full_tests_needed or self.run_task_sdk_tests:
+        if self.full_tests_needed or self._task_sdk_files_changed:
             if split_to_individual_providers:
                 return list(providers_test_type())
             return ["Providers"]
@@ -2430,7 +2470,10 @@ class SelectiveChecks:
                 prek_hooks_to_skip.add("mypy-dev")
             if not self._matching_files(FileGroupForCi.ALL_SCRIPTS_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-scripts")
-            if not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES):
+            if (
+                not self._matching_files(FileGroupForCi.TASK_SDK_FILES, CI_FILE_GROUP_MATCHES)
+                and not self.is_uv_lock_update
+            ):
                 prek_hooks_to_skip.add("mypy-task-sdk")
             if not self._matching_files(FileGroupForCi.ALL_DEVEL_COMMON_PYTHON_FILES, CI_FILE_GROUP_MATCHES):
                 prek_hooks_to_skip.add("mypy-devel-common")
@@ -2783,7 +2826,14 @@ class SelectiveChecks:
 
     @cached_property
     def testable_providers_integrations(self) -> list[str]:
-        if not self.run_unit_tests:
+        # A provider dependency bump runs no unit tests, but it can break the client/server
+        # compatibility that the provider's integration tests check.
+        provider_config_changed = bool(
+            self._matching_files(
+                FileGroupForCi.ALL_PROVIDERS_DISTRIBUTION_CONFIG_FILES, CI_FILE_GROUP_MATCHES
+            )
+        )
+        if not self.run_unit_tests and not provider_config_changed:
             return []
         if self.full_tests_needed or self._is_canary_run():
             # All tests are running - exercise every provider integration.
@@ -2804,6 +2854,31 @@ class SelectiveChecks:
                 # No providers affected by the change.
                 selected = []
         return [integration for integration in selected if not self._is_disabled_integration(integration)]
+
+    @cached_property
+    def testable_providers_integrations_matrix(self) -> str:
+        """
+        GitHub matrix ``include`` entries for the provider integration test jobs.
+
+        An integration listed in ``PROVIDERS_INTEGRATION_SERVER_VERSIONS`` gets one entry per server
+        version, carrying that version as ``<integration>-version``. The ``id`` is unique per entry so
+        each job gets distinct names and artifacts.
+        """
+        entries: list[dict[str, str]] = []
+        for integration in self.testable_providers_integrations:
+            versions = PROVIDERS_INTEGRATION_SERVER_VERSIONS.get(integration)
+            if not versions:
+                entries.append({"integration": integration, "id": integration})
+                continue
+            entries.extend(
+                {
+                    "integration": integration,
+                    "id": f"{integration}-{version}",
+                    f"{integration}-version": version,
+                }
+                for version in versions
+            )
+        return json.dumps(entries)
 
     @cached_property
     def is_committer_build(self):

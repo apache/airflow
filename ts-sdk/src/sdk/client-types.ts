@@ -24,14 +24,33 @@ export type JsonValue =
 /**
  * Options for pulling an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
- * Pass them only when pulling an XCom value from another task or run.
+ * `dagId` and `runId` default to the running task's context when omitted or
+ * `null`. Pass them only when pulling an XCom value from another Dag or run.
  */
 export interface GetXComOpts {
-  key: string;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  /** XCom key to read; defaults to `"return_value"`. */
+  key?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  /** Task that pushed the XCom value. */
+  taskId: string;
+  /**
+   * Map index of the task instance to read, or `null` (the default) to read
+   * the task's result.
+   *
+   * With `null`, what is read depends on whether the task is mapped, as its
+   * definition in the Dag says, not on how many instances it ran:
+   *
+   * - For a task that is not mapped, its value.
+   * - For a mapped task, the values of all its instances as an array ordered
+   *   by map index. Instances that pushed nothing are left out. If none
+   *   pushed a value, including when the task expanded to no instances, the
+   *   result is `null`.
+   *
+   * A map index reads that one instance's value. One that selects no task
+   * instance of the task, such as any map index of a task that is not
+   * mapped, reads `null`.
+   */
   mapIndex?: number | null;
   includePriorDates?: boolean;
 }
@@ -39,14 +58,20 @@ export interface GetXComOpts {
 /**
  * Options for pushing an XCom value.
  *
- * `dagId`, `taskId`, and `runId` default to the running task's context.
+ * `dagId`, `taskId`, and `runId` default to the running task's context when
+ * omitted or `null`.
+ *
+ * `mapIndex` defaults to the running task's own map index when the target is
+ * the running task, and to the unmapped value for any other task or run. Pass
+ * a number to pick one mapped instance, or `null` for the unmapped one.
  */
 export interface SetXComOpts {
-  key: string;
+  /** XCom key to write; defaults to `"return_value"`. */
+  key?: string;
   value: JsonValue;
-  dagId?: string;
-  runId?: string;
-  taskId?: string;
+  dagId?: string | null;
+  runId?: string | null;
+  taskId?: string | null;
   mapIndex?: number | null;
 }
 

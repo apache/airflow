@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 import methodtools
 
 
-class WeightRule(str, Enum):
+class WeightRule(StrEnum):
     """Weight rules for task priority calculation."""
 
     DOWNSTREAM = "downstream"
@@ -39,6 +39,3 @@ class WeightRule(str, Enum):
     def all_weight_rules(cls) -> set[str]:
         """Return all weight rules."""
         return set(cls.__members__.values())
-
-    def __str__(self) -> str:
-        return self.value

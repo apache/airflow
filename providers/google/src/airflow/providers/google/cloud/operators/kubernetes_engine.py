@@ -24,7 +24,7 @@ import time
 import warnings
 from collections.abc import Sequence
 from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from google.api_core.exceptions import AlreadyExists, FailedPrecondition, PermissionDenied
 from kubernetes.client import V1JobList, models as k8s
@@ -944,10 +944,11 @@ class GKEStartPodOperator(GKEOperatorMixin, KubernetesPodOperator):
             poll_buffer = max(60, int(self.poll_interval * 2))
             defer_timeout = datetime.timedelta(seconds=max(remaining, 0) + poll_buffer)
 
+        pod_metadata = cast("k8s.V1ObjectMeta", cast("k8s.V1Pod", self.pod).metadata)
         self.defer(
             trigger=GKEStartPodTrigger(
-                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
-                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+                pod_name=cast("str", pod_metadata.name),
+                pod_namespace=cast("str", pod_metadata.namespace),
                 trigger_start_time=trigger_start_time,
                 cluster_url=self.cluster_url,
                 ssl_ca_cert=self.ssl_ca_cert,
@@ -1180,12 +1181,13 @@ class GKEDescribeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.cluster_name,
             self.job,
         )
+        job_metadata = cast("k8s.V1ObjectMeta", self.job.metadata)
         KubernetesEngineJobLink.persist(
             context=context,
             location=self.location,
             cluster_name=self.cluster_name,
-            namespace=self.job.metadata.namespace,
-            job_name=self.job.metadata.name,
+            namespace=job_metadata.namespace,
+            job_name=job_metadata.name,
             project_id=self.project_id,
         )
         return None
@@ -1611,7 +1613,7 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.job: V1Job | None = None
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> dict:
         self.job = self.hook.patch_namespaced_job(
             job_name=self.name,
             namespace=self.namespace,
@@ -1622,12 +1624,13 @@ class GKESuspendJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.name,
             self.cluster_name,
         )
+        job_metadata = cast("k8s.V1ObjectMeta", self.job.metadata)
         KubernetesEngineJobLink.persist(
             context=context,
             location=self.location,
             cluster_name=self.cluster_name,
-            namespace=self.job.metadata.namespace,
-            job_name=self.job.metadata.name,
+            namespace=job_metadata.namespace,
+            job_name=job_metadata.name,
             project_id=self.project_id,
         )
         return k8s.V1Job.to_dict(self.job)
@@ -1694,7 +1697,7 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.job: V1Job | None = None
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> dict:
         self.job = self.hook.patch_namespaced_job(
             job_name=self.name,
             namespace=self.namespace,
@@ -1705,12 +1708,13 @@ class GKEResumeJobOperator(GKEOperatorMixin, GoogleCloudBaseOperator):
             self.name,
             self.cluster_name,
         )
+        job_metadata = cast("k8s.V1ObjectMeta", self.job.metadata)
         KubernetesEngineJobLink.persist(
             context=context,
             location=self.location,
             cluster_name=self.cluster_name,
-            namespace=self.job.metadata.namespace,
-            job_name=self.job.metadata.name,
+            namespace=job_metadata.namespace,
+            job_name=job_metadata.name,
             project_id=self.project_id,
         )
 
