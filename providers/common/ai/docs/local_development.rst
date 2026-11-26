@@ -181,7 +181,9 @@ Run it from your project root with the Dags folder on the import path:
 ``build_agent()`` runs outside a task, so templates aren't rendered and every
 template field (``system_prompt``, ``llm_conn_id``, ``model_id`` and the rest)
 reaches the agent as written; a templated ``llm_conn_id`` fails at connection
-lookup. For a durable task, the agent has no tool-approval step.
+lookup. Only the task's own run acts on tool approval, so if the agent calls a
+tool that requires approval, the run ends with a ``DeferredToolRequests`` as its
+output instead of an answer, and a case that checks the answer fails.
 
 These have ``build_agent()``: ``AgentOperator`` (``@task.agent``), ``LLMOperator``
 (``@task.llm``), ``LLMBranchOperator`` (``@task.llm_branch``),

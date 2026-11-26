@@ -1032,8 +1032,9 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
 
         Template fields are only rendered during a task run, so outside one every template
         field (``system_prompt``, ``llm_conn_id``, ``model_id`` and the rest) is used as
-        written. For a durable task, the returned agent has no tool-approval step: a run can
-        only pause for approval inside ``execute``.
+        written. Only ``execute`` acts on tool approval, so outside a task, a run that calls a
+        tool requiring approval ends with a ``DeferredToolRequests`` as its output instead of
+        an answer.
         """
         return self._build_agent()
 

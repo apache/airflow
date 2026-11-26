@@ -1731,7 +1731,7 @@ class TestAgentOperatorBuildAgent:
         assert create_agent.call_args.kwargs["instructions"] == "Answer for {{ ds }}."
 
     def test_build_agent_builds_without_an_approval_context(self):
-        """Only ``execute`` passes the task context, so a durable run pauses for approval only there."""
+        """Only ``execute`` passes the task context, so only a task run acts on tool approval."""
         op = AgentOperator(task_id="t", prompt="p", llm_conn_id="my_llm", durable=True)
 
         with patch.object(AgentOperator, "_build_agent", autospec=True) as mock_build_agent:
