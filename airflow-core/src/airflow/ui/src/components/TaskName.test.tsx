@@ -18,11 +18,12 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
+import { TASK_NAME_DISPLAY_KEY } from "src/constants/localStorage";
 import { BaseWrapper } from "src/utils/Wrapper";
 
-import { TaskName } from "./TaskName";
+import { TaskName, TaskNamePrefixContext } from "./TaskName";
 
 const LONG_LABEL = "mysql___d___dashboard___commerce___vbp___d___0";
 
@@ -53,5 +54,32 @@ describe("TaskName", () => {
     render(<TaskName childCount={3} isMapped label={LONG_LABEL} />, { wrapper: BaseWrapper });
 
     expect(screen.getByTitle(LONG_LABEL)).toHaveTextContent(`${LONG_LABEL} [3]`);
+  });
+
+  describe("with a long task names setting", () => {
+    afterEach(() => localStorage.clear());
+
+    it("cuts only the end when the user picks it", () => {
+      localStorage.setItem(TASK_NAME_DISPLAY_KEY, JSON.stringify("end"));
+
+      render(<TaskName label={LONG_LABEL} />, { wrapper: BaseWrapper });
+
+      expect(screen.getByText(LONG_LABEL)).toBeInTheDocument();
+    });
+
+    it("hides the prefix the surrounding tasks share", () => {
+      localStorage.setItem(TASK_NAME_DISPLAY_KEY, JSON.stringify("prefix"));
+
+      render(
+        <TaskNamePrefixContext.Provider value="mysql___d___dashboard___commerce___vbp___">
+          <TaskName label={LONG_LABEL} />
+          <TaskName label="init" />
+        </TaskNamePrefixContext.Provider>,
+        { wrapper: BaseWrapper },
+      );
+
+      expect(screen.getByTitle(LONG_LABEL)).toHaveTextContent("…d___0");
+      expect(screen.getByTitle("init")).toHaveTextContent("init");
+    });
   });
 });

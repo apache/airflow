@@ -336,6 +336,15 @@
         "helper": "Expand task groups in Dags where you haven't saved a group selection. Existing selections are kept.",
         "label": "Expand task groups by default"
       },
+      "taskNameDisplay": {
+        "helper": "How task names too long for the grid or a graph node are shortened. Hover a name to see it in full.",
+        "label": "Long task names",
+        "options": {
+          "end": "Cut the end",
+          "middle": "Cut the middle",
+          "prefix": "Hide the common prefix"
+        }
+      },
       "title": "Graph"
     },
     "marking": {

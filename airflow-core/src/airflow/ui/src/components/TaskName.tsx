@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { CSSProperties } from "react";
+import { createContext, useContext, type CSSProperties } from "react";
 
 import { Box, chakra, type TextProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
@@ -25,6 +25,7 @@ import { MdLoop } from "react-icons/md";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
+import { useTaskNameDisplay } from "src/hooks/useUserSettings";
 import { formatNumber } from "src/utils";
 
 export type TaskNameProps = {
@@ -51,6 +52,9 @@ const iconStyle: CSSProperties = {
 // end ellipsis renders long ones identically. Truncate the middle instead and keep the tail.
 const TAIL_LENGTH = 12;
 
+/** Prefix shared by most task names in the surrounding grid or graph. */
+export const TaskNamePrefixContext = createContext("");
+
 const EndTruncatedLabel = ({ label }: { readonly label: string }) => (
   <chakra.span minWidth={0} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
     {label}
@@ -70,6 +74,22 @@ const MiddleTruncatedLabel = ({ label }: { readonly label: string }) => {
       </chakra.span>
     </>
   );
+};
+
+const TruncatedLabel = ({ label }: { readonly label: string }) => {
+  const [display] = useTaskNameDisplay();
+  const prefix = useContext(TaskNamePrefixContext);
+
+  if (display === "end") {
+    return <EndTruncatedLabel label={label} />;
+  }
+
+  const shown =
+    display === "prefix" && prefix !== "" && label.startsWith(prefix) && label.length > prefix.length
+      ? `…${label.slice(prefix.length)}`
+      : label;
+
+  return <MiddleTruncatedLabel label={shown} />;
 };
 
 export const TaskName = ({
@@ -106,7 +126,7 @@ export const TaskName = ({
         whiteSpace="nowrap"
         {...rest}
       >
-        <MiddleTruncatedLabel label={label} />
+        <TruncatedLabel label={label} />
         {/* A group can be both: a loop whose body is a mapped expansion carries both markers. */}
         {isLoop ? (
           <>
@@ -137,7 +157,7 @@ export const TaskName = ({
       whiteSpace="nowrap"
       {...rest}
     >
-      <MiddleTruncatedLabel label={label} />
+      <TruncatedLabel label={label} />
       {isMapped ? (
         <chakra.span flexShrink={0} whiteSpace="pre">
           {` [${childCount === undefined ? " " : formatNumber(childCount, i18n.language)}]`}
