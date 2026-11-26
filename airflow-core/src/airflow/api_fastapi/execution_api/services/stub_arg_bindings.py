@@ -49,7 +49,7 @@ from airflow.models.expandinput import (
     SchedulerDictOfListsExpandInput,
     SchedulerListOfDictsExpandInput,
 )
-from airflow.models.task_coordinates import TaskCoordinateResolver
+from airflow.models.task_coordinates import TaskCoordinate, TaskCoordinateResolver
 from airflow.models.taskinstance import _get_relevant_map_indexes
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count, is_mapped
@@ -116,7 +116,7 @@ class _ArgParam:
 
 def derive_mapped_arg_bindings(
     task: Operator,
-    ti: TaskInstance,
+    ti: TaskCoordinate,
     entries: list[dict[str, Any]],
     *,
     dag_bag: DBDagBag,
@@ -157,7 +157,7 @@ class _MappedArgBindingDeriver:
     def __init__(
         self,
         task: Operator,
-        ti: TaskInstance,
+        ti: TaskCoordinate,
         map_index: int,
         resolver: TaskCoordinateResolver,
         *,
@@ -179,7 +179,8 @@ class _MappedArgBindingDeriver:
 
     @cached_property
     def producer_contexts(self) -> Mapping[str, ProducerContext]:
-        return self.resolver.producer_contexts(self.ti, task=self.task)
+        # producer_contexts reads only the coordinates of a caller whose task is passed in.
+        return self.resolver.producer_contexts(cast("TaskInstance", self.ti), task=self.task)
 
     @cached_property
     def expanded_ti_count(self) -> int:

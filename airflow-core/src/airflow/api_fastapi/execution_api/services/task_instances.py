@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagbag import DBDagBag
+    from airflow.models.task_coordinates import TaskCoordinate
     from airflow.serialization.serialized_objects import SerializedOperator
 
 
@@ -51,7 +52,7 @@ def client_supports_arg_bindings() -> bool:
     return AddArgBindingsToTIRunContext.is_applied
 
 
-def get_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOperator | None:
+def get_task(dag_bag: DBDagBag, ti: TaskCoordinate, *, session: Session) -> SerializedOperator | None:
     """Return the task of *ti* from its Dag version, or ``None`` if it cannot be found."""
     if ti.dag_version_id is None:
         return None
@@ -68,7 +69,7 @@ def client_supports_mapped_arg_bindings() -> bool:
 
 
 def get_arg_bindings(
-    task: SerializedOperator, ti: Any, *, dag_bag: DBDagBag, session: Session
+    task: SerializedOperator, ti: TaskCoordinate, *, dag_bag: DBDagBag, session: Session
 ) -> list[dict[str, Any]] | None:
     """
     Return the TaskFlow arg spec of *task* if it is a stub task.
