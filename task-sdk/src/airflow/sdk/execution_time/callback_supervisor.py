@@ -581,6 +581,7 @@ class CallbackSubprocess(WatchedSubprocess):
     execution_deadline: float | None = None
     """Monotonic deadline shared with routed callback setup, including the token exchange."""
     heartbeat: _CallbackHeartbeat | None = None
+    is_dag_attribute: bool = False
     timed_out: bool = attrs.field(default=False, init=False)
     _io: _CallbackIO | None = attrs.field(default=None, init=False)
 
@@ -593,6 +594,14 @@ class CallbackSubprocess(WatchedSubprocess):
             _register_request_handler(GetPrevSuccessfulDagRun, _handle_previous_successful_dag_run_request),
         ]
     )
+
+    def _handle_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
+        if not self.is_dag_attribute and not isinstance(
+            msg, (GetConnection, GetVariable, GetVariableKeys, GetXCom, MaskSecret)
+        ):
+            self._reject_request(msg, log, req_id)
+            return
+        super()._handle_request(msg, log, req_id)
 
     def _call_request_handler(
         self, handler: RequestHandler[Any], msg: BaseModel, log: FilteringBoundLogger, req_id: int
@@ -635,6 +644,8 @@ class CallbackSubprocess(WatchedSubprocess):
         file at ``bundle_info`` and runs the callbacks the context names instead of ``callback_path``.
         """
         callback_id = UUID(id) if not isinstance(id, UUID) else id
+        if context is not None:
+            kwargs["is_dag_attribute"] = True
         deadline = kwargs.get("execution_deadline")
         startup_io = _CallbackIO(
             client, callback_id, kwargs.get("heartbeat"), deadline, kwargs.get("execution_timeout")

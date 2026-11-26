@@ -57,7 +57,11 @@ There are three different places where callbacks can be defined.
     the workers before enabling routing. For example, older Amazon provider versions can run deadline
     alerts but omit a task's ECS IAM and network overrides when launching its callback. Custom executors
     declare ``supports_routed_callbacks = True`` once they preserve the launch settings and handle
-    duplicate deliveries. During a rolling upgrade, deadline callbacks queued by older schedulers
+    duplicate deliveries. For container executors, exit code 75 (``os.EX_TEMPFAIL``) from the
+    callback command means that the Execution API refused this delivery because the callback
+    already started or its start deadline passed. Discard the delivery without retrying it or
+    reporting a terminal callback state. The admitted worker reports its own outcome.
+    During a rolling upgrade, deadline callbacks queued by older schedulers
     keep their original worker-loss handling. Before rolling back the last upgraded scheduler,
     let deadline callbacks it enrolled for heartbeat monitoring finish or expire.
 

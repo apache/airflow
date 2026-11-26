@@ -244,6 +244,10 @@ class TestAwsBatchExecutor:
         mock_executor.release_callback(callback_key)
         mock_executor.release_callback(callback_key)
 
+        assert mock_executor.batch.cancel_job.call_args_list == (
+            [mock.call(jobId="callback-job", reason="Airflow settled this callback")] if submitted else []
+        )
+
         assert [job.key for job in mock_executor.pending_jobs] == [pending_key]
         assert mock_executor.active_workers.key_to_id == {active_key: "active-task"}
         assert mock_executor.active_workers.id_to_key == {"active-task": active_key}

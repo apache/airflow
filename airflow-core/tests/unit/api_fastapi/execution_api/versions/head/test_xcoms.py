@@ -31,7 +31,13 @@ from sqlalchemy.orm import Session
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTValidator
-from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, TIClaims, TIToken
+from airflow.api_fastapi.execution_api.datamodels.token import (
+    CallbackClaims,
+    CallbackExecutionToken,
+    ExecutionToken,
+    TIClaims,
+    TIToken,
+)
 from airflow.api_fastapi.execution_api.datamodels.xcom import XComResponse
 from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, InProcessExecutionAPI
 from airflow.api_fastapi.execution_api.security import _jwt_bearer, require_auth
@@ -2092,10 +2098,10 @@ class TestXComTeamAccess:
         target_dr, _ = self._make_dag(session, dag_maker, target_dag, target_team)
         self._insert_xcom(session, target_dr)
 
-        async def _auth(request: Request) -> TIToken:
-            return TIToken(
+        async def _auth(request: Request) -> CallbackExecutionToken:
+            return CallbackExecutionToken(
                 id=uuid4(),
-                claims=TIClaims(
+                claims=CallbackClaims(
                     scope="execution", dag_id=requester_dag, bundle_name=f"bundle-{requester_dag}"
                 ),
             )

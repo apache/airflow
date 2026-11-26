@@ -23,7 +23,7 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
-from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+from airflow.callbacks.database_callback_sink import get_callback_sink
 from airflow.models.callback import Callback, CallbackFetchMethod, DagProcessorCallback, ExecutorCallback
 from airflow.utils.state import CallbackState, TaskInstanceState
 
@@ -54,7 +54,7 @@ def _clean_callbacks():
 def test_send_stores_callbacks_for_routing_only_when_it_is_on(session, route, expected_class, expected_state):
     """With routing on, no Dag processor claims a callback before the scheduler routes it."""
     with conf_vars({("callbacks", "route_dag_processor_callbacks"): route}):
-        sink = DatabaseCallbackSink()
+        sink = get_callback_sink()
 
     sink.send(REQUEST, session=session)
     session.commit()
@@ -92,7 +92,7 @@ def test_send_stores_task_successes_only_for_dag_processors(session, route, expe
         task_callback_type=TaskInstanceState.SUCCESS,
     )
     with conf_vars({("callbacks", "route_dag_processor_callbacks"): route}):
-        sink = DatabaseCallbackSink()
+        sink = get_callback_sink()
 
     sink.send(request, session=session)
     session.commit()

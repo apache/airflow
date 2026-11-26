@@ -117,6 +117,9 @@ permissions based on the tasks that are described in the Dag being run.
 If you are loading Dags via an S3 bucket, this role needs to have
 permission to read the S3 bucket.
 
+When routing callbacks to AWS Batch, grant the scheduler's AWS identity ``batch:CancelJob``
+so it can remove a settled callback's job from the Batch queue.
+
 To create a new Job Role or Execution Role, follow the steps
 below:
 

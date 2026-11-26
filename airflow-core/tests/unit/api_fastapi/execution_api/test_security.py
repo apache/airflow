@@ -38,6 +38,8 @@ from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api import security
 from airflow.api_fastapi.execution_api.app import InProcessExecutionAPI, lifespan
 from airflow.api_fastapi.execution_api.datamodels.token import (
+    CallbackClaims,
+    CallbackExecutionToken,
     DagParseClaims,
     DagParseToken,
     DagProcessorClaims,
@@ -363,10 +365,23 @@ class TestJWTBearer:
         app.include_router(router)
         return app
 
+    @pytest.mark.parametrize("identity", [{"dag_id": "only_a_dag"}, {"bundle_name": "callback_bundle"}])
+    def test_callback_execution_token_construction(self, app, identity):
+        validator = MagicMock(spec=JWTValidator)
+        validator.avalidated_claims.return_value = {"sub": SESSION_SUB, "scope": "execution", **identity}
+        app.state.svcs_registry.register_value(JWTValidator, validator)
+        response = TestClient(app).get("/protected", headers={"Authorization": "Bearer callback-token"})
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": SESSION_SUB,
+            "token_type": "CallbackExecutionToken",
+            "claims_type": "CallbackClaims",
+        }
+
     @pytest.mark.parametrize("scope", [pytest.param(None, id="legacy"), "execution", "workload", "callback"])
     def test_task_token_dependency_returns_task_token(self, app, scope):
         validator = MagicMock(spec=JWTValidator)
-        claims = {"sub": SESSION_SUB}
+        claims = {"sub": SESSION_SUB, "dag_id": None, "run_id": None, "bundle_name": None}
         if scope is not None:
             claims["scope"] = scope
         validator.avalidated_claims.return_value = claims
@@ -616,7 +631,7 @@ class TestGetTeamNameDep:
         bundle.teams.append(Team(name="team_a"))
         session.add(bundle)
         session.commit()
-        token = TIToken(id=UUID(int=3), claims=TIClaims(scope="execution", bundle_name="callback_bundle"))
+        token = CallbackExecutionToken(id=UUID(int=3), claims=CallbackClaims(bundle_name="callback_bundle"))
 
         try:
             with conf_vars({("core", "multi_team"): "True"}):

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Annotated, Any, Literal, cast
+from uuid import UUID
 
 import structlog
 from pydantic import BaseModel, Field, model_validator
@@ -27,6 +28,12 @@ from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy.orm.exc import DetachedInstanceError
 
 from airflow.api_fastapi.execution_api.datamodels import taskinstance as ti_datamodel  # noqa: TC001
+from airflow.api_fastapi.execution_api.datamodels.callback import (
+    DagCallbackContext,
+    EmailCallbackContext,
+    TaskCallbackContext,
+)
+from airflow.executors.workloads.callback import CALLBACK_REQUEST_DATA_KEY
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -51,9 +58,17 @@ class BaseCallbackRequest(BaseModel):
     msg: str | None = None
     """Additional Message that can be used for logging to determine failure/task heartbeat timeout"""
 
+    @property
+    def needs_execution(self) -> bool:
+        return True
+
     @classmethod
     def from_json(cls, data: str | bytes | bytearray) -> Self:
         return cls.model_validate_json(data)
+
+    def serialize(self) -> dict[str, str]:
+        """Storage format read by both the Dag processor and the callback execution endpoint."""
+        return {"req_class": type(self).__name__, CALLBACK_REQUEST_DATA_KEY: self.to_json()}
 
     def to_json(self, **kwargs) -> str:
         return self.model_dump_json(**kwargs)
@@ -76,6 +91,22 @@ class TaskCallbackRequest(BaseCallbackRequest):
     task_started: bool = True
     """Whether the attempt ran on a worker. A routed callback for one that never did avoids its queue."""
     type: Literal["TaskCallbackRequest"] = "TaskCallbackRequest"
+
+    def get_routing_info(self) -> tuple[str, str, UUID | None]:
+        return self.ti.dag_id, self.ti.run_id, self.ti.id if self.task_started else None
+
+    def build_callback_context(self) -> TaskCallbackContext:
+        return TaskCallbackContext(
+            type="TaskCallback",
+            ti=self.ti,
+            task_callback_type=self.task_callback_type,
+            msg=self.msg,
+            ti_context=self.context_from_server,
+        )
+
+    @property
+    def needs_execution(self) -> bool:
+        return self.is_failure_callback
 
     @property
     def is_failure_callback(self) -> bool:
@@ -101,6 +132,18 @@ class EmailRequest(BaseCallbackRequest):
     task_started: bool = True
     """Whether the attempt ran on a worker. A routed email for one that never did avoids its queue."""
     type: Literal["EmailRequest"] = "EmailRequest"
+
+    def get_routing_info(self) -> tuple[str, str, UUID | None]:
+        return self.ti.dag_id, self.ti.run_id, self.ti.id if self.task_started else None
+
+    def build_callback_context(self) -> EmailCallbackContext:
+        return EmailCallbackContext(
+            type="EmailCallback",
+            ti=self.ti,
+            email_type=self.email_type,
+            msg=self.msg,
+            ti_context=self.context_from_server,
+        )
 
 
 class DagRunContext(BaseModel):
@@ -176,6 +219,21 @@ class DagCallbackRequest(BaseCallbackRequest):
     is_failure_callback: bool | None = True
     """Flag to determine whether it is a Failure Callback or Success Callback"""
     type: Literal["DagCallbackRequest"] = "DagCallbackRequest"
+
+    def get_routing_info(self) -> tuple[str, str, None]:
+        return self.dag_id, self.run_id, None
+
+    def build_callback_context(self) -> DagCallbackContext:
+        run_context = self.context_from_server
+        return DagCallbackContext(
+            type="DagCallback",
+            dag_id=self.dag_id,
+            run_id=self.run_id,
+            is_failure_callback=bool(self.is_failure_callback),
+            msg=self.msg,
+            dag_run=run_context.dag_run if run_context else None,
+            last_ti=run_context.last_ti if run_context else None,
+        )
 
 
 CallbackRequest = Annotated[

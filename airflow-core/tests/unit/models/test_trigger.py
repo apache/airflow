@@ -941,21 +941,15 @@ def test_submit_success_event_preserves_bundle_without_loading_dag(
     assert request.version_data == version_data
 
 
-@pytest.mark.parametrize("rescheduled", [False, True])
 @pytest.mark.parametrize(
-    "worker_heartbeat_offset",
-    [
-        pytest.param(None, id="not-on-a-worker"),
-        pytest.param(datetime.timedelta(0), id="resumed-on-a-worker"),
-        # The scheduler stamps the start of a direct deferral and the API server the heartbeat, so a
-        # scheduler clock ahead of the API server's puts the heartbeat first.
-        pytest.param(datetime.timedelta(seconds=-1), id="resumed-on-a-worker-behind-the-scheduler-clock"),
-    ],
+    ("rescheduled", "resumed", "expected_started"),
+    [(False, False, False), (False, True, True), (True, False, True)],
+    ids=["direct-deferral", "resumed-on-worker", "previous-worker-run-in-same-try"],
 )
 @time_machine.travel("2026-10-22 12:00:00+00:00", tick=False)
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send", autospec=True)
 def test_submit_event_callback_records_whether_a_trigger_started_attempt_ran_on_a_worker(
-    mock_send, session, create_task_instance, rescheduled, worker_heartbeat_offset
+    mock_send, session, create_task_instance, rescheduled, resumed, expected_started
 ):
     task_instance = create_task_instance(
         session=session,
@@ -970,15 +964,14 @@ def test_submit_event_callback_records_whether_a_trigger_started_attempt_ran_on_
         task_instance.start_date = timezone.utcnow() - datetime.timedelta(minutes=2)
         task_instance.last_heartbeat_at = timezone.utcnow() - datetime.timedelta(minutes=1)
     assert task_instance.defer_task(session=session)
-    if worker_heartbeat_offset is not None:
+    if resumed:
         task_instance.pid = 4343
-        task_instance.last_heartbeat_at = task_instance.start_date + worker_heartbeat_offset
     session.commit()
 
     Trigger.submit_event(task_instance.trigger_id, TaskFailedEvent(), session=session)
 
     mock_send.assert_called_once()
-    assert mock_send.call_args.kwargs["callback"].task_started is (worker_heartbeat_offset is not None)
+    assert mock_send.call_args.kwargs["callback"].task_started is expected_started
 
 
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")

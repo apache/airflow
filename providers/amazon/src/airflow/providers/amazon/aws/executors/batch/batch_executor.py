@@ -291,6 +291,11 @@ class AwsBatchExecutor(BaseExecutor):
         self.pending_jobs = deque(job for job in self.pending_jobs if job.key != key)
         if job_id := self.active_workers.key_to_id.pop(key, None):
             self.active_workers.remove_job(job_id)
+            try:
+                # CancelJob only affects queued jobs. A worker already running can finish reporting.
+                self.batch.cancel_job(jobId=job_id, reason="Airflow settled this callback")
+            except Exception:
+                self.log.exception("Failed to cancel Batch job %s for released callback %s", job_id, key)
         super().release_callback(key)
 
     def sync_running_jobs(self):

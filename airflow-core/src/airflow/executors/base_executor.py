@@ -209,8 +209,16 @@ class BaseExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = False
     supported_workload_types: frozenset[WorkloadType] = frozenset({WorkloadType.EXECUTE_TASK})
     supports_callbacks = _LegacyWorkloadFlag(WorkloadType.EXECUTE_CALLBACK)
-    # Older executors may support deadline alerts without preserving a routed task's launch settings.
+    # EXECUTE_CALLBACK covers import-path deadline alerts. Routed callbacks additionally require
+    # the task's queue and executor_config, duplicate-delivery handling, and release_callback.
     supports_routed_callbacks: bool = False
+
+    @property
+    def can_route_callbacks(self) -> bool:
+        return (
+            self.supports_routed_callbacks and WorkloadType.EXECUTE_CALLBACK in self.supported_workload_types
+        )
+
     supports_connection_test = _LegacyWorkloadFlag(WorkloadType.TEST_CONNECTION)
     supports_multi_team: bool = False
     # Opt in only when submission, adoption, result decoding and cleanup all carry UUIDs.

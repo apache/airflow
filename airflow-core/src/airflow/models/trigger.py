@@ -901,7 +901,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         task_instance_to_runtime,
     )
     from airflow.callbacks.callback_requests import TaskCallbackRequest
-    from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+    from airflow.callbacks.database_callback_sink import get_callback_sink
     from airflow.models.dagbag import DBDagBag
     from airflow.models.task_coordinates import TaskCoordinateResolver
     from airflow.utils.state import TaskInstanceState
@@ -948,15 +948,14 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
                     map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
                 ),
                 task_callback_type=callback_type,
-                # Only a worker running the task sets it, and ``defer_task`` clears it.
-                task_started=task_instance.last_heartbeat_at is not None,
+                task_started=task_instance.has_run_on_worker,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
                 version_data=version_data,
             )
             log.info("Sending callback: %s", request)
             try:
-                DatabaseCallbackSink().send(callback=request, session=session)
+                get_callback_sink().send(callback=request, session=session)
             except Exception:
                 log.exception("Failed to send callback.")
 

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Tests for the callback lookup index migration, written against the schema as it stood at that revision.
+Tests for the callback storage migrations, using the schema at each revision.
 
 The table is declared here instead of taken from ``airflow.models``, so later model changes cannot change
 what these tests exercise.
@@ -135,3 +135,55 @@ def test_downgrade_settles_routed_callbacks(database_at_revision):
             .select_from(callback)
             .where(callback.c.id == ids["deadline"])
         ).one() == (None, None)
+
+
+def test_run_reference_migration_preserves_deadlines(database_at_revision):
+    link = import_module("airflow.migrations.versions.0160_3_5_0_link_callbacks_to_dag_runs")
+    downgrade(to_revision=link.down_revision)
+    deadline = sa.table(
+        "deadline",
+        sa.column("id", sa.Uuid),
+        sa.column("callback_id", sa.Uuid),
+        sa.column("created_at", UtcDateTime),
+        sa.column("last_updated_at", UtcDateTime),
+        sa.column("deadline_time", UtcDateTime),
+        sa.column("missed", sa.Boolean),
+    )
+    callback_id, deadline_id = uuid6.uuid7(), uuid6.uuid7()
+    now = timezone.utcnow()
+    with database_at_revision.begin() as conn:
+        conn.execute(
+            callback.insert().values(
+                id=callback_id,
+                type="executor",
+                fetch_method="import_path",
+                data={},
+                state="queued",
+                priority_weight=1,
+                created_at=now,
+            )
+        )
+        conn.execute(
+            deadline.insert().values(
+                id=deadline_id,
+                callback_id=callback_id,
+                created_at=now,
+                last_updated_at=now,
+                deadline_time=now,
+                missed=True,
+            )
+        )
+    for migrate, rev in [(upgradedb, link.revision), (downgrade, link.down_revision)]:
+        migrate(to_revision=rev)
+        with database_at_revision.connect() as conn:
+            assert (
+                conn.scalar(sa.select(deadline.c.callback_id).where(deadline.c.id == deadline_id))
+                == callback_id
+            )
+            has_fk = any(
+                fk["constrained_columns"] == ["dag_run_id"]
+                and fk["referred_table"] == "dag_run"
+                and fk["options"].get("ondelete") == "SET NULL"
+                for fk in sa.inspect(conn).get_foreign_keys("callback")
+            )
+            assert has_fk is (rev == link.revision)

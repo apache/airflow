@@ -31,9 +31,6 @@ from airflow.api_fastapi.execution_api.datamodels.callback import (
     CallbackContextResponse,
     CallbackRunPayload,
     CallbackTerminalStatePayload,
-    DagCallbackContext,
-    EmailCallbackContext,
-    TaskCallbackContext,
 )
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import PrevSuccessfulDagRunResponse
 from airflow.api_fastapi.execution_api.deps import DepContainer
@@ -42,7 +39,6 @@ from airflow.api_fastapi.execution_api.security import (
     issue_execution_token,
     require_auth,
 )
-from airflow.callbacks.callback_requests import DagCallbackRequest, EmailRequest, TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.executors.workloads.callback import (
     EXECUTION_TIMEOUT_KEY,
@@ -131,7 +127,11 @@ def run_callback(
             started_by is not None
             and prefer == "callback-heartbeat"
             and callback.fetch_method == CallbackFetchMethod.IMPORT_PATH
-            and callback.data.get(HEARTBEAT_SUPPORTED_KEY)
+            and (
+                callback.heartbeat_supported
+                if callback.heartbeat_supported is not None
+                else callback.data.get(HEARTBEAT_SUPPORTED_KEY)
+            )
         )
         else None
     )
@@ -251,37 +251,7 @@ def get_callback_context(callback_id: UUID, session: SessionDep) -> CallbackCont
             },
         )
 
-    context: DagCallbackContext | TaskCallbackContext | EmailCallbackContext
-    if isinstance(request, DagCallbackRequest):
-        run_context = request.context_from_server
-        context = DagCallbackContext(
-            type="DagCallback",
-            dag_id=request.dag_id,
-            run_id=request.run_id,
-            is_failure_callback=bool(request.is_failure_callback),
-            msg=request.msg,
-            dag_run=run_context.dag_run if run_context else None,
-            last_ti=run_context.last_ti if run_context else None,
-        )
-    elif isinstance(request, TaskCallbackRequest):
-        context = TaskCallbackContext(
-            type="TaskCallback",
-            ti=request.ti,
-            task_callback_type=request.task_callback_type,
-            msg=request.msg,
-            ti_context=request.context_from_server,
-        )
-    elif isinstance(request, EmailRequest):
-        context = EmailCallbackContext(
-            type="EmailCallback",
-            ti=request.ti,
-            email_type=request.email_type,
-            msg=request.msg,
-            ti_context=request.context_from_server,
-        )
-    else:
-        raise TypeError(f"Unknown callback request type: {type(request).__name__}")
-    return CallbackContextResponse(context=context)
+    return CallbackContextResponse(context=request.build_callback_context())
 
 
 @router.get(

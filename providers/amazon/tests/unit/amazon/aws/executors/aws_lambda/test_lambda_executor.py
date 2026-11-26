@@ -249,7 +249,12 @@ class TestAwsLambdaExecutor:
         mock_executor.running_workloads[str(first)] = first
         mock_executor.release_callback(first)
 
-        mock_time.monotonic.return_value += lambda_executor._RELEASED_CALLBACK_RETENTION / 2
+        mock_time.monotonic.return_value += lambda_executor._RELEASED_CALLBACK_POLL_WINDOW
+        mock_executor.sync_running_workloads()
+        mock_executor.sqs_client.receive_message.assert_not_called()
+        assert str(first) in mock_executor._released_callbacks
+
+        mock_time.monotonic.return_value = 1000 + lambda_executor._RELEASED_CALLBACK_RETENTION / 2
         mock_executor.running_workloads[str(second)] = second
         mock_executor.release_callback(second)
         mock_executor.release_callback(first)

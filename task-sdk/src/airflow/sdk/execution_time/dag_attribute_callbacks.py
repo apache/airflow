@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
+from functools import singledispatch
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -76,11 +77,7 @@ def run_dag_attribute_callbacks(
         bundle = initialize_ti_bundle(bundle_info)
         with BundleVersionLock(bundle_name=bundle.name, bundle_version=bundle.version):
             dag = _load_dag(_get_dag_id(context), Path(bundle.path, dag_rel_path), bundle.path, bundle.name)
-            if isinstance(context, DagCallbackContext):
-                return _run_dag_callbacks(context, dag, log)
-            if isinstance(context, TaskCallbackContext):
-                return _run_task_callbacks(context, dag, log)
-            return _send_task_email(context, dag, log)
+            return _run_context_callback(context, dag, log)
     except Exception as e:
         log.exception("Could not run the callbacks", dag_rel_path=os.fspath(dag_rel_path))
         return [f"{type(e).__name__}: {e}"]
@@ -137,6 +134,12 @@ def _run_callbacks(callbacks: Any, template_context: Context, log: FilteringBoun
     return errors
 
 
+@singledispatch
+def _run_context_callback(context: object, dag: DAG, log: FilteringBoundLogger) -> list[str]:
+    raise TypeError(f"Unsupported callback context: {type(context).__name__}")
+
+
+@_run_context_callback.register(DagCallbackContext)
 def _run_dag_callbacks(context: DagCallbackContext, dag: DAG, log: FilteringBoundLogger) -> list[str]:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
@@ -185,6 +188,7 @@ def _run_dag_callbacks(context: DagCallbackContext, dag: DAG, log: FilteringBoun
     return errors
 
 
+@_run_context_callback.register(TaskCallbackContext)
 def _run_task_callbacks(context: TaskCallbackContext, dag: DAG, log: FilteringBoundLogger) -> list[str]:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
 
@@ -221,6 +225,7 @@ def _run_task_callbacks(context: TaskCallbackContext, dag: DAG, log: FilteringBo
     return _run_callbacks(callbacks, template_context, log)
 
 
+@_run_context_callback.register(EmailCallbackContext)
 def _send_task_email(context: EmailCallbackContext, dag: DAG, log: FilteringBoundLogger) -> list[str]:
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance, _send_error_email_notification
 

@@ -19,11 +19,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
+
 from airflow import settings
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
-from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import conf
 from airflow.models.callback import ExecutorCallback
+from airflow.models.dagrun import DagRun
 from airflow.models.db_callback_request import DbCallbackRequest
 
 if TYPE_CHECKING:
@@ -35,11 +37,6 @@ if TYPE_CHECKING:
 class DatabaseCallbackSink(BaseCallbackSink):
     """Sends callbacks to database."""
 
-    def __init__(self) -> None:
-        # Read here rather than per callback: the scheduler sends callbacks where it must not read
-        # configuration, which may come from the metadata database.
-        self.route_to_executors = conf.getboolean("callbacks", "route_dag_processor_callbacks")
-
     def send(self, callback: CallbackRequest, *, session: Session | None = None) -> None:
         """
         Send callback for execution.
@@ -49,10 +46,28 @@ class DatabaseCallbackSink(BaseCallbackSink):
         """
         if session is None:
             session = settings.get_session()()
-        if self.route_to_executors:
-            if isinstance(callback, TaskCallbackRequest) and not callback.is_failure_callback:
-                # Such as a trigger's task success. Dag processors drop these, so they aren't worth a worker.
-                return
-            session.add(ExecutorCallback.from_dag_processor_request(callback))
-        else:
-            session.add(DbCallbackRequest(callback=callback, priority_weight=1))
+        session.add(DbCallbackRequest(callback=callback, priority_weight=1))
+
+
+class ExecutorCallbackSink(BaseCallbackSink):
+    """Store requests for the scheduler to route to executors."""
+
+    def send(self, callback: CallbackRequest, *, session: Session | None = None) -> None:
+        if not callback.needs_execution:
+            return
+        if session is None:
+            session = settings.get_session()()
+        row = ExecutorCallback.from_dag_processor_request(callback)
+        dag_id, run_id, _ = callback.get_routing_info()
+        # Capture the original run in the INSERT, even if this callback waits before being routed.
+        row.dag_run_id = (
+            select(DagRun.id).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id).scalar_subquery()
+        )
+        row.has_dag_run_reference = True
+        session.add(row)
+
+
+def get_callback_sink() -> DatabaseCallbackSink | ExecutorCallbackSink:
+    if conf.getboolean("callbacks", "route_dag_processor_callbacks"):
+        return ExecutorCallbackSink()
+    return DatabaseCallbackSink()

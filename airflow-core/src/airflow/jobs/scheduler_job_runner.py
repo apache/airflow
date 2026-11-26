@@ -416,20 +416,6 @@ def _executor_health_key(executor: BaseExecutor) -> str | None:
 
 
 @dataclass(frozen=True)
-class _CallbackExecutorRef(BaseWorkload):
-    """The Dag and executor name a Dag processor callback is routed by, to look its executor up."""
-
-    dag_id: str
-    executor: str | None
-
-    def get_dag_id(self) -> str | None:
-        return self.dag_id
-
-    def get_executor_name(self) -> str | None:
-        return self.executor
-
-
-@dataclass(frozen=True)
 class _CallbackTarget:
     """Where a Dag processor callback is routed, and what its workload is made from."""
 
@@ -533,10 +519,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.executor: BaseExecutor = self.executors[0]
         if self._route_dag_processor_callbacks_enabled:
             unsupported = {
-                type(executor).__name__
-                for executor in self.executors
-                if not executor.supports_routed_callbacks
-                or WorkloadType.EXECUTE_CALLBACK not in executor.supported_workload_types
+                type(executor).__name__ for executor in self.executors if not executor.can_route_callbacks
             }
             if unsupported:
                 raise ValueError(
@@ -1793,17 +1776,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     generator=executor.jwt_generator,
                 )
 
-                try:
-                    executor.queue_workload(workload, session=session)
-                except NotImplementedError as e:
-                    # Some executors run callbacks without declaring it, so ask the executor itself.
-                    self.log.error("Failing callback %s: %s", callback.id, e)
-                    callback.state = CallbackState.FAILED
-                    callback.output = str(e)
-                else:
-                    callback.state = CallbackState.QUEUED
-                    if callback.fetch_method == CallbackFetchMethod.IMPORT_PATH:
-                        callback.data = {**callback.data, HEARTBEAT_SUPPORTED_KEY: True}
+                executor.queue_workload(workload, session=session)
+                callback.state = CallbackState.QUEUED
+                if callback.fetch_method == CallbackFetchMethod.IMPORT_PATH:
+                    callback.heartbeat_supported = True
+                    # An older API server reads the capability from the serialized callback.
+                    callback.data = {**callback.data, HEARTBEAT_SUPPORTED_KEY: True}
                 session.add(callback)
 
     def _route_dag_processor_callbacks(self, *, session: Session) -> None:
@@ -1946,18 +1924,16 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         executor_name: str | None = None
         queue: str | None = None
         executor_config: dict | None = None
-        if isinstance(request, DagCallbackRequest):
-            dag_id, run_id = request.dag_id, request.run_id
-        else:
-            dag_id, run_id = request.ti.dag_id, request.ti.run_id
-            # One that never started, such as a task failed while stuck in the queue, goes to the team's
-            # default executor and queue: its own queue just failed to run it.
-            if request.task_started:
-                executor_name, queue, executor_config = self._get_task_executor_settings(
-                    request.ti.id, session=session
-                )
+        dag_id, run_id, started_ti_id = request.get_routing_info()
+        if started_ti_id is not None:
+            executor_name, queue, executor_config = self._get_task_executor_settings(
+                started_ti_id, session=session
+            )
 
-        dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
+        if callback.has_dag_run_reference:
+            dag_run = callback.get_dag_run(session=session)
+        else:
+            dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
         if dag_run is None:
             raise _UnroutableCallbackError(f"Dag run {run_id} of {dag_id} not found")
         serialized_dag = self.scheduler_dag_bag.get_dag_for_run(dag_run, session=session)
@@ -1973,14 +1949,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         team_name = (
             self._get_team_names_for_dag_ids([dag_id], session).get(dag_id) if self._multi_team else None
         )
-        executor = self._try_to_load_executor(
-            _CallbackExecutorRef(dag_id=dag_id, executor=executor_name), session, team_name=team_name
-        )
-        if (
-            executor is None
-            or not executor.supports_routed_callbacks
-            or WorkloadType.EXECUTE_CALLBACK not in executor.supported_workload_types
-        ):
+        executor = self._resolve_executor(executor_name, team_name)
+        if executor is None or not executor.can_route_callbacks:
             raise _UnroutableCallbackError(
                 f"No executor {executor_name or 'default'} able to run callbacks is configured for "
                 f"Dag {dag_id}"
@@ -1998,6 +1968,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _queue_routed_callback(
         self, callback: ExecutorCallback, target: _CallbackTarget, *, now: datetime, session: Session
     ) -> None:
+        callback.set_dag_run(target.dag_run)
         data = {
             **callback.data,
             "dag_id": target.dag_run.dag_id,
@@ -2071,6 +2042,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             cls.logger().warning("Failing routed callback %s: %s", callback_id, output)
             return True
         replacement = ExecutorCallback.from_dag_processor_request(request)
+        replacement.dag_run_id = callback.dag_run_id
+        replacement.has_dag_run_reference = callback.has_dag_run_reference
         replacement.data[TRY_NUMBER_KEY] = try_number + 1
         session.add(replacement)
         session.flush()
@@ -2121,6 +2094,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .execution_options(include_all_attempts=True)
         ).one_or_none()
         return (ti.executor, ti.queue, ti.executor_config) if ti is not None else (None, None, None)
+
+    def _maintain_callbacks_when_routing_disabled(self) -> None:
+        """Check both kinds of outstanding work in one round trip on idle deployments."""
+        with create_session() as session:
+            waiting, expired = session.execute(
+                select(
+                    select(ExecutorCallback.id)
+                    .where(
+                        ExecutorCallback.state == CallbackState.SCHEDULED,
+                        ExecutorCallback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE,
+                    )
+                    .exists(),
+                    select(ExecutorCallback.id)
+                    .where(
+                        ExecutorCallback.state.in_((CallbackState.QUEUED, CallbackState.RUNNING)),
+                        ExecutorCallback.state_deadline <= timezone.utcnow(),
+                    )
+                    .exists(),
+                )
+            ).one()
+            if not expired:
+                self._release_settled_callbacks(session=session)
+        if expired:
+            self._reap_routed_callbacks()
+        if waiting:
+            self._hand_back_waiting_callbacks()
 
     def _reap_routed_callbacks(self) -> None:
         """Settle expired executor callbacks and free the executor slots of settled ones."""
@@ -2572,7 +2571,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
 
             if ti_queued and not ti_requeued:
-                task_started = ti.state == TaskInstanceState.RUNNING
+                task_started = ti.has_run_on_worker
                 team_name = (
                     DagModel.get_team_name(ti.dag_id, session=session)
                     if conf.getboolean("core", "multi_team")
@@ -2719,12 +2718,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # for a normal return or SystemExit (^C, SIGTERM), FAILED if the loop raised.
         executor_jobs_state = JobState.SUCCESS
         try:
-            callback_sink: DatabaseCallbackSink
+            from airflow.callbacks.database_callback_sink import get_callback_sink
 
-            from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
-
-            self.log.debug("Using DatabaseCallbackSink as callback sink.")
-            callback_sink = DatabaseCallbackSink()
+            callback_sink = get_callback_sink()
 
             for executor in self.executors:
                 executor.job_id = self.job.id
@@ -2923,19 +2919,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             conf.getfloat("scheduler", "parsing_cleanup_interval"), cleanup_processor_metadata, non_fatal=True
         )
 
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
-            self._handle_tasks_stuck_in_queued,
-        )
-
-        # Runs even with routing turned off, to settle callbacks routed before it was.
-        timers.call_regular_interval(
-            conf.getfloat("scheduler", "task_queued_timeout_check_interval"),
-            self._reap_routed_callbacks,
-            non_fatal=True,
-        )
         callback_check_interval = conf.getfloat("scheduler", "task_queued_timeout_check_interval")
+        timers.call_regular_interval(callback_check_interval, self._handle_tasks_stuck_in_queued)
+
         if self._route_dag_processor_callbacks_enabled:
+            timers.call_regular_interval(callback_check_interval, self._reap_routed_callbacks, non_fatal=True)
             # Forgets callbacks other schedulers settled, and has the rest wait on their current team's
             # executor.
             timers.call_regular_interval(callback_check_interval, self._waiting_callback_executors.clear)
@@ -2948,7 +2936,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 # Not worth failing startup for: the timer tries again.
                 self.log.exception("Failed to hand back waiting callbacks")
             timers.call_regular_interval(
-                callback_check_interval, self._hand_back_waiting_callbacks, non_fatal=True
+                callback_check_interval, self._maintain_callbacks_when_routing_disabled, non_fatal=True
             )
 
         timers.call_regular_interval(
@@ -4513,7 +4501,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                                 ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
                             ),
                             msg=msg,
-                            task_started=False,
+                            task_started=ti.has_run_on_worker,
                             context_from_server=TIRunContext(
                                 dag_run=ti.dag_run,
                                 max_tries=ti.max_tries,
@@ -5621,8 +5609,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         else:
             team_name = None
 
+        return self._resolve_executor(workload.get_executor_name(), team_name)
+
+    def _resolve_executor(self, executor_name: str | None, team_name: str | None) -> BaseExecutor | None:
         executor: BaseExecutor | None
-        executor_name = workload.get_executor_name()
         if executor_name is None and not team_name:
             # No team and no executor named on the workload, so it's always the global default.
             executor = self.executor
@@ -5642,9 +5632,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 executor = executors_by_name[resolved_name]
 
         if executor is not None:
-            self.log.debug(
-                "Found executor %s for task or callback %s (team: %s)", executor.name, workload, team_name
-            )
+            self.log.debug("Found executor %s for team %s", executor.name, team_name)
         else:
             # This case should not happen unless some (as of now unknown) edge case occurs or direct DB
             # modification, since the DAG parser will validate the tasks in the DAG and ensure the executor
@@ -5653,7 +5641,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # ourselves here and the user should get some feedback about that.
             self.log.warning(
                 "Executor, %s, was not found but a Task or Callback was configured to use it",
-                workload.get_executor_name(),
+                executor_name,
             )
 
         return executor

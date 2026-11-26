@@ -326,7 +326,9 @@ class Deadline(Base):
 
         elif isinstance(self.callback, ExecutorCallback):
             data = callback_data_with_context()
+            self.callback.set_dag_run(self.dagrun)
             data["deadline_id"] = str(self.id)
+            # Older schedulers can still enqueue this pending deadline during rolling upgrades.
             data["dag_run_id"] = str(self.dagrun.id)
             data["dag_id"] = self.dagrun.dag_id
             self.callback.data = data

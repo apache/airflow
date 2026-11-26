@@ -142,6 +142,9 @@ permissions based on the tasks that are described in the Dag being run.
 If you are loading Dags via an S3 bucket, this role needs to have
 permission to read the S3 bucket.
 
+When routing callbacks to ECS, grant the scheduler's AWS identity ``ecs:StopTask``
+so it can stop a pending ECS task after its callback misses the start deadline.
+
 To create a new Task Role or Task Execution Role, follow the steps
 below:
 

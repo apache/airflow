@@ -116,6 +116,8 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import (
+    CallbackClaims,
+    CallbackExecutionToken,
     DagParseClaims,
     DagParseToken,
     DagProcessorClaims,
@@ -123,7 +125,6 @@ from airflow.api_fastapi.execution_api.datamodels.token import (
     DagProcessorToken,
     ExecutionToken,
     TaskTokenScope,
-    TIClaims,
     TIToken,
     TokenScope,
 )
@@ -242,6 +243,10 @@ class JWTBearer(HTTPBearer):
             token_type = (
                 _TOKEN_MODELS.get(scope, ExecutionToken) if isinstance(scope, str) else ExecutionToken
             )
+            # Only callback exchanges sign a Dag, run, or bundle identity. Older task tokens
+            # may contain the same keys with null values after a refresh.
+            if scope == "execution" and any(claims.get(name) for name in ("dag_id", "run_id", "bundle_name")):
+                token_type = CallbackExecutionToken
             token = token_type.model_validate({"id": claims.get("sub"), "claims": claims})
         except ValidationError as err:
             log.warning("JWT claims did not match Execution API principal schema", exc_info=True)
@@ -595,7 +600,7 @@ def _team_name_for_ti_stmt(ti_id):
 
 def _team_name_for_requester_stmt(token: ExecutionToken):
     """Build the select statement resolving a task's or callback's token to its team name."""
-    if isinstance(token.claims, TIClaims) and token.claims.bundle_name:
+    if isinstance(token.claims, CallbackClaims):
         return _team_name_for_bundle_stmt(token.claims.bundle_name)
     return _team_name_for_ti_stmt(token.id)
 

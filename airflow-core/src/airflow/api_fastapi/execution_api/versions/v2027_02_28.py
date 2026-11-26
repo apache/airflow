@@ -130,6 +130,10 @@ class AddCallbackContextEndpoint(VersionChange):
     It can also read its Dag's previous successful run. An attempt to run a callback can also identify
     itself when it exchanges the callback's token, so it can repeat its own exchange. Requests of
     earlier versions keep the single-use exchange.
+
+    Workers request heartbeats with ``Prefer: callback-heartbeat`` on the exchange. If the server
+    returns ``Airflow-Callback-Heartbeat-Timeout`` for a deadline callback, its worker renews the lease with
+    ``PUT /callbacks/{callback_id}/heartbeat``. Without the response header it skips renewal.
     """
 
     description = __doc__

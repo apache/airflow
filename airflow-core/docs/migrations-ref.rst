@@ -39,7 +39,9 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | Revision ID             | Revises ID       | Airflow Version   | Description                                                  |
 +=========================+==================+===================+==============================================================+
-| ``f9520b8eed39`` (head) | ``feb8b1e719ee`` | ``3.5.0``         | Store callback deadlines and index waiting and expired       |
+| ``b54a81cd79e2`` (head) | ``f9520b8eed39`` | ``3.5.0``         | Link executor callbacks to their Dag runs.                   |
++-------------------------+------------------+-------------------+--------------------------------------------------------------+
+| ``f9520b8eed39``        | ``feb8b1e719ee`` | ``3.5.0``         | Store callback deadlines and index waiting and expired       |
 |                         |                  |                   | callbacks.                                                   |
 +-------------------------+------------------+-------------------+--------------------------------------------------------------+
 | ``feb8b1e719ee``        | ``c64b10719069`` | ``3.5.0``         | Add health_check_result and owner_job_id to Job.             |

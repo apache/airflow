@@ -2325,6 +2325,50 @@ class TestEcsExecutorConfig:
 class TestEcsExecutorCallbackSupport:
     """Tests for ExecuteCallback support in the ECS Executor."""
 
+    @pytest.mark.db_test
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires routed callbacks"
+    )
+    @pytest.mark.parametrize(
+        ("cloud_state", "started", "stop"),
+        [(State.QUEUED, False, True), (State.QUEUED, True, False), (State.RUNNING, False, False)],
+        ids=["expired-before-start", "stale-cloud-state", "running-cloud-task"],
+    )
+    def test_release_only_stops_an_unstarted_expired_ecs_task(
+        self, mock_executor, session, cloud_state, started, stop
+    ):
+        from airflow.callbacks.callback_requests import DagCallbackRequest
+        from airflow.models.callback import CallbackKey, ExecutorCallback
+        from airflow.utils.state import CallbackState
+
+        callback = ExecutorCallback.from_dag_processor_request(
+            DagCallbackRequest(
+                dag_id="d", run_id="r", filepath="d.py", bundle_name="testing", bundle_version=None
+            )
+        )
+        callback.state = CallbackState.FAILED
+        if started:
+            callback.started_at = timezone.utcnow()
+        session.add(callback)
+        session.commit()
+        key = CallbackKey(str(callback.id))
+        callback.output = "uncommitted scheduler update"
+        mock_executor.active_workers.add_task(mock_task(ARN1, cloud_state), key, None, ["callback"], {}, 1)
+        mock_executor.release_callback(key)
+        session.rollback()
+        assert session.get_one(ExecutorCallback, callback.id).output is None
+        assert mock_executor.ecs.stop_task.call_args_list == (
+            [
+                mock.call(
+                    cluster=mock_executor.cluster,
+                    task=ARN1,
+                    reason="Airflow settled this callback before worker startup",
+                )
+            ]
+            if stop
+            else []
+        )
+
     @pytest.mark.skipif(
         not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
     )

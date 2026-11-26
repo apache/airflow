@@ -48,8 +48,12 @@ class TIClaims(_JWTClaims):
     scope: TaskTokenScope = "execution"
     # Trusted in-process callers construct task identities without a JWT or expiry.
     exp: float | None = None
-    # Signed into the execution token a callback exchanges for: a callback has no task instance
-    # to resolve its Dag, run, bundle or team from.
+
+
+class CallbackClaims(TIClaims):
+    """Signed identity of a callback after exchange. It has no task instance."""
+
+    scope: Literal["execution"] = "execution"
     dag_id: str | None = None
     run_id: str | None = None
     bundle_name: str | None = None
@@ -102,6 +106,12 @@ class TIToken(ExecutionToken):
     """Authenticated task, workload, or callback identity."""
 
     claims: TIClaims
+
+
+class CallbackExecutionToken(TIToken):
+    """A callback using the execution endpoints after its token exchange."""
+
+    claims: CallbackClaims
 
 
 class DagProcessorSessionToken(ExecutionToken):

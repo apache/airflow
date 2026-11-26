@@ -83,6 +83,9 @@ if TYPE_CHECKING:
 
 # Allow for Lambda's asynchronous retries before SQS's maximum 14-day message retention.
 _RELEASED_CALLBACK_RETENTION = 15 * 24 * 60 * 60
+# Once Lambda's async delivery and runtime windows pass, retain ownership for late SQS messages
+# but only poll while other work is active.
+_RELEASED_CALLBACK_POLL_WINDOW = (6 * 60 + 15) * 60
 _CALLBACK_KEY_PREFIX = "callback:"
 
 
@@ -498,9 +501,11 @@ class AwsLambdaExecutor(BaseExecutor):
                 break
             self._released_callbacks.popitem(last=False)
 
-        if not self.running_workloads and not self._released_callbacks:
-            self.log.debug("No running workloads to process.")
-            return
+        if not self.running_workloads:
+            last_release = next(reversed(self._released_callbacks.values()), None)
+            if last_release is None or now - last_release >= _RELEASED_CALLBACK_POLL_WINDOW:
+                self.log.debug("No running workloads or recent callback releases to process.")
+                return
 
         self.process_queue(self.sqs_queue_url)
         if self.dlq_url and (self.running_workloads or self._released_callbacks):

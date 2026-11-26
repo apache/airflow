@@ -1698,6 +1698,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         return True
 
     @property
+    def has_run_on_worker(self) -> bool:
+        """The worker records its pid at startup. Rescheduling keeps it and a new try clears it."""
+        return self.state == TaskInstanceState.RUNNING or self.pid is not None
+
+    @property
     def is_premature(self) -> bool:
         """Returns whether a task is in UP_FOR_RETRY state and its retry interval has elapsed."""
         # is the task still in the retry waiting period?
@@ -2797,8 +2802,6 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             self.next_method = start_trigger_args.next_method
             self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
             self.start_date = timezone.utcnow()
-            # No worker has resumed it yet, so drop the heartbeat of a run before a reschedule.
-            self.last_heartbeat_at = None
 
             # If an execution_timeout is set, set the timeout to the minimum of
             # it and the trigger timeout

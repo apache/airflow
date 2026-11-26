@@ -32,9 +32,11 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from copy import deepcopy
 from functools import partial
 from typing import TYPE_CHECKING, TypeAlias
+from uuid import UUID
 
 from botocore.config import Config
 from botocore.exceptions import ClientError, NoCredentialsError
+from sqlalchemy import select
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.executors.base_executor import BaseExecutor
@@ -69,7 +71,9 @@ if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
 if hasattr(BaseExecutor, "supports_routed_callbacks"):
-    from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+    from airflow.executors.workloads.callback import CallbackFetchMethod, CallbackLaunchUnconfirmed
+    from airflow.models.callback import ExecutorCallback
+    from airflow.utils.session import create_session
     from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
@@ -357,6 +361,22 @@ class AwsEcsExecutor(BaseExecutor):
             # up and kill the scheduler process
             self.log.exception("Failed to sync %s", self.__class__.__name__)
 
+    @staticmethod
+    def _is_failed_before_worker_start(key: CallbackKey) -> bool:
+        # ECS's last observed state can lag behind a worker that has already reported success.
+        with create_session(scoped=False) as session:
+            return (
+                session.scalar(
+                    select(ExecutorCallback.id).where(
+                        ExecutorCallback.id == UUID(key.id),
+                        ExecutorCallback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE,
+                        ExecutorCallback.state == CallbackState.FAILED,
+                        ExecutorCallback.started_at.is_(None),
+                    )
+                )
+                is not None
+            )
+
     def release_callback(self, key: CallbackKey) -> None:
         """Stop submitting or tracking a callback settled by the scheduler."""
         self.pending_workloads = deque(task for task in self.pending_workloads if task.key != key)
@@ -371,7 +391,17 @@ class AwsEcsExecutor(BaseExecutor):
         self.active_workers.key_to_failure_counts.pop(key, None)
         if arn := self.active_workers.key_to_arn.pop(key, None):
             self.active_workers.arn_to_key.pop(arn, None)
-            self.active_workers.tasks.pop(arn, None)
+            task = self.active_workers.tasks.pop(arn, None)
+            if task is not None and task.get_task_state() == State.QUEUED:
+                try:
+                    if self._is_failed_before_worker_start(key):
+                        self.ecs.stop_task(
+                            cluster=self.cluster,
+                            task=arn,
+                            reason="Airflow settled this callback before worker startup",
+                        )
+                except Exception:
+                    self.log.exception("Failed to stop ECS task %s for released callback %s", arn, key)
         super().release_callback(key)
 
     def sync_running_workloads(self):

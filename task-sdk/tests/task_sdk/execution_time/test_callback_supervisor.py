@@ -449,6 +449,7 @@ class TestCallbackHandleRequest:
         client_mock = test_case.client_mock
 
         proc, _read_end = callback_subprocess
+        proc.is_dag_attribute = True
 
         if client_mock:
             mock_client_method = attrgetter(client_mock.method_path)(proc.client)
@@ -518,14 +519,17 @@ class TestCallbackHandleRequest:
             process.stdin.close()
             peer.close()
 
-    def test_a_request_a_callback_cannot_make_gets_an_error(self, callback_subprocess, mocker):
+    @pytest.mark.parametrize(
+        "body", [{"type": "GetDag", "dag_id": "unrelated"}, {"type": "DeleteVariable", "key": "k"}]
+    )
+    def test_a_request_a_deadline_callback_cannot_make_gets_an_error(self, callback_subprocess, mocker, body):
         """The child waits for every response, so a dropped request would block it until its timeout."""
         proc, _read_end = callback_subprocess
         send_msg = mocker.patch.object(CallbackSubprocess, "send_msg", autospec=True)
 
         generator = proc.handle_requests(log=mocker.Mock())
         next(generator)
-        generator.send(_RequestFrame(id=7, body={"type": "GetDag", "dag_id": "unrelated"}))
+        generator.send(_RequestFrame(id=7, body=body))
 
         send_msg.assert_called_once_with(proc, None, request_id=7, error=ANY)
         assert send_msg.call_args.kwargs["error"].detail["message"] == "Unhandled request"

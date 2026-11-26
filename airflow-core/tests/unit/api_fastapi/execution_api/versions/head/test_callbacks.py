@@ -43,6 +43,7 @@ from airflow.callbacks.callback_requests import (
     EmailRequest,
     TaskCallbackRequest,
 )
+from airflow.callbacks.database_callback_sink import ExecutorCallbackSink
 from airflow.executors.workloads.callback import EXECUTION_TIMEOUT_KEY, HEARTBEAT_SUPPORTED_KEY
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.callback import (
@@ -528,6 +529,34 @@ class TestRunCallbackIdentityClaims:
         assert claims["run_id"] == "test_run"
         assert claims["bundle_name"] == "testing"
 
+    def test_deleted_link_does_not_resolve_a_recreated_run(self, session, dag_maker):
+        with dag_maker("callback_fk", session=session):
+            EmptyOperator(task_id="t")
+        original = dag_maker.create_dagrun(run_id="same_run")
+        request = DagCallbackRequest(**REQUEST_FIELDS, dag_id=original.dag_id, run_id=original.run_id)
+        ExecutorCallbackSink().send(request, session=session)
+        session.flush()
+        callback = session.scalars(select(ExecutorCallback)).one()
+        original_id = original.id
+        assert callback.dag_run_id == original_id
+        callback.data = {**callback.data, "dag_run_id": original_id}
+        assert callback.get_dag_run(session=session) is original
+        session.delete(original)
+        session.commit()
+        replacement = DagRun(
+            dag_id="callback_fk",
+            run_id="same_run",
+            logical_date=NOW,
+            run_type=DagRunType.MANUAL,
+            state=DagRunState.RUNNING,
+        )
+        replacement.id = original_id
+        session.add(replacement)
+        session.commit()
+        session.refresh(callback)
+        assert callback.dag_run_id is None
+        assert callback.get_dag_run(session=session) is None
+
     def test_run_omits_identity_the_callback_does_not_have(self, client, queued_callback):
         response = client.patch(f"/execution/callbacks/{queued_callback.id}/run")
 
@@ -624,6 +653,21 @@ WORKER = {"hostname": "worker-1", "pid": 4242, "attempt_id": "01890a5d-ac70-7a5b
 
 
 class TestRunCallbackRetriedExchange:
+    @pytest.mark.parametrize("supported", [True, False])
+    def test_deadline_heartbeat_uses_the_recorded_scheduler_capability(
+        self, client, session, queued_callback, supported
+    ):
+        queued_callback.heartbeat_supported = supported
+        queued_callback.data = {HEARTBEAT_SUPPORTED_KEY: not supported}
+        session.commit()
+        response = client.patch(
+            f"/execution/callbacks/{queued_callback.id}/run",
+            json=WORKER,
+            headers={"Prefer": "callback-heartbeat"},
+        )
+        assert response.status_code == 204
+        assert ("Airflow-Callback-Heartbeat-Timeout" in response.headers) is supported
+
     def test_the_same_worker_can_repeat_its_exchange(self, client, session, queued_callback):
         """A worker can retry a lost exchange response without moving the callback's original start."""
         url = f"/execution/callbacks/{queued_callback.id}/run"
