@@ -1010,6 +1010,7 @@ keyless
 KeyManagementServiceClient
 keyring
 keyspace
+keystore
 keytab
 kfp
 KiB
@@ -1200,6 +1201,7 @@ Neo4j
 neo4j
 neptune
 neq
+netloc
 NetworkPolicy
 newsfragments
 NFS
@@ -1230,6 +1232,7 @@ ntriples
 Nullable
 nullable
 num
+o3fs
 OAuth
 Oauth
 oauth
@@ -1242,6 +1245,7 @@ od
 OData
 odbc
 odps
+ofs
 OIDC
 ok
 oklch
