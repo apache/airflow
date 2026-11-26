@@ -45,9 +45,11 @@ directory structure, etc.). The only difference between arms is which
 nothing into the repo's own `.git`, so the eval also runs inside an agent
 sandbox where `.git` is read-only.
 
-The Claude Agent SDK reads `CLAUDE.md`, not `AGENTS.md`, so the harness
-adds a `CLAUDE.md → AGENTS.md` symlink to each arm's checkout. The repo
-itself has no `CLAUDE.md`: Claude Code reads `AGENTS.md` natively.
+The agent reads `AGENTS.md` directly, as Claude Code does: the pinned
+Claude Agent SDK bundles a Claude Code CLI new enough (v2.1.277 or later)
+to load `AGENTS.md` without a `CLAUDE.md`. Keep that in mind when changing
+the SDK pin in `.pre-commit-config.yaml` — an older SDK would silently
+read no guidance in any arm.
 
 ## Prerequisites
 

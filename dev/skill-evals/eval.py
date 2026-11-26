@@ -215,14 +215,13 @@ def create_arm(
             )
             sys.exit(1)
 
-    # The base branch may predate the removal of the tracked CLAUDE.md symlink.
+    # A base branch that still tracks the CLAUDE.md symlink would make the SDK
+    # read CLAUDE.md files only (skipping nested AGENTS.md), unlike the other arms.
     (arm_dir / "CLAUDE.md").unlink(missing_ok=True)
     if agents_file is None:
         (arm_dir / "AGENTS.md").unlink(missing_ok=True)
     else:
         shutil.copy2(agents_file, arm_dir / "AGENTS.md")
-        # The Claude Agent SDK reads CLAUDE.md only, not AGENTS.md.
-        (arm_dir / "CLAUDE.md").symlink_to("AGENTS.md")
 
     if skill_name and skill_file:
         skill_dir = arm_dir / ".agents" / "skills" / skill_name
