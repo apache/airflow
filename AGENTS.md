@@ -20,6 +20,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 
 ## Environment Setup
 
+- Claude Code users need v2.1.277 or later (check with `claude --version`); older versions do not read `AGENTS.md`, and the repo has no `CLAUDE.md`. On Amazon Bedrock or with telemetry disabled, use v2.1.281 or later. If your session reports an older version, tell the user to upgrade.
 - Install prek: `uv tool install prek`
 - Enable commit hooks: `prek install`
 - Install breeze shim (one-time, per machine): `scripts/tools/setup_breeze` — installs `~/.local/bin/breeze` that runs breeze via `uv run --locked` from the current git worktree's `dev/breeze`, with dependencies pinned by `dev/breeze/uv.lock` (so each worktree, including ephemeral agent worktrees, gets its own breeze tied to its sources). See [ADR 0017](dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md).
