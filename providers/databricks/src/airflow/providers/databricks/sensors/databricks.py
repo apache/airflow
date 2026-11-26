@@ -22,7 +22,13 @@ from collections.abc import Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    BaseSensorOperator,
+    conf,
+)
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, SQLStatementState
 from airflow.providers.databricks.operators.databricks import DEFER_METHOD_NAME
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
@@ -151,7 +157,14 @@ class DatabricksSQLStatementsSensor(DatabricksSQLStatementsMixin, BaseSensorOper
         if self.deferrable:
             self._handle_deferrable_execution(defer_method_name=DEFER_METHOD_NAME)  # type: ignore[misc]
             return None
-        return super().execute(context)
+        try:
+            return super().execute(context)
+        except (AirflowSensorTimeout, AirflowSkipException):
+            # A timeout (a skip under soft_fail) leaves the statement running on the warehouse, and a retry
+            # would submit it again. The deferrable trigger cancels at its deadline too.
+            if not self._hook.get_sql_statement_state(self.statement_id).is_terminal:
+                self._hook.cancel_sql_statement(self.statement_id)
+            raise
 
     def poke(self, context: Context):
         """
