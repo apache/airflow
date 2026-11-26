@@ -132,20 +132,19 @@ def create_token_cli(request: Request, body: dict[str, Any] = Body(...)) -> Logi
 )
 def logout(request: Request) -> RedirectResponse:
     """Clear the API token cookie and redirect to the Flask logout view, which ends the session."""
-    with _get_flask_app().app_context(), _release_scoped_session():
-        # The trailing slash routes to the Flask app's own logout view. The ``session`` cookie is
-        # left in place so that the browser sends it there and the Flask session it points at is
-        # signed out.
-        flask_logout_url = urljoin(
-            get_fab_auth_manager().apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/"
-        )
-        secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
-        cookie_path = get_cookie_path()
-        response = RedirectResponse(flask_logout_url)
-        response.delete_cookie(
-            key=COOKIE_NAME_JWT_TOKEN,
-            path=cookie_path,
-            secure=secure,
-            httponly=True,
-        )
-        return response
+    # The trailing slash routes to the Flask app's own logout view. The ``session`` cookie is
+    # left in place so that the browser sends it there and the Flask session it points at is
+    # signed out.
+    flask_logout_url = urljoin(
+        get_fab_auth_manager().apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/"
+    )
+    secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
+    cookie_path = get_cookie_path()
+    response = RedirectResponse(flask_logout_url)
+    response.delete_cookie(
+        key=COOKIE_NAME_JWT_TOKEN,
+        path=cookie_path,
+        secure=secure,
+        httponly=True,
+    )
+    return response
