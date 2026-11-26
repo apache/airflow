@@ -1248,6 +1248,8 @@ class TestPopenActivitySubprocessClearXComs:
         ti = _make_ti()
         ti_context = {
             **make_ti_context_dict(),
+            # A retry gets the same runtime, so the try fails even with retries left.
+            "should_retry": True,
             "arg_bindings": [{"name": "totals", "kind": "sequence", "task_id": "transform"}],
         }
         reports: list[tuple[str, str]] = []

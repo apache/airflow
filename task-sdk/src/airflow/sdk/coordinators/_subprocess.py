@@ -635,10 +635,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
                 f"but it is at {self._subprocess_schema_version}; upgrade its SDK"
             )
             self.process_log.error(reason)
-            self._pending_terminal_state_msg = TaskState(
-                state=TaskInstanceState.FAILED, end_date=datetime.now(tz=UTC), retry_reason=reason
-            )
-            self.kill(signal.SIGKILL)
+            # A retry gets the same runtime, so it cannot succeed either.
+            self._fail_before_start(ti_context, reason, retryable=False)
             return None
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
@@ -683,13 +681,13 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             update={"xcom_keys_to_clear": [], "execution_timeout": execution_timeout}
         )
 
-    def _fail_before_start(self, ti_context: TIRunContext, reason: str) -> None:
+    def _fail_before_start(self, ti_context: TIRunContext, reason: str, *, retryable: bool = True) -> None:
         end_date = datetime.now(tz=UTC)
         # wait() sends this outcome to the server after the runtime process exits, the same
         # way it sends an outcome that the runtime itself reported.
         self._pending_terminal_state_msg = (
             RetryTask(end_date=end_date, retry_reason=reason)
-            if ti_context.should_retry
+            if retryable and ti_context.should_retry
             else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
         )
         self.kill(signal.SIGKILL)
