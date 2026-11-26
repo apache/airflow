@@ -24,5 +24,6 @@ try {
   await runPack(process.argv.slice(2));
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
+  // process.exit() would drop stderr that is still being written to a pipe on macOS.
+  process.exitCode = 1;
 }
