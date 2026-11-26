@@ -81,7 +81,7 @@
       "triggererHostname": "Hostname del Triggerer"
     },
     "forbidden": {
-      "description": "Els triggers es mostren a qui té permís per veure allò per a què s'executen: les instàncies de tasca o les execucions d'un Dag, o un Asset que vigilen. No teniu accés a cap d'aquests elements.",
+      "description": "Els triggers es mostren a qui té permís per a veure allò per a què s'executen: les instàncies de tasca o les execucions d'un Dag, o un Asset que vigilen. No teniu accés a cap d'aquests elements.",
       "title": "No hi ha cap trigger per mostrar"
     },
     "kind": {
