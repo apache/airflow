@@ -459,7 +459,7 @@ def _has_default_asset_event_grouping(timetable: Timetable) -> bool:
     return type(timetable).group_asset_events is Timetable.group_asset_events
 
 
-def _select_current_dr_task_concurrency() -> Select[tuple[str, str, int]]:
+def _select_current_dr_task_concurrency() -> Select[str, str, int]:
     """
     Count the task instances of each Dag run that count towards its ``max_active_tasks``.
 
