@@ -553,7 +553,7 @@ OPENLINEAGE_HTTP_TRANSPORT_EXAMPLE_SPARK_PROPERTIES = {
     "spark.openlineage.transport.url": "https://some-custom.url",
     "spark.openlineage.transport.endpoint": "/api/custom",
     "spark.openlineage.transport.auth.type": "api_key",
-    "spark.openlineage.transport.auth.apiKey": "Bearer secret_123",
+    "spark.openlineage.transport.auth.apiKey": "secret_123",
     "spark.openlineage.transport.compression": "gzip",
     "spark.openlineage.transport.headers.key1": "val1",
     "spark.openlineage.transport.headers.key2": "val2",

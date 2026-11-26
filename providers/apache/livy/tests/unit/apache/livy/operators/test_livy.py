@@ -409,7 +409,7 @@ class TestLivyOperator:
             "spark.openlineage.transport.timeoutInMillis": "5050000",
             "spark.openlineage.transport.compression": "gzip",
             "spark.openlineage.transport.auth.type": "api_key",
-            "spark.openlineage.transport.auth.apiKey": "Bearer 12345",
+            "spark.openlineage.transport.auth.apiKey": "12345",
             "spark.openlineage.transport.headers.X-OpenLineage-Custom-Header": "airflow",
         }
 
@@ -485,7 +485,7 @@ class TestLivyOperator:
             "spark.openlineage.transport.transports.test1.endpoint": "api/v2/lineage",
             "spark.openlineage.transport.transports.test1.timeoutInMillis": "5050000",
             "spark.openlineage.transport.transports.test1.auth.type": "api_key",
-            "spark.openlineage.transport.transports.test1.auth.apiKey": "Bearer 12345",
+            "spark.openlineage.transport.transports.test1.auth.apiKey": "12345",
             "spark.openlineage.transport.transports.test1.compression": "gzip",
             "spark.openlineage.transport.transports.test1.headers.X-OpenLineage-Custom-Header": "airflow",
             "spark.openlineage.transport.transports.test2.type": "http",
