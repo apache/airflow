@@ -1390,8 +1390,8 @@ class PolarisCatalogHook(PolarisHook):
         updates, removals = _property_changes(updates, removals)
         prefix, encoded = self._scope(namespace, catalog)
         result: dict[str, list[str]] = {"updated": [], "removed": [], "missing": []}
-        # Polaris (1.8 and 1.9) answers 409 "Concurrent modification" when one request both sets
-        # and removes properties, after applying only the updates; separate requests behave correctly.
+        # Polaris takes updates and removals of namespace properties in separate requests; one
+        # request with both is answered with 409 "Concurrent modification".
         requests_ = [UpdateNamespacePropertiesRequest(updates=updates)] if updates else []
         if removals:
             requests_.append(UpdateNamespacePropertiesRequest(removals=removals))
