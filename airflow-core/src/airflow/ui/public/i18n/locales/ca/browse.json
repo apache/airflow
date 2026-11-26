@@ -74,7 +74,7 @@
     "detail": {
       "firstFailedAt": "Falla des de",
       "lastFailedAt": "Darrera fallada",
-      "noReadableScheduledDags": "No teniu permís per veure'n cap",
+      "noReadableScheduledDags": "No teniu permís per a veure'n cap",
       "scheduledDags": "Dags programats"
     },
     "filters": {
