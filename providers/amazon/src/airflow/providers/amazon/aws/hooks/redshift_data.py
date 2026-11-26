@@ -40,6 +40,16 @@ ABORTED_STATE = "ABORTED"
 FAILURE_STATES = {FAILED_STATE, ABORTED_STATE}
 RUNNING_STATES = {"PICKED", "STARTED", "SUBMITTED"}
 
+# Matches the tables an unqualified name resolves to through the session's search_path.
+_VISIBLE_TABLE_FILTER = """exists (
+                select 1
+                from pg_catalog.pg_class c
+                    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+                where n.nspname = kcu.table_schema
+                and c.relname = kcu.table_name
+                and pg_catalog.pg_table_is_visible(c.oid)
+            )"""
+
 
 @dataclass
 class QueryExecutionOutput:
@@ -228,7 +238,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         :param table: Name of the target table
         :param database: the name of the database
         :param schema: Name of the target schema, public by default. If ``None``, the
-            session's ``current_schema()`` is used, which is where an unqualified table name resolves.
+            table is looked up in the schemas of the session's ``search_path`` where it is visible,
+            as an unqualified table name would be.
         :param cluster_identifier: unique identifier of a cluster
         :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
             `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
@@ -243,7 +254,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         :return: Primary key columns list
         """
         # The Data API rejects a parameter whose value is None, so an unset schema is expressed in the SQL.
-        schema_filter = "kcu.table_schema = :schema" if schema else "kcu.table_schema = current_schema()"
+        schema_filter = "kcu.table_schema = :schema" if schema else _VISIBLE_TABLE_FILTER
         parameters = [{"name": "table", "value": table}]
         if schema:
             parameters.insert(0, {"name": "schema", "value": schema})

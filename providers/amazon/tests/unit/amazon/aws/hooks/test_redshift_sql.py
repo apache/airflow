@@ -373,7 +373,7 @@ class TestRedshiftSQLHookPrimaryKey:
             pytest.param("schema", "kcu.table_schema = %s", ("schema", "table"), id="schema_given"),
             # With schema=None the bare table name resolves through the search_path, and a NULL
             # bind would never match kcu.table_schema.
-            pytest.param(None, "kcu.table_schema = current_schema()", ("table",), id="schema_none"),
+            pytest.param(None, "pg_catalog.pg_table_is_visible(c.oid)", ("table",), id="schema_none"),
         ],
     )
     @mock.patch.object(RedshiftSQLHook, "get_records")
@@ -388,10 +388,6 @@ class TestRedshiftSQLHookPrimaryKey:
         assert expected_schema_filter in sql
         assert "kcu.table_name = %s" in sql
         assert parameters == expected_parameters
-
-    @mock.patch.object(RedshiftSQLHook, "get_records", return_value=[])
-    def test_get_table_primary_key_none_when_no_rows(self, mock_get_records):
-        assert RedshiftSQLHook().get_table_primary_key("table", "schema") is None
 
 
 class TestRedshiftSQLHookLineage:

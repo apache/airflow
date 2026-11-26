@@ -31,6 +31,7 @@ except ImportError:
     URL = create_engine = make_url = None  # type: ignore[assignment,misc]
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.redshift_data import _VISIBLE_TABLE_FILTER
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -240,10 +241,11 @@ class RedshiftSQLHook(DbApiHook):
 
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default. If ``None``, the
-            session's ``current_schema()`` is used, which is where an unqualified table name resolves.
+            table is looked up in the schemas of the session's ``search_path`` where it is visible,
+            as an unqualified table name would be.
         :return: Primary key columns list
         """
-        schema_filter = "kcu.table_schema = %s" if schema else "kcu.table_schema = current_schema()"
+        schema_filter = "kcu.table_schema = %s" if schema else _VISIBLE_TABLE_FILTER
         parameters = (schema, table) if schema else (table,)
         sql = f"""
             select kcu.column_name

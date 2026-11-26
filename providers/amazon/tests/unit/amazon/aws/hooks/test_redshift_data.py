@@ -342,7 +342,7 @@ class TestRedshiftDataHook:
             # which resolves through the search_path. The Data API rejects a None parameter value.
             pytest.param(
                 None,
-                "kcu.table_schema = current_schema()",
+                "pg_catalog.pg_table_is_visible(c.oid)",
                 [{"name": "table", "value": "table"}],
                 id="schema_none",
             ),
