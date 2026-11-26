@@ -68,7 +68,16 @@ That's it — prek provisions Node, promptfoo, and the agent SDKs automatically.
 
 Agent sandboxes usually block the macOS keychain and the `~/.claude`
 credentials that a `/login` session stores, so every case fails with
-"Not logged in". Give the eval its own credential instead:
+"Not logged in".
+
+The recommended fix is not to give the sandbox a credential at all: run the
+eval yourself, outside the sandbox, with your normal login (in Claude Code,
+type `! prek run run-skill-eval --hook-stage manual --all-files`). A token
+file readable from the sandbox stays readable to everything that runs there
+— prompt-injected commands and untrusted code under test included — for as
+long as it exists.
+
+If agents must run the eval unattended, give the eval its own credential:
 
 ```bash
 claude setup-token          # run outside the agent; prints a long-lived token
