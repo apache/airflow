@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-25T14:15:19.245790
+# This constraints file was automatically generated on 2026-11-26T19:32:52.379604
 # via `uv sync --resolution highest for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider distributions.
@@ -79,6 +79,7 @@ ansicolors==1.1.8
 anthropic==1.17.0
 anyio==4.16.0
 apache-beam==2.77.0
+apache-polaris==1.9.0
 apispec==6.10.1
 apprise==2.1.0
 argcomplete==3.7.2
@@ -528,6 +529,7 @@ pprintpp==0.4.0
 pre_commit==4.7.0
 prek==0.5.10
 presto-python-client==0.8.4
+prettytable==3.18.0
 primp==2.0.1
 prison==0.2.1
 prometheus_client==0.26.0
