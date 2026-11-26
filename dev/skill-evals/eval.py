@@ -140,14 +140,14 @@ def find_sdk_modules(runtime: str) -> Path:
     sys.exit(1)
 
 
-def read_claude_token_env() -> dict[str, str]:
+def read_claude_token_env(runtime: str) -> dict[str, str]:
     """Return CLAUDE_CODE_OAUTH_TOKEN read from SKILL_EVAL_CLAUDE_TOKEN_FILE, if set.
 
     The token goes only into the promptfoo subprocess environment, so it does
     not have to be exported for the whole (agent) session.
     """
     token_file = os.environ.get("SKILL_EVAL_CLAUDE_TOKEN_FILE")
-    if not token_file:
+    if runtime != "claude" or not token_file:
         return {}
     try:
         token = Path(token_file).expanduser().read_text().strip()
@@ -427,7 +427,7 @@ def main() -> int:
             env={
                 **os.environ,
                 "PROMPTFOO_CONFIG_DIR": str(PROMPTFOO_STATE_DIR),
-                **read_claude_token_env(),
+                **read_claude_token_env(runtime),
             },
         )
 
