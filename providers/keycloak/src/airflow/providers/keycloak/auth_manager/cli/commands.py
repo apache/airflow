@@ -148,6 +148,12 @@ def create_permissions_command(args):
 
     teams = _parse_teams(args.teams)
     _ensure_multi_team_enabled(teams=teams, command_name="create-permissions")
+    missing_roles = _get_roles_to_create(client, client_uuid)
+    if missing_roles:
+        raise ValueError(
+            f"Roles {', '.join(missing_roles)} not found. "
+            "Run `airflow keycloak-auth-manager create-roles` first."
+        )
     if teams:
         # Role policies are only needed for team-scoped (group+role) authorization.
         for role_name in TEAM_ROLE_NAMES:
