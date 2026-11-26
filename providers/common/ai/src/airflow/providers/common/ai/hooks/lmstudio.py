@@ -94,7 +94,7 @@ class LMStudioBackend:
                 failure="could not list models",
                 timeout_failure="did not list its models",
             ):
-                loaded = self._check_model_loaded(client, timeout=timeout)
+                loaded = self._is_model_loaded(client, timeout=timeout)
             if loaded:
                 return
             if (remaining := deadline - time.monotonic()) <= 0:
@@ -115,7 +115,7 @@ class LMStudioBackend:
                 )
                 response.raise_for_status()
 
-    def _check_model_loaded(self, client: httpx2.Client, *, timeout: float) -> bool:
+    def _is_model_loaded(self, client: httpx2.Client, *, timeout: float) -> bool:
         """
         Return whether the model's entry in the model list has a loaded instance.
 
