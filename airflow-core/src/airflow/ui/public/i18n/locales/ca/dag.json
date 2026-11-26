@@ -163,7 +163,7 @@
       "cap_reached": "S'ha assolit el límit d'iteracions ({{max}})",
       "failed": "Ha fallat a la iteració {{index}}",
       "iteration_failed": "La iteració {{index}} ha fallat a {{taskId}}",
-      "ran_to_cap": "S'han executat totes les iteracions permeses ({{max}})",
+      "ran_to_cap": "S'han executat totes les {{max}} iteracions permeses",
       "removed": "Eliminat",
       "running": "Executant-se",
       "skipped": "Saltat",
