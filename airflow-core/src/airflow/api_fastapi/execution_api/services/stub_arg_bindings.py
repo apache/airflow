@@ -156,12 +156,7 @@ def derive_mapped_arg_bindings(
 
 
 class _MappedArgBindingDeriver:
-    """
-    Derive one map index's bindings from the serialized Dag.
-
-    Parse time rejects the shapes some branches raise for, so only a Dag serialized by an older core
-    reaches those branches.
-    """
+    """Derive one map index's bindings from the serialized Dag."""
 
     def __init__(
         self,
@@ -345,17 +340,12 @@ class _MappedArgBindingDeriver:
             return (
                 None if not is_arg_set(param.default) else LiteralValue(kind="literal", value=param.default)
             )
-        match self._bind_whole(param, partial_kwargs[param.name]):
-            case XComArgBinding() as binding:
-                return XComRef.model_validate(
-                    binding.model_dump(include=set(XComRef.model_fields), exclude_unset=True)
-                )
-            case LiteralArgBinding() as binding:
-                return LiteralValue(kind="literal", value=binding.value)
-            case _:
-                raise UndeliverableMappedArgBindingsError(
-                    f"parameter {param.name!r} cannot fall back to a mapped task's whole output"
-                )
+        binding = self._bind_whole(param, partial_kwargs[param.name])
+        if isinstance(binding, LiteralArgBinding):
+            return LiteralValue(kind="literal", value=binding.value)
+        return XComRef.model_validate(
+            binding.model_dump(include=set(XComRef.model_fields), exclude_unset=True)
+        )
 
     def _bind_whole(self, param: _ArgParam, value: Any) -> TaskArgBinding:
         """Bind *value* as it is, for an argument this map index does not expand over."""
@@ -364,10 +354,6 @@ class _MappedArgBindingDeriver:
         match value:
             case SchedulerPlainXComArg():
                 return self._bind_upstream(param, value.operator)
-            case SchedulerXComArg():
-                raise UndeliverableMappedArgBindingsError(
-                    f"parameter {param.name!r} receives a whole map(), zip() or concat() result"
-                )
             case _:
                 return self._bind_literal(param, value)
 
@@ -375,16 +361,9 @@ class _MappedArgBindingDeriver:
         """Bind the output of *producer*, narrowed to this map index's row when they share a mapped group."""
         if not producer.get_needs_expansion():
             return param.build(XComArgBinding, kind="xcom", task_id=producer.task_id)
-        match self._get_relevant_map_indexes(producer):
-            case None:
-                return param.build(XComSequenceArgBinding, kind="sequence", task_id=producer.task_id)
-            case int(map_index):
-                return param.build(XComArgBinding, kind="xcom", task_id=producer.task_id, map_index=map_index)
-            case _:
-                raise UndeliverableMappedArgBindingsError(
-                    f"parameter {param.name!r} reads task {producer.task_id!r}, which is mapped again "
-                    "inside the mapped task group they share"
-                )
+        if (map_index := self._get_relevant_map_indexes(producer)) is None:
+            return param.build(XComSequenceArgBinding, kind="sequence", task_id=producer.task_id)
+        return param.build(XComArgBinding, kind="xcom", task_id=producer.task_id, map_index=map_index)
 
     def _bind_element(self, param: _ArgParam, value: Any, index: int) -> TaskArgBinding:
         """Bind element *index* of *value*, for an argument this map index expands over."""
