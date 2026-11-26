@@ -20,9 +20,12 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from flask_login import login_user
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
+
+from unit.fab.auth_manager.test_utils import create_user, delete_user
 
 SUBPATH = "/team-a/"
 
@@ -59,26 +62,60 @@ class TestLogin:
         assert response.json()["access_token"] == self.dummy_token.access_token
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login._get_flask_app")
-    def test_logout(self, mock_get_flask_app, test_client):
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_fab_auth_manager", autospec=True)
+    def test_logout(self, mock_get_fab_auth_manager, mock_get_flask_app, test_client):
+        mock_get_fab_auth_manager.return_value.apiserver_endpoint = "/"
         mock_get_flask_app.return_value.app_context.return_value.__enter__.return_value = None
         response = test_client.get("/logout", follow_redirects=False)
         assert response.status_code == 307
-        assert response.headers["location"] == "/auth/login"
+        assert response.headers["location"] == "/auth/logout/"
         cookies = response.headers.get_list("set-cookie")
-        assert any("session=" in c for c in cookies)
+        assert not any(c.startswith("session=") for c in cookies)
         assert any(f"{COOKIE_NAME_JWT_TOKEN}=" in c for c in cookies)
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login._get_flask_app")
+    @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_fab_auth_manager", autospec=True)
     @patch(
         "airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_cookie_path", return_value=SUBPATH
     )
-    def test_logout_cookie_uses_subpath(self, mock_cookie_path, mock_get_flask_app, test_client):
+    def test_logout_cookie_uses_subpath(
+        self, mock_cookie_path, mock_get_fab_auth_manager, mock_get_flask_app, test_client
+    ):
         """Cookies on logout must be scoped to the configured subpath."""
+        mock_get_fab_auth_manager.return_value.apiserver_endpoint = "/"
         mock_get_flask_app.return_value.app_context.return_value.__enter__.return_value = None
         response = test_client.get("/logout", follow_redirects=False)
         assert response.status_code == 307
         cookies = response.headers.get_list("set-cookie")
-        session_cookie = next(c for c in cookies if "session=" in c)
         token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
-        assert f"Path={SUBPATH}" in session_cookie
         assert f"Path={SUBPATH}" in token_cookie
+
+    def test_logout_signs_out_the_flask_session(self, real_app_client):
+        """The session cookie the browser keeps no longer signs in once the logout redirects are followed."""
+        auth_manager, client = real_app_client
+        flask_app = auth_manager.flask_app
+        with flask_app.app_context():
+            user = create_user(flask_app, "test_logout_user", role_name="test_logout_role")
+        try:
+            with flask_app.test_request_context():
+                login_user(user)
+                login_response = flask_app.process_response(flask_app.response_class())
+            session_cookie = login_response.headers["Set-Cookie"].split(";")[0]
+
+            def get(path):
+                # Send only the session cookie, as the browser does after the token cookie is deleted.
+                client.cookies.clear()
+                return client.get(path, headers={"Cookie": session_cookie}, follow_redirects=False)
+
+            assert get("/login/").cookies.get(COOKIE_NAME_JWT_TOKEN)
+
+            response = get("/logout")
+            while response.is_redirect and response.headers["location"].startswith("/auth/logout"):
+                response = get(response.headers["location"].removeprefix("/auth"))
+
+            login_page = get("/login/")
+            assert login_page.status_code == 200
+            assert not login_page.cookies.get(COOKIE_NAME_JWT_TOKEN)
+        finally:
+            with flask_app.app_context():
+                delete_user(flask_app, "test_logout_user")

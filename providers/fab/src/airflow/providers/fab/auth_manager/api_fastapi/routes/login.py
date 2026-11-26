@@ -20,11 +20,12 @@ import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
+from urllib.parse import urljoin
 
 from fastapi import Body, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
-from airflow.api_fastapi.app import get_auth_manager
+from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.common.compat.sdk import conf
@@ -32,6 +33,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import Logi
 from airflow.providers.fab.auth_manager.api_fastapi.routes.router import auth_router
 from airflow.providers.fab.auth_manager.api_fastapi.services.login import FABAuthManagerLogin
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_8_PLUS
+from airflow.providers.fab.www.utils import get_fab_auth_manager
 
 if AIRFLOW_V_3_1_8_PLUS:
     from airflow.api_fastapi.app import get_cookie_path
@@ -129,18 +131,17 @@ def create_token_cli(request: Request, body: dict[str, Any] = Body(...)) -> Logi
     status_code=status.HTTP_307_TEMPORARY_REDIRECT,
 )
 def logout(request: Request) -> RedirectResponse:
-    """Clear session cookies and redirect to the login page."""
+    """Clear the API token cookie and redirect to the Flask logout view, which ends the session."""
     with _get_flask_app().app_context(), _release_scoped_session():
-        login_url = get_auth_manager().get_url_login()
+        # The trailing slash routes to the Flask app's own logout view. The ``session`` cookie is
+        # left in place so that the browser sends it there and the Flask session it points at is
+        # signed out.
+        flask_logout_url = urljoin(
+            get_fab_auth_manager().apiserver_endpoint, f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/logout/"
+        )
         secure = request.base_url.scheme == "https" or bool(conf.get("api", "ssl_cert", fallback=""))
         cookie_path = get_cookie_path()
-        response = RedirectResponse(login_url)
-        response.delete_cookie(
-            key="session",
-            path=cookie_path,
-            secure=secure,
-            httponly=True,
-        )
+        response = RedirectResponse(flask_logout_url)
         response.delete_cookie(
             key=COOKIE_NAME_JWT_TOKEN,
             path=cookie_path,

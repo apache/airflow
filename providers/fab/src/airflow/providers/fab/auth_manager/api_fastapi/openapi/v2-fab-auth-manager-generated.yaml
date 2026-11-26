@@ -91,7 +91,8 @@ paths:
       tags:
       - FabAuthManager
       summary: Logout
-      description: Clear session cookies and redirect to the login page.
+      description: Clear the API token cookie and redirect to the Flask logout view,
+        which ends the session.
       operationId: logout
       responses:
         '307':
