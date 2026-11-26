@@ -537,6 +537,10 @@ func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("%s on %s", tc.what, tc.spec["kind"]), func(t *testing.T) {
+			_, err := convertArgBindings(&genmodels.ArgBindings{tc.spec})
+			require.ErrorIs(t, err, errMappedTaskNotImplemented)
+			assert.Contains(t, err.Error(), tc.what)
+
 			ran := false
 			bundle := buildBundle(t, func(r testBundle) {
 				r.AddDag("test_dag").AddTaskWithName("transform",
