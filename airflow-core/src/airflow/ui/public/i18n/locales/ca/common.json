@@ -157,7 +157,7 @@
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
     "loop": "Bucle",
-    "loopAllIterations": "{{loop}} (totes les iteracions)",
+    "loopAllIterations": "{{loop}} totes",
     "loopIteration": "{{loop}} {{index}}",
     "loopPlaceholder": "Seleccioneu un bucle",
     "maxActiveRunsFrom": "Màxim d'execucions actives des de",
