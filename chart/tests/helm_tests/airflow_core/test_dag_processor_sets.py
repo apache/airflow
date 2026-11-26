@@ -76,7 +76,7 @@ def _render_pdb_selection(dag_processor):
 
 
 class TestDagProcessorSets:
-    """Tests dag processor sets."""
+    """Tests Dag processor sets."""
 
     def test_default_renders_only_default_dag_processor(self):
         docs = render_chart(name="test", show_only=[DEPLOYMENT])

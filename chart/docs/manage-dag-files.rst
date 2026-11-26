@@ -308,13 +308,15 @@ empty list, inherits ``dagProcessor.bundleNames``. If you set custom ``command``
 as they are, so pass the flags yourself; the chart fails to render when ``bundleNames`` is set but
 ``command`` and ``args`` do not contain a ``--bundle-name`` (or ``-B``) flag for each bundle.
 
-A set inherits the ``dagProcessor`` settings key by key, but replaces ``strategy`` as a whole, so a set can use
-``strategy: {type: Recreate}`` without inheriting ``rollingUpdate``.
+A set's values are merged over ``dagProcessor`` the same way as for ``workers.celery.sets``: most nested
+settings are merged, while lists and settings such as ``resources``, ``affinity`` or ``nodeSelector`` are
+replaced as a whole. ``strategy`` is also replaced as a whole, so a set can use ``strategy: {type: Recreate}``
+without inheriting ``rollingUpdate``.
 
 A bundle can be parsed by more than one Dag processor Deployment, for example while you move it from one set to
 another, or when the default Dag processor runs next to sets. It is then parsed by each of them, and
-``helm install`` and ``helm upgrade`` print a warning that names the bundle and the Deployments (the warning is
-not shown by ``helm template``).
+``helm install`` and ``helm upgrade`` print a warning that names the bundle and the sets (``default`` for the
+default Dag processor). The warning is not shown by ``helm template``.
 
 A set that overrides ``serviceAccount`` gets that ServiceAccount created, and sets that use the same
 ServiceAccount name share one object, so their ``serviceAccount`` settings must match. With
@@ -339,4 +341,4 @@ and its set, mark it inactive once with either of:
 * ``dagProcessor.enableDefault: true`` until the Dags of the removed bundle are no longer active, then back to
   ``false``. The default Dag processor parses all bundles in the meantime.
 
-The running Dag processors then deactivate the Dags of the inactive bundle.
+The scheduler then marks the Dags of the inactive bundle as stale, every ``scheduler.parsing_cleanup_interval``.
