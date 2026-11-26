@@ -177,6 +177,43 @@ describe("RunBackfillForm", () => {
     },
   );
 
+  it.each([
+    { checks: false, expected: false },
+    { checks: true, expected: true },
+  ])(
+    "sends propagate_priority=$expected when the option is checked: $checks",
+    async ({ checks, expected }) => {
+      vi.mocked(useDagServiceGetDagDetails).mockReturnValue({
+        data: baseDag,
+      } as ReturnType<typeof useDagServiceGetDagDetails>);
+      vi.mocked(useCreateBackfillDryRun).mockReturnValue({
+        data: {
+          backfills: [{ logical_date: "2024-01-01T00:00:00Z", partition_date: null, partition_key: null }],
+          total_entries: 1,
+        },
+        error: undefined,
+        isPending: false,
+      } as ReturnType<typeof useCreateBackfillDryRun>);
+
+      render(<RunBackfillForm dag={baseDag as never} onClose={vi.fn()} />, { wrapper: Wrapper });
+
+      const checkbox = screen.getByLabelText("backfill.propagatePriority");
+
+      expect(checkbox).not.toBeChecked();
+      if (checks) {
+        fireEvent.click(checkbox);
+        await waitFor(() => expect(checkbox).toBeChecked());
+      }
+      fireEvent.click(screen.getByText("Run Backfill"));
+
+      await waitFor(() =>
+        expect(createBackfillMock).toHaveBeenCalledWith({
+          requestBody: expect.objectContaining({ propagate_priority: expected }) as unknown,
+        }),
+      );
+    },
+  );
+
   it("clears a failed backfill request when the paused Dag choice changes", async () => {
     vi.mocked(useCreateBackfill).mockReturnValue({
       createBackfill: createBackfillMock,

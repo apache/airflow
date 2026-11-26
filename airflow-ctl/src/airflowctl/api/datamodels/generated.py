@@ -2075,6 +2075,13 @@ class BackfillPostBody(BaseModel):
     dag_run_conf: Annotated[dict[str, Any] | None, Field(title="Dag Run Conf")] = None
     reprocess_behavior: ReprocessBehavior | None = "none"
     max_active_runs: Annotated[int | None, Field(ge=1, title="Max Active Runs")] = 10
+    propagate_priority: Annotated[
+        bool | None,
+        Field(
+            description="Give the asset-triggered Dag runs downstream of this backfill, at any depth, the same low scheduling priority as backfill runs. Runs that are already running are not preempted.",
+            title="Propagate Priority",
+        ),
+    ] = False
     run_on_latest_version: Annotated[
         bool | None,
         Field(
@@ -2104,6 +2111,7 @@ class BackfillResponse(BaseModel):
     is_paused: Annotated[bool, Field(title="Is Paused")]
     reprocess_behavior: ReprocessBehavior
     max_active_runs: Annotated[int, Field(title="Max Active Runs")]
+    propagate_priority: Annotated[bool, Field(title="Propagate Priority")]
     created_at: Annotated[datetime, Field(title="Created At")]
     completed_at: Annotated[datetime | None, Field(title="Completed At")]
     updated_at: Annotated[datetime, Field(title="Updated At")]

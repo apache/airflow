@@ -188,6 +188,13 @@ class Backfill(Base):
         StringID(), nullable=False, default=ReprocessBehavior.NONE
     )
     max_active_runs: Mapped[int] = mapped_column(Integer, default=10, nullable=False)
+    propagate_priority: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=sa.false(), nullable=False
+    )
+    """
+    Whether asset events emitted by this backfill's runs lower the scheduling priority of the
+    downstream asset-triggered runs, in the same way as backfill runs.
+    """
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(
@@ -672,6 +679,7 @@ def _create_backfill(
     reprocess_behavior: ReprocessBehavior | None = None,
     run_on_latest_version: bool = False,
     drain_dag: bool = False,
+    propagate_priority: bool = False,
 ) -> Backfill:
     from airflow.models import DagModel
     from airflow.models.serialized_dag import SerializedDagModel
@@ -734,6 +742,7 @@ def _create_backfill(
             from_date=from_date,
             to_date=to_date,
             max_active_runs=max_active_runs,
+            propagate_priority=propagate_priority,
             dag_run_conf=dag_run_conf,
             reprocess_behavior=reprocess_behavior,
             dag_model=dag,

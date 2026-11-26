@@ -107,6 +107,7 @@ class TestCliBackfill:
             reprocess_behavior=expected_repro,
             triggering_user_name="root",
             run_on_latest_version=True,
+            propagate_priority=False,
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
@@ -134,7 +135,25 @@ class TestCliBackfill:
             reprocess_behavior=None,
             run_on_latest_version=True,
             triggering_user_name="root",
+            propagate_priority=False,
         )
+
+    @mock.patch("airflow.cli.commands.backfill_command._create_backfill")
+    def test_backfill_with_propagate_priority(self, mock_create):
+        args = [
+            "backfill",
+            "create",
+            "--dag-id",
+            "example_bash_operator",
+            "--from-date",
+            DEFAULT_DATE.isoformat(),
+            "--to-date",
+            DEFAULT_DATE.isoformat(),
+            "--propagate-priority",
+        ]
+        airflow.cli.commands.backfill_command.create_backfill(self.parser.parse_args(args))
+
+        assert mock_create.call_args.kwargs["propagate_priority"] is True
 
     @mock.patch("airflow.cli.commands.backfill_command._do_dry_run")
     @pytest.mark.parametrize(
@@ -196,6 +215,7 @@ class TestCliBackfill:
             reprocess_behavior=None,
             triggering_user_name="root",
             run_on_latest_version=True,
+            propagate_priority=False,
         )
 
     def test_backfill_with_invalid_dag_run_conf(self):
@@ -269,6 +289,7 @@ class TestCliBackfill:
             reprocess_behavior=None,
             triggering_user_name="test_user",
             run_on_latest_version=True,
+            propagate_priority=False,
         )
 
     @mock.patch("airflow.cli.commands.backfill_command._do_dry_run", autospec=True)

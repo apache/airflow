@@ -79,6 +79,7 @@ def create_backfill(args) -> None:
             dag_run_conf=dag_run_conf,
             reprocess_behavior=reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
+            propagate_priority=args.propagate_priority,
         )
         for k, v in params.items():
             console.print(f"    - {k} = {v}")
@@ -118,6 +119,7 @@ def create_backfill(args) -> None:
             triggering_user_name=user,
             reprocess_behavior=reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
+            propagate_priority=args.propagate_priority,
         )
     except NoBackfillRunsToCreate as e:
         console.print(f"[yellow]Warning:[/yellow] {e}")

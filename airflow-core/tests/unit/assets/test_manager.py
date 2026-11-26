@@ -150,6 +150,61 @@ class TestAssetManager:
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
 
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    @pytest.mark.parametrize(
+        ("run_kind", "propagate_priority", "expected_derived", "expected_origin"),
+        [
+            pytest.param("backfill", True, True, "backfill", id="opted-in-backfill"),
+            pytest.param("backfill", False, False, None, id="opted-out-backfill"),
+            pytest.param("derived", False, True, 7, id="derived-run-keeps-origin"),
+            pytest.param("normal", False, False, None, id="normal-run"),
+        ],
+    )
+    def test_register_asset_change_marks_backfill_derived_events(
+        self, session, dag_maker, run_kind, propagate_priority, expected_derived, expected_origin
+    ):
+        from airflow.models.backfill import Backfill, ReprocessBehavior
+        from airflow.utils.types import DagRunType
+
+        asset = Asset(uri="test://provenance", name="provenance_asset", group="asset")
+        with dag_maker("provenance_dag", schedule="@daily", session=session):
+            EmptyOperator(task_id="t", outlets=[asset])
+        backfill = Backfill(
+            dag_id="provenance_dag",
+            from_date=timezone.utcnow(),
+            to_date=timezone.utcnow(),
+            dag_run_conf={},
+            reprocess_behavior=ReprocessBehavior.NONE,
+            propagate_priority=propagate_priority,
+        )
+        session.add(backfill)
+        session.flush()
+        if run_kind == "backfill":
+            dr = dag_maker.create_dagrun(run_type=DagRunType.BACKFILL_JOB, backfill_id=backfill.id)
+        else:
+            dr = dag_maker.create_dagrun()
+        if run_kind == "derived":
+            dr.backfill_derived = True
+            upstream = AssetEvent(
+                asset_id=session.scalar(select(AssetModel.id).where(AssetModel.name == "provenance_asset")),
+                backfill_derived=True,
+                origin_backfill_id=7,
+            )
+            session.add(upstream)
+            session.flush()
+            dr.consumed_asset_events.append(upstream)
+        session.flush()
+        expected_origin = backfill.id if expected_origin == "backfill" else expected_origin
+
+        AssetManager.register_asset_change(task_instance=dr.task_instances[0], asset=asset, session=session)
+        session.flush()
+
+        event = session.scalars(
+            select(AssetEvent).where(AssetEvent.source_run_id == dr.run_id).order_by(AssetEvent.id.desc())
+        ).first()
+        assert event.backfill_derived is expected_derived
+        assert event.origin_backfill_id == expected_origin
+
     def test_register_asset_change_with_alias(
         self, session, dag_maker, mock_task_instance, testing_dag_bundle
     ):

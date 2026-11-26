@@ -35,6 +35,7 @@ from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from sqlalchemy import (
     JSON,
+    Boolean,
     Enum,
     ForeignKey,
     ForeignKeyConstraint,
@@ -370,6 +371,13 @@ class DagRun(Base, LoggingMixin):
     The backfill this DagRun is currently associated with.
 
     It's possible this could change if e.g. the dag run is cleared to be rerun, or perhaps re-backfilled.
+    """
+    backfill_derived: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    """
+    Whether any asset event consumed by this run came from an opted-in backfill, directly or through
+    a chain of runs. Such runs queue behind normal runs. Frozen at creation; ``backfill_id`` stays NULL.
     """
     bundle_version: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
@@ -827,6 +835,9 @@ class DagRun(Base, LoggingMixin):
         """
         Get the number of active dag runs for each dag.
 
+        ``exclude_backfill`` leaves out both backfill runs and backfill-derived runs, so neither of them
+        takes up the capacity for creating normal runs.
+
         :meta private:
         """
         query = (
@@ -836,7 +847,7 @@ class DagRun(Base, LoggingMixin):
             .group_by(cls.dag_id)
         )
         if exclude_backfill:
-            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
+            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB, cls.backfill_derived.is_(False))
         return {dag_id: count for dag_id, count in session.execute(query)}
 
     @classmethod
@@ -950,6 +961,9 @@ class DagRun(Base, LoggingMixin):
                 not_(coalesce(cast("ColumnElement[bool]", Backfill.is_paused), False)),
             )
             .order_by(
+                # backfill-derived runs queue behind every other run, first come first served.
+                cls.backfill_derived.asc(),
+                case((cls.backfill_derived, cls.run_after), else_=None).asc(),
                 # ordering by backfill sort ordinal first ensures that backfill dag runs
                 # have lower priority than all other dag run types (since sort_ordinal >= 1).
                 # additionally, sorting by sort_ordinal ensures that the backfill

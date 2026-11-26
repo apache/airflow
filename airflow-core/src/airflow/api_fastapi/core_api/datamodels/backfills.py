@@ -38,6 +38,11 @@ class BackfillPostBody(StrictBaseModel):
     dag_run_conf: dict | None = None
     reprocess_behavior: ReprocessBehavior = ReprocessBehavior.NONE
     max_active_runs: int = Field(default=10, ge=1)
+    propagate_priority: bool = Field(
+        default=False,
+        description="Give the asset-triggered Dag runs downstream of this backfill, at any depth, the "
+        "same low scheduling priority as backfill runs. Runs that are already running are not preempted.",
+    )
     run_on_latest_version: bool | None = Field(
         default=None,
         description="Run on the latest bundle version of the Dag for each backfilled run. "
@@ -71,6 +76,7 @@ class BackfillResponse(BaseModel):
     is_paused: bool
     reprocess_behavior: ReprocessBehavior
     max_active_runs: int
+    propagate_priority: bool
     created_at: datetime
     completed_at: datetime | None
     updated_at: datetime

@@ -3158,7 +3158,19 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 select(AssetPartitionDagRun)
                 .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
                 .where(*_build_pending_partitioned_apdr_filters())
-                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+                .order_by(
+                    # Normal work first, so a backfill-derived backlog cannot fill the batch.
+                    exists(
+                        select(PartitionedAssetKeyLog.id)
+                        .join(AssetEvent, AssetEvent.id == PartitionedAssetKeyLog.asset_event_id)
+                        .where(
+                            PartitionedAssetKeyLog.asset_partition_dag_run_id == AssetPartitionDagRun.id,
+                            AssetEvent.backfill_derived.is_(True),
+                        )
+                    ).asc(),
+                    AssetPartitionDagRun.created_at,
+                    AssetPartitionDagRun.id,
+                )
                 .limit(self._max_partition_dag_runs_per_loop),
                 of=AssetPartitionDagRun,
                 skip_locked=True,
@@ -3637,11 +3649,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session: Session,
     ) -> Sequence[AssetEvent]:
         """Select the unconsumed asset events matched by ``_build_consumable_asset_event_clause``."""
+        query = select(AssetEvent).where(
+            _build_consumable_asset_event_clause(dag, locked_records=locked_records)
+        )
+        if limit is not None:
+            # A limited batch must not be filled by backfill-derived events ahead of normal ones.
+            query = query.order_by(AssetEvent.backfill_derived.asc())
         return session.scalars(
-            select(AssetEvent)
-            .where(_build_consumable_asset_event_clause(dag, locked_records=locked_records))
-            .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
-            .limit(limit)
+            query.order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc()).limit(limit)
         ).all()
 
     def _delete_consumed_asset_records(
@@ -3778,6 +3793,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     remaining_runs -= 1
                     stats.incr("asset.triggered_dagruns", tags=prune_dict({"team_name": team_name}))
                     dag_run.consumed_asset_events.extend(events)
+                    dag_run.backfill_derived = any(event.backfill_derived for event in events)
                     self.log.info(
                         "Created asset-triggered DagRun for '%s': run_id=%s, consumed %d asset events",
                         dag.dag_id,

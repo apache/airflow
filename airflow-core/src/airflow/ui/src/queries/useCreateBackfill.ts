@@ -97,6 +97,7 @@ export const useCreateBackfill = ({ onSuccessConfirm }: { onSuccessConfirm: () =
         drain_dag: data.requestBody.drain_dag,
         from_date: formattedDataIntervalStart,
         max_active_runs: data.requestBody.max_active_runs,
+        propagate_priority: data.requestBody.propagate_priority,
         reprocess_behavior: data.requestBody.reprocess_behavior,
         run_backwards: data.requestBody.run_backwards,
         run_on_latest_version: data.requestBody.run_on_latest_version,
