@@ -310,7 +310,7 @@
     },
     "dagsList": {
       "recentTasks": {
-        "helper": "Mostra l'estat de les tasques recents de cada Dag a la llista de Dags. Desactiveu aquesta opció per evitar carregar-les. Això pot millorar el rendiment en desplegaments amb molts Dags.",
+        "helper": "Mostra l'estat de les tasques recents de cada Dag a la llista de Dags. Desactiveu aquesta opció per a evitar carregar-les. Això pot millorar el rendiment en desplegaments amb molts Dags.",
         "label": "Mostrar les tasques recents"
       },
       "title": "Llista de Dags"
