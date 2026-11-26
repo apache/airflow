@@ -31,7 +31,7 @@ import requests
 from fastapi import FastAPI
 from jwt import InvalidTokenError
 from keycloak import KeycloakOpenID
-from keycloak.exceptions import KeycloakPostError
+from keycloak.exceptions import KeycloakError, KeycloakPostError
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
@@ -524,6 +524,19 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
             client_secret_key=client_secret,
             realm_name=realm,
         )
+
+    @staticmethod
+    def _end_keycloak_session(refresh_token: str) -> None:
+        client = KeycloakAuthManager.get_keycloak_client()
+        client.connection.timeout = 5
+        try:
+            client.logout(refresh_token)
+        except KeycloakError as e:
+            log.warning(
+                "Could not end the Keycloak session on logout (%s, response code %s)",
+                type(e).__name__,
+                e.response_code,
+            )
 
     def _is_authorized(
         self,

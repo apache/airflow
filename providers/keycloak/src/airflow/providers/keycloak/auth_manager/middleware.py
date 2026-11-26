@@ -17,14 +17,12 @@
 
 from __future__ import annotations
 
-import logging
 from abc import ABCMeta, abstractmethod
 from typing import TYPE_CHECKING, cast
 
 from fastapi import HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse
 from jwt import ExpiredSignatureError, InvalidTokenError
-from keycloak import KeycloakError
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 
@@ -80,8 +78,6 @@ if TYPE_CHECKING:
 
     from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
     from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
-
-log = logging.getLogger(__name__)
 
 if KeycloakAuthManager._middleware_handles_cookies():
     from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware  # pyright: ignore[reportAssignmentType]
@@ -299,7 +295,7 @@ class KeycloakJWTMiddleware(JWTRefreshMiddleware):
         if KeycloakJWTMiddleware._is_logout(request):
             # Last request that carries the refresh token cookie.
             if user.refresh_token:
-                await run_in_threadpool(KeycloakJWTMiddleware._end_keycloak_session, user.refresh_token)
+                await run_in_threadpool(KeycloakAuthManager._end_keycloak_session, user.refresh_token)
             # On logout return the user as new_user without refreshing to allow the Keycloak
             # Cookies to be cleared by get_extra_cookies().
             return user, user
@@ -314,20 +310,6 @@ class KeycloakJWTMiddleware(JWTRefreshMiddleware):
                 KeycloakJWTMiddleware._drop_cookie(request, COOKIE_NAME_JWT_TOKEN)
             return ""
         return get_auth_manager().generate_jwt(new_user)
-
-    @staticmethod
-    def _end_keycloak_session(refresh_token: str) -> None:
-        """End the Keycloak session of ``refresh_token``."""
-        client = KeycloakAuthManager.get_keycloak_client()
-        client.connection.timeout = 5
-        try:
-            client.logout(refresh_token)
-        except KeycloakError as e:
-            log.warning(
-                "Could not end the Keycloak session on logout (%s, response code %s)",
-                type(e).__name__,
-                e.response_code,
-            )
 
     @staticmethod
     def _is_logout(request: Request) -> bool:
