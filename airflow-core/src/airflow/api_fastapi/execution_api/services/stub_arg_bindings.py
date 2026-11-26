@@ -26,7 +26,6 @@ values: the supervisor reads each XCom binding, and the runtime applies any ``ma
 from __future__ import annotations
 
 import dataclasses
-import json
 from collections.abc import Callable, Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, TypeVar, cast
@@ -393,7 +392,7 @@ class _MappedArgBindingDeriver:
                     if index < self._get_length(zipped):
                         parts.append(self._locate_ref(zipped, index))
                     elif is_arg_set(arg.fillvalue):
-                        parts.append(LiteralValue(kind="literal", value=self._ensure_json(arg.fillvalue)))
+                        parts.append(LiteralValue(kind="literal", value=arg.fillvalue))
                     else:
                         raise UndeliverableMappedArgBindingsError(f"zip() has no element at index {index}")
                 return param.build(TupleArgBinding, kind="tuple", parts=parts)
@@ -489,16 +488,6 @@ class _MappedArgBindingDeriver:
             producer_contexts=self.producer_contexts,
         )
 
-    @classmethod
-    def _bind_literal(cls, param: _ArgParam, value: Any) -> LiteralArgBinding:
-        return param.build(LiteralArgBinding, kind="literal", value=cls._ensure_json(value))
-
     @staticmethod
-    def _ensure_json(value: Any) -> Any:
-        try:
-            json.dumps(value, allow_nan=False)
-        except (TypeError, ValueError):
-            raise UndeliverableMappedArgBindingsError(
-                f"a {type(value).__name__} value cannot cross the language boundary"
-            )
-        return value
+    def _bind_literal(param: _ArgParam, value: Any) -> LiteralArgBinding:
+        return param.build(LiteralArgBinding, kind="literal", value=value)
