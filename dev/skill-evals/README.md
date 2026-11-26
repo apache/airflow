@@ -38,24 +38,69 @@ Test whether changes to `AGENTS.md` break or improve agent decisions.
 The harness compares the `main` branch version against your working
 tree, running the same cases against both and reporting the diff.
 
-Each arm is a **git worktree** of the real repo — the agent sees
-actual source files (`pyproject.toml`, directory structure, etc.).
-The only difference between arms is which `AGENTS.md` is present.
+Each arm is a **shared clone** (`git clone --shared`) of the real repo in a
+temp directory — the agent sees actual source files (`pyproject.toml`,
+directory structure, etc.). The only difference between arms is which
+`AGENTS.md` is present. Unlike `git worktree add`, a shared clone writes
+nothing into the repo's own `.git`, so the eval also runs inside an agent
+sandbox where `.git` is read-only.
 
-The agent reads guidance through the `CLAUDE.md → AGENTS.md` symlink,
-so the harness verifies that symlink exists (in the working tree and
-on the base branch) before running and aborts if it is broken — a
-regular-file CLAUDE.md would make every arm read identical guidance.
+The agent reads `AGENTS.md` directly, as Claude Code does: the pinned
+Claude Agent SDK bundles a Claude Code CLI new enough (v2.1.277 or later)
+to load `AGENTS.md` without a `CLAUDE.md`. Keep that in mind when changing
+the SDK pin in `.pre-commit-config.yaml` — an older SDK would silently
+read no guidance in any arm.
 
 ## Prerequisites
 
 - **Claude authentication** (one of):
   - Claude Code session (`claude /login`) — Pro/Max subscription
   - `ANTHROPIC_API_KEY` environment variable — API credits
+  - `SKILL_EVAL_CLAUDE_TOKEN_FILE` — path to a file holding a token from
+    `claude setup-token` (Pro/Max subscription). See
+    [Running from an agent sandbox](#running-from-an-agent-sandbox).
 - **Codex authentication** (when using the Codex runtime): a Codex CLI
   session (`codex login`)
 
 That's it — prek provisions Node, promptfoo, and the agent SDKs automatically.
+
+### Running from an agent sandbox
+
+Agent sandboxes usually block the macOS keychain and the `~/.claude`
+credentials that a `/login` session stores, so every case fails with
+"Not logged in".
+
+The recommended fix is not to give the sandbox a credential at all: run the
+eval yourself, outside the sandbox, with your normal login (in Claude Code,
+type `! prek run run-skill-eval --hook-stage manual --all-files`). A token
+file readable from the sandbox stays readable to everything that runs there
+— prompt-injected commands and untrusted code under test included — for as
+long as it exists.
+
+If agents must run the eval unattended, give the eval its own credential:
+
+```bash
+claude setup-token          # run outside the agent; prints a long-lived token
+# save it to a file only you can read, at a path your sandbox allows reading
+chmod 600 /path/to/skill-eval-token
+SKILL_EVAL_CLAUDE_TOKEN_FILE=/path/to/skill-eval-token \
+  prek run run-skill-eval --hook-stage manual --all-files
+```
+
+Pick the path to suit your sandbox: sandboxes often deny reads across the
+home directory (including `~/.config`), so the file must sit somewhere the
+sandbox's read allowlist covers. Keep it outside the repository so it
+cannot be committed by accident.
+
+The harness reads the file and passes the token only to the promptfoo
+process, so it is not exported to every command in the session — prefer
+this over exporting `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the
+agent's environment.
+
+This narrows the exposure but does not hide the token from the agent: the
+sandbox must allow reading the file, so anything the agent runs can read it
+too. Use a token made only for the eval, and revoke it if it may have
+leaked.
 
 ## Agent runtimes
 
@@ -160,7 +205,7 @@ Use `output.should_create` directly in assertions.
 
 ## How it works
 
-1. Creates git worktrees — one with `main`'s AGENTS.md, one with
+1. Creates shared clones — one with `main`'s AGENTS.md, one with
    your working tree version. Both are full repo checkouts.
 2. Generates a [promptfoo](https://github.com/promptfoo/promptfoo)
    config for the selected runtime. Claude uses promptfoo's
