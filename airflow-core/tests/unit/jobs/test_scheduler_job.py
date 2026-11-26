@@ -13954,6 +13954,13 @@ def test_create_dagruns_asset_gated_event_queued_during_association_waits_for_ne
     first_event = AssetEvent(asset_id=asset_id, timestamp=logical_date)
     session.add(first_event)
     session.flush()
+    # The second event reuses an ID the database already assigned, so later INSERTs that rely on
+    # automatic ID assignment cannot collide with it. The placeholder is deleted only after the
+    # other asset's event is inserted, so its ID cannot be assigned to that event.
+    placeholder_event = AssetEvent(asset_id=asset_id, timestamp=logical_date)
+    session.add(placeholder_event)
+    session.flush()
+    second_event_id = placeholder_event.id
     session.add(
         AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=first_event.id)
     )
@@ -13964,9 +13971,9 @@ def test_create_dagruns_asset_gated_event_queued_during_association_waits_for_ne
     )
     session.add(other_asset)
     session.flush()
-    base_event_id = session.scalars(select(func.max(AssetEvent.id))).one()
-    second_event_id = base_event_id + 1
-    session.add(AssetEvent(id=base_event_id + 2, asset_id=other_asset.id, timestamp=logical_date))
+    session.add(AssetEvent(asset_id=other_asset.id, timestamp=logical_date))
+    session.flush()
+    session.delete(placeholder_event)
     dag_model.next_dagrun = logical_date
     dag_model.next_dagrun_data_interval = (logical_date, logical_date)
     dag_model.next_dagrun_create_after = logical_date
