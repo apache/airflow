@@ -55,7 +55,10 @@ Changelog
   each request such as ``SelectModel``, since pydantic-ai refuses a request moved to a model
   under durable execution. A ``fallback_conn_ids`` chain keeps it. A sandbox a function or
   ``DynamicToolset`` builds per run cannot be seen before the run, so pass ``durable=False`` to
-  that task. An agent pydantic-ai refuses only once its durable run has started, such as one a
+  that task. When the Dag changes between attempts so that the default turns it off, such as
+  a ``SelectModel`` added or ``retries`` lowered to 0, and an earlier attempt started an agent run,
+  the task fails instead of running the agent live and repeating its tool calls
+  (:ref:`durable-not-journaled`). An agent pydantic-ai refuses only once its durable run has started, such as one a
   capability whose ``for_run`` builds it when the run starts moves to a model instance the agent
   was not built with, runs again without durable execution. The task
   fails instead when a step a live run would repeat already ran, such as a tool call, or when it

@@ -3046,6 +3046,21 @@ def _durable_context(store, *, try_number: int = 1) -> Any:  # a Context stand-i
     return {"task_instance": ti, "ti": ti, "task_state_store": store}
 
 
+def _run_attempt_that_calls_a_tool_then_fails(store, live: dict[str, int]) -> FunctionToolset:
+    """Run a durable first attempt whose ``my_tool`` call is recorded and then fails; return its toolset."""
+
+    def my_tool() -> str:
+        live["tool"] += 1
+        return "tool-result"
+
+    tools = FunctionToolset(tools=[my_tool], id="tools")
+    with pytest.raises(RuntimeError, match="transient"):
+        _agent_op(_tool_then_answer([True], live), retries=2, toolsets=[tools]).execute(
+            context=_durable_context(store)
+        )
+    return tools
+
+
 def _answer(messages, info) -> ModelResponse:
     return ModelResponse(parts=[TextPart(content="done")])
 
@@ -3601,6 +3616,67 @@ class TestAgentOperatorDurableByDefault:
             op.execute(context=_durable_context(task_state_store_accessor, try_number=2))
 
         assert "could repeat steps that already ran" in caplog.text
+
+    @pytest.mark.parametrize(
+        ("changed", "reason"),
+        [
+            pytest.param(
+                {"capabilities": [SelectModel(lambda ctx: FunctionModel(_answer))]},
+                "SelectModel capability picks the model",
+                id="selected-model",
+            ),
+            pytest.param(
+                {"capabilities": [ModelFallback(FunctionModel(_answer))]},
+                "ModelFallback capability moves a request",
+                id="fallback",
+            ),
+            pytest.param(
+                {"capabilities": [CombinedCapability([Toolset(FunctionToolset(tools=[]))])]},
+                "a toolset without an id sits inside a combined or wrapper capability",
+                id="toolset-without-id",
+            ),
+            pytest.param({"retries": 0}, "the task has no retries", id="retries-lowered"),
+        ],
+    )
+    def test_a_default_that_turns_off_after_an_earlier_attempt_called_a_tool_fails_the_task(
+        self, task_state_store_accessor, caplog, changed, reason
+    ):
+        """The Dag changed between attempts: running live would call the tool the journal already holds."""
+        live = {"model": 0, "tool": 0}
+        tools = _run_attempt_that_calls_a_tool_then_fails(task_state_store_accessor, live)
+        op = _agent_op(_tool_then_answer([False], live), **{"retries": 2, "toolsets": [tools], **changed})
+
+        with caplog.at_level(logging.INFO), pytest.raises(DurableJournalError, match="durable=False"):
+            op.execute(context=_durable_context(task_state_store_accessor, try_number=2))
+
+        assert live["tool"] == 1
+        assert reason in caplog.text
+        assert [key for key in task_state_store_accessor.data if key.startswith(DURABLE_KEY_PREFIX)]
+
+    def test_a_default_that_turns_off_after_an_earlier_attempt_failed_its_first_request_fails_the_task(
+        self, task_state_store_accessor
+    ):
+        """A step that raised before it was recorded cannot be told from none, so the attempt counts."""
+        with pytest.raises(ModelHTTPError):
+            _agent_op(_unavailable, retries=2).execute(context=_durable_context(task_state_store_accessor))
+        op = _agent_op(_answer, retries=2, capabilities=[ModelFallback(FunctionModel(_answer))])
+
+        with pytest.raises(DurableJournalError, match="started an agent run"):
+            op.execute(context=_durable_context(task_state_store_accessor, try_number=2))
+
+    def test_durable_false_runs_live_after_an_earlier_attempt_called_a_tool(self, task_state_store_accessor):
+        live = {"model": 0, "tool": 0}
+        tools = _run_attempt_that_calls_a_tool_then_fails(task_state_store_accessor, live)
+        op = _agent_op(
+            _tool_then_answer([False], live),
+            retries=2,
+            durable=False,
+            toolsets=[tools],
+            capabilities=[SelectModel(lambda ctx: ctx.model)],
+        )
+
+        assert op.execute(context=_durable_context(task_state_store_accessor, try_number=2)) == "done"
+        assert live["tool"] == 2
 
     def test_a_user_error_the_agent_raises_itself_is_not_taken_for_a_refusal(
         self, task_state_store_accessor, caplog

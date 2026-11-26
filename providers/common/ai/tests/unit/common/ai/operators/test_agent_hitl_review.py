@@ -34,7 +34,12 @@ from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
 
 from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX, build_step_key
-from airflow.providers.common.ai.exceptions import HITLMaxIterationsError, UnsupportedToolDeferralError
+from airflow.providers.common.ai.durable.journal import DurableJournal
+from airflow.providers.common.ai.exceptions import (
+    DurableJournalError,
+    HITLMaxIterationsError,
+    UnsupportedToolDeferralError,
+)
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.operators.agent import _HITL_REVIEW_ANSWERS_KEY, AgentOperator
 from airflow.providers.common.ai.utils.hitl_review import (
@@ -549,6 +554,67 @@ def test_a_retry_pydantic_ai_refuses_after_a_review_round_fails_without_calling_
 
     assert writer.fetches == 1
     assert "could repeat, so the task fails. Pass durable=False" in caplog.text
+
+
+@parks
+def test_a_resume_the_default_now_turns_off_regenerates_and_the_retry_fails_instead(park, ctx, caplog):
+    """The regeneration repeats none of the first run's steps; a retry would run the first run live."""
+    writer = _Writer(fail_on="Shorter")
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+    switching = {"capabilities": [SelectModel(lambda selection: selection.model)]}
+
+    with pytest.raises(RuntimeError, match="model unavailable"):
+        build_operator(**switching).resume_hitl_review(ctx, **first.kwargs, event=_changes("Shorter"))
+    TestDurable._retry(ctx)
+    with caplog.at_level(logging.INFO), pytest.raises(DurableJournalError, match="durable=False"):
+        build_operator(**switching).execute(ctx)
+
+    assert writer.fetches == 1
+    assert "a SelectModel capability picks the model" in caplog.text
+
+
+@parks
+def test_approving_a_review_after_the_default_turned_off_deletes_the_first_runs_journal(park, ctx):
+    """Otherwise a later clear that keeps task state would fail on a journal of a task that succeeded."""
+    writer = _Writer()
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+    store = ctx["task_state_store"].data
+    assert [key for key in store if key.startswith(DURABLE_KEY_PREFIX)]
+
+    build_operator(capabilities=[SelectModel(lambda selection: selection.model)]).resume_hitl_review(
+        ctx, **first.kwargs, event=APPROVE
+    )
+
+    assert [key for key in store if key.startswith(DURABLE_KEY_PREFIX)] == []
+
+
+@parks
+def test_a_journal_that_cannot_be_deleted_does_not_fail_an_approved_review(park, ctx, caplog):
+    writer = _Writer()
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+
+    with (
+        caplog.at_level(logging.WARNING),
+        patch.object(DurableJournal, "cleanup", autospec=True, side_effect=RuntimeError("API down")),
+    ):
+        result = build_operator(
+            capabilities=[SelectModel(lambda selection: selection.model)]
+        ).resume_hitl_review(ctx, **first.kwargs, event=APPROVE)
+
+    assert result == "summary 2 after []"
+    assert "Could not delete the journal an earlier run of this task left" in caplog.text
 
 
 @parks

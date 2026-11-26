@@ -65,6 +65,7 @@ from airflow.providers.common.ai.durable.journal import (
     journal_scope,
 )
 from airflow.providers.common.ai.exceptions import (
+    DurableJournalError,
     HITLMaxIterationsError,
     ToolApprovalAlreadyRequestedError,
     ToolApprovalError,
@@ -641,8 +642,13 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         apply: a ``SandboxToolset``, an ``MCPToolset`` without an ``id``, a toolset without an
         ``id`` inside a combined or wrapper capability or built by a ``Toolset`` capability, a
         capability pydantic-ai refuses to run durably (``Capability(toolsets=...)`` with a
-        toolset without an ``id`` among them), or a context with no task state store; and it
-        leaves the journal to an ``AirflowDurability`` capability passed in ``capabilities``.
+        toolset without an ``id`` among them), a ``ModelFallback`` or a capability that selects
+        the model for each request (``SelectModel``), or a context with no task state store; and
+        it leaves the journal to an ``AirflowDurability`` capability passed in ``capabilities``.
+        If the Dag changed between attempts so that the default now turns it off, and an
+        earlier attempt started an agent run, the task fails instead of running the agent live,
+        since its journal may hold steps, such as tool calls, that a live run would repeat; pass
+        ``durable=False``, or delete the task instance's task state.
         ``True`` turns it on wherever the task runs. It refuses the first three when the Dag
         loads; a capability pydantic-ai refuses fails the task when it runs;
         ``False`` turns it off (:ref:`durable-opt-out`). When on, the operator attaches
@@ -862,6 +868,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # Whether this run is durable. ``durable=None`` leaves it to ``_decide_durable`` when the
         # task runs, since the task state store and the task log exist only then.
         self._is_durable_run = durable is True
+        # Set by _decide_durable: why the default turned durable execution off, or None.
+        self._durable_off_reason: str | None = None
 
         # The task instance's durable journal, set per run in ``execute`` when the run is durable.
         self._durable_journal: DurableJournal | None = None
@@ -1501,8 +1509,34 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             return
         reason = self._why_not_durable_by_default(context)
         self._is_durable_run = reason is None
+        self._durable_off_reason = reason
         if reason is not None:
             self.log.info("Durable execution is off for this task: %s", reason)
+
+    def _refuse_live_run_over_journal(self, context: Context) -> None:
+        """
+        Fail the task when the default turned durable execution off but the journal holds steps.
+
+        The Dag can change between attempts, such as a ``SelectModel`` added or ``retries`` lowered
+        after an attempt that called tools. Running live then would repeat those tool calls, as
+        ``_build_agent_as_decided`` and ``_may_run_again_without_durable`` refuse to for a refusal
+        pydantic-ai raises later. Like them, it counts an agent run an earlier attempt started,
+        since a step that raised before it was recorded cannot be told from none.
+        """
+        if (
+            (reason := self._durable_off_reason) is None
+            or not AIRFLOW_V_3_3_PLUS
+            or "task_state_store" not in context
+        ):
+            return
+        if self._open_journal(context).holds_steps():
+            raise DurableJournalError(
+                f"Durable execution is off for this task: {reason} An earlier attempt, or this run before it "
+                "paused, started an agent run, so its journal may hold steps, such as tool calls, that "
+                "running the agent again would repeat. Pass durable=False to run it without durable "
+                "execution, undo the change to the Dag, or delete the task instance's task state "
+                "(clearing it does so on Airflow 3.4+, unless the clear keeps task state)."
+            )
 
     def _why_not_durable_by_default(self, context: Context) -> str | None:
         """Say why durable execution cannot be on by default for this task, or return ``None``."""
@@ -1538,6 +1572,7 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
         self._decide_durable(context)
+        self._refuse_live_run_over_journal(context)
 
         # A try that paused without durable execution and then ended some other way (marked failed
         # while waiting, a failed request) leaves its transcript behind; a fresh run never reads it.
@@ -2161,8 +2196,23 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
             # The approved output is the task's result, so nothing replays the review again.
             self._durable_journal.cleanup()
             self._delete_review_answers(context)
+        elif self._durable_off_reason is not None and "task_state_store" in context:
+            self._delete_journal_of_changed_dag(context)
         self._clear_usage_budget(context)
         return result
+
+    def _delete_journal_of_changed_dag(self, context: Context) -> None:
+        """
+        Delete a journal the first run left before the default turned durable execution off.
+
+        Left behind, it would make a later clear that keeps task state fail on a task that succeeded.
+        Best effort, like the journal's own deletes: a failed read here must not fail the approved task.
+        """
+        try:
+            self._open_journal(context).cleanup()
+            self._delete_review_answers(context)
+        except Exception:
+            self.log.warning("Could not delete the journal an earlier run of this task left.", exc_info=True)
 
     def resume_hitl_review(
         self,

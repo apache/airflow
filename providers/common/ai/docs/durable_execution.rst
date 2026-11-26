@@ -178,6 +178,21 @@ reason, in these cases:
 
 ``durable=True`` refuses the first three with a ``ValueError`` when the Dag loads.
 
+The default decides this at the start of every attempt, for every case above except an agent
+pydantic-ai refuses once its run has started (that case has its own rule) and a missing task
+state store, and for a task whose ``retries`` is now 0. If the Dag changed since an earlier
+attempt, so that durable execution is now off, and that attempt, or this run before it paused
+for tool approval, started an agent run, the task fails with ``DurableJournalError`` instead of running the agent live,
+since the journal may hold steps, such as tool calls, that a live run would repeat. A step that
+raised before it was recorded cannot be told from none, so an attempt that failed on its first
+model request counts too: adding a ``ModelFallback`` after a provider outage fails the retry,
+and a ``fallback_conn_ids`` chain does not. The message names the reason and the ways out: pass
+``durable=False`` to run the agent without durable execution, undo the change to the Dag, or
+delete the task instance's task state (``DELETE .../state-store``, :ref:`durable-journal-storage`;
+a clear does so from Airflow 3.4, :ref:`durable-clear`). A HITL review's regeneration after the
+first round still runs without durable execution, since it continues from the conversation and
+repeats none of the first run's steps, and approving the review deletes the journal.
+
 An ``AirflowDurability`` capability you pass yourself journals each agent run on its own,
 as in a plain ``@task``, deleting the run's steps as soon as it succeeds. The operator then
 adds none of its own, and the task log says so. ``durable=True`` together with the
