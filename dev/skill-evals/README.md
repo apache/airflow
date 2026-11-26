@@ -72,11 +72,16 @@ credentials that a `/login` session stores, so every case fails with
 
 ```bash
 claude setup-token          # run outside the agent; prints a long-lived token
-# save it to a file only you can read, e.g. ~/.config/airflow-skill-eval/token
-chmod 600 ~/.config/airflow-skill-eval/token
-SKILL_EVAL_CLAUDE_TOKEN_FILE=~/.config/airflow-skill-eval/token \
+# save it to a file only you can read, at a path your sandbox allows reading
+chmod 600 /path/to/skill-eval-token
+SKILL_EVAL_CLAUDE_TOKEN_FILE=/path/to/skill-eval-token \
   prek run run-skill-eval --hook-stage manual --all-files
 ```
+
+Pick the path to suit your sandbox: sandboxes often deny reads across the
+home directory (including `~/.config`), so the file must sit somewhere the
+sandbox's read allowlist covers. Keep it outside the repository so it
+cannot be committed by accident.
 
 The harness reads the file and passes the token only to the promptfoo
 process, so it is not exported to every command in the session — prefer
