@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { FiTrash2 } from "react-icons/fi";
 
 import {
+  useDurableExecutionServiceGetDurableExecutionKey,
   useTaskStateStoreServiceClearTaskStateStore,
   useTaskStateStoreServiceGetTaskStateStoreKey,
   useTaskStateStoreServiceListTaskStateStoreKey,
@@ -48,6 +49,7 @@ export const ClearAllTaskStateStoreButton = ({ dagId, mapIndex, runId, taskId }:
       invalidationKeys: [
         useTaskStateStoreServiceListTaskStateStoreKey,
         useTaskStateStoreServiceGetTaskStateStoreKey,
+        useDurableExecutionServiceGetDurableExecutionKey,
       ],
       onSuccessConfirm: onClose,
       operation: "delete",

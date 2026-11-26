@@ -39,6 +39,9 @@ version. There will be no ``3.0.*`` versions released after ``3.1.0`` has been r
 This means that in order to apply security fixes in Apache Airflow, you
 MUST upgrade to the latest released ``MINOR.PATCHLEVEL`` version of Airflow.
 
+To see which published vulnerabilities affect the version of Airflow you run, use the
+`Apache Airflow security page <https://airflow.apache.org/security/apache-airflow/>`_.
+
 Releasing Airflow providers with security patches
 -------------------------------------------------
 
@@ -49,3 +52,5 @@ policies apply for providers as for Airflow itself. This means that you need to 
 Airflow providers are released independently from Airflow itself and the information about vulnerabilities
 is published separately. You can upgrade providers independently from Airflow itself, following the
 instructions found in :ref:`installing-from-pypi-managing-providers-separately-from-airflow-core`.
+The published vulnerabilities of each provider are listed on the
+`providers security page <https://airflow.apache.org/security/providers/>`_.

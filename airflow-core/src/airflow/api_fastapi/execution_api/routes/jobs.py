@@ -263,7 +263,7 @@ def heartbeat_job(
     _check_token_job(job_id, token)
     job = session.scalars(select(Job).where(Job.id == job_id)).one()
     job.latest_heartbeat = timezone.utcnow()
-    return JobHeartbeatResponse(state=JobState(job.state))
+    return JobHeartbeatResponse(state=JobState(str(job.state)))
 
 
 @router.post(

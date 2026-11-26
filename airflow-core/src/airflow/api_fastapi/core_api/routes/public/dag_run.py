@@ -362,6 +362,7 @@ def clear_dag_run(
         only_failed=body.only_failed,
         only_new=body.only_new,
         run_on_latest_version=body.run_on_latest_version,
+        keep_task_state=body.keep_task_state,
         note=body.note,
         user=user,
     )
@@ -465,10 +466,12 @@ def clear_dag_runs(
                 only_failed=body.only_failed,
                 only_new=body.only_new,
                 run_on_latest_version=body.run_on_latest_version,
+                keep_task_state=body.keep_task_state,
                 note=body.note,
                 user=user,
             )
         )
+    attach_dag_versions_to_runs(cleared_runs, session=session)
     return DAGRunCollectionResponse(
         dag_runs=[DAGRunResponse.model_validate(cleared_run) for cleared_run in cleared_runs],
         total_entries=len(cleared_runs),

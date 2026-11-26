@@ -31,8 +31,8 @@ They can create the permissions and needed resources easily.
 
 There are two options to create the permissions:
 
-* Create all permissions (Scopes, Resources, Permissions) in one go using one CLI command
-* Create all permissions (Scopes, Resources, Permissions) step-by-step using the CLI commands
+* Create all permissions (Scopes, Resources, Roles, Permissions) in one go using one CLI command
+* Create all permissions (Scopes, Resources, Roles, Permissions) step-by-step using the CLI commands
 
 CLI commands take the following parameters:
 
@@ -53,7 +53,7 @@ One-go creation of permissions
 
 There is a single command do all the magic for you.
 
-This command will create scopes, resources and permissions in one-go.
+This command will create scopes, resources, roles and permissions in one-go.
 
 .. code-block:: bash
 
@@ -82,7 +82,18 @@ This command will create resources for certain types of permissions.
 
   airflow keycloak-auth-manager create-resources --teams team-a,team-b
 
-Finally, with the command below, we create the permissions using the previously created scopes and resources.
+This command will create the ``Viewer``, ``User``, ``Op``, ``Admin`` and ``SuperAdmin`` roles as client
+roles of the Airflow client. A role that already exists, as a realm role or as a client role, is left unchanged.
+
+.. code-block:: bash
+
+  airflow keycloak-auth-manager create-roles
+
+The permissions use the realm role of that name when one exists, and the client role of the
+Airflow client otherwise. When both exist, the policy uses the realm role only, so a user that has
+only the client role does not get the permissions of that role.
+
+Finally, with the command below, we create the permissions using the previously created scopes, resources and roles.
 
 .. code-block:: bash
 
@@ -115,7 +126,7 @@ When using team-scoped permissions, the model is:
 * Team policies require both group membership and role membership
 * A separate ``SuperAdmin`` role can be used for global admin access across all teams
 
-Note: the CLI creates groups, resources, permissions, and policies, but **does not assign roles to users**.
+Note: the CLI creates groups, roles, resources, permissions, and policies, but **does not assign roles to users**.
 You must assign the appropriate Keycloak roles (Admin/Op/User/Viewer or SuperAdmin) to each user separately.
 In multi-team mode, the ``Admin`` role is **team-scoped** (group + role). Only ``SuperAdmin`` grants global
 admin access across all teams.
@@ -123,6 +134,35 @@ Views over records beyond the Dags a caller can read -- audit log entries not ti
 import errors for files with no registered Dag, reparsing such files, and Dag bundles (from Airflow 3.4.1) -- are checked against the
 ``AdminView`` resource, which the CLI grants to ``SuperAdmin`` only. The other views are checked against
 the ``View`` resource, which every team role can read.
+
+Listing resources when permissions are granted per team
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Whenever Airflow lists Dags, assets, connections, pools or variables, the auth manager asks Keycloak which
+of them the user may access. By default it sends one request per resource, with the id of the resource as a
+claim, so that a Keycloak policy can grant access to individual resources. With many resources this makes
+pages that list them slow: the Dag list sends one request per Dag and, from Airflow 3.4.0, one per asset.
+
+The permissions created by the CLI are granted by role and group only, and no policy reads the id of the
+resource. Keycloak then gives the same answer for every Dag of a team. When that holds for your realm, enable
+``team_level_authorization`` in the ``[keycloak_auth_manager]`` section:
+
+.. code-block:: ini
+
+  [keycloak_auth_manager]
+  team_level_authorization = True
+
+The auth manager then sends one request per team and resource type and applies the answer to all resources of
+that type in the team. Assets do not belong to a team, so one request decides for all assets. When multi-team
+is disabled, one request decides for each resource type.
+
+.. warning::
+
+  Do not enable this setting when a policy of the realm grants or denies access to individual resources, for
+  example a JavaScript or regex policy that reads the ``resource_id`` claim. Such a policy would then be
+  evaluated for one resource only and its answer applied to all the others.
+
+Checks of a single resource, such as opening or triggering one Dag, are not affected by this setting.
 
 More resources about permissions can be found in the official documentation of Keycloak:
 

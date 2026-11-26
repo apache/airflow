@@ -192,6 +192,10 @@ again, and the task log says so:
 
     Durable: the run took a different path from the previous attempt; this step and every step after it run again
 
+For a ``fallback_conn_ids`` chain, the fingerprint names the chain as a whole rather
+than its connections, and a recorded response replays only if the model that answered
+it is still in the chain; see :doc:`recovery`.
+
 A changed agent costs a re-run; it never replays results that belong to another
 conversation. Settings that only affect transport, ``timeout`` and the prompt cache
 settings, are left out of the fingerprint, so changing them does not cause a re-run.
@@ -414,16 +418,17 @@ rerun replays from the journal (see :ref:`durable-clear`), the replayed steps co
 Clearing a task
 ---------------
 
-On Airflow 3.4 and later, clearing a task instance (its Clear dialog in the UI, or
-``POST /api/v2/dags/{dag_id}/clearTaskInstances``) deletes its task state, the journal
-included, so the rerun starts the agent over. This holds for the default task state store
-backend; a custom ``[state_store] backend`` keeps its entries. To resume from the journal
-instead, tick **Keep task state and resume** in the dialog, or send
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes its
+task state by default from Airflow 3.4. Every other clear, such as
+``airflow tasks clear`` or clearing a whole Dag run, does so from Airflow 3.5. The
+journal goes with it, so the rerun starts the agent over. This holds for the default
+task state store backend; a custom ``[state_store] backend`` keeps its entries. To keep
+task state, tick **Keep task state and resume** in the Clear dialog, or send
 ``"keep_task_state": true`` in the request. The **Keep task state on clear** UI setting
-ticks that box by default. Clearing the whole Dag run from the Clear Run dialog keeps task
-state; "Retries resume, clearing starts over" in
-:ref:`apache-airflow:concepts-resumable-tasks` lists the other ways of clearing and which
-of them keep it.
+ticks that box by default. From Airflow 3.5, ``airflow tasks clear --keep-task-state``
+keeps it too. The rerun then replays the journal and resumes the agent from the last
+step it finished. "Retries resume, clearing starts over" in
+:ref:`apache-airflow:concepts-resumable-tasks` lists the ways of clearing.
 
 Before Airflow 3.4 no clear deletes the journal (the task state store on 3.3, the file
 under ``durable_cache_path`` earlier), so a cleared task replays.

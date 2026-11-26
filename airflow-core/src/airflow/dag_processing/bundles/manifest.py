@@ -98,7 +98,7 @@ class BundleVersionManifest:
     source_snapshot: BundleSourceSnapshot
 
 
-def _raise_source_access_error(error: OSError, *, subject: str, phase: str) -> NoReturn:
+def raise_source_access_error(error: OSError, *, subject: str, phase: str) -> NoReturn:
     """
     Re-raise an OSError from the bundle source as the matching manifest error.
 
@@ -106,6 +106,8 @@ def _raise_source_access_error(error: OSError, *, subject: str, phase: str) -> N
     treats as "nothing stable to publish yet, try the next pass". Any other OSError --
     a permission problem, a stale network handle -- is a standing fault, so it must not
     be reported as a benign concurrent edit and then quietly retried forever.
+
+    :meta private:
     """
     if isinstance(error, FileNotFoundError):
         raise BundleManifestSourceChangedError(
@@ -115,7 +117,7 @@ def _raise_source_access_error(error: OSError, *, subject: str, phase: str) -> N
 
 
 def _raise_source_walk_error(error: OSError) -> NoReturn:
-    _raise_source_access_error(
+    raise_source_access_error(
         error, subject=f"directory {error.filename}", phase="collecting manifest metadata"
     )
 
@@ -134,7 +136,7 @@ def _iter_manifest_file_paths(root: Path) -> Iterator[tuple[Path, os.stat_result
             try:
                 file_stat = path.lstat()
             except OSError as e:
-                _raise_source_access_error(
+                raise_source_access_error(
                     e, subject=f"directory {path}", phase="collecting manifest metadata"
                 )
             if stat.S_ISLNK(file_stat.st_mode):
@@ -151,7 +153,7 @@ def _iter_manifest_file_paths(root: Path) -> Iterator[tuple[Path, os.stat_result
             try:
                 file_stat = path.lstat()
             except OSError as e:
-                _raise_source_access_error(e, subject=f"file {path}", phase="collecting manifest metadata")
+                raise_source_access_error(e, subject=f"file {path}", phase="collecting manifest metadata")
             if stat.S_ISLNK(file_stat.st_mode):
                 raise BundleManifestError(f"Bundle source contains symlinked file: {path}")
             if not stat.S_ISREG(file_stat.st_mode):
@@ -301,7 +303,7 @@ def _ensure_source_file_unchanged(source_file: BundleSourceFile) -> None:
     try:
         current_stat = source_file.path.lstat()
     except OSError as e:
-        _raise_source_access_error(
+        raise_source_access_error(
             e, subject=f"file {source_file.relative_path}", phase="verifying manifest metadata"
         )
 
@@ -347,7 +349,8 @@ def build_ref_payload(
     }
 
 
-def _build_ref_payload_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+def build_ref_payload_from_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Build the release-reference payload that names ``manifest`` by its digest."""
     manifest_sha256 = hashlib.sha256(serialize_bundle_version_manifest(manifest)).hexdigest()
     return build_ref_payload(
         bundle_name=manifest["bundle_name"],
@@ -398,7 +401,7 @@ def build_bundle_version_manifest(
             try:
                 file_digest, _ = compute_file_sha256(source_file.path)
             except OSError as e:
-                _raise_source_access_error(
+                raise_source_access_error(
                     e, subject=f"file {source_file.relative_path}", phase="building manifest"
                 )
         else:
@@ -432,7 +435,7 @@ def build_bundle_version_manifest(
     return BundleVersionManifest(
         version=version,
         manifest=manifest,
-        ref_payload=_build_ref_payload_from_manifest(manifest),
+        ref_payload=build_ref_payload_from_manifest(manifest),
         source_snapshot=source_snapshot,
     )
 

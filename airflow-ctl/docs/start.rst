@@ -44,7 +44,19 @@ OR
   export AIRFLOW_CLI_TOKEN=<token>
   airflowctl auth login --api-url <api_url> --env <env_name>
 
-This command will create a new airflowctl environment with the specified username and password.
+OR, when the auth manager of the API server offers browser login (for example to sign in through SSO):
+
+.. code-block:: bash
+
+  airflowctl auth login --sso --api-url <api_url>
+
+This opens the login page of the API server in your browser and waits for the login to complete.
+The browser redirects back to airflowctl on ``127.0.0.1``, so it must run on the same machine.
+Pass ``--no-browser`` to only print the login URL, for example to open it in another browser.
+On a machine without a keyring, also pass ``--skip-keyring``: the token is printed instead of
+stored, and you can set ``AIRFLOW_CLI_TOKEN`` to it.
+
+Each of these commands creates a new airflowctl environment with the given credentials.
 You can then use the following command to start the airflowctl environment:
 
 .. code-block:: bash

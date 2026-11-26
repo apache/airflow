@@ -973,21 +973,14 @@ def _create_ti_state_update_query_and_update_state(
         if ti_patch_payload.trigger_timeout is not None:
             timeout = timezone.utcnow() + ti_patch_payload.trigger_timeout
 
-        trigger_kwargs = ti_patch_payload.trigger_kwargs
-        if not isinstance(trigger_kwargs, str):
-            # If it's passed as a string, assume the client encrypted it, otherwise assume it doesn't need to
-            # be. Just JSON serialize it
-            trigger_kwargs = json.dumps(trigger_kwargs)
-
-        trigger_row = Trigger(
+        trigger_row = Trigger.from_serialized_kwargs(
             classpath=ti_patch_payload.classpath,
-            kwargs={},
+            serialized_kwargs=ti_patch_payload.trigger_kwargs,
             queue=ti_patch_payload.queue,
             team_name=get_team_name_for_ti(task_instance_id, session),
             dag_id=dag_id,
-            owner_ref={"ti_id": str(task_instance_id)},
+            used_by_ref={"ti_id": str(task_instance_id)},
         )
-        trigger_row.encrypted_kwargs = trigger_kwargs
         session.add(trigger_row)
         session.flush()
 

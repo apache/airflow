@@ -74,3 +74,60 @@ If serializing with JSON:
         "port": 1433,
         "schema": "database_name"
     }'
+
+Choosing the DBAPI driver
+-------------------------
+
+By default the hook connects with `pymssql <https://pypi.org/project/pymssql/>`__. Microsoft's own
+`mssql-python <https://pypi.org/project/mssql-python/>`__ driver is available as an alternative. Compared
+with pymssql it supports Microsoft Entra ID authentication, and it uses Microsoft's ODBC driver (installed
+with it) instead of FreeTDS. Switching changes a few things, which are listed in the notes below. For
+example, SQL written with ``%s`` placeholders has to be rewritten to use ``?``.
+
+To use it, install the extra:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-microsoft-mssql[mssql-python]'
+
+and set ``dbapi_driver`` to ``mssql_python`` in the connection extra. As a URI, the extras go in as query parameters:
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_MSSQL_DEFAULT='mssql://username:password@example.com:1433/database_name?dbapi_driver=mssql_python&TrustServerCertificate=yes'
+
+If serializing with JSON:
+
+
+.. code-block:: bash
+
+    export AIRFLOW_CONN_MSSQL_DEFAULT='{
+        "conn_type": "mssql",
+        "login": "username",
+        "password": "password",
+        "host": "example.com",
+        "port": 1433,
+        "schema": "database_name",
+        "extra": {"dbapi_driver": "mssql_python", "TrustServerCertificate": "yes"}
+    }'
+
+Notes
+~~~~~
+
+* ``dbapi_driver`` accepts ``pymssql`` (the default) or ``mssql_python`` and is case-insensitive.
+* Additional driver options, such as ``Encrypt``, ``TrustServerCertificate`` and
+  ``Authentication``, can be supplied through connection extras.
+* The default SQLAlchemy scheme is ``mssql+mssqlpython``, which requires SQLAlchemy 2.1
+  or newer. Override it using ``sqlalchemy_scheme`` in the connection extra or hook argument.
+  The Airflow constraint files pin SQLAlchemy 2.0 and Airflow 2.11 requires it below 2.0, so on a
+  constrained install ``get_conn()`` works, but methods that create a SQLAlchemy engine, such as
+  ``get_sqlalchemy_engine()``, fail with ``NoSuchModuleError`` until SQLAlchemy is upgraded past the
+  constraints.
+* Use ``?`` placeholders with positional parameters or ``%(name)s`` with named parameters.
+  Plain ``%s`` placeholders are not supported. The hook defaults to ``?`` for generated statements.
+* Driver-level connection pooling is enabled by default.
+* Connection extras are passed to the driver as connection string keywords. ``get_conn()`` logs a warning
+  and ignores keywords that mssql-python does not know, but the SQLAlchemy URL is rejected by the driver.
+  Remove options that only pymssql understands, such as ``charset`` or ``tds_version``, when you switch.
+* ``MsSqlToHiveOperator`` and ``MSSQLToGCSOperator`` map column types with pymssql type codes, so they
+  need the default ``pymssql`` driver for now.

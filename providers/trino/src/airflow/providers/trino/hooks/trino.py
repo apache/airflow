@@ -410,9 +410,9 @@ class TrinoHook(DbApiHook):
         """Return Trino dialect."""
         return "trino"
 
-    def get_openlineage_default_schema(self):
-        """Return Trino default schema."""
-        return trino.constants.DEFAULT_SCHEMA
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return the connection schema, which ``get_conn`` uses as the Trino session schema."""
+        return self.connection.schema or None
 
     def get_uri(self) -> str:
         """Return the Trino URI for the connection."""

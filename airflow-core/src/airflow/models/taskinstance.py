@@ -65,7 +65,7 @@ from sqlalchemy import (
     update,
 )
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableDict
@@ -121,6 +121,7 @@ from airflow.models.dynamic_region import (
 # Import HITLDetail at runtime so SQLAlchemy can resolve the relationship
 from airflow.models.hitl import HITLDetail  # noqa: F401
 from airflow.models.log import Log
+from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComPrimitivesSelectSequence, LazyXComSelectSequence
@@ -131,6 +132,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils.db import exists_query
+from airflow.utils.helpers import chunks
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
@@ -149,6 +151,9 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 TR = TaskReschedule
 
 log = logging.getLogger(__name__)
+
+# Five bind parameters per key. SQLite before 3.32 allows at most 999 per statement by default.
+_TASK_STATE_DISCARD_BATCH_SIZE = 150
 
 # Columns describing one attempt's execution; a successor attempt starts with them empty.
 _PER_ATTEMPT_COLUMNS = (
@@ -453,6 +458,7 @@ def clear_task_instances(
     *,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
     superseded_ti_ids: Collection[UUID] = (),
+    keep_task_state: bool = False,
 ) -> list[TaskInstance]:
     """
     Clear a set of task instances, but make sure the running ones get killed.
@@ -474,6 +480,7 @@ def clear_task_instances(
         mapped expansion of such a task is archived and regenerated in a new region.
     :param superseded_ti_ids: executions whose generated work is replaced rather than retried; they
         are archived in place instead of receiving a successor.
+    :param keep_task_state: keep the ``task_state_store`` entries so the next attempt resumes from them.
 
     :meta private:
     """
@@ -613,7 +620,7 @@ def clear_task_instances(
             )
         ).all()
         if reset_dag_runs:
-            dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
+            dag_run_state = DagRunState(str(dag_run_state))  # Validate the state value.
         for dr in drs:
             was_finished = dr.state in State.finished_dr_states
             if reset_dag_runs:
@@ -669,7 +676,34 @@ def clear_task_instances(
             select(DagRun).where(tuple_(DagRun.dag_id, DagRun.run_id).in_(legacy_run_keys))
         ):
             legacy_run.reconcile_legacy_expansions(session=session)
+    if not keep_task_state:
+        _discard_task_state_store(cleared, session=session)
     return cleared
+
+
+def _discard_task_state_store(tis: Collection[TaskInstance], *, session: Session) -> None:
+    """
+    Delete the ``task_state_store`` entries of each task instance.
+
+    Only the metadata DB rows are deleted. A custom ``[state_store] backend`` is not touched, and a
+    custom ``[workers] state_store_backend`` payload is left to its own lifecycle/TTL policy.
+    """
+    columns = tuple_(
+        TaskStateStoreModel.dag_id,
+        TaskStateStoreModel.run_id,
+        TaskStateStoreModel.task_id,
+        TaskStateStoreModel.region_id,
+        TaskStateStoreModel.region_index,
+    )
+    keys = list({(ti.dag_id, ti.run_id, ti.task_id, ti.region_id, ti.region_index) for ti in tis})
+    deleted = 0
+    for batch in chunks(keys, _TASK_STATE_DISCARD_BATCH_SIZE):
+        result = session.execute(
+            delete(TaskStateStoreModel).where(columns.in_(batch)).execution_options(synchronize_session=False)
+        )
+        deleted += getattr(result, "rowcount", 0) or 0
+    if deleted:
+        log.info("Discarded %d task state store entries for %d cleared task instances", deleted, len(tis))
 
 
 @attrs.define(frozen=True)
@@ -855,6 +889,7 @@ def clear_loop_task_instances(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
 ) -> LoopClearScope:
     """Clear selected loop tries and archive their replaced generated suffixes."""
     from airflow.models.dagrun import lock_dag_runs
@@ -881,6 +916,7 @@ def clear_loop_task_instances(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
     return scope
 
@@ -893,6 +929,7 @@ def clear_task_instances_for_runs(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
     later_loop_iterations: bool = True,
 ) -> None:
     """
@@ -914,6 +951,7 @@ def clear_task_instances_for_runs(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
     for run_key in sorted(gate_runs):
         clear_loop_task_instances(
@@ -925,6 +963,7 @@ def clear_task_instances_for_runs(
             run_on_latest_version=run_on_latest_version,
             prevent_running_task=prevent_running_task,
             whole_task_keys=whole_task_keys,
+            keep_task_state=keep_task_state,
         )
 
 
@@ -937,6 +976,7 @@ def apply_loop_clear_scope(
     run_on_latest_version: bool = False,
     prevent_running_task: bool | None = None,
     whole_task_keys: Collection[tuple[str, str, str]] = (),
+    keep_task_state: bool = False,
 ) -> list[TaskInstance]:
     """Apply a planned clear while the caller holds its DagRun lock."""
     from airflow.exceptions import AirflowClearRunningTaskException
@@ -989,6 +1029,7 @@ def apply_loop_clear_scope(
         run_on_latest_version=run_on_latest_version,
         prevent_running_task=prevent_running_task,
         whole_task_keys=whole_task_keys,
+        keep_task_state=keep_task_state,
     )
 
 
@@ -2654,9 +2695,12 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 )
                 if event is None:
                     ti.log.info("Dynamically creating AssetModel %s", asset_key)
-                    session.add(AssetModel.from_serialized(asset))
-                    session.flush()  # So event can set up its asset fk.
-                    asset_manager.register_asset_change(
+                    try:
+                        with session.begin_nested():
+                            session.add(AssetModel.from_serialized(asset))
+                    except IntegrityError:
+                        ti.log.info("AssetModel %s was created concurrently; reusing it", asset_key)
+                    event = asset_manager.register_asset_change(
                         task_instance=ti,
                         asset=asset,
                         source_alias_names=event_aliase_names,
@@ -2666,6 +2710,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                         callback_sink=callback_sink,
                         session=session,
                     )
+                    if event is None:
+                        ti.log.error("Could not register asset event for %s", asset_key)
 
         return callback_sink
 
@@ -2732,7 +2778,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
                 kwargs=trigger_kwargs,
                 team_name=team_name,
                 dag_id=self.dag_id,
-                owner_ref={"ti_id": str(self.id)},
+                used_by_ref={"ti_id": str(self.id)},
             )
 
             # First, make the trigger entry

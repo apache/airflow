@@ -112,7 +112,8 @@ def task_instance_id_from_pod(pod: k8s.V1Pod) -> UUID | None:
     Pod templates can split the workload invocation between ``command`` and ``args``.
     An invalid annotation is authoritative; falling back could attach a stale pod to another attempt.
     """
-    task_id = (pod.metadata.annotations or {}).get(TASK_INSTANCE_ID_ANNOTATION)
+    annotations = pod.metadata.annotations if pod.metadata else None
+    task_id = (annotations or {}).get(TASK_INSTANCE_ID_ANNOTATION)
     if task_id is not None:
         try:
             return UUID(task_id)

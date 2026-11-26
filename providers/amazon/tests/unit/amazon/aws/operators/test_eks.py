@@ -520,6 +520,30 @@ class TestEksCreateFargateProfileOperator:
             "Trigger is not a EksCreateFargateProfileTrigger"
         )
 
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(EksHook, "create_fargate_profile")
+    def test_create_fargate_profile_retries_only_on_cluster_update_in_progress(
+        self, mock_create_fargate_profile, mock_sleep
+    ):
+        already_exists = ClientError(
+            error_response={
+                "Error": {
+                    "Code": "ResourceInUseException",
+                    "Message": "A Fargate Profile already exists with this name in this cluster.",
+                }
+            },
+            operation_name="CreateFargateProfile",
+        )
+        mock_create_fargate_profile.side_effect = [RESOURCE_IN_USE_ERROR, already_exists]
+        operator = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
+
+        with pytest.raises(ClientError) as exc_info:
+            operator.execute({})
+
+        assert exc_info.value is already_exists
+        assert mock_create_fargate_profile.call_count == 2
+        mock_create_fargate_profile.assert_called_with(**convert_keys(self.create_fargate_profile_params))
+
     def test_template_fields(self):
         op = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
 

@@ -44,7 +44,7 @@ Configuring the Connection
 --------------------------
 
 Model
-    Azure model identifier (e.g. ``azure:gpt-5``, or the bare ``gpt-5``). This
+    Azure model identifier (e.g. ``azure:gpt-5``, or the bare ``gpt-6.1-sol``). This
     field appears as a dedicated input in the connection form (via
     ``conn-fields``) and stores its value in ``extra["model"]``.
 
@@ -52,7 +52,7 @@ Model
     this connection type's own platform, so nothing else needs naming it
     explicitly. Writing the ``azure:`` prefix yourself has the same effect and is
     still accepted. A name prefixed with a *different*, recognized platform (e.g.
-    ``openai:gpt-5``) is used verbatim instead -- a name is only treated as
+    ``openai:gpt-6.1-sol``) is used verbatim instead -- a name is only treated as
     already prefixed when the segment before its first ``:`` is itself a real
     pydantic-ai provider, not merely present. That other platform's provider
     class is built from the fields this connection forwards (``API Key``,

@@ -273,6 +273,13 @@ Task store can expose in-progress metrics for observability — row counts, stat
 
 The ``progress`` key is visible through the REST API and the Airflow UI while the task is running.
 
+.. note::
+
+   Keys starting with ``__airflow_`` are written by Airflow itself, for example the record behind
+   the durable execution banner on the task logs page. The list endpoint of the REST API and the
+   Task State Store tab hide them; pass ``include_reserved=true`` to the list endpoint to include
+   them. Do not start your own keys with this prefix, or they will be hidden too.
+
 
 Sync vs. deferrable tasks
 -------------------------
@@ -322,9 +329,8 @@ To wipe state across all map indices of a task, use the :doc:`Core API </adminis
 Automatic cleanup (``clear_on_success``)
 ----------------------------------------
 
-Task state store entries are also removed when a task instance is cleared through the REST API, the
-UI, or ``airflowctl``: clearing discards them by default so the next attempt starts over, unless
-``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
+Task state store entries are also removed when a task instance or a Dag run is cleared: clearing
+discards them by default so the next attempt starts over, unless ``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
 
 When ``[state_store] clear_on_success = True``, all task state store keys for a task instance are automatically deleted when the task moves to the ``success`` state. This is useful for reducing storage when post-success observability is not needed.
 
