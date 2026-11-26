@@ -219,16 +219,16 @@ class _MappedArgBindingDeriver:
     def _bind_mapped_param(self, param: _ArgParam) -> TaskArgBinding:
         expand_input = self.task._get_specified_expand_input()
         partial_kwargs = self.task.partial_kwargs.get("op_kwargs") or {}
-        if isinstance(expand_input, SchedulerDictOfListsExpandInput):
-            if param.name in expand_input.value:
-                index = self._get_sub_indexes(expand_input, self.task.task_id)[param.name]
-                return self._bind_element(param, expand_input.value[param.name], index)
         # With strict=True a mapping cannot override partial(), so the partial() value binds as it is.
         # A mapping read from an upstream output that also has the key fails the Python task, but
         # no binding can express that check.
-        elif not (self.task._disallow_kwargs_override and param.name in partial_kwargs) and (
-            binding := self._bind_mapping_entry(
-                param, expand_input, param.name, fallback=lambda: self._get_fallback(param, partial_kwargs)
+        if not (self.task._disallow_kwargs_override and param.name in partial_kwargs) and (
+            binding := expand_input.bind_stub_arg(
+                self,
+                param,
+                param.name,
+                owner_id=self.task.task_id,
+                fallback=lambda: self._get_fallback(param, partial_kwargs),
             )
         ):
             return binding
@@ -242,13 +242,13 @@ class _MappedArgBindingDeriver:
             raise UndeliverableMappedArgBindingsError(
                 f"{group_arg.group_id!r} is not a mapped task group of this Dag"
             )
-        expand_input = group._expand_input
-        if isinstance(expand_input, SchedulerDictOfListsExpandInput):
-            index = self._get_sub_indexes(expand_input, group_arg.group_id)[group_arg.key]
-            return self._bind_element(param, expand_input.value[group_arg.key], index)
-        if binding := self._bind_mapping_entry(param, expand_input, group_arg.key, fallback=lambda: None):
+        if binding := group._expand_input.bind_stub_arg(
+            self, param, group_arg.key, owner_id=group_arg.group_id, fallback=lambda: None
+        ):
             return binding
-        raise UndeliverableMappedArgBindingsError(f"expand_kwargs() mapping has no key {group_arg.key!r}")
+        raise UndeliverableMappedArgBindingsError(
+            f"mapped task group {group_arg.group_id!r} has no expand argument {group_arg.key!r} at this map index"
+        )
 
     @staticmethod
     def _bind_default(param: _ArgParam) -> LiteralArgBinding:
@@ -258,9 +258,7 @@ class _MappedArgBindingDeriver:
             )
         return param.build(LiteralArgBinding, kind="literal", value=param.default, from_default=True)
 
-    def _get_sub_indexes(
-        self, expand_input: SchedulerDictOfListsExpandInput, owner_id: str
-    ) -> dict[str, int]:
+    def get_sub_indexes(self, expand_input: SchedulerDictOfListsExpandInput, owner_id: str) -> dict[str, int]:
         # Outside a mapped task group, a single expanded kwarg is the whole expansion, so the
         # map index is already its element index and no upstream length needs loading.
         if len(expand_input.value) == 1 and self.task.get_closest_mapped_task_group() is None:
@@ -286,7 +284,7 @@ class _MappedArgBindingDeriver:
             return self._get_length(value)
         return len(value)
 
-    def _bind_mapping_entry(
+    def bind_mapping_entry(
         self,
         param: _ArgParam,
         expand_input: SchedulerListOfDictsExpandInput,
@@ -301,7 +299,7 @@ class _MappedArgBindingDeriver:
         the key in ``kwarg`` and carries the value to use when the key is missing in ``fallback``.
         """
         if isinstance(expand_input.value, SchedulerXComArg):
-            binding = self._bind_element(param, expand_input.value, self.map_index)
+            binding = self.bind_element(param, expand_input.value, self.map_index)
             return self._select_kwarg(binding, key, fallback())
         try:
             mapping = expand_input.value[self.map_index]
@@ -367,7 +365,7 @@ class _MappedArgBindingDeriver:
             return param.build(XComSequenceArgBinding, kind="sequence", task_id=producer.task_id)
         return param.build(XComArgBinding, kind="xcom", task_id=producer.task_id, map_index=map_index)
 
-    def _bind_element(self, param: _ArgParam, value: Any, index: int) -> TaskArgBinding:
+    def bind_element(self, param: _ArgParam, value: Any, index: int) -> TaskArgBinding:
         """Bind element *index* of *value*, for an argument this map index expands over."""
         if isinstance(value, _XComRef):
             value = value.deref(self.dag)

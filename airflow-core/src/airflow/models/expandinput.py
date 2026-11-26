@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Iterable, Sized
+from collections.abc import Callable, Iterable, Sized
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import attrs
@@ -31,6 +31,15 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from typing_extensions import TypeIs
 
+    from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import (
+        LiteralValue,
+        TaskArgBinding,
+        XComRef,
+    )
+    from airflow.api_fastapi.execution_api.services.stub_arg_bindings import (
+        _ArgParam,
+        _MappedArgBindingDeriver,
+    )
     from airflow.models.dynamic_region import ProducerContext
     from airflow.serialization.definitions.mappedoperator import Operator
     from airflow.serialization.definitions.xcom_arg import SchedulerXComArg
@@ -190,6 +199,20 @@ class SchedulerDictOfListsExpandInput:
             map_index //= length
         return sub_indexes
 
+    def bind_stub_arg(
+        self,
+        binder: _MappedArgBindingDeriver,
+        param: _ArgParam,
+        key: str,
+        *,
+        owner_id: str,
+        fallback: Callable[[], XComRef | LiteralValue | None],
+    ) -> TaskArgBinding | None:
+        """Bind expanded kwarg *key* at the binder's map index; None if it is not expanded."""
+        if key not in self.value:
+            return None
+        return binder.bind_element(param, self.value[key], binder.get_sub_indexes(self, owner_id)[key])
+
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         from airflow.models.referencemixin import ReferenceMixin
 
@@ -231,6 +254,18 @@ class SchedulerListOfDictsExpandInput:
         if length is None:
             raise NotFullyPopulated({"expand_kwargs() argument"})
         return length
+
+    def bind_stub_arg(
+        self,
+        binder: _MappedArgBindingDeriver,
+        param: _ArgParam,
+        key: str,
+        *,
+        owner_id: str,
+        fallback: Callable[[], XComRef | LiteralValue | None],
+    ) -> TaskArgBinding | None:
+        """Bind entry *key* of the binder's map index's mapping; None if the mapping lacks it."""
+        return binder.bind_mapping_entry(param, self, key, fallback=fallback)
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         from airflow.models.referencemixin import ReferenceMixin
