@@ -11423,6 +11423,16 @@
     "definitions": {
         "httpRoute": {
             "type": "object",
+            "default": {
+                "enabled": false,
+                "labels": {},
+                "annotations": {},
+                "parentRefs": null,
+                "hostnames": [],
+                "path": "/",
+                "pathType": "PathPrefix",
+                "rules": []
+            },
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -14786,6 +14796,25 @@
         "logGroomerConfigType": {
             "description": "Configuration for log groomer sidecar",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "command": null,
+                "args": [
+                    "bash",
+                    "/clean-logs"
+                ],
+                "retentionDays": 15,
+                "retentionMinutes": 0,
+                "frequencyMinutes": 15,
+                "maxSizeBytes": 0,
+                "maxSizePercent": 0,
+                "resources": {},
+                "securityContexts": {
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "env": []
+            },
             "additionalProperties": false,
             "properties": {
                 "enabled": {
