@@ -54,6 +54,7 @@ from airflow.models.taskinstance import _get_relevant_map_indexes
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, xcom_entity
 from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count, is_mapped
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
+from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
 from airflow.serialization.definitions.xcom_arg import (
     SchedulerConcatXComArg,
     SchedulerMapXComArg,
@@ -73,7 +74,6 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.dag import SerializedDAG
     from airflow.serialization.definitions.mappedoperator import Operator
-    from airflow.serialization.definitions.taskgroup import SerializedMappedTaskGroup
 
     _BindingT = TypeVar("_BindingT", bound=BaseModel)
 
@@ -237,9 +237,11 @@ class _MappedArgBindingDeriver:
         return self._bind_default(param)
 
     def _bind_group_arg(self, param: _ArgParam, group_arg: _GroupArg) -> TaskArgBinding:
-        if (group := self.dag.task_group_dict.get(group_arg.group_id)) is None:
-            raise UndeliverableMappedArgBindingsError(f"mapped task group {group_arg.group_id!r} is missing")
-        group = cast("SerializedMappedTaskGroup", group)
+        group = self.dag.task_group_dict.get(group_arg.group_id)
+        if not isinstance(group, SerializedMappedTaskGroup):
+            raise UndeliverableMappedArgBindingsError(
+                f"{group_arg.group_id!r} is not a mapped task group of this Dag"
+            )
         expand_input = group._expand_input
         if isinstance(expand_input, SchedulerDictOfListsExpandInput):
             index = self._get_sub_indexes(expand_input, group_arg.group_id)[group_arg.key]

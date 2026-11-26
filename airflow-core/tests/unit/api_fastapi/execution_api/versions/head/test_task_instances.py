@@ -1971,8 +1971,11 @@ class TestTIRunState:
             },
         ]
 
-    def test_ti_run_rejects_stub_bound_to_missing_mapped_task_group(self, client, dag_maker, session):
-        """A stored binding naming a mapped task group the Dag lacks fails with a structured error."""
+    @pytest.mark.parametrize("group_id", ["gone", "plain"])
+    def test_ti_run_rejects_stub_bound_to_missing_mapped_task_group(
+        self, client, dag_maker, session, group_id
+    ):
+        """A stored binding naming a group that is missing or not mapped fails with a structured error."""
         with dag_maker("test_task_group_stub_missing_group", serialized=True, session=session):
 
             @task.stub
@@ -1983,12 +1986,16 @@ class TestTIRunState:
                 transform(country)
 
             group.expand(country=["uk", "fr"])
+            with TaskGroup("plain"):
+                EmptyOperator(task_id="noop")
 
         dr = dag_maker.create_dagrun()
         ti = next(
             ti for ti in dr.get_task_instances() if ti.task_id == "group.transform" and ti.map_index == 0
         )
-        entries = [{"name": "country", "kind": "param", "group_arg": {"group_id": "gone", "key": "country"}}]
+        entries = [
+            {"name": "country", "kind": "param", "group_arg": {"group_id": group_id, "key": "country"}}
+        ]
 
         with mock.patch(
             "airflow.api_fastapi.execution_api.services.task_instances.derive_mapped_arg_bindings",
@@ -1999,7 +2006,7 @@ class TestTIRunState:
 
         assert response.status_code == 422
         assert response.json()["detail"]["reason"] == "invalid_arg_bindings"
-        assert "'gone' is missing" in response.json()["detail"]["message"]
+        assert f"{group_id!r} is not a mapped task group" in response.json()["detail"]["message"]
 
     def test_ti_run_binds_expand_kwargs_mapping_read_from_upstream_by_kwarg(self, client, dag_maker, session):
         with dag_maker("test_mapped_stub_expand_kwargs_xcom_item", serialized=True, session=session):
