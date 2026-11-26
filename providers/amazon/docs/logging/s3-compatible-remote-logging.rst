@@ -39,8 +39,9 @@ Prerequisites
 - A bucket for logs (private). The examples use ``$S3_BUCKET_NAME``.
 - An access key and secret scoped to that bucket. Prefer a bucket-scoped key over an
   account-wide one.
-- ``apache-airflow-providers-amazon`` installed. For ``ObjectStoragePath`` you also need the
-  ``s3fs`` extra: ``pip install 'apache-airflow-providers-amazon[s3fs]'``.
+- ``apache-airflow-providers-amazon`` installed. Remote logging needs nothing else. The
+  ``s3fs`` extra is only needed if you also use ``ObjectStoragePath`` (see below):
+  ``pip install 'apache-airflow-providers-amazon[s3fs]'``.
 
 Every S3-compatible service issues an access key id and a secret access key. Map them onto the
 AWS connection fields as follows.
@@ -164,9 +165,6 @@ inherits the same ``endpoint_url``:
 
     base = ObjectStoragePath("s3://aws_s3@my-bucket/airflow-demo/")
 
-See the example Dag ``example_s3_compatible_object_storage`` for an input to transform to
-output pipeline against an S3-compatible store.
-
 Troubleshooting
 ---------------
 
@@ -177,33 +175,3 @@ Troubleshooting
   restarted. ``remote_base_log_folder`` must start with ``s3://``.
 - ``ImportError`` for ``s3fs`` when using ``ObjectStoragePath``: install the extra with
   ``pip install 'apache-airflow-providers-amazon[s3fs]'``.
-
-Trigger Dags from bucket event notifications
---------------------------------------------
-
-Beyond logs and data, the same bucket can drive upload-triggered pipelines. Many S3-compatible
-services can send a webhook when an object is created or deleted in a bucket, and Airflow
-exposes a REST endpoint that creates a Dag run. Wiring the two together turns an upload into an
-Airflow Dag run, with no polling sensor.
-
-The flow is: a client uploads an object to the bucket; the object store posts an
-event-notification payload to an HTTPS webhook you control (for example a small function or API
-gateway); that webhook authenticates to the Airflow REST API and triggers the Dag, passing the
-object key in the run configuration. The endpoint is ``POST /api/v2/dags/{dag_id}/dagRuns``
-with a JSON body that accepts ``logical_date``, an optional ``dag_run_id``, and a ``conf``
-object. Put the object key from the notification into ``conf`` so the Dag knows which object to
-process:
-
-.. code-block:: bash
-
-    curl -X POST "$AIRFLOW_API/api/v2/dags/s3_event_ingestion/dagRuns" \
-      -H "Authorization: Bearer $AIRFLOW_JWT" \
-      -H "Content-Type: application/json" \
-      -d '{"logical_date": "2026-01-01T00:00:00Z", "conf": {"object_key": "incoming/file.txt"}}'
-
-A Dag built for this pattern can read ``conf["object_key"]`` and process that object straight
-from the store with ``ObjectStoragePath(f"s3://aws_s3@{bucket}/{object_key}")``, reusing the
-connection from Step 1. Keep the webhook thin: validate the notification, mint or hold a
-short-lived Airflow API token, and forward only the object key. This pattern fits ingestion
-pipelines such as transcode on upload or index on upload, where work should start the moment
-data lands in the bucket.
