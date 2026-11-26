@@ -36,7 +36,8 @@ It is backed by the community `pydantic-ai-skills
 <https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT). ``pydantic-ai-harness``'s
 `Skills <https://github.com/pydantic/pydantic-ai-harness/tree/main/pydantic_ai_harness/skills>`__
 capability also loads Agent Skills, as on-demand capabilities, but only their ``SKILL.md``
-instructions: no resources and no ``run_skill_script``.
+instructions. :ref:`AirflowSkills <agent-skills-airflow-skills>` builds on it and adds
+resources, scripts and ``GitSkills``.
 Install the optional extra to use this toolset:
 
 .. code-block:: bash
@@ -176,6 +177,110 @@ Parameters
 - ``max_retries``: How many times the model may correct failed calls to one skills tool
   before the run fails; a successful call to that tool resets the count. Default
   ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
+
+.. _agent-skills-airflow-skills:
+
+The ``AirflowSkills`` capability
+--------------------------------
+
+.. note::
+
+    Experimental: this can change or be removed in a minor release of this provider.
+    See :ref:`howto/stability`.
+
+:class:`~airflow.providers.common.ai.skills.AirflowSkills` offers the same Agent Skills as a
+pydantic-ai capability, built on ``pydantic-ai-harness``'s ``Skills``. The model sees each
+skill's name and description in the prompt and loads the instructions with
+``load_capability``. Airflow adds what the harness does not: ``GitSkills`` sources with
+credentials from an Airflow connection, a ``read_skill_resource`` tool and a
+``run_skill_script`` tool. Both tools refuse a skill until the model has loaded it.
+
+.. code-block:: python
+
+    from airflow.providers.common.ai.operators.agent import AgentOperator
+    from airflow.providers.common.ai.skills import AirflowSkills, GitSkills
+
+    AgentOperator(
+        task_id="report",
+        prompt="Build last week's revenue report.",
+        llm_conn_id="pydanticai_default",
+        capabilities=[
+            AirflowSkills(
+                sources=[
+                    "./skills",
+                    GitSkills(repo_url="https://github.com/my-org/agent-skills", conn_id="github_skills"),
+                ],
+                exclude=["experimental-skill"],
+                exclude_resources=["*.env", "secrets/*"],
+            )
+        ],
+    )
+
+Sources are resolved when a run starts, on the worker, so a Git token is never baked into the
+serialized Dag, and cloned repositories are removed when the run ends. Each source is a library
+directory holding one sub-directory per skill. When two sources hold a skill of the same name,
+the one from the later source is used and a warning is emitted, as with ``AgentSkillsToolset``,
+unless their ``SKILL.md`` files are byte-identical. The harness then treats them as one skill
+and emits no warning, even when the two skills' other files differ.
+``include`` and ``exclude`` take skill names, and naming a skill that no source holds fails the
+run.
+
+Where it differs from ``AgentSkillsToolset``:
+
+- The model loads a skill with ``load_capability`` instead of ``load_skill``, and the catalog is
+  part of the prompt instead of behind ``list_skills``. Skills are found one level below each
+  source directory; ``AgentSkillsToolset`` also finds skills nested deeper.
+- A skill's directory is not given to the model as an absolute path, because a cloned directory
+  is different on every attempt. A leading ``${SKILL_DIR}/`` or ``${CLAUDE_SKILL_DIR}/`` in the path
+  given to ``read_skill_resource`` or ``run_skill_script`` names the skill's own directory, and a
+  path without it is relative to the same directory.
+- The harness ignores the ``SKILL.md`` header fields that change behavior, such as ``model`` or
+  ``allowed-tools``, and emits a warning for them on every run.
+- ``read_skill_resource`` reads any UTF-8 text file in the skill except the files the
+  ``exclude_resources`` patterns match. ``run_skill_script`` runs files in the skill's root or
+  its ``scripts`` directory.
+- After the history is compacted, the model has to load a skill again before the tools accept it.
+
+Parameters
+~~~~~~~~~~
+
+- ``sources``: Local library directories and/or
+  :class:`~airflow.providers.common.ai.skills.GitSkills`. At least one.
+- ``include`` / ``exclude``: Skill names to offer, or to leave out. Not both.
+- ``exclude_resources``: Glob patterns for files the two tools refuse, added on top of
+  ``__pycache__``, ``*.pyc``, ``*.pyo``, ``.DS_Store`` and ``.git``. Each pattern matches the
+  skill-relative path or any single component of it, ignoring case.
+- ``resources``: Register ``read_skill_resource``. Default ``True``.
+- ``scripts``: ``"worker"`` registers ``run_skill_script``, which runs a script as a subprocess of
+  the worker with a 30 second timeout; ``None`` registers no script tool. Default ``"worker"``.
+  A script that prints more than 50,000 bytes is killed, and the model gets the first 50,000 bytes
+  followed by a note that the output was cut off.
+  Running scripts in a sandbox is not supported yet, and any other value raises ``ValueError``.
+- ``max_retries``: How many times the model may correct failed calls to one of the two tools.
+  Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
+
+An agent can have only one ``AirflowSkills``; put every source in it.
+
+With ``durable=True``, a script that has run is replayed from the journal on a retry instead of
+running again.
+
+Trust model
+~~~~~~~~~~~
+
+- The model chooses which script runs and with what arguments. Treat a script's arguments as
+  untrusted input, the way an HTTP handler treats a request.
+- With ``GitSkills``, scripts can change outside Dag review. Point ``repo_url`` at a trusted
+  repository and pin ``branch``.
+- A script runs with the worker's own permissions and environment, the same as any task code on that
+  worker. It can read an ``AIRFLOW_CONN_*`` variable set on the worker.
+
+Version requirements
+~~~~~~~~~~~~~~~~~~~~
+
+``pydantic-ai-harness`` is before its 1.0 release, and each release pins ``pydantic-ai-slim`` to the
+exact same version, so installing the ``skills`` extra decides which ``pydantic-ai-slim`` you get.
+``AirflowSkills`` needs ``pydantic-ai-harness>=0.66.0``, and reads skills through harness's
+``LocalWorkspaceBackend``, which works on POSIX systems only.
 
 Using Agent Skills with other frameworks
 ----------------------------------------
