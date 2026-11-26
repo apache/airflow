@@ -147,16 +147,19 @@ Command-line clients
 ''''''''''''''''''''
 
 Command-line clients such as ``airflowctl`` get their token from ``/auth/token/cli``. Besides username and password,
-this endpoint offers two more ways to get a token:
+this endpoint offers three more ways to get a token:
 
 - **Refresh**: get fresh Keycloak tokens without logging in again.
 - **Browser login**: log in through Keycloak in the browser. It is turned off by default.
+- **Device code login**: log in through Keycloak on another device, for example when the client runs over SSH. It is
+  turned off by default.
 
 Clients find out which of these the server offers by calling ``GET /api/v2/auth/cli/metadata``.
 
 .. note::
-    The metadata route exists on Airflow 3.5 and later. On earlier versions, refresh and browser login still work
-    when called directly, but clients such as ``airflowctl`` cannot discover them, so they cannot offer browser login.
+    The metadata route exists on Airflow 3.5 and later. On earlier versions, refresh, browser and device code login
+    still work when called directly, but clients such as ``airflowctl`` cannot discover them, so they cannot offer
+    browser or device code login.
 
 Refresh
 ~~~~~~~
@@ -212,3 +215,28 @@ A login then goes like this:
 
 Airflow refuses any challenge method other than ``S256``, and any ``redirect_uri`` that is not a loopback callback
 like the one above.
+
+Device code login
+~~~~~~~~~~~~~~~~~
+
+Device code login uses the OAuth 2.0 device authorization grant (RFC 8628). To turn it on:
+
+1. Set ``[keycloak_auth_manager] cli_device_code_enabled = True``.
+2. In the Keycloak client, turn on "OAuth 2.0 Device Authorization Grant".
+
+A login then goes like this:
+
+1. The client calls ``POST /auth/token/cli/device``, with no body, and gets ``device_code``, ``user_code``,
+   ``verification_uri``, ``verification_uri_complete``, ``expires_in`` and ``interval``.
+2. The user opens ``verification_uri`` on any device, enters ``user_code`` and logs in to Keycloak.
+3. Every ``interval`` seconds, the client sends ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and
+   ``device_code`` to ``/auth/token/cli``, until it gets its CLI token.
+
+Until then, ``/auth/token/cli`` answers ``400`` with the RFC 8628 error code as ``detail``:
+``authorization_pending`` while the user has not approved the login yet, ``slow_down`` when the client polls too
+often, ``access_denied`` when the user refuses it and ``expired_token`` when the code expired. It answers ``403``
+for an unknown or already used device code, and ``503`` when Keycloak cannot be reached.
+
+.. warning::
+    Anyone can start a device code login and send the code to someone else, who would log them in by approving it.
+    Users should only approve codes they started themselves.

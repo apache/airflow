@@ -20,6 +20,7 @@ import asyncio
 import contextvars
 import functools
 import gc
+import json
 import logging
 import math
 import os
@@ -683,7 +684,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
     queues: set[str] | None = None
     team_name: str | None = None
 
-    health_check_threshold = conf.getint("triggerer", "triggerer_health_check_threshold")
+    health_check_threshold = conf.getfloat("triggerer", "triggerer_health_check_threshold")
     runner_health_check_threshold = conf.getfloat("triggerer", "runner_health_check_threshold")
 
     runner: TriggerRunner | None = None
@@ -1206,6 +1207,19 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             trigger.dag_id = callback.get_dag_id() or dag_run.get("dag_id")
             trigger.used_by_ref = {"callback_id": str(callback.id)}
 
+    @staticmethod
+    def _encrypt_plaintext_kwargs(trigger: Trigger) -> None:
+        """
+        Encrypt plaintext trigger kwargs in place when picked up by the triggerer.
+
+        Written with the session that builds the workload so legacy unencrypted rows are
+        persisted encrypted at rest.
+        """
+        if trigger.encrypted_kwargs.startswith("{"):
+            encrypted = Trigger._encrypt_serialized_kwargs(json.loads(trigger.encrypted_kwargs))
+            if encrypted != trigger.encrypted_kwargs:
+                trigger.encrypted_kwargs = encrypted
+
     def _create_workload(
         self,
         trigger: Trigger,
@@ -1215,6 +1229,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         log_context: TaskLogContext | None = None,
     ) -> workloads.RunTrigger | None:
         self._record_missing_used_by(trigger)
+        self._encrypt_plaintext_kwargs(trigger)
         self.trigger_kinds[trigger.id] = (
             TriggerKind.TASK
             if trigger.task_instance is not None

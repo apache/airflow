@@ -11,8 +11,8 @@ plugins:
   - magpie-release-management
 
 reconciled:
-  version: 0.9.0.dev202611151633
-  at:      2026-11-16
+  version: 0.9.0.dev202611250936
+  at:      2026-11-25
   skills:
     activity-sweep:             sha256:a39919af92a37e2d
     announce-draft:             sha256:edffafcd9d9948ab
@@ -38,8 +38,8 @@ reconciled:
     pr-triage:                  sha256:a72418ac1e5ebbf9
     pre-first-pr-check:         sha256:4219bd5fdce4e81d
     prepare:                    sha256:9380580d6421d8b4
-    promote:                    sha256:ecfb43e47fa5905e
-    rc-cut:                     sha256:60623e456e72bbf6
+    promote:                    sha256:ab771c43c0ecf0d6
+    rc-cut:                     sha256:70b271e91a4ee44a
     reassess:                   sha256:cb023dff6e95a57a
     reassess-stats:             sha256:44c7826660a3ae71
     reproducer:                 sha256:85440f7009f84de6

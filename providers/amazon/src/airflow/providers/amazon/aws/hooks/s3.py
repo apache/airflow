@@ -42,7 +42,7 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from airflow.providers.common.compat.connection import get_async_connection
+from airflow.providers.common.compat.connection import get_async_connection, get_async_extra_dejson
 
 if TYPE_CHECKING:
     from aiobotocore.client import AioBaseClient
@@ -92,8 +92,11 @@ def provide_bucket_name(func: Callable) -> Callable:
             self = args[0]
             if self.aws_conn_id:
                 connection = await get_async_connection(self.aws_conn_id)
-                if connection.schema:
-                    bound_args.arguments["bucket_name"] = connection.schema
+                extra = await get_async_extra_dejson(connection)
+                service_config = extra.get("service_config", {}).get("s3", {})
+                bucket_name = service_config.get("bucket_name") or connection.schema
+                if bucket_name:
+                    bound_args.arguments["bucket_name"] = bucket_name
         return bound_args
 
     if inspect.iscoroutinefunction(func):

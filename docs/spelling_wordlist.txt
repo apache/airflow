@@ -895,6 +895,7 @@ ini
 init
 initdb
 initialisation
+initialised
 initialiser
 initialising
 initializer
@@ -1251,6 +1252,7 @@ ol
 Ollama
 onboarded
 onboarding
+OneLake
 OnFailure
 Oozie
 OPA

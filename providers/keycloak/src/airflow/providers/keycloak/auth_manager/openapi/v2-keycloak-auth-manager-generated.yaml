@@ -214,8 +214,72 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /auth/token/cli/device:
+    post:
+      tags:
+      - KeycloakAuthManagerToken
+      summary: Create Device Authorization Cli
+      description: Start the device code login of a command-line client.
+      operationId: create_device_authorization_cli
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceAuthorizationResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+        '503':
+          description: Service Unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
 components:
   schemas:
+    DeviceAuthorizationResponse:
+      properties:
+        device_code:
+          type: string
+          title: Device Code
+        user_code:
+          type: string
+          title: User Code
+        verification_uri:
+          type: string
+          title: Verification Uri
+        verification_uri_complete:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Verification Uri Complete
+        expires_in:
+          type: integer
+          title: Expires In
+        interval:
+          type: integer
+          title: Interval
+          default: 5
+      type: object
+      required:
+      - device_code
+      - user_code
+      - verification_uri
+      - expires_in
+      title: DeviceAuthorizationResponse
+      description: Device authorization response (RFC 8628 section 3.2) for the device
+        code login of CLI clients.
     HTTPExceptionResponse:
       properties:
         detail:
@@ -283,6 +347,7 @@ components:
       - $ref: '#/components/schemas/TokenPasswordBody'
       - $ref: '#/components/schemas/TokenRefreshBody'
       - $ref: '#/components/schemas/TokenAuthorizationCodeBody'
+      - $ref: '#/components/schemas/TokenDeviceCodeBody'
       title: TokenCliBody
       description: Token request body for command-line clients.
       discriminator:
@@ -291,6 +356,7 @@ components:
           authorization_code: '#/components/schemas/TokenAuthorizationCodeBody'
           password: '#/components/schemas/TokenPasswordBody'
           refresh_token: '#/components/schemas/TokenRefreshBody'
+          urn:ietf:params:oauth:grant-type:device_code: '#/components/schemas/TokenDeviceCodeBody'
     TokenClientCredentialsBody:
       properties:
         grant_type:
@@ -311,6 +377,23 @@ components:
       - client_secret
       title: TokenClientCredentialsBody
       description: Client credentials grant token serializer for post bodies.
+    TokenDeviceCodeBody:
+      properties:
+        grant_type:
+          type: string
+          const: urn:ietf:params:oauth:grant-type:device_code
+          title: Grant Type
+        device_code:
+          type: string
+          title: Device Code
+      additionalProperties: false
+      type: object
+      required:
+      - grant_type
+      - device_code
+      title: TokenDeviceCodeBody
+      description: Device code grant serializer for post bodies, used by the device
+        code login of CLI clients.
     TokenJwtFederatedBody:
       properties:
         grant_type:

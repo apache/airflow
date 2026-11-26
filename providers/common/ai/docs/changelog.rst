@@ -26,6 +26,25 @@ Changelog
 ---------
 
 .. note::
+  **Durable replay of a fallback chain**
+
+  A recorded model step through a ``fallback_conn_ids`` chain now replays after the chain is
+  edited, as long as the connection that answered it is still in the chain and at least one
+  fallback connection remains; with a single connection the hook passes the bare model
+  instead of a chain, so every step runs live. A step answered by a connection that was
+  removed from the chain, or whose ``model`` changed, runs live. The step also needs the
+  connection that answered it to remain in the chain under the same ID, so two connections
+  serving the same model are told apart; renaming a connection runs its steps live, while
+  changing its host or credentials does not. A response the model left suspended is resumed
+  by pydantic-ai on the first connection in the chain that serves its model, which need not
+  be the one that answered it. The fingerprint of a chain request no longer lists the
+  connections, so the first retry after upgrading a task whose durable journal holds steps
+  recorded through a chain by an earlier version runs every step live, tools included. A
+  ``FallbackModel`` built outside the hook keeps the earlier behaviour: its steps replay
+  while the chain is unchanged, and run live once it is edited.
+  See :doc:`recovery`.
+
+.. note::
   ``@task.llm_batch`` now runs OpenAI and Anthropic batches through pydantic-ai's ``Model.batch_*``
   methods and adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex
   ``google-cloud:`` model id is refused with the fix in the message). This raises the
@@ -79,6 +98,12 @@ Changelog
     re-attaches to the batch.
 
   A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
+
+.. note::
+  The HITL review XComs ``airflow_hitl_review_agent_output_<n>`` and
+  ``airflow_hitl_review_human_feedback_<n>`` now hold ``{"text": ..., "dag_id": ...}``; in
+  1.2.0 they held the text itself. A task that pulls them reads the text from ``["text"]``.
+  See :doc:`hitl_review`.
 
 1.2.0
 .....

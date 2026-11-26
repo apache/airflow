@@ -32,7 +32,7 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL: 15, 16, 17, 18
+* PostgreSQL: 15, 16, 17, 18, 19
 * MySQL: 8.0, 8.4, `Innovation <https://dev.mysql.com/blog-archive/introducing-mysql-innovation-and-long-term-support-lts-versions>`_
 * SQLite: 3.15.0+
 

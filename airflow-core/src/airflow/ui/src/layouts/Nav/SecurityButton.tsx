@@ -38,7 +38,13 @@ export const SecurityButton = () => {
   const securityItems = authLinks.extra_menu_items.map(({ text }) => {
     const securityKey = text.toLowerCase().replace(" ", "-");
 
-    return { path: `security/${securityKey}`, securityKey, text };
+    // The auth manager sends each item's English text rather than a key, and only the five FAB
+    // sends have one. Anything else is better off showing that text than the key it resolves to.
+    return {
+      label: translate(`security.${securityKey}`, { defaultValue: text }),
+      path: `security/${securityKey}`,
+      text,
+    };
   });
 
   return (
@@ -51,10 +57,10 @@ export const SecurityButton = () => {
         />
       }
     >
-      {securityItems.map(({ path, securityKey, text }) => (
+      {securityItems.map(({ label, path, text }) => (
         <Menu.Item asChild key={text} value={text}>
-          <Link aria-label={text} to={path}>
-            {translate(`security.${securityKey}`)}
+          <Link aria-label={label} to={path}>
+            {label}
           </Link>
         </Menu.Item>
       ))}

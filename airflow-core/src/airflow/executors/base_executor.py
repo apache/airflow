@@ -506,6 +506,37 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
+    def get_health(self, timeout: float) -> bool | None:
+        """
+        Report whether this executor's backend is reachable, for the scheduler's health check.
+
+        Override this for an executor backed by something that can be independently down, such as a
+        message broker or a cluster control plane, that the executor itself can't detect from its
+        in-memory task-tracking state alone. Return ``True`` if the dependency check succeeded,
+        ``False`` if it explicitly failed, or ``None`` (the default) if this executor has nothing
+        useful to report.
+
+        ``timeout`` is in seconds and is always comfortably below the scheduler's own check interval,
+        so an implementation that honours it, passing it through to its own client's connect/read
+        timeout (``Celery.inspect(timeout=...)``, botocore's ``Config(connect_timeout=..., read_timeout=...)``,
+        etc.), always finishes before the next check is due. One that ignores it risks its slot
+        looking hung indefinitely, which the scheduler reports as a stalled check rather than silently
+        skipping forever, but still can't be reclaimed until the call actually returns.
+
+        This is called from a worker thread with no open database session, on its own schedule
+        independent of :meth:`heartbeat`, so it must not assume either. The scheduler records an
+        explicit result either way: ``True``/``False`` become HEALTHY/UNHEALTHY, a call that returns
+        ``None`` or raises :class:`NotImplementedError` is recorded as UNKNOWN, and any other exception
+        is recorded as UNHEALTHY, rather than silently carrying over whatever the previous result was.
+        A hung call delays that update, not task scheduling.
+        """
+        return None
+
+    @classmethod
+    def overrides_get_health(cls) -> bool:
+        """Whether this executor class implements :meth:`get_health` itself, rather than inheriting the no-op default."""
+        return cls.get_health is not BaseExecutor.get_health
+
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         open_slots = self.parallelism - len(self.running)

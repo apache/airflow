@@ -3632,6 +3632,62 @@ class TestRuntimeTaskInstance:
 
         assert not isinstance(result, LazyXComSequence)
 
+    @staticmethod
+    def _make_mapped_dag():
+        @task_decorator
+        def mapped(value): ...
+
+        with DAG("mapped_dag", schedule=None) as dag:
+            mapped.expand(value=[1, 2]) >> BaseOperator(task_id="after")
+        return dag
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("pull_method", "get_all_method"),
+        [
+            pytest.param("xcom_pull", "get_all", id="sync"),
+            pytest.param("axcom_pull", "aget_all", id="async"),
+        ],
+    )
+    async def test_xcom_pull_of_a_mapped_task_in_this_run_reads_the_slice_directly(
+        self, create_runtime_ti, pull_method, get_all_method
+    ):
+        dag = self._make_mapped_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task("after"), dag_id="mapped_dag")
+
+        with patch.object(XCom, get_all_method, autospec=True, return_value=[1, 2]) as get_all:
+            result = getattr(runtime_ti, pull_method)(key="k", task_ids="mapped", map_indexes=None)
+            if inspect.isawaitable(result):
+                result = await result
+
+        assert result == [1, 2]
+        get_all.assert_called_once_with(
+            run_id=runtime_ti.run_id, key="k", task_id="mapped", dag_id=runtime_ti.dag_id
+        )
+
+    @pytest.mark.parametrize(
+        "pull_kwargs",
+        [
+            pytest.param({"task_ids": "mapped", "run_id": "other_run"}, id="other run"),
+            pytest.param({"task_ids": "mapped", "dag_id": "other_dag"}, id="other dag"),
+            pytest.param({"task_ids": "mapped", "include_prior_dates": True}, id="prior dates"),
+            pytest.param({"task_ids": "after"}, id="unmapped task"),
+            pytest.param({"task_ids": "removed"}, id="task missing from the dag"),
+        ],
+    )
+    def test_xcom_pull_leaves_other_omitted_map_indexes_to_the_server(self, create_runtime_ti, pull_kwargs):
+        dag = self._make_mapped_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task("after"), dag_id="mapped_dag")
+
+        with (
+            patch.object(XCom, "get_all", autospec=True) as get_all,
+            patch.object(XCom, "get_one", autospec=True, return_value=7) as get_one,
+        ):
+            assert runtime_ti.xcom_pull(key="k", map_indexes=None, **pull_kwargs) == 7
+
+        get_all.assert_not_called()
+        assert get_one.call_args.kwargs["map_index"] is None
+
     @pytest.mark.asyncio
     async def test_axcom_pull_of_a_loop_task_from_outside_the_loop_returns_a_list_for_one_iteration(
         self, create_runtime_ti, mock_supervisor_comms

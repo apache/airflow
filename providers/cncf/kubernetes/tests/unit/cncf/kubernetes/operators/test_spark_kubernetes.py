@@ -262,7 +262,11 @@ def create_context(task):
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
-@patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+@patch(
+    "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object",
+    autospec=True,
+    side_effect=lambda self, *, body, **kwargs: body,
+)
 class TestSparkKubernetesOperatorCreateApplication:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
@@ -349,6 +353,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -397,6 +402,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -442,6 +448,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -479,6 +486,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         expected_dict["spec"]["driver"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         expected_dict["spec"]["executor"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -517,6 +525,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         expected_dict["spec"]["driver"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         expected_dict["spec"]["executor"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -529,7 +538,11 @@ class TestSparkKubernetesOperatorCreateApplication:
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.create_job_name")
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
-@patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+@patch(
+    "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object",
+    autospec=True,
+    side_effect=lambda self, *, body, **kwargs: body,
+)
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute", return_value=None)
 @patch(
     "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.is_in_cluster",

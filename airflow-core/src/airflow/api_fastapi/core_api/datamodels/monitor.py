@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from airflow.api.common.airflow_health import DetailedHealthStatus, HealthStatus
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.jobs.job import HealthCheckResult
 
 
 class BaseInfoResponse(BaseModel):
@@ -51,6 +52,16 @@ class DagProcessorInstanceInfoResponse(BaseModel):
     bundle_names: list[str] | None
 
 
+class ExecutorInstanceInfoResponse(BaseModel):
+    """Executor instance info serializer for responses."""
+
+    hostname: str | None
+    executor: str | None
+    latest_executor_heartbeat: str | None
+    team_names: list[str]
+    health_check_result: HealthCheckResult | None
+
+
 class SchedulerInfoResponse(BaseInfoResponse):
     """Scheduler info serializer for responses."""
 
@@ -75,6 +86,14 @@ class DagProcessorInfoResponse(BaseInfoResponse):
     instances: list[DagProcessorInstanceInfoResponse] | None = None
 
 
+class ExecutorInfoResponse(BaseInfoResponse):
+    """Executor info serializer for responses."""
+
+    latest_executor_heartbeat: str | None
+    detailed_status: DetailedHealthStatus | None
+    instances: list[ExecutorInstanceInfoResponse] | None = None
+
+
 class HealthInfoResponse(BaseModel):
     """Health serializer for responses."""
 
@@ -82,3 +101,4 @@ class HealthInfoResponse(BaseModel):
     scheduler: SchedulerInfoResponse
     triggerer: TriggererInfoResponse
     dag_processor: DagProcessorInfoResponse | None = None
+    executor: ExecutorInfoResponse | None = None

@@ -505,9 +505,8 @@ class BaseXCom:
         :param map_index: Map index of the task instance to pull the XCom from.
             *None* (default) pulls the task's result: the XCom of a non-mapped
             task, or for a mapped task the XComs of all its instances as a
-            list, the same values ``get_all`` returns. With
-            *include_prior_dates*, a mapped task reads *None*. Airflow 3.4
-            returns *None* instead of an empty list.
+            list, the same values ``get_all`` returns. A mapped task with no
+            values, or one read with *include_prior_dates*, reads *None*.
         :param key: A key for the XCom. Only XCom with this key will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified Dag run is returned. If *True*, the latest matching XCom is
@@ -567,9 +566,8 @@ class BaseXCom:
         :param map_index: Map index of the task instance to pull the XCom from.
             *None* (default) pulls the task's result: the XCom of a non-mapped
             task, or for a mapped task the XComs of all its instances as a
-            list, the same values ``get_all`` returns. With
-            *include_prior_dates*, a mapped task reads *None*. Airflow 3.4
-            returns *None* instead of an empty list.
+            list, the same values ``get_all`` returns. A mapped task with no
+            values, or one read with *include_prior_dates*, reads *None*.
         :param key: A key for the XCom. Only XCom with this key will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified Dag run is returned. If *True*, the latest matching XCom is
