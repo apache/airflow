@@ -127,6 +127,7 @@ Dependent package                                                               
 ====================================================================================================================  ==================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                  ``amazon``
 `apache-airflow-providers-apache-iceberg <https://airflow.apache.org/docs/apache-airflow-providers-apache-iceberg>`_  ``apache.iceberg``
+`apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                  ``google``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_        ``openlineage``
 ====================================================================================================================  ==================
 
@@ -152,6 +153,7 @@ Extra               Dependencies
 ``pyiceberg-core``  ``pyiceberg-core>=0.8.0``
 ``apache.iceberg``  ``apache-airflow-providers-apache-iceberg``
 ``amazon``          ``apache-airflow-providers-amazon>=9.38.0``
+``google``          ``apache-airflow-providers-google>=23.1.0``
 ==================  =======================================================================================================================================================================
 
 Downloading official packages
