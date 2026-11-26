@@ -279,6 +279,21 @@ Finally, note that it does not have to be either-or; using the `Multiple Executo
 <https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/executor/index.html#using-multiple-executors-concurrently>`_,
 it is possible to use both CeleryExecutor and KubernetesExecutor simultaneously on the same cluster.
 
+Running callbacks
+-----------------
+
+On Airflow 3.3 and later, the KubernetesExecutor also runs executor callbacks, such as the callback of a
+:class:`~airflow.sdk.DeadlineAlert` defined with a :class:`~airflow.sdk.SyncCallback`.  Each callback runs in its own
+pod, built from the same ``pod_template_file`` and image as task pods.  The pod is labeled
+``airflow-workload-type=callback`` and carries a ``callback_id`` annotation instead of task annotations.
+
+The executor marks a callback as succeeded or failed when its pod succeeds or fails.  On Airflow 3.5 and later the
+callback supervisor in the pod also reports the final state itself, and that report takes precedence.  Callback pods
+are not retried.  As with the other executors that run callbacks, a scheduler that starts after a restart does not
+adopt a callback pod that is still running.  When such a pod has succeeded, the new scheduler records the callback as
+successful and deletes the pod.  A callback pod that fails while no scheduler is tracking it is neither reported nor
+deleted.
+
 Fault Tolerance
 ---------------
 

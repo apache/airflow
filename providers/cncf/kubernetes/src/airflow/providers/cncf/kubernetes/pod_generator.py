@@ -42,6 +42,10 @@ from airflow.exceptions import (
 )
 from airflow.providers.cncf.kubernetes.backcompat import get_logical_date_key
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+    CALLBACK_POD_ANNOTATION_KEY,
+    CALLBACK_WORKLOAD_TYPE_KEY,
+)
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     POD_NAME_MAX_LENGTH,
     add_unique_suffix,
@@ -62,11 +66,11 @@ log = logging.getLogger(__name__)
 MAX_LABEL_LEN = 63
 
 
-def workload_to_command_args(workload: workloads.ExecuteTask) -> list[str]:
+def workload_to_command_args(workload: workloads.ExecuteTask | workloads.ExecuteCallback) -> list[str]:
     """
     Convert a workload object to Task SDK command arguments.
 
-    :param workload: The ExecuteTask workload to convert
+    :param workload: The ExecuteTask or ExecuteCallback workload to convert
     :return: List of command arguments for the Task SDK
     """
     ser_input = workload.model_dump_json()
@@ -448,6 +452,61 @@ class PodGenerator:
 
         try:
             pod = reduce(PodGenerator.reconcile_pods, pod_list, base_worker_pod)
+        except Exception as e:
+            raise PodReconciliationError from e
+
+        if with_mutation_hook:
+            from airflow.settings import pod_mutation_hook
+
+            try:
+                pod_mutation_hook(pod)
+            except Exception as e:
+                raise PodMutationHookException from e
+
+        return pod
+
+    @classmethod
+    def construct_callback_pod(
+        cls,
+        *,
+        callback_id: str,
+        kube_image: str,
+        args: list[str],
+        base_worker_pod: k8s.V1Pod,
+        namespace: str,
+        scheduler_job_id: str,
+        with_mutation_hook: bool = False,
+    ) -> k8s.V1Pod:
+        """Create a Pod that runs an ``ExecuteCallback`` workload."""
+        pod_id = add_unique_suffix(
+            name=f"callback-{callback_id.replace('-', '')[:8]}", max_len=POD_NAME_MAX_LENGTH
+        )
+        dynamic_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                namespace=namespace,
+                annotations={CALLBACK_POD_ANNOTATION_KEY: callback_id},
+                name=pod_id,
+                labels={
+                    "kubernetes_executor": "True",
+                    "airflow_version": airflow_version.replace("+", "-"),
+                    "airflow-worker": make_safe_label_value(str(scheduler_job_id)),
+                    CALLBACK_WORKLOAD_TYPE_KEY: "callback",
+                },
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        args=args,
+                        image=kube_image,
+                        env=[k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value="True")],
+                    )
+                ]
+            ),
+        )
+
+        try:
+            pod = PodGenerator.reconcile_pods(base_worker_pod, dynamic_pod)
         except Exception as e:
             raise PodReconciliationError from e
 

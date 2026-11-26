@@ -17,21 +17,34 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypedDict
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, TypeAlias, TypedDict
 from uuid import UUID
 
-from airflow.executors.base_executor import BaseExecutor
-
-if hasattr(BaseExecutor, "get_task_key"):
-    from airflow.executors.workloads.types import TaskInstanceUuid  # noqa: TC001
+# Not under TYPE_CHECKING, where mypy cannot determine its type ([has-type]).
+from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_3_PLUS  # noqa: TC001
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
     from kubernetes.client import models as k8s
 
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.state import TaskInstanceState
+
+    if AIRFLOW_V_3_3_PLUS:
+        from airflow.executors.workloads import ExecuteCallback, ExecuteTask
+        from airflow.executors.workloads.types import (
+            WorkloadKey as _WorkloadKey,
+            WorkloadState as _WorkloadState,
+        )
+
+        WorkloadKey: TypeAlias = _WorkloadKey
+        WorkloadState: TypeAlias = _WorkloadState
+        WorkloadCommand: TypeAlias = Sequence[str] | Sequence[ExecuteTask] | Sequence[ExecuteCallback]
+    else:
+        WorkloadKey: TypeAlias = TaskInstanceKey  # type: ignore[no-redef, misc]
+        WorkloadState: TypeAlias = TaskInstanceState  # type: ignore[no-redef, misc]
+        WorkloadCommand: TypeAlias = Sequence[str]  # type: ignore[no-redef, misc]
 
 
 ADOPTED = "adopted"
@@ -52,10 +65,10 @@ class FailureDetails(TypedDict, total=False):
 
 
 class KubernetesResults(NamedTuple):
-    """Results from Kubernetes task execution."""
+    """Results from Kubernetes workload execution."""
 
-    key: TaskInstanceUuid | TaskInstanceKey
-    state: TaskInstanceState | str | None
+    key: WorkloadKey
+    state: WorkloadState | str | None
     pod_name: str
     namespace: str
     resource_version: str
@@ -67,7 +80,7 @@ class KubernetesWatch(NamedTuple):
 
     pod_name: str
     namespace: str
-    state: TaskInstanceState | str | None
+    state: WorkloadState | str | None
     annotations: dict[str, str]
     resource_version: str
     failure_details: FailureDetails | None
@@ -80,8 +93,8 @@ CommandType = "Sequence[str]"
 class KubernetesJob(NamedTuple):
     """Job definition for Kubernetes execution."""
 
-    key: TaskInstanceUuid | TaskInstanceKey
-    command: Sequence[str]
+    key: WorkloadKey
+    command: WorkloadCommand
     kube_executor_config: Any
     pod_template_file: str | None
     kube_image: str | None = None
@@ -100,6 +113,11 @@ So we want events on a revoked pod to be ignored.
 :meta private:
 """
 
+# Label key marking a pod as running a callback rather than a task instance.
+CALLBACK_WORKLOAD_TYPE_KEY = "airflow-workload-type"
+
+# Key of the pod annotation that holds the callback ID; the watcher rebuilds the ``CallbackKey`` from this.
+CALLBACK_POD_ANNOTATION_KEY = "callback_id"
 
 TASK_INSTANCE_ID_ANNOTATION = "task_instance_id"
 TASK_INSTANCE_ID_LABEL = "ti_id"

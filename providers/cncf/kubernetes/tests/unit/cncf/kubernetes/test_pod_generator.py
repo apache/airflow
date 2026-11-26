@@ -27,6 +27,7 @@ from kubernetes.client import ApiClient, Configuration, models as k8s
 
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException
+from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import PodReconciliationError
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
 from airflow.providers.cncf.kubernetes.pod_generator import (
@@ -45,6 +46,25 @@ if AIRFLOW_V_3_0_PLUS:
     LOGICAL_DATE_KEY = "logical_date"
 else:
     LOGICAL_DATE_KEY = "execution_date"
+
+
+CALLBACK_ID = "12345678-1234-5678-1234-567812345678"
+
+
+def construct_callback_pod(**overrides):
+    base_worker_pod = k8s.V1Pod(
+        metadata=k8s.V1ObjectMeta(name="base", labels={"from": "template"}),
+        spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base", image="template-image")]),
+    )
+    kwargs = dict(
+        callback_id=CALLBACK_ID,
+        kube_image="worker-image",
+        args=["python", "-m", "run"],
+        base_worker_pod=base_worker_pod,
+        namespace="ns",
+        scheduler_job_id="5",
+    )
+    return PodGenerator.construct_callback_pod(**{**kwargs, **overrides})
 
 
 class TestPodGenerator:
@@ -828,3 +848,48 @@ class TestPodGenerator:
             items.append("airflow-worker")
         exp_selector = ",".join(items)
         assert PodGenerator.build_selector_for_k8s_executor_pod(**kwargs, **extra) == exp_selector
+
+    def test_construct_callback_pod(self):
+        pod = construct_callback_pod()
+
+        assert pod.metadata.name.startswith("callback-12345678-")
+        assert pod.metadata.namespace == "ns"
+        assert pod.metadata.annotations == {"callback_id": CALLBACK_ID}
+        assert pod.metadata.labels == {
+            "from": "template",
+            "kubernetes_executor": "True",
+            "airflow_version": __version__.replace("+", "-"),
+            "airflow-worker": "5",
+            "airflow-workload-type": "callback",
+        }
+        container = pod.spec.containers[0]
+        assert container.image == "worker-image"
+        assert container.args == ["python", "-m", "run"]
+        assert {e.name: e.value for e in container.env} == {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"}
+
+    @mock.patch("airflow.settings.pod_mutation_hook", autospec=True)
+    def test_construct_callback_pod_applies_mutation_hook(self, mock_hook):
+        def mutate(pod):
+            pod.metadata.labels["mutated"] = "yes"
+
+        mock_hook.side_effect = mutate
+
+        pod = construct_callback_pod(with_mutation_hook=True)
+
+        mock_hook.assert_called_once_with(pod)
+        assert pod.metadata.labels["mutated"] == "yes"
+
+    @mock.patch("airflow.settings.pod_mutation_hook", autospec=True)
+    def test_construct_callback_pod_without_mutation_hook(self, mock_hook):
+        construct_callback_pod()
+
+        mock_hook.assert_not_called()
+
+    @mock.patch("airflow.settings.pod_mutation_hook", autospec=True, side_effect=ValueError("boom"))
+    def test_construct_callback_pod_mutation_hook_error(self, mock_hook):
+        with pytest.raises(PodMutationHookException):
+            construct_callback_pod(with_mutation_hook=True)
+
+    def test_construct_callback_pod_reconciliation_error(self):
+        with pytest.raises(PodReconciliationError):
+            construct_callback_pod(base_worker_pod=None)
