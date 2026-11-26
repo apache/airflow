@@ -54,15 +54,37 @@ itself has no `CLAUDE.md`: Claude Code reads `AGENTS.md` natively.
 - **Claude authentication** (one of):
   - Claude Code session (`claude /login`) — Pro/Max subscription
   - `ANTHROPIC_API_KEY` environment variable — API credits
-  - `CLAUDE_CODE_OAUTH_TOKEN` environment variable (from `claude setup-token`)
-    — Pro/Max subscription. Use this or `ANTHROPIC_API_KEY` when running the
-    eval from an agent sandbox: the sandbox usually blocks the macOS keychain
-    or `~/.claude` credentials that a `/login` session stores, and every case
-    then fails with "Not logged in".
+  - `SKILL_EVAL_CLAUDE_TOKEN_FILE` — path to a file holding a token from
+    `claude setup-token` (Pro/Max subscription). See
+    [Running from an agent sandbox](#running-from-an-agent-sandbox).
 - **Codex authentication** (when using the Codex runtime): a Codex CLI
   session (`codex login`)
 
 That's it — prek provisions Node, promptfoo, and the agent SDKs automatically.
+
+### Running from an agent sandbox
+
+Agent sandboxes usually block the macOS keychain and the `~/.claude`
+credentials that a `/login` session stores, so every case fails with
+"Not logged in". Give the eval its own credential instead:
+
+```bash
+claude setup-token          # run outside the agent; prints a long-lived token
+# save it to a file only you can read, e.g. ~/.config/airflow-skill-eval/token
+chmod 600 ~/.config/airflow-skill-eval/token
+SKILL_EVAL_CLAUDE_TOKEN_FILE=~/.config/airflow-skill-eval/token \
+  prek run run-skill-eval --hook-stage manual --all-files
+```
+
+The harness reads the file and passes the token only to the promptfoo
+process, so it is not exported to every command in the session — prefer
+this over exporting `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the
+agent's environment.
+
+This narrows the exposure but does not hide the token from the agent: the
+sandbox must allow reading the file, so anything the agent runs can read it
+too. Use a token made only for the eval, and revoke it if it may have
+leaked.
 
 ## Agent runtimes
 

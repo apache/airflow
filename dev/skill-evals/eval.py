@@ -29,7 +29,7 @@ Usage:
     prek run run-skill-eval-codex --hook-stage manual --all-files
 
 Env knobs: AGENT_RUNTIME (set by the Codex hook), MODEL, SKILL_NAME, EVAL_REPEAT,
-EVAL_FULL (baseline arm).
+EVAL_FULL (baseline arm), SKILL_EVAL_CLAUDE_TOKEN_FILE (Claude token for the eval only).
 Promptfoo flags like --filter* are argv-only — wire them as fixed entry
 args on a hook variant when needed.
 
@@ -138,6 +138,26 @@ def find_sdk_modules(runtime: str) -> Path:
         file=sys.stderr,
     )
     sys.exit(1)
+
+
+def read_claude_token_env() -> dict[str, str]:
+    """Return CLAUDE_CODE_OAUTH_TOKEN read from SKILL_EVAL_CLAUDE_TOKEN_FILE, if set.
+
+    The token goes only into the promptfoo subprocess environment, so it does
+    not have to be exported for the whole (agent) session.
+    """
+    token_file = os.environ.get("SKILL_EVAL_CLAUDE_TOKEN_FILE")
+    if not token_file:
+        return {}
+    try:
+        token = Path(token_file).expanduser().read_text().strip()
+    except OSError as e:
+        print(f"Error: cannot read SKILL_EVAL_CLAUDE_TOKEN_FILE ({token_file}): {e}", file=sys.stderr)
+        sys.exit(1)
+    if not token:
+        print(f"Error: SKILL_EVAL_CLAUDE_TOKEN_FILE ({token_file}) is empty.", file=sys.stderr)
+        sys.exit(1)
+    return {"CLAUDE_CODE_OAUTH_TOKEN": token}
 
 
 def resolve_base_branch() -> str:
@@ -405,7 +425,11 @@ def main() -> int:
         result = subprocess.run(
             ["promptfoo", "eval", "-c", str(config_path), "--output", str(RESULTS_FILE), *promptfoo_args],
             check=False,
-            env={**os.environ, "PROMPTFOO_CONFIG_DIR": str(PROMPTFOO_STATE_DIR)},
+            env={
+                **os.environ,
+                "PROMPTFOO_CONFIG_DIR": str(PROMPTFOO_STATE_DIR),
+                **read_claude_token_env(),
+            },
         )
 
         # 0 = all passed, 100 = some assertions failed — both mean the eval
