@@ -28,21 +28,22 @@ from airflow.providers.common.compat.sdk import BaseHook
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
+from airflow.providers.google.common.hooks.base_google import get_field
 
 _UNSUPPORTED_CONNECTION_FIELDS = ("key_secret_name", "credential_config_file", "impersonation_chain")
 
 
-def _get_gcp_extra_field(extra_dejson: dict[str, Any], field_name: str) -> Any:
-    # Older Airflow connection UIs wrote custom extra fields as
-    # extra__google_cloud_platform__<field_name> instead of the bare key; GoogleBaseHook
-    # still reads that legacy spelling as a fallback, so this must too.
-    if field_name in extra_dejson:
-        return extra_dejson[field_name]
-    return extra_dejson.get(f"extra__google_cloud_platform__{field_name}")
-
-
 class GCSObjectStorageProvider(ObjectStorageProvider):
-    """GCS Object Storage Provider using DataFusion's GoogleCloud."""
+    """
+    GCS Object Storage Provider using DataFusion's GoogleCloud.
+
+    ``ObjectStoragePath`` reaches ``gs://`` through :mod:`airflow.providers.google.cloud.fs.gcs`
+    instead, which hands ``GoogleBaseHook.get_credentials()`` to gcsfs. DataFusion's ``GoogleCloud``
+    only accepts a service account key file, so this class supports ``key_path``, ``keyfile_dict``,
+    ``GOOGLE_APPLICATION_CREDENTIALS`` and ambient credentials, and rejects the hook's other
+    credential sources (``key_secret_name``, ``credential_config_file``, ``impersonation_chain``).
+    Keep the two in mind together when changing how a ``google_cloud_platform`` connection is read.
+    """
 
     @property
     def get_storage_type(self) -> StorageType:
@@ -57,14 +58,14 @@ class GCSObjectStorageProvider(ObjectStorageProvider):
 
         extra_dejson = conn.extra_dejson
         for unsupported_field in _UNSUPPORTED_CONNECTION_FIELDS:
-            if _get_gcp_extra_field(extra_dejson, unsupported_field):
+            if get_field(extra_dejson, unsupported_field):
                 raise ValueError(
                     f"Connection field {unsupported_field!r} is not supported for DataFusion "
                     "GCS access; only key_path, keyfile_dict, GOOGLE_APPLICATION_CREDENTIALS, or "
                     "ambient credentials (gcloud ADC file / metadata server) are used."
                 )
-        key_path = _get_gcp_extra_field(extra_dejson, "key_path") or None
-        keyfile_dict = _get_gcp_extra_field(extra_dejson, "keyfile_dict") or None
+        key_path = get_field(extra_dejson, "key_path") or None
+        keyfile_dict = get_field(extra_dejson, "keyfile_dict") or None
         if key_path and keyfile_dict:
             raise ValueError(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
