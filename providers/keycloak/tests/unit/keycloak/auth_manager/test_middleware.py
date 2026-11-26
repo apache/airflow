@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import re
 import threading
 from http.cookies import SimpleCookie
@@ -28,7 +29,7 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.testclient import TestClient
 from jwt import InvalidTokenError
-from keycloak import KeycloakPostError
+from keycloak import KeycloakConnectionError, KeycloakPostError
 
 from airflow.api_fastapi import app as api_fastapi_app
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
@@ -431,14 +432,44 @@ class TestKeycloakJWTMiddleware:
 
         assert mock_get_keycloak_client.return_value.logout.call_args_list == expected_calls
         if expected_calls:
-            assert mock_get_keycloak_client.return_value.connection.timeout == 5
+            mock_get_keycloak_client.assert_called_once_with(timeout=5, max_retries=0)
 
+    @pytest.mark.parametrize(
+        ("error", "expected_event", "expected_log_level"),
+        [
+            pytest.param(
+                KeycloakPostError(error_message="invalid_grant", response_code=400),
+                "Could not end the Keycloak session on logout (KeycloakPostError, response code 400)",
+                "debug",
+                id="session_already_expired",
+            ),
+            pytest.param(
+                KeycloakPostError(error_message="server error", response_code=503),
+                "Could not end the Keycloak session on logout (KeycloakPostError, response code 503)",
+                "warning",
+                id="keycloak_server_error",
+            ),
+            pytest.param(
+                KeycloakConnectionError(error_message="connection refused"),
+                "Could not end the Keycloak session on logout (KeycloakConnectionError, response code None)",
+                "warning",
+                id="keycloak_unreachable",
+            ),
+        ],
+    )
     @patch(f"{MODULE}.KeycloakAuthManager.get_keycloak_client", autospec=True)
     def test_logout_completes_when_keycloak_cannot_end_the_session(
-        self, mock_get_keycloak_client, mock_auth_manager, caplog
+        self,
+        mock_get_keycloak_client,
+        mock_auth_manager,
+        caplog,
+        error,
+        expected_event,
+        expected_log_level,
     ):
-        mock_get_keycloak_client.return_value.logout.side_effect = KeycloakPostError(
-            error_message="invalid_grant", response_code=400
+        mock_get_keycloak_client.return_value.logout.side_effect = error
+        caplog.set_level(
+            logging.DEBUG, logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager"
         )
         app, _ = _build_app()
         app.state.auth_manager = mock_auth_manager
@@ -458,10 +489,7 @@ class TestKeycloakJWTMiddleware:
             (COOKIE_NAME_ACCESS_TOKEN, "/"): None,
             (COOKIE_NAME_REFRESH_TOKEN, "/"): None,
         }
-        assert {
-            "event": "Could not end the Keycloak session on logout (KeycloakPostError, response code 400)",
-            "log_level": "warning",
-        } in caplog
+        assert {"event": expected_event, "log_level": expected_log_level} in caplog
 
     def test_root_cookie_cleared_when_route_sets_token(self, mock_get_cookie_path, mock_auth_manager):
         mock_auth_manager.get_user_from_token.side_effect = InvalidTokenError
