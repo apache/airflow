@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from base64 import b64decode
+
 import jmespath
 import pytest
-from chart_utils.helm_template_generator import render_chart
+from chart_utils.helm_template_generator import prepare_k8s_lookup_dict, render_chart
 
 
 class TestKeda:
@@ -466,6 +468,120 @@ class TestKeda:
     @staticmethod
     def _env_names(doc):
         return jmespath.search("spec.template.spec.containers[].env[].name", doc) or []
+
+    @pytest.mark.parametrize("protocol", ["postgresql", "mysql"])
+    def test_named_worker_keda_connection_resolves_to_generated_secret(self, protocol):
+        pgbouncer_enabled = protocol == "postgresql"
+        port = 5432 if pgbouncer_enabled else 3306
+        docs = prepare_k8s_lookup_dict(
+            render_chart(
+                values={
+                    "executor": "CeleryExecutor",
+                    "pgbouncer": {"enabled": pgbouncer_enabled},
+                    "data": {"metadataConnection": {"protocol": protocol, "host": "db", "port": port}},
+                    "workers": {
+                        "celery": {
+                            "enableDefault": pgbouncer_enabled,
+                            "keda": {"enabled": False},
+                            "sets": [
+                                {
+                                    "name": "fast",
+                                    "keda": {"enabled": True, "usePgbouncer": False},
+                                }
+                            ],
+                        }
+                    },
+                },
+                show_only=[
+                    "templates/workers/worker-deployment.yaml",
+                    "templates/workers/worker-kedaautoscaler.yaml",
+                    "templates/secrets/metadata-connection-secret.yaml",
+                ],
+            )
+        )
+        trigger = docs["ScaledObject", "release-name-worker-fast"]["spec"]["triggers"][0]
+        env_field = "connectionFromEnv" if pgbouncer_enabled else "connectionStringFromEnv"
+        assert trigger["metadata"][env_field] == "KEDA_DB_CONN"
+        ref = jmespath.search(
+            "spec.template.spec.containers[?name=='worker'].env[] | "
+            "[?name=='KEDA_DB_CONN'].valueFrom.secretKeyRef | [0]",
+            docs["StatefulSet", "release-name-worker-fast"],
+        )
+        assert ref == {"name": "release-name-metadata", "key": "kedaConnection"}
+        secret_data = docs["Secret", ref["name"]]["data"]
+        assert ref["key"] in secret_data
+        connection = b64decode(secret_data[ref["key"]]).decode()
+        if pgbouncer_enabled:
+            assert "@db:5432/postgres" in connection
+            assert "@release-name-pgbouncer" in b64decode(secret_data["connection"]).decode()
+        else:
+            assert "@tcp(db:3306)/postgres" in connection
+
+    @pytest.mark.parametrize("enable_default", [False, True], ids=["named-only", "with-default"])
+    @pytest.mark.parametrize("reverse_sets", [False, True], ids=["bypass-first", "bypass-last"])
+    def test_named_workers_share_generated_metadata_secret(self, enable_default, reverse_sets):
+        sets = [
+            {"name": "direct", "keda": {"usePgbouncer": False}},
+            {"name": "pooled", "keda": {"enabled": True}},
+        ]
+        if reverse_sets:
+            sets.reverse()
+        docs = prepare_k8s_lookup_dict(
+            render_chart(
+                values={
+                    "executor": "CeleryExecutor",
+                    "pgbouncer": {"enabled": True},
+                    "workers": {
+                        "celery": {"enableDefault": enable_default, "keda": {"enabled": True}, "sets": sets}
+                    },
+                },
+                show_only=[
+                    "templates/workers/worker-deployment.yaml",
+                    "templates/scheduler/scheduler-deployment.yaml",
+                    "templates/secrets/metadata-connection-secret.yaml",
+                ],
+            )
+        )
+        direct_worker = docs["StatefulSet", "release-name-worker-direct"]
+        pooled_worker = docs["StatefulSet", "release-name-worker-pooled"]
+        assert "KEDA_DB_CONN" in self._env_names(direct_worker)
+        assert "KEDA_DB_CONN" not in self._env_names(pooled_worker)
+        assert "kedaConnection" in docs["Secret", "release-name-metadata"]["data"]
+        scheduler = docs["Deployment", "release-name-scheduler"]
+        checksum = 'spec.template.metadata.annotations."checksum/metadata-secret"'
+        shared_checksum = jmespath.search(checksum, scheduler)
+        assert shared_checksum
+        assert jmespath.search(checksum, direct_worker) == shared_checksum
+        assert jmespath.search(checksum, pooled_worker) == shared_checksum
+        if enable_default:
+            assert jmespath.search(checksum, docs["StatefulSet", "release-name-worker"]) == shared_checksum
+
+    @pytest.mark.parametrize(
+        "keda",
+        [
+            {"enabled": False, "usePgbouncer": False},
+            {"enabled": True, "usePgbouncer": True},
+            {"enabled": True, "usePgbouncer": False, "authenticationRef": {"name": "db-auth"}},
+        ],
+        ids=["disabled", "pgbouncer", "external-auth"],
+    )
+    def test_named_worker_without_keda_db_env_does_not_add_secret_key(self, keda):
+        docs = prepare_k8s_lookup_dict(
+            render_chart(
+                values={
+                    "executor": "CeleryExecutor",
+                    "pgbouncer": {"enabled": True},
+                    "workers": {"celery": {"sets": [{"name": "fast", "keda": keda}]}},
+                },
+                show_only=[
+                    "templates/workers/worker-deployment.yaml",
+                    "templates/secrets/metadata-connection-secret.yaml",
+                ],
+            )
+        )
+        worker = docs["StatefulSet", "release-name-worker-fast"]
+        assert "KEDA_DB_CONN" not in self._env_names(worker)
+        assert "kedaConnection" not in docs["Secret", "release-name-metadata"]["data"]
 
     def test_worker_keda_db_conn_not_leaked_to_other_components(self):
         docs = render_chart(
