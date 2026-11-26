@@ -64,6 +64,7 @@ from airflowctl.ctl.cli_config import (
     is_iso_datetime_type,
     json_dict_type,
     merge_commands,
+    positive_finite_float,
     safe_call_command,
 )
 from airflowctl.ctl.console_formatting import AirflowConsole
@@ -669,6 +670,14 @@ class TestCommandFactory:
 
 
 class TestCliConfigMethods:
+    @pytest.mark.parametrize("value", ["0", "-1", "inf", "nan", "abc"])
+    def test_positive_finite_float_rejects_invalid_values(self, value):
+        with pytest.raises(argparse.ArgumentTypeError, match="invalid positive number"):
+            positive_finite_float(value)
+
+    def test_positive_finite_float_accepts_positive_values(self):
+        assert positive_finite_float("0.5") == 0.5
+
     @pytest.mark.parametrize("method", ["GET", "HEAD", "OPTIONS", "POST", "PUT", "PATCH", "DELETE"])
     @pytest.mark.parametrize(
         ("failure", "ambiguous"),
@@ -1416,6 +1425,7 @@ class TestCliConfigMethods:
         ("group_name", "subcommand_name", "expected_help"),
         [
             ("assets", "get", "Retrieve an asset by its ID"),
+            ("assets", "state-store", "Manage the state store of an asset"),
             ("connections", "get", "Retrieve a connection by its ID"),
             ("taskinstances", "list", "List all task instances for a given Dag run"),
             ("taskinstances", "get", "Get a task instance for a given Dag run"),

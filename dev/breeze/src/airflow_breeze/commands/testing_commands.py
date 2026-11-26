@@ -47,6 +47,7 @@ from airflow_breeze.commands.common_options import (
     option_e2e_reporter,
     option_e2e_timeout,
     option_e2e_workers,
+    option_elasticsearch_version,
     option_excluded_providers,
     option_force_lowest_dependencies,
     option_force_reinstall_deps,
@@ -60,6 +61,7 @@ from airflow_breeze.commands.common_options import (
     option_mount_sources,
     option_mysql_version,
     option_no_db_cleanup,
+    option_opensearch_version,
     option_parallelism,
     option_postgres_version,
     option_project_name,
@@ -1157,12 +1159,14 @@ def core_integration_tests(
 @option_enable_coverage
 @option_force_sa_warnings
 @option_forward_credentials
+@option_elasticsearch_version
 @option_github_repository
 @option_providers_integration
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
+@option_opensearch_version
 @option_postgres_version
 @option_python
 @option_skip_docker_compose_down
@@ -1174,6 +1178,7 @@ def integration_providers_tests(
     collect_only: bool,
     custom_db_url: str | None,
     db_reset: bool,
+    elasticsearch_version: str,
     enable_coverage: bool,
     extra_pytest_args: tuple,
     force_sa_warnings: bool,
@@ -1184,6 +1189,7 @@ def integration_providers_tests(
     mount_sources: str,
     mysql_version: str,
     no_db_cleanup: bool,
+    opensearch_version: str,
     postgres_version: str,
     python: str,
     skip_docker_compose_down: bool,
@@ -1194,6 +1200,7 @@ def integration_providers_tests(
         backend=backend,
         collect_only=collect_only,
         custom_db_url=custom_db_url or "",
+        elasticsearch_version=elasticsearch_version,
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1203,6 +1210,7 @@ def integration_providers_tests(
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
+        opensearch_version=opensearch_version,
         postgres_version=postgres_version,
         python=python,
         test_type="All",
@@ -1553,6 +1561,7 @@ option_e2e_test_mode = click.option(
             "openlineage",
             "ts_sdk",
             "yaml_dag",
+            "lang_sdk_xcom_object_storage",
         ],
         case_sensitive=False,
     ),

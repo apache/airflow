@@ -25,6 +25,30 @@
 Changelog
 ---------
 
+.. note::
+    ``StateStoreObjectStorageBackend`` now raises ``ValueError`` when ``[common.io] state_store_objectstorage_path``
+    has no URL scheme (for example ``/tmp/task-state``). Before, large values were written but reading them back
+    failed with ``JSONDecodeError``. Plain ``get``, ``set``, ``delete`` and ``clear`` calls worked with such a
+    path and now raise too. Set the path to a URL such as ``s3://conn_id@bucket/task-state``, or
+    ``file:///path/to/task-state`` for local storage.
+
+    ``XComObjectStorageBackend`` now raises ``ValueError`` when it has to write a value to object storage
+    and ``[common.io] xcom_objectstorage_path`` has no URL scheme (for example ``""`` or ``/tmp/xcom``).
+    Before, the write succeeded but reads returned the file path instead of the value. Set the path to a
+    URL such as ``s3://conn_id@bucket/path``, or ``file:///path/to/xcom`` for local storage.
+
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Write common.io state store values in chunks instead of one bytes copy (#76108)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 1.11.0
 ......
 

@@ -196,6 +196,15 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "dag_processing.results_discarded_on_refresh"
+    description: "Parse attempts discarded because their bundle source generation was invalidated.
+    Metric with bundle_name tagging, and team_name tagging in multi-team mode.
+    This defensive counter should normally remain zero because refreshes wait for active imports.
+    Use dag_processing.files_awaiting_source to monitor normal refresh delays."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "dag_processing.processes"
     description: "Relative number of currently running Dag parsing processes (ie this delta is negative when,
     since the last metric was sent, processes have completed). Metric with file_path, bundle_name, and action
@@ -270,6 +279,14 @@ metrics:
   - name: "scheduler.zombies.detected"
     description: "Number of zombie task instances detected by the Scheduler.
     Metric with reason tagging (``heartbeat_timeout``)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "scheduler.executor_health_check.stalled"
+    description: "Number of times an executor's health check was reported as stalled: its
+    get_health() call hadn't returned after several check intervals. Metric with executor
+    and team_name tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -374,6 +391,13 @@ metrics:
   - name: "triggers.failed"
     description: "Number of triggers that errored before they could fire an event.
     Tagged with trigger_kind (asset_watcher, callback or task)."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "triggers.state_mismatch"
+    description: "Number of triggers the Triggerer tracked as running that the trigger runner
+    had no coroutine for, and which were re-created"
     type: "counter"
     legacy_name: "-"
     name_variables: []
@@ -513,8 +537,8 @@ metrics:
   - name: "common_ai.tool_calls"
     description: "Number of calls to a toolset of the common.ai provider. Metric with toolset
     (the toolset class), framework (``pydantic_ai``, ``strands``, ``adk``, ``langchain``,
-    ``anthropic``, ``openai_agents``, ``claude_agent_sdk`` or ``none``) and outcome (``executed``,
-    ``failed`` or ``replayed``) tagging."
+    ``anthropic``, ``openai_agents``, ``claude_agent_sdk``, ``openai_codex`` or ``none``) and outcome
+    (``executed``, ``failed`` or ``replayed``) tagging."
     type: "counter"
     legacy_name: "-"
     name_variables: ["toolset", "framework", "outcome"]
@@ -568,6 +592,21 @@ metrics:
 
   - name: "dag_processing.file_path_queue_size"
     description: "Number of Dag files to be considered for the next scan"
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.files_awaiting_source"
+    description: "Total number of Dag files deferred until a bundle refresh completes
+    or a usable source becomes available."
+    type: "gauge"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "dag_processing.files_awaiting_source_by_bundle"
+    description: "Number of Dag files deferred in each bundle until a refresh completes
+    or a usable source becomes available. Metric with bundle_name tagging, and team_name tagging
+    in multi-team mode. Requires a metrics backend that supports tagging."
     type: "gauge"
     legacy_name: "-"
     name_variables: []

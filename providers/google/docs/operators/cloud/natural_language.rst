@@ -174,5 +174,5 @@ Reference
 
 For further information, look at:
 
-* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/language/index.html>`__
+* `Client Library Documentation <https://cloud.google.com/python/docs/reference/language/latest>`__
 * `Product Documentation <https://cloud.google.com/natural-language/docs/>`__

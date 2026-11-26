@@ -23,6 +23,7 @@ import { NEVER_EXPIRE } from "../../src/sdk/client-types.js";
 import { createCoordinatorClient } from "../../src/coordinator/client.js";
 import type { CommChannel } from "../../src/coordinator/comm-channel.js";
 import type { TaskClient } from "../../src/sdk/client.js";
+import type { GetXComOpts, SetXComOpts } from "../../src/sdk/client-types.js";
 import type { TaskContext } from "../../src/sdk/task.js";
 
 const RETENTION_ENV_VAR = "AIRFLOW__STATE_STORE__DEFAULT_RETENTION_DAYS";
@@ -40,6 +41,7 @@ const FAKE_CTX: TaskContext = {
   runId: "r",
   tryNumber: 1,
   mapIndex: -1,
+  conf: {},
   signal: new AbortController().signal,
 };
 
@@ -49,8 +51,23 @@ function client(frames: { body: unknown; error?: unknown }[]) {
   return createCoordinatorClient(fakeComm(frames), FAKE_CTX, FAKE_TI_ID);
 }
 
+const MAPPED_CTX: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+
+type XComOpts = Pick<SetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
+
+/** Each XCom call that takes a target, with the reply the supervisor gives it. */
+const XCOM_CALLS = [
+  [
+    "getXCom",
+    { type: "XComResult", key: "k", value: null },
+    // getXCom requires a taskId; a case may still override it.
+    (c: TaskClient, o: XComOpts) => c.getXCom({ taskId: "up", ...o } as GetXComOpts),
+  ],
+  ["setXCom", null, (c: TaskClient, o: XComOpts) => c.setXCom({ ...o, value: 1 })],
+] as const;
+
 /** Captures the request bodies sent, answering each one with `reply`. */
-function recordingClient(reply: unknown = null) {
+function recordingClient(reply: unknown = null, ctx: TaskContext = FAKE_CTX) {
   const sent: Record<string, unknown>[] = [];
   const comm = {
     request: async (body: Record<string, unknown>) => {
@@ -58,7 +75,7 @@ function recordingClient(reply: unknown = null) {
       return { body: reply };
     },
   } as unknown as CommChannel;
-  return { client: createCoordinatorClient(comm, FAKE_CTX, FAKE_TI_ID), sent };
+  return { client: createCoordinatorClient(comm, ctx, FAKE_TI_ID), sent };
 }
 
 describe("getVariable not-found contract", () => {
@@ -94,11 +111,6 @@ describe("getVariableOrThrow", () => {
     const c = client([{ body: { type: "ErrorResponse", error: "VARIABLE_NOT_FOUND" } }]);
     await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
   });
-
-  it("throws VariableNotFoundError on a null-valued result", async () => {
-    const c = client([{ body: { type: "VariableResult", key: "x", value: null } }]);
-    await expect(c.getVariableOrThrow("x")).rejects.toThrow(/Variable not found: x/);
-  });
 });
 
 describe("setVariable", () => {
@@ -126,6 +138,17 @@ describe("setVariable", () => {
       value: "42",
       description: null,
     });
+  });
+
+  it.each([
+    ["null", null],
+    ["undefined", undefined],
+    ["number", 42],
+  ])("rejects a %s value without sending a request", async (_label, value) => {
+    const { client: c, sent } = recordingClient();
+    // @ts-expect-error exercising the runtime guard against an untyped caller.
+    await expect(c.setVariable("threshold", value)).rejects.toThrow(TypeError);
+    expect(sent).toHaveLength(0);
   });
 });
 
@@ -184,7 +207,61 @@ describe("writes do not read a supervisor 404 as absence", () => {
 describe("getXCom not-found contract", () => {
   it("returns null for the exact XCOM_NOT_FOUND code", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
-    expect(await c.getXCom({ key: "k" })).toBeNull();
+    expect(await c.getXCom({ key: "k", taskId: "up" })).toBeNull();
+  });
+});
+
+describe("XCom key", () => {
+  it("defaults to return_value for getXCom and setXCom", async () => {
+    const { client: c, sent } = recordingClient({
+      type: "XComResult",
+      key: "return_value",
+      value: 1,
+    });
+
+    await c.getXCom({ taskId: "up" });
+    await c.setXCom({ value: 1 });
+
+    expect(sent.map((m) => [m.type, m.key])).toEqual([
+      ["GetXCom", "return_value"],
+      ["SetXCom", "return_value"],
+    ]);
+  });
+});
+
+describe("getXCom map index", () => {
+  it("defaults to null, even for the running task's own XCom", async () => {
+    const { client: c, sent } = recordingClient(
+      { type: "XComResult", key: "k", value: null },
+      MAPPED_CTX,
+    );
+
+    await c.getXCom({ key: "k", taskId: "t" });
+
+    expect(sent[0]).toMatchObject({ task_id: "t", map_index: null });
+  });
+
+  it("rejects a missing taskId without sending a request", async () => {
+    const { client: c, sent } = recordingClient({ type: "XComResult", key: "k", value: null });
+
+    await expect(c.getXCom({ key: "k" } as GetXComOpts)).rejects.toThrow(TypeError);
+
+    expect(sent).toHaveLength(0);
+  });
+
+  it("sends a map index as given", async () => {
+    const { client: c, sent } = recordingClient({ type: "XComResult", key: "k", value: null });
+
+    await c.getXCom({ key: "k", taskId: "up", mapIndex: -1 });
+    await c.getXCom({ key: "k", taskId: "up", mapIndex: 2 });
+
+    expect(sent.map((m) => m.map_index)).toEqual([-1, 2]);
+  });
+
+  it("returns a mapped task's result as an array", async () => {
+    const c = client([{ body: { type: "XComResult", key: "k", value: [1, 2] } }]);
+
+    expect(await c.getXCom({ key: "k", taskId: "up" })).toEqual([1, 2]);
   });
 });
 
@@ -195,23 +272,26 @@ describe("getXComEntry", () => {
   // fails the task, while one that pushed null binds null.
   it("reports an absent row as not found", async () => {
     const c = client([{ body: { type: "ErrorResponse", error: "XCOM_NOT_FOUND" } }]);
-    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: false, value: null });
+    expect(await c.getXComEntry({ key: "k", taskId: "up" })).toEqual({ found: false, value: null });
   });
 
   it("reports a stored null as found", async () => {
     const c = client([{ body: { type: "XComResult", key: "k", value: null } }]);
-    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: null });
+    expect(await c.getXComEntry({ key: "k", taskId: "up" })).toEqual({ found: true, value: null });
   });
 
   it("reports a stored value as found", async () => {
     const c = client([{ body: { type: "XComResult", key: "k", value: { orders: 12 } } }]);
-    expect(await c.getXComEntry({ key: "k" })).toEqual({ found: true, value: { orders: 12 } });
+    expect(await c.getXComEntry({ key: "k", taskId: "up" })).toEqual({
+      found: true,
+      value: { orders: 12 },
+    });
   });
 
   it("is what getXCom reads, so both see one round-trip", async () => {
     const c = client([{ body: { type: "XComResult", key: "k", value: false } }]);
     // `false` also pins that getXCom's `?? null` does not flatten a falsy value.
-    expect(await c.getXCom({ key: "k" })).toBe(false);
+    expect(await c.getXCom({ key: "k", taskId: "up" })).toBe(false);
   });
 });
 
@@ -251,7 +331,7 @@ describe("client is bound to TaskContext", () => {
     });
   });
 
-  it("defaults getXCom locator fields from ctx with snake_case wire names", async () => {
+  it("defaults getXCom dag and run from ctx with snake_case wire names", async () => {
     const sent: Record<string, unknown>[] = [];
     const recordingComm = {
       request: async (b: Record<string, unknown>) => {
@@ -259,15 +339,17 @@ describe("client is bound to TaskContext", () => {
         return { body: { type: "XComResult", key: b.key, value: null } };
       },
     } as unknown as CommChannel;
-    const c = createCoordinatorClient(recordingComm, FAKE_CTX, FAKE_TI_ID);
+    // A mapped ctx, to prove getXCom does not default to the running task's map index.
+    const mappedCtx: TaskContext = { ...FAKE_CTX, mapIndex: 3 };
+    const c = createCoordinatorClient(recordingComm, mappedCtx, FAKE_TI_ID);
 
-    await c.getXCom({ key: "k" });
+    await c.getXCom({ key: "k", taskId: "up" });
 
     expect(sent[0]).toEqual({
       type: "GetXCom",
       key: "k",
       dag_id: "d",
-      task_id: "t",
+      task_id: "up",
       run_id: "r",
       map_index: null,
       include_prior_dates: false,
@@ -297,7 +379,7 @@ describe("client is bound to TaskContext", () => {
       dagId: "other_dag",
       taskId: "upstream",
       runId: "manual__1",
-      mapIndex: -1,
+      mapIndex: 2,
       includePriorDates: true,
     });
     await c.setXCom({ key: "k", value: 3, mapIndex: 5 });
@@ -309,10 +391,58 @@ describe("client is bound to TaskContext", () => {
       dag_id: "other_dag",
       task_id: "upstream",
       run_id: "manual__1",
-      map_index: null,
+      map_index: 2,
       include_prior_dates: true,
     });
     expect(sent[3]).toMatchObject({ type: "SetXCom", map_index: 5 });
+  });
+});
+
+describe("setXCom map index default", () => {
+  it.each([
+    ["the running task", {}, 3],
+    ["the running task named explicitly", { dagId: "d", taskId: "t", runId: "r" }, 3],
+    ["another task", { taskId: "extract" }, null],
+    ["another Dag", { dagId: "other_dag" }, null],
+    ["another run", { runId: "manual__1" }, null],
+    ["another task with an explicit mapIndex", { taskId: "extract", mapIndex: 2 }, 2],
+    ["another task with mapIndex 0", { taskId: "extract", mapIndex: 0 }, 0],
+    ["the running task with mapIndex null", { mapIndex: null }, null],
+    ["the running task with null target ids", { dagId: null, taskId: null, runId: null }, 3],
+  ] as [string, Omit<XComOpts, "key">, number | null][])(
+    "from a mapped task targeting %s sends map_index %s",
+    async (_label, target, expected) => {
+      const { client: c, sent } = recordingClient(null, MAPPED_CTX);
+
+      await c.setXCom({ key: "k", value: 1, ...target });
+
+      expect(sent[0]).toMatchObject({ map_index: expected });
+    },
+  );
+});
+
+describe("XCom key and map index guards", () => {
+  describe.each(XCOM_CALLS)("%s", (_name, reply, call) => {
+    it.each([
+      ["an empty key", { key: "" }, RangeError],
+      ["a numeric key", { key: 1 }, TypeError],
+      ["a fractional mapIndex", { key: "k", mapIndex: 1.5 }, RangeError],
+      ["a NaN mapIndex", { key: "k", mapIndex: Number.NaN }, RangeError],
+      ["an Infinity mapIndex", { key: "k", mapIndex: Number.POSITIVE_INFINITY }, RangeError],
+      ["a string mapIndex", { key: "k", mapIndex: "1" }, TypeError],
+      ["a numeric dagId", { key: "k", dagId: 1 }, TypeError],
+      ["a numeric taskId", { key: "k", taskId: 1 }, TypeError],
+      ["an empty runId", { key: "k", runId: "" }, RangeError],
+    ] as [string, unknown, ErrorConstructor][])(
+      "rejects %s without sending a request",
+      async (_label, opts, errorType) => {
+        const { client: c, sent } = recordingClient(reply);
+
+        await expect(call(c, opts as XComOpts)).rejects.toThrow(errorType);
+
+        expect(sent).toHaveLength(0);
+      },
+    );
   });
 });
 

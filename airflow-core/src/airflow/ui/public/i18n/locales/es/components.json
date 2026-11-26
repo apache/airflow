@@ -6,6 +6,7 @@
     "affectedNone": "No hay ejecuciones que coincidan con los criterios seleccionados.",
     "allRuns": "Todas las Ejecuciones",
     "backwards": "Ejecutar Hacia Atrás",
+    "completed": "Completado",
     "dateRange": "Rango de Fechas",
     "errorStartDateBeforeEndDate": "La Fecha Inicial debe ser antes de la Fecha Final",
     "exceptionReason": {
@@ -26,10 +27,12 @@
     "permissionDenied": "Ejecución en Seco Fallida: el usuario no tiene permiso para crear backfills.",
     "reprocessBehavior": "Comportamiento de Reprocesamiento",
     "run": "Ejecutar Backfill",
+    "running": "En Ejecución",
     "scheduleNotBackfillable": "La programación de este Dag no admite backfills",
     "schedulerPriorityHint": "Las ejecuciones del Dag de backfill se ordenan después de las ejecuciones del Dag que no son backfill en cada ciclo del programador. Las ejecuciones de backfill pueden permanecer en cola más tiempo si hay otras ejecuciones que no son backfill presentes.",
     "selectDescription": "Ejecutar este Dag para un rango de fechas",
     "selectLabel": "Backfill",
+    "status": "Estado",
     "title": "Ejecutar Backfill",
     "toaster": {
       "success": {
@@ -102,6 +105,7 @@
     "placeholderArray": "Ingresa cada cadena en una nueva línea",
     "placeholderExamples": "Comience a escribir para ver opciones",
     "placeholderMulti": "Seleccionar uno o múltiples valores",
+    "validationErrorArrayElement": "Valores {{type}} inválidos: {{values}}",
     "validationErrorArrayNotArray": "El valor debe ser un array.",
     "validationErrorArrayNotNumbers": "Todos los elementos en el array deben ser números.",
     "validationErrorArrayNotObject": "Todos los elementos en el array deben ser objetos.",

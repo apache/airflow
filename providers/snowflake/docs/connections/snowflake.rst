@@ -1,5 +1,4 @@
-
-.. Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -45,7 +44,7 @@ Login
 Password
     Specify the snowflake password. For public key authentication, the passphrase for the private key.
     For OAuth, the OAuth Client Secret. For Programmatic Access Token (PAT) authentication, specify
-    the PAT token value and set ``authenticator`` to ``programmatic_access_token``.
+    the PAT token value and set the **Authenticator** field to ``programmatic_access_token``.
 
 Schema (optional)
     Specify the snowflake schema to be used.
@@ -59,7 +58,9 @@ Extra (optional)
     * ``region``: Warehouse region.
     * ``warehouse``: Snowflake warehouse name.
     * ``role``: Snowflake role.
-    * ``authenticator``: To connect using OAuth set this parameter ``oauth``. To connect without a stored secret using
+    * ``authenticator``: Set this in the **Authenticator** field of the connection form. In the Airflow 2 UI,
+      leaving that field blank removes an ``authenticator`` key typed into the Extra JSON when the connection
+      is saved. To connect using OAuth set this parameter ``oauth``. To connect without a stored secret using
       `Workload Identity Federation <https://docs.snowflake.com/en/user-guide/workload-identity-federation>`_,
       set it to ``WORKLOAD_IDENTITY`` and also set ``workload_identity_provider`` (see below). For Programmatic Access
       Token (PAT) authentication, set it to ``programmatic_access_token`` and put the PAT token in the
@@ -189,3 +190,30 @@ and is granted a role with access to the target objects.
             "workload_identity_provider": "GCP"
         }
     }'
+
+``SnowflakeSqlApiHook``, ``SnowflakeCortexAgentHook`` and the ``pydanticai_snowflake`` connection type call
+Snowflake's REST APIs, which accept the workload's identity token directly instead of a connector session.
+The token is requested from the cloud and reused until shortly before it expires. A connection that also
+sets a private key uses key-pair authentication for these REST hooks. Each provider needs its cloud's client
+library installed:
+
+* ``AWS``: ``boto3`` with ``botocore>=1.41.0`` for ``sts:GetWebIdentityToken`` support.
+  The workload's IAM role must be allowed to
+  call it, and AWS outbound identity federation must be enabled for the account. This requirement applies
+  only to the REST hooks; ``SnowflakeHook`` uses a signed ``GetCallerIdentity`` request by default and
+  does not require outbound identity federation. ``GetWebIdentityToken`` is not available on
+  the global STS endpoint. Region resolution uses ``AWS_REGION``, then ``AWS_DEFAULT_REGION``,
+  then EC2 instance metadata. If none resolves, authentication fails with a configuration error.
+  Regional STS endpoints are used even when legacy global endpoint settings are present.
+* ``AZURE``: ``azure-identity`` (included in the provider's ``microsoft.azure`` extra).
+  On AKS with workload identity the pod's federated identity is used,
+  otherwise the managed identity. Set ``MANAGED_IDENTITY_CLIENT_ID`` for a user-assigned managed identity.
+* ``GCP``: ``google-auth``. The ID token comes from the metadata identity endpoint and is issued
+  to the workload's service account, even when ``GOOGLE_APPLICATION_CREDENTIALS`` is set.
+* ``OIDC``: nothing extra; the token comes from the ``token`` or ``token_file_path`` extra.
+
+Before fetching a WIF token or returning a cached one, REST hooks require a destination in
+``snowflakecomputing.com``, ``snowflakecomputing.cn`` or ``snowflakecomputing.mil``. Suffixes match
+DNS label boundaries. Administrators can add comma-separated trusted DNS suffixes through the process
+environment variable ``SNOWFLAKE_WIF_ALLOWED_HOST_SUFFIXES`` for private deployments. Connection
+extras cannot extend this allowlist. Supply a DNS hostname without a scheme, port, path or user info.

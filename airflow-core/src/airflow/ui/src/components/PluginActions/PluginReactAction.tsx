@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { type FC, useRef, useState } from "react";
+import { type ComponentType, useRef, useState } from "react";
 
 import type { PluginReactActionResponse } from "openapi/requests/types.gen";
 
@@ -24,7 +24,8 @@ import { IconButton } from "src/system-components";
 
 import { loadPlugin, type PluginProps } from "src/pages/ReactPlugin";
 
-import { PluginActionBoundary } from "./PluginActionBoundary";
+import { PluginBoundary } from "src/components/PluginBoundary";
+
 import { PluginActionIcon } from "./PluginActionIcon";
 import type { PluginActionButtonProps, PluginActionProps } from "./types";
 
@@ -55,7 +56,7 @@ export const PluginReactAction = ({
   readonly pluginProps: PluginProps;
 }) => {
   const [open, setOpen] = useState(false);
-  const [pluginComponent, setPluginComponent] = useState<FC<PluginActionProps>>();
+  const [pluginComponent, setPluginComponent] = useState<ComponentType<PluginActionProps>>();
   const [isLoading, setIsLoading] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -68,7 +69,7 @@ export const PluginReactAction = ({
       const { default: loaded } = await loadPlugin(action);
 
       // Wrapped in a setter: a bare component would be called as a lazy initializer.
-      setPluginComponent(() => loaded as FC<PluginActionProps>);
+      setPluginComponent(() => loaded as ComponentType<PluginActionProps>);
       setIsLoading(false);
     }
 
@@ -89,9 +90,9 @@ export const PluginReactAction = ({
         <PluginActionIcon action={action} />
       </IconButton>
       {Plugin === undefined ? undefined : (
-        <PluginActionBoundary name={action.name}>
+        <PluginBoundary name={action.name}>
           <Plugin {...pluginProps} onClose={() => setOpen(false)} open={open} triggerRef={triggerRef} />
-        </PluginActionBoundary>
+        </PluginBoundary>
       )}
     </>
   );

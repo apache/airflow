@@ -261,6 +261,30 @@ Some caveats:
 * A failing refresh looks like one that is not due, since a refresh that raises is logged and leaves
   ``last_refreshed`` at its last success. Check the Dag processor logs, and
   ``/api/v2/jobs?job_type=DagProcessorJob`` for a live processor.
+  If the refresh may have changed files, parsing pauses until a refresh succeeds. The processor
+  logs the affected bundle and reports the total number of deferred files through
+  ``dag_processing.files_awaiting_source``. On metrics backends that support tags,
+  ``dag_processing.files_awaiting_source_by_bundle`` provides counts tagged with ``bundle_name``, and
+  with ``team_name`` in multi-team mode.
+  A provider that reports an unchanged source after failure lets ordinary parsing continue against
+  the previous source while refresh retries continue. Currently only ``GitDagBundle`` reports this,
+  for credential and fetch failures, in git provider releases that support it; the S3, GCS and
+  Azure Blob Storage bundles pause on any refresh failure. Explicit reparse requests wait for a
+  successful refresh. A Dag processor started with ``--num-runs`` does not exit while files wait for
+  a paused bundle, so it finishes only after that bundle refreshes successfully.
+  If listing the bundle's Dag files fails after a successful refresh, the processor keeps parsing the
+  files it listed before, from the refreshed source; if only recording the refresh fails, it parses
+  the bundle's current files. In both cases it retries the refresh after the bundle's
+  :ref:`config:dag_processor__refresh_interval`, or sooner when a reparse is requested.
+  When the Dag processor publishes its results through the Execution API, a failed listing instead
+  pauses the bundle's parsing until a listing succeeds. The processor retries after about one
+  :ref:`config:dag_processor__bundle_refresh_check_interval` and doubles the wait after each further
+  failure, up to the bundle's ``refresh_interval``. A successful listing resets the wait.
+  Parsing also stays paused until the API server accepts the new listing. While the server cannot
+  be reached or answers 408, 429 or a 5xx error, the processor sends it again with a backoff of up to
+  :ref:`config:workers__execution_api_retry_wait_max`. If the listing is too large to send, or the
+  server rejects it as too large, the processor waits for the bundle's ``refresh_interval`` before
+  refreshing and listing it again.
 * A new version does not mean the new Dags are running, because bundles are refreshed before their
   Dags are parsed.
 * The version and the import-error count together cannot confirm that a particular commit parsed,
@@ -424,6 +448,25 @@ The following methods are abstract and must be implemented in your custom bundle
 **refresh**
     This method should handle refreshing the bundle's contents from its source (e.g., pulling the latest changes from a remote repository).
     This is used by the Dag processor periodically to ensure that the bundle is up-to-date.
+
+    By default, the processor waits for imports using the current source to finish before refreshing.
+    Set the class attribute ``refresh_changes_source = False`` only when ``refresh()`` never changes
+    those files, as with ``LocalDagBundle``. File discovery still runs without waiting for active imports.
+
+    A failed refresh normally pauses new parses because files may have been partially updated.
+    When the installed Airflow core exposes
+    ``airflow.dag_processing.bundles.base.DagBundleRefreshError``, a provider can raise it with
+    ``source_unchanged=True`` when it guarantees that the previous source remains intact and usable.
+    The processor can then continue ordinary parsing of that source. In that case, automatic refresh retries wait for the bundle's
+    :ref:`config:dag_processor__refresh_interval` after each failed attempt, with eligibility checked
+    every :ref:`config:dag_processor__bundle_refresh_check_interval`.
+    A pending explicit reparse request still waits for a successful refresh and follows this retry
+    delay; a new explicit request bypasses the delay. An unchanged
+    version identifier alone is insufficient to make this guarantee, particularly after a partial
+    checkout or submodule update.
+
+    Providers must check for this class rather than infer availability from the Airflow version,
+    and preserve the original exception when the class is unavailable.
 
 Optional Methods
 ~~~~~~~~~~~~~~~~

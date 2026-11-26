@@ -27,6 +27,7 @@ from airflow.triggers.base import TriggerEvent
 
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.job.{}"
 TRIGGER_CLASS = TRIGGER_PATH.format("KubernetesJobTrigger")
+HOOK_PATH = "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook"
 JOB_NAME = "test-job-name"
 POD_NAME = "test-pod-name"
 CONTAINER_NAME = "test-container-name"
@@ -145,9 +146,7 @@ class TestKubernetesJobTrigger:
             get_logs=False,
             do_xcom_push=XCOM_PUSH,
         )
-        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
-        mock_job.metadata.name = JOB_NAME
-        mock_job.metadata.namespace = NAMESPACE
+        mock_job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=NAMESPACE))
         mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(return_value=mock_job)
         mock_hook.is_job_failed.return_value = False
 
@@ -210,3 +209,10 @@ class TestKubernetesJobTrigger:
             cluster_context=CLUSTER_CONTEXT,
         )
         assert hook_actual == hook_expected
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{HOOK_PATH}.close", autospec=True)
+    async def test_cleanup_closes_hook(self, mock_close, trigger):
+        await trigger.cleanup()
+
+        mock_close.assert_awaited_once_with(trigger.hook)

@@ -781,13 +781,17 @@ server and the test share the same credentials.
 
 ```shell script
 # install the RC from PyPI (published with the rcN suffix)
-CLIENT_VERSION=${VERSION_RC} breeze shell --load-example-dags --backend sqlite \
-    "bash dev/verify_python_client_rc.sh"
+breeze shell --load-example-dags --backend sqlite \
+    "CLIENT_VERSION=${VERSION_RC} bash dev/verify_python_client_rc.sh"
 
-# or test the exact SVN wheel (copy it under ./dist first so it is visible at /opt/airflow/dist)
-CLIENT_WHEEL=/opt/airflow/dist/apache_airflow_client-${VERSION}-py3-none-any.whl \
-    breeze shell --load-example-dags --backend sqlite "bash dev/verify_python_client_rc.sh"
+# or test the exact SVN wheel (copy it under ./dist first so it is visible at /dist)
+breeze shell --load-example-dags --backend sqlite \
+    "CLIENT_WHEEL=/dist/apache_airflow_client-${VERSION}-py3-none-any.whl bash dev/verify_python_client_rc.sh"
 ```
+
+Set `CLIENT_VERSION` or `CLIENT_WHEEL` inside the quoted command: `breeze shell` forwards only a
+fixed list of environment variables into the container, so a `CLIENT_VERSION=...` prefix on the
+host never reaches the script.
 
 The script prints `PYTHON_CLIENT_RC_VERIFY: OK` on success.
 

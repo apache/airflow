@@ -28,6 +28,7 @@
         "lastParsed": "Ostatnia analiza",
         "parseDuration": "Czas parsowania"
       },
+      "importErrorForbidden": "Nie masz uprawnień do odczytu tego błędu importu.",
       "importErrorGone": "Ten błąd importu nie jest już rejestrowany. Prawdopodobnie został naprawiony przez ponowne przetworzenie.",
       "neverParsed": "Nigdy",
       "parsedFile_few": "Przeanalizowane pliki",
@@ -54,7 +55,7 @@
     "deadline_few": "Terminy",
     "deadline_many": "Terminów",
     "deadline_one": "Termin",
-    "deadline_other": "Terminów",
+    "deadline_other": "Terminy",
     "filters": {
       "status": "Stan",
       "statusOptions": {
@@ -76,6 +77,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Klucz",
+      "timestamp": "Znacznik czasu",
       "value": "Wartość"
     },
     "delete": {

@@ -1,7 +1,7 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.2 
 
 import { type QueryClient } from "@tanstack/react-query";
-import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
+import { AssetService, AssetStateStoreService, AuthLinksService, BackfillService, CalendarService, ConfigService, ConnectionService, DagBundleService, DagRunService, DagService, DagSourceService, DagStatsService, DagVersionService, DagWarningService, DashboardService, DeadlinesService, DependenciesService, DurableExecutionService, EventLogService, ExperimentalService, ExtraLinksService, GanttService, GridService, ImportErrorService, JobService, LoginService, MonitorService, PartitionedDagRunService, PluginService, PoolService, ProviderService, StructureService, TaskInstanceService, TaskService, TaskStateStoreService, TeamsService, TriggerService, VariableService, VersionService, XcomService } from "../requests/services.gen";
 import { DagRunState, DagSchedulingState, ReprocessBehavior, TriggerKind, TriggerStatus } from "../requests/types.gen";
 import * as Common from "./common";
 /**
@@ -16,12 +16,13 @@ import * as Common from "./common";
 * @param data.uriPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `uri_prefix_pattern` on large tables — see "Filtering with pattern parameters".
 * @param data.uriPrefixPattern Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
 * @param data.dagIds
+* @param data.triggerId Return only the assets this trigger's watchers watch.
 * @param data.onlyActive
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, name, uri, created_at, updated_at`
 * @returns AssetCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetsData = (queryClient: QueryClient, { dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }: {
+export const ensureUseAssetServiceGetAssetsData = (queryClient: QueryClient, { dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }: {
   dagIds?: string[];
   limit?: number;
   namePattern?: string;
@@ -29,10 +30,11 @@ export const ensureUseAssetServiceGetAssetsData = (queryClient: QueryClient, { d
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string[];
+  triggerId?: number;
   uri?: string[];
   uriPattern?: string;
   uriPrefixPattern?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, uri, uriPattern, uriPrefixPattern }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetsKeyFn({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }), queryFn: () => AssetService.getAssets({ dagIds, limit, namePattern, namePrefixPattern, offset, onlyActive, orderBy, triggerId, uri, uriPattern, uriPrefixPattern }) });
 /**
 * Get Asset Aliases
 * Get asset aliases.
@@ -71,6 +73,7 @@ export const ensureUseAssetServiceGetAssetAliasData = (queryClient: QueryClient,
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `source_task_id, source_dag_id, source_run_id, source_map_index, timestamp`
 * @param data.assetId
+* @param data.triggerId Return only the events of the assets this trigger's watchers watch.
 * @param data.sourceDagId
 * @param data.sourceTaskId
 * @param data.sourceTaskInstanceId
@@ -88,7 +91,7 @@ export const ensureUseAssetServiceGetAssetAliasData = (queryClient: QueryClient,
 * @returns AssetEventCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }: {
+export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient, { assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }: {
   assetId?: number;
   extra?: string[];
   limit?: number;
@@ -107,7 +110,8 @@ export const ensureUseAssetServiceGetAssetEventsData = (queryClient: QueryClient
   timestampGte?: string;
   timestampLt?: string;
   timestampLte?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte }) });
+  triggerId?: number;
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetEventsKeyFn({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }), queryFn: () => AssetService.getAssetEvents({ assetId, extra, limit, namePattern, namePrefixPattern, offset, orderBy, partitionKey, partitionKeyRegexpPattern, sourceDagId, sourceMapIndex, sourceRunId, sourceTaskId, sourceTaskInstanceId, timestampGt, timestampGte, timestampLt, timestampLte, triggerId }) });
 /**
 * Get Asset Queued Events
 * Get queued asset events for an asset.
@@ -213,6 +217,27 @@ export const ensureUseAssetServiceGetAssetsUiData = (queryClient: QueryClient, {
 export const ensureUseAssetServiceNextRunAssetsData = (queryClient: QueryClient, { dagId }: {
   dagId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }), queryFn: () => AssetService.nextRunAssets({ dagId }) });
+/**
+* Get Asset Partitions
+* Return the partition keys of an asset with the status of each.
+* @param data The data for the request.
+* @param data.assetId
+* @param data.status
+* @param data.partitionKeyPattern
+* @param data.orderBy
+* @param data.limit
+* @param data.offset
+* @returns AssetPartitionCollectionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseAssetServiceGetAssetPartitionsData = (queryClient: QueryClient, { assetId, limit, offset, orderBy, partitionKeyPattern, status }: {
+  assetId: number;
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  partitionKeyPattern?: string;
+  status?: ("materialized" | "in_progress" | "failed")[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseAssetServiceGetAssetPartitionsKeyFn({ assetId, limit, offset, orderBy, partitionKeyPattern, status }), queryFn: () => AssetService.getAssetPartitions({ assetId, limit, offset, orderBy, partitionKeyPattern, status }) });
 /**
 * List Backfills
 * @param data The data for the request.
@@ -1025,9 +1050,20 @@ export const ensureUseEventLogServiceGetEventLogData = (queryClient: QueryClient
 /**
 * Get Event Logs
 * Get all Event Logs.
+*
+* Supports two pagination modes:
+*
+* **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+*
+* **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor` from the response).
+* When `cursor` is provided, `offset` is ignored and `total_entries` is capped at
+* `total_entries_limit` (a value equal to that limit means at least that many events match).
+* ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor`` is ``null`` on
+* the first page.
 * @param data The data for the request.
 * @param data.regionId
 * @param data.regionIndex
+* @param data.cursor Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, dttm, dag_id, task_id, run_id, event, logical_date, owner, owner_display_name, extra, when, event_log_id`
@@ -1059,9 +1095,10 @@ export const ensureUseEventLogServiceGetEventLogData = (queryClient: QueryClient
 * @returns EventLogCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseEventLogServiceGetEventLogsData = (queryClient: QueryClient, { after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }: {
+export const ensureUseEventLogServiceGetEventLogsData = (queryClient: QueryClient, { after, before, cursor, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }: {
   after?: string;
   before?: string;
+  cursor?: string;
   dagId?: string;
   dagIdPattern?: string;
   dagIdPrefixPattern?: string;
@@ -1090,7 +1127,7 @@ export const ensureUseEventLogServiceGetEventLogsData = (queryClient: QueryClien
   taskInstanceId?: string;
   teams?: string[];
   tryNumber?: number;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }), queryFn: () => EventLogService.getEventLogs({ after, before, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseEventLogServiceGetEventLogsKeyFn({ after, before, cursor, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }), queryFn: () => EventLogService.getEventLogs({ after, before, cursor, dagId, dagIdPattern, dagIdPrefixPattern, event, eventPattern, eventPrefixPattern, excludedEvents, includedEvents, limit, mapIndex, offset, orderBy, owner, ownerDisplayNamePattern, ownerDisplayNamePrefixPattern, ownerPattern, ownerPrefixPattern, regionId, regionIndex, runId, runIdPattern, runIdPrefixPattern, taskId, taskIdPattern, taskIdPrefixPattern, taskInstanceId, teams, tryNumber }) });
 /**
 * Get Extra Links
 * Get extra links for task instance.
@@ -1899,19 +1936,21 @@ export const ensureUseAssetStateStoreServiceGetAssetStateStoreData = (queryClien
 * @param data.regionIndex
 * @param data.limit
 * @param data.offset
+* @param data.includeReserved Include keys starting with ``__airflow_``, which Airflow writes.
 * @returns TaskStateStoreCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseTaskStateStoreServiceListTaskStateStoreData = (queryClient: QueryClient, { dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }: {
+export const ensureUseTaskStateStoreServiceListTaskStateStoreData = (queryClient: QueryClient, { dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }: {
   dagId: string;
   dagRunId: string;
+  includeReserved?: boolean;
   limit?: number;
   mapIndex?: number;
   offset?: number;
   regionId?: string;
   regionIndex?: number;
   taskId: string;
-}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, limit, mapIndex, offset, regionId, regionIndex, taskId }) });
+}) => queryClient.ensureQueryData({ queryKey: Common.UseTaskStateStoreServiceListTaskStateStoreKeyFn({ dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }), queryFn: () => TaskStateStoreService.listTaskStateStore({ dagId, dagRunId, includeReserved, limit, mapIndex, offset, regionId, regionIndex, taskId }) });
 /**
 * Get Task State Store
 * Get a single task state store entry.
@@ -1975,7 +2014,7 @@ export const ensureUseXcomServiceGetXcomEntryData = (queryClient: QueryClient, {
 * @param data.mapIndex
 * @param data.regionId
 * @param data.regionIndex
-* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons.
+* @param data.excludeInternalKeys Leave out XComs whose keys Airflow reserves for itself, such as loop decision reasons and cross-Dag clear targets.
 * @param data.limit
 * @param data.offset
 * @param data.xcomKeyPattern Case-insensitive substring match (SQL `ILIKE`). Slower than `xcom_key_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -2067,8 +2106,8 @@ export const ensureUseTaskServiceGetTaskData = (queryClient: QueryClient, { dagI
 * Get Triggers
 * Get the triggers the caller can see, of every kind, and how each is doing.
 *
-* A trigger is visible to whoever can see its owner: the task instance or Dag run of its Dag, or an asset
-* one of its watchers watches.
+* A trigger is visible to whoever can see what it is used by: the task instance or Dag run of its Dag, or
+* an asset one of its watchers watches.
 * @param data The data for the request.
 * @param data.limit
 * @param data.offset
@@ -2078,21 +2117,23 @@ export const ensureUseTaskServiceGetTaskData = (queryClient: QueryClient, { dagI
 * @param data.triggererHostname Return only the triggers assigned to the triggerer on this host.
 * @param data.dagId Return only the triggers of this Dag's task instances and callbacks.
 * @param data.assetId Return only the triggers of this asset's watchers.
+* @param data.scheduledDagId Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
 * @param data.teams Return only the triggers of these teams.
 * @returns TriggerCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseTriggerServiceGetTriggersData = (queryClient: QueryClient, { assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }: {
+export const ensureUseTriggerServiceGetTriggersData = (queryClient: QueryClient, { assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }: {
   assetId?: number;
   dagId?: string;
   kind?: TriggerKind[];
   limit?: number;
   offset?: number;
   orderBy?: string[];
+  scheduledDagId?: string;
   status?: TriggerStatus[];
   teams?: string[];
   triggererHostname?: string;
-} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, status, teams, triggererHostname }) });
+} = {}) => queryClient.ensureQueryData({ queryKey: Common.UseTriggerServiceGetTriggersKeyFn({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }), queryFn: () => TriggerService.getTriggers({ assetId, dagId, kind, limit, offset, orderBy, scheduledDagId, status, teams, triggererHostname }) });
 /**
 * Get Trigger
 * Get a trigger, who it runs for, and how it is doing.
@@ -2388,6 +2429,27 @@ export const ensureUseDeadlinesServiceGetCallbackLogsData = (queryClient: QueryC
   dagRunId: string;
 }) => queryClient.ensureQueryData({ queryKey: Common.UseDeadlinesServiceGetCallbackLogsKeyFn({ accept, callbackId, dagId, dagRunId }), queryFn: () => DeadlinesService.getCallbackLogs({ accept, callbackId, dagId, dagRunId }) });
 /**
+* Get Durable Execution
+* Get the durable execution history of a task instance; empty when the task is not durable.
+* @param data The data for the request.
+* @param data.dagId
+* @param data.dagRunId
+* @param data.taskId
+* @param data.mapIndex
+* @param data.regionId
+* @param data.regionIndex
+* @returns DurableExecutionResponse Successful Response
+* @throws ApiError
+*/
+export const ensureUseDurableExecutionServiceGetDurableExecutionData = (queryClient: QueryClient, { dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }: {
+  dagId: string;
+  dagRunId: string;
+  mapIndex?: number;
+  regionId?: string;
+  regionIndex?: number;
+  taskId: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseDurableExecutionServiceGetDurableExecutionKeyFn({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }), queryFn: () => DurableExecutionService.getDurableExecution({ dagId, dagRunId, mapIndex, regionId, regionIndex, taskId }) });
+/**
 * Structure Data
 * Get Structure Data.
 * @param data The data for the request.
@@ -2504,13 +2566,29 @@ export const ensureUseGridServiceGetGridRunsData = (queryClient: QueryClient, { 
 * @param data The data for the request.
 * @param data.dagId
 * @param data.runIds
+* @param data.startDateGte
+* @param data.startDateGt
+* @param data.startDateLte
+* @param data.startDateLt
+* @param data.endDateGte
+* @param data.endDateGt
+* @param data.endDateLte
+* @param data.endDateLt
 * @returns string NDJSON stream — one ``GridTISummaries`` JSON object per line, one per Dag run
 * @throws ApiError
 */
-export const ensureUseGridServiceGetGridTiSummariesStreamData = (queryClient: QueryClient, { dagId, runIds }: {
+export const ensureUseGridServiceGetGridTiSummariesStreamData = (queryClient: QueryClient, { dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }: {
   dagId: string;
+  endDateGt?: string;
+  endDateGte?: string;
+  endDateLt?: string;
+  endDateLte?: string;
   runIds?: string[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, runIds }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, runIds }) });
+  startDateGt?: string;
+  startDateGte?: string;
+  startDateLt?: string;
+  startDateLte?: string;
+}) => queryClient.ensureQueryData({ queryKey: Common.UseGridServiceGetGridTiSummariesStreamKeyFn({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }), queryFn: () => GridService.getGridTiSummariesStream({ dagId, endDateGt, endDateGte, endDateLt, endDateLte, runIds, startDateGt, startDateGte, startDateLt, startDateLte }) });
 /**
 * Get Loop Summary
 * Summarize one loop invocation from the run's live task instances.

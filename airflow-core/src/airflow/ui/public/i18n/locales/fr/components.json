@@ -6,6 +6,7 @@
     "affectedNone": "Aucune exécution ne correspond aux critères sélectionnés.",
     "allRuns": "Toutes les exécutions",
     "backwards": "Exécuter à rebours",
+    "completed": "Terminé",
     "dateRange": "Plage de dates",
     "errorStartDateBeforeEndDate": "La date de début doit être antérieure à la date de fin",
     "exceptionReason": {
@@ -26,10 +27,12 @@
     "permissionDenied": "Échec de l'exécution à blanc : l'utilisateur n'a pas l'autorisation de créer des rattrapages.",
     "reprocessBehavior": "Comportement de réexécution",
     "run": "Lancer le rattrapage",
+    "running": "En cours",
     "scheduleNotBackfillable": "La planification de ce Dag ne prend pas en charge les rattrapages",
     "schedulerPriorityHint": "Les exécutions de Dag de rattrapage sont ordonnées après les exécutions de Dag hors rattrapage à chaque cycle du scheduler. Les exécutions de rattrapage peuvent rester en file plus longtemps si d'autres exécutions hors rattrapage sont présentes.",
     "selectDescription": "Exécuter ce Dag pour une plage de dates",
     "selectLabel": "Rattrapage",
+    "status": "Statut",
     "title": "Lancer un rattrapage",
     "toaster": {
       "success": {
@@ -102,6 +105,7 @@
     "placeholderArray": "Entrez chaque mot sur une ligne séparée",
     "placeholderExamples": "Commencez à taper pour voir les options",
     "placeholderMulti": "Sélectionner une ou plusieurs valeurs",
+    "validationErrorArrayElement": "Valeur(s) {{type}} invalide(s) : {{values}}",
     "validationErrorArrayNotArray": "La valeur doit être un tableau.",
     "validationErrorArrayNotNumbers": "Tous les éléments du tableau doivent être des nombres.",
     "validationErrorArrayNotObject": "Tous les éléments du tableau doivent être des objets.",
@@ -164,6 +168,7 @@
     "empty": "Aucune instance de tâche terminée dans cette période",
     "title": "Instances de tâche les plus lentes"
   },
+  "sort": "trier",
   "sortMultiColumnHint": "Maj+clic pour trier par plusieurs colonnes",
   "sortedAscending": "tri croissant",
   "sortedDescending": "tri décroissant",
@@ -181,6 +186,12 @@
   "toggleTableView": "Afficher en mode tableau",
   "triggerDag": {
     "button": "Déclencher",
+    "dagStartEndDate": {
+      "both": "Date de début du Dag : {{startDate}}, date de fin : {{endDate}}",
+      "end": "Date de fin du Dag : {{endDate}}",
+      "noTaskWillRun": "Aucune tâche ne sera exécutée.",
+      "start": "Date de début du Dag : {{startDate}}"
+    },
     "dataInterval": "Intervalle de données",
     "dataIntervalAuto": "Déduit de la date logique et du calendrier",
     "dataIntervalManual": "Spécifier manuellement",
@@ -191,6 +202,8 @@
     "loadingFailed": "Échec du chargement des informations du Dag. Veuillez réessayer.",
     "manualRunDenied": "Les exécutions manuelles ne sont pas autorisées pour ce Dag",
     "partitionKeyHelp": "Optionnel - s'applique uniquement aux Dags partitionnés",
+    "recentConfig": "Configurations récentes",
+    "recentConfigPlaceholder": "Sélectionner une configuration récente",
     "runIdHelp": "Optionnel – sera généré s'il n'est pas fourni",
     "selectDescription": "Déclencher une exécution unique de ce Dag",
     "selectLabel": "Exécution unique",

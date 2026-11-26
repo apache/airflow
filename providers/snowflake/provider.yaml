@@ -23,12 +23,13 @@ description: |
 
 state: ready
 lifecycle: production
-source-date-epoch: 1792489528
+source-date-epoch: 1793816745
 # Note that those versions are maintained by release manager - do not update them manually
 # with the exception of case where other provider in sources has >= new provider version.
 # In such case adding >= NEW_VERSION and bumping to NEW_VERSION in a provider have
 # to be done in the same PR
 versions:
+  - 6.21.0
   - 6.20.0
   - 6.19.0
   - 6.18.0
@@ -188,7 +189,6 @@ connection-types:
       placeholders:
         extra: |
           {
-            "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",
             "private_key_file": "private key",
             "session_parameters": "session parameters",
             "client_request_mfa_token": "client request mfa token",
@@ -212,6 +212,7 @@ connection-types:
         database: snowflake db name
         region: snowflake hosted region
         role: snowflake role
+        authenticator: snowflake (default), oauth, programmatic_access_token, WORKLOAD_IDENTITY
         private_key_file: Path of snowflake private key (PEM Format)
         private_key_content: Content to snowflake private key (PEM format)
         workload_identity_provider: AWS, AZURE, GCP or OIDC
@@ -247,6 +248,12 @@ connection-types:
             - 'null'
       role:
         label: Role
+        schema:
+          type:
+            - string
+            - 'null'
+      authenticator:
+        label: Authenticator
         schema:
           type:
             - string

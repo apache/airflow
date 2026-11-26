@@ -20,7 +20,7 @@ import type { TFunction } from "i18next";
 
 import type { HITLDetail, HITLDetailHistory, TaskInstanceState } from "openapi/requests/types.gen";
 
-import type { ParamSchema, ParamSpec, ParamsSpec } from "src/queries/useDagParams";
+import type { ParamSchema, ParamSpec, ParamsSpec, ParamValue } from "src/queries/useDagParams";
 
 export type HITLResponseParams = {
   chosen_options?: Array<string>;
@@ -29,11 +29,15 @@ export type HITLResponseParams = {
   request_created_at?: string;
 };
 
-// A HITL task is "pending a response" while parked: pre-3.3 it parks in "deferred", from 3.3 it
-// parks in "awaiting_input". Either way an unanswered parked task is "response required", not
-// "no response received" (which is reserved for tasks no longer parked, e.g. cleared/finished).
+// A HITL task waits for a response in one of these states: pre-3.3 it parks in "deferred", from 3.3
+// it parks in "awaiting_input", and it is still "running" while it checks for the response before
+// parking. An unanswered task in one of them is "response required", not "no response received"
+// (which is reserved for tasks no longer waiting, e.g. cleared/finished). A run resumed after a
+// timeout is also "running" until it fails; the server refuses answers to it.
+export const HITL_PENDING_STATES: Array<TaskInstanceState> = ["deferred", "awaiting_input", "running"];
+
 export const isHITLPending = (state?: TaskInstanceState | null): boolean =>
-  state === "deferred" || state === "awaiting_input";
+  state !== undefined && state !== null && HITL_PENDING_STATES.includes(state);
 
 const getChosenOptionsValue = (hitlDetail: HITLDetailHistory) => {
   // if response_received is true, display the chosen_options, otherwise display the defaults
@@ -109,7 +113,7 @@ export const getHITLParamsDict = (
       // If the task is not multiple, we only show the first option
       value:
         getChosenOptionsValue(hitlDetail) ??
-        (hitlDetail.multiple ? preloadedHITLOptions : preloadedHITLOptions[0]),
+        (hitlDetail.multiple ? preloadedHITLOptions : (preloadedHITLOptions[0] ?? null)),
     };
   }
 
@@ -131,7 +135,9 @@ export const getHITLParamsDict = (
 
       // Values arrive as stored JSON, so an object param's value is already an object. A string is
       // never parsed: a JSON-looking string would render as "[object Object]" and go back as an object.
-      const finalValue = hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value);
+      const finalValue = (hitlDetail.params_input?.[key] ?? (isWrapped ? paramData.value : value)) as
+        | ParamValue
+        | undefined;
 
       const description: string =
         paramData && typeof paramData.description === "string" ? paramData.description : "";
@@ -168,7 +174,7 @@ export const getHITLParamsDict = (
       paramsDict[key] = {
         description,
         schema,
-        value: finalValue ?? paramData?.value,
+        value: finalValue ?? paramData?.value ?? null,
       };
     });
   }
@@ -184,9 +190,7 @@ export const getHITLFormData = (paramsDict: ParamsSpec, option?: string): HITLRe
     if (typeof chosenOptionsValue === "string" && chosenOptionsValue) {
       chosenOptions = [chosenOptionsValue];
     } else if (Array.isArray(chosenOptionsValue) && chosenOptionsValue.length > 0) {
-      chosenOptions = chosenOptionsValue.filter(
-        (value): value is string => value !== null && value !== undefined,
-      );
+      chosenOptions = chosenOptionsValue.filter((value): value is string => typeof value === "string");
     }
   } else {
     chosenOptions = [option];

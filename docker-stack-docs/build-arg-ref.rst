@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-Image build arguments reference
--------------------------------
+Image build arguments
+---------------------
 
 The following build arguments (``--build-arg`` in docker build command) can be used for production images.
 Those arguments are used when you want to customize the image. You can see some examples of it in
@@ -116,9 +116,12 @@ Those are the most common arguments that you use when you want to build a custom
     functionality - only added confusion - so it has been removed.
 
 The default ``BASE_IMAGE`` is Airflow's public mirror of the `Docker Hardened Image <https://dhi.io>`_ for
-Python - for Airflow |airflow-version| that is ``ghcr.io/apache/airflow/base/python:3.13.18-debian13-dev``,
+Python - for Airflow |airflow-version| that is ``ghcr.io/apache/airflow/base/python:3.14.10-debian13-dev``,
 pinned to the digest the Airflow CI last passed on (see :ref:`the hardened base images <image-hardened-base>`). Pulling the mirror needs no
 credentials; pulling ``dhi.io`` directly requires a ``docker login dhi.io``.
+
+In the default ``hardened`` flavor ``BASE_IMAGE`` has to provide Python, so the build fails on a plain Debian
+image such as ``debian:trixie-slim``. Use the ``legacy`` flavor below to build on one.
 
 For the 3.4.x line Airflow also publishes ``legacy`` images, built the way all images were built before
 3.4.0: Python is downloaded from python.org, its signature verified and compiled on a ``debian:bookworm-slim``
@@ -312,11 +315,14 @@ We are using ``--mount-type=cache`` volumes to speed up installation of dependen
 speed and extensive use of caching, as well as quick restoring of the cache in CI environment, this allows us to build images
 quickly - for both CI and local development purposes. The cache can be easily invalidated by providing a new value of
 ``DEPENDENCY_CACHE_EPOCH`` build argument or changing it inside the Dockerfile.
+See :ref:`build:dependency-caching` for when you need it.
 
 +------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                     | Default value                            | Description                              |
 +====================================+==========================================+==========================================+
 +------------------------------------+------------------------------------------+------------------------------------------+
-| ``DEPENDENCY_CACHE_EPOCH``         | ``"0"``                                  | Allow to invalidate cache by passing a   |
-|                                    |                                          | new argument.                            |
+| ``DEPENDENCY_CACHE_EPOCH``         | ``"11"``                                 | Part of the id of the cache of           |
+|                                    |                                          | downloaded and built packages. Any new   |
+|                                    |                                          | value starts with an empty cache - see   |
+|                                    |                                          | :ref:`build:dependency-caching`.         |
 +------------------------------------+------------------------------------------+------------------------------------------+

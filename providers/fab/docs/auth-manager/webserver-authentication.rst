@@ -42,13 +42,20 @@ following CLI commands to create an account:
         --role Admin \
         --email spiderman@superhero.org
 
-To deactivate the authentication and allow users to be identified as Anonymous, the following entry
-in ``$AIRFLOW_HOME/webserver_config.py`` needs to be set with the desired role that the Anonymous
-user will have by default:
+To deactivate the authentication and allow users to be identified as Anonymous, set
+``[fab] auth_role_public`` to the role that the Anonymous user will have by default:
 
 .. code-block:: ini
 
-    AUTH_ROLE_PUBLIC = 'Admin'
+    [fab]
+    auth_role_public = Viewer
+
+The legacy ``AUTH_ROLE_PUBLIC`` entry in ``$AIRFLOW_HOME/webserver_config.py`` is still honored,
+but ``[fab] auth_role_public`` takes precedence when both are set:
+
+.. code-block:: python
+
+    AUTH_ROLE_PUBLIC = "Viewer"
 
 .. note::
 

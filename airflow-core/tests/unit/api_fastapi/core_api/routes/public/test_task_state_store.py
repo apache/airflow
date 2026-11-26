@@ -21,18 +21,21 @@ from unittest.mock import patch
 
 import pytest
 from pydantic import ValidationError
-from sqlalchemy import select
+from sqlalchemy import Select, delete, event, select
 
+from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.core_api.datamodels.task_state_store import (
     TaskStateStoreBody,
     TaskStateStorePatchBody,
 )
+from airflow.exceptions import DagRunNotFound
 from airflow.models.dagrun import DagRun
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.config import conf_vars
@@ -152,6 +155,25 @@ class TestListTaskState(TestTaskStateEndpoint):
         assert data["total_entries"] == 3
         assert len(data["task_state_store"]) == 1
 
+    @pytest.mark.parametrize(
+        ("query", "expected_keys"),
+        [
+            pytest.param("", ["x", "y"], id="hidden-by-default"),
+            pytest.param("&include_reserved=true", ["__airflow_durable__", "x", "y"], id="included"),
+        ],
+    )
+    def test_reserved_keys_filtered_before_pagination(self, test_client, query, expected_keys):
+        # Keys after "a" so the reserved key sorts first under both C and locale collations, which
+        # ignore underscores on Postgres.
+        for k in ("__airflow_durable__", "x", "y"):
+            _create_task_state_store_row(self._session, k, "v", self.dag_run)
+        self._session.commit()
+
+        response = test_client.get(f"{BASE_URL}?limit=2{query}")
+        data = response.json()
+        assert data["total_entries"] == len(expected_keys)
+        assert [item["key"] for item in data["task_state_store"]] == expected_keys[:2]
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(BASE_URL).status_code == 401
 
@@ -221,6 +243,36 @@ class TestSetTaskState(TestTaskStateEndpoint):
         bad_url = f"/dags/{DAG_ID}/dagRuns/nonexistent_run/taskInstances/{TASK_ID}/state-store/job_id"
         response = test_client.put(bad_url, json={"value": "v"})
         assert response.status_code == 404
+
+    @pytest.mark.parametrize("method", ["put", "patch"])
+    def test_write_dagrun_deleted_after_scope_lookup_returns_404(self, test_client, method):
+        if method == "patch":
+            assert test_client.put(f"{BASE_URL}/job_id", json={"value": "old"}).status_code == 204
+
+        dag_run_id = self.dag_run.id
+        deleted = False
+
+        def delete_run_before_lookup(conn, statement, multiparams, params, execution_options):
+            nonlocal deleted
+            if (
+                deleted
+                or not isinstance(statement, Select)
+                or statement.column_descriptions[0]["expr"] is not DagRun.id
+            ):
+                return
+            deleted = True
+            with create_session(scoped=False) as cleanup_session:
+                cleanup_session.execute(delete(DagRun).where(DagRun.id == dag_run_id))
+
+        event.listen(settings.engine, "before_execute", delete_run_before_lookup)
+        try:
+            response = getattr(test_client, method)(f"{BASE_URL}/job_id", json={"value": "v"})
+        finally:
+            event.remove(settings.engine, "before_execute", delete_run_before_lookup)
+
+        assert deleted
+        assert response.status_code == 404
+        assert response.json()["detail"] == f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
 
     def test_set_nonexistent_task_id_returns_404(self, test_client):
         """set() returns 404 when task_id doesn not match any TaskInstance in the run."""
@@ -401,18 +453,30 @@ class TestPatchTaskState(TestTaskStateEndpoint):
         assert row.value == expected_db
 
     def test_patch_task_state_store_domain_error_returns_404(self, test_client):
-        """Domain-level ValueError raised during PATCH translates to HTTP 404."""
         _create_task_state_store_row(self._session, "job_id", "initial", self.dag_run)
         self._session.commit()
 
         with patch(
             "airflow.state.metastore.MetastoreBackend.set",
             autospec=True,
-            side_effect=ValueError(f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"),
+            side_effect=DagRunNotFound(f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"),
         ):
             response = test_client.patch(f"{BASE_URL}/job_id", json={"value": "v2"})
             assert response.status_code == 404
             assert response.json()["detail"] == f"No DagRun found for dag_id={DAG_ID!r} run_id={RUN_ID!r}"
+
+    @pytest.mark.parametrize("method", ["put", "patch"])
+    def test_unrelated_backend_value_error_is_not_not_found(self, test_client, method):
+        _create_task_state_store_row(self._session, "job_id", "initial", self.dag_run)
+        self._session.commit()
+
+        with patch(
+            "airflow.state.metastore.MetastoreBackend.set",
+            autospec=True,
+            side_effect=ValueError("Invalid backend configuration"),
+        ):
+            with pytest.raises(ValueError, match="Invalid backend configuration"):
+                getattr(test_client, method)(f"{BASE_URL}/job_id", json={"value": "v2"})
 
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.patch(f"{BASE_URL}/job_id", json={"value": "v"}).status_code == 401

@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-common-sql"
-version = "2.4.0"
+version = "3.1.0"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -86,9 +86,6 @@ dependencies = [
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54,!=2.1.0",
 ]
-"amazon" = [
-    "apache-airflow-providers-amazon"
-]
 # DataFusion 52.0.0 crate is not supported at the moment with iceberg-core
 "datafusion" = [
     "datafusion>=50.0.0,<52.0.0",
@@ -98,6 +95,9 @@ dependencies = [
 ]
 "apache.iceberg" = [
     "apache-airflow-providers-apache-iceberg"
+]
+"amazon" = [
+    "apache-airflow-providers-amazon>=9.38.0"  # use next version
 ]
 
 [dependency-groups]
@@ -147,8 +147,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.4.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.4.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/3.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/3.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

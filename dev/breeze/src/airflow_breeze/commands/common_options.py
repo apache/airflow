@@ -26,10 +26,12 @@ from airflow_breeze.global_constants import (
     ALLOWED_AUTH_MANAGERS,
     ALLOWED_BACKENDS,
     ALLOWED_DOCKER_COMPOSE_PROJECTS,
+    ALLOWED_ELASTICSEARCH_VERSIONS,
     ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS,
     ALLOWED_LLM_MODELS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
+    ALLOWED_OPENSEARCH_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_SDKS,
@@ -40,6 +42,8 @@ from airflow_breeze.global_constants import (
     AUTOCOMPLETE_ALL_INTEGRATIONS,
     AUTOCOMPLETE_CORE_INTEGRATIONS,
     AUTOCOMPLETE_PROVIDERS_INTEGRATIONS,
+    DEFAULT_ELASTICSEARCH_VERSION,
+    DEFAULT_OPENSEARCH_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     SINGLE_PLATFORMS,
@@ -355,6 +359,22 @@ option_postgres_version = click.option(
     envvar="POSTGRES_VERSION",
     show_default=True,
     help="Version of Postgres used.",
+)
+option_elasticsearch_version = click.option(
+    "--elasticsearch-version",
+    type=BetterChoice(ALLOWED_ELASTICSEARCH_VERSIONS),
+    default=DEFAULT_ELASTICSEARCH_VERSION,
+    envvar="ELASTICSEARCH_VERSION",
+    show_default=True,
+    help="Version of the Elasticsearch server started by the elasticsearch integration.",
+)
+option_opensearch_version = click.option(
+    "--opensearch-version",
+    type=BetterChoice(ALLOWED_OPENSEARCH_VERSIONS),
+    default=DEFAULT_OPENSEARCH_VERSION,
+    envvar="OPENSEARCH_VERSION",
+    show_default=True,
+    help="Version of the OpenSearch server started by the opensearch integration.",
 )
 option_project_name = click.option(
     "--project-name",

@@ -15,13 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Supervisor schema version 2027-02-28."""
+"""
+Supervisor schema version 2027-02-28.
+
+New bodies in this version:
+
+- ``HITLDetailResponseResult``: the supervisor's reply when a running task reads its own
+  Human-in-the-loop response.
+"""
 
 from __future__ import annotations
 
-from cadwyn import VersionChange, schema
+from cadwyn import (
+    RequestInfo,
+    ResponseInfo,
+    VersionChange,
+    convert_request_to_next_version_for,
+    convert_response_to_previous_version_for,
+    enum,
+    schema,
+)
 
-from airflow.sdk.api.datamodels._generated import TIRunContext
+from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
+from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -37,3 +54,56 @@ class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
     instructions_to_migrate_to_previous_version = (
         schema(TIRunContext).field("execution_timeout").didnt_exist,
     )
+
+
+class AddExternalClearTargetToSucceedTask(VersionChange):
+    """
+    Add the ``external_clear_target`` a task reports with its success, for cross-Dag clears.
+
+    The supervisor-schema mirror of the execution API's ``AddExternalClearTargetField``.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        # SucceedTask inherits the field, and Cadwyn only removes a field from the class that declares it.
+        schema(TISuccessStatePayload).field("external_clear_target").didnt_exist,
+    )
+
+
+class MakeSupervisorVariableValueNonNullable(VersionChange):
+    """
+    Make the Variable value non-nullable in ``VariableResult`` and ``PutVariable``.
+
+    The supervisor-schema mirror of the execution API's ``MakeVariableValueNonNullable``,
+    named apart so the two migrations are not confused.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        # VariableResult (and TIRunContext.variables) inherit the field from the generated
+        # VariableResponse, and Cadwyn only changes a field on the class that declares it.
+        schema(VariableResponse).field("value").had(type=str | None),
+        schema(PutVariable).field("value").had(type=str | None),
+    )
+
+    @convert_request_to_next_version_for(PutVariable)  # type: ignore[arg-type]
+    def store_null_value_as_none_string(request: RequestInfo) -> None:
+        """Keep the old behavior of storing ``str(None)`` when an older runtime sets null."""
+        if "value" in request.body and request.body["value"] is None:
+            request.body["value"] = "None"
+
+
+class AddXComBackendErrorType(VersionChange):
+    """Report a failure of the configured XCom backend under its own error type."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (enum(ErrorType).didnt_have("XCOM_BACKEND_ERROR"),)
+
+    @convert_response_to_previous_version_for(ErrorResponse)  # type: ignore[arg-type]
+    def report_as_a_generic_error(response: ResponseInfo = None) -> None:  # type: ignore[assignment]
+        """Report the failure as a generic one to a runtime whose version has no type for it."""
+        if response.body.get("error") == ErrorType.XCOM_BACKEND_ERROR.value:
+            response.body["error"] = ErrorType.GENERIC_ERROR.value

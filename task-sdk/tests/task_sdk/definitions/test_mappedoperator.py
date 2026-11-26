@@ -25,6 +25,7 @@ from unittest import mock
 import pendulum
 import pytest
 
+from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import ExceptionRetryPolicy, TaskInstanceState, TriggerRule
 from airflow.sdk.bases.operator import BaseOperator
 from airflow.sdk.bases.xcom import BaseXCom
@@ -139,6 +140,42 @@ def test_mapped_task_preserves_custom_base_operator_default():
     assert unmapped.retry_policy is retry_policy
 
 
+class _ItemEmptyOperator(EmptyOperator):
+    def __init__(self, *, item=None, **kwargs):
+        super().__init__(**kwargs)
+        self.item = item
+
+
+class _RunsOnWorkerEmptyOperator(_ItemEmptyOperator):
+    inherits_from_empty_operator = False
+
+
+class _ReportsClearTargetEmptyOperator(_ItemEmptyOperator):
+    def get_external_clear_target(self, context):
+        return None
+
+
+class _ItemMockOperator(MockOperator):
+    def __init__(self, *, item=None, **kwargs):
+        super().__init__(**kwargs)
+        self.item = item
+
+
+@pytest.mark.parametrize(
+    ("operator_class", "expected"),
+    [
+        pytest.param(_ItemEmptyOperator, True, id="empty-subclass"),
+        pytest.param(_RunsOnWorkerEmptyOperator, False, id="empty-subclass-opted-out"),
+        pytest.param(_ReportsClearTargetEmptyOperator, False, id="empty-subclass-reports-clear-target"),
+        pytest.param(_ItemMockOperator, False, id="not-empty"),
+    ],
+)
+def test_mapped_operator_reads_inherits_from_empty_operator(operator_class, expected):
+    mapped = operator_class.partial(task_id="t").expand(item=[1, 2])
+
+    assert mapped.inherits_from_empty_operator is expected
+
+
 def test_map_unknown_arg_raises():
     with pytest.raises(TypeError, match=r"argument 'file'"):
         BaseOperator.partial(task_id="a").expand(file=[1, 2, {"a": "b"}])
@@ -191,6 +228,33 @@ def test_partial_on_invalid_pool_slots_raises() -> None:
 
     with pytest.raises(TypeError, match="'<' not supported between instances of 'str' and 'int'"):
         MockOperator.partial(task_id="pool_slots_test", pool="test", pool_slots="a").expand(arg1=[1, 2, 3])
+
+
+def test_expand_rejects_pool() -> None:
+    with pytest.raises(TypeError, match="unmappable or already specified argument: pool"):
+        MockOperator.partial(task_id="a").expand(pool=["p1", "p2"])
+
+
+def test_expand_kwargs_rejects_pool_on_unmap() -> None:
+    mapped = MockOperator.partial(task_id="a").expand_kwargs([{"pool": "p1"}])
+    with pytest.raises(TypeError, match="unmappable or already specified argument: pool"):
+        mapped.unmap({"pool": "p1"})
+
+
+def test_partial_pool_none_uses_default_pool() -> None:
+    mapped = MockOperator.partial(task_id="a", pool=None).expand(arg1=[1])
+    assert mapped.pool == "default_pool"
+
+
+def test_task_decorator_pool_none_uses_default_pool() -> None:
+    with DAG("test", schedule=None) as dag:
+
+        @dag.task
+        def show(number): ...
+
+        show.override(pool=None).expand(number=[1])
+
+    assert dag.get_task("show").pool == "default_pool"
 
 
 def test_mapped_task_applies_default_args_classic():

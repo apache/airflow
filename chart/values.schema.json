@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "3.3.2",
+            "default": "3.4.0",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed). Version 3.1.0 and above is supported.",
             "type": "string",
-            "default": "3.3.2",
+            "default": "3.4.0",
             "x-docsSection": "Common"
         },
         "securityContexts": {
@@ -691,6 +691,12 @@
             "x-docsSection": "Common",
             "default": "See values.yaml"
         },
+        "mountConfigAsDir": {
+            "description": "Mount the Airflow config ConfigMap as a directory (at ``{airflowHome}/config``) and set accordingly, instead of mounting ``airflow.cfg`` via ``subPath``.",
+            "type": "boolean",
+            "x-docsSection": "Kubernetes",
+            "default": false
+        },
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "object",
@@ -1187,6 +1193,12 @@
                 "properties": {
                     "name": {
                         "type": "string"
+                    },
+                    "annotations": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "string"
+                        }
                     },
                     "preemptionPolicy": {
                         "type": "string"
@@ -1741,6 +1753,15 @@
                                     "items": {
                                         "type": "string"
                                     }
+                                },
+                                "terminationGracePeriodSeconds": {
+                                    "description": "Grace period, in seconds, for a kill triggered by this probe. Overrides the pod's `terminationGracePeriodSeconds` for liveness kills only. If set, minimum value is 1.",
+                                    "type": [
+                                        "integer",
+                                        "null"
+                                    ],
+                                    "default": null,
+                                    "minimum": 1
                                 }
                             }
                         },
@@ -1996,6 +2017,32 @@
                                     "description": "Weather to use PGBouncer to connect to the database or not when it is enabled. This configuration will be ignored if PGBouncer is not enabled.",
                                     "type": "boolean",
                                     "default": true
+                                },
+                                "authenticationRef": {
+                                    "description": "Reference to a KEDA TriggerAuthentication (or ClusterTriggerAuthentication) holding the database connection for the scaler. When set, it is used instead of the connection passed through the worker environment. The TriggerAuthentication must be created outside of this chart.",
+                                    "type": [
+                                        "null",
+                                        "object"
+                                    ],
+                                    "default": null,
+                                    "additionalProperties": false,
+                                    "required": [
+                                        "name"
+                                    ],
+                                    "properties": {
+                                        "name": {
+                                            "description": "Name of the TriggerAuthentication or ClusterTriggerAuthentication.",
+                                            "type": "string"
+                                        },
+                                        "kind": {
+                                            "description": "Kind of the referenced object.",
+                                            "type": "string",
+                                            "enum": [
+                                                "TriggerAuthentication",
+                                                "ClusterTriggerAuthentication"
+                                            ]
+                                        }
+                                    }
                                 }
                             }
                         },
@@ -6084,6 +6131,11 @@
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for API server to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
+                },
                 "apiServerConfig": {
                     "description": "This string (templated) will be mounted into the Airflow API Server as a custom `webserver_config.py`. You can bake a `webserver_config.py` in to your image instead or specify a configmap containing the webserver_config.py.",
                     "type": [
@@ -7490,7 +7542,7 @@
                             "x-docsSection": "Kubernetes"
                         },
                         "container": {
-                            "description": "Container security context definition for the OTel Collector.",
+                            "description": "Container security context definition for the OTel Collector. By default, privilege escalation is disabled and all capabilities are dropped unless `securityContexts.disableDefaults` is enabled.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
@@ -7750,17 +7802,7 @@
                     "description": "Container Lifecycle Hooks definition for the PgBouncer. If not set, the values from global `containerLifecycleHooks` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.Lifecycle",
-                    "default": {
-                        "preStop": {
-                            "exec": {
-                                "command": [
-                                    "/bin/sh",
-                                    "-c",
-                                    "killall -INT pgbouncer && sleep 120"
-                                ]
-                            }
-                        }
-                    },
+                    "default": {},
                     "x-docsSection": "Kubernetes",
                     "examples": [
                         {
@@ -7968,6 +8010,14 @@
                 },
                 "extraContainers": {
                     "description": "Launch additional containers into `pgbouncer`.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into PgBouncer pod (templated).",
                     "type": "array",
                     "default": [],
                     "items": {

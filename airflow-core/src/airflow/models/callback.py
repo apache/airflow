@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 from uuid import UUID
@@ -80,7 +80,7 @@ def _format_kwargs_for_display(kwargs: dict | None) -> Any:
     return format_encoded_value_for_display(kwargs) if kwargs else ""
 
 
-class CallbackType(str, Enum):
+class CallbackType(StrEnum):
     """
     Types of Callbacks.
 
@@ -146,6 +146,10 @@ class Callback(Base, BaseWorkload):
 
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
+    processor_job_id: Mapped[int | None] = mapped_column(
+        ForeignKey("job.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    processor_claim_id: Mapped[UUID | None] = mapped_column(Uuid(), nullable=True)
 
     # Return value of the callback if successful, otherwise exception details
     output: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -288,7 +292,7 @@ class TriggererCallback(Callback):
             },
             queue=self.data.get("queue"),
             dag_id=self.get_dag_id() or dag_run.get("dag_id"),
-            owner_ref={"callback_id": str(self.id)},
+            used_by_ref={"callback_id": str(self.id)},
         )
         self.trigger.team_name = team_name
         super().queue(session=session)

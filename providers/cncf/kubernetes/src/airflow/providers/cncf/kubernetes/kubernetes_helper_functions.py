@@ -65,7 +65,7 @@ TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
 # Connection-level failures (socket reset, DNS blip, read timeout) worth retrying — the api server
 # never saw the request, or its reply was lost. Covers both kube clients: urllib3 (sync) and aiohttp
 # (async). Shared so this decorator and the KubernetesExecutor agree on what counts as transient.
-TRANSIENT_CONNECTION_ERRORS: tuple[type[BaseException], ...] = (
+TRANSIENT_CONNECTION_ERRORS: tuple[type[Exception], ...] = (
     HTTPError,
     ClientConnectionError,
     KubernetesApiException,
