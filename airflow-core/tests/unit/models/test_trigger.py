@@ -32,6 +32,7 @@ from sqlalchemy import delete, event, func, insert, select, text, update
 from sqlalchemy.exc import OperationalError
 
 from airflow._shared.timezones import timezone
+from airflow.callbacks.callback_requests import EmailRequest, TaskCallbackRequest
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import TaskInstance, Trigger
@@ -1067,6 +1068,214 @@ def test_submit_event_task_end_failed_respects_retries(
         assert ti.end_date is not None
         assert ti.id == old_ti_id
         assert ti.try_number == 1
+
+
+@pytest.mark.parametrize(
+    ("retries", "extra_default_args", "expected_email_type"),
+    [
+        pytest.param(1, {"email": "test@example.com"}, "retry", id="retry_email"),
+        pytest.param(0, {"email": "test@example.com"}, "failure", id="failure_email"),
+        pytest.param(
+            1,
+            {"email": "test@example.com", "email_on_retry": False},
+            None,
+            id="retry_flag_off",
+        ),
+        pytest.param(
+            0,
+            {"email": "test@example.com", "email_on_failure": False},
+            None,
+            id="failure_flag_off",
+        ),
+        pytest.param(
+            0,
+            {"email": "test@example.com", "email_on_failure": False, "email_on_retry": True},
+            None,
+            id="failure_flag_off_retry_flag_on",
+        ),
+        pytest.param(
+            1,
+            {"email": "test@example.com", "email_on_retry": False, "email_on_failure": True},
+            None,
+            id="retry_flag_off_failure_flag_on",
+        ),
+        pytest.param(0, {}, None, id="no_email"),
+    ],
+)
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_failed_email(
+    mock_send,
+    session,
+    create_task_instance,
+    caplog,
+    retries,
+    extra_default_args,
+    expected_email_type,
+):
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    email = extra_default_args.get("email")
+    default_args = {"retries": retries, **{k: v for k, v in extra_default_args.items() if k != "email"}}
+    task_instance = create_task_instance(
+        session=session,
+        logical_date=timezone.utcnow(),
+        state=State.DEFERRED,
+        email=email,
+        default_args=default_args,
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.try_number = 1
+    task_instance.max_tries = retries
+    session.commit()
+
+    with caplog.at_level("DEBUG", logger="airflow.models.trigger"):
+        Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
+    session.flush()
+
+    ti = session.scalar(select(TaskInstance))
+    expected_state = TaskInstanceState.UP_FOR_RETRY if retries else TaskInstanceState.FAILED
+    assert ti.state == expected_state
+    assert ti.try_number == (2 if retries else 1)
+
+    sent = [call.kwargs["callback"] for call in mock_send.call_args_list]
+    task_callbacks = [r for r in sent if isinstance(r, TaskCallbackRequest)]
+    email_requests = [r for r in sent if isinstance(r, EmailRequest)]
+    assert len(task_callbacks) == 1
+    assert task_callbacks[0].task_callback_type == expected_state
+
+    if expected_email_type is not None:
+        assert len(email_requests) == 1
+        assert email_requests[0].email_type == expected_email_type
+        assert email_requests[0].ti.try_number == 1
+    else:
+        assert email_requests == []
+        if not email:
+            assert "No email queued for" in caplog.text
+
+
+@pytest.mark.parametrize("event_cls", [TaskSuccessEvent, TaskSkippedEvent])
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_success_and_skipped_send_no_email(
+    mock_send, session, create_task_instance, event_cls
+):
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session,
+        logical_date=timezone.utcnow(),
+        state=State.DEFERRED,
+        email="test@example.com",
+    )
+    task_instance.trigger_id = trigger.id
+    session.commit()
+
+    Trigger.submit_event(trigger.id, event_cls(), session=session)
+    session.flush()
+
+    sent = [call.kwargs["callback"] for call in mock_send.call_args_list]
+    email_requests = [r for r in sent if isinstance(r, EmailRequest)]
+    assert email_requests == []
+
+
+@patch("airflow.models.dagbag.DBDagBag.get_dag_for_run", side_effect=RuntimeError("boom"))
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_failed_task_load_error_sends_no_email(
+    mock_send, _mock_get_dag, session, create_task_instance, caplog
+):
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session,
+        logical_date=timezone.utcnow(),
+        state=State.DEFERRED,
+        email="test@example.com",
+        default_args={"retries": 0},
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.try_number = 1
+    task_instance.max_tries = 0
+    session.commit()
+    # Detach the fixture's TI (it carries .task) so submit_event loads a fresh one with task=None.
+    session.expunge(task_instance)
+
+    with caplog.at_level("INFO", logger="airflow.models.trigger"):
+        Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
+    session.flush()
+
+    ti = session.scalar(select(TaskInstance))
+    assert ti.state == TaskInstanceState.FAILED
+    sent = [call.kwargs["callback"] for call in mock_send.call_args_list]
+    task_callbacks = [r for r in sent if isinstance(r, TaskCallbackRequest)]
+    email_requests = [r for r in sent if isinstance(r, EmailRequest)]
+    assert len(task_callbacks) == 1
+    assert email_requests == []
+    assert "task definition could not be loaded" in caplog.text
+
+
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_failed_email_send_error_does_not_block(
+    mock_send, session, create_task_instance, caplog
+):
+    def _send_side_effect(*, callback, session=None):
+        if isinstance(callback, EmailRequest):
+            raise RuntimeError("smtp down")
+
+    mock_send.side_effect = _send_side_effect
+
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session,
+        logical_date=timezone.utcnow(),
+        state=State.DEFERRED,
+        email="test@example.com",
+        default_args={"retries": 0},
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.try_number = 1
+    task_instance.max_tries = 0
+    session.commit()
+
+    with caplog.at_level("ERROR", logger="airflow.models.trigger"):
+        Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
+    session.flush()
+
+    ti = session.scalar(select(TaskInstance))
+    assert ti.state == TaskInstanceState.FAILED
+    assert "Failed to send email request." in caplog.text
+
+
+@patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
+def test_submit_event_task_end_failed_email_request_contents(mock_send, session, create_task_instance):
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    session.add(trigger)
+    task_instance = create_task_instance(
+        session=session,
+        logical_date=timezone.utcnow(),
+        state=State.DEFERRED,
+        email="test@example.com",
+        default_args={"retries": 0},
+    )
+    task_instance.trigger_id = trigger.id
+    task_instance.try_number = 1
+    task_instance.max_tries = 0
+    task_instance.dag_run.bundle_version = "v1-sha"
+    session.commit()
+
+    Trigger.submit_event(trigger.id, TaskFailedEvent(), session=session)
+    session.flush()
+
+    sent = [call.kwargs["callback"] for call in mock_send.call_args_list]
+    task_callbacks = [r for r in sent if isinstance(r, TaskCallbackRequest)]
+    email_requests = [r for r in sent if isinstance(r, EmailRequest)]
+    assert len(task_callbacks) == 1
+    assert len(email_requests) == 1
+    cb = task_callbacks[0]
+    em = email_requests[0]
+    assert em.filepath == cb.filepath
+    assert em.bundle_name == cb.bundle_name
+    assert em.bundle_version == cb.bundle_version
+    assert em.context_from_server.max_tries == task_instance.max_tries
 
 
 @pytest.fixture

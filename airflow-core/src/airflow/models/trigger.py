@@ -897,10 +897,12 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     :param session: The session to be used for the database callback sink.
     """
     from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
+        DagRun as DRDataModel,
         TaskInstance as TIDataModel,
+        TIRunContext,
         task_instance_to_runtime,
     )
-    from airflow.callbacks.callback_requests import TaskCallbackRequest
+    from airflow.callbacks.callback_requests import EmailRequest, TaskCallbackRequest
     from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
     from airflow.models.dagbag import DBDagBag
     from airflow.models.task_coordinates import TaskCoordinateResolver
@@ -924,6 +926,43 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         if should_retry:
             callback_type = TaskInstanceState.UP_FOR_RETRY
 
+    def _submit_email_if_necessary(runtime_ti, filepath, bundle_name, bundle_version, version_data) -> None:
+        """Queue an email request if the task ended in FAILED or UP_FOR_RETRY."""
+        if callback_type not in (TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY):
+            return
+        task = task_instance.task
+        if task is None:
+            log.info("Email not sent for %s: task definition could not be loaded", task_instance)
+            return
+        is_retry = callback_type == TaskInstanceState.UP_FOR_RETRY
+        if not task.email or not (task.email_on_retry if is_retry else task.email_on_failure):
+            log.debug(
+                "No email queued for %s: email is not configured or matching email_on_* flag is False",
+                task_instance,
+            )
+            return
+        try:
+            request = EmailRequest(
+                filepath=filepath,
+                bundle_name=bundle_name,
+                bundle_version=bundle_version,
+                version_data=version_data,
+                ti=runtime_ti,
+                msg=f"Task was ended by a trigger event ({type(event).__name__})",
+                email_type="retry" if is_retry else "failure",
+                context_from_server=TIRunContext(
+                    dag_run=DRDataModel.model_validate(task_instance.dag_run, from_attributes=True),
+                    max_tries=task_instance.max_tries,
+                    variables=[],
+                    connections=[],
+                    xcom_keys_to_clear=[],
+                ),
+            )
+            log.info("Sending email request: %s", request)
+            DatabaseCallbackSink().send(callback=request, session=session)
+        except Exception:
+            log.exception("Failed to send email request.")
+
     def _submit_callback_if_necessary() -> None:
         """Submit a callback request if the task state is SUCCESS, FAILED, or UP_FOR_RETRY."""
         if callback_type in (
@@ -936,13 +975,14 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             from airflow.models.dag_version import _resolve_ti_callback_bundle_info
 
             bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(task_instance)
+            runtime_ti = task_instance_to_runtime(
+                task_instance,
+                model=TIDataModel,
+                map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
+            )
             request = TaskCallbackRequest(
                 filepath=task_instance.dag_model.relative_fileloc,
-                ti=task_instance_to_runtime(
-                    task_instance,
-                    model=TIDataModel,
-                    map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
-                ),
+                ti=runtime_ti,
                 task_callback_type=callback_type,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
@@ -953,6 +993,13 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
                 DatabaseCallbackSink().send(callback=request, session=session)
             except Exception:
                 log.exception("Failed to send callback.")
+            _submit_email_if_necessary(
+                runtime_ti,
+                task_instance.dag_model.relative_fileloc,
+                bundle_name,
+                bundle_version,
+                version_data,
+            )
 
     def _push_xcoms_if_necessary() -> None:
         """Pushes XComs to the database if they are provided."""
@@ -968,7 +1015,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
                     session=session,
                 )
 
-    # Send the callback before mutating task state so it reflects the retry-vs-terminal
+    # Send the callback and email before mutating task state so they reflect the retry-vs-terminal
     # decision derived above.
     _submit_callback_if_necessary()
 
