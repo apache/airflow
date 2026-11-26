@@ -29,7 +29,13 @@
 // process except in response to a request").
 
 import type { Socket } from "node:net";
-import { encodeRequest, encodeResponse, FrameReader, type Frame } from "./frames.js";
+import {
+  describeFrameType,
+  encodeRequest,
+  encodeResponse,
+  FrameReader,
+  type Frame,
+} from "./frames.js";
 import { connectTcp } from "./tcp-connect.js";
 import { Deferred } from "./deferred.js";
 import type { LogChannel } from "./log-channel.js";
@@ -255,12 +261,4 @@ export class CommChannel {
     }
     this.pendingReplies.clear();
   }
-}
-
-function describeFrameType(body: unknown): string {
-  if (body && typeof body === "object" && "type" in body) {
-    const t = (body as { type?: unknown }).type;
-    if (typeof t === "string") return t;
-  }
-  return "unknown";
 }

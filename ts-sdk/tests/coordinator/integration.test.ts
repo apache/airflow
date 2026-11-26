@@ -1014,7 +1014,7 @@ describe("coordinator runtime integration", () => {
       result.logRecords.some(
         (r) =>
           r["event"] === "[ts-sdk.runtime] Task failed" &&
-          String(r["error"]).includes('XCom "return_value" holds a Date, which JSON cannot carry'),
+          String(r["error"]).includes("SetXCom request holds a Date, which JSON cannot carry"),
       ),
     ).toBe(true);
   });

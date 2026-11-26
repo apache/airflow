@@ -295,20 +295,6 @@ describe("getXComEntry", () => {
   });
 });
 
-describe("setXCom value guard", () => {
-  it.each([
-    ["a Date", { fetchedAt: new Date(0) }],
-    ["a Buffer", [Buffer.from("abc")]],
-    ["a Map", new Map([["a", 1]])],
-  ])("rejects a value holding %s without sending a request", async (description, value) => {
-    const { client: c, sent } = recordingClient();
-    await expect(c.setXCom({ key: "k", value: value as never })).rejects.toThrow(
-      `XCom "k" holds ${description}, which JSON cannot carry`,
-    );
-    expect(sent).toHaveLength(0);
-  });
-});
-
 describe("client is bound to TaskContext", () => {
   it("defaults dag/task/run + map_index from ctx; allows override", async () => {
     const sent: Record<string, unknown>[] = [];
@@ -696,14 +682,6 @@ describe("taskStateStore.set guards", () => {
   it("rejects an empty key without sending a request", async () => {
     const { client: c, sent } = recordingClient();
     await expect(c.taskStateStore.set("", 1, { retention: 60 })).rejects.toThrow(RangeError);
-    expect(sent).toHaveLength(0);
-  });
-
-  it("rejects a value holding a Date without sending a request", async () => {
-    const { client: c, sent } = recordingClient();
-    await expect(
-      c.taskStateStore.set("k", { at: new Date(0) } as never, { retention: 60 }),
-    ).rejects.toThrow('task state store value for "k" holds a Date, which JSON cannot carry');
     expect(sent).toHaveLength(0);
   });
 });

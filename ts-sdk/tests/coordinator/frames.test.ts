@@ -26,6 +26,11 @@ import {
   tryTakeFrame,
 } from "../../src/coordinator/frames.js";
 
+class Point {
+  x = 1;
+  y = 2;
+}
+
 function stripFramePrefix(buf: Buffer): Buffer {
   return buf.subarray(4);
 }
@@ -40,6 +45,18 @@ describe("frames", () => {
     expect(decoded.body).toEqual({ type: "GetVariable", key: "foo" });
     expect(decoded.error).toBeUndefined();
     expect(decoded.isResponse).toBe(false);
+  });
+
+  it.each([
+    ["a Date", { fetchedAt: new Date(0) }],
+    ["a Buffer", [Buffer.from("abc")]],
+    ["a Map", new Map([["a", 1]])],
+    ["a Set", new Set([1])],
+    ["a Point", new Point()],
+  ])("rejects a request holding %s", (description, value) => {
+    const encode = () => encodeRequest(0, { type: "SetXCom", key: "k", value });
+    expect(encode).toThrow(TypeError);
+    expect(encode).toThrow(`SetXCom request holds ${description}, which JSON cannot carry`);
   });
 
   it("round-trips a response frame with error", () => {

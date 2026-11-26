@@ -40,6 +40,8 @@
 
 import { encode, decode } from "@msgpack/msgpack";
 
+import { toPlainJson } from "../sdk/plain-json.js";
+
 /**
  * Maximum frame payload size in bytes (2^32 − 1). The length prefix is a
  * big-endian uint32, so anything larger would silently truncate.
@@ -55,11 +57,20 @@ export interface Frame {
 }
 
 export function encodeRequest(id: number, body: unknown): Buffer {
-  return encodeFrame(id, body, undefined, /* isResponse */ false);
+  const checked = toPlainJson(body, `${describeFrameType(body)} request`);
+  return encodeFrame(id, checked, undefined, /* isResponse */ false);
 }
 
 export function encodeResponse(id: number, body?: unknown, error?: unknown): Buffer {
   return encodeFrame(id, body, error, /* isResponse */ true);
+}
+
+export function describeFrameType(body: unknown): string {
+  if (body && typeof body === "object" && "type" in body) {
+    const t = (body as { type?: unknown }).type;
+    if (typeof t === "string") return t;
+  }
+  return "unknown";
 }
 
 function encodeFrame(id: number, body: unknown, error: unknown, isResponse: boolean): Buffer {
