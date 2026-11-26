@@ -46,7 +46,7 @@ class FabAuthRolePublicMiddleware(BaseHTTPMiddleware):
         if not self._has_auth_token(request):
             auth_manager = cast("FabAuthManager", get_auth_manager())
 
-            public_user = auth_manager.build_public_user()
+            public_user = await auth_manager.build_public_user()
             if public_user is not None:
                 request.state.user = public_user
 

@@ -210,6 +210,24 @@ class TestSnowflakeSqlApiTrigger:
         assert [c.args[1] for c in mock_get_query_status.call_args_list] == ["q1", "q2"]
 
     @pytest.mark.asyncio
+    @mock.patch.object(SnowflakeSqlApiTrigger, "get_query_status", autospec=True)
+    @mock.patch(f"{MODULE}.triggers.snowflake_trigger.SnowflakeSqlApiHook", autospec=True)
+    async def test_run_rejects_unexpected_status(self, mock_hook, mock_get_query_status):
+        mock_get_query_status.return_value = {"status": "unknown"}
+
+        events = [event async for event in self.TRIGGER.run()]
+
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "error",
+                    "message": "Unexpected Snowflake SQL API status for query uuid: 'unknown'",
+                }
+            )
+        ]
+        mock_get_query_status.assert_awaited_once()
+
+    @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.sql_api.SnowflakeSqlApiHook.get_sql_api_query_status_async")
     async def test_snowflake_sql_trigger_failure_status(self, mock_get_sql_api_query_status_async):
         """Test SnowflakeSqlApiTrigger task is executed and triggered with failure status."""

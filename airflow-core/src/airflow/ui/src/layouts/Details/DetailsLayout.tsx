@@ -33,11 +33,13 @@ import type { DagRunState, DagRunType } from "openapi/requests/types.gen";
 import { IconButton, ProgressBar, Toaster } from "src/system-components";
 
 import { DagStatusChip } from "src/components/DagStatusChip";
+import { DagFailingWatchersChip } from "src/components/FailingWatchersChip";
 import { TogglePause } from "src/components/TogglePause";
 import { TriggerDAGButton } from "src/components/TriggerDag/TriggerDAGButton";
 
 import type { DagView } from "src/constants/dagView";
 import { DEFAULT_DAG_VIEW_KEY } from "src/constants/localStorage";
+import { usePersistentSearchParamKeys } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { VersionIndicatorOptions } from "src/constants/showVersionIndicatorOptions";
 import { GroupsProvider } from "src/context/groups";
@@ -87,6 +89,7 @@ type Props = {
 export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs }: Props) => {
   const { t: translate } = useTranslation("dags");
   const { dagId = "", runId } = useParams();
+  const persistentKeys = usePersistentSearchParamKeys();
   const refetchInterval = useAutoRefresh({ dagId });
   const { data: dag } = useDagServiceGetDag({ dagId }, undefined, {
     refetchInterval: (query) => query.state.data?.scheduling_state === "draining" && refetchInterval,
@@ -243,6 +246,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
               and a level is too tight to hold them without crowding what it names. Highest
               severity first, and together so one glance covers every problem with the Dag. */}
             <DagStatusChip dagId={dagId} error={error} />
+            <DagFailingWatchersChip dagId={dagId} />
             <DagBreadcrumb />
           </HStack>
           <Flex gap={2}>
@@ -452,7 +456,7 @@ export const DetailsLayout = ({ children, error, isLoading, outletContext, tabs 
                   >
                     {children}
                     <ProgressBar size="xs" visibility={isLoading ? "visible" : "hidden"} />
-                    <NavTabs tabs={tabs} />
+                    <NavTabs persistentKeys={persistentKeys} tabs={tabs} />
                     <Box flexGrow={1} overflow="auto" pb={3} px={2}>
                       <Outlet context={outletContext} />
                     </Box>

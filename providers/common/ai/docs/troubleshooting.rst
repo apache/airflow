@@ -33,7 +33,7 @@ Model and connection errors
 
 ``Connection '...' has no default model provider, so the bare model name '...' cannot be resolved``
     The generic ``pydanticai`` connection type needs a ``provider:`` prefix on the model
-    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, set
+    name, for example ``openai:gpt-6.1-sol`` rather than ``gpt-6.1-sol``. Add the prefix, set
     **Default Model Provider** (``extra["model_provider"]``, e.g. ``openai-chat``) on the connection,
     or use a vendor connection type (:doc:`connections/pydantic_ai_azure`,
     :doc:`connections/pydantic_ai_bedrock`, :doc:`connections/pydantic_ai_vertex`), which
@@ -86,7 +86,7 @@ An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pyd
     The connection named by ``llm_conn_id`` is not a ``pydanticai`` connection type. This
     is easy to hit by picking a similarly named type such as ``openai`` when the OpenAI
     provider is installed. Change the connection type to ``pydanticai``, put the API key
-    in the **API Key** field (the password) and the model, for example ``openai:gpt-5``,
+    in the **API Key** field (the password) and the model, for example ``openai:gpt-6.1-sol``,
     in **Model**. For Azure, Bedrock or Vertex use the matching ``pydanticai_azure``,
     ``pydanticai_bedrock`` or ``pydanticai_vertex`` type instead; see :doc:`model_providers`.
 

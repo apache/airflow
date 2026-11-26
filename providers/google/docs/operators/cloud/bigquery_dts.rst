@@ -18,7 +18,7 @@
 Google Cloud BigQuery Data Transfer Service Operators
 =====================================================
 
-The `BigQuery Data Transfer Service <https://cloud.google.com/bigquery/transfer/>`__
+The `BigQuery Data Transfer Service <https://cloud.google.com/bigquery/docs/dts-introduction>`__
 automates data movement from SaaS applications to Google BigQuery on a scheduled, managed basis.
 Your analytics team can lay the foundation for a data warehouse without writing a single line of code.
 BigQuery Data Transfer Service initially supports Google application sources like Google Ads,
@@ -127,5 +127,5 @@ Reference
 
 For further information, look at:
 
-* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/bigquery_datatransfer/index.html>`__
-* `Product Documentation <https://cloud.google.com/bigquery/transfer/>`__
+* `Client Library Documentation <https://cloud.google.com/python/docs/reference/bigquerydatatransfer/latest>`__
+* `Product Documentation <https://cloud.google.com/bigquery/docs/dts-introduction>`__

@@ -27,7 +27,9 @@ import requests
 from rich.console import Console
 
 from airflow_breeze.global_constants import (
+    ALLOWED_ELASTICSEARCH_VERSIONS,
     ALLOWED_KUBERNETES_VERSIONS,
+    ALLOWED_OPENSEARCH_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     CI_AMD_PLATFORM,
     CI_ARM_PLATFORM,
@@ -46,6 +48,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
     get_provider_split_test_types,
 )
+from airflow_breeze.utils.fork_compare import UpstreamFileError
 from airflow_breeze.utils.functools_cache import clearable_cache
 from airflow_breeze.utils.packages import get_available_distributions
 from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
@@ -1371,7 +1374,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "providers-test-types-list-as-strings-in-json": ALL_PROVIDERS_SELECTIVE_TEST_TYPES_AS_JSON,
                     "testable-core-integrations": "['kerberos', 'otel', 'redis']",
                     "testable-providers-integrations": "['celery', 'cassandra', 'drill', 'elasticsearch', 'opensearch', 'tinkerpop', 'kafka', "
-                    "'mongo', 'pinot', 'qdrant', 'redis', 'trino', 'ydb']",
+                    "'mongo', 'pinot', 'polaris', 'qdrant', 'redis', 'trino', 'ydb']",
                     "run-mypy-providers": "true",
                 },
                 id="All tests should be run when devel-common/ change",
@@ -1771,6 +1774,15 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("uv.lock",),
             {"run-agent-framework-tests": "true", "full-tests-needed": "false"},
             id="Run agent framework tests when the lock file changes",
+        ),
+        pytest.param(
+            ("uv.lock",),
+            {
+                "run-task-sdk-tests": "true",
+                "ci-image-build": "true",
+                "providers-test-types-list-as-strings-in-json": "[]",
+            },
+            id="Run Task SDK tests without all provider tests when the lock file changes",
         ),
         pytest.param(
             ("providers/common/ai/docs/frameworks/strands.rst",),
@@ -2815,6 +2827,11 @@ def test_ui_compile_hooks_not_skipped_when_ui_openapi_spec_changes(files: tuple[
             {"full-tests-needed": "false"},
             id="Non-test workflow (ci-notification) does not force full tests",
         ),
+        pytest.param(
+            (".github/workflows/scheduled-verify-improvement-proposals-wiki.yml",),
+            {"full-tests-needed": "false"},
+            id="Non-test workflow (improvement proposals wiki check) does not force full tests",
+        ),
     ],
 )
 def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expected_outputs: dict[str, str]):
@@ -2841,7 +2858,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['14']",
+                    "postgres-versions": "['15']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -2875,7 +2892,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "all-python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "mysql-versions": "['8.0', '8.4']",
-                    "postgres-versions": "['14', '15', '16', '17', '18']",
+                    "postgres-versions": "['15', '16', '17', '18', '19']",
                     "python-versions": ALL_PYTHON_VERSIONS_AS_LIST,
                     "python-versions-list-as-string": ALL_PYTHON_VERSIONS_AS_STRING,
                     "kubernetes-versions": ALL_KUBERNETES_VERSIONS_AS_LIST,
@@ -2909,7 +2926,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['14']",
+                    "postgres-versions": "['15']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -2943,7 +2960,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "all-versions": "false",
                     "mysql-versions": "['8.0']",
-                    "postgres-versions": "['14']",
+                    "postgres-versions": "['15']",
                     "python-versions": f"['{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}']",
                     "python-versions-list-as-string": DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
                     "kubernetes-versions": f"['{DEFAULT_KUBERNETES_VERSION}']",
@@ -2980,7 +2997,7 @@ def test_non_test_workflows_do_not_force_full_tests(files: tuple[str, ...], expe
                     "all-versions": "false",
                     "default-python-version": f"{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}",
                     "mysql-versions": "['8.4']",
-                    "postgres-versions": "['18']",
+                    "postgres-versions": "['19']",
                     "python-versions": f"['{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}']",
                     "python-versions-list-as-string": f"{ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[-1]}",
                     "kubernetes-versions": f"['{ALLOWED_KUBERNETES_VERSIONS[-1]}']",
@@ -4095,6 +4112,24 @@ def test_has_migrations(files: tuple[str, ...], has_migrations: bool):
 
 
 @pytest.mark.parametrize(
+    ("files", "skipped"),
+    [
+        pytest.param(("uv.lock",), False, id="lock file changed"),
+        pytest.param(("airflow-core/src/airflow/models/dag.py",), True, id="no Task SDK or lock file change"),
+    ],
+)
+def test_mypy_task_sdk_skipped(files: tuple[str, ...], skipped: bool):
+    skip_prek_hooks = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    ).skip_prek_hooks
+
+    assert ("mypy-task-sdk" in skip_prek_hooks.split(",")) is skipped
+
+
+@pytest.mark.parametrize(
     ("labels", "expected_outputs"),
     [
         pytest.param(
@@ -4479,6 +4514,76 @@ def test_testable_providers_integrations_gated_by_affected_provider():
     assert "ydb" not in result
 
 
+@patch(
+    "airflow_breeze.utils.selective_checks.PROVIDERS_INTEGRATION_SERVER_VERSIONS",
+    {"elasticsearch": ["9.0.0", "8.0.0"]},
+)
+@patch.object(
+    SelectiveChecks,
+    "testable_providers_integrations",
+    new=property(lambda self: ["celery", "elasticsearch"]),
+)
+def test_testable_providers_integrations_matrix_has_one_entry_per_server_version():
+    selective_checks = SelectiveChecks(
+        files=(),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
+    )
+    assert json.loads(selective_checks.testable_providers_integrations_matrix) == [
+        {"integration": "celery", "id": "celery"},
+        {"integration": "elasticsearch", "id": "elasticsearch-9.0.0", "elasticsearch-version": "9.0.0"},
+        {"integration": "elasticsearch", "id": "elasticsearch-8.0.0", "elasticsearch-version": "8.0.0"},
+    ]
+
+
+@pytest.mark.parametrize(
+    ("changed_files", "integration", "versions"),
+    [
+        pytest.param(
+            ("providers/elasticsearch/src/airflow/providers/elasticsearch/log/es_task_handler.py",),
+            "elasticsearch",
+            ALLOWED_ELASTICSEARCH_VERSIONS,
+            id="elasticsearch-source",
+        ),
+        pytest.param(
+            ("providers/elasticsearch/tests/integration/elasticsearch/log/test_es_remote_log_io.py",),
+            "elasticsearch",
+            ALLOWED_ELASTICSEARCH_VERSIONS,
+            id="elasticsearch-integration-test",
+        ),
+        pytest.param(
+            ("providers/elasticsearch/pyproject.toml", "uv.lock"),
+            "elasticsearch",
+            ALLOWED_ELASTICSEARCH_VERSIONS,
+            id="elasticsearch-dependency-bump",
+        ),
+        pytest.param(
+            ("providers/opensearch/src/airflow/providers/opensearch/log/os_task_handler.py",),
+            "opensearch",
+            ALLOWED_OPENSEARCH_VERSIONS,
+            id="opensearch-source",
+        ),
+        pytest.param(
+            ("providers/opensearch/pyproject.toml", "uv.lock"),
+            "opensearch",
+            ALLOWED_OPENSEARCH_VERSIONS,
+            id="opensearch-dependency-bump",
+        ),
+    ],
+)
+def test_provider_change_runs_its_integration_once_per_server_version(changed_files, integration, versions):
+    selective_checks = SelectiveChecks(
+        files=changed_files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        platform=CI_AMD_PLATFORM,
+    )
+    assert [entry["id"] for entry in json.loads(selective_checks.testable_providers_integrations_matrix)] == [
+        f"{integration}-{version}" for version in versions
+    ]
+
+
 def test_opensearch_provider_integration_triggered_by_affected_provider():
     """Verify that changes to the OpenSearch provider trigger its integration test."""
     selective_checks = SelectiveChecks(
@@ -4719,14 +4824,20 @@ def test_provider_dependency_bump_on_a_fork_push_compares_with_the_merge_base(
     so a release manager's bump from main would look like theirs.
     """
     bumped = '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.1.0"]\n'
-    mock_run_command.side_effect = lambda *args, **kwargs: Mock(
-        returncode=0,
-        stdout=(
-            '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.0.0"]\n'
-            if "^:" in args[0][2]
-            else bumped
-        ),
-    )
+
+    def mock_cmd(*args, **kwargs):
+        if len(args[0]) > 1 and args[0][1] == "cat-file":
+            return Mock(returncode=1)
+        return Mock(
+            returncode=0,
+            stdout=(
+                '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.0.0"]\n'
+                if len(args[0]) > 2 and "^:" in args[0][2]
+                else bumped
+            ),
+        )
+
+    mock_run_command.side_effect = mock_cmd
     mock_upstream_file.return_value = bumped
 
     assert not SelectiveChecks(
@@ -4740,6 +4851,61 @@ def test_provider_dependency_bump_on_a_fork_push_compares_with_the_merge_base(
     ).provider_dependency_bump
 
     mock_upstream_file.assert_called_once_with(path="providers/amazon/pyproject.toml", ref="base-sha")
+
+
+@patch("airflow_breeze.utils.selective_checks.get_upstream_file", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_provider_dependency_bump_on_a_fork_push_reads_from_local_git_when_merge_base_present(
+    mock_run_command, mock_upstream_file
+):
+    bumped = '[project]\ndependencies = ["apache-airflow-providers-common-sql>=1.1.0"]\n'
+
+    def mock_cmd(*args, **kwargs):
+        if len(args[0]) > 1 and args[0][1] == "cat-file":
+            return Mock(returncode=0)
+        return Mock(returncode=0, stdout=bumped)
+
+    mock_run_command.side_effect = mock_cmd
+
+    assert not SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+        fork_push=True,
+        fork_merge_base="base-sha",
+    ).provider_dependency_bump
+
+    mock_upstream_file.assert_not_called()
+
+
+@patch("airflow_breeze.utils.selective_checks.get_upstream_file", autospec=True)
+@patch("airflow_breeze.utils.selective_checks.run_command")
+def test_pyproject_toml_changed_on_fork_push_with_local_git_fallback_does_not_call_api(
+    mock_run_command, mock_upstream_file
+):
+    mock_upstream_file.side_effect = UpstreamFileError("API rate limit exceeded")
+    old_content = '[project]\nname = "apache-airflow"\n'
+
+    def mock_cmd(*args, **kwargs):
+        if len(args[0]) > 1 and args[0][1] == "cat-file":
+            return Mock(returncode=0)
+        return Mock(returncode=0, stdout=old_content)
+
+    mock_run_command.side_effect = mock_cmd
+
+    checks = SelectiveChecks(
+        files=("pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        pr_labels=(),
+        github_event=GithubEvents.PUSH,
+        default_branch="main",
+        fork_push=True,
+        fork_merge_base="local-mb-sha",
+    )
+    assert checks.pyproject_toml_changed
+    mock_upstream_file.assert_not_called()
 
 
 @patch("airflow_breeze.utils.selective_checks.run_command")

@@ -94,7 +94,7 @@ CORE_DESCRIPTIONS: dict[tuple[str, str], str] = {
     ("api", "secret_key"): "API secret key for log token signing",
     ("api_auth", "jwt_secret"): "JWT signing key (symmetric mode)",
     ("core", "asset_manager_kwargs"): "Asset manager credentials",
-    ("core", "fernet_key"): "Fernet encryption key for connections/variables at rest",
+    ("core", "fernet_key"): "Fernet encryption key for connections, variables and trigger kwargs at rest",
     ("database", "sql_alchemy_conn"): "Metadata database connection string",
     ("database", "sql_alchemy_conn_async"): "Async metadata database connection string",
     ("database", "sql_alchemy_engine_args"): "SQLAlchemy engine parameters (may contain credentials)",

@@ -28,6 +28,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.apache.airflow.sdk.execution.comm.Discriminator
 import org.apache.airflow.sdk.execution.comm.PutVariable
 import org.apache.airflow.sdk.execution.comm.SetTaskStateStore
+import org.apache.airflow.sdk.execution.comm.SetXCom
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 import org.msgpack.core.buffer.ArrayBufferInput
@@ -46,7 +47,8 @@ data class RawFrame(
  * fields to be present. When one is missing it fails validation, logs the
  * frame and never replies, so the caller blocks forever.
  */
-private val REQUIRED_NULLABLE_REQUESTS = setOf(PutVariable::class.java, SetTaskStateStore::class.java)
+private val REQUIRED_NULLABLE_REQUESTS =
+  setOf(PutVariable::class.java, SetTaskStateStore::class.java, SetXCom::class.java)
 
 @JsonInclude(JsonInclude.Include.ALWAYS)
 private abstract class KeepNullFields

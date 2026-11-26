@@ -2262,6 +2262,33 @@ class TestPytestSnowflakeHook:
         assert "workload_identity_provider" in widgets
 
     @pytest.mark.parametrize(
+        ("extra", "expected"),
+        [
+            pytest.param({"authenticator": ""}, "snowflake", id="blank-form-field-uses-default"),
+            pytest.param(
+                {"extra__snowflake__authenticator": "programmatic_access_token"},
+                "programmatic_access_token",
+                id="backcompat-prefix",
+            ),
+            pytest.param({"authenticator": "OAUTH"}, "oauth", id="oauth-uppercase"),
+            pytest.param(
+                {"authenticator": " Programmatic_Access_Token "},
+                "programmatic_access_token",
+                id="pat-mixed-case-whitespace",
+            ),
+            pytest.param({"authenticator": "   "}, "snowflake", id="whitespace-uses-default"),
+        ],
+    )
+    def test_get_conn_params_authenticator_from_extra(self, extra, expected):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"].update(extra)
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            conn_params = SnowflakeHook(snowflake_conn_id="test_conn")._get_static_conn_params
+
+        assert conn_params["authenticator"] == expected
+
+    @pytest.mark.parametrize(
         ("field", "value"),
         [("token", "an-oidc-jwt"), ("token_file_path", "/var/run/secrets/oidc/token")],
     )

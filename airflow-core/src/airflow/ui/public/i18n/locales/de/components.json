@@ -61,6 +61,7 @@
   "dagWarnings": {
     "error_one": "1 Fehler",
     "errorAndWarning": "1 Fehler und {{warningText}}",
+    "failingWatcher": "Beobachter {{watcherName}} bei {{assetName}} ist fehlgeschlagen",
     "types": {
       "asset conflict": "Asset-Konflikt",
       "duplicate dag id": "Doppelte Dag ID",
@@ -68,6 +69,7 @@
       "runtime varying value": "Zur Laufzeit veränderlicher Wert",
       "task group cycle": "Zyklus in der Task Gruppe"
     },
+    "viewTrigger": "Benachrichtigung sehen",
     "warning_one": "1 Warnung",
     "warning_other": "{{count, number}} Warnungen"
   },

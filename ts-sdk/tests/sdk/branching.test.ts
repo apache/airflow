@@ -22,6 +22,7 @@ import {
   Dag,
   finalizeDag,
   getDagOrderEdges,
+  getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
   Label,
@@ -181,6 +182,21 @@ describe("dag.switch", () => {
     notified.after(decider);
 
     expect(getDagOrderEdges(dag)).toContainEqual({ upstream: "pick_path", downstream: "notify" });
+  });
+
+  it("declares a switch in a task group, under the group's prefix", async () => {
+    const dag = new Dag("d");
+    const long = dag.task("handle_long", async () => undefined)();
+    const short = dag.task("handle_short", async () => undefined)();
+    const pick = dag
+      .taskGroup("routing")
+      .switch(async () => long, undefined, { taskId: "pick_path" });
+    pick.case(long).case(short);
+
+    expect(pick.taskId).toBe("routing.pick_path");
+    expect(getDagTaskGroups(dag).get("routing")?.taskIds).toEqual(["routing.pick_path"]);
+    const { skipDownstreamTasks } = await runHandler(dag, "routing.pick_path");
+    expect(skipDownstreamTasks).toHaveBeenCalledWith(["handle_short"]);
   });
 
   it("is a branch of a condition, so a switch can sit under dag.if", () => {

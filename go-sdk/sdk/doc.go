@@ -43,7 +43,7 @@ so a task can resume its progress after a retry.
 To publish a result, return a value from the task function: the runtime pushes
 it as the task's return-value XCom, so most tasks never call [XComClient]
 directly. Lookups that miss return a wrapped sentinel error ([VariableNotFound],
-[ConnectionNotFound], [XComNotFound], [TaskStateNotFound]) you can test for with
-errors.Is.
+[ConnectionNotFound], [TaskStateNotFound]) you can test for with errors.Is; a
+missing XCom reads as nil, the same as a stored null.
 */
 package sdk

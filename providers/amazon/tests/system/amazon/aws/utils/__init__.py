@@ -388,6 +388,21 @@ def _purge_logs(
             )
 
 
+def print_and_delete_log_group(log_group_name: str) -> None:
+    """Copy a CloudWatch log group's events into the task log, then delete the group."""
+    logs_client = boto3.client("logs")
+    try:
+        for page in logs_client.get_paginator("filter_log_events").paginate(logGroupName=log_group_name):
+            for event in page["events"]:
+                print(event["message"])
+        logs_client.delete_log_group(logGroupName=log_group_name)
+    except logs_client.exceptions.ResourceNotFoundException:
+        print(f"Log group {log_group_name} does not exist, nothing to delete.")
+
+
+print_and_delete_log_group_task = task(trigger_rule=TriggerRule.ALL_DONE)(print_and_delete_log_group)
+
+
 @task
 def split_string(string):
     return string.split(",")

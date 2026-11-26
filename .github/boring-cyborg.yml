@@ -78,6 +78,9 @@ labelPRBasedOnFilePath:
   provider:apache-pinot:
     - providers/apache/pinot/**
 
+  provider:apache-polaris:
+    - providers/apache/polaris/**
+
   provider:apache-spark:
     - providers/apache/spark/**
 
@@ -585,6 +588,10 @@ labelPRBasedOnFilePath:
     - task-sdk/src/airflow/sdk/execution_time/coordinator.py
     - task-sdk/tests/task_sdk/coordinators/**/*
     - task-sdk/tests/task_sdk/execution_time/test_coordinator.py
+
+  "AIP-85: Dag Importer":
+    - task-sdk/src/airflow/sdk/importers/**/*
+    - task-sdk/tests/task_sdk/importers/**/*
 
   area:db-migrations:
     - airflow-core/src/airflow/migrations/versions/*

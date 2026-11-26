@@ -37,6 +37,8 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-databricks/operators/run_now.rst",
                     "/docs/apache-airflow-providers-databricks/operators/task.rst",
                     "/docs/apache-airflow-providers-databricks/operators/agent.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/genie.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/genie_operator.rst",
                 ],
                 "logo": "/docs/integration-logos/Databricks.png",
                 "tags": ["service"],
@@ -49,6 +51,7 @@ def get_provider_info():
                     "/docs/apache-airflow-providers-databricks/operators/sql_statements.rst",
                     "/docs/apache-airflow-providers-databricks/operators/warehouse.rst",
                     "/docs/apache-airflow-providers-databricks/operators/copy_into.rst",
+                    "/docs/apache-airflow-providers-databricks/operators/delta_table_producer.rst",
                 ],
                 "tags": ["service"],
             },
@@ -80,12 +83,14 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks",
                     "airflow.providers.databricks.operators.agent",
+                    "airflow.providers.databricks.operators.genie",
                 ],
             },
             {
                 "integration-name": "Databricks SQL",
                 "python-modules": [
                     "airflow.providers.databricks.operators.databricks_sql",
+                    "airflow.providers.databricks.operators.delta_table",
                     "airflow.providers.databricks.operators.warehouse",
                 ],
             },
@@ -121,6 +126,8 @@ def get_provider_info():
                     "airflow.providers.databricks.hooks.databricks",
                     "airflow.providers.databricks.hooks.databricks_base",
                     "airflow.providers.databricks.hooks.agent",
+                    "airflow.providers.databricks.hooks.genie",
+                    "airflow.providers.databricks.hooks.model_serving",
                 ],
             },
             {
@@ -134,6 +141,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.databricks.triggers.databricks",
                     "airflow.providers.databricks.triggers.agent",
+                    "airflow.providers.databricks.triggers.genie",
                 ],
             }
         ],
@@ -152,7 +160,37 @@ def get_provider_info():
                 "hook-class-name": "airflow.providers.databricks.hooks.databricks.DatabricksHook",
                 "hook-name": "Databricks",
                 "connection-type": "databricks",
-            }
+            },
+            {
+                "hook-class-name": "airflow.providers.databricks.hooks.model_serving.PydanticAIDatabricksHook",
+                "hook-name": "Pydantic AI (Databricks Model Serving)",
+                "connection-type": "pydanticai_databricks",
+                "external-services": ["Databricks Model Serving"],
+                "ui-field-behaviour": {
+                    "hidden-fields": ["schema", "port", "login", "host", "password"],
+                    "relabeling": {},
+                    "placeholders": {
+                        "extra": '{"model": "my-serving-endpoint", "databricks_conn_id": "databricks_default"}'
+                    },
+                },
+                "conn-fields": {
+                    "model": {
+                        "label": "Model",
+                        "description": "Serving endpoint name (e.g. my-serving-endpoint)",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                    "fallback_conn_ids": {
+                        "label": "Fallback Connections",
+                        "description": "Connection IDs to fail over to, in order, while this provider is unavailable.",
+                        "schema": {"type": ["array", "null"], "items": {"type": "string"}},
+                    },
+                    "databricks_conn_id": {
+                        "label": "Databricks Connection ID",
+                        "description": "Connection ID of an existing Databricks connection to source credentials from.",
+                        "schema": {"type": ["string", "null"]},
+                    },
+                },
+            },
         ],
         "plugins": [
             {
