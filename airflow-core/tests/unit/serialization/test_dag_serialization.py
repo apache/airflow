@@ -3805,18 +3805,8 @@ def test_mapped_stub_arg_bindings_round_trip():
         "default": 3,
     }
     expected_transform = [
-        {
-            "name": "country",
-            "kind": "param",
-            "value_schema": {"type": "string"},
-            "expand_keys": ["country", "region"],
-        },
-        {
-            "name": "region",
-            "kind": "param",
-            "value_schema": {"type": "string"},
-            "expand_keys": ["country", "region"],
-        },
+        {"name": "country", "kind": "param", "value_schema": {"type": "string"}},
+        {"name": "region", "kind": "param", "value_schema": {"type": "string"}},
         {"name": "extracted", "kind": "param"},
         retries_num,
     ]
@@ -3828,12 +3818,15 @@ def test_mapped_stub_arg_bindings_round_trip():
     assert encoded_tasks["transform"]["_arg_bindings"] == expected_transform, (
         "bindings must follow declaration order"
     )
+    assert encoded_tasks["transform"]["_stub_expand_keys"] == {"transform": ["country", "region"]}
+    assert "_stub_expand_keys" not in encoded_tasks["load"]
     assert encoded_tasks["load"]["_arg_bindings"] == expected_load
     assert "_arg_bindings" not in encoded_tasks["plain"], "only tasks flagged is_stub get bindings"
 
     round_tripped = DagSerialization.from_dict(ser_dag)
     transform_task = round_tripped.task_dict["transform"]
     assert transform_task.arg_bindings == expected_transform
+    assert transform_task.stub_expand_keys == {"transform": ["country", "region"]}
     assert transform_task.partial_kwargs["op_kwargs"] == {"extracted": {"a": 1}}
     expand_input = transform_task._get_specified_expand_input()
     assert isinstance(expand_input, SchedulerDictOfListsExpandInput)

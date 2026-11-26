@@ -96,7 +96,6 @@ class _ArgParam:
     value_schema: dict[str, Any] | None = None
     default: Any | ArgNotSet = NOTSET
     group_arg: _GroupArg | None = None
-    expand_keys: Sequence[str] | None = None
 
     @classmethod
     def from_entry(cls, entry: Mapping[str, Any]) -> _ArgParam:
@@ -106,7 +105,6 @@ class _ArgParam:
             value_schema=entry.get("value_schema"),
             default=entry.get("default", NOTSET),
             group_arg=None if group_arg is None else _GroupArg(group_arg["group_id"], group_arg["key"]),
-            expand_keys=entry.get("expand_keys"),
         )
 
     def build(self, binding_cls: type[_BindingT], **fields: Any) -> _BindingT:
@@ -215,7 +213,7 @@ class _MappedArgBindingDeriver:
         partial_kwargs = self.task.partial_kwargs.get("op_kwargs") or {}
         if isinstance(expand_input, SchedulerDictOfListsExpandInput):
             if param.name in expand_input.value:
-                index = self._get_sub_indexes(expand_input, param.expand_keys)[param.name]
+                index = self._get_sub_indexes(expand_input, self.task.task_id)[param.name]
                 return self._bind_element(param, expand_input.value[param.name], index)
         # With strict=True a mapping cannot override partial(), so the partial() value binds as it is.
         # A mapping read from an upstream output that also has the key fails the Python task, but
@@ -236,7 +234,7 @@ class _MappedArgBindingDeriver:
         group = cast("SerializedMappedTaskGroup", group)
         expand_input = group._expand_input
         if isinstance(expand_input, SchedulerDictOfListsExpandInput):
-            index = self._get_sub_indexes(expand_input, param.expand_keys)[group_arg.key]
+            index = self._get_sub_indexes(expand_input, group_arg.group_id)[group_arg.key]
             return self._bind_element(param, expand_input.value[group_arg.key], index)
         if binding := self._bind_mapping_entry(param, expand_input, group_arg.key, fallback=lambda: None):
             return binding
@@ -251,7 +249,7 @@ class _MappedArgBindingDeriver:
         return param.build(LiteralArgBinding, kind="literal", value=param.default, from_default=True)
 
     def _get_sub_indexes(
-        self, expand_input: SchedulerDictOfListsExpandInput, keys: Sequence[str] | None
+        self, expand_input: SchedulerDictOfListsExpandInput, owner_id: str
     ) -> dict[str, int]:
         # Outside a mapped task group, a single expanded kwarg is the whole expansion, so the
         # map index is already its element index and no upstream length needs loading.
@@ -263,7 +261,7 @@ class _MappedArgBindingDeriver:
                 sub_indexes = expand_input.resolve_expansion_sub_indexes(
                     self.map_index,
                     # Parse time records the order only when there are several expanded kwargs.
-                    keys or list(expand_input.value),
+                    self.task.stub_expand_keys.get(owner_id) or list(expand_input.value),
                     lengths,
                 )
             except ValueError as e:

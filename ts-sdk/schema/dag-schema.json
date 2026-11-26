@@ -153,8 +153,7 @@
         "value": {},
         "from_default": { "type": "boolean" },
         "default": {},
-        "group_arg": { "type": "object" },
-        "expand_keys": { "type": "array", "items": { "type": "string" } }
+        "group_arg": { "type": "object" }
       },
       "required": [ "name", "kind" ]
     },
@@ -386,6 +385,11 @@
           "$comment": "Used for mixed-language tasks (the @task.stub operator) or tasks defined in a non-Python SDK Dag",
           "type": "array",
           "items": { "$ref": "#/definitions/arg_binding" }
+        },
+        "_stub_expand_keys": {
+          "$comment": "A @task.stub task's expand() key order, by the id of the task or mapped task group that expands",
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "type": "string" } }
         }
       },
       "dependencies": {

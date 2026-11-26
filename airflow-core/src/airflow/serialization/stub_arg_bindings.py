@@ -66,6 +66,7 @@ if TYPE_CHECKING:
         OperatorExpandArgument,
         OperatorExpandKwargsArgument,
     )
+    from airflow.sdk.definitions.mappedoperator import MappedOperator  # noqa: SDK001
 
 
 class _BindingEntryBase(TypedDict):
@@ -101,8 +102,6 @@ class ParamBindingEntry(_BindingEntryBase):
     kind: Literal["param"]
     default: NotRequired[Any]
     group_arg: NotRequired[GroupArgEntry]
-    expand_keys: NotRequired[list[str]]
-    """The ``expand()`` kwargs in Dag-file order, set when there are several: the stored Dag may re-order them."""
 
 
 # TODO(#71364): validate_schema also runs on read, so a core that predates a kind rejects the whole Dag.
@@ -395,8 +394,6 @@ def _build_group_arg_binding(value: MappedArgument, op: DecoratedOperator, name:
     }
     if isinstance(expand_input := value._input, DictOfListsExpandInput):
         _validate_expand_value(expand_input.value[value._key], op.task_id, name)
-        if len(expand_input.value) > 1:
-            entry["expand_keys"] = list(expand_input.value)
     elif isinstance(expand_value := expand_input.value, XComArg):
         _validate_expand_value(expand_value, op.task_id, name)
     else:
@@ -542,8 +539,24 @@ def build_mapped_arg_bindings(op: DecoratedMappedOperator) -> list[ArgBindingEnt
     spec: list[ArgBindingEntry] = []
     for name, param in op_signature.parameters.items():
         use_default = name not in partial_op_kwargs and name not in expanded
-        entry = _build_param_binding(name, param, annotations[name], task_id, use_default=use_default)
-        if name in expanded and len(expanded) > 1:
-            entry["expand_keys"] = list(expanded)
-        spec.append(entry)
+        spec.append(_build_param_binding(name, param, annotations[name], task_id, use_default=use_default))
     return spec
+
+
+def build_stub_expand_keys(op: AbstractOperator) -> dict[str, list[str]] | None:
+    """
+    Get the Dag-file key order of each ``expand()`` input with several keys that a stub task reads.
+
+    The order picks which combination of values a map index gets, and the stored Dag does not keep
+    it. Keys are the task id for the task's own ``expand()`` and the group id for an enclosing
+    mapped task group.
+    """
+    expand_inputs = [(group.group_id, group._expand_input) for group in op.iter_mapped_task_groups()]
+    if op.is_mapped:
+        expand_inputs.append((op.task_id, cast("MappedOperator", op)._get_specified_expand_input()))
+    expand_keys = {
+        cast("str", owner_id): list(expand_input.value)
+        for owner_id, expand_input in expand_inputs
+        if isinstance(expand_input, DictOfListsExpandInput) and len(expand_input.value) > 1
+    }
+    return expand_keys or None

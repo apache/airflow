@@ -30,6 +30,7 @@ from airflow.serialization.stub_arg_bindings import (
     _infer_value_schema,
     build_arg_bindings,
     build_mapped_arg_bindings,
+    build_stub_expand_keys,
 )
 
 
@@ -393,11 +394,15 @@ class TestMappedStubArgBindings:
             result = stub(fn_untyped).expand(b=[1], a=[2])
 
         assert self.get_hook_fields(result.operator) == {
-            "_arg_bindings": [
-                {"name": "a", "kind": "param", "expand_keys": ["b", "a"]},
-                {"name": "b", "kind": "param", "expand_keys": ["b", "a"]},
-            ]
+            "_arg_bindings": [{"name": "a", "kind": "param"}, {"name": "b", "kind": "param"}]
         }
+        assert build_stub_expand_keys(result.operator) == {result.operator.task_id: ["b", "a"]}
+
+    def test_single_kwarg_expand_records_no_key_order(self):
+        with DAG(dag_id="d"):
+            result = stub(fn_untyped).expand(b=[1])
+
+        assert build_stub_expand_keys(result.operator) is None
 
     def test_literal_dict_expand_value_rejected(self):
         with DAG(dag_id="d"):
@@ -594,19 +599,10 @@ class TestTaskGroupMemberArgBindings:
             group.expand(b=[1], a=[2])
 
         assert build_arg_bindings(captured["op"].operator) == [
-            {
-                "name": "a",
-                "kind": "param",
-                "group_arg": {"group_id": "group", "key": "a"},
-                "expand_keys": ["b", "a"],
-            },
-            {
-                "name": "b",
-                "kind": "param",
-                "group_arg": {"group_id": "group", "key": "b"},
-                "expand_keys": ["b", "a"],
-            },
+            {"name": "a", "kind": "param", "group_arg": {"group_id": "group", "key": "a"}},
+            {"name": "b", "kind": "param", "group_arg": {"group_id": "group", "key": "b"}},
         ]
+        assert build_stub_expand_keys(captured["op"].operator) == {"group": ["b", "a"]}
 
     def test_group_literal_dict_expand_value_rejected(self):
         captured = {}

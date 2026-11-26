@@ -274,7 +274,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "weight_rule",
     }
 )
-_DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS = frozenset({"_arg_bindings"})
+_DIFF_V1_REDACTED_SCHEMA_TASK_FIELDS = frozenset({"_arg_bindings", "_stub_expand_keys"})
 # Task-field categories used by _get_category.
 _DIFF_V1_TASK_ASSET_FIELDS = frozenset({"inlets", "outlets"})
 _DIFF_V1_TASK_PARAM_FIELDS = frozenset({"params"})
