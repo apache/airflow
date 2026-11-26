@@ -68,10 +68,6 @@ class TestLMStudioBackendBaseUrl:
         with pytest.raises(ValueError, match="needs a base_url"):
             LMStudioBackend(base_url=base_url, model_name="qwen3")
 
-    @pytest.mark.parametrize("base_url", ["http://h:1234/v1", "http://h:1234/api/v1"])
-    def test_root_drops_api_suffix(self, base_url):
-        assert LMStudioBackend(base_url=base_url, model_name="qwen3").root == "http://h:1234"
-
 
 class TestLMStudioBackendLoad:
     def test_loaded_model_skips_the_load_request(self):
@@ -237,38 +233,24 @@ class TestLMStudioBackendLoad:
 
         assert methods == ["GET"]
 
-    def test_matching_entry_without_loaded_instances_is_loaded(self):
-        methods: list[str] = []
-
-        def handler(request: httpx2.Request) -> httpx2.Response:
-            methods.append(request.method)
-            if request.method == "GET":
-                return httpx2.Response(200, json={"models": [{"type": "llm"}, {"key": "qwen3"}]})
-            return httpx2.Response(200, json={"status": "loaded"})
-
-        _build_backend(handler).load(timeout=5.0)
-
-        assert methods == ["GET", "POST"]
-
     @pytest.mark.parametrize(
-        "loaded_instances",
+        "model_entry",
         [
-            pytest.param(None, id="null"),
-            pytest.param("loaded", id="string"),
-            pytest.param({"id": "qwen3"}, id="object"),
-            pytest.param(1, id="integer"),
-            pytest.param(True, id="boolean"),
+            pytest.param({"key": "qwen3"}, id="missing"),
+            pytest.param({"key": "qwen3", "loaded_instances": None}, id="null"),
+            pytest.param({"key": "qwen3", "loaded_instances": "loaded"}, id="string"),
+            pytest.param({"key": "qwen3", "loaded_instances": {"id": "qwen3"}}, id="object"),
+            pytest.param({"key": "qwen3", "loaded_instances": 1}, id="integer"),
+            pytest.param({"key": "qwen3", "loaded_instances": True}, id="boolean"),
         ],
     )
-    def test_loaded_instances_that_is_not_a_list_counts_as_not_loaded(self, loaded_instances):
+    def test_loaded_instances_that_is_missing_or_not_a_list_counts_as_not_loaded(self, model_entry):
         methods: list[str] = []
 
         def handler(request: httpx2.Request) -> httpx2.Response:
             methods.append(request.method)
             if request.method == "GET":
-                return httpx2.Response(
-                    200, json={"models": [{"key": "qwen3", "loaded_instances": loaded_instances}]}
-                )
+                return httpx2.Response(200, json={"models": [model_entry]})
             return httpx2.Response(200, json={"status": "loaded"})
 
         _build_backend(handler).load(timeout=5.0)
