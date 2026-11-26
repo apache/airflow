@@ -291,8 +291,11 @@ class SerializedAssetBooleanCondition(SerializedAssetBase):
             yield from obj.iter_dag_dependencies(source=source, target=target)
 
 
+@attrs.define
 class SerializedAssetAny(SerializedAssetBooleanCondition):
     """Serialized representation of an asset "or" relationship."""
+
+    consume: Literal["all", "branch"] = "all"
 
     agg_func = any
 
@@ -302,7 +305,10 @@ class SerializedAssetAny(SerializedAssetBooleanCondition):
 
         :meta private:
         """
-        return {"any": [o.as_expression() for o in self.objects]}
+        expression: dict[str, Any] = {"any": [o.as_expression() for o in self.objects]}
+        if self.consume != "all":
+            expression["consume"] = self.consume
+        return expression
 
 
 class SerializedAssetAll(SerializedAssetBooleanCondition):

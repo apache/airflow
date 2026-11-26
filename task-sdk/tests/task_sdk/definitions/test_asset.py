@@ -496,3 +496,13 @@ class TestAssetAccessControl:
         asset = Asset(name="x", access_control=None)
         assert asset.access_control.producer_teams == []
         assert asset.access_control.allow_global is True
+
+
+def test_asset_any_consume():
+    a, b, c = Asset("a"), Asset("b"), Asset("c")
+    branch = AssetAny(a, b, consume="branch")
+    assert branch != AssetAny(a, b)
+    assert (branch | c) == AssetAny(a, b, c, consume="branch")
+    assert repr(branch) == f"AssetAny({a}, {b}, consume='branch')"
+    with pytest.raises(ValueError, match="consume must be"):
+        AssetAny(a, consume="first")

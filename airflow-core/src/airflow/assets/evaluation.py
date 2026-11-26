@@ -26,6 +26,8 @@ from airflow.models.asset import expand_alias_to_assets, resolve_ref_to_asset
 from airflow.serialization.definitions.assets import (
     SerializedAsset,
     SerializedAssetAlias,
+    SerializedAssetAll,
+    SerializedAssetAny,
     SerializedAssetBase,
     SerializedAssetBooleanCondition,
     SerializedAssetRef,
@@ -71,3 +73,50 @@ class AssetEvaluator:
     @run.register
     def _(self, o: SerializedAssetBooleanCondition, statuses: dict[SerializedAssetUniqueKey, bool]) -> bool:
         return type(o).agg_func(self.run(x, statuses) for x in o.objects)
+
+    def uses_branch_consumption(self, o: SerializedAssetBase) -> bool:
+        """Return whether any ``AssetAny`` in the condition consumes only its satisfied branches."""
+        if isinstance(o, SerializedAssetAny) and o.consume == "branch":
+            return True
+        if isinstance(o, SerializedAssetBooleanCondition):
+            return any(self.uses_branch_consumption(x) for x in o.objects)
+        return False
+
+    def _find_queued_keys(
+        self, o: SerializedAssetBase, statuses: dict[SerializedAssetUniqueKey, bool]
+    ) -> set[SerializedAssetUniqueKey]:
+        match o:
+            case SerializedAsset():
+                key = SerializedAssetUniqueKey.from_asset(o)
+                return {key} if statuses.get(key) else set()
+            case SerializedAssetRef():
+                asset = self._resolve_asset_ref(o)
+                return self._find_queued_keys(asset, statuses) if asset else set()
+            case SerializedAssetAlias():
+                return set().union(
+                    *(self._find_queued_keys(x, statuses) for x in self._resolve_asset_alias(o))
+                )
+            case SerializedAssetBooleanCondition():
+                return set().union(*(self._find_queued_keys(x, statuses) for x in o.objects))
+        raise NotImplementedError(f"can not evaluate {o!r}")
+
+    def find_satisfied_keys(
+        self, o: SerializedAssetBase, statuses: dict[SerializedAssetUniqueKey, bool]
+    ) -> set[SerializedAssetUniqueKey] | None:
+        """
+        Return the queued asset keys a Dag run triggered by *o* should consume.
+
+        Return *None* if *o* is not satisfied. An ``AssetAny`` with
+        ``consume="branch"`` contributes only the keys of its satisfied children;
+        every other node contributes all its queued keys, matching the
+        consume-everything behaviour.
+        """
+        if not self.run(o, statuses):
+            return None
+        if isinstance(o, SerializedAssetAny) and o.consume == "branch":
+            return set().union(
+                *(keys for x in o.objects if (keys := self.find_satisfied_keys(x, statuses)) is not None)
+            )
+        if isinstance(o, SerializedAssetAll):
+            return set().union(*((self.find_satisfied_keys(x, statuses) or set()) for x in o.objects))
+        return self._find_queued_keys(o, statuses)

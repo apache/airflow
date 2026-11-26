@@ -1872,3 +1872,16 @@ def test_deadline_callback_rejects_field_belonging_to_the_other_subclass(callbac
 
     with pytest.raises(ValueError, match=f"Unexpected deadline callback fields: {foreign_field}"):
         BaseSerialization.deserialize(serialized)
+
+
+@pytest.mark.parametrize("consume", ["all", "branch"])
+def test_serde_asset_any_consume_roundtrip(consume):
+    from airflow.sdk import Asset, AssetAny
+    from airflow.serialization.encoders import encode_asset_like
+    from airflow.serialization.serialized_objects import decode_asset_like
+
+    encoded = encode_asset_like(AssetAny(Asset("a"), Asset("b"), consume=consume))
+    assert ("consume" in encoded) is (consume != "all")
+    decoded = decode_asset_like(encoded)
+    assert decoded.consume == consume
+    assert ("consume" in decoded.as_expression()) is (consume != "all")

@@ -3262,10 +3262,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         records = self._lock_queued_asset_records(dag_id=dag.dag_id, session=session)
         if not records:
             return None
-        if not self._is_asset_condition_met(dag, locked_records=records, session=session):
+        is_met, asset_ids = self._find_consumable_asset_ids(dag, locked_records=records, session=session)
+        if not is_met:
             self._delete_consumed_asset_records(dag, locked_records=records, session=session)
             return None
-        return records, self._select_consumed_asset_events(dag, locked_records=records, session=session)
+        return records, self._select_consumed_asset_events(
+            dag, locked_records=records, asset_ids=asset_ids, session=session
+        )
 
     def _lock_queued_asset_records(self, *, dag_id: str, session: Session) -> Sequence[AssetDagRunQueue]:
         """Lock and return the Dag's queued asset (ADRQ) rows, skipping rows another scheduler holds."""
@@ -3281,13 +3284,18 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).all()
 
-    def _is_asset_condition_met(
+    def _find_consumable_asset_ids(
         self, dag: SerializedDAG, *, locked_records: Iterable[AssetDagRunQueue], session: Session
-    ) -> bool:
+    ) -> tuple[bool, set[int] | None]:
         """
         Evaluate a Dag's asset condition against its locked ADRQ rows.
 
         Rows whose events have already been consumed by the Dag do not count.
+
+        Return whether the condition is met, and the IDs of the assets whose
+        events the new run may consume. The IDs are *None* (no restriction)
+        unless the condition has an ``AssetAny(..., consume="branch")``, whose
+        unsatisfied branches' assets are then left out so their events stay queued.
         """
         consumed_event_ids = set(
             session.scalars(
@@ -3297,24 +3305,33 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
             )
         )
-        statuses = {
-            SerializedAssetUniqueKey.from_asset(record.asset): True
+        asset_ids_by_key = {
+            SerializedAssetUniqueKey.from_asset(record.asset): record.asset_id
             for record in locked_records
             if record.asset_event_id not in consumed_event_ids
         }
-        if not statuses:
-            return False
+        if not asset_ids_by_key:
+            return False, None
+        statuses = dict.fromkeys(asset_ids_by_key, True)
+        condition = dag.timetable.asset_condition
+        evaluator = AssetEvaluator(session)
         try:
-            return AssetEvaluator(session).run(dag.timetable.asset_condition, statuses=statuses)
+            if not evaluator.uses_branch_consumption(condition):
+                return evaluator.run(condition, statuses=statuses), None
+            keys = evaluator.find_satisfied_keys(condition, statuses)
         except Exception:
             self.log.exception("Dag '%s' failed to be evaluated; assuming not ready", dag.dag_id)
-            return False
+            return False, None
+        if keys is None:
+            return False, None
+        return True, {asset_ids_by_key[key] for key in keys}
 
     def _select_consumed_asset_events(
         self,
         dag: SerializedDAG,
         *,
         locked_records: Iterable[AssetDagRunQueue],
+        asset_ids: Collection[int] | None = None,
         limit: int | None = None,
         session: Session,
     ) -> Sequence[AssetEvent]:
@@ -3326,6 +3343,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         With catchup, events are also matched by asset regardless of ID, and
         event IDs are not assigned in commit order. Concurrent schedulers can't
         consume this Dag's events since the Dag's own row is locked.
+
+        If *asset_ids* is given, only events of those assets are selected; the
+        others stay queued.
         """
         event_predicate: ColumnElement[bool] = (
             select(AssetDagRunQueue.asset_event_id)
@@ -3340,7 +3360,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             event_predicate |= _build_scheduled_asset_event_clause(dag.dag_id)
         return session.scalars(
             select(AssetEvent)
-            .where(event_predicate, ~build_consumed_by_dag_clause(dag.dag_id, AssetEvent.id))
+            .where(
+                event_predicate,
+                AssetEvent.asset_id.in_(asset_ids) if asset_ids is not None else expression.true(),
+                ~build_consumed_by_dag_clause(dag.dag_id, AssetEvent.id),
+            )
             .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
             .limit(limit)
         ).all()
@@ -3408,7 +3432,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 continue
             # The condition was evaluated without locks when this Dag was selected.
-            if not self._is_asset_condition_met(dag, locked_records=queued_adrqs, session=session):
+            is_met, asset_ids = self._find_consumable_asset_ids(
+                dag, locked_records=queued_adrqs, session=session
+            )
+            if not is_met:
                 self.log.debug("Asset condition no longer met for Dag '%s'", dag.dag_id)
                 self._delete_consumed_asset_records(dag, locked_records=queued_adrqs, session=session)
                 continue
@@ -3432,6 +3459,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             asset_events = self._select_consumed_asset_events(
                 dag,
                 locked_records=queued_adrqs,
+                asset_ids=asset_ids,
                 limit=None if dag.timetable.batch_asset_events else run_limit + 1,
                 session=session,
             )
