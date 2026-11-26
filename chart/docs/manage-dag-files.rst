@@ -336,8 +336,8 @@ default Dag processor, the Dags of a removed bundle therefore stay active in the
 and its set, mark it inactive once with either of:
 
 * ``airflow dags reserialize --bundle-name <bundle>`` in the ``dag-processor`` container of a remaining set,
-  with a bundle that set parses. It marks every bundle that is no longer configured as inactive before
-  reserializing the given bundle.
+  with a bundle that set parses. It first marks every bundle that is no longer configured as inactive,
+  then serializes the Dags of the given bundle again.
 * ``dagProcessor.enableDefault: true`` until the Dags of the removed bundle are no longer active, then back to
   ``false``. The default Dag processor parses all bundles in the meantime.
 
