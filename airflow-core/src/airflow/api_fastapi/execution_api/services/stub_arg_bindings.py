@@ -121,9 +121,11 @@ def derive_mapped_arg_bindings(
     *,
     dag_bag: DBDagBag,
     session: Session,
-) -> list[TaskArgBinding]:
+) -> list[dict[str, Any]]:
     """
     Build the bindings of *ti* at its map index from the serialized ``_arg_bindings`` *entries*.
+
+    Each binding is dumped in the same plain form as an unmapped stub's serialized entries.
 
     :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index.
     """
@@ -134,13 +136,14 @@ def derive_mapped_arg_bindings(
             raise UndeliverableMappedArgBindingsError(
                 "the task instance has not been expanded to a map index"
             )
-        return _MappedArgBindingDeriver(task, ti, map_index, resolver, session=session).derive(entries)
+        bindings = _MappedArgBindingDeriver(task, ti, map_index, resolver, session=session).derive(entries)
     except NotFullyPopulated as e:
         raise UndeliverableMappedArgBindingsError(
             f"upstream map lengths are not yet known for {sorted(e.missing)}"
         )
     except ValidationError as e:
         raise UndeliverableMappedArgBindingsError(f"a binding is not valid: {e}")
+    return [binding.model_dump(exclude_unset=True) for binding in bindings]
 
 
 class _MappedArgBindingDeriver:

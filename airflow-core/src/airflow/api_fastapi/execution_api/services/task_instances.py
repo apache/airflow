@@ -29,7 +29,6 @@ from airflow.serialization.definitions.mappedoperator import is_mapped
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.api_fastapi.execution_api.datamodels.task_arg_binding import TaskArgBinding
     from airflow.models.dagbag import DBDagBag
     from airflow.serialization.serialized_objects import SerializedOperator
 
@@ -70,7 +69,7 @@ def client_supports_mapped_arg_bindings() -> bool:
 
 def get_arg_bindings(
     task: SerializedOperator, ti: Any, *, dag_bag: DBDagBag, session: Session
-) -> list[TaskArgBinding] | list[dict[str, Any]] | None:
+) -> list[dict[str, Any]] | None:
     """
     Return the TaskFlow arg spec of *task* if it is a stub task.
 
@@ -88,18 +87,14 @@ def get_arg_bindings(
     supported = client_supports_mapped_arg_bindings()
     if is_mapped(task) and not supported:
         return None
-    bindings: list[TaskArgBinding] | list[dict[str, Any]] = arg_bindings
+    bindings = arg_bindings
     if is_mapped(task) or task.get_closest_mapped_task_group() is not None:
         bindings = derive_mapped_arg_bindings(task, ti, arg_bindings, dag_bag=dag_bag, session=session)
-    if not supported and any(is_mapped_arg_binding(_dump(binding)) for binding in bindings):
+    if not supported and any(is_mapped_arg_binding(binding) for binding in bindings):
         raise UndeliverableMappedArgBindingsError(
             "they need a client at Execution API version 2027-02-28 or later"
         )
     return bindings
-
-
-def _dump(binding: TaskArgBinding | dict[str, Any]) -> dict[str, Any]:
-    return binding if isinstance(binding, dict) else binding.model_dump(exclude_unset=True)
 
 
 def get_execution_timeout(task: SerializedOperator) -> float | None:
