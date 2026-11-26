@@ -469,6 +469,23 @@ describe("resolveArgs", () => {
     );
   });
 
+  it("binds arguments that carry default-valued fields", async () => {
+    const defaults = {
+      map_index: null,
+      element_index: null,
+      apply_map: false,
+      kwarg: null,
+      fallback: null,
+      spread: false,
+    };
+    const { args } = await bind(
+      [xcom("totals", "make_totals", defaults), literal("region_code", "uk", defaults)],
+      { upstream: { make_totals: { found: true, value: 7 } } },
+    );
+    const { totals, regionCode } = args as { totals: number; regionCode: string };
+    expect({ totals, regionCode }).toEqual({ totals: 7, regionCode: "uk" });
+  });
+
   it.each([
     ['binding kind "sequence"', { name: "totals", kind: "sequence", task_id: "make_totals" }],
     ['binding kind "tuple"', { name: "totals", kind: "tuple", parts: [] }],
@@ -478,6 +495,9 @@ describe("resolveArgs", () => {
     ["apply_map", literal("totals", 1, { apply_map: true })],
     ["kwarg", literal("totals", 1, { kwarg: "totals" })],
     ["fallback", literal("totals", 1, { fallback: { kind: "literal", value: 2 } })],
+    ["spread", { kind: "xcom", task_id: "make_totals", spread: true }],
+    ["future_field", xcom("totals", "make_totals", { future_field: 1 })],
+    ["future_field", literal("totals", 1, { future_field: 1 })],
   ])("refuses %s as not implemented, before pulling anything", async (what, binding) => {
     const { client, getXComEntry } = makeClient({ make_totals: { found: true, value: 1 } });
     await expect(
@@ -488,7 +508,7 @@ describe("resolveArgs", () => {
         argNames: NO_RENAMES,
       }),
     ).rejects.toThrowError(
-      `Task argument "totals": ${what} needs mapped task support, which this version of ` +
+      `Task argument "${(binding as { name?: string }).name ?? "undefined"}": ${what} needs mapped task support, which this version of ` +
         "@apache-airflow/ts-sdk does not have",
     );
     expect(getXComEntry).not.toHaveBeenCalled();

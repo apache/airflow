@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"strings"
 	"testing"
@@ -521,9 +522,22 @@ func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
 				"fallback": map[string]any{"kind": "literal", "value": "y"},
 			},
 		},
+		{
+			what: "spread",
+			spec: map[string]any{
+				"kind": "xcom", "task_id": "extract", "spread": true,
+			},
+		},
+		{
+			what: "future_field",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x", "future_field": 1,
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("%s on %s", tc.what, tc.spec["kind"]), func(t *testing.T) {
+			name, _ := tc.spec["name"].(string)
 			ran := false
 			bundle := buildBundle(t, func(r testBundle) {
 				r.AddDag("test_dag").AddTaskWithName("transform",
@@ -544,14 +558,40 @@ func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
 				t,
 				result,
 				fmt.Sprintf(
-					`("country"): %s needs mapped task support, which this version of the Go SDK `+
+					`(%q): %s needs mapped task support, which this version of the Go SDK `+
 						"does not have",
+					name,
 					tc.what,
 				),
 			)
 			assert.False(t, ran, "the task body must not run on a binding it cannot honour")
 		})
 	}
+}
+
+func TestConvertArgBindingsAcceptsDefaultValuedFields(t *testing.T) {
+	defaults := map[string]any{
+		"map_index":     nil,
+		"element_index": nil,
+		"apply_map":     false,
+		"kwarg":         nil,
+		"fallback":      nil,
+		"spread":        false,
+	}
+	withDefaults := func(spec map[string]any) map[string]any {
+		maps.Copy(spec, defaults)
+		return spec
+	}
+	specs := genmodels.ArgBindings{
+		withDefaults(map[string]any{"name": "country", "kind": "xcom", "task_id": "extract"}),
+		withDefaults(map[string]any{"name": "region", "kind": "literal", "value": "uk"}),
+	}
+
+	args, err := convertArgBindings(&specs)
+	require.NoError(t, err)
+	require.Len(t, args, 2)
+	assert.Equal(t, "extract", args[0].(binding.XComArg).TaskID)
+	assert.Equal(t, "uk", args[1].(binding.LiteralArg).Value)
 }
 
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {
