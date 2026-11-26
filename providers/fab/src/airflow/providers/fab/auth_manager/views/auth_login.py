@@ -47,12 +47,9 @@ def redirect_if_authenticated() -> Response | None:
 
 class EndSessionOnLogoutMixin(AuthView):
     """
-    End the whole Flask session on logout and return to the login page.
+    End the whole Flask session on logout and redirect to the login page.
 
-    Flask-AppBuilder's logout only removes the user from the session, so the session row and cookie
-    outlive the logout, and it redirects to the index page, which sends the user to the UI instead of
-    the login form (the UI then renders for anonymous users when a public role is configured).
-    ``LOGOUT_REDIRECT_URL`` still takes precedence when it is set.
+    ``LOGOUT_REDIRECT_URL`` takes precedence over the login page when it is set.
     """
 
     @expose("/logout/")
