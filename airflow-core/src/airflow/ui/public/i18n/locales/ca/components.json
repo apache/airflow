@@ -101,7 +101,7 @@
     "placeholderArray": "Afegiu un valor i premeu Retorn",
     "placeholderExamples": "Comença a escriure per veure opcions",
     "placeholderMulti": "Selecciona un o diversos valors",
-    "validationErrorArrayElement": "Valors no vàlids per al tipus {{type}}: {{values}}",
+    "validationErrorArrayElement": "Valor(s) no vàlid(s) per al tipus {{type}}: {{values}}",
     "validationErrorArrayNotArray": "El valor ha de ser un array.",
     "validationErrorArrayNotNumbers": "Tots els elements de l'array han de ser números.",
     "validationErrorArrayNotObject": "Tots els elements de l'array han de ser objectes.",
