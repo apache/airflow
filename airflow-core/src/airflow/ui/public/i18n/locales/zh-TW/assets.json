@@ -56,9 +56,9 @@
   "lastAssetEvent": "最後資源事件",
   "name": "名稱",
   "partitions": {
-    "consumerRuns": "消費者執行",
+    "consumerRuns": "消費者 Dag 執行",
     "consumerRunsHelp": "已消費此分區最後一個資源事件的 Dag 執行",
-    "lastProducerRun": "最後生產者執行",
+    "lastProducerRun": "最後生產者 Dag 執行",
     "status": {
       "in_progress": "進行中",
       "materialized": "已實體化"
