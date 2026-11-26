@@ -31,6 +31,7 @@
     "deadlines": "截止期限",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
+    "triggers": "觸發器",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "收合所有額外 JSON",
@@ -118,6 +119,7 @@
     "home": "首頁",
     "invalidUrl": "找不到頁面。請檢查 URL 並重試。",
     "notFound": "找不到頁面",
+    "reload": "重新載入頁面",
     "title": "錯誤"
   },
   "errors": {
@@ -196,6 +198,7 @@
     },
     "save": "儲存"
   },
+  "moreTabs": "更多",
   "nav": {
     "admin": "管理者",
     "assets": "資源",
@@ -259,6 +262,7 @@
     "asset_triggered": "資源觸發",
     "backfill": "回填",
     "manual": "手動觸發",
+    "operator_triggered": "任務操作器觸發",
     "scheduled": "已排程"
   },
   "scroll": {
@@ -438,6 +442,7 @@
   "switchDag": "切換 $t(dag_one)",
   "switchDagRun": "切換 $t(dagRun_one)",
   "switchMapIndex": "切換 $t(mapIndex)",
+  "switchTask": "切換$t(task_one)",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
@@ -608,6 +613,8 @@
     "tokenShownOnce": "此權杖僅會顯示一次，請立即複製。"
   },
   "total": "總計 {{state}}",
+  "trigger_one": "觸發器",
+  "trigger_other": "觸發器",
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
   "unpause": "取消暫停",

@@ -18,7 +18,7 @@
     "emptyState": "資源儲存區會儲存綁定於資源識別的值，並在所有 Dag 執行間共用。工作節點可透過 Task SDK 寫入資源儲存區。",
     "entry_one": "項目",
     "entry_other": "項目",
-    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedBy": "最後更新來源",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "監聽器",
     "title": "資源儲存區"
@@ -55,6 +55,15 @@
   "group": "群組",
   "lastAssetEvent": "最後資源事件",
   "name": "名稱",
+  "partitions": {
+    "consumerRuns": "消費者 Dag 執行",
+    "consumerRunsHelp": "已消費此分區最後一個資源事件的 Dag 執行",
+    "lastProducerRun": "最後生產者 Dag 執行",
+    "status": {
+      "in_progress": "進行中",
+      "materialized": "已實體化"
+    }
+  },
   "producingTasks": "生產者任務",
   "scheduledDags": "已排程的 Dags",
   "scheduling": "排程",
@@ -62,5 +71,9 @@
   "taskDependencies": "任務相依性",
   "watcher_one": "監聽器",
   "watcher_other": "監聽器",
+  "watcherFailing_one": "個監聽器持續失敗",
+  "watcherFailing_other": "個監聽器持續失敗",
+  "watcherOrphaned_one": "個監聽器已孤立",
+  "watcherOrphaned_other": "個監聽器已孤立",
   "watchers": "監聽器"
 }
