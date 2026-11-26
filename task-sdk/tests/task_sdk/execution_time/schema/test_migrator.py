@@ -664,14 +664,6 @@ class TestRealBundleArgBindingsDowngrade:
         assert needs_v2027_02_28_runtime(binding)
         assert not needs_v2027_02_28_runtime({"name": "row", "kind": "xcom", "task_id": "extract"})
 
-    @pytest.mark.parametrize(("version", "expected"), [("2026-10-30", False), ("2027-02-28", True)])
-    def test_has_mapped_arg_bindings_change(self, real_migrator, version, expected):
-        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
-            AddMappedStubArgBindingsToSupervisorTIRunContext,
-        )
-
-        assert real_migrator.has_change(version, AddMappedStubArgBindingsToSupervisorTIRunContext) is expected
-
     def test_downgrade_keeps_plain_arg_bindings_for_previous_version(self, real_migrator, startup_details):
         context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump(exclude_unset=True)[
             "ti_context"

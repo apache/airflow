@@ -1239,10 +1239,11 @@ class TestPopenActivitySubprocessClearXComs:
             "loc": ANY,
         } in captured_logs
 
+    @pytest.mark.parametrize("schema_version", ["2026-10-30", "2027-02-28"])
     @patch.object(Client, "_request_with_retry", Client._request_without_retry)
     @patch.object(ActivitySubprocess, "send_msg", autospec=True)
-    def test_fails_the_try_without_starting_the_task_when_the_runtime_cannot_read_its_arguments(
-        self, mock_send_msg, make_ti_context_dict, time_machine
+    def test_fails_the_try_without_starting_the_task_when_the_runtime_cannot_bind_its_arguments(
+        self, mock_send_msg, make_ti_context_dict, time_machine, schema_version
     ):
         time_machine.move_to(datetime(2026, 1, 2, 3, 4, 5, tzinfo=UTC), tick=False)
         ti = _make_ti()
@@ -1267,18 +1268,14 @@ class TestPopenActivitySubprocessClearXComs:
             bundle_info=FAKE_BUNDLE,
             client=make_client(transport=httpx2.MockTransport(handle_request)),
             command=[sys.executable, "-c", _RUNTIME_AWAITING_STARTUP],
-            subprocess_schema_version="2026-10-30",
+            subprocess_schema_version=schema_version,
             subprocess_logs_to_stdout=False,
         )
 
         assert proc.wait() == -signal.SIGKILL
         mock_send_msg.assert_not_called()
         assert reports == [
-            (
-                "failed",
-                "The task's arguments need a runtime at supervisor schema version 2027-02-28 or later, "
-                "but it is at 2026-10-30; upgrade its SDK",
-            )
+            ("failed", "The task's arguments need mapped task support, which no Lang SDK runtime has yet")
         ]
 
 

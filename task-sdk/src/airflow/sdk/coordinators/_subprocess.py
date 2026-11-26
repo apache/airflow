@@ -618,7 +618,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
 
         Like ``XCom.delete``, this reads, deletes, then purges each XCom. A failure fails this try, as it
-        does for a Python task. A runtime too old to read the task's arguments also fails this try.
+        does for a Python task. A task whose arguments no Lang SDK runtime can bind yet also fails this try.
 
         Also fills in the worker's default ``execution_timeout`` when the task sets none.
         """
@@ -629,11 +629,8 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         if execution_timeout is None:
             execution_timeout = self._default_execution_timeout
         self._execution_timeout_seconds = execution_timeout
-        if self._runtime_lacks_mapped_arg_bindings(ti_context):
-            reason = (
-                "The task's arguments need a runtime at supervisor schema version 2027-02-28 or later, "
-                f"but it is at {self._subprocess_schema_version}; upgrade its SDK"
-            )
+        if self._has_unsupported_arg_bindings(ti_context):
+            reason = "The task's arguments need mapped task support, which no Lang SDK runtime has yet"
             self.process_log.error(reason)
             # A retry gets the same runtime, so it cannot succeed either.
             self._fail_before_start(ti_context, reason, retryable=False)
@@ -692,19 +689,13 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         )
         self.kill(signal.SIGKILL)
 
-    def _runtime_lacks_mapped_arg_bindings(self, ti_context: TIRunContext) -> bool:
-        if (version := self._subprocess_schema_version) is None or not ti_context.arg_bindings:
+    def _has_unsupported_arg_bindings(self, ti_context: TIRunContext) -> bool:
+        if self._subprocess_schema_version is None or not ti_context.arg_bindings:
             return False
         # Imported here, like the migrator's own cadwyn import, so a Python-only worker never pays for it.
-        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
-            AddMappedStubArgBindingsToSupervisorTIRunContext,
-            needs_v2027_02_28_runtime,
-        )
+        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import needs_v2027_02_28_runtime
 
-        if get_schema_version_migrator().has_change(
-            version, AddMappedStubArgBindingsToSupervisorTIRunContext
-        ):
-            return False
+        # No Lang SDK runtime binds these yet, whatever schema version it speaks.
         return any(
             needs_v2027_02_28_runtime(binding.model_dump(mode="json")) for binding in ti_context.arg_bindings
         )
