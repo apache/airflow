@@ -155,7 +155,7 @@
     "logicalDateFrom": "Data Lògica Des de",
     "logicalDateTo": "Data Lògica Fins a",
     "loop": "Bucle",
-    "loopAllIterations": "{{loop}} (totes les iteracions)",
+    "loopAllIterations": "{{loop}} totes",
     "loopIteration": "{{loop}} {{index}}",
     "loopPlaceholder": "Seleccioneu un bucle",
     "maxActiveRunsFrom": "Màxim d'execucions actives des de",
@@ -303,7 +303,7 @@
     },
     "dagsList": {
       "recentTasks": {
-        "helper": "Mostra l'estat de les tasques recents de cada Dag a la llista de Dags. Desactiveu aquesta opció per evitar carregar-les. Això pot millorar el rendiment en desplegaments amb molts Dags.",
+        "helper": "Mostra l'estat de les tasques recents de cada Dag a la llista de Dags. Desactiveu aquesta opció per a evitar carregar-les. Això pot millorar el rendiment en desplegaments amb molts Dags.",
         "label": "Mostrar les tasques recents"
       },
       "title": "Llista de Dags"

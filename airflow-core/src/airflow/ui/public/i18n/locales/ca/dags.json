@@ -49,7 +49,7 @@
     "description": "Estat de les tasques de totes les execucions actives del Dag. Si no n'hi ha cap, es mostra l'estat de les tasques de la darrera execució. Podeu desactivar aquesta opció a la configuració d'usuari.",
     "label": "Tasques recents",
     "loading": "S'està carregant el recompte de tasques recents per estat",
-    "tooltip": "{{state}}: {{formattedCount}} — feu clic per filtrar les tasques"
+    "tooltip": "{{state}}: {{formattedCount}} — feu clic per a filtrar les tasques"
   },
   "runAndTaskActions": {
     "affectedTasks": {

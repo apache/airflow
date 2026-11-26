@@ -141,7 +141,7 @@
       "cap_reached": "S'ha assolit el límit d'iteracions ({{max}})",
       "failed": "Ha fallat a la iteració {{index}}",
       "iteration_failed": "La iteració {{index}} ha fallat a {{taskId}}",
-      "ran_to_cap": "S'han executat totes les iteracions permeses ({{max}})",
+      "ran_to_cap": "S'han executat totes les {{max}} iteracions permeses",
       "removed": "Eliminat",
       "running": "Executant-se",
       "skipped": "Saltat",
@@ -335,7 +335,7 @@
     },
     "limitReached": {
       "description": "Hi ha més canvis dels que permet el límit «Màxim de canvis». Augmenteu el límit per veure la resta.",
-      "descriptionDefault": "Hi ha més canvis dels que permet el límit per defecte. Augmenteu el valor de «Màxim de canvis» per veure la resta.",
+      "descriptionDefault": "Hi ha més canvis dels que permet el límit per defecte. Augmenteu el valor de «Màxim de canvis» per a veure la resta.",
       "title": "Es mostren només els primers {{limit, number}} canvis"
     },
     "maxChanges": "Màxim de canvis",
