@@ -317,10 +317,12 @@ load to help. With one Ollama on each worker (a ``localhost`` connection) or sev
 replicas behind a load balancer, the load request can reach a different server
 than the LLM call, and then it has no effect on that call.
 
-``timeout`` is passed as is to the load request. Running out ends in a
-``TimeoutError`` naming the model. A server that cannot be reached raises
-``httpx2.ConnectError`` naming the server. Nothing is retried, so a wrong host,
-a server error or a request timing out is raised right away.
+``timeout`` is passed as is to the load request. Running out while the model
+loads ends in a ``TimeoutError`` naming the model. A refused connection raises
+``httpx2.ConnectError`` and a connect timeout, such as a host that drops
+packets, raises ``TimeoutError``; both name the server, not the model. Nothing
+is retried, so a wrong host, a server error or a request timing out is raised
+right away.
 
 .. _self_hosted_models_readiness_backend:
 
@@ -400,7 +402,8 @@ Things to know:
   request was given.
 - **Concurrent tasks.** The list and the load are two requests, not one atomic
   step, so two tasks that start together can both see the model as not loaded
-  and both send a load request.
+  and both send a load request. Each of those loads is another instance, and as
+  the next item says, it stays in memory until you unload it.
 - **The model stays loaded.** The load request sends no TTL, and a model loaded
   this way has none: LM Studio neither unloads it when it is idle nor evicts it
   to make room for another model, both of which only apply to models with a TTL
