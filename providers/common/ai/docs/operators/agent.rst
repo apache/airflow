@@ -375,10 +375,9 @@ Parameters
   templating.
 - ``output_type``: Expected output type (default: ``str``). Set to a Pydantic
   ``BaseModel`` for structured output.
-- ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``,
-  ``AgentSkillsToolset`` for :ref:`agent-skills`, etc.).
+- ``toolsets``: List of pydantic-ai toolsets (``SQLToolset``, ``HookToolset``, etc.).
 - ``capabilities``: List of pydantic-ai capabilities (``Thinking``, ``WebSearch``, guardrails,
-  etc.). See :ref:`capabilities`.
+  ``AirflowSkills`` for :ref:`agent-skills`, etc.). See :ref:`capabilities`.
 - ``enable_tool_logging``: Append a
   :class:`~airflow.providers.common.ai.toolsets.logging.ToolLoggingCapability`, which
   wraps the assembled function toolset, so that tools supplied through ``toolsets=``,

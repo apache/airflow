@@ -17,28 +17,28 @@
 
 .. _agent-skills:
 
-Agent Skills: ``AgentSkillsToolset``
-====================================
+Agent Skills: ``AirflowSkills``
+===============================
 
 .. note::
 
     Experimental: this can change or be removed in a minor release of this provider.
     See :ref:`howto/stability`.
 
-:class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` loads
+:class:`~airflow.providers.common.ai.skills.AirflowSkills` loads
 `Agent Skills <https://agentskills.io>`__ -- ``SKILL.md`` bundles (instructions,
 and optionally scripts and resources) that the model discovers and loads *on
 demand*. Only a compact catalog of skill names and descriptions sits in the
 prompt until the model decides it needs one, so a large skill library costs few
 tokens until used (progressive disclosure).
 
-It is backed by the community `pydantic-ai-skills
-<https://github.com/DougTrajano/pydantic-ai-skills>`__ package (MIT). ``pydantic-ai-harness``'s
-`Skills <https://github.com/pydantic/pydantic-ai-harness/tree/main/pydantic_ai_harness/skills>`__
-capability also loads Agent Skills, as on-demand capabilities, but only their ``SKILL.md``
-instructions. :ref:`AirflowSkills <agent-skills-airflow-skills>` builds on it and adds
-resources, scripts and ``GitSkills``.
-Install the optional extra to use this toolset:
+It is a pydantic-ai capability built on ``pydantic-ai-harness``'s
+`Skills <https://github.com/pydantic/pydantic-ai-harness/tree/main/pydantic_ai_harness/skills>`__.
+The harness loads a skill's ``SKILL.md`` instructions; ``AirflowSkills`` adds resources, scripts and
+``GitSkills``. It replaces the deprecated
+:ref:`AgentSkillsToolset <agent-skills-deprecated-toolset>`; see :ref:`agent-skills-migration`
+to move an existing Dag over.
+Install the optional extra to use it:
 
 .. code-block:: bash
 
@@ -46,7 +46,7 @@ Install the optional extra to use this toolset:
 
 Each source is a local directory or a connection-resolved
 :class:`~airflow.providers.common.ai.skills.GitSkills`. Sources are resolved when
-the agent enters the toolset, on the worker -- never while the Dag processor
+the agent starts a run, on the worker -- never while the Dag processor
 parses the file -- so a Git token is never baked into the serialized Dag, and
 cloned repositories are removed when the run ends.
 
@@ -89,94 +89,17 @@ need strict isolation.
 Restricting the agent
 ---------------------
 
-This agent can read skills but cannot run any script a skill ships, and files that
-match the ``exclude_resources`` patterns stay out of its reach. The example skills ship
-no scripts, so the exclusion matters once a skill adds one:
+This agent can load skills and read their resources, but no ``run_skill_script`` tool is
+registered, so it cannot run a script a skill ships. Files that match the ``exclude_resources``
+patterns are refused by ``read_skill_resource``:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_skills.py
     :language: python
     :start-after: [START howto_operator_agent_skills_restricted]
     :end-before: [END howto_operator_agent_skills_restricted]
 
-The model is offered ``list_skills``, ``load_skill`` and ``read_skill_resource``. A
-call to the excluded tool got ``Unknown tool name: 'run_skill_script'. Available
-tools: 'list_skills', 'load_skill', 'read_skill_resource'``.
-
-The example skills contain no file the patterns match, so the next run used a copy of
-them with ``warehouse.env``, ``secrets/token.txt`` and ``reference.md`` added to
-``sql-reporting``. ``load_skill`` listed only ``reference.md`` as a resource, and
-reading an excluded file got:
-
-.. code-block:: text
-
-    Resource 'warehouse.env' not found in skill 'sql-reporting'. Available resources: ['reference.md']. Use the exact name from load_skill output.
-
-Without ``max_retries``, each skills tool allows as many corrections as the agent's
-``retries``, one by default, and a successful call to that tool resets the count. With
-the default, a second refused read in a row failed the run with
-``UnexpectedModelBehavior``:
-
-.. code-block:: text
-
-    Tool 'read_skill_resource' exceeded max retries count of 1. Consider raising the retry limit, or see the docs on tool retries: https://pydantic.dev/docs/ai/tools-toolsets/tools-advanced/#tool-retries
-
-With the example's ``max_retries=3``, the same two refused reads went back to the model,
-which then read ``reference.md`` and finished the run.
-
-``exclude_resources`` hides files from the resource tools only. A skill's scripts can
-still read them, which is why the example excludes ``run_skill_script`` as well.
-
-.. _agent-skills-observability:
-
-Seeing which skills a run used
-------------------------------
-
-When the toolset runs inside an Airflow task, it publishes on XCom, under the key
-``__AIRFLOW__COMMON_AI_SKILLS__``, every skill it offered the agent: its name and
-description, where it came from, and how many times the agent called ``load_skill``,
-``read_skill_resource`` and ``run_skill_script`` for it. A local skill names its path on
-the worker. A ``GitSkills`` skill names the repository, its path inside the repository,
-the ``branch`` you set and the commit that was cloned, so a run that behaves differently
-from an earlier one can be traced to a change in the skill between two commits.
-
-The :ref:`AI Model tab <howto/observability:model-tab>` shows this list, loaded skills
-first, with a link to the skill's folder at that commit for a repository on GitHub or
-GitLab, and says so when the sources held no skills. Calls made before a tool-approval
-pause or a human-review regeneration still count, and so do calls a durable retry replays.
-Only calls the tool answered count: a denied, retried, failed or interrupted call does not,
-while a script that exits with an error still does, since ``run_skill_script`` returns its
-output. A ``message_history`` seeded from another task does not add that task's calls, and
-calls that a history processor or compaction removes from the transcript are not counted.
-``calls`` totals ``calls_by_run``, which keeps the calls of each agent run that made any
-under its pydantic-ai run id.
-A run resumed from a tool-approval pause and a human-review regeneration each clone the
-repository again, so the source shows the commit the latest run cloned. A toolset built by
-a function, which the agent wraps in pydantic-ai's ``DynamicToolset``, is built and cloned
-again on every model step unless you pass ``DynamicToolset(fn, per_run_step=False)``.
-Several skills toolsets on one agent, each wrapped with ``prefixed()`` to keep their tool
-names apart, share the same list. Nothing is published when the task sets
-``do_xcom_push=False``.
-
-Parameters
-----------
-
-- ``sources``: List of skill sources -- local directory paths and/or
-  :class:`~airflow.providers.common.ai.skills.GitSkills`.
-- ``exclude_tools``: Optional set of skill tool names to hide from the agent
-  (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
-- ``exclude_resources``: Optional glob patterns to exclude from resource
-  discovery, added on top of the built-in defaults (``__pycache__``, ``*.pyc``,
-  ``*.pyo``, ``.DS_Store``, ``.git``). A skill exposes every readable text file
-  it contains as a resource; these patterns keep matched files out of the
-  resource list and the ``read_skill_resource`` tool (e.g.
-  ``["*.env", "secrets/*"]``). Each pattern matches the full skill-relative path
-  or any single path component. This hides files from resource discovery only --
-  it does not stop a skill's ``run_skill_script`` from reading them off disk, so
-  pair it with ``exclude_tools={"run_skill_script"}`` when the files are
-  genuinely sensitive.
-- ``max_retries``: How many times the model may correct failed calls to one skills tool
-  before the run fails; a successful call to that tool resets the count. Default
-  ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
+``exclude_resources`` limits the two skill tools only. A script that does run can still read any
+file in the skill's directory, which is why the example sets ``scripts=None`` as well.
 
 .. _agent-skills-airflow-skills:
 
@@ -282,11 +205,161 @@ exact same version, so installing the ``skills`` extra decides which ``pydantic-
 ``AirflowSkills`` needs ``pydantic-ai-harness>=0.66.0``, and reads skills through harness's
 ``LocalWorkspaceBackend``, which works on POSIX systems only.
 
+.. _agent-skills-migration:
+
+Migrating from ``AgentSkillsToolset``
+-------------------------------------
+
+``AgentSkillsToolset`` is deprecated and emits an ``AirflowProviderDeprecationWarning`` when you create
+it. It will be removed in a later release of this provider, and ``pydantic-ai-skills``, the package it
+needs, will then leave the ``skills`` extra. New code should use ``AirflowSkills``.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 45 55
+
+   * - ``AgentSkillsToolset``
+     - ``AirflowSkills``
+   * - ``AgentSkillsToolset(sources=[...])``
+     - ``AirflowSkills(sources=[...])``
+   * - ``toolsets=[...]`` on the operator
+     - ``capabilities=[...]``
+   * - ``exclude_tools={"run_skill_script"}``
+     - ``scripts=None``
+   * - ``exclude_tools={"read_skill_resource"}``
+     - ``resources=False``
+   * - ``list_skills`` and ``load_skill`` tools
+     - ``load_capability``; the catalog is part of the prompt
+   * - ``exclude_resources=[...]``, ``max_retries=...``
+     - The same parameters
+
+``exclude_tools`` has no other counterpart: ``AirflowSkills`` has no ``list_skills`` or ``load_skill``
+tool to hide. To offer fewer skills, use ``include`` or ``exclude``.
+
+.. code-block:: python
+
+    # Before
+    AgentOperator(
+        task_id="report",
+        prompt="Build last week's revenue report.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[AgentSkillsToolset(sources=["./skills"], exclude_tools={"run_skill_script"})],
+    )
+
+    # After
+    AgentOperator(
+        task_id="report",
+        prompt="Build last week's revenue report.",
+        llm_conn_id="pydanticai_default",
+        capabilities=[AirflowSkills(sources=["./skills"], scripts=None)],
+    )
+
+How ``AirflowSkills`` behaves differently is listed under
+:ref:`AirflowSkills <agent-skills-airflow-skills>` above, from where skills are found to what a
+script path means.
+
+.. warning::
+
+    The skills telemetry is not migrated yet. The skills XCom (``__AIRFLOW__COMMON_AI_SKILLS__``) and
+    the skills list in the :ref:`AI Model tab <howto/observability:model-tab>` come from
+    ``AgentSkillsToolset``, and the tab counts a skill as loaded when the agent called ``load_skill``.
+    ``AirflowSkills`` publishes no skills XCom and loads a skill with ``load_capability``, so a task
+    that uses it shows no skills in the tab.
+
+.. _agent-skills-deprecated-toolset:
+
+``AgentSkillsToolset`` (deprecated)
+-----------------------------------
+
+.. deprecated::
+    Use :ref:`AirflowSkills <agent-skills-airflow-skills>` instead. See :ref:`agent-skills-migration`.
+
+:class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` is a pydantic-ai toolset
+backed by the community `pydantic-ai-skills <https://github.com/DougTrajano/pydantic-ai-skills>`__
+package (MIT), which dropped the class it wraps in 2.0, so the ``skills`` extra keeps it below 2. It
+is passed in the operator's ``toolsets=`` list:
+
+.. code-block:: python
+
+    AgentOperator(
+        task_id="report",
+        prompt="Build last week's revenue report.",
+        llm_conn_id="pydanticai_default",
+        toolsets=[
+            AgentSkillsToolset(
+                sources=[
+                    "./skills",
+                    GitSkills(repo_url="https://github.com/my-org/agent-skills", conn_id="github_skills"),
+                ],
+                exclude_tools={"run_skill_script"},
+                exclude_resources=["*.env", "secrets/*"],
+                max_retries=3,
+            )
+        ],
+    )
+
+The model is offered ``list_skills``, ``load_skill``, ``read_skill_resource`` and
+``run_skill_script``, minus the tools in ``exclude_tools``. ``exclude_resources`` hides files from
+the resource tools only; a skill's scripts can still read them, so pair it with
+``exclude_tools={"run_skill_script"}`` when the files are sensitive.
+
+.. _agent-skills-observability:
+
+Seeing which skills a run used
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When ``AgentSkillsToolset`` runs inside an Airflow task, it publishes on XCom, under the key
+``__AIRFLOW__COMMON_AI_SKILLS__``, every skill it offered the agent: its name and
+description, where it came from, and how many times the agent called ``load_skill``,
+``read_skill_resource`` and ``run_skill_script`` for it. A local skill names its path on
+the worker. A ``GitSkills`` skill names the repository, its path inside the repository,
+the ``branch`` you set and the commit that was cloned, so a run that behaves differently
+from an earlier one can be traced to a change in the skill between two commits.
+
+The :ref:`AI Model tab <howto/observability:model-tab>` shows this list, loaded skills
+first, with a link to the skill's folder at that commit for a repository on GitHub or
+GitLab, and says so when the sources held no skills. Calls made before a tool-approval
+pause or a human-review regeneration still count, and so do calls a durable retry replays.
+Only calls the tool answered count: a denied, retried, failed or interrupted call does not,
+while a script that exits with an error still does, since ``run_skill_script`` returns its
+output. A ``message_history`` seeded from another task does not add that task's calls, and
+calls that a history processor or compaction removes from the transcript are not counted.
+``calls`` totals ``calls_by_run``, which keeps the calls of each agent run that made any
+under its pydantic-ai run id.
+A run resumed from a tool-approval pause and a human-review regeneration each clone the
+repository again, so the source shows the commit the latest run cloned. A toolset built by
+a function, which the agent wraps in pydantic-ai's ``DynamicToolset``, is built and cloned
+again on every model step unless you pass ``DynamicToolset(fn, per_run_step=False)``.
+Several skills toolsets on one agent, each wrapped with ``prefixed()`` to keep their tool
+names apart, share the same list. Nothing is published when the task sets
+``do_xcom_push=False``.
+
+``AgentSkillsToolset`` parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- ``sources``: List of skill sources -- local directory paths and/or
+  :class:`~airflow.providers.common.ai.skills.GitSkills`.
+- ``exclude_tools``: Optional set of skill tool names to hide from the agent
+  (e.g. ``{"run_skill_script"}`` to disable on-worker script execution).
+- ``exclude_resources``: Optional glob patterns to exclude from resource
+  discovery, added on top of the built-in defaults (``__pycache__``, ``*.pyc``,
+  ``*.pyo``, ``.DS_Store``, ``.git``). A skill exposes every readable text file
+  it contains as a resource; these patterns keep matched files out of the
+  resource list and the ``read_skill_resource`` tool (e.g.
+  ``["*.env", "secrets/*"]``). Each pattern matches the full skill-relative path
+  or any single path component. This hides files from resource discovery only --
+  it does not stop a skill's ``run_skill_script`` from reading them off disk, so
+  pair it with ``exclude_tools={"run_skill_script"}`` when the files are
+  genuinely sensitive.
+- ``max_retries``: How many times the model may correct failed calls to one skills tool
+  before the run fails; a successful call to that tool resets the count. Default
+  ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
+
 Using Agent Skills with other frameworks
 ----------------------------------------
 
-``AgentSkillsToolset`` is a standard pydantic-ai toolset, so it also works with a
-plain ``pydantic_ai.Agent`` you build yourself, not just ``AgentOperator``.
+``AirflowSkills`` is a pydantic-ai capability, so it can also be passed to the ``capabilities=``
+list of a plain ``pydantic_ai.Agent`` you build yourself, not just ``AgentOperator``.
 
 Because Agent Skills is a cross-framework format, the connection handling is also
 reusable through :func:`~airflow.providers.common.ai.skills.resolve_skills`, which
@@ -313,23 +386,20 @@ When to choose it
 an endpoint: how this team writes a report, which checks run before a release,
 what the house conventions are. A skill is a directory of instructions and
 optional scripts, and
-:class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` makes it
+:class:`~airflow.providers.common.ai.skills.AirflowSkills` makes it
 discoverable. See :ref:`agent-skills` for the layout.
 
 **What it cannot do**
 
 - ``exclude_resources`` does not hide a file from the skill's own scripts. It
   keeps matches out of resource discovery and out of ``read_skill_resource``,
-  and the parameter's documentation says plainly that it does not stop
-  ``run_skill_script`` from reading them off disk. For genuinely sensitive files,
-  pair it with ``exclude_tools={"run_skill_script"}``. (The parameter needs
-  ``pydantic-ai-skills>=1.2.0``, which the ``skills`` extra already pins.)
-- It does not move script execution anywhere safer. The toolset's own wording for
-  ``exclude_tools`` calls ``run_skill_script`` "on-worker script execution", and
-  nothing in this toolset routes those scripts into a sandbox, so unless you
-  exclude the tool, a skill's scripts run in the worker process with the worker's
-  reach. If that is not acceptable, exclude the tool or put the work behind
-  ``SandboxToolset`` instead.
+  and it does not stop ``run_skill_script`` from reading them off disk. For
+  genuinely sensitive files, pair it with ``scripts=None``.
+- It does not move script execution anywhere safer. Nothing in ``AirflowSkills``
+  routes scripts into a sandbox, so unless you pass ``scripts=None``, a skill's
+  scripts run as a subprocess of the worker with the worker's reach. If that is
+  not acceptable, pass ``scripts=None`` or put the work behind ``SandboxToolset``
+  instead.
 - It re-fetches a Git source on every run. ``GitSkills`` is resolved and
   shallow-cloned on the worker when the run starts, and the checkout is deleted
   when it ends; nothing is kept between runs, so a large or slow repository pays

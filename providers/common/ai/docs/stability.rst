@@ -235,8 +235,9 @@ Everything this provider ships that is not in the table above is experimental.
      - Thin integrations of ``pydantic-ai-harness`` and ``pydantic-ai-shields``, which are
        before their 1.0 releases.
    * - The Agent Skills toolset (:doc:`toolsets/skills`)
-     - It is built on ``pydantic-ai-skills``, a community package, which dropped the class it wraps
-       in 2.0, so it stays on 1.x. ``AirflowSkills`` is its replacement.
+     - It is deprecated, and built on ``pydantic-ai-skills``, a community package, which dropped the
+       class it wraps in 2.0, so it stays on 1.x. It will be removed in a later release, and
+       ``pydantic-ai-skills`` then leaves the ``skills`` extra. ``AirflowSkills`` is its replacement.
    * - :class:`~airflow.providers.common.ai.skills.AirflowSkills` (:doc:`toolsets/skills`)
      - It builds on ``pydantic-ai-harness``'s ``Skills``, which is before its 1.0 release. Running
        the scripts in a sandbox is not available yet.

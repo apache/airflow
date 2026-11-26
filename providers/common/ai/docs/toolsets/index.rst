@@ -53,8 +53,9 @@ with is resolved in the worker and is not part of any of that.
    * - :doc:`MCPToolset <mcp>`
      - Every tool the MCP server behind ``mcp_conn_id`` exposes
      - ``.filtered()`` to offer only some of them
-   * - :doc:`AgentSkillsToolset <skills>`
-     - ``SKILL.md`` instruction bundles that the model loads when it needs one
+   * - :doc:`AgentSkillsToolset <skills>` (deprecated)
+     - ``SKILL.md`` instruction bundles that the model loads when it needs one. Use the
+       ``AirflowSkills`` capability instead; see :ref:`agent-skills-migration`
      - ``exclude_tools={"run_skill_script"}`` to stop skill scripts running on the
        worker; ``exclude_resources``
    * - :doc:`SandboxToolset <../sandbox/index>`
@@ -177,7 +178,7 @@ Start with what you have
      - ``MCPToolset``
    * - Procedural knowledge (how to carry out a task) rather than an endpoint
        to call
-     - ``AgentSkillsToolset``
+     - ``AirflowSkills`` (:doc:`skills`)
    * - Work that means running code the model wrote, not calling a tool you chose
      - ``SandboxToolset``
    * - Reasoning that should happen on the vendor's own infrastructure
@@ -221,7 +222,7 @@ making on purpose rather than inheriting.
      - ``mcp_conn_id``, unless ``token_provider`` or ``env_provider`` supplies
        one from elsewhere
      - Remote server, or a child process on the worker host for ``stdio``
-   * - ``AgentSkillsToolset``
+   * - ``AgentSkillsToolset`` (deprecated)
      - ``GitSkills.conn_id`` for private repositories; none for local directories
      - Worker process
    * - ``SandboxToolset``

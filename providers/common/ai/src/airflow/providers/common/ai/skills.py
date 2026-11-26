@@ -24,7 +24,7 @@ paths, the interchange format every Agent Skills implementation consumes
 (pydantic-ai-skills, LangChain DeepAgents, Strands), so the same Airflow
 credential handling works across frameworks.
 
-For pydantic-ai use :class:`AirflowSkills`, or the older
+For pydantic-ai use :class:`AirflowSkills`, or the deprecated
 :class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` binding. For other frameworks,
 resolve the directories yourself::
 

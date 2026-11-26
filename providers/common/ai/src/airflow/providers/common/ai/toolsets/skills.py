@@ -33,6 +33,7 @@ from __future__ import annotations
 import dataclasses
 import logging
 import os
+import warnings
 from collections import Counter, defaultdict
 from importlib import metadata
 from pathlib import Path, PurePosixPath
@@ -40,6 +41,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic_ai.messages import ToolCallPart, ToolReturnPart
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.skills import SkillSource, _materialize_skills, _SkillsLocation
 from airflow.providers.common.ai.utils.logging import SKILLS_XCOM_KEY
 from airflow.providers.common.ai.utils.toolset_base import validate_max_retries
@@ -123,6 +125,11 @@ class AgentSkillsToolset(AbstractToolset):
         Experimental: this can change or be removed in a minor release of this provider.
         See :ref:`howto/stability`.
 
+    .. deprecated::
+        Use :class:`~airflow.providers.common.ai.skills.AirflowSkills` with
+        ``AgentOperator(capabilities=[...])`` instead. This toolset will be removed in a future
+        release, and the ``pydantic-ai-skills`` package it needs will then leave the ``skills`` extra.
+
     Sources are local directory paths and/or
     :class:`~airflow.providers.common.ai.skills.GitSkills`.
 
@@ -155,6 +162,12 @@ class AgentSkillsToolset(AbstractToolset):
         exclude_resources: list[str] | None = None,
         max_retries: int | None = None,
     ) -> None:
+        warnings.warn(
+            "AgentSkillsToolset is deprecated and will be removed in a future release. Use "
+            "airflow.providers.common.ai.skills.AirflowSkills with AgentOperator(capabilities=[...]) instead.",
+            category=AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         self._sources = list(sources)
         self._exclude_tools = exclude_tools
         self._exclude_resources = exclude_resources
@@ -179,12 +192,15 @@ class AgentSkillsToolset(AbstractToolset):
         # Per-run isolation: pydantic-ai shares one toolset instance across runs,
         # but we hold per-run clone/cleanup state on __aenter__/__aexit__. Hand
         # each run its own instance so concurrent runs never clobber each other.
-        return AgentSkillsToolset(
-            self._sources,
-            exclude_tools=self._exclude_tools,
-            exclude_resources=self._exclude_resources,
-            max_retries=self._max_retries,
-        )
+        with warnings.catch_warnings():
+            # The user was warned when they built the toolset; this copy is internal.
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            return AgentSkillsToolset(
+                self._sources,
+                exclude_tools=self._exclude_tools,
+                exclude_resources=self._exclude_resources,
+                max_retries=self._max_retries,
+            )
 
     async def __aenter__(self) -> AgentSkillsToolset:
         # Resolve + clone at run time, on the worker -- not at DAG-parse time.

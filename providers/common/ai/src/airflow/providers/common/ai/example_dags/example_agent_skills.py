@@ -18,7 +18,7 @@
 
 `Agent Skills <https://agentskills.io>`__ are ``SKILL.md`` bundles the model
 discovers and loads on demand (progressive disclosure). They are passed to the
-agent as an ``AgentSkillsToolset`` in the operator's ``toolsets=`` list. Skill
+agent as an ``AirflowSkills`` capability in the operator's ``capabilities=`` list. Skill
 sources are resolved when the task runs, on the worker (not while the DAG
 processor parses the file), so a Git token resolved from an Airflow connection
 is never baked into the serialized DAG.
@@ -33,8 +33,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
-from airflow.providers.common.ai.skills import GitSkills
-from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
+from airflow.providers.common.ai.skills import AirflowSkills, GitSkills
 from airflow.providers.common.compat.sdk import dag
 
 try:
@@ -62,8 +61,8 @@ if SQLToolset is not None:
             prompt="How many orders did our top 5 customers place last month?",
             llm_conn_id="pydanticai_default",
             system_prompt="You are a data analyst. Consult your skills before writing SQL.",
+            capabilities=[AirflowSkills(sources=[str(SKILLS_DIR)])],
             toolsets=[
-                AgentSkillsToolset(sources=[str(SKILLS_DIR)]),
                 SQLToolset(
                     db_conn_id="postgres_default",
                     allowed_tables=["customers", "orders"],
@@ -92,8 +91,8 @@ def example_agent_skills_git():
         prompt="Summarize our refund policy and apply it to order 12345.",
         llm_conn_id="pydanticai_default",
         system_prompt="You are a support agent. Load the relevant skill before answering.",
-        toolsets=[
-            AgentSkillsToolset(
+        capabilities=[
+            AirflowSkills(
                 sources=[
                     GitSkills(
                         repo_url="https://github.com/my-org/agent-skills",
@@ -123,12 +122,12 @@ def example_agent_skills_restricted():
         task_id="report_writer",
         prompt="Review this query against our SQL reporting conventions: SELECT * FROM orders",
         llm_conn_id="pydanticai_default",
-        toolsets=[
-            AgentSkillsToolset(
+        capabilities=[
+            AirflowSkills(
                 sources=[str(SKILLS_DIR)],
-                # Hide the tool that runs a skill's scripts on the worker.
-                exclude_tools={"run_skill_script"},
-                # Keep matching files out of the resources the model can list and read.
+                # Register no tool that runs a skill's scripts on the worker.
+                scripts=None,
+                # Keep matching files out of the resources the model can read.
                 exclude_resources=["*.env", "secrets/*"],
                 # Allow up to 3 corrections per skills tool; a successful call resets the count.
                 max_retries=3,

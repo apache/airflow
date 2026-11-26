@@ -26,6 +26,7 @@ import asyncio
 import os
 import sys
 import types
+import warnings
 from collections import Counter
 from unittest.mock import MagicMock, patch
 
@@ -37,6 +38,7 @@ from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCall
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.toolsets import DynamicToolset
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.skills import GitSkills, _SkillsLocation
 from airflow.providers.common.ai.toolsets.skills import (
     AgentSkillsToolset,
@@ -46,6 +48,11 @@ from airflow.providers.common.ai.toolsets.skills import (
 from airflow.providers.common.ai.utils.logging import SKILLS_XCOM_KEY
 
 pytest.importorskip("pydantic_ai_skills")
+
+# AgentSkillsToolset is deprecated; these tests cover its behavior until it is removed.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:AgentSkillsToolset is deprecated:airflow.exceptions.AirflowProviderDeprecationWarning"
+)
 
 
 class _FakeInner:
@@ -75,6 +82,19 @@ def _write_skill(directory, name="demo-skill"):
 
 
 class TestConstruction:
+    def test_construction_warns_and_points_to_airflow_skills(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=r"skills\.AirflowSkills") as record:
+            AgentSkillsToolset(sources=["./skills"])
+
+        assert len(record) == 1
+        assert record[0].filename == __file__
+
+    def test_per_run_copy_does_not_warn_again(self):
+        toolset = AgentSkillsToolset(sources=["./skills"])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            asyncio.run(toolset.for_run(MagicMock()))
+
     def test_is_abstract_toolset_and_lazy(self):
         from pydantic_ai.toolsets.abstract import AbstractToolset
 
