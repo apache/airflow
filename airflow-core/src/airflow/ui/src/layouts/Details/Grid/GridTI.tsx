@@ -28,7 +28,6 @@ import { AltClickExtraLinks } from "src/components/AltClickExtraLinks";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
-import { SearchParamsKeys } from "src/constants/searchParams";
 import { useColorMode } from "src/context/colorMode";
 import { useTaskInstanceExtraLinks } from "src/hooks/useTaskInstanceExtraLinks";
 import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
@@ -75,19 +74,17 @@ export const GridTI = ({
   const { t: translate } = useTranslation("components");
 
   const [searchParams] = useSearchParams();
-  const [isHovered, setIsHovered] = useState(false);
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
   const hasTaskInstance = instance.dag_version_number !== null && instance.dag_version_number !== undefined;
-  const tryNumberParam = searchParams.get(SearchParamsKeys.TRY_NUMBER);
 
   const links = useTaskInstanceExtraLinks({
     dagId,
     dagRunId: runId,
-    enabled: isHovered && hasTaskInstance,
+    enabled: isTooltipOpen && hasTaskInstance,
     regionId: instance.latest_region_id,
     regionIndex: instance.latest_region_index,
     taskId,
-    tryNumber: tryNumberParam === null ? undefined : parseInt(tryNumberParam, 10),
   });
   const hint =
     links.length === 0
@@ -143,6 +140,7 @@ export const GridTI = ({
       <TaskInstanceTooltip
         hint={hint}
         loopMaxIterations={loopMaxIterations}
+        onOpenChange={({ open }) => setIsTooltipOpen(open)}
         openDelay={500}
         positioning={{ placement: "bottom" }}
         runId={runId}
@@ -169,8 +167,6 @@ export const GridTI = ({
               data-testid={`grid-${runId}-${taskId}`}
               id={`grid-${runId}-${taskId}`}
               onClick={onClick}
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
               replace
               to={{
                 pathname: taskUrl,

@@ -18,10 +18,10 @@
  */
 import type { ComponentProps, ReactNode } from "react";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
@@ -94,6 +94,10 @@ describe("TaskNode operator colors", () => {
 });
 
 describe("TaskNode links", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("links to the task overview when the run has no task instance", () => {
     render(
       <ReactFlowProvider>
@@ -130,7 +134,8 @@ describe("TaskNode links", () => {
     );
   });
 
-  it("fetches extra links for the hovered task instance", () => {
+  it("fetches extra links when the task tooltip opens", async () => {
+    vi.useFakeTimers();
     vi.mocked(useTaskInstanceExtraLinks).mockReturnValue([
       { name: "Triggered DAG", url: "https://example.com/run" },
     ]);
@@ -170,7 +175,14 @@ describe("TaskNode links", () => {
     const link = screen.getByRole("link", { name: "example_task" });
 
     expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).toMatchObject({ enabled: false });
-    fireEvent.mouseEnter(link);
+    const trigger = link.closest('[data-part="trigger"]') ?? link;
+
+    await act(async () => {
+      fireEvent.focus(trigger);
+      fireEvent.pointerEnter(trigger, { pointerType: "mouse" });
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
     expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).toMatchObject({
       dagId: "test_dag",
       dagRunId: "test_run",
@@ -178,8 +190,8 @@ describe("TaskNode links", () => {
       regionId: "region",
       regionIndex: 2,
       taskId: "example_task",
-      tryNumber: 2,
     });
+    expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).not.toHaveProperty("tryNumber");
   });
 });
 

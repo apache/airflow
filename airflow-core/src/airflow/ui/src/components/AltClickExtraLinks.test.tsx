@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { BaseWrapper } from "src/utils/Wrapper";
@@ -64,14 +64,14 @@ describe("AltClickExtraLinks", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("shows a menu when there are several extra links", () => {
+  it("shows an accessible menu when there are several extra links", async () => {
     renderLinks([
       { name: "Triggered DAG", url: "https://example.com/run" },
       { name: "Logs", url: "https://example.com/logs" },
     ]);
     fireEvent.click(screen.getByTestId("task"), { altKey: true, button: 0, clientX: 12, clientY: 34 });
 
-    expect(screen.getByRole("menu")).toBeInTheDocument();
+    expect(await screen.findByRole("menu")).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Triggered DAG" })).toHaveAttribute(
       "href",
       "https://example.com/run",
@@ -83,7 +83,7 @@ describe("AltClickExtraLinks", () => {
     expect(globalThis.open).not.toHaveBeenCalled();
   });
 
-  it("closes the menu on Escape and on an outside click", () => {
+  it("lets Chakra close the menu on Escape", async () => {
     renderLinks([
       { name: "Triggered DAG", url: "https://example.com/run" },
       { name: "Logs", url: "https://example.com/logs" },
@@ -91,12 +91,9 @@ describe("AltClickExtraLinks", () => {
     const task = screen.getByTestId("task");
 
     fireEvent.click(task, { altKey: true, button: 0 });
-    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
-
-    fireEvent.click(task, { altKey: true, button: 0 });
-    fireEvent.click(screen.getByTestId("extra-links-backdrop"));
-    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await screen.findByRole("menu");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
   });
 
   it("navigates to the task instance when there are no extra links", () => {

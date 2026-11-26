@@ -17,9 +17,9 @@
  * under the License.
  */
 import type { MouseEvent, ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
-import { Box, Button, Portal, VStack } from "@chakra-ui/react";
+import { Box, Menu } from "@chakra-ui/react";
 import { useNavigate, type To } from "react-router-dom";
 
 import type { ExtraLink } from "src/hooks/useTaskInstanceExtraLinks";
@@ -31,74 +31,27 @@ type Props = {
   readonly replace?: boolean;
 };
 
-type MenuPosition = {
+type AnchorPoint = {
   readonly x: number;
   readonly y: number;
 };
 
-const ExtraLinksMenu = ({
-  links,
-  onClose,
-  position,
-}: {
-  readonly links: ReadonlyArray<ExtraLink>;
-  readonly onClose: () => void;
-  readonly position: MenuPosition;
-}) => {
-  const firstItemRef = useRef<HTMLAnchorElement | null>(null);
-
-  useEffect(() => {
-    firstItemRef.current?.focus();
-  }, []);
-
-  return (
-    <Portal>
-      <Box data-testid="extra-links-backdrop" inset={0} onClick={onClose} position="fixed" zIndex="modal" />
-      <Box
-        bg="bg.panel"
-        borderRadius="md"
-        boxShadow="lg"
-        left={position.x}
-        minW="180px"
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            onClose();
-          }
-        }}
-        position="fixed"
-        role="menu"
-        top={position.y}
-        zIndex="modal"
-      >
-        <VStack align="stretch" gap={0} p={1}>
-          {links.map(({ name, url }, index) => (
-            <Button asChild key={name} role="menuitem" variant="plain">
-              <a
-                href={url}
-                onClick={onClose}
-                ref={index === 0 ? firstItemRef : undefined}
-                rel="noopener noreferrer"
-                target="_blank"
-              >
-                {name}
-              </a>
-            </Button>
-          ))}
-        </VStack>
-      </Box>
-    </Portal>
-  );
-};
-
 export const AltClickExtraLinks = ({ children, links, navigateTo, replace }: Props) => {
   const navigate = useNavigate();
-  const [menuPosition, setMenuPosition] = useState<MenuPosition>();
+  const [anchorPoint, setAnchorPoint] = useState<AnchorPoint>();
+  const isAltClick = useRef(false);
 
   const handleClickCapture = (event: MouseEvent<HTMLDivElement>) => {
     if (!event.altKey || event.button !== 0) {
+      isAltClick.current = false;
+
       return;
     }
 
+    isAltClick.current = true;
+    queueMicrotask(() => {
+      isAltClick.current = false;
+    });
     event.preventDefault();
     event.stopPropagation();
 
@@ -109,18 +62,43 @@ export const AltClickExtraLinks = ({ children, links, navigateTo, replace }: Pro
         void globalThis.open(link.url, "_blank", "noopener");
       }
     } else if (links.length > 1) {
-      setMenuPosition({ x: event.clientX, y: event.clientY });
+      setAnchorPoint({ x: event.clientX, y: event.clientY });
     } else {
       void navigate(navigateTo, { replace });
     }
   };
 
   return (
-    <Box display="contents" onClickCapture={handleClickCapture}>
-      {children}
-      {menuPosition === undefined ? undefined : (
-        <ExtraLinksMenu links={links} onClose={() => setMenuPosition(undefined)} position={menuPosition} />
-      )}
-    </Box>
+    <Menu.Root
+      anchorPoint={anchorPoint}
+      aria-label="Extra links"
+      onOpenChange={({ open }) => {
+        if (open && !isAltClick.current) {
+          return;
+        }
+        if (!open) {
+          setAnchorPoint(undefined);
+        }
+      }}
+      open={anchorPoint !== undefined}
+      positioning={{ placement: "bottom-start" }}
+    >
+      <Menu.Trigger asChild>
+        <Box display="contents" onClickCapture={handleClickCapture}>
+          {children}
+        </Box>
+      </Menu.Trigger>
+      <Menu.Positioner>
+        <Menu.Content>
+          {links.map(({ name, url }) => (
+            <Menu.Item asChild key={name} value={name}>
+              <a href={url} rel="noopener noreferrer" target="_blank">
+                {name}
+              </a>
+            </Menu.Item>
+          ))}
+        </Menu.Content>
+      </Menu.Positioner>
+    </Menu.Root>
   );
 };

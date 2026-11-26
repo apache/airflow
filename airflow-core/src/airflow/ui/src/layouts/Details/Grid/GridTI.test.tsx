@@ -17,7 +17,7 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -219,6 +219,7 @@ describe("GridTI", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 
   it("marks the selected task square", () => {
@@ -285,23 +286,32 @@ describe("GridTI", () => {
     );
   });
 
-  it("fetches extra links on hover and opens the only one on Alt+click", () => {
+  it("fetches extra links when the tooltip opens and opens the only one on Alt+click", async () => {
+    vi.useFakeTimers();
     vi.mocked(useTaskInstanceExtraLinks).mockReturnValue([
       { name: "Triggered DAG", url: "https://example.com/run" },
     ]);
     vi.stubGlobal("open", vi.fn());
-    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task`);
+    renderGridTI(`/dags/example_dag/runs/${SELECTED_RUN_ID}/tasks/selected_task?try_number=2`);
 
     const link = screen.getByTestId(`grid-${SELECTED_RUN_ID}-selected_task`);
 
     expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).toMatchObject({ enabled: false });
-    fireEvent.mouseEnter(link);
+    const trigger = link.closest('[data-part="trigger"]') ?? link;
+
+    await act(async () => {
+      fireEvent.focus(trigger);
+      fireEvent.pointerEnter(trigger, { pointerType: "mouse" });
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
     expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).toMatchObject({
       dagId: "example_dag",
       dagRunId: SELECTED_RUN_ID,
       enabled: true,
       taskId: "selected_task",
     });
+    expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).not.toHaveProperty("tryNumber");
 
     fireEvent.click(link, { altKey: true, button: 0 });
     expect(globalThis.open).toHaveBeenCalledWith("https://example.com/run", "_blank", "noopener");
