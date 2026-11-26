@@ -107,7 +107,7 @@ class MakeSupervisorVariableValueNonNullable(VersionChange):
 
 class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
     """
-    Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, and the per-index binding fields.
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, the per-index binding fields, and ``spread``.
 
     The supervisor-schema mirror of the execution API's ``AddMappedStubArgBindings``, named apart so
     the two migrations are not confused. The supervisor does not start a task on an older runtime
@@ -123,14 +123,22 @@ class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
         *(
             schema(binding).field(field).didnt_exist
             for binding in (XComArgBinding, LiteralArgBinding, XComSequenceArgBinding, TupleArgBinding)
-            for field in ("apply_map", "kwarg", "fallback")
+            for field in ("apply_map", "kwarg", "fallback", "spread")
+        ),
+        *(
+            instruction
+            for binding in (XComArgBinding, LiteralArgBinding, XComSequenceArgBinding, TupleArgBinding)
+            for instruction in (
+                schema(binding).field("name").had(type=str),
+                schema(binding).field("name").didnt_have("default"),
+            )
         ),
     )
 
 
 def needs_v2027_02_28_runtime(binding: dict[str, Any]) -> bool:
     """Whether *binding* uses a kind or field added in supervisor schema version 2027-02-28."""
-    if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map"):
+    if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map") or binding.get("spread"):
         return True
     return any(
         binding.get(field) is not None for field in ("map_index", "element_index", "kwarg", "fallback")

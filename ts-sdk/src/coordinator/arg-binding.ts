@@ -101,7 +101,7 @@ export async function resolveArgs(
   const byFold = new Map<string, string>();
   let pullsUpstream = false;
   for (const binding of bindings) {
-    const name = binding.name;
+    const name = bindingName(binding);
     const fold = foldArgName(name);
     const clash = byFold.get(fold);
     if (clash !== undefined) {
@@ -121,7 +121,7 @@ export async function resolveArgs(
   const resolveAll = (): Promise<[string, JsonValue][]> =>
     Promise.all(
       bindings.map(async (binding): Promise<[string, JsonValue]> => [
-        binding.name,
+        bindingName(binding),
         binding.kind === "xcom"
           ? await pullXComArg(binding, deps.client)
           : // checkBindable has already refused every kind but these two.
@@ -134,6 +134,17 @@ export async function resolveArgs(
   return { args: makeArgsProxy(names, byFold, new Map(entries), deps), names };
 }
 
+/** Only a binding that spreads an `expand_kwargs()` mapping has no name, and this SDK binds none. */
+function bindingName(binding: TaskArgBinding): string {
+  if (binding.name == null) {
+    throw new Error(
+      "A task argument binding has no name, which only an expand_kwargs() mapping spread into " +
+        "the handler's arguments has; this version of @apache-airflow/ts-sdk cannot bind it",
+    );
+  }
+  return binding.name;
+}
+
 /** Airflow omits `value` for a literal whose value is null. */
 function literalValue(value: unknown): JsonValue {
   return (value ?? null) as JsonValue;
@@ -141,7 +152,7 @@ function literalValue(value: unknown): JsonValue {
 
 /** Refuse a binding this SDK cannot honour, before any of them is resolved. */
 function checkBindable(binding: TaskArgBinding): void {
-  const { name } = binding;
+  const name = bindingName(binding);
   if (binding.kind === "xcom") return;
   if (binding.kind === "literal") {
     checkExactInteger(name, literalValue(binding.value), binding.value_schema);
@@ -158,14 +169,15 @@ function checkBindable(binding: TaskArgBinding): void {
 
 /** Pull the upstream task's output this argument was called with. */
 async function pullXComArg(binding: XComArgBinding, client: CoordinatorClient): Promise<JsonValue> {
+  const name = bindingName(binding);
   const entry = await client.getXComEntry({ key: XCOM_RETURN_KEY, taskId: binding.task_id });
   if (!entry.found) {
     throw new Error(
-      `Task argument "${binding.name}" takes the output of upstream task "${binding.task_id}", ` +
+      `Task argument "${name}" takes the output of upstream task "${binding.task_id}", ` +
         `which pushed no ${XCOM_RETURN_KEY} XCom; a task that returns nothing pushes none`,
     );
   }
-  checkExactInteger(binding.name, entry.value, binding.value_schema);
+  checkExactInteger(name, entry.value, binding.value_schema);
   return entry.value;
 }
 

@@ -61,8 +61,9 @@ type XComArg genmodels.XComArgBinding
 // LiteralArg carries an inline value from the Dag file.
 type LiteralArg genmodels.LiteralArgBinding
 
-func (a XComArg) ArgName() string    { return a.Name }
-func (a LiteralArg) ArgName() string { return a.Name }
+// The runtime refuses a binding without a name before it builds an Arg.
+func (a XComArg) ArgName() string    { name, _ := a.Name.(string); return name }
+func (a LiteralArg) ArgName() string { name, _ := a.Name.(string); return name }
 
 func (a XComArg) Schema() *genmodels.ArgValueSchema    { return a.ValueSchema }
 func (a LiteralArg) Schema() *genmodels.ArgValueSchema { return a.ValueSchema }

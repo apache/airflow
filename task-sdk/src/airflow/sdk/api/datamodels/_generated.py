@@ -1137,11 +1137,12 @@ class LiteralArgBinding(BaseModel):
 
     kind: Annotated[Literal["literal"], Field(title="Kind")]
     value: JsonValue | None = None
-    name: Annotated[str, Field(title="Name")]
+    name: Annotated[str | None, Field(title="Name")] = None
     value_schema: ArgValueSchema | None = None
     apply_map: Annotated[bool | None, Field(title="Apply Map")] = False
     kwarg: Annotated[str | None, Field(title="Kwarg")] = None
     fallback: ArgPart | None = None
+    spread: Annotated[bool | None, Field(title="Spread")] = False
     from_default: Annotated[bool | None, Field(title="From Default")] = False
 
 
@@ -1167,11 +1168,12 @@ class TupleArgBinding(BaseModel):
     One ``zip()`` element: several values gathered into a single argument.
     """
 
-    name: Annotated[str, Field(title="Name")]
+    name: Annotated[str | None, Field(title="Name")] = None
     value_schema: ArgValueSchema | None = None
     apply_map: Annotated[bool | None, Field(title="Apply Map")] = False
     kwarg: Annotated[str | None, Field(title="Kwarg")] = None
     fallback: ArgPart | None = None
+    spread: Annotated[bool | None, Field(title="Spread")] = False
     kind: Annotated[Literal["tuple"], Field(title="Kind")]
     parts: Annotated[list[ArgPart], Field(title="Parts")]
 
@@ -1185,11 +1187,12 @@ class XComArgBinding(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     map_index: Annotated[int | None, Field(title="Map Index")] = None
     element_index: Annotated[int | None, Field(title="Element Index")] = None
-    name: Annotated[str, Field(title="Name")]
+    name: Annotated[str | None, Field(title="Name")] = None
     value_schema: ArgValueSchema | None = None
     apply_map: Annotated[bool | None, Field(title="Apply Map")] = False
     kwarg: Annotated[str | None, Field(title="Kwarg")] = None
     fallback: ArgPart | None = None
+    spread: Annotated[bool | None, Field(title="Spread")] = False
 
 
 class XComSequenceArgBinding(BaseModel):
@@ -1197,11 +1200,12 @@ class XComSequenceArgBinding(BaseModel):
     A mapped task's whole output, read as a lazy sequence.
     """
 
-    name: Annotated[str, Field(title="Name")]
+    name: Annotated[str | None, Field(title="Name")] = None
     value_schema: ArgValueSchema | None = None
     apply_map: Annotated[bool | None, Field(title="Apply Map")] = False
     kwarg: Annotated[str | None, Field(title="Kwarg")] = None
     fallback: ArgPart | None = None
+    spread: Annotated[bool | None, Field(title="Spread")] = False
     kind: Annotated[Literal["sequence"], Field(title="Kind")]
     task_id: Annotated[str, Field(title="Task Id")]
 

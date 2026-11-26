@@ -279,22 +279,26 @@ export type Kind2 = "xcom";
 export type TaskId2 = string;
 export type MapIndex2 = number | null;
 export type ElementIndex1 = number | null;
-export type Name8 = string;
+export type Name8 = string | null;
 export type ApplyMap = boolean;
 export type Kwarg = string | null;
+export type Spread = boolean;
 export type Kind3 = "literal";
-export type Name9 = string;
+export type Name9 = string | null;
 export type ApplyMap1 = boolean;
 export type Kwarg1 = string | null;
+export type Spread1 = boolean;
 export type FromDefault = boolean;
-export type Name10 = string;
+export type Name10 = string | null;
 export type ApplyMap2 = boolean;
 export type Kwarg2 = string | null;
+export type Spread2 = boolean;
 export type Kind4 = "sequence";
 export type TaskId3 = string;
-export type Name11 = string;
+export type Name11 = string | null;
 export type ApplyMap3 = boolean;
 export type Kwarg3 = string | null;
+export type Spread3 = boolean;
 export type Kind5 = "tuple";
 export type Parts = ArgPart[];
 /**
@@ -1175,11 +1179,12 @@ export interface XComArgBinding {
   task_id: TaskId2;
   map_index?: MapIndex2;
   element_index?: ElementIndex1;
-  name: Name8;
+  name?: Name8;
   value_schema?: ArgValueSchema | null;
   apply_map?: ApplyMap;
   kwarg?: Kwarg;
   fallback?: ArgPart | null;
+  spread?: Spread;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1197,11 +1202,12 @@ export interface ArgValueSchema {
 export interface LiteralArgBinding {
   kind: Kind3;
   value?: JsonValue | null;
-  name: Name9;
+  name?: Name9;
   value_schema?: ArgValueSchema | null;
   apply_map?: ApplyMap1;
   kwarg?: Kwarg1;
   fallback?: ArgPart | null;
+  spread?: Spread1;
   from_default?: FromDefault;
 }
 /**
@@ -1211,11 +1217,12 @@ export interface LiteralArgBinding {
  * via the `definition` "XComSequenceArgBinding".
  */
 export interface XComSequenceArgBinding {
-  name: Name10;
+  name?: Name10;
   value_schema?: ArgValueSchema | null;
   apply_map?: ApplyMap2;
   kwarg?: Kwarg2;
   fallback?: ArgPart | null;
+  spread?: Spread2;
   kind: Kind4;
   task_id: TaskId3;
 }
@@ -1226,11 +1233,12 @@ export interface XComSequenceArgBinding {
  * via the `definition` "TupleArgBinding".
  */
 export interface TupleArgBinding {
-  name: Name11;
+  name?: Name11;
   value_schema?: ArgValueSchema | null;
   apply_map?: ApplyMap3;
   kwarg?: Kwarg3;
   fallback?: ArgPart | null;
+  spread?: Spread3;
   kind: Kind5;
   parts: Parts;
 }

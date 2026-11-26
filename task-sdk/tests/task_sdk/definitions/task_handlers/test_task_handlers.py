@@ -168,6 +168,9 @@ class TestBinding:
                 "fallback needs",
                 id="fallback",
             ),
+            pytest.param(
+                {"name": None, "kind": "xcom", "task_id": "t", "spread": True}, "spread needs", id="spread"
+            ),
         ],
     )
     def test_per_map_index_binding_refused_before_any_pull(self, binding, match):

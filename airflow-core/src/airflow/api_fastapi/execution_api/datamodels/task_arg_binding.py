@@ -25,9 +25,9 @@ Captured at parse time from the ``@task.stub`` TaskFlow call, or derived per map
 from __future__ import annotations
 
 from functools import cache
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import Field, JsonValue, TypeAdapter
+from pydantic import Field, JsonValue, TypeAdapter, model_validator
 from typing_extensions import TypeAliasType
 
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -75,8 +75,8 @@ ArgPart = TypeAliasType(
 class _ArgBindingBase(BaseModel):
     """Fields every :class:`TaskArgBinding` variant carries, regardless of ``kind``."""
 
-    name: str
-    """The stub function's parameter name this binding fills, in declaration order."""
+    name: str | None = None
+    """The parameter this binding fills, in declaration order. Absent only with ``spread``, which fills several."""
 
     value_schema: ArgValueSchema | None = None
     """Schema fragment from the stub function's annotation; omitted when unconstrained."""
@@ -89,6 +89,16 @@ class _ArgBindingBase(BaseModel):
 
     fallback: ArgPart | None = None
     """The value when ``kwarg`` is missing: the ``partial()`` value or the signature default."""
+
+    spread: bool = False
+    """``expand_kwargs()`` on a Dag definition's own task only: the value is a dict the runtime spreads
+    into the handler's arguments."""
+
+    @model_validator(mode="after")
+    def _check_name(self) -> Self:
+        if (self.name is None) != self.spread:
+            raise ValueError("a binding has a name unless it sets spread, and has none when it does")
+        return self
 
 
 class XComArgBinding(_ArgBindingBase, XComRef):

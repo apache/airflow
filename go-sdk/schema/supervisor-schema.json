@@ -5012,8 +5012,16 @@
           "default": null
         },
         "name": {
-          "title": "Name",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
         },
         "value_schema": {
           "anyOf": [
@@ -5054,6 +5062,11 @@
           ],
           "default": null
         },
+        "spread": {
+          "default": false,
+          "title": "Spread",
+          "type": "boolean"
+        },
         "from_default": {
           "default": false,
           "title": "From Default",
@@ -5061,8 +5074,7 @@
         }
       },
       "required": [
-        "kind",
-        "name"
+        "kind"
       ],
       "title": "LiteralArgBinding",
       "type": "object"
@@ -5097,8 +5109,16 @@
       "description": "One ``zip()`` element: several values gathered into a single argument.",
       "properties": {
         "name": {
-          "title": "Name",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
         },
         "value_schema": {
           "anyOf": [
@@ -5139,6 +5159,11 @@
           ],
           "default": null
         },
+        "spread": {
+          "default": false,
+          "title": "Spread",
+          "type": "boolean"
+        },
         "kind": {
           "const": "tuple",
           "title": "Kind",
@@ -5153,7 +5178,6 @@
         }
       },
       "required": [
-        "name",
         "kind",
         "parts"
       ],
@@ -5197,8 +5221,16 @@
           "title": "Element Index"
         },
         "name": {
-          "title": "Name",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
         },
         "value_schema": {
           "anyOf": [
@@ -5238,12 +5270,16 @@
             }
           ],
           "default": null
+        },
+        "spread": {
+          "default": false,
+          "title": "Spread",
+          "type": "boolean"
         }
       },
       "required": [
         "kind",
-        "task_id",
-        "name"
+        "task_id"
       ],
       "title": "XComArgBinding",
       "type": "object"
@@ -5252,8 +5288,16 @@
       "description": "A mapped task's whole output, read as a lazy sequence.",
       "properties": {
         "name": {
-          "title": "Name",
-          "type": "string"
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
         },
         "value_schema": {
           "anyOf": [
@@ -5293,6 +5337,11 @@
             }
           ],
           "default": null
+        },
+        "spread": {
+          "default": false,
+          "title": "Spread",
+          "type": "boolean"
         },
         "kind": {
           "const": "sequence",
@@ -5305,7 +5354,6 @@
         }
       },
       "required": [
-        "name",
         "kind",
         "task_id"
       ],

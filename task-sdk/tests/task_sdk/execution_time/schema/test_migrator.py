@@ -656,6 +656,7 @@ class TestRealBundleArgBindingsDowngrade:
                 id="fallback",
             ),
             pytest.param({"name": "row", "kind": "literal", "value": 1, "apply_map": True}, id="apply-map"),
+            pytest.param({"kind": "xcom", "task_id": "extract", "spread": True}, id="spread"),
         ],
     )
     def test_needs_v2027_02_28_runtime(self, binding):

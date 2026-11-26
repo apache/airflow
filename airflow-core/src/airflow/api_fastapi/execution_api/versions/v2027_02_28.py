@@ -126,7 +126,7 @@ TaskArgBinding = TypeAliasType(
 
 class AddMappedStubArgBindings(VersionChangeWithSideEffects):
     """
-    Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, and the per-index binding fields.
+    Add ``arg_bindings`` for mapped stub tasks, the ``sequence`` and ``tuple`` kinds, the per-index binding fields, and ``spread``.
 
     Older clients keep the earlier behavior for a mapped stub, which gets no ``arg_bindings``. Any other
     stub whose bindings need this version fails ``ti_run``.
@@ -141,6 +141,10 @@ class AddMappedStubArgBindings(VersionChangeWithSideEffects):
         schema(_ArgBindingBase).field("apply_map").didnt_exist,
         schema(_ArgBindingBase).field("kwarg").didnt_exist,
         schema(_ArgBindingBase).field("fallback").didnt_exist,
+        schema(_ArgBindingBase).field("spread").didnt_exist,
+        schema(_ArgBindingBase).field("name").had(type=str),
+        schema(_ArgBindingBase).field("name").didnt_have("default"),
+        schema(_ArgBindingBase).validator(_ArgBindingBase._check_name).didnt_exist,
     )
 
 
