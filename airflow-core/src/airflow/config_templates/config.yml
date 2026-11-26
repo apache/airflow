@@ -2826,8 +2826,8 @@ scheduler:
       default: "5.0"
     ti_metrics_interval:
       description: |
-        How often (in seconds) should task instance (scheduled, queued, running and deferred) stats
-        be sent to StatsD (if statsd_on is enabled)
+        How often (in seconds) should task instance (scheduled, queued, running, deferred and
+        awaiting_input) stats be sent to StatsD (if statsd_on is enabled)
       version_added: 3.0.0
       type: float
       example: ~

@@ -263,10 +263,10 @@ However, you can also look at other non-performance-related scheduler configurat
 
 - :ref:`config:scheduler__ti_metrics_interval`
 
-  How often (in seconds) should task instance (scheduled, queued, running and deferred) stats be sent to StatsD
-  (if statsd_on is enabled). This is a *relatively* expensive query to compute
-  this, so this should be set to match the same period as your StatsD roll-up
-  period.
+  How often (in seconds) should task instance (scheduled, queued, running, deferred and
+  awaiting_input) stats be sent to StatsD (if statsd_on is enabled). This is a *relatively*
+  expensive query to compute this, so this should be set to match the same period as your
+  StatsD roll-up period.
 
 - :ref:`config:scheduler__orphaned_tasks_check_interval`
 
