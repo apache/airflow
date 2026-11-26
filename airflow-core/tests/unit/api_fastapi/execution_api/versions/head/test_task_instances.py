@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
@@ -62,6 +63,7 @@ from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagRun, RenderedTaskInstanceFields, TaskReschedule, Trigger
 from airflow.models.asset import AssetActive, AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.crypto import get_fernet
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
@@ -3937,6 +3939,8 @@ class TestTIUpdateState:
             assert len(t) == 1
             assert t[0].created_date == instant
             assert t[0].classpath == "my-classpath"
+            stored = get_fernet().decrypt(t[0].encrypted_kwargs.encode("utf-8"))
+            assert json.loads(stored) == payload["trigger_kwargs"]
             assert t[0].kwargs == {
                 "key": "value",
                 "moment": datetime(2024, 12, 18, 00, 00, 1, tzinfo=timezone.utc),
@@ -3945,6 +3949,31 @@ class TestTIUpdateState:
                 assert t[0].queue == "default"
             else:
                 assert t[0].queue is None
+
+    def test_ti_update_state_to_deferred_rejects_string_trigger_kwargs(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_deferred_rejects_string_trigger_kwargs",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "deferred",
+                "trigger_kwargs": '{"key": "value"}',
+                "classpath": "my-classpath",
+                "next_method": "execute_callback",
+            },
+        )
+
+        assert response.status_code == 422
+        session.expire_all()
+        assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == State.RUNNING
+        assert session.scalars(select(Trigger)).all() == []
 
     @staticmethod
     def _defer_ti_in_team_bundle(client, session, create_task_instance):

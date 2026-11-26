@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from argparse import ArgumentParser
 from typing import TYPE_CHECKING
 
@@ -25,13 +26,13 @@ from sqlalchemy import select
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import rotate_fernet_key_command
-from airflow.models import Connection, Variable
+from airflow.models import Connection, Trigger, Variable
 from airflow.models.crypto import get_fernet
 from airflow.sdk import BaseHook
 from airflow.utils.session import provide_session
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_connections, clear_db_variables
+from tests_common.test_utils.db import clear_db_connections, clear_db_triggers, clear_db_variables
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -49,10 +50,12 @@ class TestRotateFernetKeyCommand:
     def setup_method(self) -> None:
         clear_db_connections(add_default_connections_back=False)
         clear_db_variables()
+        clear_db_triggers()
 
     def teardown_method(self) -> None:
         clear_db_connections(add_default_connections_back=False)
         clear_db_variables()
+        clear_db_triggers()
 
     @provide_session
     def test_should_rotate_variable(self, *, session: Session):
@@ -143,3 +146,31 @@ class TestRotateFernetKeyCommand:
             # Mock for the second connection
             mock_supervisor_comms.send.return_value = mock_get_connection(var2_key)
             assert BaseHook.get_connection(var2_key).password == "pass"
+
+    @provide_session
+    def test_should_rotate_trigger_and_encrypt_plaintext_trigger(self, *, session: Session):
+        fernet_key1 = Fernet.generate_key()
+        fernet_key2 = Fernet.generate_key()
+        classpath = "airflow.triggers.testing.SuccessTrigger"
+
+        with conf_vars({("core", "fernet_key"): fernet_key1.decode()}):
+            get_fernet.cache_clear()
+            encrypted = Trigger(classpath=classpath, kwargs={"secret": "encrypted"})
+            # Plaintext JSON, as written by task deferrals on earlier Airflow 3 releases.
+            plaintext = Trigger(classpath=classpath, kwargs={})
+            plaintext.encrypted_kwargs = json.dumps({"secret": "plaintext"})
+            session.add_all([encrypted, plaintext])
+            session.commit()
+
+        with conf_vars({("core", "fernet_key"): f"{fernet_key2.decode()},{fernet_key1.decode()}"}):
+            get_fernet.cache_clear()
+            args = self.parser.parse_args(["rotate-fernet-key"])
+            rotate_fernet_key_command.rotate_fernet_key(args)
+
+        session.expire_all()
+        with conf_vars({("core", "fernet_key"): fernet_key2.decode()}):
+            get_fernet.cache_clear()
+            rotated_encrypted, rotated_plaintext = session.scalars(select(Trigger).order_by(Trigger.id))
+            assert rotated_encrypted.kwargs == {"secret": "encrypted"}
+            assert "plaintext" not in rotated_plaintext.encrypted_kwargs
+            assert rotated_plaintext.kwargs == {"secret": "plaintext"}

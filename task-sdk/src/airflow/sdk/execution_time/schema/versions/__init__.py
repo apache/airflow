@@ -46,9 +46,11 @@ def get_bundle() -> VersionBundle:
         AddRegionCoordinatesToSupervisorTaskInstance,
         AddRetryReasonToTaskState,
     )
+    from airflow.sdk.execution_time.schema.versions.v2026_12_01 import RemoveStringTriggerKwargsFromDeferTask
 
     return VersionBundle(
         HeadVersion(),
+        Version("2026-12-01", RemoveStringTriggerKwargsFromDeferTask),
         Version(
             "2026-10-30",
             AddArgBindingsToSupervisorTIRunContext,

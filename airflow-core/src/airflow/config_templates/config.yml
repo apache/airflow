@@ -238,7 +238,7 @@ core:
       type: boolean
     fernet_key:
       description: |
-        Secret key to save connection passwords in the db
+        Secret key to encrypt connection passwords, variables and trigger kwargs in the db
       version_added: ~
       type: string
       sensitive: true

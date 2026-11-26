@@ -21,7 +21,7 @@ Fernet
 ------
 
 Airflow uses `Fernet <https://github.com/fernet/spec/>`__ to encrypt passwords in the connection
-configuration and the variable configuration. It guarantees that a password encrypted using it cannot be manipulated or read without the key.
+configuration, the variable configuration and the kwargs of triggers. It guarantees that a password encrypted using it cannot be manipulated or read without the key.
 Fernet is an implementation of symmetric (also known as "secret key") authenticated cryptography.
 
 The first time Airflow is started, the ``airflow.cfg`` file is generated with the default configuration and the unique Fernet
@@ -51,7 +51,7 @@ If you need to generate a new fernet key you can use the following code snippet.
 Rotating encryption keys
 ''''''''''''''''''''''''
 
-Once connection credentials and variables have been encrypted using a fernet
+Once connection credentials, variables and trigger kwargs have been encrypted using a fernet
 key, changing the key will cause decryption of existing credentials to fail. To
 rotate the fernet key without invalidating existing encrypted values, prepend
 the new key to the ``fernet_key`` setting, run
@@ -59,5 +59,5 @@ the new key to the ``fernet_key`` setting, run
 ``fernet_key``:
 
 #. Set ``fernet_key`` to ``new_fernet_key,old_fernet_key``
-#. Run ``airflow rotate-fernet-key`` to re-encrypt existing credentials with the new fernet key
+#. Run ``airflow rotate-fernet-key`` to re-encrypt existing credentials, variables and trigger kwargs with the new fernet key
 #. Set ``fernet_key`` to ``new_fernet_key``
