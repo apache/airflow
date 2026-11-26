@@ -24,9 +24,9 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DagModel
     from airflow.models.dagrun import DagRun
     from airflow.sdk.execution_time.task_runner import RuntimeTaskInstance
+    from airflow.utils.state import DagSchedulingState
 
 
 # [START howto_listen_ti_running_task]
@@ -233,13 +233,13 @@ def on_dag_run_running(dag_run: DagRun, msg: str):
 # [END howto_listen_dagrun_running_task]
 
 
-# [START howto_listen_dag_pause_status_change_task]
+# [START howto_listen_dag_scheduling_state_change_task]
 @hookimpl
-def on_dag_pause_status_change(dag: DagModel, is_paused: bool):
+def on_dag_scheduling_state_change(dag_id: str, old_state: DagSchedulingState, new_state: DagSchedulingState):
     """
-    This method is called when a Dag's pause status changes, e.g. via the REST API or the CLI.
+    This method is called after a Dag's scheduling state change is committed, e.g. via the REST API or the CLI.
     """
-    print(f"Dag {dag.dag_id} pause status changed, is_paused={is_paused}")
+    print(f"Dag {dag_id} scheduling state changed from {old_state} to {new_state}")
 
 
-# [END howto_listen_dag_pause_status_change_task]
+# [END howto_listen_dag_scheduling_state_change_task]

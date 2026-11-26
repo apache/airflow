@@ -36,19 +36,27 @@ Lifecycle Events
 
 Lifecycle events allow you to react to start and stop events for an Airflow ``Job``, like ``SchedulerJob``.
 
-Dag Pause Status Events
-------------------------
+Dag Scheduling State Events
+---------------------------
 
-Dag pause status events occur when a :class:`~airflow.models.dag.DagModel`'s ``is_paused`` field changes,
-e.g. when a Dag is paused or unpaused through the REST API, the ``airflow dags pause``/``airflow dags unpause``
-CLI commands, or the Airflow UI.
+Dag scheduling state events occur when a :class:`~airflow.models.dag.DagModel` moves between the ``active``,
+``draining`` and ``paused`` scheduling states, for example when a Dag is paused or unpaused through the REST API
+or the ``airflow dags pause``/``airflow dags unpause`` CLI commands, when a drain finishes, or when a Dag is
+paused automatically after too many consecutive failed runs.
 
-- ``on_dag_pause_status_change``
+- ``on_dag_scheduling_state_change``
+
+The listener receives the ``dag_id`` and the old and new :class:`~airflow.utils.state.DagSchedulingState`. It is
+called by the process that makes the change (API server, scheduler or CLI) once the change is committed, so a
+change that is rolled back is never reported. A Dag that changes state more than once in one transaction is
+reported once, and a Dag whose state stays the same is not reported. The listener runs while the committing
+session finishes its commit, so it must not use that session, for example through the default scoped
+``create_session()``.
 
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
-    :start-after: [START howto_listen_dag_pause_status_change_task]
-    :end-before: [END howto_listen_dag_pause_status_change_task]
+    :start-after: [START howto_listen_dag_scheduling_state_change_task]
+    :end-before: [END howto_listen_dag_scheduling_state_change_task]
 
 
 DagRun State Change Events

@@ -44,6 +44,7 @@ from airflow._shared.timezones.timezone import datetime as datetime_tz
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag
 from airflow.exceptions import AirflowException, DagNotPartitionedError, InvalidPartitionKeyError
+from airflow.listeners import hookimpl
 from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
@@ -1019,6 +1020,35 @@ class TestDag:
         ti.set_state(state=ti_state, session=session)
         dr.update_state(session=session)
         return dr
+
+    def test_dag_paused_after_limit_notifies_listener(self, testing_dag_bundle, dag_scheduling_state_changes):
+        dag_id = "dag_paused_after_limit_notifies_listener"
+        dag = DAG(dag_id, schedule=None, is_paused_upon_creation=False, max_consecutive_failed_dag_runs=2)
+        op1 = BashOperator(task_id="task", bash_command="exit 1;")
+        dag.add_task(op1)
+        session = settings.Session()
+        session.add(DagModel(dag_id=dag.dag_id, bundle_name="testing", is_stale=False))
+        session.flush()
+        scheduler_dag = sync_dag_to_db(dag, session=session)
+        session.commit()
+
+        for run_number in (1, 2):
+            self._add_dag_run(
+                scheduler_dag,
+                op1,
+                session,
+                run_id=f"run_fail_{run_number}",
+                logical_date=TEST_DATE + timedelta(days=run_number),
+                run_after=TEST_DATE + timedelta(days=run_number),
+                ti_state=TaskInstanceState.FAILED,
+                run_state=State.FAILED,
+            )
+            assert dag_scheduling_state_changes == []
+            session.commit()
+
+        assert dag_scheduling_state_changes == [
+            (dag_id, DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED)
+        ]
 
     def test_dag_paused_after_limit_orders_by_run_after(self, testing_dag_bundle):
         """Verify _check_last_n_dagruns_failed orders by run_after, not logical_date.
@@ -3272,6 +3302,140 @@ class TestDagModel:
         DagModel.start_drain(dag_model.dag_id, session=session)
 
         mock_with_row_locks.assert_called_once_with(mock.ANY, of=DagModel, session=session)
+
+    @staticmethod
+    def _create_dag_models(session, *dag_ids, state=DagSchedulingState.ACTIVE):
+        dag_models = [DagModel(dag_id=dag_id, bundle_name="testing") for dag_id in dag_ids]
+        for dag_model in dag_models:
+            dag_model.set_scheduling_state(state)
+        session.add_all(dag_models)
+        session.commit()
+        return dag_models
+
+    @pytest.mark.parametrize(
+        ("old_state", "new_state"),
+        [
+            (old_state, new_state)
+            for old_state in DagSchedulingState
+            for new_state in DagSchedulingState
+            if old_state != new_state
+        ],
+    )
+    def test_set_scheduling_state_notifies_listener_after_commit(
+        self, old_state, new_state, session, testing_dag_bundle, dag_scheduling_state_changes
+    ):
+        (dag_model,) = self._create_dag_models(session, "test_notify_after_commit", state=old_state)
+        assert dag_scheduling_state_changes == []
+
+        dag_model.set_scheduling_state(new_state)
+        session.flush()
+        assert dag_scheduling_state_changes == []
+
+        session.commit()
+        assert dag_scheduling_state_changes == [("test_notify_after_commit", old_state, new_state)]
+
+    @pytest.mark.parametrize("state", list(DagSchedulingState))
+    def test_set_scheduling_state_to_the_current_state_is_not_notified(
+        self, state, session, testing_dag_bundle, dag_scheduling_state_changes
+    ):
+        (dag_model,) = self._create_dag_models(session, "test_notify_unchanged", state=state)
+
+        dag_model.set_scheduling_state(state)
+        session.commit()
+
+        assert dag_scheduling_state_changes == []
+
+    def test_set_scheduling_state_is_not_notified_when_the_transaction_rolls_back(
+        self, session, testing_dag_bundle, dag_scheduling_state_changes
+    ):
+        (dag_model,) = self._create_dag_models(session, "test_notify_rollback")
+
+        dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+        session.flush()
+        session.rollback()
+        session.commit()
+        assert dag_scheduling_state_changes == []
+
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.commit()
+        assert dag_scheduling_state_changes == [
+            ("test_notify_rollback", DagSchedulingState.ACTIVE, DagSchedulingState.DRAINING)
+        ]
+
+    def test_set_scheduling_state_is_not_notified_when_the_session_closes_uncommitted(
+        self, session, testing_dag_bundle, dag_scheduling_state_changes
+    ):
+        (dag_model,) = self._create_dag_models(session, "test_notify_close")
+
+        dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+        session.close()
+        session.get(DagModel, "test_notify_close").set_scheduling_state(DagSchedulingState.DRAINING)
+        session.commit()
+
+        assert dag_scheduling_state_changes == [
+            ("test_notify_close", DagSchedulingState.ACTIVE, DagSchedulingState.DRAINING)
+        ]
+
+    def test_set_scheduling_state_in_a_released_savepoint_is_notified_once_the_outer_commit_happens(
+        self, session, testing_dag_bundle, dag_scheduling_state_changes
+    ):
+        (dag_model,) = self._create_dag_models(session, "test_notify_savepoint_release")
+
+        with session.begin_nested():
+            dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+        assert dag_scheduling_state_changes == []
+
+        session.commit()
+        assert dag_scheduling_state_changes == [
+            ("test_notify_savepoint_release", DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED)
+        ]
+
+    def test_set_scheduling_state_in_a_rolled_back_savepoint_is_not_notified(
+        self, session, testing_dag_bundle, dag_scheduling_state_changes
+    ):
+        kept, discarded = self._create_dag_models(session, "test_notify_kept", "test_notify_discarded")
+
+        kept.set_scheduling_state(DagSchedulingState.PAUSED)
+        with session.begin_nested() as savepoint:
+            discarded.set_scheduling_state(DagSchedulingState.PAUSED)
+            savepoint.rollback()
+        session.commit()
+
+        assert dag_scheduling_state_changes == [
+            ("test_notify_kept", DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED)
+        ]
+
+    def test_set_scheduling_state_notifies_once_per_dag_with_the_first_and_last_state(
+        self, session, testing_dag_bundle, dag_scheduling_state_changes
+    ):
+        reverted, drained = self._create_dag_models(session, "test_notify_reverted", "test_notify_drained")
+
+        reverted.set_scheduling_state(DagSchedulingState.PAUSED)
+        reverted.set_scheduling_state(DagSchedulingState.ACTIVE)
+        drained.set_scheduling_state(DagSchedulingState.DRAINING)
+        drained.set_scheduling_state(DagSchedulingState.PAUSED)
+        session.commit()
+
+        assert dag_scheduling_state_changes == [
+            ("test_notify_drained", DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED)
+        ]
+
+    def test_failing_listener_does_not_break_the_commit(
+        self, session, testing_dag_bundle, listener_manager, caplog
+    ):
+        class FailingListener:
+            @hookimpl
+            def on_dag_scheduling_state_change(self, dag_id, old_state, new_state):
+                raise RuntimeError("listener failure")
+
+        listener_manager(FailingListener())
+        (dag_model,) = self._create_dag_models(session, "test_notify_failing_listener")
+
+        dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
+        session.commit()
+
+        assert "Error while calling listener" in caplog
+        assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == dag_model.dag_id)) is True
 
     def test_dags_needing_dagruns_only_unpaused(self, testing_dag_bundle):
         """

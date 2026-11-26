@@ -77,6 +77,17 @@ def configure_testing_dag_bundle():
 
 
 @pytest.fixture
+def dag_scheduling_state_changes(listener_manager):
+    """Record every ``on_dag_scheduling_state_change`` call as ``(dag_id, old_state, new_state)``."""
+    from unit.listeners import dag_listener
+
+    dag_listener.clear()
+    listener_manager(dag_listener)
+    yield dag_listener.scheduling_state_changes
+    dag_listener.clear()
+
+
+@pytest.fixture
 def test_zip_path(tmp_path: Path):
     TEST_DAGS_FOLDER = Path(__file__).parent / "unit" / "dags"
     test_zip_folder = TEST_DAGS_FOLDER / "test_zip"

@@ -22,11 +22,17 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
-    from airflow.models.dag import DagModel
+    from airflow.utils.state import DagSchedulingState
 
 hookspec = HookspecMarker("airflow")
 
 
 @hookspec
-def on_dag_pause_status_change(dag: DagModel, is_paused: bool):
-    """Execute when a Dag's pause status changes (paused or unpaused)."""
+def on_dag_scheduling_state_change(dag_id: str, old_state: DagSchedulingState, new_state: DagSchedulingState):
+    """
+    Execute when a Dag's scheduling state changes.
+
+    Called after the transaction that changed the state has been committed, outside of it, so only the
+    ``dag_id`` is passed. A Dag that changes state more than once in one transaction is reported once,
+    from its first old state to its last new state.
+    """

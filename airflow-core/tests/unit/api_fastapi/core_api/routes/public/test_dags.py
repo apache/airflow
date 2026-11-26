@@ -1084,25 +1084,23 @@ class TestPatchDag(TestDagEndpoint):
         response = unauthenticated_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 401
 
-    @mock.patch("airflow.api_fastapi.core_api.routes.public.dags.get_listener_manager")
-    def test_patch_dag_fires_pause_status_listener_hook_on_change(self, mock_get_listener_manager, test_client):
-        mock_listener_manager = mock.MagicMock()
-        mock_get_listener_manager.return_value = mock_listener_manager
-
+    def test_patch_dag_notifies_listener_of_state_changes(self, test_client, dag_scheduling_state_changes):
         response = test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 200
+        assert dag_scheduling_state_changes == [
+            (DAG1_ID, DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED)
+        ]
 
-        mock_listener_manager.hook.on_dag_pause_status_change.assert_called_once()
-        call_args = mock_listener_manager.hook.on_dag_pause_status_change.call_args
-        assert call_args.kwargs["is_paused"] is True
-        assert call_args.kwargs["dag"].dag_id == DAG1_ID
-
-        mock_listener_manager.hook.on_dag_pause_status_change.reset_mock()
-
-        # Patching to the same value again is a no-op and should not re-fire the hook.
+        # Patching to the state the Dag is already in is not a change.
         response = test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
         assert response.status_code == 200
-        mock_listener_manager.hook.on_dag_pause_status_change.assert_not_called()
+        assert len(dag_scheduling_state_changes) == 1
+
+        response = test_client.patch(f"/dags/{DAG1_ID}", json={"scheduling_state": "draining"})
+        assert response.status_code == 200
+        assert dag_scheduling_state_changes[1:] == [
+            (DAG1_ID, DagSchedulingState.PAUSED, DagSchedulingState.DRAINING)
+        ]
 
     def test_patch_dag_should_response_403(self, unauthorized_test_client):
         response = unauthorized_test_client.patch(f"/dags/{DAG1_ID}", json={"is_paused": True})
@@ -1208,6 +1206,17 @@ class TestPatchDags(TestDagEndpoint):
             paused_dag_ids = {dag["dag_id"] for dag in body["dags"] if dag["is_paused"]}
             assert paused_dag_ids == set(expected_paused_ids)
             check_last_log(session, dag_id=None, event="patch_dags", logical_date=None)
+
+    def test_patch_dags_notifies_listener_of_state_changes(self, test_client, dag_scheduling_state_changes):
+        # DAG3 is already paused, so only DAG1 and DAG2 change.
+        response = test_client.patch(
+            "/dags", json={"is_paused": True}, params={"exclude_stale": False, "dag_id_pattern": "~"}
+        )
+        assert response.status_code == 200
+        assert sorted(dag_scheduling_state_changes) == [
+            (DAG1_ID, DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED),
+            (DAG2_ID, DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED),
+        ]
 
     def test_patch_dags_should_not_query_tags_on_event_loop(self, test_client, event_loop_queries):
         """Nothing is queried while the response is serialized on the event loop."""
@@ -1374,6 +1383,28 @@ class TestBulkDags(TestDagEndpoint):
         assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG1_ID)) is True
         assert session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == DAG2_ID)) is True
         check_last_log(session, dag_id=None, event="bulk_dags", logical_date=None)
+
+    def test_bulk_update_notifies_listener_of_state_changes(self, test_client, dag_scheduling_state_changes):
+        response = test_client.patch(
+            "/dags/bulk",
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [
+                            {"dag_id": DAG1_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                            {"dag_id": DAG2_ID, "scheduling_state": DagSchedulingState.DRAINING},
+                            {"dag_id": DAG3_ID, "scheduling_state": DagSchedulingState.PAUSED},
+                        ],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        assert sorted(dag_scheduling_state_changes) == [
+            (DAG1_ID, DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED),
+            (DAG2_ID, DagSchedulingState.ACTIVE, DagSchedulingState.DRAINING),
+        ]
 
     def test_bulk_update_drains_dags(self, test_client, session):
         response = test_client.patch(

@@ -10732,6 +10732,29 @@ class TestSchedulerJob:
             == 1
         )
 
+    def test_finalize_draining_dag_notifies_listener_after_commit(
+        self, dag_maker, session, dag_scheduling_state_changes
+    ):
+        with dag_maker("test_finalize_draining_dag_notifies_listener") as dag:
+            EmptyOperator(task_id="task")
+
+        dag_model = DagModel.get_dagmodel(dag.dag_id, session=session)
+        dag_model.set_scheduling_state(DagSchedulingState.DRAINING)
+        session.commit()
+        assert dag_scheduling_state_changes == [
+            (dag.dag_id, DagSchedulingState.ACTIVE, DagSchedulingState.DRAINING)
+        ]
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        self.job_runner._finalize_draining_dags(session=session)
+        session.flush()
+        assert len(dag_scheduling_state_changes) == 1
+
+        session.commit()
+        assert dag_scheduling_state_changes[1:] == [
+            (dag.dag_id, DagSchedulingState.DRAINING, DagSchedulingState.PAUSED)
+        ]
+
     def test_finalize_draining_dag_waits_for_backfill_initialization(self, dag_maker, session):
         with dag_maker("test_finalize_draining_dag_with_backfill", schedule="@daily") as dag:
             EmptyOperator(task_id="task")

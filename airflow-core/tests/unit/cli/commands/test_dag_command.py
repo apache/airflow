@@ -702,42 +702,18 @@ class TestCliDags:
         clear_db_dags()
         self.setup_class()
 
-    @mock.patch("airflow.cli.commands.dag_command.get_listener_manager")
-    def test_pause_fires_pause_status_listener_hook(self, mock_get_listener_manager):
-        mock_listener_manager = MagicMock()
-        mock_get_listener_manager.return_value = mock_listener_manager
-
+    def test_pause_and_unpause_notify_listener(self, dag_scheduling_state_changes):
         args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
+
         dag_command.dag_pause(args)
-
-        mock_listener_manager.hook.on_dag_pause_status_change.assert_called_once()
-        call_args = mock_listener_manager.hook.on_dag_pause_status_change.call_args
-        assert call_args.kwargs["is_paused"] is True
-        assert call_args.kwargs["dag"].dag_id == "example_bash_operator"
-
-        mock_listener_manager.hook.on_dag_pause_status_change.reset_mock()
+        assert dag_scheduling_state_changes == [
+            ("example_bash_operator", DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED)
+        ]
 
         dag_command.dag_unpause(args)
-
-        mock_listener_manager.hook.on_dag_pause_status_change.assert_called_once()
-        call_args = mock_listener_manager.hook.on_dag_pause_status_change.call_args
-        assert call_args.kwargs["is_paused"] is False
-
-    @mock.patch("airflow.cli.commands.dag_command.get_listener_manager")
-    def test_pausing_already_paused_dag_does_not_refire_listener_hook(self, mock_get_listener_manager):
-        mock_listener_manager = MagicMock()
-        mock_get_listener_manager.return_value = mock_listener_manager
-
-        args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
-        dag_command.dag_pause(args)
-        mock_listener_manager.hook.on_dag_pause_status_change.reset_mock()
-
-        # Pausing an already-paused DAG is a no-op (query filters is_paused != is_paused target),
-        # so the hook should not fire again.
-        dag_command.dag_pause(args)
-        mock_listener_manager.hook.on_dag_pause_status_change.assert_not_called()
-
-        dag_command.dag_unpause(args)
+        assert dag_scheduling_state_changes[1:] == [
+            ("example_bash_operator", DagSchedulingState.PAUSED, DagSchedulingState.ACTIVE)
+        ]
 
     @pytest.mark.parametrize(
         ("command", "expected_state"),

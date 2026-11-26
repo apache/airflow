@@ -17,13 +17,12 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import selectinload
 
 from airflow.api.common import delete_dag as delete_dag_module
@@ -86,15 +85,12 @@ from airflow.api_fastapi.core_api.security import (
 from airflow.api_fastapi.core_api.services.public.dags import BulkDagService, get_scheduling_state
 from airflow.api_fastapi.logging.decorators import action_logging
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagModel
 from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import DagRunState, DagSchedulingState
-
-log = logging.getLogger(__name__)
+from airflow.utils.state import DagRunState
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -363,14 +359,7 @@ def patch_dag(
         except ValidationError as e:
             raise RequestValidationError(errors=e.errors())
 
-    was_paused = dag.is_paused
     dag.set_scheduling_state(get_scheduling_state(patch_body))
-
-    if dag.is_paused != was_paused:
-        try:
-            get_listener_manager().hook.on_dag_pause_status_change(dag=dag, is_paused=dag.is_paused)
-        except Exception:
-            log.exception("Error while calling listener")
 
     return dag
 
@@ -454,15 +443,14 @@ def patch_dags(
     ).subquery()
 
     scheduling_state = get_scheduling_state(patch_body)
-    session.execute(
-        update(DagModel)
-        .where(DagModel.dag_id.in_(select(filtered_dag_ids.c.dag_id)))
-        .values(
-            is_paused=scheduling_state == DagSchedulingState.PAUSED,
-            is_draining=scheduling_state == DagSchedulingState.DRAINING,
+    for dag in session.scalars(
+        with_row_locks(
+            select(DagModel).where(DagModel.dag_id.in_(select(filtered_dag_ids.c.dag_id))),
+            of=DagModel,
+            session=session,
         )
-        .execution_options(synchronize_session="fetch")
-    )
+    ):
+        dag.set_scheduling_state(scheduling_state)
 
     return DAGCollectionResponse(
         dags=list(dags),

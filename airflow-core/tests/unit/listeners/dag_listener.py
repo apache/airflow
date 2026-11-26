@@ -24,11 +24,13 @@ from airflow.listeners import hookimpl
 
 if typing.TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
+    from airflow.utils.state import DagSchedulingState
 
 
 running: list[DagRun] = []
 success: list[DagRun] = []
 failure: list[DagRun] = []
+scheduling_state_changes: list[tuple[str, DagSchedulingState, DagSchedulingState]] = []
 
 
 @hookimpl
@@ -46,6 +48,12 @@ def on_dag_run_failed(dag_run: DagRun, msg: str):
     failure.append(dag_run)
 
 
+@hookimpl
+def on_dag_scheduling_state_change(dag_id: str, old_state: DagSchedulingState, new_state: DagSchedulingState):
+    scheduling_state_changes.append((dag_id, old_state, new_state))
+
+
 def clear():
     global running, success, failure
     running, success, failure = [], [], []
+    scheduling_state_changes.clear()
