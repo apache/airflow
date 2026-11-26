@@ -690,12 +690,12 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         self.kill(signal.SIGKILL)
 
     def _has_unsupported_arg_bindings(self, ti_context: TIRunContext) -> bool:
-        if self._subprocess_schema_version is None or not ti_context.arg_bindings:
+        if not ti_context.arg_bindings:
             return False
         # Imported here, like the migrator's own cadwyn import, so a Python-only worker never pays for it.
         from airflow.sdk.execution_time.schema.versions.v2027_02_28 import needs_v2027_02_28_runtime
 
-        # No Lang SDK runtime binds these yet, whatever schema version it speaks.
+        # No Lang SDK runtime binds these yet, whatever schema version it speaks, if any.
         return any(
             needs_v2027_02_28_runtime(binding.model_dump(mode="json")) for binding in ti_context.arg_bindings
         )

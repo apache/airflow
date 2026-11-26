@@ -1239,7 +1239,7 @@ class TestPopenActivitySubprocessClearXComs:
             "loc": ANY,
         } in captured_logs
 
-    @pytest.mark.parametrize("schema_version", ["2026-10-30", "2027-02-28"])
+    @pytest.mark.parametrize("schema_version", [None, "2026-10-30", "2027-02-28"])
     @patch.object(Client, "_request_with_retry", Client._request_without_retry)
     @patch.object(ActivitySubprocess, "send_msg", autospec=True)
     def test_fails_the_try_without_starting_the_task_when_the_runtime_cannot_bind_its_arguments(
