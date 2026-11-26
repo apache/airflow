@@ -20,10 +20,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from airflow.api_fastapi.execution_api.services.stub_arg_bindings import (
+    UndeliverableMappedArgBindingsError,
+    derive_mapped_arg_bindings,
+    needs_v2027_02_28_client,
+)
+from airflow.serialization.definitions.mappedoperator import is_mapped
+
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.models.dagbag import DBDagBag
+    from airflow.models.task_coordinates import TaskCoordinate
     from airflow.serialization.serialized_objects import SerializedOperator
 
 
@@ -45,7 +53,7 @@ def client_supports_arg_bindings() -> bool:
     return AddArgBindingsToTIRunContext.is_applied
 
 
-def get_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOperator | None:
+def get_task(dag_bag: DBDagBag, ti: TaskCoordinate, *, session: Session) -> SerializedOperator | None:
     """Return the task of *ti* from its Dag version, or ``None`` if it cannot be found."""
     if ti.dag_version_id is None:
         return None
@@ -54,17 +62,39 @@ def get_task(dag_bag: DBDagBag, ti: Any, *, session: Session) -> SerializedOpera
     return dag.task_dict.get(ti.task_id)
 
 
-def get_arg_bindings(task: SerializedOperator) -> list | None:
+def client_supports_mapped_arg_bindings() -> bool:
+    """Whether the request's negotiated API version can receive the arg bindings of a mapped stub."""
+    from airflow.api_fastapi.execution_api.versions.v2027_02_28 import AddMappedStubArgBindings
+
+    return AddMappedStubArgBindings.is_applied
+
+
+def get_arg_bindings(
+    task: SerializedOperator, ti: TaskCoordinate, *, dag_bag: DBDagBag, session: Session
+) -> list[dict[str, Any]] | None:
     """
     Return the TaskFlow arg spec of *task* if it is a stub task.
 
-    Mapped (``.expand()``) stubs never capture a parse-time spec, so they resolve to
-    ``None`` here and keep the legacy ignored-args behavior; per-map-index delivery
-    lands in a follow-up.
+    A stub whose arguments differ per map index gets its spec derived for this map index; a Dag
+    serialized before such a stub had bindings keeps the legacy ignored-args behavior. So does a
+    mapped stub for a client older than 2027-02-28.
+
+    :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index, or
+        the client is too old to receive the stub's bindings.
     """
-    if not task.is_stub:
+    if not task.is_stub or (arg_bindings := task.arg_bindings) is None:
         return None
-    return task.arg_bindings
+    supported = client_supports_mapped_arg_bindings()
+    if is_mapped(task) and not supported:
+        return None
+    bindings = arg_bindings
+    if is_mapped(task) or task.get_closest_mapped_task_group() is not None:
+        bindings = derive_mapped_arg_bindings(task, ti, arg_bindings, dag_bag=dag_bag, session=session)
+    if not supported and any(needs_v2027_02_28_client(binding) for binding in bindings):
+        raise UndeliverableMappedArgBindingsError(
+            "they need a client at Execution API version 2027-02-28 or later"
+        )
+    return bindings
 
 
 def get_execution_timeout(task: SerializedOperator) -> float | None:

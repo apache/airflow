@@ -17,16 +17,17 @@
 """
 Positional-argument binding spec for stub (foreign-runtime) tasks.
 
-Captured at parse time from the ``@task.stub`` TaskFlow call, stored in the serialized
-Dag, and delivered to the lang-SDK runtime via ``TIRunContext.arg_bindings``.
+Captured at parse time from the ``@task.stub`` TaskFlow call, or derived per map index at
+``ti_run`` for a mapped stub, and delivered to the lang-SDK runtime via
+``TIRunContext.arg_bindings``.
 """
 
 from __future__ import annotations
 
 from functools import cache
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import Field, JsonValue, TypeAdapter
+from pydantic import Field, JsonValue, TypeAdapter, model_validator
 from typing_extensions import TypeAliasType
 
 from airflow.api_fastapi.core_api.base import BaseModel
@@ -40,45 +41,103 @@ ArgValueSchema = TypeAliasType(
 by pydantic from the stub annotation, carried verbatim, unknown keywords ignored."""
 
 
-class _ArgBindingBase(BaseModel):
-    """Fields every :class:`TaskArgBinding` variant carries, regardless of ``kind``."""
-
-    name: str
-    """The stub function's parameter name this binding fills, in declaration order."""
-
-    value_schema: ArgValueSchema | None = None
-    """Schema fragment from the stub function's annotation; omitted when unconstrained."""
-
-
-class XComArgBinding(_ArgBindingBase):
-    """One positional stub-task argument pulled from an upstream task's XCom."""
+class XComRef(BaseModel):
+    """One upstream value, read by the supervisor."""
 
     # No default: it would drop ``kind`` from ``required``, and the generated task-sdk
     # client then types it ``Literal | None``, invalid as a tagged-union discriminator.
     kind: Literal["xcom"]
 
     task_id: str
-    """Upstream task id whose ``return_value`` XCom is pulled."""
+    """Upstream task id whose ``return_value`` XCom is read."""
+
+    map_index: int | None = None
+    """The row of a mapped upstream. Unset reads an unmapped upstream's only row."""
+
+    element_index: int | None = None
+    """Then this element of the row: a list item, or a dict's ``(key, value)`` pair in stored order."""
 
 
-class LiteralArgBinding(_ArgBindingBase):
-    """One positional stub-task argument carrying an inline literal from the Dag file."""
+class LiteralValue(BaseModel):
+    """One inline value."""
 
     kind: Literal["literal"]
-    """No default, for the same generated-client reason as ``XComArgBinding.kind``."""
 
     value: JsonValue | None = None
-    """The literal value from the Dag file."""
+
+
+ArgPart = TypeAliasType(
+    "ArgPart", Annotated[XComRef | LiteralValue, Field(discriminator="kind", title="ArgPart")]
+)
+"""One value inside a binding: a ``zip()`` part or a ``fallback``."""
+
+
+class _ArgBindingBase(BaseModel):
+    """Fields every :class:`TaskArgBinding` variant carries, regardless of ``kind``."""
+
+    name: str | None = None
+    """The parameter this binding fills, in declaration order. Absent only with ``spread``, which fills several."""
+
+    value_schema: ArgValueSchema | None = None
+    """Schema fragment from the stub function's annotation; omitted when unconstrained."""
+
+    apply_map: bool = False
+    """Run this argument's ``map()`` callables on the picked value, before ``kwarg``."""
+
+    kwarg: str | None = None
+    """``expand_kwargs()`` only: take this key of the value."""
+
+    fallback: ArgPart | None = None
+    """The value when ``kwarg`` is missing: the ``partial()`` value or the signature default."""
+
+    spread: bool = False
+    """``expand_kwargs()`` on a Dag definition's own task only: the value is a dict the runtime spreads
+    into the handler's arguments."""
+
+    @model_validator(mode="after")
+    def _check_name(self) -> Self:
+        if (self.name is None) != self.spread:
+            raise ValueError("a binding has a name unless it sets spread, and has none when it does")
+        return self
+
+
+class XComArgBinding(_ArgBindingBase, XComRef):
+    """An argument read from an upstream task."""
+
+
+class LiteralArgBinding(_ArgBindingBase, LiteralValue):
+    """An argument carrying an inline value from the Dag file."""
 
     from_default: bool = False
     """True when the value was filled from the stub signature's default rather than passed in the call."""
+
+
+class XComSequenceArgBinding(_ArgBindingBase):
+    """A mapped task's whole output, read as a lazy sequence."""
+
+    kind: Literal["sequence"]
+
+    task_id: str
+    """Task whose ``return_value`` rows make up the sequence; the runtime fetches them on demand."""
+
+
+class TupleArgBinding(_ArgBindingBase):
+    """One ``zip()`` element: several values gathered into a single argument."""
+
+    kind: Literal["tuple"]
+
+    parts: list[ArgPart]
+    """One part per zipped argument, in zip order; a ``fillvalue`` standing in at this index is a literal."""
 
 
 # A named alias with an explicit title so the union lands in every schema as its own
 # named definition, which the supervisor-schema dump dedups with its task-sdk twin by title.
 TaskArgBinding = TypeAliasType(
     "TaskArgBinding",
-    Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")],
+    Annotated[
+        XComArgBinding | LiteralArgBinding | XComSequenceArgBinding | TupleArgBinding,
+        Field(discriminator="kind", title="TaskArgBinding"),
+    ],
 )
 """One positional argument of a stub (foreign-runtime) task, in declaration order."""
 

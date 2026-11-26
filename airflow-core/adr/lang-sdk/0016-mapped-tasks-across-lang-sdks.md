@@ -101,7 +101,9 @@ The coordinator only starts the SDK runtime subprocess; the supervisor handles e
   unmapped task type-checks as a reduce: only where the parameter is a sequence of its element type.
 - `zip`, `concat` and `map` are methods on a reference, not free functions, so they chain in declaration order.
 - A reduce consumer receives a sequence of the element type, not the element type.
-- Expanding over a list of `T` gives each instance a `T`; expanding over a dict gives each instance a `[key, value]` pair, as a Python task gets `(key, value)`.
+- Expanding over a list of `T` gives each instance a `T`. Expanding over an upstream dict output gives each instance a
+  `[key, value]` pair, as a Python task gets `(key, value)`. A stub task cannot expand over a dict written in the Dag
+  file: the stored Dag does not keep its key order, and most languages have no ordered map to rebuild it in.
 
 The running example, in the TypeScript SDK, whose full spelling is
 [`ts-sdk/adr/0004`](../../../ts-sdk/adr/0004-task-mapping-authoring-interface.md). Every later
@@ -226,6 +228,11 @@ fields by `name`, then from `default` if the entry has one; a parameter still un
 task. Only `expand_kwargs()` can leave a parameter unbound until run time, so only it needs that
 fallback. A `kwargs` entry resolves from the same expand input to this index's dict, sent with
 `spread` set.
+
+The stored Dag does not keep the order of `expand()` keyword arguments either, and that order decides
+which combination of values each map index gets. So a stub task with several of them records the
+Dag-file order once, in its own `_stub_expand_keys` field, keyed by the id of the task or mapped task
+group that expands.
 
 Parse time emits `param` just twice: for a mapped stub's parameters, and for a group member's
 argument that names its group. A Dag definition's own task called through `expand_kwargs()` writes
