@@ -128,7 +128,9 @@ from airflow.sdk.execution_time.comms import (
     DeleteTaskStateStore,
     DRCount,
     ErrorResponse,
+    GetAssetByName,
     GetAssetByUri,
+    GetAssetEventByAsset,
     GetAssetsByAlias,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
@@ -2778,6 +2780,81 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
 
     with pytest.raises(KeyError):
         inlet_events[Asset(name="no such asset in inlets")]
+
+
+def test_run_mapped_task_with_constructor_inlets(create_runtime_ti, mock_supervisor_comms):
+    """Inlets added by a mapped operator's ``__init__`` are accessible in the context during execution."""
+    asset_event_resp = AssetEventResult(
+        id=1,
+        created_dagruns=[],
+        timestamp=timezone.utcnow(),
+        asset=AssetResponse(name="b", uri="b", group="asset"),
+    )
+
+    def _send(msg=None, *args, **kwargs):
+        if isinstance(msg, ValidateInletsAndOutlets):
+            return InactiveAssetsResult(inactive_assets=[])
+        if isinstance(msg, GetAssetEventByAsset):
+            return AssetEventsResult(asset_events=[asset_event_resp])
+        return OKResponse(ok=True)
+
+    mock_supervisor_comms.send.side_effect = _send
+
+    captured = {}
+
+    class InletReaderOperator(BaseOperator):
+        def __init__(self, *, inlet_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.inlet_name = inlet_name
+            self.inlets.append(Asset(inlet_name))
+
+        def execute(self, context):
+            captured["inlets"] = context["inlets"]
+            captured["events"] = list(context["inlet_events"][Asset(self.inlet_name)])
+
+    with DAG("dag_with_mapped_inlet_task"):
+        mapped = InletReaderOperator.partial(task_id="t").expand(inlet_name=["a", "b"])
+
+    ti = create_runtime_ti(task=mapped, map_index=1)
+    state, _, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert error is None
+    assert state == TaskInstanceState.SUCCESS
+    assert captured == {"inlets": [Asset("b")], "events": [asset_event_resp]}
+
+
+@pytest.mark.parametrize(
+    ("inlet", "expected_message"),
+    [
+        pytest.param(Asset.ref(name="a"), GetAssetByName(name="a"), id="inlet-events-ref"),
+        pytest.param(AssetAlias(name="alias"), GetAssetsByAlias(alias_name="alias"), id="state-store-alias"),
+    ],
+)
+def test_asset_lookups_built_before_execute(
+    inlet, expected_message, create_runtime_ti, mock_supervisor_comms
+):
+    captured = {}
+
+    def get_sent_messages():
+        return [c.args[0] if c.args else c.kwargs["msg"] for c in mock_supervisor_comms.send.call_args_list]
+
+    def side_effect(msg=None, *args, **kwargs):
+        if isinstance(msg, ValidateInletsAndOutlets):
+            return InactiveAssetsResult(inactive_assets=[])
+        if isinstance(msg, GetAssetByName):
+            return AssetResult(name=msg.name, uri=msg.name, group="asset")
+        return OKResponse(ok=True)
+
+    class LookupCheckOperator(BaseOperator):
+        def execute(self, context):
+            captured["messages"] = get_sent_messages()
+
+    ti = create_runtime_ti(task=LookupCheckOperator(task_id="t", inlets=[inlet]))
+    mock_supervisor_comms.send.side_effect = side_effect
+    state, _, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    assert error is None
+    assert state == TaskInstanceState.SUCCESS
+    assert expected_message in captured["messages"]
 
 
 @mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
