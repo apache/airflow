@@ -70,6 +70,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Clau",
+      "timestamp": "Marca de temps",
       "value": "Valor"
     },
     "delete": {
