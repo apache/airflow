@@ -791,7 +791,7 @@ class KubernetesPodOperator(BaseOperator):
                     # Without XCom there is nothing left to read from the pod, so a pod that finished
                     # after its try was interrupted (e.g. a kept pod after a timeout) is this try's run.
                     if not self.do_xcom_push:
-                        self.log.info("Reusing pod '%s', which already succeeded.", pod.metadata.name)
+                        self.log.info("Reusing pod '%s', which already succeeded.", metadata.name)
                         return pod
                 else:
                     Stats.incr("resumable_job.terminal_resubmit", tags=stats_tags)
@@ -1466,7 +1466,7 @@ class KubernetesPodOperator(BaseOperator):
                 "Task interrupted by execution_timeout and on_kill_action is %r, keeping pod %s "
                 "so the next try can reattach.",
                 self.on_kill_action.value,
-                remote_pod.metadata.name,
+                cast("k8s.V1ObjectMeta", remote_pod.metadata).name,
             )
             return
 
