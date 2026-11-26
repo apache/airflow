@@ -128,6 +128,7 @@ from airflow.sdk.execution_time.comms import (
     DeleteTaskStateStore,
     DRCount,
     ErrorResponse,
+    GetAssetByName,
     GetAssetByUri,
     GetAssetEventByAsset,
     GetAssetsByAlias,
@@ -2820,6 +2821,40 @@ def test_run_mapped_task_with_constructor_inlets(create_runtime_ti, mock_supervi
     assert error is None
     assert state == TaskInstanceState.SUCCESS
     assert captured == {"inlets": [Asset("b")], "events": [asset_event_resp]}
+
+
+@pytest.mark.parametrize(
+    ("inlet", "expected_message"),
+    [
+        pytest.param(Asset.ref(name="a"), GetAssetByName(name="a"), id="inlet-events-ref"),
+        pytest.param(AssetAlias(name="alias"), GetAssetsByAlias(alias_name="alias"), id="state-store-alias"),
+    ],
+)
+def test_asset_lookups_built_before_execute(
+    inlet, expected_message, create_runtime_ti, mock_supervisor_comms
+):
+    captured = {}
+
+    def get_sent_messages():
+        return [c.args[0] if c.args else c.kwargs["msg"] for c in mock_supervisor_comms.send.call_args_list]
+
+    def side_effect(msg=None, *args, **kwargs):
+        if isinstance(msg, ValidateInletsAndOutlets):
+            return InactiveAssetsResult(inactive_assets=[])
+        if isinstance(msg, GetAssetByName):
+            return AssetResult(name=msg.name, uri=msg.name, group="asset")
+        return OKResponse(ok=True)
+
+    class LookupCheckOperator(BaseOperator):
+        def execute(self, context):
+            captured["messages"] = get_sent_messages()
+
+    ti = create_runtime_ti(task=LookupCheckOperator(task_id="t", inlets=[inlet]))
+    mock_supervisor_comms.send.side_effect = side_effect
+    state, _, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    assert error is None
+    assert state == TaskInstanceState.SUCCESS
+    assert expected_message in captured["messages"]
 
 
 @mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
@@ -7597,35 +7632,6 @@ class TestTaskInstanceStateOperations:
         mock_supervisor_comms.send.assert_any_call(
             SetAssetStateStoreByName(name="resolved_asset", key="watermark", value="2026-05-01")
         )
-
-    def test_asset_state_store_alias_resolved_before_execute(self, create_runtime_ti, mock_supervisor_comms):
-        alias = AssetAlias(name="my_alias")
-        resolved = Asset(name="resolved_asset", uri="s3://bucket/resolved")
-        captured = {}
-
-        def sent_messages():
-            return [
-                c.args[0] if c.args else c.kwargs["msg"] for c in mock_supervisor_comms.send.call_args_list
-            ]
-
-        class WatcherOperator(BaseOperator):
-            def execute(self, context):
-                captured["messages"] = sent_messages()
-
-        def side_effect(msg):
-            if isinstance(msg, GetAssetsByAlias):
-                return AssetsByAliasResult(
-                    assets=[AssetResult(name=resolved.name, uri=resolved.uri, group="asset")]
-                )
-            return TestTaskInstanceStateOperations._watcher_side_effect(msg)
-
-        task = WatcherOperator(task_id="t", inlets=[alias])
-        runtime_ti = create_runtime_ti(task=task)
-        mock_supervisor_comms.send.side_effect = side_effect
-
-        run(runtime_ti, context=runtime_ti.get_template_context(), log=mock.MagicMock())
-
-        assert GetAssetsByAlias(alias_name="my_alias") in captured["messages"]
 
     def test_asset_state_store_alias_inlet_no_resolved_assets(self, create_runtime_ti, mock_supervisor_comms):
         alias = AssetAlias(name="empty_alias")
