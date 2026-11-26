@@ -20,13 +20,16 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
-from flask import Flask, Response, g
-from flask_appbuilder.security.views import AuthDBView, AuthLDAPView, AuthOAuthView
+from flask import Flask, Response, g, session
+from flask_appbuilder import AppBuilder
+from flask_appbuilder.security.views import AuthDBView, AuthLDAPView, AuthOAuthView, AuthView
 
+from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.auth_manager.views import auth_login
 from airflow.providers.fab.auth_manager.views.auth_login import (
     CustomAuthDBView,
     CustomAuthLDAPView,
+    CustomAuthRemoteUserView,
     redirect_if_authenticated,
 )
 from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
@@ -138,6 +141,42 @@ class TestCustomLoginViews:
 
         assert response.get_data(as_text=True) == "login page"
         parent_login.assert_called_once_with(*expected_args)
+
+
+class TestEndSessionOnLogout:
+    @pytest.mark.parametrize(
+        "view_class",
+        [CustomAuthDBView, CustomAuthLDAPView, CustomAuthOAuthView, CustomAuthRemoteUserView],
+    )
+    @pytest.mark.parametrize(
+        ("logout_redirect_url", "expected_location"),
+        [
+            (None, "/login/"),
+            ("https://idp.example.com/logout", "https://idp.example.com/logout"),
+        ],
+    )
+    @mock.patch.object(AuthView, "logout", autospec=True, return_value=Response(status=302))
+    def test_logout_clears_session_and_redirects(
+        self, parent_logout, flask_app, view_class, logout_redirect_url, expected_location
+    ):
+        flask_app.secret_key = "test-secret"
+        if logout_redirect_url:
+            flask_app.config["LOGOUT_REDIRECT_URL"] = logout_redirect_url
+        view = view_class()
+        view.appbuilder = mock.Mock(spec=AppBuilder, get_url_for_login="/login/")
+        with flask_app.test_request_context("/logout/"):
+            session["csrf_token"] = "token"
+            response = view.logout()
+
+            assert not session
+
+        parent_logout.assert_called_once_with(view)
+        assert response.status_code == 302
+        assert response.location == expected_location
+
+
+def test_security_manager_uses_custom_remote_user_view():
+    assert FabAirflowSecurityManagerOverride.authremoteuserview is CustomAuthRemoteUserView
 
 
 def test_module_uses_token_setting_redirect():

@@ -20,7 +20,9 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from flask import session
 from flask_login import login_user
+from sqlalchemy import select
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.providers.fab.auth_manager.api_fastapi.datamodels.login import LoginResponse
@@ -84,8 +86,8 @@ class TestLogin:
         token_cookie = next(c for c in cookies if f"{COOKIE_NAME_JWT_TOKEN}=" in c)
         assert f"Path={SUBPATH}" in token_cookie
 
-    def test_logout_signs_out_the_flask_session(self, real_app_client):
-        """The session cookie the browser keeps no longer signs in once the logout redirects are followed."""
+    def test_logout_ends_the_flask_session(self, real_app_client):
+        """Following the logout redirects deletes the Flask session and lands on the login page."""
         auth_manager, client = real_app_client
         flask_app = auth_manager.flask_app
         with flask_app.app_context():
@@ -93,6 +95,7 @@ class TestLogin:
         try:
             with flask_app.test_request_context():
                 login_user(user)
+                session_id = session.sid
                 login_response = flask_app.process_response(flask_app.response_class())
             session_cookie = login_response.headers["Set-Cookie"].split(";")[0]
 
@@ -106,6 +109,17 @@ class TestLogin:
             response = get("/logout")
             while response.is_redirect and response.headers["location"].startswith("/auth/logout"):
                 response = get(response.headers["location"].removeprefix("/auth"))
+
+            assert response.is_redirect
+            assert response.headers["location"].endswith("/login/")
+            session_cookies = [c for c in response.headers.get_list("set-cookie") if c.startswith("session=")]
+            assert len(session_cookies) == 1
+            assert "Max-Age=0" in session_cookies[0]
+            with flask_app.app_context():
+                interface = flask_app.session_interface
+                model = interface.sql_session_model
+                stored = interface.client.session.scalar(select(model).where(model.session_id == session_id))
+                assert stored is None
 
             login_page = get("/login/")
             assert login_page.status_code == 200

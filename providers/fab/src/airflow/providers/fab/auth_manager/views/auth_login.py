@@ -14,16 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Login views that honor ``next`` when the user is already authenticated."""
+"""Authentication views that honor ``next`` on login and end the Flask session on logout."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from flask import g, request
+from flask import current_app, g, redirect as flask_redirect, request, session
 from flask_appbuilder import expose
 from flask_appbuilder.security.decorators import no_cache
-from flask_appbuilder.security.views import AuthDBView, AuthLDAPView
+from flask_appbuilder.security.views import AuthDBView, AuthLDAPView, AuthRemoteUserView, AuthView
 
 from airflow.providers.fab.www.views import get_safe_url, redirect
 
@@ -45,7 +45,26 @@ def redirect_if_authenticated() -> Response | None:
     return None
 
 
-class CustomAuthDBView(AuthDBView):
+class EndSessionOnLogoutMixin(AuthView):
+    """
+    End the whole Flask session on logout and return to the login page.
+
+    Flask-AppBuilder's logout only removes the user from the session, so the session row and cookie
+    outlive the logout, and it redirects to the index page, which sends the user to the UI instead of
+    the login form (the UI then renders for anonymous users when a public role is configured).
+    ``LOGOUT_REDIRECT_URL`` still takes precedence when it is set.
+    """
+
+    @expose("/logout/")
+    def logout(self):
+        super().logout()
+        session.clear()
+        return flask_redirect(
+            current_app.config.get("LOGOUT_REDIRECT_URL", self.appbuilder.get_url_for_login)
+        )
+
+
+class CustomAuthDBView(EndSessionOnLogoutMixin, AuthDBView):
     """Database login view that honors ``next`` for already-authenticated users."""
 
     @expose("/login/", methods=["GET", "POST"])
@@ -56,7 +75,7 @@ class CustomAuthDBView(AuthDBView):
         return super().login()
 
 
-class CustomAuthLDAPView(AuthLDAPView):
+class CustomAuthLDAPView(EndSessionOnLogoutMixin, AuthLDAPView):
     """LDAP login view that honors ``next`` for already-authenticated users."""
 
     @expose("/login/", methods=["GET", "POST"])
@@ -65,3 +84,7 @@ class CustomAuthLDAPView(AuthLDAPView):
         if (response := redirect_if_authenticated()) is not None:
             return response
         return super().login()
+
+
+class CustomAuthRemoteUserView(EndSessionOnLogoutMixin, AuthRemoteUserView):
+    """Remote user authentication view that ends the Flask session on logout."""

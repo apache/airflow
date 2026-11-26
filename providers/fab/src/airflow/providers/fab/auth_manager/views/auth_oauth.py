@@ -26,12 +26,15 @@ from flask_appbuilder import expose
 from flask_appbuilder.security.views import AuthOAuthView
 
 from airflow.providers.common.compat.sdk import conf
-from airflow.providers.fab.auth_manager.views.auth_login import redirect_if_authenticated
+from airflow.providers.fab.auth_manager.views.auth_login import (
+    EndSessionOnLogoutMixin,
+    redirect_if_authenticated,
+)
 
 log = logging.getLogger(__name__)
 
 
-class CustomAuthOAuthView(AuthOAuthView):
+class CustomAuthOAuthView(EndSessionOnLogoutMixin, AuthOAuthView):
     """
     Custom OAuth authentication view that ensures session is committed before redirect.
 
