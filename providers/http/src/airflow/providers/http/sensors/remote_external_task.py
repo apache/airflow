@@ -23,8 +23,11 @@ import datetime
 import warnings
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote
 
+from requests.adapters import HTTPAdapter
 from requests.auth import AuthBase
+from urllib3.util.retry import Retry
 
 from airflow.providers.common.compat.sdk import (
     AirflowFailException,
@@ -40,6 +43,19 @@ try:
 except ImportError as e:
     raise AirflowOptionalProviderFeatureException(e)
 
+# ExternalTaskSensor helpers this sensor reuses. They are private to the standard provider, so check them
+# at import time: a rename there must fail loudly here instead of breaking the sensor at run time.
+_REUSED_EXTERNAL_TASK_SENSOR_HELPERS = ("_get_dttm_filter", "_handle_failed_states", "_handle_skipped_states")
+_missing_helpers = [
+    name for name in _REUSED_EXTERNAL_TASK_SENSOR_HELPERS if not hasattr(ExternalTaskSensor, name)
+]
+if _missing_helpers:
+    raise AirflowOptionalProviderFeatureException(
+        f"RemoteExternalTaskSensor needs ExternalTaskSensor.{', '.join(_missing_helpers)}, which the installed "
+        "apache-airflow-providers-standard does not have. Install a compatible version with "
+        "apache-airflow-providers-http[standard]."
+    )
+
 if TYPE_CHECKING:
     from requests import PreparedRequest, Response
 
@@ -49,6 +65,27 @@ SUPPORTED_API_VERSIONS = ("v1", "v2")
 # 429 Too Many Requests and 5xx can be temporary problems of the remote Airflow: let retries handle them.
 RETRYABLE_STATUS_CODES = frozenset({429})
 TASK_INSTANCES_PAGE_LIMIT = 100
+# Used when the connection extra has no "timeout"; without one a stalled remote would hang the poke.
+DEFAULT_REQUEST_TIMEOUT_SECONDS = 60
+
+
+def _retrying_adapter() -> HTTPAdapter:
+    """
+    Retry a request a few times on connection errors, read timeouts, 429 and 5xx before giving up.
+
+    A sensor polls across a network for hours, so one blip should not fail the try. ``allowed_methods=None``
+    retries every method: the list endpoints of the v1 API are POSTs, which urllib3 does not retry by
+    default, and all requests of this sensor are reads. ``Retry`` honours ``Retry-After`` on 429 and 503.
+    """
+    return HTTPAdapter(
+        max_retries=Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=None,
+            raise_on_status=False,
+        )
+    )
 
 
 class _BearerTokenAuth(AuthBase):
@@ -126,36 +163,65 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
         self.http_conn_id = http_conn_id
         self.api_version = api_version
         self._access_token: str | None = None
+        self._request_timeout: float = DEFAULT_REQUEST_TIMEOUT_SECONDS
 
     # --- connecting to the remote Airflow ------------------------------------------------------------
 
-    def _get_remote_api_hook(self, method: str) -> HttpHook:
-        """HttpHook for the remote Airflow API, authenticated for the configured API version."""
-        if self.api_version == "v2" and self._access_token:
+    def _get_remote_api_hook(self, method: str, *, authenticated: bool = True) -> HttpHook:
+        """HttpHook for the remote Airflow, authenticated for the configured API version, with retries."""
+        if authenticated and self.api_version == "v2" and self._access_token:
             token = self._access_token
             return HttpHook(
                 method=method,
                 http_conn_id=self.http_conn_id,
                 auth_type=lambda *_: _BearerTokenAuth(token),
+                adapter=_retrying_adapter(),
             )
         # v1 with a login: HttpHook uses basic authentication. No login: no authentication.
-        return HttpHook(method=method, http_conn_id=self.http_conn_id)
+        return HttpHook(method=method, http_conn_id=self.http_conn_id, adapter=_retrying_adapter())
+
+    def _send(
+        self,
+        method: str,
+        endpoint: str,
+        *,
+        params: dict[str, Any] | None = None,
+        json: dict[str, Any] | None = None,
+        authenticated: bool = True,
+        not_found_message: str | None = None,
+    ) -> Response:
+        """Send one request to the remote Airflow and fail the task on an error answer."""
+        response = self._get_remote_api_hook(method, authenticated=authenticated).run(
+            endpoint,
+            data=params,
+            json=json,
+            extra_options={"check_response": False, "timeout": self._request_timeout},
+        )
+        if not_found_message and response.status_code == 404:
+            raise AirflowFailException(f"{not_found_message}: {response.url}")
+        self._raise_for_remote_error(response)
+        return response
 
     def _fetch_access_token(self) -> str | None:
         """Exchange the connection login and password for an Airflow 3 API access token."""
         conn = HttpHook.get_connection(self.http_conn_id)
         if not conn.login:
             return None
-        response = HttpHook(method="POST", http_conn_id=self.http_conn_id).run(
+        response = self._send(
+            "POST",
             "auth/token",
             json={"username": conn.login, "password": conn.password or ""},
-            extra_options={"check_response": False},
+            authenticated=False,
         )
-        self._raise_for_remote_error(response)
         return response.json()["access_token"]
 
     def _build_remote_api_endpoint(self, path: str) -> str:
         return f"api/{self.api_version}/{path.lstrip('/')}"
+
+    def _build_remote_dag_endpoint(self, path: str = "") -> str:
+        """Endpoint under the external DAG; its id is quoted, as DAG ids may contain URL characters."""
+        dag_path = f"dags/{quote(str(self.external_dag_id), safe='')}"
+        return self._build_remote_api_endpoint(f"{dag_path}/{path}" if path else dag_path)
 
     @staticmethod
     def _raise_for_remote_error(response: Response) -> None:
@@ -165,23 +231,12 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
             f"{response.request.method} {response.url} returned {response.status_code}: {response.text[:500]}"
         )
         if response.status_code >= 500 or response.status_code in RETRYABLE_STATUS_CODES:
-            # The remote Airflow may be restarting or overloaded: fail this try, keep the task retries.
+            # Still failing after the retries of the adapter: fail this try, keep the task retries.
             raise RemoteAirflowApiUnavailableException(message)
         # A wrong URL, filter or credentials give the same error on the next try: fail without retries.
         raise AirflowFailException(message)
 
     # --- asking the remote Airflow -------------------------------------------------------------------
-
-    def _count_remote_records(self, path: str, filters: dict[str, Any]) -> int:
-        """Return how many records the remote list endpoint finds for the filters."""
-        # Only the total is needed: one record is enough, total_entries is still the full count.
-        response = self._get_remote_api_hook("POST").run(
-            self._build_remote_api_endpoint(path),
-            json={**filters, "page_limit": 1},
-            extra_options={"check_response": False},
-        )
-        self._raise_for_remote_error(response)
-        return int(response.json()["total_entries"])
 
     def _build_exact_date_filter(self, date: datetime.datetime) -> dict[str, str]:
         """Filter that matches exactly this date: the list endpoints only have from/to date filters."""
@@ -200,10 +255,16 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
         A DAG has at most one run per logical date (unique ``dag_id``, ``logical_date``), so the count is
         the number of dates whose run is in one of the states.
         """
+        # GET under the DAG's own path, not POST dags/~/dagRuns/list: the batch endpoint authorizes "~" and
+        # then drops the runs of DAGs the user cannot read, so missing access would look like "no run yet"
+        # instead of a 403. Only the total is needed: total_entries is the full count even with limit=1.
         return sum(
-            self._count_remote_records(
-                "dags/~/dagRuns/list",
-                {"dag_ids": [self.external_dag_id], "states": states, **self._build_exact_date_filter(date)},
+            int(
+                self._send(
+                    "GET",
+                    self._build_remote_dag_endpoint("dagRuns"),
+                    params={**self._build_exact_date_filter(date), "state": states, "limit": 1},
+                ).json()["total_entries"]
             )
             for date in dttm_filter
         )
@@ -214,22 +275,49 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
 
         Keyed by task id. A mapped task has one task instance per map index, so it can have several states.
         """
+        if self.api_version == "v1":
+            # Airflow 2 has no task_id filter on GET .../taskInstances. Its batch endpoint answers 403 for a
+            # DAG the user cannot read and writes no audit log, so it is used there.
+            return self._collect_task_states(
+                "POST",
+                self._build_remote_api_endpoint("dags/~/dagRuns/~/taskInstances/list"),
+                lambda offset: {
+                    "json": {
+                        "dag_ids": [self.external_dag_id],
+                        "task_ids": list(self.external_task_ids or []),
+                        **self._build_exact_date_filter(date),
+                        "page_offset": offset,
+                        "page_limit": TASK_INSTANCES_PAGE_LIMIT,
+                    }
+                },
+            )
+        # Airflow 3: GET under the DAG's own path, one call per task id. The batch endpoint
+        # (POST dags/~/dagRuns/~/taskInstances/list) writes an audit log row on every poke and, authorizing
+        # "~", returns nothing instead of a 403 for a DAG the user cannot read.
+        states_by_task: dict[str, list[str | None]] = {}
+        for task_id in self.external_task_ids or []:
+            states_by_task.update(
+                self._collect_task_states(
+                    "GET",
+                    self._build_remote_dag_endpoint("dagRuns/~/taskInstances"),
+                    lambda offset, task_id=task_id: {
+                        "params": {
+                            "task_id": task_id,
+                            **self._build_exact_date_filter(date),
+                            "offset": offset,
+                            "limit": TASK_INSTANCES_PAGE_LIMIT,
+                        }
+                    },
+                )
+            )
+        return states_by_task
+
+    def _collect_task_states(self, method: str, endpoint: str, page_request) -> dict[str, list[str | None]]:
+        """Read every page of a task instances list and group the states by task id."""
         states_by_task: dict[str, list[str | None]] = {}
         offset = 0
         while True:
-            response = self._get_remote_api_hook("POST").run(
-                self._build_remote_api_endpoint("dags/~/dagRuns/~/taskInstances/list"),
-                json={
-                    "dag_ids": [self.external_dag_id],
-                    "task_ids": list(self.external_task_ids or []),
-                    **self._build_exact_date_filter(date),
-                    "page_offset": offset,
-                    "page_limit": TASK_INSTANCES_PAGE_LIMIT,
-                },
-                extra_options={"check_response": False},
-            )
-            self._raise_for_remote_error(response)
-            body = response.json()
+            body = self._send(method, endpoint, **page_request(offset)).json()
             task_instances = body["task_instances"]
             for task_instance in task_instances:
                 states_by_task.setdefault(task_instance["task_id"], []).append(task_instance["state"])
@@ -265,17 +353,19 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
 
     def _check_remote_dag_and_tasks_exist(self) -> None:
         """Fail right away if the remote DAG or one of the external tasks does not exist."""
-        hook = self._get_remote_api_hook("GET")
-        paths = [f"dags/{self.external_dag_id}"] + [
-            f"dags/{self.external_dag_id}/tasks/{task_id}" for task_id in self.external_task_ids or []
-        ]
-        for path in paths:
-            response = hook.run(
-                self._build_remote_api_endpoint(path), extra_options={"check_response": False}
+        self._send(
+            "GET",
+            self._build_remote_dag_endpoint(),
+            not_found_message=f"DAG {self.external_dag_id} does not exist in the remote Airflow",
+        )
+        for task_id in self.external_task_ids or []:
+            self._send(
+                "GET",
+                self._build_remote_dag_endpoint(f"tasks/{quote(str(task_id), safe='')}"),
+                not_found_message=(
+                    f"Task {task_id} does not exist in DAG {self.external_dag_id} in the remote Airflow"
+                ),
             )
-            if response.status_code == 404:
-                raise AirflowFailException(f"{path} does not exist in the remote Airflow: {response.url}")
-            self._raise_for_remote_error(response)
 
     # --- sensor --------------------------------------------------------------------------------------
 
@@ -313,6 +403,9 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
             ", ".join(date.isoformat() for date in dttm_filter),
         )
 
+        extra = HttpHook.get_connection(self.http_conn_id).extra_dejson
+        self._request_timeout = extra.get("timeout", DEFAULT_REQUEST_TIMEOUT_SECONDS)
+
         if self.api_version == "v2":
             # A fresh token on every poke: a sensor can wait longer than a token lives.
             self._access_token = self._fetch_access_token()
@@ -323,7 +416,7 @@ class RemoteExternalTaskSensor(ExternalTaskSensor):
             self._has_checked_existence = True
 
         if self.external_task_ids:
-            # One request per date gives the states of all external tasks, mapped ones included.
+            # The states of all external tasks per date, mapped ones included.
             task_states_by_date = [self._get_remote_task_states(date) for date in dttm_filter]
             if self.failed_states:
                 self._handle_failed_states(

@@ -19,15 +19,26 @@ from __future__ import annotations
 
 import base64
 import datetime
+import importlib
 import time
 from typing import TYPE_CHECKING, cast
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException, AirflowFailException, AirflowSkipException
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowFailException,
+    AirflowOptionalProviderFeatureException,
+    AirflowSkipException,
+)
 from airflow.providers.http.exceptions import RemoteAirflowApiUnavailableException
-from airflow.providers.http.sensors.remote_external_task import RemoteExternalTaskSensor
+from airflow.providers.http.sensors import remote_external_task
+from airflow.providers.http.sensors.remote_external_task import (
+    DEFAULT_REQUEST_TIMEOUT_SECONDS,
+    RemoteExternalTaskSensor,
+)
 
 if TYPE_CHECKING:
     from airflow.sdk import Context
@@ -35,10 +46,10 @@ if TYPE_CHECKING:
 REMOTE = "http://remote-airflow:8080"
 LOGICAL_DATE = datetime.datetime(2026, 11, 17, 5, 0, tzinfo=datetime.UTC)
 LOGICAL_DATE_ISO = "2026-11-17T05:00:00+00:00"
-DAG_RUNS_V1 = f"{REMOTE}/api/v1/dags/~/dagRuns/list"
-DAG_RUNS_V2 = f"{REMOTE}/api/v2/dags/~/dagRuns/list"
+DAG_RUNS_V1 = f"{REMOTE}/api/v1/dags/remote_dag/dagRuns"
+DAG_RUNS_V2 = f"{REMOTE}/api/v2/dags/remote_dag/dagRuns"
 TASK_INSTANCES_V1 = f"{REMOTE}/api/v1/dags/~/dagRuns/~/taskInstances/list"
-TASK_INSTANCES_V2 = f"{REMOTE}/api/v2/dags/~/dagRuns/~/taskInstances/list"
+TASK_INSTANCES_V2 = f"{REMOTE}/api/v2/dags/remote_dag/dagRuns/~/taskInstances"
 TOKEN_URL = f"{REMOTE}/auth/token"
 
 
@@ -57,12 +68,22 @@ def remote_connections(create_connection_without_db):
             password="secret",
         )
     )
+    create_connection_without_db(
+        Connection(
+            conn_id="remote_with_timeout",
+            conn_type="http",
+            host="remote-airflow",
+            port=8080,
+            extra='{"timeout": 5}',
+        )
+    )
 
 
 def make_sensor(**kwargs) -> RemoteExternalTaskSensor:
     kwargs.setdefault("http_conn_id", "remote_no_auth")
     kwargs.setdefault("api_version", "v1")
-    return RemoteExternalTaskSensor(task_id="wait_remote", external_dag_id="remote_dag", **kwargs)
+    kwargs.setdefault("external_dag_id", "remote_dag")
+    return RemoteExternalTaskSensor(task_id="wait_remote", **kwargs)
 
 
 def context_for(date: datetime.datetime) -> Context:
@@ -72,6 +93,11 @@ def context_for(date: datetime.datetime) -> Context:
 
 def poke(sensor: RemoteExternalTaskSensor) -> bool:
     return sensor.poke(context_for(LOGICAL_DATE))
+
+
+def query(request) -> dict[str, list[str]]:
+    """Query parameters of a recorded request, with their original case."""
+    return parse_qs(urlsplit(request.url).query)
 
 
 def total(count: int) -> dict:
@@ -89,6 +115,13 @@ def task_instances(*instances: tuple[str, int, str | None]) -> dict:
             "total_entries": len(instances),
         }
     }
+
+
+def task_instances_of(task_id: str, *states: str | None) -> dict:
+    """GET .../taskInstances?task_id= response: one task instance per state (map index 0, 1, ...)."""
+    if len(states) == 1:
+        return task_instances((task_id, -1, states[0]))
+    return task_instances(*((task_id, index, state) for index, state in enumerate(states)))
 
 
 class TestRemoteExternalTaskSensorInit:
@@ -117,30 +150,47 @@ class TestRemoteExternalTaskSensorInit:
     def test_has_no_link_to_local_ui(self):
         assert make_sensor().operator_extra_links == []
 
+    def test_fails_to_import_without_the_reused_external_task_sensor_helpers(self, monkeypatch):
+        # A standard provider that renamed a reused private helper must fail at import time, not at run time.
+        from airflow.providers.standard.sensors.external_task import ExternalTaskSensor
+
+        monkeypatch.delattr(ExternalTaskSensor, "_handle_failed_states")
+        try:
+            with pytest.raises(AirflowOptionalProviderFeatureException, match="_handle_failed_states"):
+                importlib.reload(remote_external_task)
+        finally:
+            monkeypatch.undo()
+            importlib.reload(remote_external_task)
+
 
 class TestRemoteExternalTaskSensorV1:
     def test_dag_run_success(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V1, **total(1))
+        requests_mock.get(DAG_RUNS_V1, **total(1))
 
         assert poke(make_sensor()) is True
 
         request = requests_mock.last_request
-        assert request.json() == {
-            "dag_ids": ["remote_dag"],
-            "states": ["success"],
-            "execution_date_gte": LOGICAL_DATE_ISO,
-            "execution_date_lte": LOGICAL_DATE_ISO,
-            "page_limit": 1,
+        assert request.method == "GET"
+        assert query(request) == {
+            "execution_date_gte": [LOGICAL_DATE_ISO],
+            "execution_date_lte": [LOGICAL_DATE_ISO],
+            "state": ["success"],
+            "limit": ["1"],
         }
         assert "Authorization" not in request.headers
 
     def test_dag_run_not_finished(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V1, **total(0))
+        requests_mock.get(DAG_RUNS_V1, **total(0))
 
         assert poke(make_sensor()) is False
 
+    def test_dag_id_is_quoted_in_the_path(self, requests_mock):
+        requests_mock.get(f"{REMOTE}/api/v1/dags/dwh.dbt%2Bmarts/dagRuns", **total(1))
+
+        assert poke(make_sensor(external_dag_id="dwh.dbt+marts")) is True
+
     def test_login_is_sent_with_basic_auth(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V1, **total(1))
+        requests_mock.get(DAG_RUNS_V1, **total(1))
 
         assert poke(make_sensor(http_conn_id="remote_with_login")) is True
 
@@ -214,26 +264,26 @@ class TestRemoteExternalTaskSensorV1:
         assert [r.json()["page_offset"] for r in requests_mock.request_history] == [0, 100]
 
     def test_execution_delta_shifts_the_remote_date(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V1, **total(1))
+        requests_mock.get(DAG_RUNS_V1, **total(1))
 
         poke(make_sensor(execution_delta=datetime.timedelta(days=1, hours=2)))
 
-        body = requests_mock.last_request.json()
-        assert body["execution_date_gte"] == body["execution_date_lte"] == "2026-11-16T03:00:00+00:00"
+        params = query(requests_mock.last_request)
+        assert params["execution_date_gte"] == params["execution_date_lte"] == ["2026-11-16T03:00:00+00:00"]
 
     def test_execution_date_in_another_timezone_is_sent_in_utc(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V1, **total(1))
+        requests_mock.get(DAG_RUNS_V1, **total(1))
         bangkok = datetime.timezone(datetime.timedelta(hours=7))
 
         make_sensor().poke(context_for(datetime.datetime(2026, 11, 17, 12, 0, tzinfo=bangkok)))
 
-        assert requests_mock.last_request.json()["execution_date_gte"] == LOGICAL_DATE_ISO
+        assert query(requests_mock.last_request)["execution_date_gte"] == [LOGICAL_DATE_ISO]
 
     def test_naive_date_is_not_read_in_the_host_time_zone(self, requests_mock, monkeypatch):
         # Airflow's default time zone is UTC in tests; the worker host is in Bangkok (UTC+7).
         monkeypatch.setenv("TZ", "Asia/Bangkok")
         time.tzset()
-        requests_mock.post(DAG_RUNS_V1, **total(1))
+        requests_mock.get(DAG_RUNS_V1, **total(1))
         try:
             poke(
                 make_sensor(execution_date_fn=lambda logical_date, **_: datetime.datetime(2026, 11, 17, 5, 0))
@@ -242,32 +292,34 @@ class TestRemoteExternalTaskSensorV1:
             monkeypatch.undo()
             time.tzset()
 
-        assert requests_mock.last_request.json()["execution_date_gte"] == LOGICAL_DATE_ISO
+        assert query(requests_mock.last_request)["execution_date_gte"] == [LOGICAL_DATE_ISO]
 
 
 class TestRemoteExternalTaskSensorV2:
     def test_login_is_exchanged_for_a_token(self, requests_mock):
         requests_mock.post(TOKEN_URL, json={"access_token": "jwt-token"})
-        requests_mock.post(DAG_RUNS_V2, **total(1))
+        requests_mock.get(DAG_RUNS_V2, **total(1))
 
         assert poke(make_sensor(http_conn_id="remote_with_login", api_version="v2")) is True
 
         token_request, list_request = requests_mock.request_history
         assert token_request.json() == {"username": "sensor", "password": "secret"}
+        assert "Authorization" not in token_request.headers or not token_request.headers[
+            "Authorization"
+        ].startswith("Bearer")
         assert list_request.headers["Authorization"] == "Bearer jwt-token"
-        assert list_request.json() == {
-            "dag_ids": ["remote_dag"],
-            "states": ["success"],
-            "logical_date_gte": LOGICAL_DATE_ISO,
-            "logical_date_lte": LOGICAL_DATE_ISO,
-            "page_limit": 1,
+        assert query(list_request) == {
+            "logical_date_gte": [LOGICAL_DATE_ISO],
+            "logical_date_lte": [LOGICAL_DATE_ISO],
+            "state": ["success"],
+            "limit": ["1"],
         }
 
     def test_new_token_on_every_poke(self, requests_mock):
         requests_mock.post(
             TOKEN_URL, [{"json": {"access_token": "first"}}, {"json": {"access_token": "second"}}]
         )
-        requests_mock.post(DAG_RUNS_V2, **total(0))
+        requests_mock.get(DAG_RUNS_V2, **total(0))
         sensor = make_sensor(http_conn_id="remote_with_login", api_version="v2")
 
         poke(sensor)
@@ -275,21 +327,44 @@ class TestRemoteExternalTaskSensorV2:
 
         assert requests_mock.last_request.headers["Authorization"] == "Bearer second"
 
-    def test_task_instances_use_logical_date(self, requests_mock):
-        requests_mock.post(TASK_INSTANCES_V2, **task_instances(("a", -1, "success")))
+    def test_task_instances_are_read_per_task_under_the_dag(self, requests_mock):
+        # GET under dags/{dag_id}: authorizes the DAG itself (403 without access) and writes no audit log,
+        # unlike POST dags/~/dagRuns/~/taskInstances/list.
+        requests_mock.get(
+            TASK_INSTANCES_V2,
+            [task_instances_of("group.a", "success"), task_instances_of("b", "success", "success")],
+        )
 
-        assert poke(make_sensor(api_version="v2", external_task_id="a")) is True
+        assert poke(make_sensor(api_version="v2", external_task_ids=["group.a", "b"])) is True
 
-        body = requests_mock.last_request.json()
-        assert body["logical_date_gte"] == body["logical_date_lte"] == LOGICAL_DATE_ISO
-        assert body["task_ids"] == ["a"]
+        assert [query(r) for r in requests_mock.request_history] == [
+            {
+                "task_id": [task_id],
+                "logical_date_gte": [LOGICAL_DATE_ISO],
+                "logical_date_lte": [LOGICAL_DATE_ISO],
+                "offset": ["0"],
+                "limit": ["100"],
+            }
+            for task_id in ("group.a", "b")
+        ]
+        assert all(r.method == "GET" for r in requests_mock.request_history)
+
+    def test_mapped_task_with_one_index_running_keeps_waiting(self, requests_mock):
+        requests_mock.get(
+            TASK_INSTANCES_V2,
+            [task_instances_of("a", "success", "running"), task_instances_of("b", "success")],
+        )
+
+        assert poke(make_sensor(api_version="v2", external_task_ids=["a", "b"])) is False
 
     def test_without_login_no_token_is_requested(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V2, **total(1))
+        requests_mock.get(DAG_RUNS_V2, **total(1))
 
         assert poke(make_sensor(api_version="v2")) is True
 
-        assert [r.url for r in requests_mock.request_history] == [DAG_RUNS_V2]
+        assert [urlsplit(r.url).path for r in requests_mock.request_history] == [
+            "/api/v2/dags/remote_dag/dagRuns"
+        ]
         assert "Authorization" not in requests_mock.last_request.headers
 
     def test_wrong_credentials_fail_the_task(self, requests_mock):
@@ -298,11 +373,17 @@ class TestRemoteExternalTaskSensorV2:
         with pytest.raises(AirflowFailException, match="401"):
             poke(make_sensor(http_conn_id="remote_with_login", api_version="v2"))
 
+    def test_no_read_access_to_the_dag_fails_the_task(self, requests_mock):
+        requests_mock.get(DAG_RUNS_V2, status_code=403, text="Forbidden")
+
+        with pytest.raises(AirflowFailException, match="403: Forbidden"):
+            poke(make_sensor(api_version="v2"))
+
 
 class TestRemoteExternalTaskSensorStates:
     def test_failed_state_fails_without_waiting_for_the_timeout(self, requests_mock):
-        requests_mock.post(
-            DAG_RUNS_V1, additional_matcher=lambda r: r.json()["states"] == ["failed"], **total(1)
+        requests_mock.get(
+            DAG_RUNS_V1, additional_matcher=lambda r: query(r)["state"] == ["failed"], **total(1)
         )
 
         # ExternalDagFailedError in recent standard providers, AirflowException in older ones.
@@ -312,10 +393,17 @@ class TestRemoteExternalTaskSensorStates:
         assert not isinstance(error.value, AirflowSkipException)
 
     def test_failed_state_with_soft_fail_skips(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V1, **total(1))
+        requests_mock.get(DAG_RUNS_V1, **total(1))
 
         with pytest.raises(AirflowSkipException):
             poke(make_sensor(failed_states=["failed"], soft_fail=True))
+
+    def test_several_states_are_all_sent(self, requests_mock):
+        requests_mock.get(DAG_RUNS_V1, **total(0))
+
+        poke(make_sensor(allowed_states=["success", "running"]))
+
+        assert query(requests_mock.last_request)["state"] == ["success", "running"]
 
     def test_one_failed_map_index_fails_the_sensor(self, requests_mock):
         requests_mock.post(
@@ -344,27 +432,52 @@ class TestRemoteExternalTaskSensorStates:
         assert requests_mock.call_count == 1
 
     def test_no_failed_runs_keeps_waiting(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V1, **total(0))
+        requests_mock.get(DAG_RUNS_V1, **total(0))
 
         assert poke(make_sensor(failed_states=["failed"])) is False
-        assert [r.json()["states"] for r in requests_mock.request_history] == [["failed"], ["success"]]
+        assert [query(r)["state"] for r in requests_mock.request_history] == [["failed"], ["success"]]
 
 
 class TestRemoteExternalTaskSensorErrors:
     def test_client_error_fails_without_retries(self, requests_mock):
-        requests_mock.post(DAG_RUNS_V1, status_code=422, text="unknown field")
+        requests_mock.get(DAG_RUNS_V1, status_code=422, text="unknown field")
 
         with pytest.raises(AirflowFailException, match="422: unknown field"):
             poke(make_sensor())
 
     @pytest.mark.parametrize("status_code", [429, 500, 502, 503, 504])
     def test_temporary_error_keeps_retries(self, requests_mock, status_code):
-        requests_mock.post(DAG_RUNS_V1, status_code=status_code, text="try later")
+        requests_mock.get(DAG_RUNS_V1, status_code=status_code, text="try later")
 
         with pytest.raises(RemoteAirflowApiUnavailableException, match=f"{status_code}: try later") as error:
             poke(make_sensor())
 
         assert not isinstance(error.value, AirflowFailException)
+
+    def test_requests_retry_blips_before_failing(self):
+        hook = make_sensor()._get_remote_api_hook("POST")
+
+        retry = hook.adapter.max_retries
+        assert retry.total == 3
+        assert retry.backoff_factor == 1
+        assert set(retry.status_forcelist) == {429, 500, 502, 503, 504}
+        # None retries every method: the v1 list endpoints are POSTs, which urllib3 skips by default.
+        assert retry.allowed_methods is None
+        assert retry.raise_on_status is False
+
+    def test_requests_have_a_default_timeout(self, requests_mock):
+        requests_mock.get(DAG_RUNS_V1, **total(1))
+
+        poke(make_sensor())
+
+        assert requests_mock.last_request.timeout == DEFAULT_REQUEST_TIMEOUT_SECONDS
+
+    def test_timeout_from_the_connection_extra(self, requests_mock):
+        requests_mock.get(DAG_RUNS_V1, **total(1))
+
+        poke(make_sensor(http_conn_id="remote_with_timeout"))
+
+        assert requests_mock.last_request.timeout == 5
 
     @pytest.mark.parametrize(
         ("kwargs", "message"),
@@ -392,19 +505,19 @@ class TestRemoteExternalTaskSensorErrors:
     def test_check_existence_missing_dag(self, requests_mock):
         requests_mock.get(f"{REMOTE}/api/v1/dags/remote_dag", status_code=404)
 
-        with pytest.raises(AirflowFailException, match="dags/remote_dag does not exist"):
+        with pytest.raises(AirflowFailException, match="DAG remote_dag does not exist in the remote Airflow"):
             poke(make_sensor(check_existence=True))
 
     def test_check_existence_missing_task(self, requests_mock):
         requests_mock.get(f"{REMOTE}/api/v1/dags/remote_dag", json={})
         requests_mock.get(f"{REMOTE}/api/v1/dags/remote_dag/tasks/a", status_code=404)
 
-        with pytest.raises(AirflowFailException, match="dags/remote_dag/tasks/a does not exist"):
+        with pytest.raises(AirflowFailException, match="Task a does not exist in DAG remote_dag"):
             poke(make_sensor(external_task_id="a", check_existence=True))
 
     def test_check_existence_runs_once(self, requests_mock):
         dag = requests_mock.get(f"{REMOTE}/api/v1/dags/remote_dag", json={})
-        requests_mock.post(DAG_RUNS_V1, **total(0))
+        requests_mock.get(DAG_RUNS_V1, **total(0))
         sensor = make_sensor(check_existence=True)
 
         poke(sensor)

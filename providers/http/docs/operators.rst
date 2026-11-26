@@ -104,6 +104,10 @@ task group (``external_task_group_id``) is not supported yet. Deferrable mode is
 with ``deferrable=True`` (also when it comes from ``[operators] default_deferrable``) the sensor warns and
 runs as a regular sensor.
 
+Requests to the remote Airflow time out after 60 seconds, or after ``timeout`` from the connection extra.
+Connection errors, read timeouts, 429 and 5xx answers are retried three times with a growing pause before the
+try fails; other errors (for example 403 when the user cannot read the DAG) fail the task without retries.
+
 Set ``check_existence=True`` if the DAG id may be mistyped: otherwise a DAG that does not exist in the remote
 Airflow looks the same as a run that has not finished yet, and the sensor waits until the timeout.
 
