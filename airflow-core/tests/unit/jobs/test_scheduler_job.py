@@ -4132,13 +4132,6 @@ class TestSchedulerJob:
         mock_stats.gauge.assert_any_call("pool.queued_slots", mock.ANY, tags=expected_tags)
         mock_stats.gauge.assert_any_call("pool.running_slots", mock.ANY, tags=expected_tags)
 
-    @pytest.mark.parametrize("state", sorted(TI_METRIC_STATES))
-    def test_ti_metric_state_has_legacy_name(self, state):
-        """Plain StatsD drops tags, so a gauge without a legacy name merges every task into one series."""
-        metric = MetricsRegistry().get(f"ti.{state}")
-        assert metric is not None
-        assert metric.get("legacy_name", "-") != "-"
-
     @pytest.mark.parametrize(
         ("multi_team", "expected_tags"),
         [
@@ -12965,6 +12958,16 @@ class TestSchedulerJob:
         ti = session.merge(ti)
         session.refresh(ti)
         assert ti.state != State.NONE
+
+
+@pytest.mark.non_db_test_override
+@pytest.mark.parametrize("state", sorted(TI_METRIC_STATES))
+def test_ti_metric_state_has_legacy_name(state):
+    """Plain StatsD drops tags, so a gauge without a legacy name merges every task into one series."""
+    metric = MetricsRegistry().get(f"ti.{state}")
+    assert metric is not None
+    assert metric.get("legacy_name", "-") != "-"
+    assert {"dag_id", "task_id"} <= set(metric.get("name_variables", []))
 
 
 @pytest.mark.need_serialized_dag
