@@ -316,7 +316,7 @@ describe("resolveArgs", () => {
     expect((args as { totals: unknown }).totals).toBeNull();
   });
 
-  it("refuses a binding with no name before pulling anything", async () => {
+  it("refuses a binding with no name", async () => {
     const result = bind([{ kind: "xcom", task_id: "make_totals" }] as ArgBindings, {
       upstream: { make_totals: { found: true, value: 1 } },
     });
