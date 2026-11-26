@@ -316,6 +316,13 @@ describe("resolveArgs", () => {
     expect((args as { totals: unknown }).totals).toBeNull();
   });
 
+  it("refuses a binding with no name before pulling anything", async () => {
+    const result = bind([{ kind: "xcom", task_id: "make_totals" }] as ArgBindings, {
+      upstream: { make_totals: { found: true, value: 1 } },
+    });
+    await expect(result).rejects.toThrowError(/A task argument binding has no name/);
+  });
+
   it("fails when the upstream pushed no output, naming both", async () => {
     // An unbound argument reaches the handler as `undefined` and corrupts its
     // output rather than stopping it.
