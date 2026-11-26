@@ -53,7 +53,9 @@ def run_api_server(tmp_path, *, webserver_config: str, auth_role_public: str = "
         }
     ):
         auth_manager = cast("FabAuthManager", create_auth_manager())
-        yield auth_manager, TestClient(create_app(apps="core"), raise_server_exceptions=False)
+        # One event loop for every request, as in the API server: pooled async connections are bound to it.
+        with TestClient(create_app(apps="core"), raise_server_exceptions=False) as client:
+            yield auth_manager, client
 
 
 def test_legacy_auth_role_public_grants_its_role_to_anonymous_requests(tmp_path):

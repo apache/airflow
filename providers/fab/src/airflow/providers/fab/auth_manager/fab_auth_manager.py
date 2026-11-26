@@ -455,8 +455,7 @@ class FabAuthManager(BaseAuthManager[User]):
             return self.flask_app.config.get("AUTH_ROLE_PUBLIC")
         return None
 
-    @provide_session
-    def build_public_user(self, *, session: Session = NEW_SESSION) -> AnonymousUser | None:
+    async def build_public_user(self) -> AnonymousUser | None:
         """
         Build an :class:`AnonymousUser` pre-populated with the configured public role.
 
@@ -473,7 +472,8 @@ class FabAuthManager(BaseAuthManager[User]):
             return None
 
         user = AnonymousUser()
-        role = session.scalar(select(Role).where(Role.name == public_role_name))
+        async with create_session_async() as session:
+            role = await session.scalar(select(Role).where(Role.name == public_role_name))
         # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
         # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
         # the lifetime of a single FastAPI authorization check.

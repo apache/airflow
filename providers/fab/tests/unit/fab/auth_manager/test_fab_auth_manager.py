@@ -30,7 +30,8 @@ from cachetools import TTLCache
 from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
 from pydantic import SecretStr
-from sqlalchemy import select, update
+from sqlalchemy import event, select, update
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from sqlalchemy.orm import Session
 
@@ -570,25 +571,27 @@ class TestFabAuthManager:
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
-    def test_build_public_user_returns_none_when_not_configured(
+    @pytest.mark.asyncio
+    async def test_build_public_user_returns_none_when_not_configured(
         self, flask_app, auth_manager_with_appbuilder
     ):
         """Without ``AUTH_ROLE_PUBLIC`` set on the Flask app, there is no public user."""
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = None
         try:
-            assert auth_manager_with_appbuilder.build_public_user() is None
+            assert await auth_manager_with_appbuilder.build_public_user() is None
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
-    def test_build_public_user_returns_anonymous_user(self, flask_app, auth_manager_with_appbuilder):
+    @pytest.mark.asyncio
+    async def test_build_public_user_returns_anonymous_user(self, flask_app, auth_manager_with_appbuilder):
         """``AUTH_ROLE_PUBLIC`` yields an :class:`AnonymousUser` with the role resolved from the DB."""
         from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
         try:
-            user = auth_manager_with_appbuilder.build_public_user()
+            user = await auth_manager_with_appbuilder.build_public_user()
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
@@ -599,7 +602,8 @@ class TestFabAuthManager:
         # Flask request/app context.
         assert user._perms, "Expected permissions to be pre-populated on the public user"
 
-    def test_build_public_user_with_unknown_role_returns_user_with_empty_perms(
+    @pytest.mark.asyncio
+    async def test_build_public_user_with_unknown_role_returns_user_with_empty_perms(
         self, flask_app, auth_manager_with_appbuilder
     ):
         """A misconfigured role name still yields an :class:`AnonymousUser` with empty perms."""
@@ -608,13 +612,32 @@ class TestFabAuthManager:
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = "DoesNotExist"
         try:
-            user = auth_manager_with_appbuilder.build_public_user()
+            user = await auth_manager_with_appbuilder.build_public_user()
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
         assert isinstance(user, AnonymousUser)
         # Role not found in the DB, so no pre-populated perms.
         assert user._perms == set()
+
+    @pytest.mark.asyncio
+    async def test_build_public_user_does_not_use_sync_engine(self, auth_manager_with_appbuilder):
+        """The public role lookup must not run on a sync engine (it would block the event loop)."""
+        sync_statements = []
+
+        def record_sync_statement(conn, cursor, statement, parameters, context, executemany):
+            if not conn.dialect.is_async:
+                sync_statements.append(statement)
+
+        event.listen(Engine, "before_cursor_execute", record_sync_statement)
+        try:
+            with conf_vars({("fab", "auth_role_public"): "Admin"}):
+                user = await auth_manager_with_appbuilder.build_public_user()
+        finally:
+            event.remove(Engine, "before_cursor_execute", record_sync_statement)
+
+        assert sync_statements == []
+        assert user._perms
 
     def test_get_fastapi_middlewares_disabled(self, flask_app, auth_manager_with_appbuilder):
         """No middleware is registered when public access is not configured."""
@@ -1287,7 +1310,8 @@ class TestFabAuthManager:
         ],
     )
     @pytest.mark.parametrize("as_public_user", [False, True], ids=["db-user", "public-user"])
-    def test_get_authorized_dag_ids(
+    @pytest.mark.asyncio
+    async def test_get_authorized_dag_ids(
         self,
         method,
         user_permissions,
@@ -1319,7 +1343,7 @@ class TestFabAuthManager:
             delete_role(flask_app, "test")
             create_role(flask_app, "test", user_permissions)
             with conf_vars({("fab", "auth_role_public"): "test"}):
-                user = auth_manager_with_appbuilder.build_public_user()
+                user = await auth_manager_with_appbuilder.build_public_user()
         else:
             user = create_user(
                 flask_app,
