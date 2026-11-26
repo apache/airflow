@@ -74,6 +74,7 @@ def test_invalid_routes_return_404(test_client):
     [
         ("get_extra_links", ["map_index", "try_number"]),
         ("get_xcom_entry", ["map_index", "deserialize", "stringify"]),
+        ("list_task_state_store", ["map_index", "limit", "offset", "include_reserved"]),
     ],
 )
 def test_released_query_parameters_keep_their_order(operation_id, released_order):

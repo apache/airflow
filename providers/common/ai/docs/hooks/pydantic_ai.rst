@@ -80,7 +80,7 @@ you version-control agent configs independently.
 .. code-block:: yaml
    :caption: agent_spec.yaml
 
-   model: openai:gpt-5-mini
+   model: openai:gpt-6.1-terra
    instructions: >
      You are a concise summarizer. Given any text, respond with a single
      paragraph that captures the key points.

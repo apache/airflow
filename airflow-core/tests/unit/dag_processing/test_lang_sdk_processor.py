@@ -872,3 +872,18 @@ def test_tasks_in_the_default_pool_move_to_the_teams_pool(mock_bundles_manager):
         "load": "custom",
         "fan_out": "default_pool_team_a",
     }
+
+
+@patch("airflow.dag_processing.lang_sdk_processor.normalize_loops", autospec=True)
+def test_a_dag_with_a_loop_core_cannot_run_is_an_import_error(mock_normalize):
+    mock_normalize.side_effect = [ValueError("loop is broken"), None]
+    broken, ok = _serialize_dag("broken"), _serialize_dag("ok")
+    proc = _make_process()
+
+    proc._handle_request(
+        DagFileParsingResult(fileloc="/b/dag.native", serialized_dags=[broken, ok]), MagicMock(), 1
+    )
+
+    assert [call.args[0] for call in mock_normalize.call_args_list] == [broken.data, ok.data]
+    assert [dag.dag_id for dag in proc.parsing_result.serialized_dags] == ["ok"]
+    assert proc.parsing_result.import_errors == {"dag.native": "ValueError: loop is broken"}

@@ -79,6 +79,20 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
           "bundle_names": ["dags-team-a"]
         }
       ]
+    },
+    "executor": {
+      "status": "healthy",
+      "latest_executor_heartbeat": "2018-12-26T17:16:12+00:00",
+      "detailed_status": "healthy",
+      "instances": [
+        {
+          "hostname": "scheduler-1.example.com",
+          "latest_executor_heartbeat": "2018-12-26T17:16:12+00:00",
+          "executor": "CeleryExecutor",
+          "team_names": ["team-a"],
+          "health_check_result": "healthy"
+        }
+      ]
     }
   }
 
@@ -86,7 +100,11 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
 
   * ``status`` is ``"healthy"`` when a valid connection can be initiated with the database, otherwise ``"unhealthy"``.
 
-* Component-level fields for ``scheduler``, ``triggerer``, and ``dag_processor``
+* The ``executor`` block is only present when at least one configured executor implements its own
+  health check. Most executors don't, so on most deployments this block is omitted entirely rather
+  than shown as unhealthy.
+
+* Component-level fields for ``scheduler``, ``triggerer``, ``dag_processor``, and ``executor``
 
   * ``status`` (legacy aggregate): ``"healthy"`` if **any** running instance is alive, otherwise ``"unhealthy"``
     (including when no running jobs exist for that component).
@@ -108,6 +126,10 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
       to report: ``"healthy"`` if at least one is alive, ``"down"`` if none is. ``"degraded"`` is never
       returned for the scheduler. Use ``instances`` to see how many replicas are up, and your orchestrator
       or the ``scheduler_heartbeat`` metric to alert on reduced scheduling throughput.
+    * **Executor** — each configured executor that implements a health check is its own part.
+      ``"healthy"`` when every such executor has a live, passing check, ``"degraded"`` when only some
+      do, ``"down"`` when none do. A check still waiting on its first result does not count against
+      coverage.
 
     Because the expected set of work comes from configuration rather than from the job table,
     ``detailed_status`` is unaffected by how instances come and go. Restarting an instance — including after
@@ -130,8 +152,11 @@ including per-instance details when multiple schedulers, triggerers, or Dag proc
 
     * ``hostname``: host where the component is running
     * the corresponding ``latest_*_heartbeat`` for that instance
-    * ``team_names`` (triggerer only): teams the triggerer is scoped to, empty when unscoped
+    * ``team_names`` (triggerer and executor): teams the triggerer is scoped to, or the executor's team,
+      empty when unscoped
     * ``bundle_names`` (Dag processor only): Dag bundles that processor is configured to parse, or ``null`` when unset
+    * ``executor`` (executor only): the name configured in ``[core] executor`` for this entry
+    * ``health_check_result`` (executor only): the last result of that executor's own health check
 
   * For HA deployments, prefer ``detailed_status`` and ``instances`` when you need to see every scheduler,
     triggerer, or Dag processor. The top-level ``status`` remains useful for simple probes that only care

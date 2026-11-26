@@ -25,6 +25,7 @@ import threading
 import time
 from base64 import b64encode, urlsafe_b64decode
 from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 from pathlib import Path
 from unittest import mock
 from urllib.parse import parse_qs, urlsplit
@@ -33,6 +34,7 @@ import boto3
 import pytest
 from kubernetes import client
 from kubernetes_asyncio import client as async_client
+from urllib3 import HTTPResponse
 
 from airflow.providers.amazon.aws.executors.eks import _client_factory
 from airflow.providers.amazon.aws.executors.eks._client_factory import (
@@ -279,7 +281,9 @@ async def test_async_client_refreshes_bearer_token(mock_time, _, mock_aws):
 
 def _signing_key_id(configuration: client.Configuration) -> str:
     """Return the access key ID that signed the client's current EKS token."""
-    token = configuration.auth_settings()["BearerToken"]["value"].removeprefix("Bearer k8s-aws-v1.")
+    authorization = configuration.auth_settings()["BearerToken"]["value"]
+    assert authorization is not None
+    token = authorization.removeprefix("Bearer k8s-aws-v1.")
     url = urlsafe_b64decode(token + "=" * (-len(token) % 4)).decode()
     return parse_qs(urlsplit(url).query)["X-Amz-Credential"][0].split("/")[0]
 
@@ -325,11 +329,30 @@ def test_new_token_is_signed_with_rotated_credentials(
     assert _signing_key_id(configuration) == "AKIASECONDKEY"
 
 
-def _unauthorized(api_exception_cls):
-    error = api_exception_cls(status=401, reason="Unauthorized")
+def _make_api_response(api_exception_cls, status=200):
+    body = (
+        b'{"kind":"PodList","apiVersion":"v1","items":[]}'
+        if status == 200
+        else f'{{"kind":"Status","code":{status},"reason":"Error"}}'.encode()
+    )
+    if api_exception_cls is client.ApiException:
+        return HTTPResponse(
+            body=BytesIO(body),
+            status=status,
+            headers={"Content-Type": "application/json"},
+            preload_content=False,
+        )
+    if status == 200:
+        return mock.sentinel.pods
+    error = api_exception_cls(status=status, reason="Error")
     # The client decodes the body of a failed response before raising it.
-    error.body = b'{"kind":"Status","code":401,"reason":"Unauthorized"}'
+    error.body = body
     return error
+
+
+def _get_request_client(core_v1):
+    rest_client = core_v1.api_client.rest_client
+    return rest_client.pool_manager if isinstance(core_v1, client.CoreV1Api) else rest_client
 
 
 @pytest.mark.parametrize(
@@ -350,8 +373,9 @@ async def test_rejected_token_is_replaced_and_request_retried_once(
     core_v1 = factory()
     mock_aws["fetch_token"].side_effect = ["k8s-aws-v1.token-2", "k8s-aws-v1.token-3"]
     sent_tokens = []
-    responses: list = [_unauthorized(api_exception_cls) for _ in range(unauthorized_responses)]
-    responses.append(mock.sentinel.pods)
+    responses = [_make_api_response(api_exception_cls, 401) for _ in range(unauthorized_responses)]
+    pods = _make_api_response(api_exception_cls)
+    responses.append(pods)
 
     def respond(method, url, headers=None, **kwargs):
         sent_tokens.append(headers["authorization"])
@@ -360,7 +384,7 @@ async def test_rejected_token_is_replaced_and_request_retried_once(
             raise response
         return response
 
-    with mock.patch.object(core_v1.api_client.rest_client, "request", autospec=True, side_effect=respond):
+    with mock.patch.object(_get_request_client(core_v1), "request", autospec=True, side_effect=respond):
         try:
             result = core_v1.list_namespaced_pod("default", _preload_content=False)
             if inspect.isawaitable(result):
@@ -369,9 +393,45 @@ async def test_rejected_token_is_replaced_and_request_retried_once(
             result = e.status
 
     assert sent_tokens == ["Bearer k8s-aws-v1.token-1", "Bearer k8s-aws-v1.token-2"]
-    assert result == (mock.sentinel.pods if succeeds else 401)
+    assert result == (pods if succeeds else 401)
     if inspect.iscoroutinefunction(core_v1.api_client.close):
         await core_v1.api_client.close()
+
+
+@pytest.mark.skipif(
+    not hasattr(client.ApiClient, "param_serialize"),
+    reason="Request serialization was introduced in Kubernetes 37",
+)
+@pytest.mark.parametrize("async_req", [False, True])
+@pytest.mark.parametrize("preload_content", [False, True])
+def test_sync_retry_preserves_request_options(mock_aws, async_req, preload_content):
+    core_v1 = _get_eks_kube_client()
+    mock_aws["fetch_token"].return_value = "k8s-aws-v1.token-2"
+    pods = _make_api_response(client.ApiException)
+    rejected_response = _make_api_response(client.ApiException, 401)
+    responses = [rejected_response, pods]
+    sent_tokens = []
+
+    def respond(method, url, headers=None, **kwargs):
+        sent_tokens.append(headers["authorization"])
+        return responses.pop(0)
+
+    with mock.patch.object(_get_request_client(core_v1), "request", autospec=True, side_effect=respond):
+        try:
+            result = core_v1.list_namespaced_pod(
+                "default", _preload_content=preload_content, async_req=async_req
+            )
+            if async_req:
+                result = result.get(timeout=10)
+        finally:
+            core_v1.api_client.close()
+
+    assert sent_tokens == ["Bearer k8s-aws-v1.token-1", "Bearer k8s-aws-v1.token-2"]
+    assert rejected_response.closed
+    if preload_content:
+        assert result.items == []
+    else:
+        assert result is pods
 
 
 @pytest.mark.parametrize(
@@ -391,11 +451,12 @@ async def test_other_errors_are_raised_without_a_new_token_or_retry(
 
     def respond(method, url, headers=None, **kwargs):
         sent_tokens.append(headers["authorization"])
-        error = api_exception_cls(status=status, reason="Error")
-        error.body = b'{"kind":"Status"}'
-        raise error
+        response = _make_api_response(api_exception_cls, status)
+        if isinstance(response, Exception):
+            raise response
+        return response
 
-    with mock.patch.object(core_v1.api_client.rest_client, "request", autospec=True, side_effect=respond):
+    with mock.patch.object(_get_request_client(core_v1), "request", autospec=True, side_effect=respond):
         try:
             result = core_v1.list_namespaced_pod("default", _preload_content=False)
             if inspect.isawaitable(result):
@@ -426,25 +487,26 @@ async def test_requests_rejected_with_the_same_token_share_one_new_token(
     core_v1 = factory()
     mock_aws["fetch_token"].side_effect = ["k8s-aws-v1.token-2", "k8s-aws-v1.token-3"]
     sent_tokens = []
+    pods = _make_api_response(api_exception_cls)
 
     def list_pods(_=None):
         return core_v1.list_namespaced_pod("default", _preload_content=False)
 
     # Both requests are sent with the same token, and the second is rejected after the first's retry.
     if factory is _get_eks_kube_client:
-        both_sent, replaced = threading.Barrier(requests), threading.Event()
+        both_sent, replaced = threading.Barrier(requests, timeout=10), threading.Event()
 
         def respond(method, url, headers=None, **kwargs):
             sent_tokens.append(headers["authorization"])
             if headers["authorization"] != rejected:
                 replaced.set()
-                return mock.sentinel.pods
+                return pods
             if both_sent.wait():
-                replaced.wait()
-            raise _unauthorized(api_exception_cls)
+                assert replaced.wait(timeout=10)
+            return _make_api_response(api_exception_cls, 401)
 
         with (
-            mock.patch.object(core_v1.api_client.rest_client, "request", autospec=True, side_effect=respond),
+            mock.patch.object(_get_request_client(core_v1), "request", autospec=True, side_effect=respond),
             ThreadPoolExecutor(max_workers=requests) as pool,
         ):
             results = list(pool.map(list_pods, range(requests)))
@@ -455,21 +517,23 @@ async def test_requests_rejected_with_the_same_token_share_one_new_token(
             sent_tokens.append(headers["authorization"])
             if headers["authorization"] != rejected:
                 replaced.set()
-                return mock.sentinel.pods
+                return pods
             if len(sent_tokens) < requests:
                 await all_sent.wait()
             else:
                 all_sent.set()
                 await replaced.wait()
-            raise _unauthorized(api_exception_cls)
+            raise _make_api_response(api_exception_cls, 401)
 
         with mock.patch.object(
             core_v1.api_client.rest_client, "request", autospec=True, side_effect=respond_async
         ):
-            results = await asyncio.gather(*(list_pods() for _ in range(requests)))
+            results = await asyncio.wait_for(
+                asyncio.gather(*(list_pods() for _ in range(requests))), timeout=10
+            )
         await core_v1.api_client.close()
 
-    assert results == [mock.sentinel.pods] * requests
+    assert results == [pods] * requests
     assert sent_tokens == [rejected] * requests + ["Bearer k8s-aws-v1.token-2"] * requests
     assert mock_aws["fetch_token"].call_count == len(set(sent_tokens))
 
@@ -488,9 +552,10 @@ async def test_retry_after_401_reads_the_connection_again(mock_time, _, mock_aws
     mock_time.monotonic.return_value = 1000.0
     core_v1 = factory()
     rebuilt_hook = mock_aws["eks_hook_cls"].return_value = mock.MagicMock()
-    responses = [_unauthorized(api_exception_cls), mock.sentinel.pods, mock.sentinel.pods]
+    pods = _make_api_response(api_exception_cls)
+    responses = [_make_api_response(api_exception_cls, 401), pods, pods]
 
-    with mock.patch.object(core_v1.api_client.rest_client, "request", autospec=True, side_effect=responses):
+    with mock.patch.object(_get_request_client(core_v1), "request", autospec=True, side_effect=responses):
         # The second request comes after a timed refresh, which keeps the hook rebuilt on the retry.
         for elapsed in (0, TOKEN_REFRESH_SECONDS):
             mock_time.monotonic.return_value = 1000.0 + elapsed

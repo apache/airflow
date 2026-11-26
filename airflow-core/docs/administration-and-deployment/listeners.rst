@@ -106,6 +106,10 @@ of a :class:`~airflow.sdk.execution_time.task_runner.RuntimeTaskInstance` instan
 
 - ``on_task_instance_failed``
 
+This event also occurs for an attempt that will be retried. In that case ``task_instance.state`` is
+``UP_FOR_RETRY``; it is ``FAILED`` when the task instance will not be retried. A listener that should only
+react to final failures can check ``task_instance.state``.
+
 .. exampleinclude:: /../src/airflow/example_dags/plugins/event_listener.py
     :language: python
     :start-after: [START howto_listen_ti_failure_task]

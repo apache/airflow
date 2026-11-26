@@ -18,13 +18,14 @@ from __future__ import annotations
 
 import pytest
 
-from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS, AIRFLOW_V_3_4_PLUS
 
 if not AIRFLOW_V_3_1_PLUS:
     pytest.skip("Human in the loop is only compatible with Airflow >= 3.1.0", allow_module_level=True)
 
 import datetime
-from typing import TYPE_CHECKING
+import json
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 from uuid import UUID
 
@@ -51,12 +52,19 @@ from airflow.providers.common.ai.utils.hitl_review import (
     XCOM_HUMAN_FEEDBACK_PREFIX,
     AgentSessionData,
     SessionStatus,
+    wrap_review_text,
 )
 from airflow.providers.common.compat.sdk import timezone
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.bases.xcom import BaseXCom
 from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.types import DagRunType
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.models.hitl import HITLDetail
+    from airflow.sdk.serde import deserialize
 
 if AIRFLOW_V_3_4_PLUS:
     from airflow.models.dynamic_region import DynamicRegion
@@ -106,6 +114,7 @@ def _create_hitl_session(
     iteration=1,
     prompt="Summarize",
     current_output="Initial output",
+    parked=False,
     session=None,
 ):
     """Create HITL session and output XCom entries in the database."""
@@ -115,6 +124,7 @@ def _create_hitl_session(
         max_iterations=5,
         prompt=prompt,
         current_output=current_output,
+        parked=parked,
     )
     _write_xcom(
         session,
@@ -129,7 +139,7 @@ def _create_hitl_session(
     _write_xcom(
         session,
         key=f"{XCOM_AGENT_OUTPUT_PREFIX}{iteration}",
-        value=current_output,
+        value=wrap_review_text(current_output, dag_id=dag_id),
         region_id=NO_REGION,
         dag_id=dag_id,
         task_id=task_id,
@@ -304,12 +314,24 @@ class TestReadXcomByPrefix:
                 XCOM_AGENT_OUTPUT_PREFIX,
                 {1: "a", 2: "b", 99: "d"},
             ),
+            (
+                [("1", wrap_review_text("v1", dag_id="d")), ("2", "v2")],
+                XCOM_HUMAN_FEEDBACK_PREFIX,
+                {1: "v1", 2: "v2"},
+            ),
+            (
+                [("1", wrap_review_text("v1", dag_id="other_dag"))],
+                XCOM_AGENT_OUTPUT_PREFIX,
+                {1: {"text": "v1", "dag_id": "other_dag"}},
+            ),
         ],
         ids=[
             "two_iterations",
             "single_iteration",
             "numeric_and_non_numeric",
             "mixed_with_high_iteration",
+            "wrapped_and_unwrapped",
+            "wrapped_for_another_dag",
         ],
     )
     def test_read_xcom_by_prefix_output_combinations(
@@ -652,7 +674,6 @@ class TestWriteXcom:
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="Attempt ownership starts in Airflow 3.4")
     def test_write_uses_current_attempt_after_retry(self, session, dag_maker):
         from airflow.models.xcom import XComModelV2
-        from airflow.utils.state import TaskInstanceState
 
         _clear_db()
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
@@ -694,9 +715,18 @@ class TestIsTaskCompleted:
         )
         assert result is True
 
-    def test_returns_false_when_ti_running(self, session, dag_maker):
-        from airflow.utils.state import TaskInstanceState
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="awaiting_input needs Airflow 3.3+")
+    def test_returns_false_when_ti_awaiting_input(self, session, dag_maker):
+        with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id="t")
+        dr = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
+        ti = dr.get_task_instance("t", session=session)
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        session.commit()
 
+        assert _is_task_completed(session, region_id=NO_REGION, dag_id="d", run_id="r", task_id="t") is False
+
+    def test_returns_false_when_ti_running(self, session, dag_maker):
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id="t")
         dr = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
@@ -720,8 +750,6 @@ class TestIsTaskCompleted:
         ],
     )
     def test_ignores_historical_attempt_state(self, session, dag_maker, old_state, archived_state):
-        from airflow.utils.state import TaskInstanceState
-
         with dag_maker("d", schedule=None, start_date=logical_date, serialized=True):
             EmptyOperator(task_id="t")
         run = dag_maker.create_dagrun(run_id="r", run_type=DagRunType.MANUAL, logical_date=logical_date)
@@ -1723,6 +1751,259 @@ class TestRejectEndpoint:
         assert response.json()["status"] == "rejected"
 
 
+class _ReferenceXComBackend(BaseXCom):
+    """Keep values outside the metadata database and store a reference there, as object-storage backends do."""
+
+    stored: dict[str, Any] = {}
+
+    @staticmethod
+    def deserialize_value(result) -> Any:
+        value = BaseXCom.deserialize_value(result)
+        if isinstance(value, str):
+            return _ReferenceXComBackend.stored.get(value, value)
+        return value
+
+
+class _LoadValueReferenceXComBackend(BaseXCom):
+    """Resolve the same references through ``load_value`` only, as ``store_value`` backends do."""
+
+    @classmethod
+    def load_value(cls, stored) -> Any:
+        value = super().load_value(stored)
+        if isinstance(value, str):
+            return _ReferenceXComBackend.stored.get(value, value)
+        return value
+
+
+class TestReferenceStoringXComBackend:
+    """Review XComs a custom backend stored as references are read through the backend."""
+
+    PARAMS = {"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID}
+
+    @pytest.fixture(
+        autouse=True,
+        params=[
+            pytest.param(_ReferenceXComBackend, id="deserialize_value"),
+            pytest.param(
+                _LoadValueReferenceXComBackend,
+                id="load_value",
+                marks=pytest.mark.skipif(
+                    not hasattr(BaseXCom, "load_value"), reason="This Airflow version has no load_value hook"
+                ),
+            ),
+        ],
+    )
+    def setup(self, request, monkeypatch, dag_maker, session):
+        monkeypatch.setattr(
+            "airflow.providers.common.ai.plugins.hitl_review.XCom", request.param, raising=False
+        )
+        _clear_db()
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
+        dag_maker.sync_dagbag_to_db()
+        sess = AgentSessionData(
+            status=SessionStatus.PENDING_REVIEW,
+            iteration=2,
+            max_iterations=5,
+            prompt="Summarize",
+            current_output="Second output",
+        )
+        by_reference = {
+            XCOM_AGENT_SESSION: sess.model_dump(mode="json"),
+            f"{XCOM_AGENT_OUTPUT_PREFIX}2": wrap_review_text("Second output", dag_id=TEST_DAG_ID),
+        }
+        stored_natively = {
+            f"{XCOM_AGENT_OUTPUT_PREFIX}1": wrap_review_text("First output", dag_id=TEST_DAG_ID),
+            f"{XCOM_HUMAN_FEEDBACK_PREFIX}1": wrap_review_text("Add more detail", dag_id=TEST_DAG_ID),
+        }
+        for key, value in by_reference.items():
+            reference = f"file:///xcom-store/{key}.json"
+            _ReferenceXComBackend.stored[reference] = value
+            stored_natively[key] = reference
+        for key, value in stored_natively.items():
+            _write_xcom(
+                session,
+                key=key,
+                value=value,
+                region_id=NO_REGION,
+                dag_id=TEST_DAG_ID,
+                task_id=TEST_TASK_ID,
+                run_id=TEST_RUN_ID,
+                map_index=MAP_INDEX,
+            )
+        session.commit()
+        yield
+        _ReferenceXComBackend.stored.clear()
+        _clear_db()
+
+    def test_find_resolves_references(self, test_client):
+        response = test_client.get("/hitl-review/sessions/find", params=self.PARAMS)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "pending_review"
+        assert data["iteration"] == 2
+        assert data["current_output"] == "Second output"
+        assert [(e["role"], e["content"], e["iteration"]) for e in data["conversation"]] == [
+            ("assistant", "First output", 1),
+            ("human", "Add more detail", 1),
+            ("assistant", "Second output", 2),
+        ]
+
+    @pytest.mark.parametrize(
+        ("endpoint", "body", "expected_status"),
+        [
+            ("feedback", {"feedback": "Shorter, please"}, "changes_requested"),
+            ("approve", None, "approved"),
+            ("reject", None, "rejected"),
+        ],
+    )
+    def test_action_resolves_references(self, test_client, endpoint, body, expected_status):
+        response = test_client.post(f"/hitl-review/sessions/{endpoint}", params=self.PARAMS, json=body)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == expected_status
+        assert data["iteration"] == 2
+        assert data["current_output"] == "Second output"
+        assert [e["content"] for e in data["conversation"] if e["role"] == "assistant"] == [
+            "First output",
+            "Second output",
+        ]
+
+
+class TestReviewTextHoldingAStoragePath:
+    """An output or feedback that is a path under the backend's storage never returns what it points to."""
+
+    PARAMS = {"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID}
+    SECRET = "Another Dag's XCom"
+
+    @pytest.fixture(
+        params=[
+            pytest.param(SECRET, id="xcom_value"),
+            pytest.param({"text": SECRET, "dag_id": "other_dag"}, id="other_dag_review_text"),
+        ]
+    )
+    def other_dag_xcom(self, request, tmp_path, monkeypatch, dag_maker, session):
+        """Use ``XComObjectStorageBackend`` under ``tmp_path``, and return the URL of another Dag's XCom file in it."""
+        backend = pytest.importorskip("airflow.providers.common.io.xcom.backend")
+        caches = (backend._get_base_path, backend._get_compression, backend._get_threshold)
+        other = tmp_path / "other_dag" / "manual_run" / "secret_task" / "return_value.json"
+        other.parent.mkdir(parents=True)
+        other.write_text(json.dumps(request.param))
+        _clear_db()
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        dag_maker.create_dagrun(run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date)
+        dag_maker.sync_dagbag_to_db()
+        _create_hitl_session(iteration=1, current_output="Initial output", session=session)
+        session.commit()
+        with conf_vars(
+            {
+                ("common.io", "xcom_objectstorage_path"): f"file://{tmp_path}",
+                # Values stay in the database, so a path the worker pushes is stored as is.
+                ("common.io", "xcom_objectstorage_threshold"): "-1",
+            }
+        ):
+            for cache in caches:
+                cache.cache_clear()
+            monkeypatch.setattr(
+                "airflow.providers.common.ai.plugins.hitl_review.XCom",
+                backend.XComObjectStorageBackend,
+                raising=False,
+            )
+            yield f"file://{other}"
+        for cache in caches:
+            cache.cache_clear()
+        _clear_db()
+
+    def test_feedback_submitted_as_a_path(self, test_client, session, other_dag_xcom):
+        response = test_client.post(
+            "/hitl-review/sessions/feedback", params=self.PARAMS, json={"feedback": other_dag_xcom}
+        )
+
+        assert response.status_code == 200
+        stored = _read_xcom(
+            session,
+            dag_id=TEST_DAG_ID,
+            run_id=TEST_RUN_ID,
+            task_id=TEST_TASK_ID,
+            map_index=MAP_INDEX,
+            region_id=NO_REGION,
+            key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}1",
+        )
+        assert stored == wrap_review_text(other_dag_xcom, dag_id=TEST_DAG_ID)
+        assert self.SECRET not in response.text
+        assert response.json()["conversation"][-1]["content"] == other_dag_xcom
+        found = test_client.get("/hitl-review/sessions/find", params=self.PARAMS)
+        assert found.status_code == 200
+        assert self.SECRET not in found.text
+        assert found.json()["conversation"][-1]["content"] == other_dag_xcom
+
+    def _find_after_writing(self, test_client, session, key: str, value: Any):
+        _write_xcom(
+            session,
+            key=key,
+            value=value,
+            region_id=NO_REGION,
+            dag_id=TEST_DAG_ID,
+            task_id=TEST_TASK_ID,
+            run_id=TEST_RUN_ID,
+            map_index=MAP_INDEX,
+        )
+        session.commit()
+        response = test_client.get("/hitl-review/sessions/find", params=self.PARAMS)
+        assert response.status_code == 200
+        return response
+
+    @pytest.mark.parametrize(
+        ("prefix", "role"),
+        [
+            pytest.param(XCOM_AGENT_OUTPUT_PREFIX, "assistant", id="agent_output"),
+            pytest.param(XCOM_HUMAN_FEEDBACK_PREFIX, "human", id="human_feedback"),
+        ],
+    )
+    def test_stored_path_is_shown_as_is(self, test_client, session, other_dag_xcom, prefix, role):
+        """A bare path, as an earlier worker pushed a model output or Required Actions feedback."""
+        response = self._find_after_writing(test_client, session, f"{prefix}1", other_dag_xcom)
+
+        assert self.SECRET not in response.text
+        assert [e["content"] for e in response.json()["conversation"] if e["role"] == role] == [
+            other_dag_xcom
+        ]
+
+    @pytest.mark.parametrize(
+        ("prefix", "role"),
+        [
+            pytest.param(XCOM_AGENT_OUTPUT_PREFIX, "assistant", id="agent_output"),
+            pytest.param(XCOM_HUMAN_FEEDBACK_PREFIX, "human", id="human_feedback"),
+        ],
+    )
+    def test_wrapped_path_is_shown_as_text(self, test_client, session, other_dag_xcom, prefix, role):
+        """A model output or Required Actions feedback that is a path, as the worker pushes it now."""
+        wrapped = wrap_review_text(other_dag_xcom, dag_id=TEST_DAG_ID)
+
+        response = self._find_after_writing(test_client, session, f"{prefix}1", wrapped)
+
+        assert self.SECRET not in response.text
+        assert [e["content"] for e in response.json()["conversation"] if e["role"] == role] == [
+            other_dag_xcom
+        ]
+
+    def test_wrapped_text_in_storage_is_resolved(self, test_client, session, tmp_path, other_dag_xcom):
+        """From ``xcom_objectstorage_threshold`` up, the row holds a reference to the wrapped output, which is shown."""
+        stored = tmp_path / TEST_DAG_ID / TEST_RUN_ID / TEST_TASK_ID / "output.json"
+        stored.parent.mkdir(parents=True)
+        stored.write_text(json.dumps(wrap_review_text("Stored output", dag_id=TEST_DAG_ID)))
+
+        response = self._find_after_writing(
+            test_client, session, f"{XCOM_AGENT_OUTPUT_PREFIX}1", f"file://{stored}"
+        )
+
+        assert [e["content"] for e in response.json()["conversation"]] == ["Stored output"]
+
+
 class TestConflictOnWrongStatus:
     """Test 409 when session is not pending_review."""
 
@@ -1763,3 +2044,115 @@ class TestConflictOnWrongStatus:
             params={"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID},
         )
         assert response.status_code == 409
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Parking in awaiting_input needs Airflow 3.3+")
+class TestAnswerParkedReview:
+    """A review parked in awaiting_input is answered through its Human-in-the-loop request."""
+
+    PARAMS = {"dag_id": TEST_DAG_ID, "run_id": TEST_RUN_ID, "task_id": TEST_TASK_ID}
+    STORED_KWARGS = {"iteration": 1, "deadline": None, "state_sha256": "abc"}
+
+    @pytest.fixture
+    def parked_ti(self, dag_maker, session):
+        _clear_db()
+        with dag_maker(TEST_DAG_ID, schedule=None, start_date=logical_date, serialized=True):
+            EmptyOperator(task_id=TEST_TASK_ID)
+        run = dag_maker.create_dagrun(
+            run_id=TEST_RUN_ID, run_type=DagRunType.MANUAL, logical_date=logical_date
+        )
+        dag_maker.sync_dagbag_to_db()
+        ti = run.get_task_instance(TEST_TASK_ID, session=session)
+        ti.state = TaskInstanceState.AWAITING_INPUT
+        ti.next_method = "resume_hitl_review"
+        ti.next_kwargs = self.STORED_KWARGS
+        session.add(
+            HITLDetail(
+                ti_id=ti.id,
+                options=["Approve", "Request changes", "Reject"],
+                subject="Review",
+                params={"feedback": {"value": "", "schema": {"type": ["string", "null"]}}},
+            )
+        )
+        session.commit()
+        _create_hitl_session(parked=True)
+        yield ti
+        _clear_db()
+
+    @staticmethod
+    def _reload(session, ti):
+        session.expire_all()
+        return session.get(type(ti), ti.id), session.get(HITLDetail, ti.id)
+
+    @pytest.mark.parametrize(
+        ("path", "body", "option", "feedback", "status"),
+        [
+            pytest.param("approve", None, "Approve", "", "approved", id="approve"),
+            pytest.param(
+                "feedback",
+                {"feedback": "Shorter"},
+                "Request changes",
+                "Shorter",
+                "changes_requested",
+                id="changes",
+            ),
+            pytest.param("reject", None, "Reject", "", "rejected", id="reject"),
+        ],
+    )
+    def test_action_answers_the_request_and_resumes_the_task(
+        self, test_client, session, parked_ti, path, body, option, feedback, status
+    ):
+        response = test_client.post(f"/hitl-review/sessions/{path}", params=self.PARAMS, json=body)
+
+        assert response.status_code == 200
+        assert response.json()["status"] == status
+        ti, detail = self._reload(session, parked_ti)
+        assert ti.state == "scheduled"
+        assert ti.next_method == "resume_hitl_review"
+        event = deserialize(ti.next_kwargs["event"])
+        assert event["chosen_options"] == [option]
+        assert event["params_input"] == {"feedback": feedback}
+        assert {k: v for k, v in ti.next_kwargs.items() if k != "event"} == self.STORED_KWARGS
+        assert detail.chosen_options == [option]
+        assert detail.responded_by == {"id": "test", "name": "test"}
+
+    def test_answer_before_the_task_parks_waits_for_the_park(self, test_client, session, parked_ti):
+        session.get(type(parked_ti), parked_ti.id).state = TaskInstanceState.RUNNING
+        session.commit()
+
+        response = test_client.post("/hitl-review/sessions/approve", params=self.PARAMS)
+
+        assert response.status_code == 200
+        ti, detail = self._reload(session, parked_ti)
+        assert ti.state == TaskInstanceState.RUNNING
+        assert detail.response_received
+        assert detail.chosen_options == ["Approve"]
+
+    def test_answered_request_is_not_answered_twice(self, test_client, session, parked_ti):
+        detail = session.get(HITLDetail, parked_ti.id)
+        detail.chosen_options = ["Reject"]
+        detail.responded_at = timezone.utcnow()
+        session.commit()
+
+        response = test_client.post("/hitl-review/sessions/approve", params=self.PARAMS)
+
+        assert response.status_code == 409
+        assert "already answered" in response.json()["detail"]
+        ti, detail = self._reload(session, parked_ti)
+        assert ti.state == "awaiting_input"
+        assert detail.chosen_options == ["Reject"]
+
+    @pytest.mark.parametrize("state", [None, "success", "failed", "scheduled"])
+    def test_answer_is_refused_when_the_task_is_not_waiting_for_one(
+        self, test_client, session, parked_ti, state
+    ):
+        session.get(type(parked_ti), parked_ti.id).state = state
+        session.commit()
+
+        response = test_client.post("/hitl-review/sessions/approve", params=self.PARAMS)
+
+        assert response.status_code == 409
+        assert "not waiting for a review answer" in response.json()["detail"]
+        ti, detail = self._reload(session, parked_ti)
+        assert ti.state == state
+        assert not detail.response_received

@@ -4,11 +4,11 @@ airflow-core/src/airflow/cli/cli_parser.py::1
 airflow-core/src/airflow/cli/commands/dag_command.py::3
 airflow-core/src/airflow/cli/commands/db_command.py::1
 airflow-core/src/airflow/config_templates/airflow_local_settings.py::1
+airflow-core/src/airflow/crypto.py::1
 airflow-core/src/airflow/dag_processing/dagbag.py::1
 airflow-core/src/airflow/jobs/base_job_runner.py::1
 airflow-core/src/airflow/jobs/job.py::1
 airflow-core/src/airflow/models/connection.py::4
-airflow-core/src/airflow/models/crypto.py::1
 airflow-core/src/airflow/models/dagrun.py::2
 airflow-core/src/airflow/models/pool.py::2
 airflow-core/src/airflow/secrets/local_filesystem.py::4
@@ -329,7 +329,6 @@ providers/http/tests/unit/http/sensors/test_http.py::2
 providers/imap/src/airflow/providers/imap/hooks/imap.py::1
 providers/jenkins/src/airflow/providers/jenkins/operators/jenkins_job_trigger.py::4
 providers/jenkins/src/airflow/providers/jenkins/sensors/jenkins.py::1
-providers/keycloak/src/airflow/providers/keycloak/auth_manager/keycloak_auth_manager.py::4
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/adx.py::4
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/base_azure.py::1
 providers/microsoft/azure/src/airflow/providers/microsoft/azure/hooks/batch.py::1

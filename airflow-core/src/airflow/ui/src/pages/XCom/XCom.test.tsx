@@ -25,7 +25,9 @@ import type * as ColorMode from "src/context/colorMode";
 import { server } from "src/mocks/server";
 import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
-beforeAll(() => preloadAppRoutes(["/xcoms"]));
+const TI_XCOM_PATH = "/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source/xcom";
+
+beforeAll(() => preloadAppRoutes(["/xcoms", TI_XCOM_PATH]));
 
 vi.mock("src/components/MonacoEditor", () => ({
   default: ({ value }: { readonly value?: string }) => <div data-testid="monaco-editor">{value}</div>,
@@ -90,5 +92,38 @@ describe("XCom list", () => {
 
     expect(await screen.findByText("return_value")).toBeInTheDocument();
     expect(requested).toContain("true");
+  });
+});
+
+// The pattern reaches the api as a prefix match unless advanced search is on, so check both names.
+const runIdFilter = (search: URLSearchParams) =>
+  search.get("run_id_pattern") ?? search.get("run_id_prefix_pattern");
+
+const requestedSearch = (): Promise<URLSearchParams> =>
+  new Promise((resolve) => {
+    server.use(
+      http.get("/api/v2/dags/:dagId/dagRuns/:runId/taskInstances/:taskId/xcomEntries", ({ request }) => {
+        resolve(new URL(request.url).searchParams);
+
+        return HttpResponse.json({ total_entries: 1, xcom_entries: [xcomEntry] });
+      }),
+    );
+  });
+
+describe("XCom run id filter", () => {
+  it("ignores a run id pattern once the route already pins the run", async () => {
+    const search = requestedSearch();
+
+    render(<AppWrapper initialEntries={[`${TI_XCOM_PATH}?run_id_pattern=nomatch`]} />);
+
+    expect(runIdFilter(await search)).toBeNull();
+  });
+
+  it("still applies a run id pattern on the list across runs", async () => {
+    const search = requestedSearch();
+
+    render(<AppWrapper initialEntries={["/xcoms?run_id_pattern=manual"]} />);
+
+    expect(runIdFilter(await search)).toBe("manual");
   });
 });

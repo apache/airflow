@@ -36,6 +36,9 @@ Fields that pydantic-ai regenerates on every attempt (message-level
 timestamps of the nested calls code mode records on a ``run_code`` return) are
 excluded from the fingerprint, and registered secrets in the message history are
 masked before hashing, as they are in the tool results the journal records.
+A chain whose members all stamp their answers also leaves out the ``model_id`` of
+the responses in the history: the agent writes the id of the current chain on each
+response it replays, so an edited chain would otherwise change every later step.
 Plain JSON tool arguments and settings are hashed exactly as before.  Everything
 else is rendered by pydantic: the message history and the request parameters by
 their json-mode dump, which is also what they were always hashed from, and other
@@ -118,6 +121,7 @@ if TYPE_CHECKING:
 
     from pydantic_ai.messages import ModelMessage
     from pydantic_ai.settings import ModelSettings
+    from pydantic_ai.tools import DeferredToolRequests
 
 log = get_task_logger()
 
@@ -199,7 +203,9 @@ def _strip_part(part: Any) -> Any:
     return cleaned
 
 
-def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _strip_volatile(
+    messages_dump: list[dict[str, Any]], *, exclude_response_model_id: bool = False
+) -> list[dict[str, Any]]:
     """
     Drop per-attempt fields from a dumped message list.
 
@@ -211,6 +217,8 @@ def _strip_volatile(messages_dump: list[dict[str, Any]]) -> list[dict[str, Any]]
     stripped = []
     for message in messages_dump:
         cleaned = {k: v for k, v in message.items() if k not in _VOLATILE_MESSAGE_KEYS}
+        if exclude_response_model_id and cleaned.get("kind") == "response":
+            cleaned.pop("model_id", None)
         if isinstance(cleaned.get("parts"), list):
             cleaned["parts"] = [_strip_part(part) for part in cleaned["parts"]]
         stripped.append(cleaned)
@@ -544,6 +552,7 @@ def fingerprint_model_request(
     model_request_parameters: ModelRequestParameters,
     *,
     step: int | None = None,
+    exclude_response_model_id: bool = False,
 ) -> str | None:
     """
     Fingerprint a model request: model identity, message history, settings, and request parameters.
@@ -552,6 +561,13 @@ def fingerprint_model_request(
     mode and schema, native tools, ...) so any change to what is sent to the
     model invalidates the cached response; only each tool's ``capability_id`` and
     ``airflow`` metadata key, and ``deferred_capability_ids``, are left out.
+
+    ``exclude_response_model_id`` leaves the ``model_id`` of every response in the history
+    out of the hash. Pass ``True`` only for a fallback chain whose members all stamp which
+    of them answered: the agent writes the chain's id on every response it puts in the
+    history, replayed ones too, so editing the chain would otherwise change the fingerprint
+    of every later step. Leave it ``False`` for any other model, so that journals recorded
+    by earlier versions still match.
 
     Returns ``None`` when the request cannot be fingerprinted. The journal then
     replays the step without verification, and only right after a step that
@@ -581,7 +597,9 @@ def fingerprint_model_request(
                 # live run's history is (an output function's result, for one), so a replayed
                 # history can hold ``***`` where the live one held the secret. Masking the
                 # history here as well makes both match.
-                "messages": _strip_volatile(mask_secrets(dumped)),
+                "messages": _strip_volatile(
+                    mask_secrets(dumped), exclude_response_model_id=exclude_response_model_id
+                ),
                 "settings": _render(_content_settings(model_settings)),
                 "params": _normalize_params(params),
             }
@@ -641,3 +659,22 @@ def fingerprint_tool_call(
             step=step,
         )
         return None
+
+
+def fingerprint_deferred_tool_requests(requests: DeferredToolRequests) -> str | None:
+    """
+    Fingerprint tool calls waiting to be settled, such as approved, from each call's :func:`fingerprint_tool_call`.
+
+    The answer recorded for these calls then replays only for calls with the same names,
+    arguments and call ids, which a replayed model response keeps. ``None`` when any call
+    cannot be fingerprinted.
+    """
+    calls = {
+        kind: [
+            fingerprint_tool_call(call.tool_name, call.args_as_dict(), call.tool_call_id) for call in pending
+        ]
+        for kind, pending in (("approvals", requests.approvals), ("calls", requests.calls))
+    }
+    if any(fingerprint is None for pending in calls.values() for fingerprint in pending):
+        return None
+    return _digest(calls)

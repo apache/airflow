@@ -113,7 +113,7 @@ def get_provider_info():
                     "hidden-fields": ["port", "host"],
                     "relabeling": {},
                     "placeholders": {
-                        "extra": '{\n  "authenticator": "snowflake oauth / WORKLOAD_IDENTITY",\n  "private_key_file": "private key",\n  "session_parameters": "session parameters",\n  "client_request_mfa_token": "client request mfa token",\n  "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",\n  "grant_type": "refresh_token client_credentials",\n  "token_endpoint": "token endpoint",\n  "refresh_token": "refresh token",\n  "scope": "scope",\n  "oauth_username": "IdP resource owner user name (password grant type)",\n  "oauth_password": "IdP resource owner user password (password grant type)",\n  "proxy_host": "proxy.example.com",\n  "proxy_port": "8080",\n  "proxy_user": "proxy_username",\n  "proxy_password": "proxy_password"\n}\n',
+                        "extra": '{\n  "private_key_file": "private key",\n  "session_parameters": "session parameters",\n  "client_request_mfa_token": "client request mfa token",\n  "client_store_temporary_credential": "client store temporary credential (externalbrowser mode)",\n  "grant_type": "refresh_token client_credentials",\n  "token_endpoint": "token endpoint",\n  "refresh_token": "refresh token",\n  "scope": "scope",\n  "oauth_username": "IdP resource owner user name (password grant type)",\n  "oauth_password": "IdP resource owner user password (password grant type)",\n  "proxy_host": "proxy.example.com",\n  "proxy_port": "8080",\n  "proxy_user": "proxy_username",\n  "proxy_password": "proxy_password"\n}\n',
                         "schema": "snowflake schema",
                         "login": "snowflake username",
                         "password": "snowflake password",
@@ -122,6 +122,7 @@ def get_provider_info():
                         "database": "snowflake db name",
                         "region": "snowflake hosted region",
                         "role": "snowflake role",
+                        "authenticator": "snowflake (default), oauth, programmatic_access_token, WORKLOAD_IDENTITY",
                         "private_key_file": "Path of snowflake private key (PEM Format)",
                         "private_key_content": "Content to snowflake private key (PEM format)",
                         "workload_identity_provider": "AWS, AZURE, GCP or OIDC",
@@ -138,6 +139,7 @@ def get_provider_info():
                     "database": {"label": "Database", "schema": {"type": ["string", "null"]}},
                     "region": {"label": "Region", "schema": {"type": ["string", "null"]}},
                     "role": {"label": "Role", "schema": {"type": ["string", "null"]}},
+                    "authenticator": {"label": "Authenticator", "schema": {"type": ["string", "null"]}},
                     "private_key_file": {
                         "label": "Private key (Path)",
                         "schema": {"type": ["string", "null"]},

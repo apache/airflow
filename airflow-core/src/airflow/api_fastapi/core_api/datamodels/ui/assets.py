@@ -17,11 +17,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import Field
 
 from airflow.api_fastapi.core_api.base import BaseModel
+from airflow.api_fastapi.core_api.datamodels.assets import DagRunAssetReference
 from airflow.api_fastapi.core_api.datamodels.common import MaybeAssetExpression
+from airflow.utils.state import DagRunState
+
+AssetPartitionStatus = Literal["materialized", "in_progress", "failed"]
 
 
 class NextRunAssetEventResponse(BaseModel):
@@ -59,3 +64,42 @@ class NextRunAssetsResponse(BaseModel):
     caller's permissions; this count does not. It reveals nothing new — the redacted
     ``asset_expression`` already carries one slot per asset."""
     pending_partition_count: int | None = None
+
+
+class AssetPartitionProducerRunResponse(BaseModel):
+    """The latest run of a producing Dag for one partition key."""
+
+    dag_id: str
+    run_id: str
+    state: DagRunState
+    start_date: datetime | None
+    end_date: datetime | None
+
+
+class AssetPartitionResponse(BaseModel):
+    """Status of one partition key of an asset."""
+
+    partition_key: str
+    status: AssetPartitionStatus
+    last_event_id: int | None
+    last_event_timestamp: datetime | None
+    last_producer_run: AssetPartitionProducerRunResponse | None
+    consumer_runs: list[DagRunAssetReference]
+    """Dag runs that consumed the last event of the key."""
+
+
+class AssetPartitionStatusCounts(BaseModel):
+    """Number of partition keys per status."""
+
+    materialized: int = 0
+    in_progress: int = 0
+    failed: int = 0
+
+
+class AssetPartitionCollectionResponse(BaseModel):
+    """Partition keys of an asset with their status."""
+
+    partitions: list[AssetPartitionResponse]
+    total_entries: int
+    status_counts: AssetPartitionStatusCounts
+    """Counts for the keys that match ``partition_key_pattern``, whatever the ``status`` filter."""

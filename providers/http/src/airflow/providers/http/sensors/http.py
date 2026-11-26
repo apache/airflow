@@ -21,7 +21,7 @@ from collections.abc import Callable, Sequence
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf
+from airflow.providers.common.compat.sdk import AirflowException, BaseSensorOperator, conf, determine_kwargs
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.providers.http.triggers.http import HttpSensorTrigger
 
@@ -124,8 +124,6 @@ class HttpSensor(BaseSensorOperator):
         self.request_kwargs = request_kwargs or {}
 
     def poke(self, context: Context) -> bool | PokeReturnValue:
-        from airflow.utils.operator_helpers import determine_kwargs
-
         hook = HttpHook(
             method=self.method,
             http_conn_id=self.http_conn_id,

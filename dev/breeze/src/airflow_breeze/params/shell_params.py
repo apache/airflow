@@ -47,6 +47,8 @@ from airflow_breeze.global_constants import (
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_ELASTICSEARCH_VERSION,
+    DEFAULT_OPENSEARCH_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
@@ -191,6 +193,7 @@ class ShellParams:
     downgrade_sqlalchemy: bool = False
     downgrade_pendulum: bool = False
     dry_run: bool = False
+    elasticsearch_version: str = DEFAULT_ELASTICSEARCH_VERSION
     enable_coverage: bool = False
     excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
@@ -221,6 +224,7 @@ class ShellParams:
     no_db_cleanup: bool = False
     num_runs: str = ""
     only_min_version_update: bool = False
+    opensearch_version: str = DEFAULT_OPENSEARCH_VERSION
     distribution_format: str = ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS[0]
     parallel_test_types_list: list[str] = field(default_factory=list)
     parallelism: int = 0
@@ -707,6 +711,7 @@ services:
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
+        _set_var(_env, "ELASTICSEARCH_VERSION", self.elasticsearch_version)
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
@@ -734,6 +739,7 @@ services:
         _set_var(_env, "MOUNT_UI_DIST", self.mount_ui_dist)
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
+        _set_var(_env, "OPENSEARCH_VERSION", self.opensearch_version)
         _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
         _set_var(_env, "POSTGRES_DATA_VOLUME_PATH", self.postgres_data_volume_path)
         _set_var(_env, "POSTGRES_DRIVER", self.postgres_driver)

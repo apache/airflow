@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-from ci.prek.check_order_dockerfile_extras import get_replaced_content
+import pytest
+from ci.prek.check_order_dockerfile_extras import get_replaced_content, get_synced_cache_epoch_content
 
 
 class TestGetReplacedContent:
@@ -116,3 +117,41 @@ class TestGetReplacedContent:
             add_empty_lines=False,
         )
         assert result == content
+
+
+BUILD_ARGS_REF_TABLE = """\
++--------------------------+--------------+-------------------+
+| ``OTHER_ARG``            | ``"0"``      | Other.            |
++--------------------------+--------------+-------------------+
+| ``DEPENDENCY_CACHE_EPOCH`` | ``"0"``    | Cache id.         |
+|                          |              | More.             |
++--------------------------+--------------+-------------------+
+"""
+
+
+class TestGetSyncedCacheEpochContent:
+    def test_replaces_value_keeping_column_width(self):
+        result = get_synced_cache_epoch_content('ARG DEPENDENCY_CACHE_EPOCH="11"\n', BUILD_ARGS_REF_TABLE)
+        assert result == BUILD_ARGS_REF_TABLE.replace(
+            '| ``DEPENDENCY_CACHE_EPOCH`` | ``"0"``    |', '| ``DEPENDENCY_CACHE_EPOCH`` | ``"11"``   |'
+        )
+
+    def test_keeps_content_when_value_matches(self):
+        assert (
+            get_synced_cache_epoch_content('ARG DEPENDENCY_CACHE_EPOCH="0"\n', BUILD_ARGS_REF_TABLE)
+            == BUILD_ARGS_REF_TABLE
+        )
+
+    @pytest.mark.parametrize(
+        ("dockerfile_content", "build_args_ref_content", "error"),
+        [
+            pytest.param("ARG OTHER=1\n", BUILD_ARGS_REF_TABLE, "Dockerfile does not contain", id="no-arg"),
+            pytest.param('ARG DEPENDENCY_CACHE_EPOCH="1"\n', "no table\n", "has no", id="no-row"),
+            pytest.param(
+                'ARG DEPENDENCY_CACHE_EPOCH="1234567"\n', BUILD_ARGS_REF_TABLE, "does not fit", id="too-long"
+            ),
+        ],
+    )
+    def test_raises_on_invalid_input(self, dockerfile_content, build_args_ref_content, error):
+        with pytest.raises(ValueError, match=error):
+            get_synced_cache_epoch_content(dockerfile_content, build_args_ref_content)

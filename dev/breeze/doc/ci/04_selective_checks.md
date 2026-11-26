@@ -301,6 +301,7 @@ representative examples (file → effect):
 | `core_api/openapi/_private_ui.yaml` (UI-only spec)     | UI compile/lint prek hooks, **no full matrix**                       | matches `UI OpenAPI files`; the UI codegen input must be type-checked, but the public contract is unchanged |
 | `chart/templates/...yaml` (on `main`)                  | `run_helm_tests` (+ PROD image)                                      | matches `HELM_FILES`; Helm tests only on `main` |
 | `task-sdk/.../task_runner.py` or `airflow-core/tests/integration/otel/...` | the `otel` core integration                       | matches `OTEL_FILES`; the otel integration tests assert the span hierarchy task_runner emits |
+| `providers/elasticsearch/pyproject.toml` (+ `uv.lock`) | the `elasticsearch` integration, once per server version             | a provider's `pyproject.toml` / `provider.yaml` runs its owning integration even though no unit tests run; versions come from `PROVIDERS_INTEGRATION_SERVER_VERSIONS` |
 | `airflow-core/src/airflow/ui/...tsx` only              | `run_ui_tests`, **no** unit tests                                    | "only new-UI files" short-circuit skips Python unit tests |
 
 The "complexity" you feel reading the code is just *many* such rules stacked up — each one on its own
@@ -363,10 +364,12 @@ flowchart TD
    not from `git diff-tree`, with a renamed file counted under both paths, and the run is selected
    exactly like a pull request with those files. `is_committer_build` is always `False` because
    forks have no self-hosted runners. When the file list reaches the compare API's 300-file cap,
-   or the compare fails, everything runs, including the UI E2E tests, which otherwise only follow
-   matching files or the `full tests needed` label. Checks that compare a file with its previous version
+   or the compare fails, a local git diff fallback resolves the full change set against upstream to avoid
+   truncation; if local git diff is unavailable, the change set is treated as truncated and everything runs,
+   including the UI E2E tests, which otherwise only follow matching files or the `full tests needed` label. Checks that compare a file with its previous version
    (`pyproject.toml` and the provider dependency bump check) read the previous version at the
-   compare's merge base in `apache/airflow`, not at the pushed commit's parent, which after a
+   compare's merge base in `apache/airflow` (or directly from local git with `git show` when
+   the merge-base commit is present locally), not at the pushed commit's parent, which after a
    merge of upstream `main` is the contributor's own previous tip. A file missing at the merge
    base counts as new; any other failure to read it fails the selective checks instead of
    skipping the check. The labels come from the open
@@ -422,7 +425,7 @@ We have the following Groups of files for CI that determine which tests are run:
   drive prek static checks rather than the test matrix, so they only trigger the CI image build (via the
   `Prek files` group) — `mypy-scripts` and the image-based static checks still run, but the full test
   matrix does not; and **non-test workflows** (`.github/workflows/` for security scans, doc publishing,
-  notifications, backporting, calendar/stale bots, …) cannot change test outcomes. Workflows that run or
+  notifications, backporting, calendar/wiki/stale bots, …) cannot change test outcomes. Workflows that run or
   configure the test suite (`ci-amd`, `ci-arm`, `run-unit-tests`, `k8s-tests`, `helm-tests`, image builds,
   …) still force the full matrix.
 * `Prek files` - `scripts/ci/prek/...` static-check hooks. They do not force full tests, but they trigger
@@ -509,7 +512,10 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   with the images they need (none for airflow-ctl); other tests do not run, provider tests are skipped,
   and docs build only the chart's package. Static checks still run. See [Stage 2](#stage-2--decide-which-jobs-run).
 * If no Source files are changed - no tests are run and no further rules below are checked.
-* `CI Image building` is enabled if either test are run, docs are build.
+* `CI Image building` is enabled if either test are run, docs are build, or `uv.lock` changed.
+* `Task SDK tests` and the `mypy-task-sdk` check run when `Task SDK files` or `uv.lock` changed, because a
+  lock file bump can upgrade a library the Task SDK imports (for example `kubernetes` in serde). Unlike a
+  Task SDK file change, a `uv.lock` change alone does not select the tests of all providers.
 * Jobs that used to run for every change run only when a file they depend on changed. Full-test runs,
   which include the scheduled canary runs, still run all of them:
   * `Shared distributions tests` run when `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml`
@@ -687,7 +693,7 @@ when some files are not changed. Those are the rules implemented:
   * if no `All Airflow Python files` changed - `mypy-airflow-core` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
   * if no `All Scripts Python files` changed - `mypy-scripts` check is skipped
-  * if no `Task SDK files` changed - `mypy-task-sdk` check is skipped
+  * if neither `Task SDK files` nor `uv.lock` changed - `mypy-task-sdk` check is skipped
   * if no `All Airflow CTL Python files` changed - `mypy-airflow-ctl` check is skipped
   * if no `All Devel Common Python files` changed - `mypy-devel-common` check is skipped
   * if no files under the matching folder changed, the corresponding per-folder mypy hook
@@ -818,7 +824,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-providers-compatibility-tests                       | Whether the provider tests run against released Airflow versions: false when every changed file is hidden from them (Task SDK or core Python sources, Task SDK tests, their docs); off on component branches | true                                     |      |
 | run-shared-distributions-tests                          | Whether the shared distributions tests run: `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml` or `uv.lock` changed; off on component branches | true                                     |      |
 | run-system-tests                                        | Whether system tests should be run ("true"/"false")                                                     | true                                     |      |
-| run-task-sdk-tests                                      | Whether Task SDK tests should be run ("true"/"false")                                                   | true                                     |      |
+| run-task-sdk-tests                                      | Whether Task SDK tests should be run: Task SDK files or `uv.lock` changed ("true"/"false")              | true                                     |      |
 | run-translation-check                                   | Whether the UI translation completeness check runs: a translation file changed; off on component branches | true                                     |      |
 | run-ts-sdk-docs                                         | Whether the TypeScript SDK API reference should be built — on `ts-sdk/api-docs/`, `ts-sdk/docs/`, or `ts-sdk/src/` changes, including Markdown ("true"/"false")          | true                                     |      |
 | run-ts-sdk-e2e-tests                                    | Whether TypeScript SDK e2e tests should be run — on runtime-affecting `ts-sdk/`, TS e2e test, Node coordinator, or native Lang-SDK Dag parsing changes ("true"/"false") | true                                     |      |
@@ -836,6 +842,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | sqlite-exclude                                          | Which versions of Sqlite to exclude for tests as JSON array                                             | []                                       |      |
 | testable-core-integrations                              | List of core integrations that are testable in the build as JSON array                                  | \['celery', 'kerberos'\]                 |      |
 | testable-providers-integrations                         | List of core integrations that are testable in the build as JSON array                                  | \['mongo', 'kafka'\]                     |      |
+| testable-providers-integrations-matrix                  | Matrix entries for the providers integration jobs: one per integration, and one per server version for integrations in `PROVIDERS_INTEGRATION_SERVER_VERSIONS` (elasticsearch, opensearch) | \[{}\]                                   |      |
 | upgrade-to-newer-dependencies                           | Whether the image build should attempt to upgrade all dependencies (true/false or commit hash); false when no CI image is built | false                                    |      |
 | use-pinned-os-deps-images                               | Whether the CI and PROD image builds start from the pinned OS-dependencies images; false with the `disable image cache` label or a changed OS-dependencies script | true                                     |      |
 

@@ -211,6 +211,14 @@ Runs mongo providers integration tests:
 
        breeze testing providers-integration-tests  --db-reset --integration mongo
 
+The ``elasticsearch`` and ``opensearch`` integrations start the latest server version by default. Pick another
+supported version with ``--elasticsearch-version`` or ``--opensearch-version`` (``--help`` lists them).
+CI runs their tests once per supported version.
+
+  .. code-block:: bash
+
+       breeze testing providers-integration-tests  --db-reset --integration elasticsearch --elasticsearch-version <VERSION>
+
 
 Runs kerberos core integration tests:
 
@@ -319,6 +327,17 @@ Kerberos is active for ``trino`` integration tests, the following code has been 
             compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-kerberos.yml")
 
 
+
+Performance Harness
+-------------------
+
+``airflow-core/tests/integration/performance`` holds a load harness for the scheduler and the executor
+path. It starts the Airflow components as subprocesses against the ``otel`` and ``redis``
+integrations on Postgres, runs a backlog of fan-out Dag runs to completion and shows the numbers on the
+"Scheduler performance" Grafana dashboard. It never runs in the CI: the folder is collected only when
+its path is named on the pytest command line. See its
+`README <../../airflow-core/tests/integration/performance/README.md>`__ for how to run it and how to
+compare a change with the original code.
 
 -----
 
