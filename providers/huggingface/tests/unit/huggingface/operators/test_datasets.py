@@ -203,6 +203,38 @@ def test_stream_operator_recovers_prior_commit_without_reloading_stream():
     assert result["commit_sha"] == commit.oid
 
 
+@pytest.mark.parametrize(
+    ("local_source", "push_kwargs", "expected"),
+    [
+        pytest.param(False, {}, False, id="hub-source-default"),
+        pytest.param(False, {"embed_external_files": True}, True, id="hub-source-opt-in"),
+        pytest.param(True, {}, None, id="local-source-keeps-datasets-default"),
+    ],
+)
+def test_stream_operator_embeds_external_files_of_hub_source_only_on_request(
+    tmp_path, local_source, push_kwargs, expected
+):
+    stream = Dataset.from_dict({"value": [1]}).to_iterable_dataset()
+    with (
+        patch("airflow.providers.huggingface.hooks.huggingface.HfApi", autospec=True) as hf_api,
+        patch("datasets.load_dataset", autospec=True, return_value=stream),
+        patch(
+            "datasets.IterableDataset.push_to_hub", autospec=True, return_value=commit_info("org/streamed")
+        ) as push_to_hub,
+    ):
+        hf_api.return_value.dataset_info.return_value.sha = "pinned-stream-sha"
+        StreamDatasetOperator(
+            task_id="stream",
+            path=str(tmp_path) if local_source else "org/source",
+            repo_id="org/streamed",
+            push_kwargs=push_kwargs,
+            huggingface_conn_id=None,
+            durable=False,
+        ).execute({})
+
+    assert push_to_hub.call_args.kwargs.get("embed_external_files") is expected
+
+
 def test_parquet_manifest_preserves_order_features_and_dataset_splits(tmp_path):
     features = Features(
         {
@@ -333,6 +365,7 @@ def test_push_returns_commit_info_and_emits_matching_asset_event(tmp_path, hub_d
     push_to_hub.assert_called_once()
     kwargs = push_to_hub.call_args.kwargs
     assert reference["fingerprint"] in kwargs["commit_message"]
+    assert kwargs.get("embed_external_files") is False
     hf_api.return_value.list_repo_commits.assert_not_called()
     assert result["commit_sha"] == commit.oid
     assert result["commit_url"] == commit.commit_url
