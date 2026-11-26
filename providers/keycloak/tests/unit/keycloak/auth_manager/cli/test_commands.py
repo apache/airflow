@@ -232,8 +232,15 @@ class TestCommands:
         }
         assert expected_team_resources.issubset(created_resource_names)
 
+    @pytest.mark.parametrize(
+        ("dry_run", "expected_created_roles"),
+        [
+            pytest.param(False, ["User", "Op", SUPER_ADMIN_ROLE_NAME], id="create"),
+            pytest.param(True, [], id="dry-run"),
+        ],
+    )
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
-    def test_create_roles(self, mock_get_client):
+    def test_create_roles(self, mock_get_client, dry_run, expected_created_roles):
         client = Mock(spec=KeycloakAdmin)
         mock_get_client.return_value = client
 
@@ -252,6 +259,8 @@ class TestCommands:
             "--password",
             "test",
         ]
+        if dry_run:
+            params.append("--dry-run")
         with conf_vars(
             {
                 ("keycloak_auth_manager", "client_id"): "test_client_id",
@@ -264,7 +273,7 @@ class TestCommands:
         client.get_client_roles.assert_called_once_with("test-id")
         assert client.create_client_role.call_args_list == [
             call(client_role_id="test-id", payload={"name": role_name}, skip_exists=True)
-            for role_name in ("User", "Op", SUPER_ADMIN_ROLE_NAME)
+            for role_name in expected_created_roles
         ]
 
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._attach_default_role_permissions")
@@ -1002,38 +1011,6 @@ class TestCommands:
         client.get_client_authz_scopes.assert_called_once_with("test-id")
         # In dry-run mode, no resources should be created
         client.create_client_authz_resource.assert_not_called()
-
-    @patch("airflow.providers.keycloak.auth_manager.cli.commands._get_client")
-    def test_create_roles_dry_run(self, mock_get_client):
-        client = Mock(spec=KeycloakAdmin)
-        mock_get_client.return_value = client
-
-        client.get_clients.return_value = [
-            {"id": "dummy-id", "clientId": "dummy-client"},
-            {"id": "test-id", "clientId": "test_client_id"},
-        ]
-        client.get_realm_roles.return_value = []
-        client.get_client_roles.return_value = []
-
-        params = [
-            "keycloak-auth-manager",
-            "create-roles",
-            "--username",
-            "test",
-            "--password",
-            "test",
-            "--dry-run",
-        ]
-        with conf_vars(
-            {
-                ("keycloak_auth_manager", "client_id"): "test_client_id",
-            }
-        ):
-            create_roles_command(self.arg_parser.parse_args(params))
-
-        client.get_clients.assert_called_once_with()
-        client.get_client_roles.assert_called_once_with("test-id")
-        client.create_client_role.assert_not_called()
 
     @pytest.mark.parametrize("dry_run", [False, True])
     @patch("airflow.providers.keycloak.auth_manager.cli.commands._create_permissions")
