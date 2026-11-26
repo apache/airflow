@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
 	"net"
 	"strings"
 	"testing"
@@ -469,6 +470,123 @@ func TestTaskRunnerArgBindingsMissingRequiredFields(t *testing.T) {
 			assert.False(t, ran, "the task body must not run on an incomplete binding spec")
 		})
 	}
+}
+
+func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
+	cases := []struct {
+		what string
+		spec map[string]any
+	}{
+		{
+			what: `binding kind "sequence"`,
+			spec: map[string]any{"name": "country", "kind": "sequence", "task_id": "extract"},
+		},
+		{
+			what: `binding kind "tuple"`,
+			spec: map[string]any{"name": "country", "kind": "tuple", "parts": []any{}},
+		},
+		{
+			what: "map_index",
+			spec: map[string]any{
+				"name": "country", "kind": "xcom", "task_id": "extract", "map_index": 0,
+			},
+		},
+		{
+			what: "element_index",
+			spec: map[string]any{
+				"name": "country", "kind": "xcom", "task_id": "extract", "element_index": 1,
+			},
+		},
+		{
+			what: "apply_map",
+			spec: map[string]any{
+				"name": "country", "kind": "xcom", "task_id": "extract", "apply_map": true,
+			},
+		},
+		{
+			what: "apply_map",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x", "apply_map": true,
+			},
+		},
+		{
+			what: "kwarg",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x", "kwarg": "country",
+			},
+		},
+		{
+			what: "fallback",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x",
+				"fallback": map[string]any{"kind": "literal", "value": "y"},
+			},
+		},
+		{
+			what: "spread",
+			spec: map[string]any{
+				"kind": "xcom", "task_id": "extract", "spread": true,
+			},
+		},
+		{
+			what: "future_field",
+			spec: map[string]any{
+				"name": "country", "kind": "literal", "value": "x", "future_field": 1,
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("%s on %s", tc.what, tc.spec["kind"]), func(t *testing.T) {
+			_, err := convertArgBindings(&genmodels.ArgBindings{tc.spec})
+			require.ErrorIs(t, err, errMappedTaskNotImplemented)
+			assert.Contains(t, err.Error(), tc.what)
+
+			ran := false
+			bundle := buildBundle(t, func(r testBundle) {
+				r.AddDag("test_dag").AddTaskWithName("transform",
+					func(actx contexttest.Context, country string) error {
+						ran = true
+						return nil
+					})
+			})
+
+			details := newStartupDetails("transform", tc.spec)
+			details.TIContext.ShouldRetry = true
+
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
+
+			// A retry would meet the same binding, so should_retry is ignored.
+			result := RunTask(context.Background(), bundle, details, comm, logger)
+			assertTaskState(t, result, genmodels.TaskStateStateFailed)
+			assert.False(t, ran, "the task body must not run on a binding it cannot honour")
+		})
+	}
+}
+
+func TestConvertArgBindingsAcceptsDefaultValuedFields(t *testing.T) {
+	defaults := map[string]any{
+		"map_index":     nil,
+		"element_index": nil,
+		"apply_map":     false,
+		"kwarg":         nil,
+		"fallback":      nil,
+		"spread":        false,
+	}
+	withDefaults := func(spec map[string]any) map[string]any {
+		maps.Copy(spec, defaults)
+		return spec
+	}
+	specs := genmodels.ArgBindings{
+		withDefaults(map[string]any{"name": "country", "kind": "xcom", "task_id": "extract"}),
+		withDefaults(map[string]any{"name": "region", "kind": "literal", "value": "uk"}),
+	}
+
+	args, err := convertArgBindings(&specs)
+	require.NoError(t, err)
+	require.Len(t, args, 2)
+	assert.Equal(t, "extract", args[0].(binding.XComArg).TaskID)
+	assert.Equal(t, "uk", args[1].(binding.LiteralArg).Value)
 }
 
 func TestTaskRunnerMalformedSpecHonorsShouldRetry(t *testing.T) {

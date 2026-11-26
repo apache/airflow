@@ -618,7 +618,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         Delete the XComs in ``ti_context.xcom_keys_to_clear`` so the launched runtime does not have to.
 
         Like ``XCom.delete``, this reads, deletes, then purges each XCom. A failure fails this try, as it
-        does for a Python task.
+        does for a Python task. A task whose arguments no Lang SDK runtime can bind yet also fails this try.
 
         Also fills in the worker's default ``execution_timeout`` when the task sets none.
         """
@@ -629,6 +629,12 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         if execution_timeout is None:
             execution_timeout = self._default_execution_timeout
         self._execution_timeout_seconds = execution_timeout
+        if self._has_unsupported_arg_bindings(ti_context):
+            reason = "The task's arguments need mapped task support, which no Lang SDK runtime has yet"
+            self.process_log.error(reason)
+            # A retry gets the same runtime, so it cannot succeed either.
+            self._fail_before_start(ti_context, reason, retryable=False)
+            return None
         for key in ti_context.xcom_keys_to_clear or ():
             self.process_log.debug("Clearing XCom with key", key=key)
             try:
@@ -672,16 +678,27 @@ class _PopenActivitySubprocess(ActivitySubprocess):
             update={"xcom_keys_to_clear": [], "execution_timeout": execution_timeout}
         )
 
-    def _fail_before_start(self, ti_context: TIRunContext, reason: str) -> None:
+    def _fail_before_start(self, ti_context: TIRunContext, reason: str, *, retryable: bool = True) -> None:
         end_date = datetime.now(tz=UTC)
         # wait() sends this outcome to the server after the runtime process exits, the same
         # way it sends an outcome that the runtime itself reported.
         self._pending_terminal_state_msg = (
             RetryTask(end_date=end_date, retry_reason=reason)
-            if ti_context.should_retry
+            if retryable and ti_context.should_retry
             else TaskState(state=TaskInstanceState.FAILED, end_date=end_date, retry_reason=reason)
         )
         self.kill(signal.SIGKILL)
+
+    def _has_unsupported_arg_bindings(self, ti_context: TIRunContext) -> bool:
+        if not ti_context.arg_bindings:
+            return False
+        # Imported here, like the migrator's own cadwyn import, so a Python-only worker never pays for it.
+        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import needs_v2027_02_28_runtime
+
+        # No Lang SDK runtime binds these yet, whatever schema version it speaks, if any.
+        return any(
+            needs_v2027_02_28_runtime(binding.model_dump(mode="json")) for binding in ti_context.arg_bindings
+        )
 
     def wait(self) -> int:
         code = super().wait()

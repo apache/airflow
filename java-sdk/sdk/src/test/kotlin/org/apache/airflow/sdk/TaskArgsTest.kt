@@ -161,6 +161,57 @@ internal class TaskArgsTest {
   }
 
   @Test
+  @DisplayName("Should bind arguments that carry default-valued fields")
+  fun shouldBindDefaultValuedFields() {
+    val defaults =
+      mapOf(
+        "map_index" to null,
+        "element_index" to null,
+        "apply_map" to false,
+        "kwarg" to null,
+        "fallback" to null,
+        "spread" to false,
+      )
+    val (args, transport) =
+      argsWith(
+        listOf(
+          mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream") + defaults,
+          mapOf("kind" to "literal", "name" to "y", "value" to "uk") + defaults,
+        ),
+        xcoms = mapOf("upstream" to 7L),
+      )
+
+    assertEquals(7L, args.get(0, java.lang.Long::class.java))
+    assertEquals("uk", args.get(1, String::class.java))
+    assertEquals(listOf("upstream" to null), transport.pulls)
+  }
+
+  @Test
+  @DisplayName("Should fail on a binding mapped tasks need, as not implemented yet")
+  fun shouldRejectMappedTaskBinding() {
+    val cases =
+      listOf(
+        "binding kind 'sequence'" to mapOf("kind" to "sequence", "name" to "x", "task_id" to "upstream"),
+        "binding kind 'tuple'" to mapOf("kind" to "tuple", "name" to "x", "parts" to emptyList<Any>()),
+        "apply_map" to mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream", "apply_map" to true),
+        "apply_map" to mapOf("kind" to "literal", "name" to "x", "value" to 1L, "apply_map" to true),
+        "kwarg" to mapOf("kind" to "xcom", "name" to "x", "task_id" to "upstream", "kwarg" to "x"),
+        "fallback" to
+          mapOf("kind" to "literal", "name" to "x", "value" to 1L, "fallback" to mapOf("kind" to "literal")),
+        "spread" to mapOf("kind" to "xcom", "task_id" to "upstream", "spread" to true),
+        "future_field" to mapOf("kind" to "literal", "name" to "x", "value" to 1L, "future_field" to 1L),
+      )
+    for ((what, binding) in cases) {
+      val error = assertThrows(IllegalStateException::class.java) { argsWith(listOf(binding)) }
+      assertEquals(
+        "Argument '${binding["name"] ?: "?"}': $what needs mapped task support, which this version of the Java SDK " +
+          "does not have",
+        error.message,
+      )
+    }
+  }
+
+  @Test
   @DisplayName("Should fail on duplicate binding names")
   fun shouldRejectDuplicateBindingNames() {
     assertThrows(IllegalStateException::class.java) {

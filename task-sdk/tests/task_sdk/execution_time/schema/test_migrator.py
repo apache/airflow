@@ -630,6 +630,52 @@ class TestRealBundleArgBindingsDowngrade:
         assert defaulted.from_default is True
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
 
+    @pytest.mark.parametrize(
+        "binding",
+        [
+            pytest.param({"name": "totals", "kind": "sequence", "task_id": "transform"}, id="sequence"),
+            pytest.param(
+                {"name": "row", "kind": "tuple", "parts": [{"kind": "literal", "value": 1}]},
+                id="tuple",
+            ),
+            pytest.param(
+                {"name": "row", "kind": "xcom", "task_id": "extract", "map_index": 1}, id="map-index"
+            ),
+            pytest.param(
+                {"name": "row", "kind": "xcom", "task_id": "extract", "element_index": 1}, id="element-index"
+            ),
+            pytest.param({"name": "row", "kind": "xcom", "task_id": "extract", "kwarg": "row"}, id="kwarg"),
+            pytest.param(
+                {
+                    "name": "row",
+                    "kind": "xcom",
+                    "task_id": "extract",
+                    "kwarg": "row",
+                    "fallback": {"kind": "literal", "value": 1},
+                },
+                id="fallback",
+            ),
+            pytest.param({"name": "row", "kind": "literal", "value": 1, "apply_map": True}, id="apply-map"),
+            pytest.param({"kind": "xcom", "task_id": "extract", "spread": True}, id="spread"),
+        ],
+    )
+    def test_needs_v2027_02_28_runtime(self, binding):
+        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import needs_v2027_02_28_runtime
+
+        assert needs_v2027_02_28_runtime(binding)
+        assert not needs_v2027_02_28_runtime({"name": "row", "kind": "xcom", "task_id": "extract"})
+
+    def test_downgrade_keeps_plain_arg_bindings_for_previous_version(self, real_migrator, startup_details):
+        context = real_migrator.downgrade(startup_details, "2026-10-30").model_dump(exclude_unset=True)[
+            "ti_context"
+        ]
+        assert context["arg_bindings"][1] == {
+            "name": "extracted",
+            "kind": "xcom",
+            "value_schema": {"type": "object"},
+            "task_id": "extract",
+        }
+
 
 class TestRealBundleRetryReason:
     """

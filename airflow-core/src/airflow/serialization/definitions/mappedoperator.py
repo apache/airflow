@@ -108,6 +108,9 @@ class SerializedMappedOperator(DAGNode):
     _is_sensor: bool = attrs.field(alias="is_sensor", default=False)
     is_stub: bool = attrs.field(init=False, default=False)
     _arg_bindings: list[dict[str, Any]] | None = attrs.field(alias="arg_bindings", init=False, default=None)
+    _stub_expand_keys: dict[str, list[str]] | None = attrs.field(
+        alias="stub_expand_keys", init=False, default=None
+    )
     _external_clear_target: dict[str, Any] | None = attrs.field(
         alias="external_clear_target", init=False, default=None
     )
@@ -197,6 +200,11 @@ class SerializedMappedOperator(DAGNode):
     def arg_bindings(self) -> list[dict[str, Any]] | None:
         """The stub task's materialized TaskFlow arg-binding spec, or None for regular tasks."""
         return self._arg_bindings
+
+    @property
+    def stub_expand_keys(self) -> dict[str, list[str]]:
+        """The Dag-file key order of each multi-key ``expand()`` input the stub reads, by task or group id."""
+        return self._stub_expand_keys or {}
 
     @property
     def external_clear_target(self) -> dict[str, Any] | None:

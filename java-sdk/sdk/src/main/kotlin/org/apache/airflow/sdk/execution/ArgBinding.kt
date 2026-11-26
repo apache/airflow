@@ -59,8 +59,8 @@ internal sealed class ArgBinding {
  * bind by that position, input-bundle fields by [ArgBinding.name].
  *
  * @throws IllegalStateException on a malformed payload, an unsupported
- *    binding kind, or a duplicate argument name; the task cannot bind its
- *    arguments correctly, so it must fail rather than run with wrong inputs.
+ *    binding kind or field, or a duplicate argument name; the task cannot bind
+ *    its arguments correctly, so it must fail rather than run with wrong inputs.
  */
 internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
   if (raw == null) return emptyList()
@@ -68,9 +68,17 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
   val seen = mutableSetOf<String>()
   return raw.map { entry ->
     check(entry is Map<*, *>) { "arg_bindings entry is not a map: $entry" }
+    val kind = entry["kind"]
+    val label = entry["name"] as? String ?: "?"
+    if (kind == "sequence" || kind == "tuple") throw MappedTaskNotImplementedException(label, "binding kind '$kind'")
+    BOUND_KEYS[kind]?.let { bound ->
+      entry.entries.firstOrNull { (key, value) -> key !in bound && value != null && value != false }?.let {
+        throw MappedTaskNotImplementedException(label, it.key.toString())
+      }
+    }
     val name = checkNotNull(entry["name"] as? String) { "arg_bindings entry has no name: $entry" }
     check(seen.add(name)) { "arg_bindings entries have duplicate name: '$name'" }
-    when (val kind = entry["kind"]) {
+    when (kind) {
       "literal" ->
         ArgBinding.Literal(
           name = name,
@@ -88,3 +96,17 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
     }
   }
 }
+
+// The supervisor writes every unset field as null or false, so only those values are skipped.
+private val BOUND_KEYS: Map<Any?, Set<String>> =
+  mapOf(
+    "xcom" to setOf("kind", "name", "task_id", "value_schema", "map_index", "element_index"),
+    "literal" to setOf("kind", "name", "value", "value_schema", "from_default"),
+  )
+
+internal class MappedTaskNotImplementedException(
+  name: String,
+  what: String,
+) : NonRetryableException(
+    "Argument '$name': $what needs mapped task support, which this version of the Java SDK does not have",
+  )

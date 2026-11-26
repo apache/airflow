@@ -132,6 +132,7 @@ if TYPE_CHECKING:
 
     from airflow.models.expandinput import SchedulerExpandInput
     from airflow.sdk import BaseOperatorLink
+    from airflow.sdk.bases.decorator import DecoratedMappedOperator
     from airflow.sdk.definitions._internal.node import DAGNode as SDKDAGNode
     from airflow.sdk.types import Operator as SdkOperator
     from airflow.serialization.definitions.mappedoperator import (
@@ -1038,6 +1039,19 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             )
             del serialized_op["partial_kwargs"]["python_callable"]
 
+        if op.is_stub:
+            # Imported here for the same reason as in ``_serialize_node``.
+            from airflow.serialization.stub_arg_bindings import (
+                build_mapped_arg_bindings,
+                build_stub_expand_keys,
+            )
+
+            # Only @task.stub sets is_stub, so a mapped stub is always a DecoratedMappedOperator.
+            if arg_bindings := build_mapped_arg_bindings(cast("DecoratedMappedOperator", op)):
+                serialized_op["_arg_bindings"] = arg_bindings
+                if expand_keys := build_stub_expand_keys(op):
+                    serialized_op["_stub_expand_keys"] = expand_keys
+
         serialized_op["_is_mapped"] = True
         return serialized_op
 
@@ -1083,7 +1097,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
             # Imported here, not at module scope: this pulls pydantic's JSON-schema machinery,
             # which only lang-SDK (non-Python) workloads ever need.
             from airflow.sdk.bases.decorator import DecoratedOperator
-            from airflow.serialization.stub_arg_bindings import build_arg_bindings
+            from airflow.serialization.stub_arg_bindings import build_arg_bindings, build_stub_expand_keys
 
             serialize_op["is_stub"] = True
             if (
@@ -1092,6 +1106,8 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                 and (arg_bindings := build_arg_bindings(op))
             ):
                 serialize_op["_arg_bindings"] = arg_bindings
+                if expand_keys := build_stub_expand_keys(op):
+                    serialize_op["_stub_expand_keys"] = expand_keys
 
         if op.start_trigger_args:
             serialize_op["start_trigger_args"] = _encode_start_trigger_args(op.start_trigger_args)
@@ -1207,7 +1223,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
                     raise RuntimeError("_is_sensor=False should never have been serialized!")
                 object.__setattr__(op, "deps", op.deps | {ReadyToRescheduleDep()})
                 continue
-            elif k in ("is_stub", "_arg_bindings", "_external_clear_target"):
+            elif k in ("is_stub", "_arg_bindings", "_stub_expand_keys", "_external_clear_target"):
                 # All are restored unconditionally below: is_stub must fail closed rather than go
                 # through generic decoding, and the others are plain JSON, not {__type, __var}.
                 continue
@@ -1273,6 +1289,7 @@ class OperatorSerialization(DAGNode, BaseSerialization):
         # on this path, so anything that is not JSON ``true`` means "not a stub".
         setattr(op, "is_stub", encoded_op.get("is_stub") is True)
         setattr(op, "_arg_bindings", encoded_op.get("_arg_bindings"))
+        setattr(op, "_stub_expand_keys", encoded_op.get("_stub_expand_keys"))
         setattr(op, "_external_clear_target", encoded_op.get("_external_clear_target"))
 
         start_trigger_args = None

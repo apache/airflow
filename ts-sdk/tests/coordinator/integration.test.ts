@@ -666,6 +666,26 @@ describe("coordinator runtime integration", () => {
     ).toBe(true);
   });
 
+  it("fails without a retry when an argument needs mapped task support", async () => {
+    // A retry would meet the same binding, so should_retry is ignored.
+    let ran = false;
+    bundle.register(
+      new TaskHandler("py_dag", "mapped", async () => {
+        ran = true;
+      }),
+    );
+
+    const result = await driveSupervisor(
+      makeStartupDetails("mapped", "py_dag", "r1", {
+        should_retry: true,
+        arg_bindings: [{ name: "totals", kind: "xcom", task_id: "make_totals", map_index: 0 }],
+      }),
+    );
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    expect(ran).toBe(false);
+  });
+
   it("aborts the context signal on SIGTERM and reports a thrown task error", async () => {
     let sawAbort = false;
     testDag.task("aborted_then_failed", async () => {

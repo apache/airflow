@@ -19,9 +19,11 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime/debug"
+	"sort"
 	"time"
 
 	"github.com/apache/airflow/go-sdk/internal/bundle"
@@ -141,7 +143,9 @@ func RunTask(
 			"task_id", details.TI.TaskID,
 			"error", err,
 		)
-		return failTask(details.TIContext.ShouldRetry, err)
+		// A retry would meet the same binding.
+		shouldRetry := details.TIContext.ShouldRetry && !errors.Is(err, errMappedTaskNotImplemented)
+		return failTask(shouldRetry, err)
 	}
 
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
@@ -183,15 +187,26 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		if !ok {
 			return nil, fmt.Errorf("arg_bindings[%d]: unexpected wire shape %T", i, raw)
 		}
-		name, ok := m["name"].(string)
-		if !ok || name == "" {
+		kind, _ := m["kind"].(string)
+		name, _ := m["name"].(string)
+		if kind == "sequence" || kind == "tuple" {
+			return nil, newMappedTaskNotImplementedError(
+				i,
+				name,
+				fmt.Sprintf("binding kind %q", kind),
+			)
+		}
+		if key := findUnboundBindingKey(kind, m); key != "" {
+			return nil, newMappedTaskNotImplementedError(i, name, key)
+		}
+		if name == "" {
 			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
 		}
 		valueSchema, err := argValueSchema(m["value_schema"])
 		if err != nil {
 			return nil, fmt.Errorf("arg_bindings[%d] (%q): %w", i, name, err)
 		}
-		switch kind, _ := m["kind"].(string); kind {
+		switch kind {
 		case "xcom":
 			taskID, ok := m["task_id"].(string)
 			if !ok || taskID == "" {
@@ -224,6 +239,44 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		}
 	}
 	return args, nil
+}
+
+var errMappedTaskNotImplemented = errors.New(
+	"needs mapped task support, which this version of the Go SDK does not have",
+)
+
+func newMappedTaskNotImplementedError(i int, name, what string) error {
+	return fmt.Errorf("arg_bindings[%d] (%q): %s %w", i, name, what, errMappedTaskNotImplemented)
+}
+
+// The supervisor writes every unset field as null or false, so only those values are skipped.
+var boundBindingKeys = map[string]map[string]bool{
+	"xcom": {"kind": true, "name": true, "task_id": true, "value_schema": true},
+	"literal": {
+		"kind":         true,
+		"name":         true,
+		"value":        true,
+		"value_schema": true,
+		"from_default": true,
+	},
+}
+
+func findUnboundBindingKey(kind string, m map[string]any) string {
+	bound, ok := boundBindingKeys[kind]
+	if !ok {
+		return ""
+	}
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if v := m[key]; !bound[key] && v != nil && v != false {
+			return key
+		}
+	}
+	return ""
 }
 
 func argValueSchema(raw any) (*genmodels.ArgValueSchema, error) {

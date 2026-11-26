@@ -147,11 +147,13 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
-        "kind": { "type": "string", "enum": [ "xcom", "literal" ] },
+        "kind": { "type": "string", "enum": [ "xcom", "literal", "sequence", "param" ] },
         "value_schema": { "type": "object" },
         "task_id": { "type": "string" },
         "value": {},
-        "from_default": { "type": "boolean" }
+        "from_default": { "type": "boolean" },
+        "default": {},
+        "group_arg": { "type": "object" }
       },
       "required": [ "name", "kind" ]
     },
@@ -358,6 +360,7 @@
         "_is_mapped": { "const": true, "$comment": "only present when True", "default": false },
         "_is_sensor": { "const": true, "$comment": "only present when True", "default": false },
         "partial_kwargs": { "type": "object" },
+        "expand_input": { "type": "object" },
         "_disallow_kwargs_override": { "type": "boolean"},
         "_expand_input_attr": { "type": "string" },
         "map_index_template": { "type": "string" },
@@ -382,6 +385,11 @@
           "$comment": "Used for mixed-language tasks (the @task.stub operator) or tasks defined in a non-Python SDK Dag",
           "type": "array",
           "items": { "$ref": "#/definitions/arg_binding" }
+        },
+        "_stub_expand_keys": {
+          "$comment": "A @task.stub task's expand() key order, by the id of the task or mapped task group that expands",
+          "type": "object",
+          "additionalProperties": { "type": "array", "items": { "type": "string" } }
         }
       },
       "dependencies": {

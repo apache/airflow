@@ -33,6 +33,7 @@ import type { LogChannel } from "./log-channel.js";
 import type {
   ArgBindings,
   ArgValueSchema,
+  LiteralArgBinding,
   TaskArgBinding,
   XComArgBinding,
 } from "../generated/supervisor.js";
@@ -100,7 +101,8 @@ export async function resolveArgs(
   const byFold = new Map<string, string>();
   let pullsUpstream = false;
   for (const binding of bindings) {
-    const name = binding.name;
+    checkBindable(binding);
+    const name = bindingName(binding);
     const fold = foldArgName(name);
     const clash = byFold.get(fold);
     if (clash !== undefined) {
@@ -111,7 +113,6 @@ export async function resolveArgs(
     }
     byFold.set(fold, name);
     names.push(name);
-    checkBindable(binding);
     pullsUpstream ||= binding.kind === "xcom";
   }
 
@@ -120,16 +121,28 @@ export async function resolveArgs(
   const resolveAll = (): Promise<[string, JsonValue][]> =>
     Promise.all(
       bindings.map(async (binding): Promise<[string, JsonValue]> => [
-        binding.name,
+        bindingName(binding),
         binding.kind === "xcom"
           ? await pullXComArg(binding, deps.client)
-          : literalValue(binding.value),
+          : // checkBindable has already refused every kind but these two.
+            literalValue((binding as LiteralArgBinding).value),
       ]),
     );
   // Literals need no request, so only a call that pulls races the abort signal.
   const entries = pullsUpstream ? await abortable(resolveAll, deps.signal) : await resolveAll();
 
   return { args: makeArgsProxy(names, byFold, new Map(entries), deps), names };
+}
+
+/** Only a binding that spreads an `expand_kwargs()` mapping has no name, and this SDK binds none. */
+function bindingName(binding: TaskArgBinding): string {
+  if (binding.name == null) {
+    throw new Error(
+      "A task argument binding has no name, which only an expand_kwargs() mapping spread into " +
+        "the handler's arguments has; this version of @apache-airflow/ts-sdk cannot bind it",
+    );
+  }
+  return binding.name;
 }
 
 /** Airflow omits `value` for a literal whose value is null. */
@@ -139,11 +152,19 @@ function literalValue(value: unknown): JsonValue {
 
 /** Refuse a binding this SDK cannot honour, before any of them is resolved. */
 function checkBindable(binding: TaskArgBinding): void {
-  const { name } = binding;
-  if (binding.kind === "xcom") return;
+  // Only for messages: resolveArgs refuses a missing name after the key check below.
+  const name = String(binding.name);
+  if (binding.kind === "xcom") {
+    checkBoundKeys(binding, XCOM_KEYS);
+    return;
+  }
   if (binding.kind === "literal") {
+    checkBoundKeys(binding, LITERAL_KEYS);
     checkExactInteger(name, literalValue(binding.value), binding.value_schema);
     return;
+  }
+  if (binding.kind === "sequence" || binding.kind === "tuple") {
+    throw new MappedTaskNotImplementedError(name, `binding kind "${binding.kind}"`);
   }
   // Unreachable for the wire union as generated, so `binding` is `never` here.
   // A newer Airflow can add a kind, and skipping it would silently leave the
@@ -155,16 +176,48 @@ function checkBindable(binding: TaskArgBinding): void {
   );
 }
 
+const XCOM_KEYS: ReadonlySet<string> = new Set(["kind", "name", "task_id", "value_schema"]);
+const LITERAL_KEYS: ReadonlySet<string> = new Set([
+  "kind",
+  "name",
+  "value",
+  "value_schema",
+  "from_default",
+]);
+
+// The supervisor writes every unset field as null or false, so only those values are skipped.
+function checkBoundKeys(
+  binding: XComArgBinding | LiteralArgBinding,
+  bound: ReadonlySet<string>,
+): void {
+  for (const [key, value] of Object.entries(binding)) {
+    if (bound.has(key) || value == null || value === false) continue;
+    throw new MappedTaskNotImplementedError(String(binding.name), key);
+  }
+}
+
+/** Thrown for a binding that needs mapped task support, which no retry can supply. */
+export class MappedTaskNotImplementedError extends Error {
+  constructor(name: string, what: string) {
+    super(
+      `Task argument "${name}": ${what} needs mapped task support, which this version of ` +
+        "@apache-airflow/ts-sdk does not have",
+    );
+    this.name = "MappedTaskNotImplementedError";
+  }
+}
+
 /** Pull the upstream task's output this argument was called with. */
 async function pullXComArg(binding: XComArgBinding, client: CoordinatorClient): Promise<JsonValue> {
+  const name = bindingName(binding);
   const entry = await client.getXComEntry({ key: XCOM_RETURN_KEY, taskId: binding.task_id });
   if (!entry.found) {
     throw new Error(
-      `Task argument "${binding.name}" takes the output of upstream task "${binding.task_id}", ` +
+      `Task argument "${name}" takes the output of upstream task "${binding.task_id}", ` +
         `which pushed no ${XCOM_RETURN_KEY} XCom; a task that returns nothing pushes none`,
     );
   }
-  checkExactInteger(binding.name, entry.value, binding.value_schema);
+  checkExactInteger(name, entry.value, binding.value_schema);
   return entry.value;
 }
 

@@ -197,7 +197,7 @@ capabilities:
       supported: false
     stub-task-handler:
       supported: false
-      note: "Airflow does not bind arguments to mapped stubs yet"
+      note: "only literal expand() values bind; arguments read from upstream outputs do not yet"
   asset-inlets-outlets:
     dag-definition:
       supported: false
