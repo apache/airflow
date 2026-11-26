@@ -70,10 +70,10 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
     check(entry is Map<*, *>) { "arg_bindings entry is not a map: $entry" }
     val kind = entry["kind"]
     val label = entry["name"] as? String ?: "?"
-    if (kind == "sequence" || kind == "tuple") error(mappedTaskNotImplemented(label, "binding kind '$kind'"))
+    if (kind == "sequence" || kind == "tuple") throw MappedTaskNotImplementedException(label, "binding kind '$kind'")
     BOUND_KEYS[kind]?.let { bound ->
       entry.entries.firstOrNull { (key, value) -> key !in bound && value != null && value != false }?.let {
-        error(mappedTaskNotImplemented(label, it.key.toString()))
+        throw MappedTaskNotImplementedException(label, it.key.toString())
       }
     }
     val name = checkNotNull(entry["name"] as? String) { "arg_bindings entry has no name: $entry" }
@@ -104,9 +104,9 @@ private val BOUND_KEYS: Map<Any?, Set<String>> =
     "literal" to setOf("kind", "name", "value", "value_schema", "from_default"),
   )
 
-private fun mappedTaskNotImplemented(
+internal class MappedTaskNotImplementedException(
   name: String,
   what: String,
-): String =
-  "Argument '$name': $what needs mapped task support, which this version of the Java SDK " +
-    "does not have"
+) : NonRetryableException(
+    "Argument '$name': $what needs mapped task support, which this version of the Java SDK does not have",
+  )

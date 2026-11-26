@@ -19,6 +19,7 @@ package execution
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"runtime/debug"
@@ -142,7 +143,9 @@ func RunTask(
 			"task_id", details.TI.TaskID,
 			"error", err,
 		)
-		return failTask(details.TIContext.ShouldRetry, err)
+		// A retry would meet the same binding.
+		shouldRetry := details.TIContext.ShouldRetry && !errors.Is(err, errMappedTaskNotImplemented)
+		return failTask(shouldRetry, err)
 	}
 
 	return executeTask(ctx, task, args, details.TIContext.ShouldRetry, logger)
@@ -187,10 +190,14 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		kind, _ := m["kind"].(string)
 		name, _ := m["name"].(string)
 		if kind == "sequence" || kind == "tuple" {
-			return nil, errMappedTaskNotImplemented(i, name, fmt.Sprintf("binding kind %q", kind))
+			return nil, newMappedTaskNotImplementedError(
+				i,
+				name,
+				fmt.Sprintf("binding kind %q", kind),
+			)
 		}
 		if key := findUnboundBindingKey(kind, m); key != "" {
-			return nil, errMappedTaskNotImplemented(i, name, key)
+			return nil, newMappedTaskNotImplementedError(i, name, key)
 		}
 		if name == "" {
 			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
@@ -234,14 +241,12 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 	return args, nil
 }
 
-func errMappedTaskNotImplemented(i int, name, what string) error {
-	return fmt.Errorf(
-		"arg_bindings[%d] (%q): %s needs mapped task support, which this version of the Go SDK "+
-			"does not have",
-		i,
-		name,
-		what,
-	)
+var errMappedTaskNotImplemented = errors.New(
+	"needs mapped task support, which this version of the Go SDK does not have",
+)
+
+func newMappedTaskNotImplementedError(i int, name, what string) error {
+	return fmt.Errorf("arg_bindings[%d] (%q): %s %w", i, name, what, errMappedTaskNotImplemented)
 }
 
 // The supervisor writes every unset field as null or false, so only those values are skipped.

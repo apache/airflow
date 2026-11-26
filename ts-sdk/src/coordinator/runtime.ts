@@ -36,7 +36,7 @@
 //        - DagFileParseRequest → respond with DagFileParsingResult, exit
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
-import { resolveArgs, type BoundArgs } from "./arg-binding.js";
+import { MappedTaskNotImplementedError, resolveArgs, type BoundArgs } from "./arg-binding.js";
 import { createCoordinatorClient, XCOM_RETURN_KEY, type CoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
@@ -413,7 +413,7 @@ async function runHandler(
       task_id: ctx.taskId,
       error: message,
     });
-    return buildFailureResponse(details, message);
+    return buildFailureResponse(details, message, !(err instanceof MappedTaskNotImplementedError));
   }
   // Startup-details fields already logged above (`Received task
   // startup details`); this line just marks the handler-call boundary.
@@ -473,9 +473,10 @@ async function sendSupervisorResponse(
 function buildFailureResponse(
   details: StartupDetails,
   message: string,
+  retryable = true,
 ): RuntimeRetryTask | RuntimeTaskState {
   const endDate = new Date().toISOString();
-  if (details.ti_context.should_retry) {
+  if (retryable && details.ti_context.should_retry) {
     return {
       type: "RetryTask",
       end_date: endDate,

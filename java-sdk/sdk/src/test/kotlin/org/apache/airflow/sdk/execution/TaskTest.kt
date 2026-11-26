@@ -226,6 +226,17 @@ class TaskTest {
   }
 
   @Test
+  @DisplayName("Should fail without a retry when an argument needs mapped task support, even if should_retry is true")
+  fun shouldReturnFailedWithoutRetryWhenArgumentNeedsMappedTaskSupport() {
+    val details = startupDetails(taskId = "mapped")
+    details.tiContext?.shouldRetry = true
+    val result = runTask(bundleWith("mapped", MappedBindingTask::class.java), details, noOpClient())
+
+    Assertions.assertInstanceOf(TaskState::class.java, result)
+    Assertions.assertEquals(TaskState.State.FAILED, (result as TaskState).state)
+  }
+
+  @Test
   @DisplayName("Should thread the task definition into the execution context")
   fun shouldThreadTaskDefIntoContext() {
     val result =
@@ -680,6 +691,15 @@ class TaskTest {
       client: Client,
     ) {
       client.setXCom(value = null)
+    }
+  }
+
+  class MappedBindingTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      decodeArgBindings(listOf(mapOf("kind" to "sequence", "name" to "x", "task_id" to "upstream")))
     }
   }
 

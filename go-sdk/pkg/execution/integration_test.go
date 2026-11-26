@@ -537,7 +537,6 @@ func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("%s on %s", tc.what, tc.spec["kind"]), func(t *testing.T) {
-			name, _ := tc.spec["name"].(string)
 			ran := false
 			bundle := buildBundle(t, func(r testBundle) {
 				r.AddDag("test_dag").AddTaskWithName("transform",
@@ -553,17 +552,9 @@ func TestTaskRunnerArgBindingsMappedTaskNotImplemented(t *testing.T) {
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			comm := NewCoordinatorComm(bytes.NewReader(nil), io.Discard, logger)
 
+			// A retry would meet the same binding, so should_retry is ignored.
 			result := RunTask(context.Background(), bundle, details, comm, logger)
-			assertRetryTask(
-				t,
-				result,
-				fmt.Sprintf(
-					`(%q): %s needs mapped task support, which this version of the Go SDK `+
-						"does not have",
-					name,
-					tc.what,
-				),
-			)
+			assertTaskState(t, result, genmodels.TaskStateStateFailed)
 			assert.False(t, ran, "the task body must not run on a binding it cannot honour")
 		})
 	}

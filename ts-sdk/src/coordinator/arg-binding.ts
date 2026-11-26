@@ -164,7 +164,7 @@ function checkBindable(binding: TaskArgBinding): void {
     return;
   }
   if (binding.kind === "sequence" || binding.kind === "tuple") {
-    throw mappedTaskNotImplemented(name, `binding kind "${binding.kind}"`);
+    throw new MappedTaskNotImplementedError(name, `binding kind "${binding.kind}"`);
   }
   // Unreachable for the wire union as generated, so `binding` is `never` here.
   // A newer Airflow can add a kind, and skipping it would silently leave the
@@ -192,15 +192,19 @@ function checkBoundKeys(
 ): void {
   for (const [key, value] of Object.entries(binding)) {
     if (bound.has(key) || value == null || value === false) continue;
-    throw mappedTaskNotImplemented(String(binding.name), key);
+    throw new MappedTaskNotImplementedError(String(binding.name), key);
   }
 }
 
-function mappedTaskNotImplemented(name: string, what: string): Error {
-  return new Error(
-    `Task argument "${name}": ${what} needs mapped task support, which this version of ` +
-      "@apache-airflow/ts-sdk does not have",
-  );
+/** Thrown for a binding that needs mapped task support, which no retry can supply. */
+export class MappedTaskNotImplementedError extends Error {
+  constructor(name: string, what: string) {
+    super(
+      `Task argument "${name}": ${what} needs mapped task support, which this version of ` +
+        "@apache-airflow/ts-sdk does not have",
+    );
+    this.name = "MappedTaskNotImplementedError";
+  }
 }
 
 /** Pull the upstream task's output this argument was called with. */
