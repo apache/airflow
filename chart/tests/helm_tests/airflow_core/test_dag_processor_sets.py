@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import re
+import shlex
+from pathlib import Path
+from shutil import copytree
 from subprocess import CalledProcessError
 
 import jmespath
@@ -115,7 +119,6 @@ class TestDagProcessorSets:
                 ["test-dag-processor", "test-dag-processor-set1"],
             ),
             ({"sets": [], "enableDefault": None}, ["test-dag-processor"]),
-            ({"sets": [], "enableDefault": False}, []),
         ],
     )
     def test_enable_default_is_derived_from_sets(self, dag_processor, expected):
@@ -234,6 +237,11 @@ class TestDagProcessorSets:
             ({"sets": [{"name": "-team"}]}, "not a valid DNS-1123 label"),
             ({"sets": [{"name": "team-"}]}, "not a valid DNS-1123 label"),
             ({"sets": [{"name": "a" * 64}]}, "not a valid DNS-1123 label"),
+            ({"sets": [], "enableDefault": False}, "no Dag processor would run"),
+            (
+                {"dagBundleConfigList": BUNDLES, "bundleNames": ["unknown"], "sets": [{"name": "one"}]},
+                'Bundle "unknown" is not defined',
+            ),
         ],
     )
     def test_invalid_sets_fail(self, dag_processor, message):
@@ -289,13 +297,13 @@ class TestDagProcessorSets:
                 {
                     "test-dag-processor": ["test-dag-processor-pdb"],
                     "test-dag-processor-one": ["test-dag-processor-pdb-one"],
-                    "test-dag-processor-two": ["test-dag-processor-pdb"],
+                    "test-dag-processor-two": [],
                 },
             ),
             ([], {"test-dag-processor": ["test-dag-processor-pdb"]}),
         ],
     )
-    def test_each_pod_is_selected_by_one_pdb(self, sets, expected):
+    def test_each_pod_is_selected_by_at_most_its_own_pdb(self, sets, expected):
         selection = _render_pdb_selection(
             {"enableDefault": True, "podDisruptionBudget": {"enabled": True}, "sets": sets}
         )
@@ -406,7 +414,7 @@ class TestDagProcessorSets:
                 show_only=[DEPLOYMENT],
             )
 
-        assert "does not select" in ex_ctx.value.stderr.decode()
+        assert "do not select" in ex_ctx.value.stderr.decode()
 
     @pytest.mark.parametrize(
         "args",
@@ -416,6 +424,8 @@ class TestDagProcessorSets:
             ["bash", "-c", "exec airflow dag-processor --bundle-name 'b10'"],
             ["dag-processor", "--bundle-name", "xb1"],
             ["dag-processor", "--other", "b1"],
+            ["dag-processor", "-B", "b10"],
+            ["dag-processor", "-Bb10"],
         ],
     )
     def test_bundle_name_must_match_the_whole_argument(self, args):
@@ -433,24 +443,28 @@ class TestDagProcessorSets:
                 show_only=[DEPLOYMENT],
             )
 
-        assert 'does not select bundle "b1"' in ex_ctx.value.stderr.decode()
+        assert 'do not select bundle "b1"' in ex_ctx.value.stderr.decode()
 
     @pytest.mark.parametrize(
-        "args",
+        ("command", "args"),
         [
-            ["dag-processor", "--bundle-name", "b1"],
-            ["dag-processor", "--bundle-name=b1"],
-            ["dag-processor", "--bundle-name", "b10", "--bundle-name", "b1"],
-            ["bash", "-c", "exec airflow dag-processor --bundle-name 'b1'"],
+            (["airflow"], ["dag-processor", "--bundle-name", "b1"]),
+            (["airflow"], ["dag-processor", "--bundle-name=b1"]),
+            (["airflow"], ["dag-processor", "--bundle-name", "b10", "--bundle-name", "b1"]),
+            (["airflow"], ["bash", "-c", "exec airflow dag-processor --bundle-name 'b1'"]),
+            (["airflow"], ["dag-processor", "-B", "b1"]),
+            (["airflow"], ["dag-processor", "-Bb1"]),
+            (["airflow"], ["dag-processor", "-B=b1"]),
+            (["bash", "-c", "exec airflow dag-processor -B b1"], None),
         ],
     )
-    def test_bundle_name_in_custom_args_is_accepted(self, args):
+    def test_bundle_name_in_custom_command_or_args_is_accepted(self, command, args):
         docs = render_chart(
             values={
                 "dagProcessor": {
                     "enableDefault": False,
                     "dagBundleConfigList": SIMILAR_BUNDLES,
-                    "command": ["airflow"],
+                    "command": command,
                     "args": args,
                     "sets": [{"name": "one", "bundleNames": ["b1"]}],
                 }
@@ -458,4 +472,122 @@ class TestDagProcessorSets:
             show_only=[DEPLOYMENT],
         )
 
-        assert docs[0]["spec"]["template"]["spec"]["containers"][0]["args"] == args
+        container = docs[0]["spec"]["template"]["spec"]["containers"][0]
+        assert container["command"] == command
+        assert container.get("args") == args
+
+    def test_bundle_names_are_shell_quoted(self):
+        name = 'it\'s $(b) "x"'
+        docs = render_chart(
+            values={
+                "dagProcessor": {
+                    "dagBundleConfigList": [{"name": name, "classpath": "a.B", "kwargs": {}}],
+                    "bundleNames": [name],
+                }
+            },
+            show_only=[DEPLOYMENT],
+        )
+
+        command = docs[0]["spec"]["template"]["spec"]["containers"][0]["args"][-1]
+        assert shlex.split(command) == ["exec", "airflow", "dag-processor", "--bundle-name", name]
+
+    def test_set_name_label_is_a_string(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "dagProcessor": {
+                    "enableDefault": False,
+                    "podDisruptionBudget": {"enabled": True},
+                    "sets": [{"name": "123"}],
+                }
+            },
+            show_only=[DEPLOYMENT, PDB],
+        )
+
+        deployment, pdb = docs
+        assert deployment["spec"]["selector"]["matchLabels"]["dag-processor-set"] == "123"
+        assert deployment["spec"]["template"]["metadata"]["labels"]["dag-processor-set"] == "123"
+        assert pdb["spec"]["selector"]["matchLabels"]["dag-processor-set"] == "123"
+
+    def test_set_strategy_replaces_parent_strategy(self):
+        docs = render_chart(
+            name="test",
+            values={
+                "dagProcessor": {
+                    "enableDefault": True,
+                    "sets": [{"name": "one", "strategy": {"type": "Recreate"}}],
+                }
+            },
+            show_only=[DEPLOYMENT],
+        )
+
+        assert docs[0]["spec"]["strategy"] == {"rollingUpdate": {"maxSurge": "100%", "maxUnavailable": "50%"}}
+        assert docs[1]["spec"]["strategy"] == {"type": "Recreate"}
+
+
+@pytest.fixture(scope="class")
+def chart_with_bundle_overlaps(tmp_path_factory) -> str:
+    """Copy of the chart with a template that exposes ``dagProcessor.bundleOverlaps``, used by NOTES.txt."""
+    chart_dir = tmp_path_factory.mktemp("chart") / "chart"
+    copytree(Path(__file__).parents[3], chart_dir)
+    (chart_dir / "templates" / "bundle-overlaps.yaml").write_text(
+        "apiVersion: v1\n"
+        "kind: ConfigMap\n"
+        "metadata:\n"
+        "  name: bundle-overlaps\n"
+        "  labels:\n"
+        "    tier: test\n"
+        "data:\n"
+        '  overlaps: {{ include "dagProcessor.bundleOverlaps" . | fromYaml | toJson | quote }}\n'
+    )
+    return chart_dir.as_posix()
+
+
+class TestDagProcessorBundleOverlaps:
+    """Tests the bundles reported by the NOTES.txt warning."""
+
+    @pytest.mark.parametrize(
+        ("dag_processor", "expected"),
+        [
+            ({}, {}),
+            (
+                {
+                    "sets": [
+                        {"name": "one", "bundleNames": ["bundle1"]},
+                        {"name": "two", "bundleNames": ["bundle2"]},
+                    ]
+                },
+                {},
+            ),
+            (
+                {
+                    "sets": [
+                        {"name": "one", "bundleNames": ["bundle1"]},
+                        {"name": "two", "bundleNames": ["bundle1"]},
+                    ]
+                },
+                {"bundle1": ["one", "two"]},
+            ),
+            ({"sets": [{"name": "one", "bundleNames": ["bundle1", "bundle1"]}]}, {}),
+            (
+                {"enableDefault": True, "sets": [{"name": "one", "bundleNames": ["bundle1"]}]},
+                {"bundle1": ["default", "one"]},
+            ),
+            (
+                {"sets": [{"name": "one", "bundleNames": ["bundle1"]}, {"name": "all"}]},
+                {"bundle1": ["one", "all"]},
+            ),
+            (
+                {"bundleNames": ["bundle2"], "sets": [{"name": "one"}, {"name": "two", "bundleNames": []}]},
+                {"bundle2": ["one", "two"]},
+            ),
+        ],
+    )
+    def test_bundle_overlaps(self, chart_with_bundle_overlaps, dag_processor, expected):
+        docs = render_chart(
+            values={"dagProcessor": {"dagBundleConfigList": BUNDLES, **dag_processor}},
+            show_only=["templates/bundle-overlaps.yaml"],
+            chart_dir=chart_with_bundle_overlaps,
+        )
+
+        assert json.loads(docs[0]["data"]["overlaps"]) == expected

@@ -1237,6 +1237,105 @@ Usage:
 {{- end -}}
 
 {{/*
+Values of every Dag processor Deployment: the default one (named `default`) when enabled, followed by
+each item of `dagProcessor.sets` merged over `dagProcessor`. Fails on an invalid set configuration.
+Call it only when `dagProcessor.enabled` is true.
+
+Usage:
+  {{- $dagProcessors := (include "dagProcessor.expandSets" . | fromYaml).dagProcessors }}
+*/}}
+{{- define "dagProcessor.expandSets" -}}
+  {{- $sets := .Values.dagProcessor.sets | default list -}}
+  {{- $definedBundles := list -}}
+  {{- range .Values.dagProcessor.dagBundleConfigList | default list -}}
+    {{- $definedBundles = append $definedBundles .name -}}
+  {{- end -}}
+  {{- $seenSetNames := dict -}}
+  {{- range $sets -}}
+    {{- $setName := .name | default "" | toString -}}
+    {{- if eq $setName "default" -}}
+      {{- fail "`dagProcessor.sets` items cannot be named `default`; that name is used by the default Dag processor" -}}
+    {{- end -}}
+    {{- if not (and (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $setName) (le (len $setName) 63)) -}}
+      {{- fail (printf "`dagProcessor.sets` item name %q is not a valid DNS-1123 label (lowercase alphanumerics and '-', starting and ending with an alphanumeric, at most 63 characters)" $setName) -}}
+    {{- end -}}
+    {{- if hasKey $seenSetNames $setName -}}
+      {{- fail (printf "`dagProcessor.sets` contains the name %q more than once" $setName) -}}
+    {{- end -}}
+    {{- $_ := set $seenSetNames $setName true -}}
+    {{- if hasKey . "dagBundleConfigList" -}}
+      {{- fail "`dagProcessor.sets` items cannot define `dagBundleConfigList`; define all bundles in `dagProcessor.dagBundleConfigList` and select them per set with `bundleNames`" -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $enableDefault := .Values.dagProcessor.enableDefault -}}
+  {{- if kindIs "invalid" $enableDefault -}}
+    {{- $enableDefault = not $sets -}}
+  {{- end -}}
+  {{- if and (not $enableDefault) (not $sets) -}}
+    {{- fail "`dagProcessor.enableDefault` is false and `dagProcessor.sets` is empty, so no Dag processor would run; add a set, enable the default Dag processor, or set `dagProcessor.enabled` to false" -}}
+  {{- end -}}
+  {{- if $enableDefault -}}
+    {{- $sets = concat (list (dict "name" "default")) $sets -}}
+  {{- end -}}
+  {{- $dagProcessors := list -}}
+  {{- range $set := $sets -}}
+    {{- $dagProcessor := include "workersMergeValues" (list $.Values.dagProcessor $set) | fromYaml -}}
+    {{- /* `strategy` is replaced as a whole so that `type: Recreate` does not inherit `rollingUpdate` */ -}}
+    {{- if hasKey $set "strategy" -}}
+      {{- $_ := set $dagProcessor "strategy" $set.strategy -}}
+    {{- end -}}
+    {{- $_ := unset $dagProcessor "sets" -}}
+    {{- range $dagProcessor.bundleNames | default list -}}
+      {{- if not (has . $definedBundles) -}}
+        {{- fail (printf "Bundle %q is not defined in `dagProcessor.dagBundleConfigList`" .) -}}
+      {{- end -}}
+    {{- end -}}
+    {{- $dagProcessors = append $dagProcessors $dagProcessor -}}
+  {{- end -}}
+  {{- toYaml (dict "dagProcessors" $dagProcessors) -}}
+{{- end -}}
+
+{{/*
+`--bundle-name` flags for `dagProcessor.bundleNames`, each quoted for a POSIX shell.
+
+Usage:
+  exec airflow dag-processor{{ include "dagProcessor.bundleNameArgs" . }}
+*/}}
+{{- define "dagProcessor.bundleNameArgs" -}}
+  {{- range .Values.dagProcessor.bundleNames | default list -}}
+    {{- printf " --bundle-name '%s'" (replace "'" "'\\''" .) -}}
+  {{- end -}}
+{{- end -}}
+
+{{/*
+Dag bundles parsed by more than one Dag processor Deployment, as a map of bundle name to the names of
+those Deployments (`default` for the default Dag processor). Call it only when `dagProcessor.enabled` is true.
+
+Usage:
+  {{- range $bundle, $names := include "dagProcessor.bundleOverlaps" . | fromYaml }}
+*/}}
+{{- define "dagProcessor.bundleOverlaps" -}}
+  {{- $definedBundles := list -}}
+  {{- range .Values.dagProcessor.dagBundleConfigList | default list -}}
+    {{- $definedBundles = append $definedBundles .name -}}
+  {{- end -}}
+  {{- $claims := dict -}}
+  {{- range (include "dagProcessor.expandSets" . | fromYaml).dagProcessors -}}
+    {{- $dagProcessorName := .name -}}
+    {{- range (.bundleNames | default $definedBundles) | uniq -}}
+      {{- $_ := set $claims . (append (get $claims . | default list) $dagProcessorName) -}}
+    {{- end -}}
+  {{- end -}}
+  {{- $overlaps := dict -}}
+  {{- range $bundle, $names := $claims -}}
+    {{- if gt (len $names) 1 -}}
+      {{- $_ := set $overlaps $bundle $names -}}
+    {{- end -}}
+  {{- end -}}
+  {{- toYaml $overlaps -}}
+{{- end -}}
+
+{{/*
 serviceAccountTokenVolume mount
 
 Usage:

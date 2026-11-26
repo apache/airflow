@@ -2164,19 +2164,20 @@ dagProcessor:
   #     classpath: "airflow.dag_processing.bundles.local.LocalDagBundle"
   #     kwargs: {}
 
-  # Enable the default dag processor defined by the root `dagProcessor` configuration to be created.
-  # If false, only the dedicated dag processors defined in 'sets' will be created.
-  # When not set, the default dag processor is created only if 'sets' is empty.
-  # Set it to true explicitly to run the default dag processor next to the sets. It parses ALL bundles
+  # Enable the default Dag processor defined by the root `dagProcessor` configuration to be created.
+  # If false, only the dedicated Dag processors defined in 'sets' will be created.
+  # When not set, the default Dag processor is created only if 'sets' is empty.
+  # Set it to true explicitly to run the default Dag processor next to the sets. It parses ALL bundles
   # unless `bundleNames` is set, so bundles selected by a set would then be parsed twice.
   enableDefault: ~
 
-  # Names of the bundles from `dagBundleConfigList` this dag processor parses
+  # Names of the bundles from `dagBundleConfigList` this Dag processor parses
   # (passed as `--bundle-name` flags by the default `args`; custom `args` must pass them as well).
-  # If empty, the dag processor parses all the bundles.
+  # If empty, the Dag processor parses all the bundles. A set inherits the parent `bundleNames`
+  # when it does not set them or sets an empty list.
   bundleNames: []
 
-  # List of dag processor sets. Each item requires a `name` and can overwrite values from the parent
+  # List of Dag processor sets. Each item requires a `name` and can overwrite values from the parent
   # `dagProcessor` section. Bundles are always defined once in the parent `dagBundleConfigList`
   # and selected per set with `bundleNames`. See the `enableDefault` note above.
   sets: []
@@ -2214,7 +2215,7 @@ dagProcessor:
   args:
     - "bash"
     - "-c"
-    - "exec airflow dag-processor{{ range .Values.dagProcessor.bundleNames }} --bundle-name {{ . | squote }}{{ end }}"
+    - 'exec airflow dag-processor{{ include "dagProcessor.bundleNameArgs" . }}'
 
   # Update Strategy for dag processors
   strategy:

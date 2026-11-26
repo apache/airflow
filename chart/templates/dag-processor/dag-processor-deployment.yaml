@@ -22,33 +22,7 @@
 #################################
 {{- if .Values.dagProcessor.enabled }}
 {{- $globals := deepCopy . -}}
-{{- $dagProcessorSets := .Values.dagProcessor.sets | default list -}}
-{{- $seenSetNames := dict -}}
-{{- range $dagProcessorSets -}}
-  {{- $setName := .name | default "" | toString -}}
-  {{- if eq $setName "default" -}}
-    {{- fail "`dagProcessor.sets` items cannot be named `default`; that name is used by the default Dag processor" -}}
-  {{- end -}}
-  {{- if not (and (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $setName) (le (len $setName) 63)) -}}
-    {{- fail (printf "`dagProcessor.sets` item name %q is not a valid DNS-1123 label (lowercase alphanumerics and '-', starting and ending with an alphanumeric, at most 63 characters)" $setName) -}}
-  {{- end -}}
-  {{- if hasKey $seenSetNames $setName -}}
-    {{- fail (printf "`dagProcessor.sets` contains the name %q more than once" $setName) -}}
-  {{- end -}}
-  {{- $_ := set $seenSetNames $setName true -}}
-{{- end -}}
-{{- $enableDefault := .Values.dagProcessor.enableDefault -}}
-{{- if kindIs "invalid" $enableDefault -}}
-  {{- $enableDefault = not .Values.dagProcessor.sets -}}
-{{- end -}}
-{{- if $enableDefault -}}
-  {{- $dagProcessorSets = concat (list (dict "name" "default")) $dagProcessorSets -}}
-{{- end -}}
-{{- range $dagProcessorSet := $dagProcessorSets -}}
-  {{- if hasKey $dagProcessorSet "dagBundleConfigList" -}}
-    {{- fail "`dagProcessor.sets` items cannot define `dagBundleConfigList`; define all bundles in `dagProcessor.dagBundleConfigList` and select them per set with `bundleNames`" -}}
-  {{- end -}}
-  {{- $dagProcessor := include "workersMergeValues" (list $.Values.dagProcessor $dagProcessorSet) | fromYaml -}}
+{{- range $dagProcessor := (include "dagProcessor.expandSets" . | fromYaml).dagProcessors -}}
   {{- $_ := set $globals.Values "dagProcessor" $dagProcessor -}}
   {{- with $globals }}
 ---
@@ -64,19 +38,17 @@
 {{- $containerLifecycleHooks := or .Values.dagProcessor.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $containerLifecycleHooksLogGroomerSidecar := or .Values.dagProcessor.logGroomerSidecar.containerLifecycleHooks .Values.containerLifecycleHooks }}
 {{- $args := .Values.dagProcessor.args }}
-{{- $dagProcessorContext := . }}
 {{- with .Values.dagProcessor.bundleNames }}
-  {{- $definedBundles := list }}
-  {{- range $.Values.dagProcessor.dagBundleConfigList }}
-    {{- $definedBundles = append $definedBundles .name }}
+  {{- $argv := list }}
+  {{- range concat ($globals.Values.dagProcessor.command | default list) ($args | default list) }}
+    {{- $argv = append $argv (tpl (toString .) $globals) }}
   {{- end }}
-  {{- $renderedArgs := tpl (toYaml $args) $dagProcessorContext }}
+  {{- $renderedArgv := join " " $argv }}
   {{- range . }}
-    {{- if not (has . $definedBundles) }}
-      {{- fail (printf "Bundle %q is not defined in `dagProcessor.dagBundleConfigList`" .) }}
-    {{- end }}
-    {{- if not (regexMatch (printf "--bundle-name(=|\\s+(-\\s+)?)['\"]*%s['\"]*(\\s|$)" (regexQuoteMeta .)) $renderedArgs) }}
-      {{- fail (printf "`dagProcessor.args` does not select bundle %q; pass it with `--bundle-name` (the default `args` does this from `bundleNames`)" .) }}
+    {{- $shellQuoted := printf "'%s'" (replace "'" "'\\''" .) }}
+    {{- $value := printf "(%s|'%s'|\"%s\"|%s)" (regexQuoteMeta .) (regexQuoteMeta .) (regexQuoteMeta .) (regexQuoteMeta $shellQuoted) }}
+    {{- if not (regexMatch (printf "(^|\\s)(--bundle-name(=|\\s+)|-B(=|\\s*))%s(\\s|$)" $value) $renderedArgv) }}
+      {{- fail (printf "`dagProcessor.command` and `dagProcessor.args` do not select bundle %q; pass it with `--bundle-name` or `-B` (the default `args` does this from `bundleNames`)" .) }}
     {{- end }}
   {{- end }}
 {{- end }}
@@ -107,7 +79,7 @@ spec:
       component: dag-processor
       release: {{ .Release.Name }}
       {{- if ne .Values.dagProcessor.name "default" }}
-      dag-processor-set: {{ .Values.dagProcessor.name }}
+      dag-processor-set: {{ .Values.dagProcessor.name | quote }}
       {{- end }}
   {{- if .Values.dagProcessor.strategy }}
   strategy: {{- toYaml .Values.dagProcessor.strategy | nindent 4 }}
@@ -119,7 +91,7 @@ spec:
         component: dag-processor
         release: {{ .Release.Name }}
         {{- if ne .Values.dagProcessor.name "default" }}
-        dag-processor-set: {{ .Values.dagProcessor.name }}
+        dag-processor-set: {{ .Values.dagProcessor.name | quote }}
         {{- end }}
         {{- if or .Values.labels .Values.dagProcessor.labels }}
           {{- mustMerge .Values.dagProcessor.labels .Values.labels | toYaml | nindent 8 }}

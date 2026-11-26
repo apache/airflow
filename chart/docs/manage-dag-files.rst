@@ -279,7 +279,8 @@ creates its own Deployment (and PodDisruptionBudget when enabled) named
    When ``dagProcessor.sets`` is not empty, the default Dag processor is not created unless you set
    ``dagProcessor.enableDefault: true`` explicitly. The default Dag processor parses **all** bundles
    (unless ``bundleNames`` is set on it), so enabling it next to sets that select bundles makes those
-   bundles be parsed twice.
+   bundles be parsed twice. Setting ``dagProcessor.enableDefault: false`` with no sets fails to render,
+   because no Dag processor would run; set ``dagProcessor.enabled: false`` instead.
 
 .. code-block:: yaml
    :caption: values.yaml
@@ -302,19 +303,40 @@ creates its own Deployment (and PodDisruptionBudget when enabled) named
          bundleNames: ["bundle2"]
 
 The default ``dagProcessor.args`` passes the bundle selection as ``--bundle-name`` flags. Without
-``bundleNames`` a Dag processor parses all bundles. If you set custom ``command`` or ``args``, they are used
+``bundleNames`` a Dag processor parses all bundles. A set that does not set ``bundleNames``, or sets it to an
+empty list, inherits ``dagProcessor.bundleNames``. If you set custom ``command`` or ``args``, they are used
 as they are, so pass the flags yourself; the chart fails to render when ``bundleNames`` is set but
-``args`` does not contain a ``--bundle-name`` flag for each bundle.
+``command`` and ``args`` do not contain a ``--bundle-name`` (or ``-B``) flag for each bundle.
 
-A bundle can be selected by more than one set, for example while you move it from one set to another. It is
-then parsed by each of them, and ``helm install`` and ``helm upgrade`` print a warning that names the bundle
-and the sets (the warning is not shown by ``helm template``).
+A set inherits the ``dagProcessor`` settings key by key, but replaces ``strategy`` as a whole, so a set can use
+``strategy: {type: Recreate}`` without inheriting ``rollingUpdate``.
+
+A bundle can be parsed by more than one Dag processor Deployment, for example while you move it from one set to
+another, or when the default Dag processor runs next to sets. It is then parsed by each of them, and
+``helm install`` and ``helm upgrade`` print a warning that names the bundle and the Deployments (the warning is
+not shown by ``helm template``).
 
 A set that overrides ``serviceAccount`` gets that ServiceAccount created, and sets that use the same
 ServiceAccount name share one object, so their ``serviceAccount`` settings must match. With
 ``rbac.createSCCRoleBinding`` the OpenShift SCC role binding includes the ServiceAccount of every Dag processor
 Deployment.
 
-A PodDisruptionBudget selects the Pods of a single Deployment. When the default Dag processor and sets with
-their own PodDisruptionBudget run together, the default PodDisruptionBudget leaves out those sets, so a Pod is
-never selected by two budgets.
+A PodDisruptionBudget selects the Pods of a single Deployment. When the default Dag processor runs next to
+sets, its PodDisruptionBudget selects only its own Pods, so a set without a PodDisruptionBudget has none.
+
+Removing a Dag bundle
+^^^^^^^^^^^^^^^^^^^^^
+
+A Dag processor that parses only some bundles (``bundleNames`` is set) does not mark bundles that were removed
+from ``dagProcessor.dagBundleConfigList`` as inactive, because it cannot tell a removed bundle from one parsed
+by another Dag processor. When every Dag processor selects bundles, for example one set per bundle and no
+default Dag processor, the Dags of a removed bundle therefore stay active in the UI. After removing a bundle
+and its set, mark it inactive once with either of:
+
+* ``airflow dags reserialize --bundle-name <bundle>`` in the ``dag-processor`` container of a remaining set,
+  with a bundle that set parses. It marks every bundle that is no longer configured as inactive before
+  reserializing the given bundle.
+* ``dagProcessor.enableDefault: true`` until the Dags of the removed bundle are no longer active, then back to
+  ``false``. The default Dag processor parses all bundles in the meantime.
+
+The running Dag processors then deactivate the Dags of the inactive bundle.

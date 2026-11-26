@@ -112,17 +112,8 @@ subjects:
   {{- end }}
   {{- if .Values.dagProcessor.enabled }}
     {{- $globals := deepCopy . }}
-    {{- $dagProcessorSets := .Values.dagProcessor.sets | default list }}
-    {{- $enableDefault := .Values.dagProcessor.enableDefault }}
-    {{- if kindIs "invalid" $enableDefault }}
-      {{- $enableDefault = not .Values.dagProcessor.sets }}
-    {{- end }}
-    {{- if $enableDefault }}
-      {{- $dagProcessorSets = concat (list (dict "name" "default")) $dagProcessorSets }}
-    {{- end }}
     {{- $dagProcessorServiceAccounts := list }}
-    {{- range $dagProcessorSet := $dagProcessorSets }}
-      {{- $dagProcessor := include "workersMergeValues" (list $.Values.dagProcessor $dagProcessorSet) | fromYaml }}
+    {{- range $dagProcessor := (include "dagProcessor.expandSets" . | fromYaml).dagProcessors }}
       {{- $_ := set $globals.Values "dagProcessor" $dagProcessor }}
       {{- $dagProcessorServiceAccounts = append $dagProcessorServiceAccounts (include "dagProcessor.serviceAccountName" $globals) }}
     {{- end }}
