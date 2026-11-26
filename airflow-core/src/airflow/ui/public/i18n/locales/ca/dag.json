@@ -357,7 +357,7 @@
     },
     "limitReached": {
       "description": "Hi ha més canvis dels que permet el límit «Màxim de canvis». Augmenteu el límit per veure la resta.",
-      "descriptionDefault": "Hi ha més canvis dels que permet el límit per defecte. Augmenteu el valor de «Màxim de canvis» per veure la resta.",
+      "descriptionDefault": "Hi ha més canvis dels que permet el límit per defecte. Augmenteu el valor de «Màxim de canvis» per a veure la resta.",
       "title": "Es mostren només els primers {{limit, number}} canvis"
     },
     "maxChanges": "Màxim de canvis",
