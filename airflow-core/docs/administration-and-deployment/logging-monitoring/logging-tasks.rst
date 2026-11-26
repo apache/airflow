@@ -183,7 +183,7 @@ In triggerer, logs are served unless the service is started with option ``--skip
 The server is running on the port specified by ``worker_log_server_port`` option in ``[logging]`` section, and option ``triggerer_log_server_port`` for triggerer.  Defaults are 8793 and 8794, respectively.
 Communication between the webserver and the worker is signed with the key specified by ``secret_key`` option  in ``[api]`` section. You must ensure that the key matches so that communication can take place without problems.
 
-We are using `Gunicorn <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://docs.gunicorn.org/en/latest/settings.html#settings>`__.
+We are using `Gunicorn <https://gunicorn.org/>`__ as a WSGI server. Its configuration options can be overridden with the ``GUNICORN_CMD_ARGS`` env variable. For details, see `Gunicorn settings <https://gunicorn.org/reference/settings/>`__.
 
 Implementing a custom file task handler
 ---------------------------------------
