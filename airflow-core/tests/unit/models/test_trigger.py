@@ -1176,6 +1176,15 @@ def test_submit_event_task_end_success_and_skipped_send_no_email(
     email_requests = [r for r in sent if isinstance(r, EmailRequest)]
     assert email_requests == []
 
+    ti = session.scalar(select(TaskInstance))
+    if event_cls is TaskSuccessEvent:
+        assert ti.state == TaskInstanceState.SUCCESS
+        task_callbacks = [r for r in sent if isinstance(r, TaskCallbackRequest)]
+        assert len(task_callbacks) == 1
+        assert task_callbacks[0].task_callback_type == TaskInstanceState.SUCCESS
+    else:
+        assert ti.state == TaskInstanceState.SKIPPED
+
 
 @patch("airflow.models.dagbag.DBDagBag.get_dag_for_run", side_effect=RuntimeError("boom"))
 @patch("airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send")
@@ -1276,6 +1285,12 @@ def test_submit_event_task_end_failed_email_request_contents(mock_send, session,
     assert em.bundle_name == cb.bundle_name
     assert em.bundle_version == cb.bundle_version
     assert em.context_from_server.max_tries == task_instance.max_tries
+    assert em.ti.task_id == task_instance.task_id
+    assert em.ti.dag_id == task_instance.dag_id
+    assert em.ti.run_id == task_instance.run_id
+    assert em.ti.try_number == 1
+    assert em.email_type == "failure"
+    assert em.context_from_server.dag_run.run_id == task_instance.run_id
 
 
 @pytest.fixture
