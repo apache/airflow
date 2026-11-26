@@ -42,10 +42,9 @@ Each arm is a **git worktree** of the real repo — the agent sees
 actual source files (`pyproject.toml`, directory structure, etc.).
 The only difference between arms is which `AGENTS.md` is present.
 
-The agent reads guidance through the `CLAUDE.md → AGENTS.md` symlink,
-so the harness verifies that symlink exists (in the working tree and
-on the base branch) before running and aborts if it is broken — a
-regular-file CLAUDE.md would make every arm read identical guidance.
+The Claude Agent SDK reads `CLAUDE.md`, not `AGENTS.md`, so the harness
+adds a `CLAUDE.md → AGENTS.md` symlink to each arm's worktree. The repo
+itself has no `CLAUDE.md`: Claude Code reads `AGENTS.md` natively.
 
 ## Prerequisites
 

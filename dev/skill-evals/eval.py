@@ -135,29 +135,6 @@ def find_sdk_modules(runtime: str) -> Path:
     sys.exit(1)
 
 
-def check_claude_md_symlink(base_branch: str) -> None:
-    """Verify CLAUDE.md is a symlink to AGENTS.md, in the working tree and on the base branch.
-
-    The Claude Agent SDK reads CLAUDE.md. Swapping AGENTS.md between arms only
-    affects the agent while CLAUDE.md resolves to it — if CLAUDE.md ever becomes
-    a regular file, every arm would read identical guidance and the eval would
-    silently measure nothing.
-    """
-    link = REPO_ROOT / "CLAUDE.md"
-    working_ok = link.is_symlink() and os.readlink(link) == "AGENTS.md"
-    tree_entry = run(["git", "-C", str(REPO_ROOT), "ls-tree", base_branch, "CLAUDE.md"]).stdout
-    target = run(["git", "-C", str(REPO_ROOT), "show", f"{base_branch}:CLAUDE.md"]).stdout
-    branch_ok = tree_entry.startswith("120000") and target == "AGENTS.md"
-    if not (working_ok and branch_ok):
-        print(
-            "Error: CLAUDE.md must be a symlink to AGENTS.md (in the working tree"
-            f" and on '{base_branch}'). The eval swaps AGENTS.md between arms and"
-            " relies on the agent reading it through that symlink.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-
 def resolve_base_branch() -> str:
     result = run(["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", "main"])
     if result.returncode == 0:
@@ -209,13 +186,14 @@ def create_worktree(
     # even if a later step in this function fails.
     worktrees.append(wt_dir)
 
+    # The base branch may predate the removal of the tracked CLAUDE.md symlink.
+    (wt_dir / "CLAUDE.md").unlink(missing_ok=True)
     if agents_file is None:
-        # Baseline arm: remove all guidance. CLAUDE.md is a symlink to
-        # AGENTS.md — drop it too so the SDK finds no dangling link.
         (wt_dir / "AGENTS.md").unlink(missing_ok=True)
-        (wt_dir / "CLAUDE.md").unlink(missing_ok=True)
     else:
         shutil.copy2(agents_file, wt_dir / "AGENTS.md")
+        # The Claude Agent SDK reads CLAUDE.md only, not AGENTS.md.
+        (wt_dir / "CLAUDE.md").symlink_to("AGENTS.md")
 
     if skill_name and skill_file:
         skill_dir = wt_dir / ".agents" / "skills" / skill_name
@@ -328,8 +306,6 @@ def main() -> int:
         return 1
 
     base_branch = resolve_base_branch()
-    if runtime == "claude":
-        check_claude_md_symlink(base_branch)
 
     # Hash before building arms so edits made mid-run aren't recorded as tested.
     guidance_hash = compute_guidance_hash(AGENTS_SRC, CASES_DIR)
