@@ -28,7 +28,7 @@
         "lastParsed": "Darrera anàlisi",
         "parseDuration": "Durada de l'anàlisi"
       },
-      "importErrorForbidden": "No teniu permís per llegir aquest error d'importació.",
+      "importErrorForbidden": "No teniu permís per a llegir aquest error d'importació.",
       "importErrorGone": "Aquest error d'importació ja no consta al registre. Probablement s'ha resolt amb una nova anàlisi.",
       "neverParsed": "Mai",
       "parsedFile_one": "Fitxer analitzat",
