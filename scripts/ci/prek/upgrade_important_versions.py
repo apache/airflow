@@ -317,8 +317,16 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
     return latest_version
 
 
-def get_latest_npm_version(package_name: str, should_upgrade: bool) -> str:
-    """Return the newest stable npm release of a package that is older than the cooldown window."""
+def get_latest_npm_version(
+    package_name: str,
+    should_upgrade: bool,
+    pinned_in: Path = AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml",
+) -> str:
+    """Return the newest stable npm release of a package that is older than the cooldown window.
+
+    Never returns a version older than the one already pinned in ``pinned_in``: a pin set by
+    hand to a release still inside the cooldown must not be downgraded by the next run.
+    """
     if not should_upgrade:
         return ""
     if VERBOSE:
@@ -343,6 +351,11 @@ def get_latest_npm_version(package_name: str, should_upgrade: bool) -> str:
             break
     if not latest_version:
         latest_version = data["dist-tags"]["latest"]
+    pinned = re.findall(rf"{re.escape(package_name)}@([0-9.]+)", pinned_in.read_text())
+    if pinned:
+        highest_pinned = max(pinned, key=Version)
+        if Version(highest_pinned) > Version(latest_version):
+            latest_version = highest_pinned
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for {package_name}: {latest_version}")
     return latest_version

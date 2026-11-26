@@ -666,6 +666,27 @@ def test_get_latest_npm_version_falls_back_to_latest_tag_inside_cooldown(monkeyp
 
 
 @pytest.mark.parametrize(
+    ("pinned", "expected"),
+    [
+        pytest.param("1.10.0", "1.10.0", id="newer-pin-inside-cooldown-is-kept"),
+        pytest.param("1.2.0", "1.9.0", id="older-pin-is-upgraded"),
+    ],
+)
+def test_get_latest_npm_version_never_downgrades_the_pin(monkeypatch, tmp_path, pinned, expected):
+    from datetime import datetime
+
+    from ci.prek import upgrade_important_versions as uiv
+
+    response = mock.MagicMock(spec=uiv.requests.Response)
+    response.json.return_value = _npm_registry_document(datetime.now(UTC))
+    monkeypatch.setattr(uiv.requests, "get", mock.create_autospec(uiv.requests.get, return_value=response))
+    config = tmp_path / ".pre-commit-config.yaml"
+    config.write_text(f"additional_dependencies: ['@scope/pkg@{pinned}']\n")
+
+    assert uiv.get_latest_npm_version("@scope/pkg", should_upgrade=True, pinned_in=config) == expected
+
+
+@pytest.mark.parametrize(
     "path_parts",
     [
         pytest.param((".pre-commit-config.yaml",), id="prek-config"),
