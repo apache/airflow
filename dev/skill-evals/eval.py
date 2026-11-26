@@ -115,7 +115,12 @@ def find_sdk_modules(runtime: str) -> Path:
         # PROMPTFOO_DISABLE_UPDATE avoids an outdated version banner on stdout when a newer
         # promptfoo is published upstream, which would otherwise break this exact match.
         version = run(
-            ["promptfoo", "--version"], env={**os.environ, "PROMPTFOO_DISABLE_UPDATE": "1"}
+            ["promptfoo", "--version"],
+            env={
+                **os.environ,
+                "PROMPTFOO_DISABLE_UPDATE": "1",
+                "PROMPTFOO_CONFIG_DIR": str(PROMPTFOO_STATE_DIR),
+            },
         ).stdout.strip()
         if version == PROMPTFOO_VERSION:
             pf_pkg = Path(promptfoo_bin).resolve()
