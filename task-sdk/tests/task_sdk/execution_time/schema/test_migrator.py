@@ -658,11 +658,11 @@ class TestRealBundleArgBindingsDowngrade:
             pytest.param({"name": "row", "kind": "literal", "value": 1, "apply_map": True}, id="apply-map"),
         ],
     )
-    def test_is_mapped_arg_binding(self, binding):
-        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import is_mapped_arg_binding
+    def test_needs_v2027_02_28_runtime(self, binding):
+        from airflow.sdk.execution_time.schema.versions.v2027_02_28 import needs_v2027_02_28_runtime
 
-        assert is_mapped_arg_binding(binding)
-        assert not is_mapped_arg_binding({"name": "row", "kind": "xcom", "task_id": "extract"})
+        assert needs_v2027_02_28_runtime(binding)
+        assert not needs_v2027_02_28_runtime({"name": "row", "kind": "xcom", "task_id": "extract"})
 
     @pytest.mark.parametrize(("version", "expected"), [("2026-10-30", False), ("2027-02-28", True)])
     def test_has_mapped_arg_bindings_change(self, real_migrator, version, expected):

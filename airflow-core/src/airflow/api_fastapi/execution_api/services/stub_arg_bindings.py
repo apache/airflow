@@ -82,6 +82,15 @@ class UndeliverableMappedArgBindingsError(ValueError):
     """The stub task's arguments cannot be delivered at this map index."""
 
 
+def needs_v2027_02_28_client(binding: Mapping[str, Any]) -> bool:
+    """Whether *binding* uses a kind or field added in Execution API version 2027-02-28."""
+    if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map"):
+        return True
+    return any(
+        binding.get(field) is not None for field in ("map_index", "element_index", "kwarg", "fallback")
+    )
+
+
 @dataclasses.dataclass(frozen=True)
 class _GroupArg:
     group_id: str

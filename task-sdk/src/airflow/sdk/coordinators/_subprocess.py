@@ -700,7 +700,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         # Imported here, like the migrator's own cadwyn import, so a Python-only worker never pays for it.
         from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
             AddMappedStubArgBindingsToSupervisorTIRunContext,
-            is_mapped_arg_binding,
+            needs_v2027_02_28_runtime,
         )
 
         if get_schema_version_migrator().has_change(
@@ -708,7 +708,7 @@ class _PopenActivitySubprocess(ActivitySubprocess):
         ):
             return False
         return any(
-            is_mapped_arg_binding(binding.model_dump(mode="json")) for binding in ti_context.arg_bindings
+            needs_v2027_02_28_runtime(binding.model_dump(mode="json")) for binding in ti_context.arg_bindings
         )
 
     def wait(self) -> int:

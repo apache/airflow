@@ -143,21 +143,6 @@ class AddMappedStubArgBindings(VersionChangeWithSideEffects):
         schema(_ArgBindingBase).field("fallback").didnt_exist,
     )
 
-    @convert_response_to_previous_version_for(TIRunContext)  # type: ignore[arg-type]
-    def remove_mapped_arg_bindings(response: ResponseInfo) -> None:  # type: ignore[misc]
-        """Strip ``arg_bindings`` holding any shape an older client cannot read."""
-        if any(is_mapped_arg_binding(binding) for binding in response.body.get("arg_bindings") or ()):
-            response.body.pop("arg_bindings")
-
-
-def is_mapped_arg_binding(binding: dict) -> bool:
-    """Whether *binding* uses a shape or field this version added."""
-    if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map"):
-        return True
-    return any(
-        binding.get(field) is not None for field in ("map_index", "element_index", "kwarg", "fallback")
-    )
-
 
 class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
     """

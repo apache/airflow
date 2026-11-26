@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 from airflow.api_fastapi.execution_api.services.stub_arg_bindings import (
     UndeliverableMappedArgBindingsError,
     derive_mapped_arg_bindings,
+    needs_v2027_02_28_client,
 )
 from airflow.serialization.definitions.mappedoperator import is_mapped
 
@@ -81,8 +82,6 @@ def get_arg_bindings(
     :raises UndeliverableMappedArgBindingsError: if an argument has no value at this map index, or
         the client is too old to receive the stub's bindings.
     """
-    from airflow.api_fastapi.execution_api.versions.v2027_02_28 import is_mapped_arg_binding
-
     if not task.is_stub or (arg_bindings := task.arg_bindings) is None:
         return None
     supported = client_supports_mapped_arg_bindings()
@@ -91,7 +90,7 @@ def get_arg_bindings(
     bindings = arg_bindings
     if is_mapped(task) or task.get_closest_mapped_task_group() is not None:
         bindings = derive_mapped_arg_bindings(task, ti, arg_bindings, dag_bag=dag_bag, session=session)
-    if not supported and any(is_mapped_arg_binding(binding) for binding in bindings):
+    if not supported and any(needs_v2027_02_28_client(binding) for binding in bindings):
         raise UndeliverableMappedArgBindingsError(
             "they need a client at Execution API version 2027-02-28 or later"
         )

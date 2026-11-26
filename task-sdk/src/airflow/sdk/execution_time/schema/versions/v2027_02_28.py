@@ -128,8 +128,8 @@ class AddMappedStubArgBindingsToSupervisorTIRunContext(VersionChange):
     )
 
 
-def is_mapped_arg_binding(binding: dict[str, Any]) -> bool:
-    """Whether *binding* uses a shape or field this version added."""
+def needs_v2027_02_28_runtime(binding: dict[str, Any]) -> bool:
+    """Whether *binding* uses a kind or field added in supervisor schema version 2027-02-28."""
     if binding["kind"] in ("sequence", "tuple") or binding.get("apply_map"):
         return True
     return any(
