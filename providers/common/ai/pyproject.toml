@@ -135,14 +135,16 @@ dependencies = [
 "code-mode" = ["pydantic-ai-harness[codemode]>=0.35.0"]
 # Shield capabilities such as InputGuard, OutputGuard, ToolGuard, and CostTracking.
 "shields" = ["pydantic-ai-shields>=0.3.4"]
-# Agent Skills (agentskills.io) support. pydantic-ai-skills provides the toolset;
-# the git provider supplies GitHook + GitPython for cloning GitSkills with
-# credentials from a `git` connection. pydantic-ai-harness's Skills capability is not
-# a replacement: it loads only SKILL.md instructions, with no skill resources and no
-# run_skill_script. pydantic-ai-skills 2.0 removed SkillsToolset, which AgentSkillsToolset
-# wraps, so the extra stays below 2 until the toolset moves to the 2.x capability API.
+# Agent Skills (agentskills.io) support. pydantic-ai-harness's Skills capability discovers the
+# skills and offers their instructions; AirflowSkills adds the resource and script tools on top.
+# pydantic-ai-skills is kept only for the deprecated AgentSkillsToolset, which wraps SkillsToolset,
+# removed in pydantic-ai-skills 2.0, so it stays below 2. It leaves this extra when
+# AgentSkillsToolset is removed. The git provider supplies GitHook +
+# GitPython for cloning GitSkills with credentials from a `git` connection.
+# harness pins pydantic-ai-slim exactly, so 0.66.0 is the only floor that matches pydantic-ai-slim>=2.66.0.
 "skills" = [
     "apache-airflow-providers-git>=0.4.0",
+    "pydantic-ai-harness[skills]>=0.66.0",
     "pydantic-ai-skills>=1.2.0,<2",
 ]
 # Islo-hosted microVM sandboxes for SandboxToolset: like modal, needs no host-level
@@ -216,7 +218,7 @@ dev = [
     "anthropic>=1.15.0,<2",
     "google-genai>=2.30.0",
     # The code-mode extra, so the tests that run a real CodeMode under durable execution run.
-    "pydantic-ai-harness[codemode]>=0.35.0",
+    "pydantic-ai-harness[codemode,skills]>=0.35.0",
     "boat-sdk>=1.9.3",
     "islo>=0.3.19",
     "opensandbox>=1.1.0",
