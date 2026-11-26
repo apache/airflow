@@ -228,20 +228,20 @@ rows on every selection.
 :meta private:
 """
 
-_START_FROM_TRIGGER_FILTERS = (TI.start_from_trigger == true(), TI.next_method.is_(None))
+_START_FROM_TRIGGER_FILTERS = (TI.start_from_trigger_pending == true(), TI.next_method.is_(None))
 """
 Filters for the SCHEDULED TIs with ``start_from_trigger`` that the scheduler defers instead of queuing.
 
 A TI with ``next_method`` set was resumed by its trigger and runs its next method on an executor.
 ``_is_start_from_trigger`` is the same check on a loaded TI. The first filter matches the
-``ti_start_from_trigger`` partial index.
+``ti_start_from_trigger_pending`` partial index.
 
 :meta private:
 """
 
 
 def _is_start_from_trigger(task_instance: TI) -> bool:
-    return bool(task_instance.start_from_trigger) and task_instance.next_method is None
+    return bool(task_instance.start_from_trigger_pending) and task_instance.next_method is None
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -964,8 +964,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         Without this check, those TIs would get stuck behind regular TIs whenever the executors are full or
         nearly full. It can't see pool or concurrency limits, which are only read under the lock, so the
-        critical section may run for a TI that turns out to be blocked. The ``ti_start_from_trigger`` partial
-        index keeps the check cheap.
+        critical section may run for a TI that turns out to be blocked. The
+        ``ti_start_from_trigger_pending`` partial index keeps the check cheap.
         """
         query = (
             select(TI.id)
@@ -1020,7 +1020,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 task = serialized_dag.get_task(task_instance.task_id)
                 if not has_start_from_trigger(task):
                     # The run moved to a Dag version where the task no longer starts from the triggerer.
-                    task_instance.start_from_trigger = None
+                    task_instance.start_from_trigger_pending = None
                     continue
                 task_instance.task = task
                 task_instance.defer_task(
@@ -1039,7 +1039,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @staticmethod
     def _fail_ti_not_deferred(task_instance: TI, reason: str, *, session: Session) -> None:
         task_instance.state = TaskInstanceState.FAILED
-        task_instance.start_from_trigger = None
+        task_instance.start_from_trigger_pending = None
         task_instance.end_date = timezone.utcnow()
         session.add(Log(event="failed to defer", extra=reason, task_instance=task_instance))
 
@@ -1567,7 +1567,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
 
-        mysql_index = "ti_start_from_trigger" if only_start_from_trigger else "ti_state"
+        mysql_index = "ti_start_from_trigger_pending" if only_start_from_trigger else "ti_state"
         query = (
             select(TI.id)
             .with_hint(TI, f"USE INDEX ({mysql_index})", dialect_name="mysql")

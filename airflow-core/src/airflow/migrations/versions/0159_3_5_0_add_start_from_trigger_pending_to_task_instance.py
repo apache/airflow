@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add start_from_trigger to task_instance.
+Add start_from_trigger_pending to task_instance.
 
 Revision ID: 93ebd666b0d8
 Revises: feb8b1e719ee
@@ -41,23 +41,23 @@ airflow_version = "3.5.0"
 
 
 def upgrade():
-    """Add start_from_trigger to task_instance."""
+    """Add start_from_trigger_pending to task_instance."""
     with op.batch_alter_table("task_instance") as batch_op:
-        batch_op.add_column(sa.Column("start_from_trigger", sa.Boolean(), nullable=True))
-    start_from_trigger = sa.column("start_from_trigger", sa.Boolean()) == sa.true()
+        batch_op.add_column(sa.Column("start_from_trigger_pending", sa.Boolean(), nullable=True))
+    start_from_trigger_pending = sa.column("start_from_trigger_pending", sa.Boolean()) == sa.true()
     op.create_index(
-        "ti_start_from_trigger",
+        "ti_start_from_trigger_pending",
         "task_instance",
-        ["start_from_trigger"],
-        postgresql_where=start_from_trigger,
-        sqlite_where=start_from_trigger,
+        ["start_from_trigger_pending"],
+        postgresql_where=start_from_trigger_pending,
+        sqlite_where=start_from_trigger_pending,
     )
 
 
 def downgrade():
-    """Remove start_from_trigger from task_instance."""
-    op.drop_index("ti_start_from_trigger", table_name="task_instance")
+    """Remove start_from_trigger_pending from task_instance."""
+    op.drop_index("ti_start_from_trigger_pending", table_name="task_instance")
     # Dropping a column rebuilds the table on SQLite, unlike adding one, so the foreign keys of
     # everything that points at task_instance have to be held off while the rows are copied.
     with sqlite_rebuilds(op), op.batch_alter_table("task_instance") as batch_op:
-        batch_op.drop_column("start_from_trigger")
+        batch_op.drop_column("start_from_trigger_pending")

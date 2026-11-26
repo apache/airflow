@@ -2884,7 +2884,7 @@ class DagRun(Base, LoggingMixin):
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 ti.refresh_from_task(ti.task, dag_run=self)
             # Null rather than False, so TIs that don't start from the triggerer need no extra UPDATE.
-            ti.start_from_trigger = has_start_from_trigger(ti.task) or None
+            ti.start_from_trigger_pending = has_start_from_trigger(ti.task) or None
             if not ti.is_schedulable:
                 empty_ti_ids.append(ti.id)
             # Tasks with start_from_trigger are scheduled too: the scheduler defers them instead of queuing

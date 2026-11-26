@@ -4007,7 +4007,7 @@ def test_schedule_tis_refreshes_a_retry_started_from_trigger(dag_maker, session)
 
 
 @pytest.mark.parametrize(
-    ("task_starts_from_trigger", "stored_start_from_trigger", "expected"),
+    ("task_starts_from_trigger", "stored_start_from_trigger_pending", "expected"),
     [
         pytest.param(True, None, True, id="waits-to-be-deferred"),
         pytest.param(False, True, None, id="task-no-longer-starts-from-trigger"),
@@ -4015,7 +4015,7 @@ def test_schedule_tis_refreshes_a_retry_started_from_trigger(dag_maker, session)
     ],
 )
 def test_schedule_tis_refreshes_start_from_trigger(
-    dag_maker, session, task_starts_from_trigger, stored_start_from_trigger, expected
+    dag_maker, session, task_starts_from_trigger, stored_start_from_trigger_pending, expected
 ):
     with dag_maker(session=session):
         task = MockOperator(task_id="task")
@@ -4028,14 +4028,14 @@ def test_schedule_tis_refreshes_start_from_trigger(
     dr = dag_maker.create_dagrun(session=session)
     ti = dr.get_task_instance("task", session=session)
     ti.task = dr.dag.get_task("task")
-    ti.start_from_trigger = stored_start_from_trigger
+    ti.start_from_trigger_pending = stored_start_from_trigger_pending
     session.flush()
 
     assert dr.schedule_tis((ti,), session=session) == 1
     session.flush()
     session.refresh(ti)
 
-    assert (ti.state, ti.start_from_trigger) == (TaskInstanceState.SCHEDULED, expected)
+    assert (ti.state, ti.start_from_trigger_pending) == (TaskInstanceState.SCHEDULED, expected)
 
 
 def test_schedule_tis_empty_operator_is_noop_if_ti_already_running(dag_maker, session):
@@ -4377,7 +4377,7 @@ def test_schedule_tis_start_trigger_through_expand(dag_maker, session):
     session.flush()
     session.expire_all()
     tis = sorted(dr.get_task_instances(session=session), key=lambda ti: ti.map_index)
-    assert [(ti.state, ti.start_from_trigger, ti.map_index) for ti in tis] == [
+    assert [(ti.state, ti.start_from_trigger_pending, ti.map_index) for ti in tis] == [
         (TaskInstanceState.SCHEDULED, True, 0),
         (TaskInstanceState.SCHEDULED, None, 1),
     ]

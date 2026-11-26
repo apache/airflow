@@ -1259,8 +1259,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     # True while the TI waits for the scheduler to defer it to the triggerer at start, null otherwise, so the
     # scheduler finds these TIs without loading the serialized Dag. schedule_tis sets it from the task, and
     # deferring the TI clears it: few rows have it set, which keeps the planner's estimate right for the
-    # ti_start_from_trigger partial index.
-    start_from_trigger: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # ti_start_from_trigger_pending partial index.
+    start_from_trigger_pending: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -1339,10 +1339,10 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # scheduler finds them without scanning every SCHEDULED TI, and other TIs pay no index write. The
         # predicate must stay "= true", the way the scheduler filters, for the planner to match it.
         Index(
-            "ti_start_from_trigger",
-            start_from_trigger,
-            postgresql_where=start_from_trigger == true(),
-            sqlite_where=start_from_trigger == true(),
+            "ti_start_from_trigger_pending",
+            start_from_trigger_pending,
+            postgresql_where=start_from_trigger_pending == true(),
+            sqlite_where=start_from_trigger_pending == true(),
         ),
         PrimaryKeyConstraint("id", name="task_instance_pkey"),
         UniqueConstraint(
@@ -2967,7 +2967,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         # Keep an eye on the logic in `check_and_change_state_before_execution()`
         # depending on self.next_method semantics
         self.state = TaskInstanceState.DEFERRED
-        self.start_from_trigger = None
+        self.start_from_trigger_pending = None
         self.trigger = trigger_row
         self.next_method = start_trigger_args.next_method
         self.next_kwargs = next_kwargs

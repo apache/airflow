@@ -411,7 +411,7 @@ def mark_scheduled(dag_run: DagRun, task_instances: Iterable[TaskInstance] | Non
     assert dag is not None
     for ti in dag_run.task_instances if task_instances is None else task_instances:
         ti.state = TaskInstanceState.SCHEDULED
-        ti.start_from_trigger = has_start_from_trigger(dag.get_task(ti.task_id)) or None
+        ti.start_from_trigger_pending = has_start_from_trigger(dag.get_task(ti.task_id)) or None
 
 
 def make_pool_stats(
@@ -2784,7 +2784,9 @@ class TestSchedulerJob:
 
         assert [ti.trigger_id for ti in tis] == [None, None]
         session.flush()
-        assert [(ti.state, ti.start_from_trigger) for ti in tis] == [(TaskInstanceState.DEFERRED, None)] * 2
+        assert [(ti.state, ti.start_from_trigger_pending) for ti in tis] == [
+            (TaskInstanceState.DEFERRED, None)
+        ] * 2
         assert None not in {ti.trigger_id for ti in tis}
 
     @mock.patch.object(TaskInstance, "defer_task", autospec=True)
@@ -2816,7 +2818,7 @@ class TestSchedulerJob:
             "broken": TaskInstanceState.FAILED,
             "deferred": TaskInstanceState.DEFERRED,
         }
-        assert (tis["broken"].start_from_trigger, tis["broken"].end_date is not None) == (None, True)
+        assert (tis["broken"].start_from_trigger_pending, tis["broken"].end_date is not None) == (None, True)
         logs = session.scalars(select(Log).where(Log.event == "failed to defer")).all()
         assert [(log.task_id, log.extra) for log in logs] == [
             ("broken", "Failed to defer to the triggerer: Cannot create the trigger")
@@ -2850,7 +2852,7 @@ class TestSchedulerJob:
         ti = dr.get_task_instance("task", session=session)
         ti.state = TaskInstanceState.SCHEDULED
         # The TI was created from a Dag version where the task started from the triggerer.
-        ti.start_from_trigger = True
+        ti.start_from_trigger_pending = True
         session.flush()
 
         self.job_runner._defer_start_from_trigger_tis([ti], session=session)
@@ -2858,7 +2860,11 @@ class TestSchedulerJob:
         session.expire_all()
 
         ti = dr.get_task_instance("task", session=session)
-        assert (ti.state, ti.start_from_trigger, ti.trigger_id) == (TaskInstanceState.SCHEDULED, None, None)
+        assert (ti.state, ti.start_from_trigger_pending, ti.trigger_id) == (
+            TaskInstanceState.SCHEDULED,
+            None,
+            None,
+        )
 
     @mock.patch.object(CachedDBDagBag, "get_dag_for_run", autospec=True, return_value=None)
     def test_defer_start_from_trigger_tis_fails_the_ti_when_its_dag_is_not_found(
@@ -2877,7 +2883,11 @@ class TestSchedulerJob:
         session.expire_all()
 
         ti = dr.get_task_instance("task", session=session)
-        assert (ti.state, ti.start_from_trigger, ti.trigger_id) == (TaskInstanceState.FAILED, None, None)
+        assert (ti.state, ti.start_from_trigger_pending, ti.trigger_id) == (
+            TaskInstanceState.FAILED,
+            None,
+            None,
+        )
         logs = session.scalars(select(Log).where(Log.event == "failed to defer")).all()
         assert [(log.task_id, log.extra) for log in logs] == [
             ("task", "Cannot find the task to defer it to the triggerer")

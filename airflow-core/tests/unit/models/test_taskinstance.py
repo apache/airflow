@@ -3173,7 +3173,7 @@ class TestTaskInstance:
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "is_stub": False,
-            "start_from_trigger": True,
+            "start_from_trigger_pending": True,
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
@@ -3929,7 +3929,7 @@ def test_defer_task(create_task_instance):
             trigger_kwargs={"key": "value"},
         ),
     )
-    ti.start_from_trigger = True
+    ti.start_from_trigger_pending = True
     assert ti.defer_task(session=session)
 
     # Check that session.add was called with a Trigger
@@ -3945,7 +3945,7 @@ def test_defer_task(create_task_instance):
 
     # Check that TaskInstance state was updated
     assert ti.state == TaskInstanceState.DEFERRED
-    assert ti.start_from_trigger is None
+    assert ti.start_from_trigger_pending is None
     assert ti.trigger is trigger_row
     assert ti.next_method == "next_method"
     assert ti.next_kwargs == {}
