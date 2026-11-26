@@ -22,7 +22,7 @@ import enum
 from airflow.utils.deprecation_tools import add_deprecated_classes
 
 
-class DagRunType(str, enum.Enum):
+class DagRunType(enum.StrEnum):
     """Class with DagRun types."""
 
     BACKFILL_JOB = "backfill"
@@ -31,9 +31,6 @@ class DagRunType(str, enum.Enum):
     OPERATOR_TRIGGERED = "operator_triggered"
     ASSET_TRIGGERED = "asset_triggered"
     ASSET_MATERIALIZATION = "asset_materialization"
-
-    def __str__(self) -> str:
-        return self.value
 
     def generate_run_id(self, *, suffix: str) -> str:
         """

@@ -120,6 +120,16 @@ paths:
           items:
             type: string
           title: Dag Ids
+      - name: trigger_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Return only the assets this trigger's watchers watch.
+          title: Trigger Id
+        description: Return only the assets this trigger's watchers watch.
       - name: only_active
         in: query
         required: false
@@ -370,6 +380,18 @@ paths:
           - type: integer
           - type: 'null'
           title: Asset Id
+      - name: trigger_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Return only the events of the assets this trigger's watchers
+            watch.
+          title: Trigger Id
+        description: Return only the events of the assets this trigger's watchers
+          watch.
       - name: source_dag_id
         in: query
         required: false
@@ -4865,7 +4887,28 @@ paths:
       tags:
       - Event Log
       summary: Get Event Logs
-      description: Get all Event Logs.
+      description: 'Get all Event Logs.
+
+
+        Supports two pagination modes:
+
+
+        **Offset (default):** use `limit` and `offset` query parameters. Returns `total_entries`.
+
+
+        **Cursor:** pass `cursor` (empty string for the first page, then `next_cursor`
+        from the response).
+
+        When `cursor` is provided, `offset` is ignored and `total_entries` is capped
+        at
+
+        `total_entries_limit` (a value equal to that limit means at least that many
+        events match).
+
+        ``next_cursor`` is ``null`` when there are no more pages; ``previous_cursor``
+        is ``null`` on
+
+        the first page.'
       operationId: get_event_logs
       security:
       - OAuth2PasswordBearer: []
@@ -4889,6 +4932,20 @@ paths:
             minimum: -1
           - type: 'null'
           title: Region Index
+      - name: cursor
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Cursor for keyset-based pagination. Pass an empty string for
+            the first page, then use ``next_cursor`` from the response. When ``cursor``
+            is provided, ``offset`` is ignored.
+          title: Cursor
+        description: Cursor for keyset-based pagination. Pass an empty string for
+          the first page, then use ``next_cursor`` from the response. When ``cursor``
+          is provided, ``offset`` is ignored.
       - name: limit
         in: query
         required: false
@@ -6557,6 +6614,15 @@ paths:
           minimum: 0
           default: 0
           title: Offset
+      - name: include_reserved
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Include keys starting with ``__airflow_``, which Airflow writes.
+          default: false
+          title: Include Reserved
+        description: Include keys starting with ``__airflow_``, which Airflow writes.
       responses:
         '200':
           description: Successful Response
@@ -10860,10 +10926,10 @@ paths:
         is doing.
 
 
-        A trigger is visible to whoever can see its owner: the task instance or Dag
-        run of its Dag, or an asset
+        A trigger is visible to whoever can see what it is used by: the task instance
+        or Dag run of its Dag, or
 
-        one of its watchers watches.'
+        an asset one of its watchers watches.'
       operationId: get_triggers
       security:
       - OAuth2PasswordBearer: []
@@ -10952,6 +11018,18 @@ paths:
           description: Return only the triggers of this asset's watchers.
           title: Asset Id
         description: Return only the triggers of this asset's watchers.
+      - name: scheduled_dag_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Return only the triggers of watchers on assets this Dag is
+            scheduled on, directly or by an asset name or URI reference.
+          title: Scheduled Dag Id
+        description: Return only the triggers of watchers on assets this Dag is scheduled
+          on, directly or by an asset name or URI reference.
       - name: teams
         in: query
         required: false
@@ -14323,6 +14401,17 @@ components:
       - action
       - entities
       title: BulkUpdateAction[VariableBody]
+    CallbackState:
+      type: string
+      enum:
+      - scheduled
+      - pending
+      - queued
+      - running
+      - success
+      - failed
+      title: CallbackState
+      description: All possible states of callbacks.
     ClearPartitionsBody:
       properties:
         partition_key:
@@ -16711,12 +16800,37 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+          description: Number of matching items. For offset pagination this is the
+            exact total. For cursor pagination it is capped at ``total_entries_limit``;
+            a value equal to that limit means at least that many items match.
+        total_entries_limit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Total Entries Limit
+          description: Cap applied to ``total_entries`` under cursor pagination. ``null``
+            for offset pagination, where ``total_entries`` is exact.
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+          description: Token pointing to the next page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when there is no next page.
+        previous_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Previous Cursor
+          description: Token pointing to the previous page. Populated for cursor pagination,
+            ``null`` when using offset pagination or when on the first page.
       type: object
       required:
       - event_logs
       - total_entries
       title: EventLogCollectionResponse
-      description: Event Log Collection Response.
+      description: Event Log collection response supporting both offset and cursor
+        pagination.
     EventLogResponse:
       properties:
         event_log_id:
@@ -16812,6 +16926,70 @@ components:
       - extra
       title: EventLogResponse
       description: Event Log Response.
+    ExecutorInfoResponse:
+      properties:
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/HealthStatus'
+          - type: 'null'
+        latest_executor_heartbeat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Latest Executor Heartbeat
+        detailed_status:
+          anyOf:
+          - $ref: '#/components/schemas/DetailedHealthStatus'
+          - type: 'null'
+        instances:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ExecutorInstanceInfoResponse'
+            type: array
+          - type: 'null'
+          title: Instances
+      type: object
+      required:
+      - status
+      - latest_executor_heartbeat
+      - detailed_status
+      title: ExecutorInfoResponse
+      description: Executor info serializer for responses.
+    ExecutorInstanceInfoResponse:
+      properties:
+        hostname:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hostname
+        executor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Executor
+        latest_executor_heartbeat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Latest Executor Heartbeat
+        team_names:
+          items:
+            type: string
+          type: array
+          title: Team Names
+        health_check_result:
+          anyOf:
+          - $ref: '#/components/schemas/HealthCheckResult'
+          - type: 'null'
+      type: object
+      required:
+      - hostname
+      - executor
+      - latest_executor_heartbeat
+      - team_names
+      - health_check_result
+      title: ExecutorInstanceInfoResponse
+      description: Executor instance info serializer for responses.
     ExternalLogUrlResponse:
       properties:
         url:
@@ -17164,6 +17342,29 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    HealthCheckResult:
+      type: string
+      enum:
+      - healthy
+      - unhealthy
+      - unknown
+      title: HealthCheckResult
+      description: 'Explicit outcome of a component''s own last health check.
+
+
+        Separate from whether the Job row itself is alive: a row can be alive (recent
+        heartbeat) while
+
+        this stays UNKNOWN because the check hasn''t completed yet, raised, or was
+        never implemented.
+
+        Collapsing all of that into "no heartbeat means unhealthy" makes a real failure
+        indistinguishable
+
+        from "never checked" or "check is hanging", which is why this is a value of
+        its own rather than
+
+        being inferred from heartbeat recency.'
     HealthInfoResponse:
       properties:
         metadatabase:
@@ -17175,6 +17376,10 @@ components:
         dag_processor:
           anyOf:
           - $ref: '#/components/schemas/DagProcessorInfoResponse'
+          - type: 'null'
+        executor:
+          anyOf:
+          - $ref: '#/components/schemas/ExecutorInfoResponse'
           - type: 'null'
       type: object
       required:
@@ -18228,6 +18433,13 @@ components:
             type: array
           - type: 'null'
           title: Dialects
+        object_storage_providers:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/ProviderObjectStorageProviderInfo'
+            type: array
+          - type: 'null'
+          title: Object Storage Providers
         transfers:
           anyOf:
           - items:
@@ -18401,6 +18613,21 @@ components:
       - python_modules
       title: ProviderIntegrationModulesInfo
       description: Python modules an integration contributes for one kind of functionality.
+    ProviderObjectStorageProviderInfo:
+      properties:
+        storage_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Storage Type
+        provider_class_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Provider Class Name
+      type: object
+      title: ProviderObjectStorageProviderInfo
+      description: DataFusion object storage provider provided by a provider.
     ProviderPluginInfo:
       properties:
         name:
@@ -19753,12 +19980,21 @@ components:
         watcher_name:
           type: string
           title: Watcher Name
+        scheduled_dag_ids:
+          items:
+            type: string
+          type: array
+          title: Scheduled Dag Ids
+          description: The Dags scheduled on the asset (directly or by an asset name
+            or URI reference), which the watcher's events run; only those the caller
+            can read.
       type: object
       required:
       - asset_id
       - asset_name
       - asset_uri
       - watcher_name
+      - scheduled_dag_ids
       title: TriggerAssetWatcherReferenceResponse
       description: An asset watcher a trigger serves.
     TriggerCallbackReferenceResponse:
@@ -19778,9 +20014,8 @@ components:
           title: Dag Run Id
         state:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/CallbackState'
           - type: 'null'
-          title: State
       type: object
       required:
       - id
@@ -19994,8 +20229,8 @@ components:
       - callback
       - asset_watcher
       title: TriggerKind
-      description: What a trigger runs for, worked out from its owner rather than
-        stored.
+      description: What a trigger runs for, worked out from what it is used by rather
+        than stored.
     TriggerResponse:
       properties:
         id:
@@ -20061,9 +20296,8 @@ components:
           title: Try Number
         state:
           anyOf:
-          - type: string
+          - $ref: '#/components/schemas/TaskInstanceState'
           - type: 'null'
-          title: State
       type: object
       required:
       - dag_id

@@ -157,6 +157,17 @@ TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
     "trino": "trino",
     "ydb": "ydb",
 }
+# Server versions the elasticsearch and opensearch integrations can run against. The first one is
+# the default; CI runs each provider's integration tests once per listed version. Keep the image tags in
+# airflow-e2e-tests/docker/elasticsearch.yml and opensearch.yml on the defaults.
+ALLOWED_ELASTICSEARCH_VERSIONS = ["9.5.6", "8.19.25"]
+DEFAULT_ELASTICSEARCH_VERSION = ALLOWED_ELASTICSEARCH_VERSIONS[0]
+ALLOWED_OPENSEARCH_VERSIONS = ["3.10.0", "2.19.7"]
+DEFAULT_OPENSEARCH_VERSION = ALLOWED_OPENSEARCH_VERSIONS[0]
+PROVIDERS_INTEGRATION_SERVER_VERSIONS: dict[str, list[str]] = {
+    "elasticsearch": ALLOWED_ELASTICSEARCH_VERSIONS,
+    "opensearch": ALLOWED_OPENSEARCH_VERSIONS,
+}
 KEYCLOAK_INTEGRATION = "keycloak"
 STATSD_INTEGRATION = "statsd"
 OTEL_INTEGRATION = "otel"
@@ -571,8 +582,8 @@ PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.11", "3.12", "3.13", "3.14"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 # All versions we can run against (Need to include versions for main branch and the current release branch)
-ALLOWED_POSTGRES_VERSIONS = ["13", "14", "15", "16", "17", "18"]
-CURRENT_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18"]
+ALLOWED_POSTGRES_VERSIONS = ["14", "15", "16", "17", "18", "19"]
+CURRENT_POSTGRES_VERSIONS = ["15", "16", "17", "18", "19"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 
 USE_MYSQL_INNOVATION_RELEASE = True

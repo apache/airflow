@@ -25,7 +25,7 @@ on whichever connection answers.
 
 Prerequisites:
   - Connection ``llm_primary`` with ``conn_type='pydanticai'``, ``password=<API key>``
-    and ``extra='{"model": "openai:gpt-5-mini"}'``
+    and ``extra='{"model": "openai:gpt-6.1-terra"}'``
   - Connection ``llm_standby`` with ``conn_type='pydanticai'``, ``password=<API key>``
     and ``extra='{"model": "anthropic:claude-sonnet-5"}'``
   - Connection ``warehouse`` to a database with an ``orders`` table

@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-common-ai``
 
-Release: ``1.1.0``
+Release: ``1.2.0``
 
 
 AI/LLM hooks and operators for Airflow pipelines using `pydantic-ai <https://ai.pydantic.dev/>`__.
@@ -36,7 +36,7 @@ This is a provider package for ``common.ai`` provider. All classes for this prov
 are in ``airflow.providers.common.ai`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.2.0/>`_.
 
 Installation
 ------------
@@ -57,7 +57,7 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.22.0``
 ``apache-airflow-providers-standard``       ``>=1.20.0``
 ``httpx2``                                  ``>=2.7``
-``pydantic-ai-slim``                        ``>=2.46.0``
+``pydantic-ai-slim``                        ``>=2.66.0``
 ``structlog``                               ``>=24.2.0``
 ==========================================  ==================
 
@@ -104,15 +104,15 @@ Extra                 Dependencies
 ``islo``              ``islo>=0.3.19``
 ``avro``              ``fastavro>=1.10.0; python_version < "3.14"``, ``fastavro>=1.12.1; python_version >= "3.14"``
 ``parquet``           ``pyarrow>=18.0.0; python_version < '3.14'``, ``pyarrow>=22.0.0; python_version >= '3.14'``
-``sql``               ``apache-airflow-providers-common-sql>=2.2.0``, ``sqlglot>=30.0.0``
-``common.sql``        ``apache-airflow-providers-common-sql>=2.2.0``
+``sql``               ``apache-airflow-providers-common-sql>=3.1.0``, ``sqlglot>=30.0.0``
+``common.sql``        ``apache-airflow-providers-common-sql>=3.1.0``
 ``langchain``         ``langchain>=1.0.0``
 ``llamaindex``        ``dataclasses-json>=0.6.7``, ``llama-index-core>=0.14.5``, ``llama-index-embeddings-openai>=0.6.0``, ``llama-index-llms-openai>=0.6.8``
 ``pdf``               ``pypdf>=4.0.0``
-``docx``              ``python-docx>=1.0.0``
+``docx``              ``python-docx>=1.1.2``
 ``git``               ``apache-airflow-providers-git``
 ``claude-agent-sdk``  ``claude-agent-sdk>=0.2.160``
 ====================  =======================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-common-ai/1.2.0/changelog.html>`_.

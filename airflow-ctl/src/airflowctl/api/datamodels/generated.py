@@ -193,6 +193,19 @@ class BulkResponse(BaseModel):
     ] = None
 
 
+class CallbackState(str, Enum):
+    """
+    All possible states of callbacks.
+    """
+
+    SCHEDULED = "scheduled"
+    PENDING = "pending"
+    QUEUED = "queued"
+    RUNNING = "running"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 class ClearPartitionsBody(BaseModel):
     """
     Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
@@ -1038,6 +1051,22 @@ class HTTPExceptionResponse(BaseModel):
     detail: Annotated[str | dict[str, Any], Field(title="Detail")]
 
 
+class HealthCheckResult(str, Enum):
+    """
+    Explicit outcome of a component's own last health check.
+
+    Separate from whether the Job row itself is alive: a row can be alive (recent heartbeat) while
+    this stays UNKNOWN because the check hasn't completed yet, raised, or was never implemented.
+    Collapsing all of that into "no heartbeat means unhealthy" makes a real failure indistinguishable
+    from "never checked" or "check is hanging", which is why this is a value of its own rather than
+    being inferred from heartbeat recency.
+    """
+
+    HEALTHY = "healthy"
+    UNHEALTHY = "unhealthy"
+    UNKNOWN = "unknown"
+
+
 class HealthStatus(str, Enum):
     """
     Aggregate health of a component: whether it has at least one live instance.
@@ -1355,6 +1384,15 @@ class ProviderIntegrationModulesInfo(BaseModel):
     python_modules: Annotated[list[str], Field(title="Python Modules")]
 
 
+class ProviderObjectStorageProviderInfo(BaseModel):
+    """
+    DataFusion object storage provider provided by a provider.
+    """
+
+    storage_type: Annotated[str | None, Field(title="Storage Type")] = None
+    provider_class_name: Annotated[str | None, Field(title="Provider Class Name")] = None
+
+
 class ProviderPluginInfo(BaseModel):
     """
     Plugin provided by a provider.
@@ -1644,6 +1682,13 @@ class TriggerAssetWatcherReferenceResponse(BaseModel):
     asset_name: Annotated[str, Field(title="Asset Name")]
     asset_uri: Annotated[str, Field(title="Asset Uri")]
     watcher_name: Annotated[str, Field(title="Watcher Name")]
+    scheduled_dag_ids: Annotated[
+        list[str],
+        Field(
+            description="The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.",
+            title="Scheduled Dag Ids",
+        ),
+    ]
 
 
 class TriggerCallbackReferenceResponse(BaseModel):
@@ -1654,7 +1699,7 @@ class TriggerCallbackReferenceResponse(BaseModel):
     id: Annotated[str, Field(title="Id")]
     dag_id: Annotated[str | None, Field(title="Dag Id")]
     dag_run_id: Annotated[str | None, Field(title="Dag Run Id")]
-    state: Annotated[str | None, Field(title="State")]
+    state: CallbackState | None
 
 
 class TriggerDAGRunPostBody(BaseModel):
@@ -1685,7 +1730,7 @@ class TriggerDAGRunPostBody(BaseModel):
 
 class TriggerKind(str, Enum):
     """
-    What a trigger runs for, worked out from its owner rather than stored.
+    What a trigger runs for, worked out from what it is used by rather than stored.
     """
 
     TASK = "task"
@@ -1727,7 +1772,7 @@ class TriggerTaskInstanceReferenceResponse(BaseModel):
     task_id: Annotated[str, Field(title="Task Id")]
     map_index: Annotated[int, Field(title="Map Index")]
     try_number: Annotated[int, Field(title="Try Number")]
-    state: Annotated[str | None, Field(title="State")]
+    state: TaskInstanceState | None
 
 
 class TriggererInstanceInfoResponse(BaseModel):
@@ -2714,11 +2759,50 @@ class DryRunBackfillCollectionResponse(BaseModel):
 
 class EventLogCollectionResponse(BaseModel):
     """
-    Event Log Collection Response.
+    Event Log collection response supporting both offset and cursor pagination.
     """
 
     event_logs: Annotated[list[EventLogResponse], Field(title="Event Logs")]
-    total_entries: Annotated[int, Field(title="Total Entries")]
+    total_entries: Annotated[
+        int,
+        Field(
+            description="Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.",
+            title="Total Entries",
+        ),
+    ]
+    total_entries_limit: Annotated[
+        int | None,
+        Field(
+            description="Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.",
+            title="Total Entries Limit",
+        ),
+    ] = None
+    next_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.",
+            title="Next Cursor",
+        ),
+    ] = None
+    previous_cursor: Annotated[
+        str | None,
+        Field(
+            description="Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.",
+            title="Previous Cursor",
+        ),
+    ] = None
+
+
+class ExecutorInstanceInfoResponse(BaseModel):
+    """
+    Executor instance info serializer for responses.
+    """
+
+    hostname: Annotated[str | None, Field(title="Hostname")]
+    executor: Annotated[str | None, Field(title="Executor")]
+    latest_executor_heartbeat: Annotated[str | None, Field(title="Latest Executor Heartbeat")]
+    team_names: Annotated[list[str], Field(title="Team Names")]
+    health_check_result: HealthCheckResult | None
 
 
 class ExternalViewResponse(BaseModel):
@@ -2889,6 +2973,9 @@ class ProviderInfoResponse(BaseModel):
     bundles: Annotated[list[ProviderIntegrationModulesInfo] | None, Field(title="Bundles")] = None
     asset_uris: Annotated[list[ProviderAssetUriInfo] | None, Field(title="Asset Uris")] = None
     dialects: Annotated[list[ProviderDialectInfo] | None, Field(title="Dialects")] = None
+    object_storage_providers: Annotated[
+        list[ProviderObjectStorageProviderInfo] | None, Field(title="Object Storage Providers")
+    ] = None
     transfers: Annotated[list[ProviderTransferInfo] | None, Field(title="Transfers")] = None
     connection_types: Annotated[list[ProviderConnectionTypeInfo] | None, Field(title="Connection Types")] = (
         None
@@ -3403,6 +3490,17 @@ class DagStatsCollectionResponse(BaseModel):
     total_entries: Annotated[int, Field(title="Total Entries")]
 
 
+class ExecutorInfoResponse(BaseModel):
+    """
+    Executor info serializer for responses.
+    """
+
+    status: HealthStatus | None
+    latest_executor_heartbeat: Annotated[str | None, Field(title="Latest Executor Heartbeat")]
+    detailed_status: DetailedHealthStatus | None
+    instances: Annotated[list[ExecutorInstanceInfoResponse] | None, Field(title="Instances")] = None
+
+
 class HITLDetail(BaseModel):
     """
     Schema for Human-in-the-loop detail.
@@ -3463,6 +3561,7 @@ class HealthInfoResponse(BaseModel):
     scheduler: SchedulerInfoResponse
     triggerer: TriggererInfoResponse
     dag_processor: DagProcessorInfoResponse | None = None
+    executor: ExecutorInfoResponse | None = None
 
 
 class PluginCollectionResponse(BaseModel):

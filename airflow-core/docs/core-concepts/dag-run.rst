@@ -136,7 +136,7 @@ then you will want to turn catchup off, which is the default setting or can be d
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/apache/airflow/blob/main/airflow/example_dags/tutorial.py
+    https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/tutorial.py
     """
 
     from airflow.sdk import DAG
@@ -345,6 +345,12 @@ Example of a parameterized Dag:
 
 
 **Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
+
+.. note::
+
+   ``dag_run.conf`` is meant for small metadata, such as a path, a table name, or an identifier. The entire value is stored in
+   the metadata database and sent to every task worker process on startup. Avoid putting large payloads in it. Use a
+   reference instead, and have the task read the actual data from external storage.
 
 Wait for a Dag Run
 ------------------

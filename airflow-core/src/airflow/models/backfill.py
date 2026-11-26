@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
@@ -156,7 +156,7 @@ class UnknownActiveBackfills(AirflowException):
         super().__init__(f"Unable to determine the number of active backfills for DAG {dag_id}")
 
 
-class ReprocessBehavior(str, Enum):
+class ReprocessBehavior(StrEnum):
     """
     Internal enum for setting reprocess behavior in a backfill.
 
@@ -166,9 +166,6 @@ class ReprocessBehavior(str, Enum):
     FAILED = "failed"
     COMPLETED = "completed"
     NONE = "none"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class Backfill(Base):
@@ -245,7 +242,7 @@ class Backfill(Base):
         return case(when_condition, else_=None)
 
 
-class BackfillDagRunExceptionReason(str, Enum):
+class BackfillDagRunExceptionReason(StrEnum):
     """
     Enum for storing reasons why Dag run not created.
 
@@ -255,9 +252,6 @@ class BackfillDagRunExceptionReason(str, Enum):
     IN_FLIGHT = "in flight"
     ALREADY_EXISTS = "already exists"
     UNKNOWN = "unknown"
-
-    def __str__(self) -> str:
-        return self.value
 
 
 class BackfillDagRun(Base):
@@ -360,11 +354,10 @@ def _validate_backfill_params(
                 "Dag has tasks for which depends_on_past=True. "
                 "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
-    if dag_run_conf is not None:
-        try:
-            dag.params.deep_merge(dag_run_conf).validate()
-        except ValueError as e:
-            raise InvalidBackfillConf(str(e)) from e
+    try:
+        dag.params.deep_merge(dag_run_conf).validate()
+    except ValueError as e:
+        raise InvalidBackfillConf(str(e)) from e
 
 
 def _do_dry_run(

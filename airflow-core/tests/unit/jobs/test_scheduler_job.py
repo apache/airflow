@@ -39,7 +39,7 @@ import pendulum
 import psutil
 import pytest
 import time_machine
-from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, update
+from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, text, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import IntegrityError, InvalidRequestError
 from sqlalchemy.orm import joinedload
@@ -69,7 +69,7 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
-from airflow.jobs.job import Job, run_job
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, run_job
 from airflow.jobs.scheduler_job_runner import (
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
@@ -144,6 +144,7 @@ from airflow.sdk import (
     HourWindow,
     IdentityMapper,
     MinimumCount,
+    Param,
     RollupMapper,
     SegmentWindow,
     StartOfDayMapper,
@@ -383,6 +384,26 @@ def make_pool_stats(
     }
 
 
+def _get_connection_id(session: Session) -> int:
+    if session.get_bind().dialect.name == "postgresql":
+        return session.execute(text("SELECT pg_backend_pid()")).scalar_one()
+    return session.execute(text("SELECT CONNECTION_ID()")).scalar_one()
+
+
+def _is_waiting_for_lock(waiter_id: int, blocker_id: int) -> bool:
+    with settings.get_engine().connect() as probe:
+        if probe.dialect.name == "postgresql":
+            blocked = text("SELECT CAST(:blocker AS integer) = ANY(pg_blocking_pids(:waiter))")
+            return bool(probe.execute(blocked, {"waiter": waiter_id, "blocker": blocker_id}).scalar())
+        # Only that the waiter waits for a row lock: CI runs MySQL with performance_schema off, so
+        # performance_schema.data_lock_waits cannot name the blocking transaction there.
+        waiting = text(
+            "SELECT count(*) > 0 FROM information_schema.innodb_trx "
+            "WHERE trx_mysql_thread_id = :waiter AND trx_state = 'LOCK WAIT'"
+        )
+        return bool(probe.execute(waiting, {"waiter": waiter_id}).scalar())
+
+
 def assign_executor_to_team(executor: MagicMock, team_name: str) -> None:
     # ExecutorLoader.load_executor sets the team on both; the scheduler reads it from the name.
     executor.team_name = team_name
@@ -462,18 +483,24 @@ class TestSchedulerJob:
         mock_jwt_generator = MagicMock(spec=JWTGenerator)
         mock_jwt_generator.generate.return_value = "mock-token"
 
-        default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
+        default_executor = mock.MagicMock(
+            spec=BaseExecutor, name="DefaultExecutor", slots_available=8, slots_occupied=0
+        )
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
         default_executor.jwt_generator = mock_jwt_generator
         default_executor.team_name = None  # Global executor
         default_executor.sentry_integration = ""
         default_executor._drain_events_with_task_ids.return_value = {}, {}
-        second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
+        default_executor.overrides_get_health.return_value = False
+        second_executor = mock.MagicMock(
+            spec=BaseExecutor, name="SeconadaryExecutor", slots_available=8, slots_occupied=0
+        )
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
         second_executor.jwt_generator = mock_jwt_generator
         second_executor.team_name = None  # Global executor
         second_executor.sentry_integration = ""
         second_executor._drain_events_with_task_ids.return_value = {}, {}
+        second_executor.overrides_get_health.return_value = False
 
         # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_workload
         # interface from executors
@@ -4072,6 +4099,103 @@ class TestSchedulerJob:
 
         assert [ti.run_id for ti in session.scalars(query)] == [second_run.run_id]
 
+    @mock.patch.object(SchedulerJobRunner, "_build_schedulable_tis_query", autospec=True)
+    def test_select_task_instances_to_queue_excludes_locked_rows_no_longer_scheduled(
+        self, mock_build_query, dag_maker, mock_executors, session, caplog
+    ):
+        with dag_maker(dag_id="locked_rows_state", session=session):
+            EmptyOperator(task_id="scheduled_in_bulk")
+            EmptyOperator(task_id="marked_success")
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        tis = {ti.task_id: ti for ti in dag_run.get_task_instances(session=session)}
+        tis["marked_success"].state = State.SCHEDULED
+        session.flush()
+        # Update the rows but not the TIs in the session, so the session keeps no state for
+        # "scheduled_in_bulk" and SCHEDULED for "marked_success".
+        for task_id, state in (("scheduled_in_bulk", State.SCHEDULED), ("marked_success", State.SUCCESS)):
+            session.execute(
+                update(TaskInstance)
+                .where(TaskInstance.id == tis[task_id].id)
+                .values(state=state)
+                .execution_options(synchronize_session=False)
+            )
+        # Returns both rows, as a locking read does for a row the ranking subquery saw as SCHEDULED in the
+        # statement's snapshot and that was marked success before the lock. SQLite cannot reproduce that.
+        mock_build_query.return_value = select(TaskInstance).where(TaskInstance.dag_id == "locked_rows_state")
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        with caplog.at_level(logging.DEBUG, logger="airflow.jobs.scheduler_job_runner"):
+            queued_tis = self.job_runner._select_task_instances_to_queue(
+                32, make_pool_stats(), set(), session=session
+            )
+
+        assert [ti.task_id for ti in queued_tis] == ["scheduled_in_bulk"]
+        assert {"event": "Skipped locked task instances that are no longer SCHEDULED", "count": 1} in caplog
+
+    @pytest.mark.backend("postgres", "mysql")
+    # The scheduler locks with SKIP LOCKED, so the bug needs the writer to commit after the statement takes
+    # its snapshot and before it locks the row, a window a test cannot time. With SKIP LOCKED patched out,
+    # the selection waits on the writer's lock instead, so the commit always lands in that window. The test
+    # covers how the locking read treats that commit, not the locking options the scheduler runs with.
+    @mock.patch(
+        "airflow.jobs.scheduler_job_runner.with_row_locks",
+        autospec=True,
+        side_effect=lambda query, **kwargs: with_row_locks(query, **{**kwargs, "skip_locked": False}),
+    )
+    def test_select_task_instances_to_queue_skips_a_task_instance_moved_out_of_scheduled_while_it_runs(
+        self, mock_with_row_locks, dag_maker, mock_executors, session
+    ):
+        with dag_maker(dag_id="state_changed_while_selecting", session=session):
+            EmptyOperator(task_id="unchanged")
+            EmptyOperator(task_id="marked_success")
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+        ti_ids = {}
+        for ti in dag_run.get_task_instances(session=session):
+            ti.state = State.SCHEDULED
+            ti_ids[ti.task_id] = ti.id
+        session.commit()
+        runner = SchedulerJobRunner(job=Job())
+        selector_ids: list[int] = []
+
+        def select_task_instances() -> list[str]:
+            with create_session(scoped=False) as selector:
+                selector_ids.append(_get_connection_id(selector))
+                # Held by the selector's session from before the update below, with their SCHEDULED state.
+                tis_in_session = selector.scalars(
+                    select(TaskInstance).where(TaskInstance.id.in_(ti_ids.values()))
+                ).all()
+                assert {ti.id for ti in tis_in_session if ti in selector} == set(ti_ids.values())
+                queued_tis = runner._select_task_instances_to_queue(
+                    32, make_pool_stats(), set(), session=selector
+                )
+                selector.rollback()
+                return [ti.task_id for ti in queued_tis]
+
+        with ThreadPoolExecutor(max_workers=1) as pool, create_session(scoped=False) as writer:
+            writer_id = _get_connection_id(writer)
+            # The selection reads both task instances from its snapshot, then waits on these locks.
+            writer.scalars(
+                select(TaskInstance.id).where(TaskInstance.id.in_(ti_ids.values())).with_for_update()
+            ).all()
+            future = pool.submit(select_task_instances)
+            deadline = time.monotonic() + 30
+            while not (selector_ids and _is_waiting_for_lock(selector_ids[0], writer_id)):
+                if future.done():
+                    pytest.fail(f"the selection did not wait on the writer's locks: {future.result()}")
+                assert time.monotonic() < deadline, "the selection did not wait on the writer's locks"
+                # MySQL refreshes information_schema.innodb_trx only after it has gone unread for 100ms,
+                # so polling faster keeps returning the state from before the selection waited.
+                time.sleep(0.2)
+            # A user marks one of the task instances success while the selection runs.
+            writer.execute(
+                update(TaskInstance)
+                .where(TaskInstance.id == ti_ids["marked_success"])
+                .values(state=TaskInstanceState.SUCCESS)
+            )
+            writer.commit()
+
+            assert future.result(timeout=30) == ["unchanged"]
+
     def test_find_executable_task_instances_task_concurrency_per_dagrun_for_first(self, dag_maker):
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
@@ -7056,6 +7180,30 @@ class TestSchedulerJob:
         assert old_job.state == State.FAILED
         assert old_task_job.state == State.RUNNING
         assert "Marked 1 SchedulerJob instances as failed" in caplog.messages
+
+    def test_adopt_or_reset_orphaned_tasks_fails_stale_executor_jobs(self):
+        """A stale ExecutorJob row gets marked failed with an end_date, a fresh one is left alone."""
+        session = settings.Session()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        stale_executor_job = Job(job_type=EXECUTOR_JOB_TYPE, state=State.RUNNING)
+        stale_executor_job.latest_heartbeat = timezone.utcnow() - timedelta(minutes=15)
+        session.add(stale_executor_job)
+
+        fresh_executor_job = Job(job_type=EXECUTOR_JOB_TYPE, state=State.RUNNING)
+        fresh_executor_job.latest_heartbeat = timezone.utcnow()
+        session.add(fresh_executor_job)
+        session.flush()
+
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        session.expire_all()
+
+        assert stale_executor_job.state == State.FAILED
+        assert stale_executor_job.end_date is not None
+        assert fresh_executor_job.state == State.RUNNING
+        assert fresh_executor_job.end_date is None
 
     def test_should_update_dag_next_dagrun(self, session, dag_maker):
         """We should always update next_dagrun after scheduler creates a new dag run."""
@@ -11915,6 +12063,7 @@ class TestSchedulerJob:
         # Mock the executor to simulate a task failure
         mock_executor = MagicMock(spec=BaseExecutor)
         mock_executor.has_task = mock.MagicMock(return_value=False)
+        mock_executor.overrides_get_health.return_value = False
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
 
@@ -14986,6 +15135,45 @@ def test_asset_runs_share_creation_budget(dag_maker, session, batch_first_dag):
 
 
 @pytest.mark.need_serialized_dag
+def test_asset_triggered_dag_with_invalid_params_does_not_block_others(dag_maker: DagMaker, session: Session):
+    asset = Asset(name="invalid-params-asset")
+    dag_ids = ["invalid-params-consumer", "healthy-consumer"]
+    for dag_id in dag_ids:
+        with dag_maker(dag_id=dag_id, schedule=asset, session=session):
+            EmptyOperator(task_id="task")
+            if dag_id == "invalid-params-consumer":
+                # Bypass the parse-time check: simulates a Dag serialized before the stricter validation.
+                dag_maker.dag.params["d"] = Param("garbage", type="string", format="date-time")
+    session.commit()
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    event = AssetEvent(asset_id=asset_id, timestamp=timezone.utcnow() + timedelta(seconds=1))
+    session.add(event)
+    session.flush()
+    session.add_all(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_id, asset_event_id=event.id)
+        for dag_id in dag_ids
+    )
+    session.flush()
+    dag_models = session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids))).all()
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    runner._create_dag_runs_asset_triggered(dag_models=dag_models, session=session)
+    session.flush()
+
+    def count_runs(dag_id):
+        return session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id))
+
+    assert count_runs("healthy-consumer") == 1
+    assert count_runs("invalid-params-consumer") == 0
+    queued = session.scalars(
+        select(AssetDagRunQueue.target_dag_id).where(AssetDagRunQueue.target_dag_id.in_(dag_ids))
+    ).all()
+    assert queued == ["invalid-params-consumer"]
+
+
+@pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
 @pytest.mark.parametrize(
     "scheduling_state",
@@ -15091,6 +15279,45 @@ def test_partitioned_asset_dag_run_is_not_created_after_a_drain_completes(
 
     assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == set()
     assert apdr.created_dag_run_id is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_with_invalid_params_keeps_its_apdr_pending(dag_maker: DagMaker, session: Session):
+    asset = Asset(name="partitioned-invalid-params-asset")
+    bad_dag_id = "partitioned-invalid-params-consumer"
+    for dag_id in (bad_dag_id, "partitioned-healthy-consumer"):
+        with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), session=session):
+            EmptyOperator(task_id="task")
+            if dag_id == bad_dag_id:
+                dag_maker.dag.params["d"] = Param("garbage", type="string", format="date-time")
+    session.commit()
+    _produce_and_register_asset_event(
+        dag_id="partitioned-invalid-params-producer",
+        asset=asset,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    assert runner._create_dagruns_for_partitioned_asset_dags(session=session) == {
+        bad_dag_id,
+        "partitioned-healthy-consumer",
+    }
+
+    def count_runs(dag_id):
+        return session.scalar(select(func.count()).select_from(DagRun).where(DagRun.dag_id == dag_id))
+
+    assert count_runs("partitioned-healthy-consumer") == 1
+    assert count_runs(bad_dag_id) == 0
+    bad_apdr = session.scalar(
+        select(AssetPartitionDagRun).where(AssetPartitionDagRun.target_dag_id == bad_dag_id)
+    )
+    assert bad_apdr is not None
+    assert bad_apdr.created_dag_run_id is None
 
 
 @pytest.mark.need_serialized_dag

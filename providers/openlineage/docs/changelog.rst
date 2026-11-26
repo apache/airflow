@@ -26,6 +26,23 @@
 Changelog
 ---------
 
+2.21.1
+......
+
+Misc
+~~~~
+
+* ``Raise openlineage-python and openlineage-integration-common minimum to 1.55.0 (#77031)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix flaky OpenLineage manual state e2e test on airflow 3+ (#76796)``
+   * ``Harden OpenLineage task outcomes system test (#76595)``
+   * ``Split mixed OpenLineage tests into unit and integration (#75642)``
+   * ``Add OpenLineage e2e tests for manual state changes, clears and failures (#75908)``
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Use only file:// URIs in the OpenLineage exclude_datasets authoring system test (#75961)``
+
 2.21.0
 ......
 
