@@ -91,6 +91,13 @@ core:
         the pre-3.14 behaviour (note: forking a multi-threaded process is not always safe), or keep
         ``forkserver`` and set ``[core] mp_forkserver_preload`` to recover most of the sharing.
 
+        Under systemd, ``forkserver`` and ``spawn`` also rely on the named semaphores they keep in
+        ``/dev/shm``. If the component runs as a regular (non-system) user, ``systemd-logind``
+        removes them as soon as that user's last login session ends (``RemoveIPC=yes``, the
+        default), and no worker can be started after that: tasks stay queued and the forkserver
+        logs ``FileNotFoundError``. Use ``fork``, run Airflow as a system user, or set
+        ``RemoveIPC=no`` in ``logind.conf``.
+
         This can be overridden per component by setting ``mp_start_method`` in the ``[scheduler]``,
         ``[triggerer]`` or ``[dag_processor]`` section.
       version_added: 3.3.0
