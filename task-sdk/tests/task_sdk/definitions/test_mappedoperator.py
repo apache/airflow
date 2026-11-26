@@ -874,6 +874,25 @@ def test_mapped_render_template_fields_rebinds_asset_context(create_runtime_ti, 
     assert list(context["inlet_events"]) == [Asset("a"), Asset("c")]
 
 
+class _OperatorDroppingInlets(BaseOperator):
+    def __init__(self, *, arg1=None, **kwargs):
+        super().__init__(**kwargs)
+        self.inlets = []
+
+
+def test_mapped_render_template_fields_drops_asset_state_store(create_runtime_ti, mock_supervisor_comms):
+    with DAG("test_dag"):
+        mapped = _OperatorDroppingInlets.partial(task_id="t", inlets=[Asset("a")]).expand(arg1=["x", "y"])
+
+    ti = create_runtime_ti(task=mapped, map_index=0)
+    context = ti.get_template_context()
+    assert "asset_state_store" in context
+
+    ti.task.render_template_fields(context=context)
+    assert context["inlets"] == []
+    assert "asset_state_store" not in context
+
+
 @pytest.mark.parametrize(
     "make_mapped",
     [
