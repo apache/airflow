@@ -1382,14 +1382,27 @@ class TestEksHook:
         assert f"--sts-url '{regional_sts_url}'" in command_arg
         assert os.environ["AWS_STS_REGIONAL_ENDPOINTS"] == "legacy"
 
+    @pytest.mark.parametrize(
+        ("extra", "expected_sts_endpoint"),
+        [
+            pytest.param(
+                {"service_config": {"sts": {"endpoint_url": "https://sts-fips.us-west-2.amazonaws.com"}}},
+                "https://sts-fips.us-west-2.amazonaws.com",
+                id="sts-service-config",
+            ),
+            pytest.param(
+                {"endpoint_url": "https://fips.eks.us-west-2.amazonaws.com"},
+                "https://sts.us-west-2.amazonaws.com",
+                id="connection-wide-endpoint-url-is-not-used",
+            ),
+        ],
+    )
     @mock.patch.object(EksHook, "get_connection")
     @mock.patch.object(EksHook, "conn", new_callable=PropertyMock)
-    def test_generate_config_file_uses_sts_endpoint_of_hook_connection(self, mock_conn, mock_get_connection):
-        mock_get_connection.return_value = Connection(
-            conn_id="eks_conn",
-            conn_type="aws",
-            extra={"service_config": {"sts": {"endpoint_url": "https://sts-fips.us-west-2.amazonaws.com"}}},
-        )
+    def test_generate_config_file_uses_sts_endpoint_of_hook_connection(
+        self, mock_conn, mock_get_connection, extra, expected_sts_endpoint
+    ):
+        mock_get_connection.return_value = Connection(conn_id="eks_conn", conn_type="aws", extra=extra)
         mock_conn.return_value.describe_cluster.return_value = {
             "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
         }
@@ -1403,8 +1416,8 @@ class TestEksHook:
             config = yaml.safe_load(Path(config_file).read_text())
 
         command_arg = config["users"][0]["user"]["exec"]["args"][1]
-        fips_sts_url = "https://sts-fips.us-west-2.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
-        assert f"--sts-url '{fips_sts_url}'" in command_arg
+        sts_url = f"{expected_sts_endpoint}/?Action=GetCallerIdentity&Version=2011-06-15"
+        assert f"--sts-url '{sts_url}'" in command_arg
         mock_get_connection.assert_called_with("eks_conn")
 
     def test_command_template_captures_stderr_separately(self):

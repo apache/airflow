@@ -144,7 +144,6 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import (
     _CURRENT_TEAM_NAME_ENV_VAR,
-    AssetStateStoreAccessors,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
@@ -153,8 +152,10 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
+    build_state_store_stats_tags,
     context_get_outlet_events,
     context_to_airflow_vars,
+    create_asset_state_store,
     get_previous_dagrun_success,
     set_current_context,
     set_current_team_name,
@@ -353,7 +354,6 @@ class RuntimeTaskInstance(TaskInstance):
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
         if self._cached_template_context is None:
-            state_store_stats_tags = {**self.stats_tags, "operator": self.task.task_type}
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,
@@ -377,7 +377,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "conn": ConnectionAccessor(),
                 "task_state_store": TaskStateStoreAccessor(
                     ti_id=self.id,
-                    stats_tags=state_store_stats_tags,
+                    stats_tags=build_state_store_stats_tags(self),
                     scope=TaskScope(
                         dag_id=self.dag_id,
                         run_id=self.run_id,
@@ -387,14 +387,8 @@ class RuntimeTaskInstance(TaskInstance):
                     ),
                 ),
             }
-            _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
-            if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
-                self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
-                    self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags
-                )
-                # AssetAlias inlets are resolved to their concrete assets at context build time via
-                # GetAssetsByAlias comms. If an alias maps to no active assets, it doesn't contribute to
-                # asset_state. AssetAlias outlets are skipped downstream in context.py
+            if (asset_state_store := create_asset_state_store(self)) is not None:
+                self._cached_template_context["asset_state_store"] = asset_state_store
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
@@ -552,6 +546,20 @@ class RuntimeTaskInstance(TaskInstance):
             return None
         return LazyXComSequence(xcom_arg=PlainXComArg(producer, key), ti=self)
 
+    def _is_task_mapped(self, dag_id: str, run_id: str, task_id: str) -> bool:
+        """
+        Whether a task of this Dag run is mapped, by this task's Dag.
+
+        A task of another run or Dag reads False, since its Dag version may
+        differ; the server decides for those.
+        """
+        if not (dag_id == self.dag_id and run_id == self.run_id):
+            return False
+        try:
+            return self.task.dag.get_task(task_id).get_needs_expansion()
+        except TaskNotFound:
+            return False
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -593,9 +601,9 @@ class RuntimeTaskInstance(TaskInstance):
 
         Setting ``map_indexes`` to *None* pulls the task's result: the XCom of a
         non-mapped task, or for a mapped task the XComs of all its instances as a
-        list (*None* instead of an empty list on Airflow 3.4). With
-        ``include_prior_dates``, a mapped task matches no XCom. A map index the
-        task has no instance at matches no XCom either.
+        list. A mapped task with no XComs, or one pulled with
+        ``include_prior_dates``, matches no XCom. A map index the task has no
+        instance at matches no XCom either.
 
         In either case, ``default`` (*None* if not specified) is returned if no
         matching XComs are found.
@@ -640,14 +648,17 @@ class RuntimeTaskInstance(TaskInstance):
             return xcoms
 
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
-            value = XCom.get_one(
-                run_id=run_id,
-                key=key,
-                task_id=t_id,
-                dag_id=dag_id,
-                map_index=m_idx,
-                include_prior_dates=include_prior_dates,
-            )
+            if m_idx is None and not include_prior_dates and self._is_task_mapped(dag_id, run_id, t_id):
+                value = XCom.get_all(run_id=run_id, key=key, task_id=t_id, dag_id=dag_id)
+            else:
+                value = XCom.get_one(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    map_index=m_idx,
+                    include_prior_dates=include_prior_dates,
+                )
             xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
@@ -703,14 +714,17 @@ class RuntimeTaskInstance(TaskInstance):
             return xcoms
 
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
-            value = await XCom.aget_one(
-                run_id=run_id,
-                key=key,
-                task_id=t_id,
-                dag_id=dag_id,
-                map_index=m_idx,
-                include_prior_dates=include_prior_dates,
-            )
+            if m_idx is None and not include_prior_dates and self._is_task_mapped(dag_id, run_id, t_id):
+                value = await XCom.aget_all(run_id=run_id, key=key, task_id=t_id, dag_id=dag_id)
+            else:
+                value = await XCom.aget_one(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    map_index=m_idx,
+                    include_prior_dates=include_prior_dates,
+                )
             xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
@@ -1543,6 +1557,12 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
 
     jinja_env = ti.task.dag.get_template_env()
     ti.render_templates(context=context, jinja_env=jinja_env)
+
+    # Build the asset lookups now. This makes sync supervisor calls, which may
+    # deadlock if they are first made from async task code instead.
+    context["inlet_events"].build_lookups()
+    if (asset_state_store := context.get("asset_state_store")) is not None:
+        asset_state_store.build_lookups()
 
     if rendered_fields := _serialize_rendered_fields(ti.task):
         # so that we do not call the API unnecessarily

@@ -1735,6 +1735,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /ui/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/durable:
+    get:
+      tags:
+      - Durable Execution
+      summary: Get Durable Execution
+      description: Get the durable execution history of a task instance; empty when
+        the task is not durable.
+      operationId: get_durable_execution
+      security:
+      - OAuth2PasswordBearer: []
+      - HTTPBearer: []
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: dag_run_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Run Id
+      - name: task_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Task Id
+      - name: map_index
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: -1
+          title: Map Index
+      - name: region_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Region Id
+      - name: region_index
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+            minimum: -1
+          - type: 'null'
+          title: Region Index
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DurableExecutionResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /ui/structure/structure_data:
     get:
       tags:
@@ -4704,6 +4772,62 @@ components:
       - callback_type
       title: DeadlineResponse
       description: Deadline serializer for responses.
+    DurableExecutionResponse:
+      properties:
+        tries:
+          items:
+            $ref: '#/components/schemas/DurableTryResponse'
+          type: array
+          title: Tries
+      type: object
+      required:
+      - tries
+      title: DurableExecutionResponse
+      description: Durable execution history of a task instance, read by the logs
+        banner.
+    DurableTryResponse:
+      properties:
+        try_number:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Try Number
+        decision:
+          type: string
+          enum:
+          - submitted
+          - resubmitted
+          - reconnected
+          - already_succeeded
+          title: Decision
+        external_id:
+          $ref: '#/components/schemas/JsonValue'
+        status:
+          anyOf:
+          - $ref: '#/components/schemas/TaskInstanceState'
+          - type: 'null'
+        submitted_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Submitted At
+        saved_seconds:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Saved Seconds
+        previous_external_id:
+          $ref: '#/components/schemas/JsonValue'
+      type: object
+      required:
+      - try_number
+      - decision
+      - external_id
+      - status
+      - saved_seconds
+      title: DurableTryResponse
+      description: What one try did with the external job.
     DurationStats:
       properties:
         mean:

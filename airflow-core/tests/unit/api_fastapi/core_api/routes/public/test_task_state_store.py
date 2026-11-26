@@ -155,6 +155,25 @@ class TestListTaskState(TestTaskStateEndpoint):
         assert data["total_entries"] == 3
         assert len(data["task_state_store"]) == 1
 
+    @pytest.mark.parametrize(
+        ("query", "expected_keys"),
+        [
+            pytest.param("", ["x", "y"], id="hidden-by-default"),
+            pytest.param("&include_reserved=true", ["__airflow_durable__", "x", "y"], id="included"),
+        ],
+    )
+    def test_reserved_keys_filtered_before_pagination(self, test_client, query, expected_keys):
+        # Keys after "a" so the reserved key sorts first under both C and locale collations, which
+        # ignore underscores on Postgres.
+        for k in ("__airflow_durable__", "x", "y"):
+            _create_task_state_store_row(self._session, k, "v", self.dag_run)
+        self._session.commit()
+
+        response = test_client.get(f"{BASE_URL}?limit=2{query}")
+        data = response.json()
+        assert data["total_entries"] == len(expected_keys)
+        assert [item["key"] for item in data["task_state_store"]] == expected_keys[:2]
+
     def test_unauthorized_returns_401(self, unauthenticated_test_client):
         assert unauthenticated_test_client.get(BASE_URL).status_code == 401
 

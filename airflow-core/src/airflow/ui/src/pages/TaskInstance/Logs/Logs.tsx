@@ -43,6 +43,7 @@ import { useDefaultLogSources } from "src/hooks/useUserSettings";
 import { useConfig } from "src/queries/useConfig";
 import { useLogs } from "src/queries/useLogs";
 
+import { DurableBanner } from "./DurableBanner";
 import { ExternalLogLink } from "./ExternalLogLink";
 import { TaskLogContent, type TaskLogContentProps } from "./TaskLogContent";
 import { TaskLogHeader, type TaskLogHeaderProps } from "./TaskLogHeader";
@@ -327,6 +328,7 @@ export const Logs = () => {
 
   return (
     <Box display="flex" flexDirection="column" h="100%" p={2}>
+      <DurableBanner taskInstance={taskInstance} tryNumber={tryNumber} />
       <TaskLogHeader {...logHeaderProps} />
       {showExternalLogRedirect && externalLogName && taskInstance ? (
         tryNumber === undefined ? (

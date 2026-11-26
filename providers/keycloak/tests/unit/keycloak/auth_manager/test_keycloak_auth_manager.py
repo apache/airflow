@@ -61,11 +61,6 @@ else:
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowProviderDeprecationWarning
-
-try:
-    from airflow.providers.common.compat.sdk import AirflowException
-except ModuleNotFoundError:
-    from airflow.exceptions import AirflowException
 from airflow.providers.keycloak.auth_manager import cache as cache_module
 from airflow.providers.keycloak.auth_manager.constants import (
     CONF_CLIENT_ID_KEY,
@@ -75,6 +70,10 @@ from airflow.providers.keycloak.auth_manager.constants import (
     CONF_SECTION_NAME,
     CONF_SERVER_URL_KEY,
     CONF_TEAM_LEVEL_AUTHORIZATION_KEY,
+)
+from airflow.providers.keycloak.auth_manager.exceptions import (
+    KeycloakAuthorizationRequestError,
+    KeycloakUnexpectedResponseError,
 )
 from airflow.providers.keycloak.auth_manager.keycloak_auth_manager import (
     RESOURCE_ID_ATTRIBUTE_NAME,
@@ -357,9 +356,10 @@ class TestKeycloakAuthManager:
         CliLoginMethods is None, reason="CLI login discovery is not available in this Airflow"
     )
     @pytest.mark.parametrize(
-        ("authorization_code_enabled", "expected"),
+        ("authorization_code_enabled", "device_code_enabled", "expected"),
         [
             (
+                "False",
                 "False",
                 {
                     "grant_types_supported": ["password", "refresh_token"],
@@ -371,6 +371,7 @@ class TestKeycloakAuthManager:
             ),
             (
                 "True",
+                "False",
                 {
                     "grant_types_supported": ["password", "refresh_token", "authorization_code"],
                     "code_challenge_methods_supported": ["S256"],
@@ -379,10 +380,48 @@ class TestKeycloakAuthManager:
                     "token_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
                 },
             ),
+            (
+                "False",
+                "True",
+                {
+                    "grant_types_supported": [
+                        "password",
+                        "refresh_token",
+                        "urn:ietf:params:oauth:grant-type:device_code",
+                    ],
+                    "code_challenge_methods_supported": [],
+                    "authorization_endpoint": None,
+                    "device_authorization_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli/device",
+                    "token_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
+                },
+            ),
+            (
+                "True",
+                "True",
+                {
+                    "grant_types_supported": [
+                        "password",
+                        "refresh_token",
+                        "authorization_code",
+                        "urn:ietf:params:oauth:grant-type:device_code",
+                    ],
+                    "code_challenge_methods_supported": ["S256"],
+                    "authorization_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/login/cli",
+                    "device_authorization_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli/device",
+                    "token_endpoint": f"{AUTH_MANAGER_FASTAPI_APP_PREFIX}/token/cli",
+                },
+            ),
         ],
     )
-    def test_get_cli_login_methods(self, auth_manager, authorization_code_enabled, expected):
-        with conf_vars({(CONF_SECTION_NAME, "cli_authorization_code_enabled"): authorization_code_enabled}):
+    def test_get_cli_login_methods(
+        self, auth_manager, authorization_code_enabled, device_code_enabled, expected
+    ):
+        with conf_vars(
+            {
+                (CONF_SECTION_NAME, "cli_authorization_code_enabled"): authorization_code_enabled,
+                (CONF_SECTION_NAME, "cli_device_code_enabled"): device_code_enabled,
+            }
+        ):
             assert dataclasses.asdict(auth_manager.get_cli_login_methods()) == expected
 
     @patch.object(KeycloakAuthManager, "_token_expired")
@@ -612,10 +651,8 @@ class TestKeycloakAuthManager:
                     )
                 )
 
-            with pytest.raises(AirflowException) as e:
+            with pytest.raises(KeycloakUnexpectedResponseError, match="Unexpected error"):
                 getattr(auth_manager, function)(method="GET", user=user)
-
-            assert "Unexpected error" in str(e.value)
 
     @pytest.mark.skipif(not AIRFLOW_V_3_2_PLUS, reason="team_name not supported before Airflow 3.2.0")
     @conf_vars({("core", "multi_team"): "True"})
@@ -673,10 +710,11 @@ class TestKeycloakAuthManager:
                     )
                 )
 
-            with pytest.raises(AirflowException) as e:
+            with pytest.raises(
+                KeycloakAuthorizationRequestError,
+                match="Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET",
+            ):
                 getattr(auth_manager, function)(method="GET", user=user)
-
-            assert "Request not recognized by Keycloak. invalid_scope. Invalid scopes: GET" in str(e.value)
 
     @pytest.mark.parametrize(
         ("method", "access_entity", "details", "permission", "attributes"),
@@ -1123,10 +1161,12 @@ class TestKeycloakAuthManager:
         assert set(result) == expected
 
     @pytest.mark.parametrize(
-        "status_code",
-        [400, 500],
+        ("status_code", "expected_exception"),
+        [(400, KeycloakAuthorizationRequestError), (500, KeycloakUnexpectedResponseError)],
     )
-    def test_filter_authorized_menu_items_with_failure(self, status_code, auth_manager, user):
+    def test_filter_authorized_menu_items_with_failure(
+        self, status_code, expected_exception, auth_manager, user
+    ):
         resp = Mock()
         resp.status_code = status_code
         resp.text = json.dumps({})
@@ -1134,7 +1174,7 @@ class TestKeycloakAuthManager:
 
         menu_items = [MenuItem.ASSETS, MenuItem.CONNECTIONS]
 
-        with pytest.raises(AirflowException):
+        with pytest.raises(expected_exception):
             auth_manager.filter_authorized_menu_items(menu_items, user=user)
 
         token_url = auth_manager._get_token_url("server_url", "realm")

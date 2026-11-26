@@ -17,12 +17,14 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import threading
 from contextvars import ContextVar
 
+import httpx2
 import pytest
 
-from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
+from airflow.providers.common.ai.utils.coroutines import run_coroutine_on_thread_loop, run_coroutine_sync
 
 _value: ContextVar[str] = ContextVar("value", default="unset")
 
@@ -33,6 +35,14 @@ async def _thread_name() -> str:
 
 async def _read_value() -> str:
     return _value.get()
+
+
+async def _get_running_loop() -> asyncio.AbstractEventLoop:
+    return asyncio.get_running_loop()
+
+
+def _raise_keyboard_interrupt() -> None:
+    raise KeyboardInterrupt
 
 
 class TestRunCoroutineSync:
@@ -60,3 +70,134 @@ class TestRunCoroutineSync:
             run_coroutine_sync(fails())
 
         assert raised.value.__context__ is None
+
+
+@pytest.mark.usefixtures("close_thread_event_loop")
+class TestRunCoroutineOnThreadLoop:
+    def test_an_async_client_works_across_calls(self, keep_alive_url):
+        # Like the OpenAI Agents SDK's shared HTTP client: the connection it pools on the first
+        # call belongs to that call's loop, so the second call needs the same loop, still open.
+        client = httpx2.AsyncClient()
+        try:
+            first = run_coroutine_on_thread_loop(client.get(keep_alive_url))
+            second = run_coroutine_on_thread_loop(client.get(keep_alive_url))
+        finally:
+            run_coroutine_on_thread_loop(client.aclose())
+
+        assert (first.text, second.text) == ("ok", "ok")
+
+    def test_an_asyncio_run_between_calls_keeps_the_loop(self):
+        first = run_coroutine_on_thread_loop(_get_running_loop())
+        asyncio.run(asyncio.sleep(0))
+
+        assert run_coroutine_on_thread_loop(_get_running_loop()) is first
+
+    @pytest.mark.skipif(not hasattr(os, "fork"), reason="needs os.fork")
+    def test_a_forked_child_does_not_reuse_the_parents_loop(self):
+        # Python 3.11 keeps the parent's loop as the child's current loop; 3.12+ clears it.
+        parent_loop = run_coroutine_on_thread_loop(_get_running_loop())
+        read_end, write_end = os.pipe()
+        pid = os.fork()
+        if pid == 0:
+            try:
+                child_loop = run_coroutine_on_thread_loop(_get_running_loop())
+                os.write(write_end, b"same" if child_loop is parent_loop else b"new")
+            finally:
+                os._exit(0)
+        os.close(write_end)
+        os.waitpid(pid, 0)
+        with os.fdopen(read_end, "rb") as reader:
+            assert reader.read() == b"new"
+
+    def test_replaces_a_closed_current_loop(self):
+        closed = asyncio.new_event_loop()
+        closed.close()
+        asyncio.set_event_loop(closed)
+
+        loop = run_coroutine_on_thread_loop(_get_running_loop())
+
+        assert loop is not closed
+        assert not loop.is_closed()
+
+    def test_an_interrupted_call_cleans_up_before_it_returns(self):
+        # execution_timeout and SIGTERM raise from a signal handler while the loop waits, which
+        # leaves the call's task pending. A loop callback raising KeyboardInterrupt does the same.
+        events: list[str] = []
+
+        async def wait_then_record() -> None:
+            asyncio.get_running_loop().call_soon(_raise_keyboard_interrupt)
+            try:
+                await asyncio.sleep(0.05)
+                events.append("resumed")
+            finally:
+                events.append("cleaned up")
+
+        with pytest.raises(KeyboardInterrupt):
+            run_coroutine_on_thread_loop(wait_then_record())
+
+        assert events == ["cleaned up"]
+        run_coroutine_on_thread_loop(asyncio.sleep(0.1))
+        assert events == ["cleaned up"]
+
+    def test_a_failed_gather_leaves_no_child_running(self):
+        events: list[str] = []
+
+        async def fail() -> None:
+            raise ValueError("boom")
+
+        async def record_later() -> None:
+            try:
+                await asyncio.sleep(0.05)
+                events.append("ran")
+            except asyncio.CancelledError:
+                events.append("cancelled")
+                raise
+
+        async def gather_both() -> None:
+            await asyncio.gather(fail(), record_later())
+
+        with pytest.raises(ValueError, match="boom"):
+            run_coroutine_on_thread_loop(gather_both())
+
+        assert events == ["cancelled"]
+        run_coroutine_on_thread_loop(asyncio.sleep(0.1))
+        assert events == ["cancelled"]
+
+    def test_leaves_tasks_started_before_the_call_alone(self):
+        loop = run_coroutine_on_thread_loop(_get_running_loop())
+        earlier = loop.create_task(asyncio.sleep(0.1))
+        try:
+            run_coroutine_on_thread_loop(asyncio.sleep(0))
+
+            assert not earlier.cancelled()
+        finally:
+            earlier.cancel()
+
+    def test_concurrent_calls_from_two_threads_run_on_separate_loops(self):
+        barrier = threading.Barrier(2)
+        main_loop = run_coroutine_on_thread_loop(_get_running_loop())
+        loops: list[asyncio.AbstractEventLoop] = []
+
+        async def get_loop_after_overlap() -> asyncio.AbstractEventLoop:
+            await asyncio.sleep(0.05)  # overlaps the other thread's call
+            return asyncio.get_running_loop()
+
+        def call() -> None:
+            barrier.wait()
+            loops.append(run_coroutine_on_thread_loop(get_loop_after_overlap()))
+
+        threads = [threading.Thread(target=call) for _ in range(2)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        assert len({main_loop, *loops}) == 3
+        for loop in loops:
+            loop.close()
+
+    def test_runs_on_another_thread_when_called_from_a_running_loop(self):
+        async def caller() -> str:
+            return run_coroutine_on_thread_loop(_thread_name())
+
+        assert asyncio.run(caller()) != threading.current_thread().name

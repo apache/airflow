@@ -27,10 +27,10 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlencode, urljoin
 from weakref import WeakValueDictionary
 
-from cachetools import TTLCache, cachedmethod
+from cachetools import TTLCache
 from fastapi import FastAPI
 from fastapi.middleware.wsgi import WSGIMiddleware
-from flask import current_app, g
+from flask import current_app, g, has_app_context
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -185,6 +185,8 @@ _MAP_MENU_ITEM_TO_FAB_RESOURCE_TYPE = {
 }
 
 CACHE_TTL = conf.getint("fab", "cache_ttl", fallback=30)
+TOKEN_GENERATION_CLAIM = "token_generation"
+
 
 if AIRFLOW_V_3_1_PLUS:
     from airflow.providers.fab.www.security.permissions import RESOURCE_HITL_DETAIL
@@ -214,10 +216,24 @@ class FabAuthManager(BaseAuthManager[User]):
     """
 
     cache: TTLCache = TTLCache(maxsize=1024, ttl=CACHE_TTL)
+    # ``TTLCache`` is not thread-safe: requests read it on the event loop, while user updates pop
+    # from it in threadpool and WSGI threads. Hold this lock for every access to ``cache``.
+    cache_lock = threading.Lock()
     _user_fetch_locks: WeakValueDictionary[int, asyncio.Lock] = WeakValueDictionary()
     appbuilder: AirflowAppBuilder | None = None
     flask_app: Flask | None = None
     _flask_app_lock = threading.Lock()
+
+    @classmethod
+    def evict_cached_user(cls, user_id: int) -> None:
+        """
+        Drop a user from the cache so that their next request reloads them from the database.
+
+        Call it only after the change to the user is committed: a request served in between would
+        cache the row as it was before the change.
+        """
+        with cls.cache_lock:
+            cls.cache.pop(user_id, None)
 
     def init_flask_resources(self) -> None:
         self._sync_appbuilder_roles()
@@ -326,14 +342,47 @@ class FabAuthManager(BaseAuthManager[User]):
             raise ValueError(f"User with id {user_id} is not active")
         return user
 
-    @cachedmethod(lambda self: self.cache, key=lambda _, token: int(token["sub"]))
+    @staticmethod
+    def _get_token_generation(token: dict[str, Any]) -> int:
+        # Tokens issued before the claim existed count as the initial generation.
+        token_generation = token.get(TOKEN_GENERATION_CLAIM, 0)
+        if type(token_generation) is not int:
+            raise ValueError(
+                f"Token of user with id {token['sub']} has an invalid {TOKEN_GENERATION_CLAIM} claim"
+            )
+        return token_generation
+
+    def _get_cached_user(self, user_id: int, token_generation: int) -> User | None:
+        """
+        Return the cached user, unless the token is newer than it.
+
+        A newer token was issued after a password change that the cached user predates, so the
+        cached user is dropped: it must not match tokens from before the change either.
+        """
+        with self.cache_lock:
+            user = self.cache.get(user_id)
+            if user is not None and user.token_generation < token_generation:
+                self.cache.pop(user_id, None)
+                return None
+        return user
+
     def deserialize_user(self, token: dict[str, Any]) -> User:
         user_id = int(token["sub"])
+        token_generation = self._get_token_generation(token)
+        user = self._get_cached_user(user_id, token_generation)
+        if user is None:
+            user = self._load_active_user(user_id)
+            with self.cache_lock:
+                self.cache[user_id] = user
+        if token_generation != user.token_generation:
+            raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
+        return user
 
+    def _load_active_user(self, user_id: int) -> User:
         def _fetch_user() -> User:
             with create_session() as session:
                 user = session.scalars(select(User).where(User.id == user_id)).one_or_none()
-                return self._validate_user(user, token["sub"])
+                return self._validate_user(user, str(user_id))
 
         try:
             return _fetch_user()
@@ -359,27 +408,24 @@ class FabAuthManager(BaseAuthManager[User]):
             return self.deserialize_user(token)
 
         user_id = int(token["sub"])
-        try:
-            return self.cache[user_id]
-        except KeyError:
-            pass
-
-        lock = self._user_fetch_locks.setdefault(user_id, asyncio.Lock())
-        async with lock:
-            try:
-                return self.cache[user_id]
-            except KeyError:
-                pass
-
-            async with create_session_async() as session:
-                user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
-                user = self._validate_user(user, token["sub"])
-
-            self.cache[user_id] = user
-            return user
+        token_generation = self._get_token_generation(token)
+        user = self._get_cached_user(user_id, token_generation)
+        if user is None:
+            lock = self._user_fetch_locks.setdefault(user_id, asyncio.Lock())
+            async with lock:
+                user = self._get_cached_user(user_id, token_generation)
+                if user is None:
+                    async with create_session_async() as session:
+                        user = (await session.scalars(select(User).where(User.id == user_id))).one_or_none()
+                        user = self._validate_user(user, token["sub"])
+                    with self.cache_lock:
+                        self.cache[user_id] = user
+        if token_generation != user.token_generation:
+            raise ValueError(f"Token of user with id {user_id} was issued before their last password change")
+        return user
 
     def serialize_user(self, user: User) -> dict[str, Any]:
-        return {"sub": str(user.id)}
+        return {"sub": str(user.id), TOKEN_GENERATION_CLAIM: user.token_generation}
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
@@ -392,23 +438,22 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         Return the role granted to anonymous users, or ``None`` if public access is disabled.
 
-        Reads ``[fab] auth_role_public`` from the Airflow config first so this works
-        during FastAPI startup, before any Flask application context exists. Falls back
-        to ``AUTH_ROLE_PUBLIC`` on the Flask app config when an app context is available,
-        which covers the legacy ``AUTH_ROLE_PUBLIC`` entry in ``webserver_config.py``.
+        Reads ``[fab] auth_role_public`` from the Airflow config first, then falls back to
+        ``AUTH_ROLE_PUBLIC`` on the Flask app config, which covers the legacy entry in
+        ``webserver_config.py``.
         """
         role_public = conf.get("fab", "auth_role_public", fallback="") or None
         if role_public:
             return role_public
         if self.appbuilder is None:
             return None
-        try:
-            return self.appbuilder.app.config.get("AUTH_ROLE_PUBLIC", None)
-        except RuntimeError:
-            # ``appbuilder.app`` is a werkzeug ``LocalProxy``; accessing it outside a
-            # Flask application context raises ``RuntimeError``. This happens during
-            # FastAPI startup when ``get_fastapi_middlewares`` is invoked.
-            return None
+        # The API server runs FastAPI requests and startup without a Flask app context, where
+        # ``current_app`` raises, so read the Flask app it built in ``get_fastapi_app``.
+        if has_app_context():
+            return current_app.config.get("AUTH_ROLE_PUBLIC")
+        if self.flask_app is not None:
+            return self.flask_app.config.get("AUTH_ROLE_PUBLIC")
+        return None
 
     @provide_session
     def build_public_user(self, *, session: Session = NEW_SESSION) -> AnonymousUser | None:
@@ -429,10 +474,16 @@ class FabAuthManager(BaseAuthManager[User]):
 
         user = AnonymousUser()
         role = session.scalar(select(Role).where(Role.name == public_role_name))
-        if role is not None:
-            # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
-            # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
-            # the lifetime of a single FastAPI authorization check.
+        # ``AnonymousUser.roles``/``perms`` normally resolve lazily through Flask's
+        # ``current_app``. Writing ``_roles``/``_perms`` directly freezes a snapshot for
+        # the lifetime of a single FastAPI authorization check.
+        if role is None:
+            log.debug(
+                "The public role %r does not exist, so anonymous users get no permissions", public_role_name
+            )
+            user._roles = set()
+            user._perms = set()
+        else:
             user._roles = {role}
             user._perms = {(perm.action.name, perm.resource.name) for perm in role.permissions}
         return user

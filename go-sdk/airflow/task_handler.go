@@ -39,7 +39,9 @@ func (*taskHandler) registerable() {}
 // fn takes a [Context] first, as the package documentation describes. Every parameter after
 // the Context is data, filled from the arguments of the Python stub's TaskFlow call.
 // fn returns either error or (result, error).
-// A non-nil error fails the task, and a non-nil result is pushed as the task's return-value XCom.
+// A non-nil error fails the task. Otherwise the result, if fn returns one, is pushed as the task's
+// return-value XCom: a nil pointer or nil interface stores null, and a nil slice or map is pushed as
+// an empty one. A fn that returns only error pushes nothing.
 //
 // TaskHandler checks the signature of fn and panics if the check fails, for example when fn is
 // not a function, does not take a Context first, or does not return an error.
