@@ -11043,7 +11043,13 @@ class TestSchedulerJob:
 
     @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True)
     def test_dag_run_discarded_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
-        mock_create.side_effect = DagRunDiscardedError("discarded", dag_id="testdag1", dag_version_id=uuid4())
+        mock_create.side_effect = DagRunDiscardedError(
+            "discarded",
+            dag_id="testdag1",
+            run_id="scheduled__2016-01-01T00:00:00+00:00",
+            dag_version_id=uuid4(),
+            deadline_alert_id=uuid4(),
+        )
         with dag_maker("testdag1", serialized=True):
             BashOperator(task_id="task", bash_command="echo 1")
 
@@ -11064,8 +11070,13 @@ class TestSchedulerJob:
     def test_do_scheduling_ends_dag_run_creation_when_deadline_alert_discards_dag_run(
         self, mock_create_dagruns, mock_start_queued, mock_stats_incr, session, caplog
     ):
+        deadline_alert_id = uuid4()
         mock_create_dagruns.side_effect = DagRunDiscardedError(
-            "discarded", dag_id="stopped_dag", dag_version_id=uuid4()
+            "discarded",
+            dag_id="stopped_dag",
+            run_id="scheduled__2016-01-01T00:00:00+00:00",
+            dag_version_id=uuid4(),
+            deadline_alert_id=deadline_alert_id,
         )
 
         job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
@@ -11079,6 +11090,8 @@ class TestSchedulerJob:
             "event": "A deadline alert broke the scheduler's session; no more Dag runs are "
             "created for the Dag until the scheduler restarts",
             "dag_id": "stopped_dag",
+            "run_id": "scheduled__2016-01-01T00:00:00+00:00",
+            "deadline_alert_id": deadline_alert_id,
         } in caplog
         mock_start_queued.assert_called_once()
 

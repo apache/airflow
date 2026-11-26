@@ -2331,7 +2331,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         "A deadline alert broke the scheduler's session; no more Dag runs are "
                         "created for the Dag until the scheduler restarts",
                         dag_id=e.dag_id,
+                        run_id=e.run_id,
                         dag_version_id=e.dag_version_id,
+                        deadline_alert_id=e.deadline_alert_id,
                     )
                     stats.incr("deadline_alerts.dag_run_creation_stopped", tags={"dag_id": e.dag_id})
                     session.rollback()

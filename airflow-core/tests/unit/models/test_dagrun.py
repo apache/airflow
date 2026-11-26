@@ -2590,14 +2590,24 @@ class TestDagRun:
     @mock.patch.object(Deadline, "prune_deadlines", autospec=True)
     @mock.patch.object(Variable, "get", autospec=True)
     def test_dagrun_deadline_alert_breaking_callers_session_raises_discarded_error(
-        self, mock_variable_get, _, break_callers_session, session, deadline_test_dag
+        self, mock_variable_get, _, break_callers_session, session, deadline_test_dag, caplog
     ):
         scheduler_dag = self._create_dag_with_variable_interval_alert(deadline_test_dag)
         session.commit()
+        alert_id = session.scalar(select(DeadlineAlertModel.id))
         mock_variable_get.side_effect = break_callers_session
 
-        with prohibit_commit(session), pytest.raises(DagRunDiscardedError):
+        with (
+            caplog.at_level("ERROR", logger="airflow.serialization.definitions.dag"),
+            prohibit_commit(session),
+            pytest.raises(DagRunDiscardedError) as exc_info,
+        ):
             self.create_dag_run(dag=scheduler_dag, session=session)
+
+        assert exc_info.value.deadline_alert_id == alert_id
+        assert exc_info.value.run_id.startswith("manual__")
+        # The scheduler logs the discarded Dag run; the alert must not also report it as only skipped.
+        assert "skipping deadline alert because creating its deadline failed" not in caplog
 
     @staticmethod
     def _run_statement_failing_for_one_key(key, session):

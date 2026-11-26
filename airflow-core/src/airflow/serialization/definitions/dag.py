@@ -892,13 +892,15 @@ class SerializedDAG:
             if alert
         ]
 
-        build_discarded_error = functools.partial(
-            DagRunDiscardedError,
-            f"Dag run {run_id} of Dag {self.dag_id} was discarded while processing deadline alerts: "
-            "a deadline reference rolled back, committed or broke the transaction it was created in",
-            dag_id=dagrun_dag_id,
-            dag_version_id=dag_version_id,
-        )
+        def build_discarded_error(alert_id: UUID) -> DagRunDiscardedError:
+            return DagRunDiscardedError(
+                f"Dag run {run_id} of Dag {self.dag_id} was discarded by deadline alert {alert_id}: its "
+                "deadline reference rolled back, committed or broke the transaction the Dag run was created in",
+                dag_id=dagrun_dag_id,
+                run_id=run_id,
+                dag_version_id=dag_version_id,
+                deadline_alert_id=alert_id,
+            )
 
         def is_dagrun_discarded() -> bool:
             if not session.is_active:
@@ -991,15 +993,16 @@ class SerializedDAG:
                     dagrun_discarded = (
                         type(exc) is RuntimeError and str(exc) == PROHIBIT_COMMIT_ERROR_MESSAGE
                     ) or is_dagrun_discarded()
+                    stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
+                    if dagrun_discarded:
+                        # Not logged here: the scheduler logs it once, with this traceback chained.
+                        raise build_discarded_error(alert_id) from exc
                     log.exception(
                         "skipping deadline alert because creating its deadline failed",
                         dag_id=self.dag_id,
                         run_id=run_id,
                         deadline_alert_id=alert_id,
                     )
-                    stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
-                    if dagrun_discarded:
-                        raise build_discarded_error() from exc
                     continue
 
                 # Alerts get their own session, but one that reaches for the scheduler's session
@@ -1007,14 +1010,8 @@ class SerializedDAG:
                 # Dag run. Carrying on would add Deadlines that violate the dagrun_id foreign key, and
                 # returning normally would let the caller treat the missing run as created.
                 if is_dagrun_discarded():
-                    log.error(
-                        "deadline alert discarded the Dag run being created",
-                        dag_id=self.dag_id,
-                        run_id=run_id,
-                        deadline_alert_id=alert_id,
-                    )
                     stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
-                    raise build_discarded_error()
+                    raise build_discarded_error(alert_id)
                 if new_deadline is not None:
                     session.add(new_deadline)
                     created_deadlines += 1

@@ -163,10 +163,20 @@ class InvalidPartitionKeyError(ValueError):
 class DagRunDiscardedError(RuntimeError):
     """Raise when a deadline alert rolled back, committed or broke the transaction creating a Dag run."""
 
-    def __init__(self, message: str, *, dag_id: str, dag_version_id: UUID | None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        dag_id: str,
+        run_id: str,
+        dag_version_id: UUID | None,
+        deadline_alert_id: UUID,
+    ) -> None:
         super().__init__(message)
         self.dag_id = dag_id
+        self.run_id = run_id
         self.dag_version_id = dag_version_id
+        self.deadline_alert_id = deadline_alert_id
 
 
 class DagRunAlreadyExists(AirflowBadRequest):
