@@ -38,12 +38,15 @@ Test whether changes to `AGENTS.md` break or improve agent decisions.
 The harness compares the `main` branch version against your working
 tree, running the same cases against both and reporting the diff.
 
-Each arm is a **git worktree** of the real repo — the agent sees
-actual source files (`pyproject.toml`, directory structure, etc.).
-The only difference between arms is which `AGENTS.md` is present.
+Each arm is a **shared clone** (`git clone --shared`) of the real repo in a
+temp directory — the agent sees actual source files (`pyproject.toml`,
+directory structure, etc.). The only difference between arms is which
+`AGENTS.md` is present. Unlike `git worktree add`, a shared clone writes
+nothing into the repo's own `.git`, so the eval also runs inside an agent
+sandbox where `.git` is read-only.
 
 The Claude Agent SDK reads `CLAUDE.md`, not `AGENTS.md`, so the harness
-adds a `CLAUDE.md → AGENTS.md` symlink to each arm's worktree. The repo
+adds a `CLAUDE.md → AGENTS.md` symlink to each arm's checkout. The repo
 itself has no `CLAUDE.md`: Claude Code reads `AGENTS.md` natively.
 
 ## Prerequisites
@@ -51,6 +54,11 @@ itself has no `CLAUDE.md`: Claude Code reads `AGENTS.md` natively.
 - **Claude authentication** (one of):
   - Claude Code session (`claude /login`) — Pro/Max subscription
   - `ANTHROPIC_API_KEY` environment variable — API credits
+  - `CLAUDE_CODE_OAUTH_TOKEN` environment variable (from `claude setup-token`)
+    — Pro/Max subscription. Use this or `ANTHROPIC_API_KEY` when running the
+    eval from an agent sandbox: the sandbox usually blocks the macOS keychain
+    or `~/.claude` credentials that a `/login` session stores, and every case
+    then fails with "Not logged in".
 - **Codex authentication** (when using the Codex runtime): a Codex CLI
   session (`codex login`)
 
@@ -159,7 +167,7 @@ Use `output.should_create` directly in assertions.
 
 ## How it works
 
-1. Creates git worktrees — one with `main`'s AGENTS.md, one with
+1. Creates shared clones — one with `main`'s AGENTS.md, one with
    your working tree version. Both are full repo checkouts.
 2. Generates a [promptfoo](https://github.com/promptfoo/promptfoo)
    config for the selected runtime. Claude uses promptfoo's

@@ -21,7 +21,7 @@
 """Airflow skill-eval harness.
 
 Test whether AGENTS.md guidance affects agent decisions by comparing
-arms with and without the guidance. Each arm is a git worktree of the
+arms with and without the guidance. Each arm is a shared clone of the
 real repo — the agent sees actual source files.
 
 Usage:
@@ -157,59 +157,59 @@ def git_show_file(base_branch: str, path: str, dest: Path) -> bool:
     return True
 
 
-def create_worktree(
+def create_arm(
     work_dir: Path,
     name: str,
-    base_branch: str,
+    base_sha: str,
     agents_file: Path | None,
-    worktrees: list[Path],
     skill_name: str | None = None,
     skill_file: Path | None = None,
 ) -> Path:
-    """Create a git worktree arm with the specified AGENTS.md and optional SKILL.md."""
-    wt_dir = work_dir / name
-    result = run(
+    """Create an arm checkout with the specified AGENTS.md and optional SKILL.md.
+
+    A shared clone, unlike ``git worktree add``, writes nothing into the main
+    repo's ``.git``, so the eval also runs where that is read-only, such as an
+    agent sandbox.
+    """
+    arm_dir = work_dir / name
+    for cmd in (
+        ["git", "clone", "--quiet", "--shared", "--no-checkout", str(REPO_ROOT), str(arm_dir)],
+        # Global hooks (e.g. a post-checkout hook) must not run in a throwaway clone.
         [
             "git",
             "-C",
-            str(REPO_ROOT),
-            "worktree",
-            "add",
+            str(arm_dir),
+            "-c",
+            "core.hooksPath=/dev/null",
+            "checkout",
             "--quiet",
             "--detach",
-            str(wt_dir),
-            base_branch,
-        ]
-    )
-    if result.returncode != 0:
-        print(
-            f"Error: 'git worktree add' failed for arm '{name}':\n{result.stderr.strip()}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    # Register before mutating the checkout so cleanup covers this worktree
-    # even if a later step in this function fails.
-    worktrees.append(wt_dir)
+            base_sha,
+        ],
+    ):
+        result = run(cmd)
+        if result.returncode != 0:
+            print(
+                f"Error: '{' '.join(cmd[:4])} ...' failed for arm '{name}':\n{result.stderr.strip()}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
     # The base branch may predate the removal of the tracked CLAUDE.md symlink.
-    (wt_dir / "CLAUDE.md").unlink(missing_ok=True)
+    (arm_dir / "CLAUDE.md").unlink(missing_ok=True)
     if agents_file is None:
-        (wt_dir / "AGENTS.md").unlink(missing_ok=True)
+        (arm_dir / "AGENTS.md").unlink(missing_ok=True)
     else:
-        shutil.copy2(agents_file, wt_dir / "AGENTS.md")
+        shutil.copy2(agents_file, arm_dir / "AGENTS.md")
         # The Claude Agent SDK reads CLAUDE.md only, not AGENTS.md.
-        (wt_dir / "CLAUDE.md").symlink_to("AGENTS.md")
+        (arm_dir / "CLAUDE.md").symlink_to("AGENTS.md")
 
     if skill_name and skill_file:
-        skill_dir = wt_dir / ".agents" / "skills" / skill_name
+        skill_dir = arm_dir / ".agents" / "skills" / skill_name
         skill_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(skill_file, skill_dir / "SKILL.md")
 
-    return wt_dir
-
-
-def remove_worktree(wt_dir: Path) -> None:
-    run(["git", "-C", str(REPO_ROOT), "worktree", "remove", "--force", str(wt_dir)])
+    return arm_dir
 
 
 def build_provider(label: str, working_dir: Path, model: str | None, skill_name: str | None = None) -> dict:
@@ -315,9 +315,8 @@ def main() -> int:
     # Hash before building arms so edits made mid-run aren't recorded as tested.
     guidance_hash = compute_guidance_hash(AGENTS_SRC, CASES_DIR)
 
-    # Temp dir for config and worktrees
+    # Temp dir for config and arm checkouts
     work_dir = Path(tempfile.mkdtemp())
-    worktrees: list[Path] = []
 
     try:
         # promptfoo resolves the selected agent SDK from the config directory
@@ -344,26 +343,20 @@ def main() -> int:
             skill_changed = run(["diff", "-q", str(main_skill), str(skill_src)]).returncode != 0
         need_working = agents_changed or skill_changed
 
-        # Assemble arms. Prune first to self-heal stale worktree registrations
-        # left behind by a previously interrupted run.
-        print("Assembling arms (git worktrees) ...")
-        run(["git", "-C", str(REPO_ROOT), "worktree", "prune"])
+        print("Assembling arms (shared clones) ...")
+        base_sha = run(["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", base_branch]).stdout.strip()
 
-        arm_main = create_worktree(
-            work_dir, "main", base_branch, main_agents, worktrees, skill_name, main_skill
-        )
+        arm_main = create_arm(work_dir, "main", base_sha, main_agents, skill_name, main_skill)
 
         arm_working = None
         if need_working:
-            arm_working = create_worktree(
-                work_dir, "working", base_branch, AGENTS_SRC, worktrees, skill_name, skill_src
-            )
+            arm_working = create_arm(work_dir, "working", base_sha, AGENTS_SRC, skill_name, skill_src)
         else:
             print("  AGENTS.md unchanged — skipping working arm")
 
         arm_baseline = None
         if full_mode:
-            arm_baseline = create_worktree(work_dir, "baseline", base_branch, None, worktrees)
+            arm_baseline = create_arm(work_dir, "baseline", base_sha, None)
 
         # Generate config (JSON — valid promptfoo config, keeps the script stdlib-only)
         def provider(label: str, arm: Path, selected_skill: str | None = None) -> dict:
@@ -441,8 +434,6 @@ def main() -> int:
         return result.returncode
 
     finally:
-        for wt in worktrees:
-            remove_worktree(wt)
         shutil.rmtree(work_dir, ignore_errors=True)
 
 
