@@ -384,7 +384,12 @@ def _build_xcom_binding(value: PlainXComArg, name: str) -> XComBindingEntry:
 
 
 def _build_group_arg_binding(value: MappedArgument, op: DecoratedOperator, name: str) -> ParamBindingEntry:
-    group = next(g for g in op.iter_mapped_task_groups() if g._expand_input is value._input)
+    group = next((g for g in op.iter_mapped_task_groups() if g._expand_input is value._input), None)
+    if group is None:
+        raise ValueError(
+            f"@task.stub task {op.task_id!r} parameter {name!r} reads an expand argument of a "
+            "task group the task is not in"
+        )
     # Only the root task group has no id, and it is never mapped.
     group_id = cast("str", group.group_id)
     entry: ParamBindingEntry = {

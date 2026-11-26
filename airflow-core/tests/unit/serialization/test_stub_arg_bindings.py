@@ -604,6 +604,21 @@ class TestTaskGroupMemberArgBindings:
         ]
         assert build_stub_expand_keys(captured["op"].operator) == {"group": ["b", "a"]}
 
+    def test_group_arg_from_other_group_rejected(self):
+        captured = {}
+
+        @task_group
+        def group(country):
+            captured["country"] = country
+            stub(fn_untyped)(country, 1)
+
+        with DAG(dag_id="d"):
+            group.expand(country=["uk"])
+            outside = stub(fn_untyped)(captured["country"], 1)
+
+        with pytest.raises(ValueError, match="task group the task is not in"):
+            build_arg_bindings(outside.operator)
+
     def test_group_literal_dict_expand_value_rejected(self):
         captured = {}
 
