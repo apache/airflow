@@ -93,10 +93,13 @@ core:
 
         Under systemd, ``forkserver`` and ``spawn`` also rely on the named semaphores they keep in
         ``/dev/shm``. If the component runs as a regular (non-system) user, ``systemd-logind``
-        removes them as soon as that user's last login session ends (``RemoveIPC=yes``, the
-        default), and no worker can be started after that: tasks stay queued and the forkserver
-        logs ``FileNotFoundError``. Use ``fork``, run Airflow as a system user, or set
-        ``RemoveIPC=no`` in ``logind.conf``.
+        removes them as soon as that user's last login session ends (``RemoveIPC=yes``, the default,
+        see `logind.conf <https://www.freedesktop.org/software/systemd/man/latest/logind.conf.html>`__),
+        and no worker can be started after that: tasks stay queued and the forkserver logs
+        ``FileNotFoundError``. Run Airflow as a system user (``useradd --system``), which
+        ``RemoveIPC`` does not touch. Setting this option to ``fork`` also avoids it, with the caveat
+        above. ``RemoveIPC=no`` in ``logind.conf`` works too, but it changes the behaviour for every
+        user on the host.
 
         This can be overridden per component by setting ``mp_start_method`` in the ``[scheduler]``,
         ``[triggerer]`` or ``[dag_processor]`` section.
