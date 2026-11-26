@@ -173,7 +173,6 @@ class _MappedArgBindingDeriver:
         self.resolver = resolver
         self.session = session
         self._sub_indexes: dict[int, dict[str, int]] = {}
-        self._lengths: dict[int, int] = {}
 
     @property
     def dag(self) -> SerializedDAG:
@@ -436,25 +435,11 @@ class _MappedArgBindingDeriver:
         raise UndeliverableMappedArgBindingsError(f"concat() has no element at index {index}")
 
     def _get_length(self, arg: SchedulerXComArg) -> int:
-        """Get the length of *arg* as ``get_task_map_length`` does, loading each upstream length once."""
-        if (length := self._lengths.get(id(arg))) is not None:
-            return length
-        match arg:
-            case SchedulerMapXComArg():
-                length = self._get_length(arg.arg)
-            case SchedulerZipXComArg():
-                lengths = [self._get_length(zipped) for zipped in arg.args]
-                length = max(lengths) if is_arg_set(arg.fillvalue) else min(lengths)
-            case SchedulerConcatXComArg():
-                length = sum(self._get_length(concatenated) for concatenated in arg.args)
-            case _:
-                loaded = get_task_map_length(
-                    arg, self.ti.run_id, producer_contexts=self.producer_contexts, session=self.session
-                )
-                if loaded is None:
-                    raise NotFullyPopulated({repr(arg)})
-                length = loaded
-        self._lengths[id(arg)] = length
+        length = get_task_map_length(
+            arg, self.ti.run_id, producer_contexts=self.producer_contexts, session=self.session
+        )
+        if length is None:
+            raise NotFullyPopulated({repr(arg)})
         return length
 
     def _find_row_map_index(self, producer: Operator, offset: int) -> int:
