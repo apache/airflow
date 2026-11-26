@@ -246,9 +246,9 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-google[apache.beam]
 
 
-====================  =====================================================
+====================  ===============================================================================
 Extra                 Dependencies
-====================  =====================================================
+====================  ===============================================================================
 ``apache.beam``       ``apache-airflow-providers-apache-beam>=6.2.2``
 ``cncf.kubernetes``   ``apache-airflow-providers-cncf-kubernetes>=10.25.0``
 ``fab``               ``apache-airflow-providers-fab>=2.0.0``
@@ -272,7 +272,8 @@ Extra                 Dependencies
 ``standard``          ``apache-airflow-providers-standard``
 ``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
-====================  =====================================================
+``datafusion``        ``datafusion>=50.0.0,<52.0.0``, ``apache-airflow-providers-common-sql>=1.33.0``
+====================  ===============================================================================
 
 Downloading official packages
 -----------------------------

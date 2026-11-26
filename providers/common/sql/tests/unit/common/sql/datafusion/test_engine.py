@@ -338,7 +338,11 @@ class TestDataFusionEngine:
 
         assert engine.registered_tables == {"test_table": "s3://bucket/path/"}
 
-    def test_get_connection_config_delegates_provider_owned_storage(self):
+    @pytest.mark.parametrize(
+        ("conn_id", "storage_type"),
+        [("aws_default", StorageType.S3), ("google_cloud_default", StorageType.GCS)],
+    )
+    def test_get_connection_config_delegates_provider_owned_storage(self, conn_id, storage_type):
         """A storage type owned by a provider package gets a bare ConnectionConfig without fetching the connection."""
         engine = DataFusionEngine()
 
@@ -346,10 +350,10 @@ class TestDataFusionEngine:
             "airflow.providers.common.sql.datafusion.engine.BaseHook.get_connection",
             autospec=True,
         ) as mock_get_connection:
-            result = engine._get_connection_config("aws_default", StorageType.S3)
+            result = engine._get_connection_config(conn_id, storage_type)
 
         mock_get_connection.assert_not_called()
-        assert result.conn_id == "aws_default"
+        assert result.conn_id == conn_id
         assert result.credentials == {}
         assert result.extra_config == {}
 
@@ -357,119 +361,24 @@ class TestDataFusionEngine:
         """A storage type still implemented here has its credentials resolved by the engine."""
         engine = DataFusionEngine()
         mock_conn = MagicMock()
-        mock_conn.conn_id = "google_cloud_default"
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {"key_path": "/path/to/key.json"}
+        mock_conn.conn_id = "wasb_default"
+        mock_conn.conn_type = "wasb"
+        mock_conn.host = None
+        mock_conn.login = "myaccount"
+        mock_conn.password = None
+        mock_conn.extra_dejson = {"sas_token": "?sv=2020-08-04&sp=rl&sig=abc"}
 
         with patch(
             "airflow.providers.common.sql.datafusion.engine.BaseHook.get_connection",
             return_value=mock_conn,
         ):
-            result = engine._get_connection_config("google_cloud_default", StorageType.GCS)
+            result = engine._get_connection_config("wasb_default", StorageType.AZURE)
 
-        assert result.conn_id == "google_cloud_default"
-        assert result.credentials == {"key_path": "/path/to/key.json"}
-
-    def test_get_credentials_gcs_with_key_path(self):
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {"key_path": "/path/to/key.json"}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {"key_path": "/path/to/key.json"}
-        assert extra_config == {}
-
-    def test_get_credentials_gcs_with_keyfile_dict(self):
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {"keyfile_dict": '{"type": "service_account"}'}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {"keyfile_dict": '{"type": "service_account"}'}
-        assert extra_config == {}
-
-    def test_get_credentials_gcs_without_key_path_uses_ambient_auth(self, monkeypatch):
-        monkeypatch.delenv("GOOGLE_APPLICATION_CREDENTIALS", raising=False)
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {}
-        assert extra_config == {}
-
-    def test_get_credentials_gcs_uses_google_application_credentials_env_var(self, monkeypatch):
-        monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/env/key.json")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {"key_path": "/env/key.json"}
-        assert extra_config == {}
-
-    def test_get_credentials_gcs_connection_key_path_takes_priority_over_env_var(self, monkeypatch):
-        monkeypatch.setenv("GOOGLE_APPLICATION_CREDENTIALS", "/env/key.json")
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {"key_path": "/connection/key.json"}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {"key_path": "/connection/key.json"}
-        assert extra_config == {}
-
-    def test_get_credentials_gcs_key_path_and_keyfile_dict_mutually_exclusive(self):
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {"key_path": "/path/to/key.json", "keyfile_dict": "{}"}
-        engine = DataFusionEngine()
-
-        with pytest.raises(ValueError, match="mutually exclusive"):
-            engine._get_credentials(mock_conn)
-
-    @pytest.mark.parametrize(
-        "unsupported_field", ["key_secret_name", "credential_config_file", "impersonation_chain"]
-    )
-    def test_get_credentials_gcs_rejects_unsupported_identity_fields(self, unsupported_field):
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {unsupported_field: "some-value"}
-        engine = DataFusionEngine()
-
-        with pytest.raises(ValueError, match=f"{unsupported_field!r} is not supported"):
-            engine._get_credentials(mock_conn)
-
-    def test_get_credentials_gcs_reads_legacy_extra_prefixed_key_path(self):
-        """Older Airflow connection UIs wrote custom extra fields as
-        extra__google_cloud_platform__<field>; GoogleBaseHook still reads that spelling."""
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {"extra__google_cloud_platform__key_path": "/path/to/key.json"}
-        engine = DataFusionEngine()
-
-        credentials, extra_config = engine._get_credentials(mock_conn)
-
-        assert credentials == {"key_path": "/path/to/key.json"}
-        assert extra_config == {}
-
-    def test_get_credentials_gcs_rejects_legacy_extra_prefixed_unsupported_field(self):
-        mock_conn = MagicMock()
-        mock_conn.conn_type = "google_cloud_platform"
-        mock_conn.extra_dejson = {"extra__google_cloud_platform__impersonation_chain": "some-chain"}
-        engine = DataFusionEngine()
-
-        with pytest.raises(ValueError, match="'impersonation_chain' is not supported"):
-            engine._get_credentials(mock_conn)
+        assert result.conn_id == "wasb_default"
+        assert result.credentials == {
+            "account": "myaccount",
+            "sas_query_pairs": [("sv", "2020-08-04"), ("sp", "rl"), ("sig", "abc")],
+        }
 
     @pytest.mark.parametrize(
         ("password", "extra_dejson", "expected_access_key"),
