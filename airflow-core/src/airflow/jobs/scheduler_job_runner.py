@@ -3328,8 +3328,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self._delete_consumed_asset_records(dag, locked_records=records, session=session)
             return None
         max_event_id = session.scalar(select(func.max(AssetEvent.id)))
-        # The select runs only after create_dagrun; this keeps events queued after this
-        # max query for the next run.
         return records, (
             select(AssetEvent.id.label("event_id"))
             .where(
@@ -3390,7 +3388,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         limit: int | None = None,
         session: Session,
     ) -> Sequence[AssetEvent]:
-        """Select unconsumed events referenced by a Dag's locked ADRQ rows, see the clause builder."""
+        """Select the unconsumed asset events matched by ``_build_consumable_asset_event_clause``."""
         return session.scalars(
             select(AssetEvent)
             .where(_build_consumable_asset_event_clause(dag, locked_records=locked_records))
