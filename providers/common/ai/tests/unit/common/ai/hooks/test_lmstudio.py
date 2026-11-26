@@ -125,6 +125,31 @@ class TestLMStudioBackendLoad:
         assert methods == ["GET"]
 
     @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param("Unexpected endpoint or method. (GET /foo/api/v1/models)", id="error-string"),
+            pytest.param(
+                {"message": "Unexpected endpoint or method. (GET /foo/api/v1/models)"}, id="error-object"
+            ),
+        ],
+    )
+    def test_models_missing_from_a_response_with_an_error_carries_the_error_text_without_loading(self, error):
+        methods: list[str] = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            methods.append(request.method)
+            return httpx2.Response(200, json={"error": error})
+
+        with pytest.raises(
+            ValueError,
+            match=r"'models' of type NoneType, expected a list\. "
+            r"Its error: Unexpected endpoint or method\. \(GET /foo/api/v1/models\)",
+        ):
+            _build_backend(handler).load(timeout=5.0)
+
+        assert methods == ["GET"]
+
+    @pytest.mark.parametrize(
         ("models", "listed"),
         [
             pytest.param(

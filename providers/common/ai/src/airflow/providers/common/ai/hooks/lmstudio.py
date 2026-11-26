@@ -21,7 +21,10 @@ from typing import Any
 
 import httpx2
 
-from airflow.providers.common.ai.utils.readiness_errors import translate_readiness_errors
+from airflow.providers.common.ai.utils.readiness_errors import (
+    extract_error_detail,
+    translate_readiness_errors,
+)
 
 # Endpoints and fields: https://lmstudio.ai/docs/developer/rest/list and
 # https://lmstudio.ai/docs/developer/rest/load
@@ -78,8 +81,9 @@ class LMStudioBackend:
         :raises httpx2.HTTPStatusError: If the server answers with an error status; the message says
             whether listing or loading failed and carries the ``error`` text when the body has one,
             otherwise the start of the response body.
-        :raises ValueError: If the model list is not a JSON object whose ``models`` is a list of objects,
-            or if none of its entries has a ``key`` equal to the model name; nothing is loaded then.
+        :raises ValueError: If the model list is not a JSON object whose ``models`` is a list of objects
+            (the message carries the body's ``error`` text when there is one), or if none of its
+            entries has a ``key`` equal to the model name; nothing is loaded then.
         """
         deadline = time.monotonic() + timeout
         with httpx2.Client(transport=self._transport) as client:
@@ -145,7 +149,10 @@ class LMStudioBackend:
             raise ValueError(f"{prefix} a JSON {type(body).__name__}, expected an object with 'models'.")
         models = body.get("models")
         if not isinstance(models, list):
-            raise ValueError(f"{prefix} 'models' of type {type(models).__name__}, expected a list.")
+            message = f"{prefix} 'models' of type {type(models).__name__}, expected a list."
+            if body.get("error"):
+                message += f" Its error: {extract_error_detail(response)}"
+            raise ValueError(message)
         if not all(isinstance(m, dict) for m in models):
             raise ValueError(f"{prefix} a 'models' list with entries that are not objects.")
         return models
