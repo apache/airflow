@@ -343,6 +343,8 @@ def _prepare_request(request: Request) -> dict:
         server_port = parsed.port
     elif is_https:
         server_port = 443
+    elif parsed.scheme == "http":
+        server_port = 80
     else:
         server_port = request.url.port or 80
 

@@ -29,6 +29,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
 
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
@@ -568,12 +569,21 @@ class TestLoginRouter:
                 80,
                 id="http-default-port",
             ),
+            pytest.param(
+                "http://airflow.example.com",
+                "http",
+                8080,
+                "off",
+                "airflow.example.com",
+                80,
+                id="http-reverse-proxy",
+            ),
         ],
     )
     def test_prepare_request_scheme_and_port(
         self, base_url, req_scheme, req_port, expected_https, expected_host, expected_port
     ):
-        mock_request = Mock()
+        mock_request = Mock(spec=Request)
         mock_request.url.scheme = req_scheme
         mock_request.url.port = req_port
         mock_request.url.path = "/api/v2/auth/login_callback"
