@@ -26,6 +26,7 @@ providers_prefix = "apache-airflow-providers-"
 class DocBuildParams:
     package_filter: tuple[str, ...]
     short_doc_packages: tuple[str, ...]
+    autobuild: bool = False
     one_pass_only: bool = False
     include_commits: bool = False
     fail_on_missing_third_party_inventories: bool = False
@@ -35,6 +36,8 @@ class DocBuildParams:
     @property
     def args_doc_builder(self) -> list[str]:
         doc_args = []
+        if self.autobuild:
+            doc_args.append("--autobuild")
         if self.one_pass_only:
             doc_args.append("--one-pass-only")
         if self.include_commits:
