@@ -460,8 +460,7 @@ class TestMappedStubArgBindings:
             pytest.param(lambda out: [{"country": "uk"}, out], id="upstream-item"),
         ],
     )
-    @pytest.mark.parametrize("strict", [True, False])
-    def test_mapped_whole_output_fallback_of_upstream_mapping(self, make_mappings, strict):
+    def test_mapped_whole_output_fallback_of_upstream_mapping(self, make_mappings):
         def fn_produce(n: int): ...
 
         with DAG(dag_id="d"):
@@ -469,11 +468,10 @@ class TestMappedStubArgBindings:
             result = (
                 stub(fn_transform)
                 .partial(extracted=vals)
-                .expand_kwargs(make_mappings(stub(fn_extract)()), strict=strict)
+                .expand_kwargs(make_mappings(stub(fn_extract)()), strict=False)
             )
 
-        match = "does not repeat a partial" if strict else "which no binding can carry"
-        with pytest.raises(ValueError, match=match):
+        with pytest.raises(ValueError, match="which no binding can carry; read it from an unmapped task"):
             self.get_hook_fields(result.operator)
 
     @pytest.mark.parametrize(

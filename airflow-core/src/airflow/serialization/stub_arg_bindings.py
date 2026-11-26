@@ -491,7 +491,7 @@ def _validate_kwarg_fallbacks(partial_kwargs: Mapping[str, Any], task_id: str) -
             raise ValueError(
                 f"@task.stub task {task_id!r} parameter {name!r} falls back to the whole output of the mapped "
                 f"task {value.operator.task_id!r} when an expand_kwargs() mapping lacks it, which no binding "
-                "can carry; use strict=True or read it from an unmapped task"
+                "can carry; read it from an unmapped task instead"
             )
 
 
