@@ -3316,8 +3316,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         Check an asset-gated Dag's asset condition and collect what a new run consumes.
 
         Returns the locked ADRQ rows, and a select of the event IDs the new run
-        consumes. The select runs later, so it is capped at the largest event ID seen right
-        after the condition check; an event with a lower ID committed after that can still match.
+        consumes. The select runs later, so it is capped at the largest ID among the
+        Dag's consumable events at the condition check; an event with a lower ID
+        committed after that can still match.
         *None* is returned when the condition is not satisfied by the queued
         asset events, in which case no run should be created yet.
         """
@@ -3327,13 +3328,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if not self._is_asset_condition_met(dag, locked_records=records, session=session):
             self._delete_consumed_asset_records(dag, locked_records=records, session=session)
             return None
-        max_event_id = session.scalar(select(func.max(AssetEvent.id)))
+        consumable_clause = _build_consumable_asset_event_clause(dag, locked_records=records)
+        max_event_id = session.scalar(select(func.max(AssetEvent.id)).where(consumable_clause))
         return records, (
             select(AssetEvent.id.label("event_id"))
-            .where(
-                _build_consumable_asset_event_clause(dag, locked_records=records),
-                AssetEvent.id <= max_event_id,
-            )
+            .where(consumable_clause, AssetEvent.id <= max_event_id)
             .order_by(AssetEvent.timestamp.asc(), AssetEvent.id.asc())
         )
 

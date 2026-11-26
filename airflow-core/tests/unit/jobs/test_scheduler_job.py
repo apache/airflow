@@ -13951,12 +13951,22 @@ def test_create_dagruns_asset_gated_event_queued_during_association_waits_for_ne
         EmptyOperator(task_id="dummy_task")
     dag_model = dag_maker.dag_model
     asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
-    first_event = AssetEvent(id=1000, asset_id=asset_id, timestamp=logical_date)
+    first_event = AssetEvent(asset_id=asset_id, timestamp=logical_date)
     session.add(first_event)
     session.flush()
     session.add(
         AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=first_event.id)
     )
+    # An event outside this Dag's assets with the highest ID: it must not raise the cap
+    # on what the run consumes.
+    other_asset = AssetModel(
+        name="asset-gated-late-event-other", uri="test://asset-gated-late-event-other", group="asset"
+    )
+    session.add(other_asset)
+    session.flush()
+    base_event_id = session.scalars(select(func.max(AssetEvent.id))).one()
+    second_event_id = base_event_id + 1
+    session.add(AssetEvent(id=base_event_id + 2, asset_id=other_asset.id, timestamp=logical_date))
     dag_model.next_dagrun = logical_date
     dag_model.next_dagrun_data_interval = (logical_date, logical_date)
     dag_model.next_dagrun_create_after = logical_date
@@ -13966,7 +13976,7 @@ def test_create_dagruns_asset_gated_event_queued_during_association_waits_for_ne
 
     def queue_second_event_then_associate(*, dag_run, asset_event_ids_select, session):
         if not second_event_ids:
-            second_event = AssetEvent(id=2000, asset_id=asset_id, timestamp=logical_date)
+            second_event = AssetEvent(id=second_event_id, asset_id=asset_id, timestamp=logical_date)
             session.add(second_event)
             session.flush()
             second_event_ids.append(second_event.id)
