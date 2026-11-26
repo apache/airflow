@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2026-11-26T19:35:01.159270
+# This constraints file was automatically generated on 2026-11-26T21:36:47.457582
 # via `uv pip install --resolution highest` for the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -321,7 +321,7 @@ facebook_business==27.0.1
 fastapi-cli==0.0.34
 fastapi==0.165.0
 fastavro==1.13.1
-fastcore==2.2.45
+fastcore==2.2.46
 fasteners==0.20
 fastjsonschema==2.22.3
 filelock==4.3.0
@@ -380,7 +380,7 @@ google-cloud-redis==2.23.0
 google-cloud-resource-manager==1.19.0
 google-cloud-run==0.16.3
 google-cloud-secret-manager==2.32.0
-google-cloud-spanner==3.72.0
+google-cloud-spanner==3.72.1
 google-cloud-speech==2.41.0
 google-cloud-storage-control==1.17.0
 google-cloud-storage-transfer==1.22.0
