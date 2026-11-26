@@ -172,7 +172,7 @@ class _MappedArgBindingDeriver:
         self.resolver = resolver
         self.session = session
         self._sub_indexes: dict[int, dict[str, int]] = {}
-        self._lengths: dict[int, int] = {}
+        self._lengths: dict[int, tuple[SchedulerXComArg, int]] = {}
 
     @property
     def dag(self) -> SerializedDAG:
@@ -430,13 +430,15 @@ class _MappedArgBindingDeriver:
         raise UndeliverableMappedArgBindingsError(f"concat() has no element at index {index}")
 
     def _get_length(self, arg: SchedulerXComArg) -> int:
-        if (length := self._lengths.get(id(arg))) is None:
-            length = get_task_map_length(
-                arg, self.ti.run_id, producer_contexts=self.producer_contexts, session=self.session
-            )
-            if length is None:
-                raise NotFullyPopulated({repr(arg)})
-            self._lengths[id(arg)] = length
+        if (cached := self._lengths.get(id(arg))) is not None:
+            return cached[1]
+        length = get_task_map_length(
+            arg, self.ti.run_id, producer_contexts=self.producer_contexts, session=self.session
+        )
+        if length is None:
+            raise NotFullyPopulated({repr(arg)})
+        # Keep the arg alive so its id cannot be reused by another arg while cached.
+        self._lengths[id(arg)] = (arg, length)
         return length
 
     def _find_row_map_index(self, producer: Operator, offset: int) -> int:

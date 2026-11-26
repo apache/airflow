@@ -1393,9 +1393,10 @@ class TestTIRunState:
             def regions(): ...
 
             @task.stub
-            def transform(pair: list, scale: int): ...
+            def transform(country: str, region: str): ...
 
-            transform.expand(pair=countries().zip(regions()), scale=[1, 2])
+            # Every parameter locates the same zip() element, so each length is needed more than once.
+            transform.expand_kwargs(countries().zip(regions()).map(_to_kwargs))
 
         dr = dag_maker.create_dagrun()
         self._push_return_value(dr, "countries", ["uk", "fr"], session=session)
@@ -1404,7 +1405,7 @@ class TestTIRunState:
         response = self._run_stub_ti(client, dr.get_task_instance("transform"), map_index=1, session=session)
         assert response.status_code == 200
         requested = [call.args[0] for call in mock_get_task_map_length.call_args_list]
-        assert len({id(arg) for arg in requested}) == len(requested) == 3
+        assert len({id(arg) for arg in requested}) == len(requested) == 2
 
     @mock.patch("airflow.models.serialized_dag._COMPRESS_SERIALIZED_DAGS", True)
     def test_ti_run_decomposes_multi_kwarg_mapped_task_group_in_dag_file_order(
