@@ -130,11 +130,11 @@ def create_app(enable_plugins: bool):
         is_fab_auth_manager = isinstance(get_auth_manager(), FabAuthManager)
         if enable_plugins:
             init_plugins(flask_app)
-        elif is_fab_auth_manager:
+        if is_fab_auth_manager:
+            # The plugins app serves the FAB login views too, so its sessions follow the same
+            # ``[fab]`` session settings as the FAB auth manager app.
             init_airflow_session_interface(flask_app, db)
             init_session_max_lifetime(flask_app)
-        if is_fab_auth_manager:
-            # The plugins app reads the FAB login session too, with the ``securecookie`` backend.
             init_session_token_generation(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_wsgi_middleware(flask_app)
