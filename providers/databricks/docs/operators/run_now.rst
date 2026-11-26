@@ -126,8 +126,11 @@ On retry the operator checks the prior run's state:
 
 * if it is still running, the operator reconnects and continues polling
 * if it already succeeded, the operator returns immediately without triggering a new run
-* if it failed terminally, or the run no longer exists because its history expired, the operator
-  triggers a fresh run
+* if it failed or was canceled, the operator repairs that run on Airflow 3.5 and later, rerunning
+  only the failed tasks. It triggers a fresh run instead when ``resume_on_retry=False``, when
+  ``cancel_previous_runs=True``, when ``databricks_repair_reason_new_settings`` is set and the
+  failure matches none of its reasons, or on Airflow below 3.5
+* if the run no longer exists because its history expired, the operator triggers a fresh run
 
 This avoids triggering the same Databricks job twice when a worker is lost mid-run, which is common
 for long-running jobs.
@@ -166,7 +169,7 @@ attempt does depends on the state of the Databricks run at that point:
      - Returns right away without triggering another one.
    * - Failed or canceled
      - Triggers a new job run.
-     - Triggers a new job run.
+     - Repairs the run (Airflow 3.5+), except in the cases listed above, which trigger a new job run.
 
 With ``deferrable=True``, the operator does not store the run id, so the next attempt triggers a
 new job run whether or not task state was kept.

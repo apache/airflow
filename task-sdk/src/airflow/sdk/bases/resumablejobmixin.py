@@ -53,8 +53,13 @@ class ResumeDecision(NamedTuple):
     """
     Result of :meth:`ResumableJobMixin.get_resume_decision`.
 
-    ``external_id`` is the stored job to reconnect to or take the result of. On ``submit`` it is the
-    previous job that ended without success, or ``None`` when there is none.
+    ``external_id`` is the stored job to reconnect to or take the result of. On ``resume`` it is the
+    failed job to resume. On ``submit`` it is the previous job that ended without success, or ``None``
+    when there is none.
+
+    ``status`` is set only on ``resume``: the failed job's raw status from ``get_job_status``, which
+    :meth:`ResumableJobMixin.resume_stored_job` passes to ``resume_failed_job``. It is ``None`` for
+    every other action.
     """
 
     action: Literal["reconnect", "already_succeeded", "resume", "submit"]

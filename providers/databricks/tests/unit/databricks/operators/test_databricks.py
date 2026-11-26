@@ -3691,6 +3691,20 @@ class TestDatabricksRunNowOperatorDurable:
 
     @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_on_kill_cancels_run_whose_repair_reply_was_lost(self, db_mock_class):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.get_latest_repair_id.return_value = None
+        db_mock.repair_run.side_effect = TimeoutError("read timed out")
+
+        with pytest.raises(TimeoutError):
+            op.resume_failed_job(RUN_ID, "TERMINATED:FAILED", self._context())
+        op.on_kill()
+
+        db_mock.cancel_run.assert_called_once_with(RUN_ID)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_repair_request_carries_latest_repair_id_and_job_parameters(self, db_mock_class):
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, job_parameters={"region": "eu"})
         db_mock = db_mock_class.return_value

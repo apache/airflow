@@ -231,7 +231,9 @@ Call these methods before ``defer()`` instead:
 
 * ``get_resume_decision(context)`` checks the stored job and returns a
   :class:`~airflow.sdk.ResumeDecision`. Its ``action`` is ``"submit"``, ``"reconnect"``,
-  ``"already_succeeded"`` or ``"resume"``. It never submits, resumes or polls. It records a reconnect
+  ``"already_succeeded"`` or ``"resume"``. It never submits, resumes or polls. On ``"resume"``,
+  ``external_id`` is the failed job and ``status`` is its raw status from ``get_job_status``.
+  ``status`` is ``None`` for every other action. It records a reconnect
   or an already succeeded job for the :ref:`durable execution banner <sdk-resumable-job-mixin-banner>`.
 * ``resume_stored_job(context, decision)`` resumes the failed job on a ``"resume"`` decision and
   returns the id to wait on, or ``None`` when you should submit a new job. It records the resume for

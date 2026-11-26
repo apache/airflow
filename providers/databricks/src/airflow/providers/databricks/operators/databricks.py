@@ -1614,6 +1614,8 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
             repair_json["latest_repair_id"] = latest_repair_id
         if "job_parameters" in self._merged_json:
             repair_json["job_parameters"] = self._merged_json["job_parameters"]
+        # set this before repairing so on_kill can cancel the run while a lost reply is re-checked.
+        self.run_id = run_id
         self._hook.repair_run(repair_json)
         return run_id
 
