@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"log/slog"
 	"runtime/debug"
+	"sort"
 	"time"
 
 	"github.com/apache/airflow/go-sdk/internal/bundle"
@@ -183,22 +184,20 @@ func convertArgBindings(specsPtr *genmodels.ArgBindings) ([]binding.Arg, error) 
 		if !ok {
 			return nil, fmt.Errorf("arg_bindings[%d]: unexpected wire shape %T", i, raw)
 		}
-		name, ok := m["name"].(string)
-		if !ok || name == "" {
+		kind, _ := m["kind"].(string)
+		name, _ := m["name"].(string)
+		if kind == "sequence" || kind == "tuple" {
+			return nil, errMappedTaskNotImplemented(i, name, fmt.Sprintf("binding kind %q", kind))
+		}
+		if key := findUnboundBindingKey(kind, m); key != "" {
+			return nil, errMappedTaskNotImplemented(i, name, key)
+		}
+		if name == "" {
 			return nil, fmt.Errorf("arg_bindings[%d]: missing or empty name", i)
 		}
 		valueSchema, err := argValueSchema(m["value_schema"])
 		if err != nil {
 			return nil, fmt.Errorf("arg_bindings[%d] (%q): %w", i, name, err)
-		}
-		kind, _ := m["kind"].(string)
-		if kind == "sequence" || kind == "tuple" {
-			return nil, errMappedTaskNotImplemented(i, name, fmt.Sprintf("binding kind %q", kind))
-		}
-		if kind == "xcom" || kind == "literal" {
-			if field := findUnsupportedBindingField(m); field != "" {
-				return nil, errMappedTaskNotImplemented(i, name, field)
-			}
 		}
 		switch kind {
 		case "xcom":
@@ -245,20 +244,31 @@ func errMappedTaskNotImplemented(i int, name, what string) error {
 	)
 }
 
-// unsupportedBindingFields resolve an argument per map index, which this SDK does not do yet.
-// A literal never carries map_index or element_index, so one list serves both kinds.
-var unsupportedBindingFields = []string{
-	"map_index",
-	"element_index",
-	"apply_map",
-	"kwarg",
-	"fallback",
+// The supervisor writes every unset field as null or false, so only those values are skipped.
+var boundBindingKeys = map[string]map[string]bool{
+	"xcom": {"kind": true, "name": true, "task_id": true, "value_schema": true},
+	"literal": {
+		"kind":         true,
+		"name":         true,
+		"value":        true,
+		"value_schema": true,
+		"from_default": true,
+	},
 }
 
-func findUnsupportedBindingField(m map[string]any) string {
-	for _, field := range unsupportedBindingFields {
-		if v := m[field]; v != nil && v != false {
-			return field
+func findUnboundBindingKey(kind string, m map[string]any) string {
+	bound, ok := boundBindingKeys[kind]
+	if !ok {
+		return ""
+	}
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if v := m[key]; !bound[key] && v != nil && v != false {
+			return key
 		}
 	}
 	return ""

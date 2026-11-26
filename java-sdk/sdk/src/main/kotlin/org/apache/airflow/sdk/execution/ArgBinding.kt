@@ -68,15 +68,16 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
   val seen = mutableSetOf<String>()
   return raw.map { entry ->
     check(entry is Map<*, *>) { "arg_bindings entry is not a map: $entry" }
-    val name = checkNotNull(entry["name"] as? String) { "arg_bindings entry has no name: $entry" }
-    check(seen.add(name)) { "arg_bindings entries have duplicate name: '$name'" }
     val kind = entry["kind"]
-    if (kind == "sequence" || kind == "tuple") error(mappedTaskNotImplemented(name, "binding kind '$kind'"))
-    if (kind == "literal" || kind == "xcom") {
-      UNSUPPORTED_FIELDS.firstOrNull { entry[it] != null && entry[it] != false }?.let {
-        error(mappedTaskNotImplemented(name, it))
+    val label = entry["name"] as? String ?: "?"
+    if (kind == "sequence" || kind == "tuple") error(mappedTaskNotImplemented(label, "binding kind '$kind'"))
+    BOUND_KEYS[kind]?.let { bound ->
+      entry.entries.firstOrNull { (key, value) -> key !in bound && value != null && value != false }?.let {
+        error(mappedTaskNotImplemented(label, it.key.toString()))
       }
     }
+    val name = checkNotNull(entry["name"] as? String) { "arg_bindings entry has no name: $entry" }
+    check(seen.add(name)) { "arg_bindings entries have duplicate name: '$name'" }
     when (kind) {
       "literal" ->
         ArgBinding.Literal(
@@ -96,11 +97,12 @@ internal fun decodeArgBindings(raw: Any?): List<ArgBinding> {
   }
 }
 
-/**
- * Fields that resolve an argument per map index in a way this SDK does not
- * support yet; ignoring one would bind the argument to the wrong value.
- */
-private val UNSUPPORTED_FIELDS = listOf("apply_map", "kwarg", "fallback")
+// The supervisor writes every unset field as null or false, so only those values are skipped.
+private val BOUND_KEYS: Map<Any?, Set<String>> =
+  mapOf(
+    "xcom" to setOf("kind", "name", "task_id", "value_schema", "map_index", "element_index"),
+    "literal" to setOf("kind", "name", "value", "value_schema", "from_default"),
+  )
 
 private fun mappedTaskNotImplemented(
   name: String,

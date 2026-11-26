@@ -101,6 +101,7 @@ export async function resolveArgs(
   const byFold = new Map<string, string>();
   let pullsUpstream = false;
   for (const binding of bindings) {
+    checkBindable(binding);
     const name = bindingName(binding);
     const fold = foldArgName(name);
     const clash = byFold.get(fold);
@@ -112,7 +113,6 @@ export async function resolveArgs(
     }
     byFold.set(fold, name);
     names.push(name);
-    checkBindable(binding);
     pullsUpstream ||= binding.kind === "xcom";
   }
 
@@ -152,13 +152,14 @@ function literalValue(value: unknown): JsonValue {
 
 /** Refuse a binding this SDK cannot honour, before any of them is resolved. */
 function checkBindable(binding: TaskArgBinding): void {
-  const name = bindingName(binding);
+  // Only for messages: resolveArgs refuses a missing name after the key check below.
+  const name = String(binding.name);
   if (binding.kind === "xcom") {
-    checkSupportedFields(binding);
+    checkBoundKeys(binding, XCOM_KEYS);
     return;
   }
   if (binding.kind === "literal") {
-    checkSupportedFields(binding);
+    checkBoundKeys(binding, LITERAL_KEYS);
     checkExactInteger(name, literalValue(binding.value), binding.value_schema);
     return;
   }
@@ -175,25 +176,23 @@ function checkBindable(binding: TaskArgBinding): void {
   );
 }
 
-/**
- * Fields that resolve an argument per map index, which this SDK does not do yet.
- * A literal never carries `map_index` or `element_index`, so one list serves both kinds.
- */
-const UNSUPPORTED_FIELDS = [
-  "map_index",
-  "element_index",
-  "apply_map",
-  "kwarg",
-  "fallback",
-] as const;
+const XCOM_KEYS: ReadonlySet<string> = new Set(["kind", "name", "task_id", "value_schema"]);
+const LITERAL_KEYS: ReadonlySet<string> = new Set([
+  "kind",
+  "name",
+  "value",
+  "value_schema",
+  "from_default",
+]);
 
-/** Refuse a binding carrying a field that ignoring would bind to the wrong value. */
-function checkSupportedFields(binding: XComArgBinding | LiteralArgBinding): void {
-  const fields: Partial<Record<(typeof UNSUPPORTED_FIELDS)[number], unknown>> = binding;
-  for (const field of UNSUPPORTED_FIELDS) {
-    const value = fields[field];
-    if (value == null || value === false) continue;
-    throw mappedTaskNotImplemented(String(binding.name), field);
+// The supervisor writes every unset field as null or false, so only those values are skipped.
+function checkBoundKeys(
+  binding: XComArgBinding | LiteralArgBinding,
+  bound: ReadonlySet<string>,
+): void {
+  for (const [key, value] of Object.entries(binding)) {
+    if (bound.has(key) || value == null || value === false) continue;
+    throw mappedTaskNotImplemented(String(binding.name), key);
   }
 }
 
