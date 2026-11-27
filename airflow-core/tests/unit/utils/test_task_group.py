@@ -661,6 +661,37 @@ def test_dag_edges_setup_teardown(dag_maker):
     ]
 
 
+def test_dag_edges_computes_group_roots_and_leaves_once(monkeypatch):
+    """Roots and leaves are computed once per group, not once per edge between two groups."""
+    with DAG("test_dag_edges_roots_leaves_once", schedule=None, start_date=DEFAULT_DATE) as dag:
+        with TaskGroup("group_a") as group_a:
+            [EmptyOperator(task_id=f"a{i}") for i in range(4)]
+        with TaskGroup("group_b") as group_b:
+            [EmptyOperator(task_id=f"b{i}") for i in range(4)]
+        group_a >> group_b
+
+    serialized = create_scheduler_dag(dag)
+
+    calls: dict[tuple[str, str | None], int] = {}
+    original_get_roots = SerializedTaskGroup.get_roots
+    original_get_leaves = SerializedTaskGroup.get_leaves
+
+    def counting_get_roots(self):
+        calls[("roots", self.group_id)] = calls.get(("roots", self.group_id), 0) + 1
+        return original_get_roots(self)
+
+    def counting_get_leaves(self):
+        calls[("leaves", self.group_id)] = calls.get(("leaves", self.group_id), 0) + 1
+        return original_get_leaves(self)
+
+    monkeypatch.setattr(SerializedTaskGroup, "get_roots", counting_get_roots)
+    monkeypatch.setattr(SerializedTaskGroup, "get_leaves", counting_get_leaves)
+
+    dag_edges(serialized)
+
+    assert calls == {("leaves", "group_a"): 1, ("roots", "group_b"): 1}
+
+
 def test_dag_edges_setup_teardown_nested(dag_maker):
     from airflow.providers.standard.operators.empty import EmptyOperator
     from airflow.sdk import task, task_group
