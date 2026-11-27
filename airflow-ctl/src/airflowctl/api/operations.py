@@ -901,6 +901,10 @@ class TaskInstancesOperations(BaseOperations):
         path = _build_task_instance_path(
             dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
         )
+        if region_id is not None and (map_index is None or map_index < 0):
+            # The unmapped endpoint refuses a mapped task instance, which a region alone can select
+            # (a mapped task inside a loop). Like the UI, address it through the mapped one with -1.
+            path = f"{path}/-1"
         self.response = self.client.get(
             path,
             params=_build_query_params(region_id=region_id, region_index=region_index),

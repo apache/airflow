@@ -468,7 +468,7 @@ ARG_REGION_ID = Arg(
     type=uuid.UUID,
     help=(
         "The region of the task instance, needed for one inside a task loop (pass it with --region-index). "
-        "'airflowctl tasks states-for-dag-run' lists each task instance's region"
+        "'airflowctl tasks states-for-dag-run' lists the region of each task instance in a loop"
     ),
 )
 ARG_REGION_INDEX = Arg(

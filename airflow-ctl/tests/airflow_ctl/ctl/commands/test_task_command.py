@@ -1116,7 +1116,7 @@ class TestLogs:
         )
 
     def test_logs_with_region(self, capsys):
-        api_client = mock.MagicMock()
+        api_client = mock.MagicMock(spec=Client)
         api_client.task_instances.logs.return_value = self._make_log_response(["line"])
 
         task_command.logs(
@@ -1291,8 +1291,10 @@ def test_region_id_and_index_must_be_passed_together(command, argv, api_method, 
     getattr(api_client.task_instances, api_method).assert_not_called()
 
 
-@pytest.mark.parametrize(("command", "argv", "api_method"), TASK_INSTANCE_COMMANDS)
-def test_region_id_must_be_a_uuid(command, argv, api_method, capsys):
+@pytest.mark.parametrize(
+    "argv", [pytest.param(param.values[1], id=param.id) for param in TASK_INSTANCE_COMMANDS]
+)
+def test_region_id_must_be_a_uuid(argv, capsys):
     with pytest.raises(SystemExit, match="2"):
         cli_parser.get_parser().parse_args([*argv, "--region-id", "not-a-uuid", "--region-index", "2"])
 
