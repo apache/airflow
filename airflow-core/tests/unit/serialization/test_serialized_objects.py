@@ -654,6 +654,34 @@ def test_serialized_dag_mapped_task_has_task_concurrency_limits(dag_maker, concu
     assert lazy_serialized_dag.has_task_concurrency_limits
 
 
+@pytest.mark.parametrize(
+    ("partial_kwargs", "expected"),
+    [
+        pytest.param({}, "dag-owner", id="owner-from-default-args"),
+        pytest.param({"owner": "task-owner"}, "task-owner", id="owner-on-partial"),
+    ],
+)
+@pytest.mark.db_test
+def test_serialized_dag_owner_includes_mapped_task(dag_maker, partial_kwargs, expected):
+    with dag_maker(default_args={"owner": "dag-owner"}) as dag:
+        BashOperator.partial(task_id="mapped", **partial_kwargs).expand(bash_command=["echo 1", "echo 2"])
+
+    lazy_serialized_dag = LazyDeserializedDAG(data=DagSerialization.to_dict(dag))
+
+    assert lazy_serialized_dag.owner == expected
+
+
+@pytest.mark.db_test
+def test_serialized_dag_owner_mixes_mapped_and_unmapped_tasks(dag_maker):
+    with dag_maker() as dag:
+        BashOperator(task_id="unmapped", bash_command="echo 1", owner="owner-a")
+        BashOperator.partial(task_id="mapped", owner="owner-b").expand(bash_command=["echo 1"])
+
+    lazy_serialized_dag = LazyDeserializedDAG(data=DagSerialization.to_dict(dag))
+
+    assert sorted(lazy_serialized_dag.owner.split(", ")) == ["owner-a", "owner-b"]
+
+
 def test_hash_property():
     from airflow.models.serialized_dag import SerializedDagModel
 
