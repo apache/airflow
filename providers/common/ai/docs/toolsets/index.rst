@@ -53,6 +53,11 @@ with is resolved in the worker and is not part of any of that.
    * - :doc:`MCPToolset <mcp>`
      - Every tool the MCP server behind ``mcp_conn_id`` exposes
      - ``.filtered()`` to offer only some of them
+   * - :doc:`AirflowSkills <skills>`
+     - ``SKILL.md`` instruction bundles that the model loads when it needs one, plus tools
+       to read a skill's files and run its scripts
+     - ``scripts=None`` to stop skill scripts running on the worker; ``resources=False``;
+       ``exclude_resources``; ``include`` / ``exclude`` to choose the skills
    * - :doc:`AgentSkillsToolset <skills>` (deprecated)
      - ``SKILL.md`` instruction bundles that the model loads when it needs one. Use the
        ``AirflowSkills`` capability instead; see :ref:`agent-skills-migration`
@@ -222,6 +227,10 @@ making on purpose rather than inheriting.
      - ``mcp_conn_id``, unless ``token_provider`` or ``env_provider`` supplies
        one from elsewhere
      - Remote server, or a child process on the worker host for ``stdio``
+   * - ``AirflowSkills``
+     - ``GitSkills.conn_id`` for private repositories; none for local directories
+     - Worker process; a skill script runs as a subprocess of the worker with the worker's
+       environment
    * - ``AgentSkillsToolset`` (deprecated)
      - ``GitSkills.conn_id`` for private repositories; none for local directories
      - Worker process
@@ -287,6 +296,8 @@ the call. What counts differs by toolset:
 - ``ObjectStorageToolset`` counts invalid arguments only. A path that does not exist or
   cannot be read goes back to the model as a failed result without using the budget;
   bound repeated failed reads with ``usage_limits``.
+- ``AirflowSkills`` counts a failed call to a skills tool, such as a resource name
+  that does not exist.
 - ``AgentSkillsToolset`` counts a failed call to a skills tool, such as a resource name
   that does not exist.
 
