@@ -181,6 +181,7 @@ class TestCliConnectionCommands:
             port=None,
             extra=None,
             description="",
+            team_name=None,
         )
 
     def test_import_preserves_schema(self, tmp_path, monkeypatch):
@@ -203,6 +204,33 @@ class TestCliConnectionCommands:
             entity = request_body["actions"][0]["entities"][0]
             assert entity["schema"] == "warehouse"
             assert "schema_" not in entity
+            return httpx.Response(200, json=self.bulk_response_success.model_dump())
+
+        api_client = Client(
+            base_url="test://server",
+            transport=httpx.MockTransport(handle_request),
+            token="",
+            kind=ClientKind.CLI,
+        )
+
+        connection_command.import_(
+            self.parser.parse_args(["connections", "import", json_path.as_posix()]),
+            api_client=api_client,
+        )
+
+    def test_import_forwards_team_name(self, tmp_path, monkeypatch):
+        """A team-owned connection keeps its team instead of being imported with a null team_name."""
+        monkeypatch.chdir(tmp_path)
+        json_path = tmp_path / self.export_file_name
+        json_path.write_text(
+            json.dumps(
+                {self.connection_id: {"conn_type": "postgres", "host": "test_host", "team_name": "data-team"}}
+            )
+        )
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            entity = json.loads(request.content.decode())["actions"][0]["entities"][0]
+            assert entity["team_name"] == "data-team"
             return httpx.Response(200, json=self.bulk_response_success.model_dump())
 
         api_client = Client(
