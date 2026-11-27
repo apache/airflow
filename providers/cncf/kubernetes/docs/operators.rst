@@ -52,6 +52,67 @@ dependencies that are not available through the public PyPI repository. It also 
 YAML file using the ``pod_template_file`` parameter.
 Ultimately, it allows Airflow to act a job orchestrator - no matter the language those jobs are written in.
 
+OpenLineage pod identities
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+When the optional OpenLineage provider and client are installed and OpenLineage emission is enabled,
+``KubernetesPodOperator`` reports the pod it launches or actually reattaches to as **workload** identity.
+This is distinct from the **worker** pod running the Airflow task. The worker can be in a different
+namespace or cluster, or need not be a Kubernetes pod at all.
+
+The workload identity uses the standard OpenLineage ``tags`` run facet
+(``openlineage.client.facet_v2.tags_run.TagsRunFacet``), with exactly these two entries from this operator:
+
+.. code-block:: json
+
+    {
+      "tags": [
+        {
+          "key": "airflow.workload.pod.name",
+          "value": "actual-workload-pod-name",
+          "source": "KubernetesPodOperator"
+        },
+        {
+          "key": "airflow.workload.pod.namespace",
+          "value": "actual-workload-namespace",
+          "source": "KubernetesPodOperator"
+        }
+      ]
+    }
+
+The client supplies the published, immutable standard
+`TagsRunFacet schema <https://openlineage.io/spec/facets/1-0-0/TagsRunFacet.json>`__; this is not a
+custom facet. The initial ``START`` event omits workload identity because pod submission has not
+yet happened. Normal worker-side ``COMPLETE`` and ``FAIL`` extraction includes these tags only
+when both the actual pod name and namespace are known. Failed creation does not report the
+requested pod name or a namespace default as if a pod had been created.
+
+Identity is captured from the successful Kubernetes creation response, an actual reattachment,
+or the existing trigger event on deferrable re-entry. It remains available after normal pod cleanup
+and when a pod has already been deleted before re-entry (including a ``404`` response). The feature
+does not change whether those execution paths succeed or fail. Each execution attempt resets its
+in-memory identity; mapped task instances have separate identities. A retry may report the same
+pod only if the operator actually reattaches to it. No XCom fallback is used to recover identity
+from another attempt or mapped task instance.
+
+This metadata adds no Kubernetes API lookups, cluster enumeration, or RBAC permissions. It does
+not change submission, cleanup, retries, or deferral. Ordinary KubernetesPodOperator import and
+execution do not require installing OpenLineage. Terminal events emitted outside the executing
+worker's normal completion or failure path, such as scheduler-side external failure handling or
+an abrupt worker loss, are not guaranteed to have workload tags. The triggerer does not emit this
+operator facet itself; the resumed worker extracts it.
+
+Worker identity remains separate in the OpenLineage ``environmentVariables`` run facet: opt in
+to ``POD_NAME`` and ``POD_NAMESPACE`` in the OpenLineage environment-variable configuration and
+populate those variables on task-running workers using the Kubernetes Downward API. These values
+identify the worker, not the launched workload; do not substitute scheduler or triggerer pod
+variables. Workload tags do not enable worker environment-variable collection globally.
+
+The source baseline for this contract is Airflow ``3.5.0-dev``, Kubernetes provider ``11.0.0-dev``,
+and OpenLineage provider ``2.21.0-dev``; this is not an older-version compatibility matrix.
+This contract does not claim support for Kubernetes Job or Spark operators, or provide Datadog
+ingestion mappings, UI links, or infrastructure discovery.
+
 Debugging KubernetesPodOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

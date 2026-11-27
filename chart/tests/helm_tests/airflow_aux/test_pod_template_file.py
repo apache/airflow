@@ -1257,6 +1257,26 @@ class TestPodTemplateFile:
             "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
         } in jmespath.search("spec.containers[0].env", docs[0])
 
+    @pytest.mark.parametrize("api_version", [None, "v1"])
+    def test_should_add_worker_pod_field_refs(self, api_version):
+        env = [
+            {"name": "POD_NAME", "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}}},
+            {"name": "POD_NAMESPACE", "valueFrom": {"fieldRef": {"fieldPath": "metadata.namespace"}}},
+        ]
+        if api_version is not None:
+            for variable in env:
+                variable["valueFrom"]["fieldRef"]["apiVersion"] = api_version
+
+        docs = render_chart(
+            values={"executor": "KubernetesExecutor", "workers": {"kubernetes": {"env": env}}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        rendered_env = jmespath.search("spec.containers[0].env", docs[0])
+        for variable in env:
+            assert variable in rendered_env
+
     def test_should_set_dumb_init_setsid_for_warm_shutdown(self):
         """Pod-termination signals must reach only the supervisor so a running task can warm-shut-down."""
         docs = render_chart(

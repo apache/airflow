@@ -336,6 +336,25 @@ class TestWorker:
             "valueFrom": {"configMapKeyRef": {"name": "my-config-map", "key": "my-key"}},
         } in jmespath.search("spec.template.spec.containers[0].env", docs[0])
 
+    @pytest.mark.parametrize("api_version", [None, "v1"])
+    def test_should_add_worker_pod_field_refs(self, api_version):
+        env = [
+            {"name": "POD_NAME", "valueFrom": {"fieldRef": {"fieldPath": "metadata.name"}}},
+            {"name": "POD_NAMESPACE", "valueFrom": {"fieldRef": {"fieldPath": "metadata.namespace"}}},
+        ]
+        if api_version is not None:
+            for variable in env:
+                variable["valueFrom"]["fieldRef"]["apiVersion"] = api_version
+
+        docs = render_chart(
+            values={"executor": "CeleryExecutor", "workers": {"celery": {"env": env}}},
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        rendered_env = jmespath.search("spec.template.spec.containers[0].env", docs[0])
+        for variable in env:
+            assert variable in rendered_env
+
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={

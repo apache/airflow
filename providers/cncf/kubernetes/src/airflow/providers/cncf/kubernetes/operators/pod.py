@@ -108,6 +108,7 @@ if TYPE_CHECKING:
 
     from airflow.providers.cncf.kubernetes.hooks.kubernetes import PodOperatorHookProtocol
     from airflow.providers.cncf.kubernetes.secret import Secret
+    from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.sdk import Context
 
 log = logging.getLogger(__name__)
@@ -507,6 +508,7 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
+        self._openlineage_pod_identity: tuple[str, str] | None = None
         self.skip_on_exit_code = (
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
@@ -775,6 +777,7 @@ class KubernetesPodOperator(BaseOperator):
                         pod_phase,
                         pod_reason,
                     )
+                    self._capture_openlineage_pod_identity(pod.metadata.name, pod.metadata.namespace)
                     return pod
 
                 if pod_phase == PodPhase.SUCCEEDED:
@@ -791,6 +794,7 @@ class KubernetesPodOperator(BaseOperator):
                 # if not required to delete the pod then keep old logic and not automatically create new pod
                 deleted_pod = self.process_pod_deletion(pod)
                 if not deleted_pod:
+                    self._capture_openlineage_pod_identity(pod.metadata.name, pod.metadata.namespace)
                     return pod
 
                 self.log.info("Deleted pod to handle rerun and create new pod!")
@@ -799,9 +803,43 @@ class KubernetesPodOperator(BaseOperator):
 
         self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
         created_pod = self.pod_manager.create_pod(pod=pod_request_obj)
+        self._capture_openlineage_pod_identity(created_pod.metadata.name, created_pod.metadata.namespace)
         if self.reattach_on_restart:
             self._persist_pod_identity_to_task_state_store(context, created_pod)
         return pod_request_obj
+
+    def _capture_openlineage_pod_identity(self, name: str | None, namespace: str | None) -> None:
+        if isinstance(name, str) and name and isinstance(namespace, str) and namespace:
+            self._openlineage_pod_identity = (name, namespace)
+
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage:
+        """Report the confirmed workload pod separately from the Airflow worker environment."""
+        from openlineage.client.facet_v2 import tags_run
+
+        from airflow.providers.openlineage.extractors.base import OperatorLineage
+        from airflow.providers.openlineage.utils.utils import _PRODUCER
+
+        if self._openlineage_pod_identity is None:
+            return OperatorLineage()
+
+        name, namespace = self._openlineage_pod_identity
+        return OperatorLineage(
+            run_facets={
+                "tags": tags_run.TagsRunFacet(
+                    tags=[
+                        tags_run.TagsRunFacetFields(
+                            key="airflow.workload.pod.name", value=name, source="KubernetesPodOperator"
+                        ),
+                        tags_run.TagsRunFacetFields(
+                            key="airflow.workload.pod.namespace",
+                            value=namespace,
+                            source="KubernetesPodOperator",
+                        ),
+                    ],
+                    producer=_PRODUCER,
+                )
+            }
+        )
 
     def await_pod_start(self, pod: k8s.V1Pod) -> None:
         try:
@@ -856,6 +894,7 @@ class KubernetesPodOperator(BaseOperator):
 
     def execute(self, context: Context):
         """Based on the deferrable parameter runs the pod asynchronously or synchronously."""
+        self._openlineage_pod_identity = None
         self.name = self._set_name(self.name)
         if not self.deferrable:
             return self.execute_sync(context)
@@ -1165,9 +1204,12 @@ class KubernetesPodOperator(BaseOperator):
         grab the latest logs and defer back to the trigger again.
         """
         self.pod = None
+        self._openlineage_pod_identity = None
         xcom_sidecar_output = None
         pod_name = event["name"]
         pod_namespace = event["namespace"]
+        # The trigger already observed this pod; retain its identity even if it was deleted before re-entry.
+        self._capture_openlineage_pod_identity(pod_name, pod_namespace)
 
         try:
             self.pod = self.hook.get_pod(pod_name, pod_namespace)
