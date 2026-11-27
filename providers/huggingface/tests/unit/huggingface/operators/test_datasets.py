@@ -373,6 +373,23 @@ def test_push_returns_commit_info_and_emits_matching_asset_event(tmp_path, hub_d
     assert event.extra["commit_url"] == result["commit_url"]
 
 
+def test_push_kwargs_can_enable_embedding_external_files(tmp_path, hub_dependencies):
+    _, push_to_hub = hub_dependencies
+    push_to_hub.return_value = commit_info()
+    reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "input.json").as_uri())
+
+    PushToHubOperator(
+        task_id="publish",
+        input_uri=reference,
+        repo_id="org/data",
+        push_kwargs={"embed_external_files": True},
+        huggingface_conn_id="huggingface_test",
+        durable=False,
+    ).execute({})
+
+    assert push_to_hub.call_args.kwargs["embed_external_files"] is True
+
+
 def test_push_failure_propagates_and_emits_no_event(tmp_path, hub_dependencies):
     _, push_to_hub = hub_dependencies
     reference = _save(Dataset.from_dict({"value": [1]}), (tmp_path / "input.json").as_uri())

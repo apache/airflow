@@ -30,9 +30,9 @@ Changelog
 .. note::
     ``StreamDatasetOperator`` now passes ``embed_external_files=False`` to ``push_to_hub`` when the source
     is a Hub repository. Rows that reference a media file by path are published with that path, not the
-    file's bytes. With Datasets 5.0 and 5.1 this includes a Hub image folder, which those versions stream
-    as file references; 5.2.0 streams it as bytes. Set ``push_kwargs={"embed_external_files": True}`` to
-    use the Datasets default as before.
+    file's bytes. With `Hugging Face Datasets <https://huggingface.co/docs/datasets/>`__ 5.0 and 5.1 this
+    includes a Hub image folder, which those versions stream as file references; 5.2.0 streams it as
+    bytes. Set ``push_kwargs={"embed_external_files": True}`` to use the library's default as before.
 
 0.1.0
 .....
