@@ -1,0 +1,3 @@
+Pick a Dag's latest run by ``run_after`` everywhere
+
+The ``last_dag_run_state``, ``dag_run_state``, ``dag_run_start_date_*`` and ``dag_run_end_date_*`` filters of ``GET /api/v2/dags``, the Dags list filters and ``last_run_*`` sorting, and the dashboard Failed Dags count now pick a Dag's latest run by ``run_after``, like the rest of the UI. Before, they used the most recently created run or the latest logical date, so a backfill over a past interval or a run without a logical date could make them report a different run.

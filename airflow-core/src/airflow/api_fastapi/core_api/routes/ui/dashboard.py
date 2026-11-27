@@ -144,8 +144,8 @@ def dag_stats(
 
     latest_state = (
         select(DagRun.state)
-        .where(DagRun.dag_id == DagModel.dag_id, DagRun.logical_date.is_not(None))
-        .order_by(DagRun.logical_date.desc())
+        .where(DagRun.dag_id == DagModel.dag_id)
+        .order_by(DagRun.run_after.desc(), DagRun.id.desc())
         .limit(1)
         .correlate(DagModel)
         .scalar_subquery()
