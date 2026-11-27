@@ -45,7 +45,6 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import (
     TaskInstance as TIDataModel,
     TIRunContext,
 )
-from airflow.api_fastapi.execution_api.in_process import InProcessExecutionAPI
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -136,10 +135,9 @@ def disable_load_example():
 
 
 @pytest.fixture
-def inprocess_client():
+def inprocess_client(in_process_execution_api):
     """Provides an in-process Client backed by a single API server."""
-    api = InProcessExecutionAPI()
-    client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
+    client = Client(base_url=None, token="", dry_run=True, transport=in_process_execution_api.transport)
     client.base_url = "http://in-process.invalid/"
     return client
 

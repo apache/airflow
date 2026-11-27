@@ -92,6 +92,7 @@ from airflow.sdk import SecretCache
 from airflow.sdk.execution_time import task_runner
 from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.sdk.log import init_log_file, logging_processors
+from airflow.secrets.cache import SecretCache as ServerSecretCache
 from airflow.typing_compat import assert_never
 from airflow.utils.file import find_enclosing_file
 from airflow.utils.helpers import prune_dict
@@ -556,8 +557,9 @@ class DagFileProcessorManager(LoggingMixin):
         # Runtime API-client imports stay local so managers using the in-process API do not load it.
         from airflow.dag_processing.api_client import DagProcessorSecretsComms
 
-        # SDK cache keys do not carry the bundle identity used to authorize these requests.
+        # Cache keys do not carry the bundle identity used to authorize these requests.
         SecretCache.reset()
+        ServerSecretCache.reset()
         os.environ["_AIRFLOW_PROCESS_CONTEXT"] = "client"
         task_runner.SUPERVISOR_COMMS = DagProcessorSecretsComms(api_client)  # type: ignore[assignment]
 
@@ -729,6 +731,8 @@ class DagFileProcessorManager(LoggingMixin):
         # needs to be done before this process is forked to create the DAG parsing processes.
         if self.api_client is None:
             SecretCache.init()
+            # SDK lookups and the in-process API must share the cache inherited by parsing forks.
+            ServerSecretCache.share(SecretCache)
 
         poll_time = 0.0
 
