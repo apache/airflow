@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.executors.base_executor import BaseExecutor
+from airflow.providers.amazon.aws.executors.utils import _serialize_workload_to_command
 from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry import (
     calculate_next_attempt_delay,
     exponential_backoff_retry,
@@ -545,21 +546,7 @@ class AwsBatchExecutor(BaseExecutor):
             )
         return submit_kwargs
 
-    @staticmethod
-    def _serialize_workload_to_command(workload) -> CommandType:
-        """
-        Serialize a workload into a command for the Task SDK.
-
-        :param workload: ExecuteTask or ExecuteCallback workload to serialize
-        :return: Command as list of strings for Task SDK execution
-        """
-        return [
-            "python",
-            "-m",
-            "airflow.sdk.execution_time.execute_workload",
-            "--json-string",
-            workload.model_dump_json(),
-        ]
+    _serialize_workload_to_command = staticmethod(_serialize_workload_to_command)
 
     def _build_task_command(self, ti: TaskInstance) -> CommandType:
         """
