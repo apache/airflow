@@ -32,6 +32,8 @@ class JenkinsBuildSensor(BaseSensorOperator):
     :param jenkins_connection_id: The jenkins connection to use for this job
     :param job_name: The name of the job to check
     :param build_number: Build number to check - if None, the latest build will be used
+    :param target_states: Build results that make the sensor succeed; any other result of a finished
+        build fails the task. Defaults to ``["SUCCESS", "FAILURE"]``.
     """
 
     def __init__(
@@ -47,7 +49,7 @@ class JenkinsBuildSensor(BaseSensorOperator):
         self.job_name = job_name
         self.build_number = build_number
         self.jenkins_connection_id = jenkins_connection_id
-        self.target_states = target_states or ["SUCCESS", "FAILED"]
+        self.target_states = target_states or ["SUCCESS", "FAILURE"]
 
     def poke(self, context: Context) -> bool:
         self.log.info("Poking jenkins job %s", self.job_name)
