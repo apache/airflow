@@ -784,7 +784,24 @@ class RuntimeTaskInstance(TaskInstance):
         )
 
     def get_first_reschedule_date(self, context: Context) -> AwareDatetime | None:
-        """Get the first reschedule date for the task instance if found, none otherwise."""
+        """
+        Get the first reschedule date for the task instance if found, none otherwise.
+
+        Earlier tries count as well, back to the first try since the task was last cleared, so that
+        a sensor which retries keeps its original timeout.
+        """
+        max_tries: int = self.max_tries
+        retries: int = self.task.retries or 0
+        first_try_number = max(1, max_tries - retries + 1)
+        if self.try_number <= first_try_number:
+            return self._get_first_reschedule_date_of_this_try(context)
+
+        # Every try is a new task instance on the server, so what it sent for this try says nothing
+        # about the earlier ones.
+        return self._request_first_reschedule_date(first_try_number)
+
+    def _get_first_reschedule_date_of_this_try(self, context: Context) -> AwareDatetime | None:
+        """Get the first reschedule date of the current try, ignoring earlier tries."""
         if context.get("task_reschedule_count", 0) == 0:
             # If the task has not been rescheduled, there is no need to ask the supervisor
             return None
@@ -794,10 +811,9 @@ class RuntimeTaskInstance(TaskInstance):
             if (first_reschedule_date := from_server.first_task_reschedule_start_date) is not None:
                 return first_reschedule_date
 
-        max_tries: int = self.max_tries
-        retries: int = self.task.retries or 0
-        first_try_number = max_tries - retries + 1
+        return self._request_first_reschedule_date(self.try_number)
 
+    def _request_first_reschedule_date(self, first_try_number: int) -> AwareDatetime | None:
         log.debug("Requesting first reschedule date from supervisor")
 
         response = SUPERVISOR_COMMS.send(
@@ -2126,7 +2142,7 @@ def _reschedule_limit_reached(
     if decision.max_reschedules is not None and _reschedule_count(ti) >= decision.max_reschedules:
         return f"max_reschedules={decision.max_reschedules}"
     if decision.reschedule_timeout is not None:
-        first = ti.get_first_reschedule_date(context)
+        first = ti._get_first_reschedule_date_of_this_try(context)
         if first is not None and datetime.now(tz=UTC) - first >= decision.reschedule_timeout:
             return f"reschedule_timeout={decision.reschedule_timeout}"
     return None

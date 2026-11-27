@@ -5994,6 +5994,73 @@ class TestGetRescheduleStartDate:
         response = client.get(f"/execution/task-reschedules/{ti_id}/start_date")
         assert response.json() is None
 
+    @pytest.mark.parametrize(
+        ("tries_back", "expected"),
+        [
+            pytest.param(2, "2024-01-01T00:00:00Z", id="from-the-first-try"),
+            pytest.param(1, "2024-01-02T00:00:00Z", id="from-the-second-try"),
+            pytest.param(0, "2024-01-03T00:00:00Z", id="from-this-try"),
+            pytest.param(None, "2024-01-03T00:00:00Z", id="without-try-number"),
+        ],
+    )
+    def test_get_start_date_counts_earlier_tries_from_try_number(
+        self, client, session, create_task_instance, tries_back, expected
+    ):
+        """Every try is its own task instance row, so earlier tries are found through ``try_number``."""
+        ti = create_task_instance(
+            task_id="test_get_start_date_counts_earlier_tries_from_try_number",
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 1),
+            session=session,
+        )
+        for day in (1, 2, 3):
+            start_date = timezone.datetime(2024, 1, day)
+            session.add(
+                TaskReschedule(
+                    ti_id=ti.id,
+                    start_date=start_date,
+                    end_date=start_date + timedelta(hours=1),
+                    reschedule_date=start_date + timedelta(hours=2),
+                )
+            )
+            session.flush()
+            if day < 3:
+                ti = ti.prepare_db_for_next_try(session)
+        session.commit()
+
+        params = {} if tries_back is None else {"try_number": ti.try_number - tries_back}
+        response = client.get(f"/execution/task-reschedules/{ti.id}/start_date", params=params)
+        assert response.status_code == 200
+        assert response.json() == expected
+
+    def test_get_start_date_with_try_number_ignores_other_tasks(self, client, session, create_task_instance):
+        other = create_task_instance(
+            task_id="other_task",
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 1),
+            session=session,
+        )
+        session.add(
+            TaskReschedule(
+                ti_id=other.id,
+                start_date=timezone.datetime(2024, 1, 1),
+                end_date=timezone.datetime(2024, 1, 1, 1),
+                reschedule_date=timezone.datetime(2024, 1, 1, 2),
+            )
+        )
+        ti = create_task_instance(
+            task_id="test_get_start_date_with_try_number_ignores_other_tasks",
+            dag_id="another_dag",
+            state=State.RUNNING,
+            start_date=timezone.datetime(2024, 1, 1),
+            session=session,
+        )
+        session.commit()
+
+        response = client.get(f"/execution/task-reschedules/{ti.id}/start_date", params={"try_number": 1})
+        assert response.status_code == 200
+        assert response.json() is None
+
 
 class TestGetCount:
     def setup_method(self):
