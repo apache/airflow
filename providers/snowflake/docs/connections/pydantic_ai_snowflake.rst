@@ -75,7 +75,7 @@ Credentials are not configured on this connection -- they come from whichever au
 method the referenced Snowflake connection uses, set the same way as for
 :ref:`SnowflakeSqlApiHook and SnowflakeCortexAgentHook <howto/connection:snowflake>`:
 
-- **OAuth**: set ``authenticator`` to ``oauth`` in the Snowflake connection's extra, and configure
+- **OAuth**: set the Snowflake connection's **Authenticator** field to ``oauth``, and configure
   a refresh token, a client credentials grant, or ``azure_conn_id``.
 - **PAT (Programmatic Access Token)**: set ``authenticator`` to ``programmatic_access_token`` and
   put the PAT value in the Snowflake connection's Password field.

@@ -59,7 +59,7 @@ Bash(docker info *)
 
 `breeze` is the mandated entrypoint for all local development in Apache
 Airflow — the contributor instructions forbid running `pytest` / `python` /
-`airflow` directly on the host (see this repo's `AGENTS.md` / `CLAUDE.md`).
+`airflow` directly on the host (see this repo's `AGENTS.md`).
 Without these allows, every breeze invocation prompts for Bash permission,
 which is pure friction for a command contributors run constantly.
 

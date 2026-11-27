@@ -27,6 +27,12 @@
 Changelog
 ---------
 
+.. note::
+
+    The private ``SnowparkContainerJobOperator`` methods ``_submit_job`` and ``_poll_for_status``
+    are replaced by ``submit_job`` and ``poll_until_complete``. Subclasses overriding them must
+    move to the new methods.
+
 6.21.0
 ......
 

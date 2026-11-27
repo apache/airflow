@@ -78,6 +78,13 @@ def get_provider_info():
                         "example": None,
                         "default": "False",
                     },
+                    "cli_device_code_enabled": {
+                        "description": 'Let command-line clients such as ``airflowctl`` log in by entering a code on another\ndevice (OAuth 2.0 device authorization grant), for example over SSH. Turn on\n"OAuth 2.0 Device Authorization Grant" in the Keycloak client. Clients discover this\nlogin on Airflow 3.5 and later.\n',
+                        "type": "boolean",
+                        "version_added": "0.14.0",
+                        "example": None,
+                        "default": "False",
+                    },
                     "jwt_federated_client_ids": {
                         "description": "Comma-separated allow-list of Keycloak client ids (``azp`` claim) permitted to\nexchange a Keycloak-issued access token for an Airflow token via the\n``urn:ietf:params:oauth:grant-type:jwt-bearer`` grant at ``/auth/token``. Unset\nor empty denies every caller.\n",
                         "type": "string",

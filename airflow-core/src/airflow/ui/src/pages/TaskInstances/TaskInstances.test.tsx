@@ -227,6 +227,29 @@ describe("TaskInstances", () => {
     );
   });
 
+  it.each([
+    {
+      description: "keeps the log and grid filters inside a Dag",
+      expected: "&state=failed&log_source=task",
+      params: { dagId: "example_dag", runId: "manual__2026-06-07T00:00:00+00:00", taskId: "mapped_task" },
+    },
+    { description: "carries nothing from the list across Dags", expected: "", params: {} },
+  ])("$description, but never the list's paging", ({ expected, params }) => {
+    mockParams = params;
+    mockSearchParams = new URLSearchParams("log_source=task&state=failed&offset=50");
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
+      getTaskInstancesResponse([mappedTaskInstance]),
+    );
+
+    render(<TaskInstances />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("link", { name: "1" })).toHaveAttribute(
+      "href",
+      `/dags/example_dag/runs/manual__2026-06-07T00:00:00+00:00/tasks/mapped_task/mapped/1?region_id=11111111-1111-4111-8111-111111111111&region_index=1${expected}`,
+    );
+    mockSearchParams = new URLSearchParams();
+  });
+
   it("does not link non-mapped task instances from the map index column", () => {
     vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(
       getTaskInstancesResponse([{ ...mappedTaskInstance, map_index: -1, rendered_map_index: null }]),
@@ -324,6 +347,30 @@ describe("TaskInstances", () => {
       undefined,
       expect.any(Object),
     );
+  });
+});
+
+// The pattern reaches the api as a prefix match unless advanced search is on, so check both names.
+const runIdFilter = () =>
+  vi.mocked(useTaskInstanceServiceGetTaskInstances).mock.lastCall?.[0]?.runIdPattern ??
+  vi.mocked(useTaskInstanceServiceGetTaskInstances).mock.lastCall?.[0]?.runIdPrefixPattern;
+
+describe("TaskInstances run id filter", () => {
+  beforeEach(() => {
+    vi.mocked(useTaskInstanceServiceGetTaskInstances).mockReturnValue(getTaskInstancesResponse([]));
+    mockSearchParams = new URLSearchParams("run_id_pattern=nomatch");
+  });
+
+  it("ignores a run id pattern once the route already pins the run", () => {
+    mockParams = { dagId: "example_dag", runId: "manual__2026-06-07T00:00:00+00:00" };
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(runIdFilter()).toBeUndefined();
+  });
+
+  it("still applies a run id pattern on the list across runs", () => {
+    mockParams = { dagId: "example_dag" };
+    render(<TaskInstances />, { wrapper: Wrapper });
+    expect(runIdFilter()).toBe("nomatch");
   });
 });
 

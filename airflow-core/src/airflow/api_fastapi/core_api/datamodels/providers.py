@@ -78,6 +78,13 @@ class ProviderDialectInfo(BaseModel):
     dialect_class_name: str | None = Field(None, validation_alias="dialect-class-name")
 
 
+class ProviderObjectStorageProviderInfo(BaseModel):
+    """DataFusion object storage provider provided by a provider."""
+
+    storage_type: str | None = Field(None, validation_alias="storage-type")
+    provider_class_name: str | None = Field(None, validation_alias="provider-class-name")
+
+
 class ProviderTransferInfo(BaseModel):
     """Transfer operator provided by a provider."""
 
@@ -177,6 +184,9 @@ class ProviderInfoResponse(BaseModel):
     bundles: list[ProviderIntegrationModulesInfo] | None = None
     asset_uris: list[ProviderAssetUriInfo] | None = Field(None, validation_alias="asset-uris")
     dialects: list[ProviderDialectInfo] | None = None
+    object_storage_providers: list[ProviderObjectStorageProviderInfo] | None = Field(
+        None, validation_alias="object-storage-providers"
+    )
     transfers: list[ProviderTransferInfo] | None = None
     connection_types: list[ProviderConnectionTypeInfo] | None = Field(
         None, validation_alias="connection-types"

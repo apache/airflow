@@ -55,6 +55,15 @@
   "group": "Grup",
   "lastAssetEvent": "Darrer esdeveniment d'Asset",
   "name": "Nom",
+  "partitions": {
+    "consumerRuns": "Execucions consumidores",
+    "consumerRunsHelp": "Execucions de Dag que han consumit el darrer esdeveniment d'Asset de la partició",
+    "lastProducerRun": "Darrera execució productora",
+    "status": {
+      "in_progress": "En curs",
+      "materialized": "Materialitzada"
+    }
+  },
   "producingTasks": "Tasques productores",
   "scheduledDags": "Dags programats",
   "scheduling": "Programats",
@@ -62,5 +71,9 @@
   "taskDependencies": "Dependències de tasca",
   "watcher_one": "Observador",
   "watcher_other": "Observadors",
+  "watcherFailing_one": "Observador amb errors",
+  "watcherFailing_other": "Observadors amb errors",
+  "watcherOrphaned_one": "Observador orfe",
+  "watcherOrphaned_other": "Observadors orfes",
   "watchers": "Observadors"
 }

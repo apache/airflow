@@ -283,6 +283,14 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "scheduler.executor_health_check.stalled"
+    description: "Number of times an executor's health check was reported as stalled: its
+    get_health() call hadn't returned after several check intervals. Metric with executor
+    and team_name tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "scheduler.critical_section_busy"
     description: "Count of times a scheduler process tried to get a lock on the critical
     section (needed to send tasks to the executor) and found it locked by another process."
@@ -742,6 +750,12 @@ metrics:
     description: "Number of deferred tasks in a given Dag."
     type: "gauge"
     legacy_name: "ti.deferred.{queue}.{dag_id}.{task_id}"
+    name_variables: ["queue", "dag_id", "task_id"]
+
+  - name: "ti.awaiting_input"
+    description: "Number of tasks waiting for human input in a given Dag."
+    type: "gauge"
+    legacy_name: "ti.awaiting_input.{queue}.{dag_id}.{task_id}"
     name_variables: ["queue", "dag_id", "task_id"]
 
   - name: "ol.event.size"

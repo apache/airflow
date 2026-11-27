@@ -19,9 +19,11 @@
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from functools import cached_property
 from importlib import import_module
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 import pymssql
 
@@ -36,6 +38,170 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.sdk import Connection
     from airflow.providers.common.sql.dialects.dialect import Dialect
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+# Connection extras that are handled by the hook itself and must never reach the DBAPI driver.
+_AIRFLOW_ONLY_EXTRAS = frozenset({"sqlalchemy_scheme", "dbapi_driver"})
+
+
+class _DbApiDriver(ABC):
+    """
+    Behaviour of ``MsSqlHook`` that depends on its ``dbapi_driver``.
+
+    The defaults are the plain DB-API behaviour, a driver only overrides what it does differently.
+    To add a driver, subclass this and add an instance to ``_DRIVERS``.
+    """
+
+    name: str
+    default_sqlalchemy_scheme: str
+    placeholder = "%s"
+
+    @abstractmethod
+    def connect(self, connection: Connection, database: str | None) -> Any:
+        """Return a DB-API connection."""
+
+    def build_sqlalchemy_url(self, connection: Connection, database: str | None, scheme: str) -> URL:
+        """Return the SQLAlchemy URL. Without one, the engine is built from ``MsSqlHook.get_uri()``."""
+        raise NotImplementedError(f"The {self.name} driver builds no SQLAlchemy URL, use get_uri().")
+
+    def rewrite_uri(self, uri: str, scheme: str) -> str:
+        """Turn the URI of the Airflow connection into the one used for the SQLAlchemy engine."""
+        raise NotImplementedError(f"The {self.name} driver does not rewrite the connection URI.")
+
+    def set_autocommit(self, conn: Any, autocommit: bool) -> None:
+        conn.autocommit = autocommit
+
+    def get_autocommit(self, conn: Any) -> bool:
+        return bool(getattr(conn, "autocommit", False))
+
+    def make_common_data_structure(self, result: Any) -> tuple | list[tuple] | None:
+        return result
+
+
+class _PymssqlDriver(_DbApiDriver):
+    name = "pymssql"
+    default_sqlalchemy_scheme = "mssql+pymssql"
+
+    def connect(self, connection: Connection, database: str | None) -> PymssqlConnection:
+        extra_conn_args = {
+            key: val
+            for key, val in connection.extra_dejson.items()
+            if key.lower() not in _AIRFLOW_ONLY_EXTRAS
+        }
+        return pymssql.connect(
+            server=connection.host or "",
+            user=connection.login,
+            password=connection.password,
+            database=database or "",
+            port=str(connection.port),
+            **extra_conn_args,
+        )
+
+    def rewrite_uri(self, uri: str, scheme: str) -> str:
+        r = list(urlsplit(uri))
+        # change the sqlalchemy driver:
+        r[0] = scheme
+        # remove query string parameters that are meant for the hook, not for the sqlalchemy dialect:
+        qs = parse_qs(r[3], keep_blank_values=True)
+        for k in list(qs.keys()):
+            if k.lower() in _AIRFLOW_ONLY_EXTRAS:
+                qs.pop(k, None)
+        r[3] = urlencode(qs, doseq=True)
+        return urlunsplit(r)
+
+    def set_autocommit(self, conn: Any, autocommit: bool) -> None:
+        conn.autocommit(autocommit)
+
+    def get_autocommit(self, conn: Any) -> bool:
+        return conn.autocommit_state
+
+
+class _MssqlPythonDriver(_DbApiDriver):
+    name = "mssql_python"
+    default_sqlalchemy_scheme = "mssql+mssqlpython"
+    # mssql-python has no plain ``%s`` support.
+    placeholder = "?"
+    # mssql-python takes every other extra as a connection string keyword, and the string built from a
+    # SQLAlchemy URL fails on unknown keywords. So the extras that ``DbApiHook`` reads for itself are
+    # filtered out for both the direct connection and the SQLAlchemy URL.
+    ignored_extras = _AIRFLOW_ONLY_EXTRAS | frozenset(
+        {
+            "placeholder",
+            "insert_statement_format",
+            "replace_statement_format",
+            "escape_word_format",
+            "escape_column_names",
+            "dialect",
+        }
+    )
+
+    def get_extras(self, connection: Connection) -> dict[str, Any]:
+        """Return the connection extras that are passed on to mssql-python, without the empty ones."""
+        return {
+            key: val
+            for key, val in connection.extra_dejson.items()
+            if key.lower() not in self.ignored_extras and val not in (None, "")
+        }
+
+    def connect(self, connection: Connection, database: str | None) -> Any:
+        try:
+            mssql_python = import_module("mssql_python")
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(
+                "The 'mssql_python' dbapi_driver needs the mssql-python package. Install it with: "
+                "pip install 'apache-airflow-providers-microsoft-mssql[mssql-python]'"
+            ) from e
+
+        server = connection.host or ""
+        if server and connection.port:
+            server = f"{server},{connection.port}"
+        params: dict[str, Any] = {
+            "Server": server,
+            "Database": database,
+            "UID": connection.login,
+            "PWD": connection.password,
+        }
+        params.update(self.get_extras(connection))
+        # The keyword arguments are escaped by mssql-python when it builds the connection string.
+        return mssql_python.connect(**{key: val for key, val in params.items() if val not in (None, "")})
+
+    def build_sqlalchemy_url(self, connection: Connection, database: str | None, scheme: str) -> URL:
+        """
+        Build the SQLAlchemy URL from the connection fields and extras.
+
+        ``Connection.get_uri()`` packs extras that do not survive a round trip (a ``true`` for example)
+        into one ``__extra__`` parameter, which mssql-python rejects as an unknown keyword.
+        """
+        try:
+            from sqlalchemy.engine import URL
+        except (ImportError, ModuleNotFoundError) as err:
+            raise AirflowOptionalProviderFeatureException(
+                "SQLAlchemy is not installed. Install it with: "
+                "pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
+            ) from err
+
+        return URL.create(
+            drivername=scheme,
+            username=connection.login or None,
+            password=connection.password or None,
+            host=connection.host or None,
+            port=connection.port,
+            database=database or None,
+            query={key: str(val) for key, val in self.get_extras(connection).items()},
+        )
+
+    def make_common_data_structure(self, result: Any) -> tuple | list[tuple] | None:
+        """Turn the ``Row`` objects of mssql_python into plain tuples and leave other results alone."""
+        row_class = import_module("mssql_python").Row
+        if isinstance(result, row_class):
+            return tuple(result)
+        if isinstance(result, list):
+            return [tuple(row) if isinstance(row, row_class) else row for row in result]
+        return result
+
+
+_DRIVERS: dict[str, _DbApiDriver] = {
+    driver.name: driver for driver in (_PymssqlDriver(), _MssqlPythonDriver())
+}
 
 
 class MsSqlHook(DbApiHook):
@@ -57,26 +223,11 @@ class MsSqlHook(DbApiHook):
     conn_type = "mssql"
     hook_name = "Microsoft SQL Server"
     supports_autocommit = True
-    DEFAULT_SQLALCHEMY_SCHEME = "mssql+pymssql"
-    MSSQL_PYTHON_SQLALCHEMY_SCHEME = "mssql+mssqlpython"
-    DBAPI_DRIVER_PYMSSQL = "pymssql"
-    DBAPI_DRIVER_MSSQL_PYTHON = "mssql_python"
-    SUPPORTED_DBAPI_DRIVERS = (DBAPI_DRIVER_PYMSSQL, DBAPI_DRIVER_MSSQL_PYTHON)
-    # Connection extras that are handled by the hook itself and must never reach the DBAPI driver.
-    _AIRFLOW_ONLY_EXTRAS = frozenset({"sqlalchemy_scheme", "dbapi_driver"})
-    # mssql-python takes every other extra as a connection string keyword, and the string built from a
-    # SQLAlchemy URL fails on unknown keywords. So the extras that ``DbApiHook`` reads for itself are
-    # filtered out for both the direct connection and the SQLAlchemy URL.
-    _MSSQL_PYTHON_IGNORED_EXTRAS = _AIRFLOW_ONLY_EXTRAS | frozenset(
-        {
-            "placeholder",
-            "insert_statement_format",
-            "replace_statement_format",
-            "escape_word_format",
-            "escape_column_names",
-            "dialect",
-        }
-    )
+    DEFAULT_SQLALCHEMY_SCHEME = _PymssqlDriver.default_sqlalchemy_scheme
+    MSSQL_PYTHON_SQLALCHEMY_SCHEME = _MssqlPythonDriver.default_sqlalchemy_scheme
+    DBAPI_DRIVER_PYMSSQL = _PymssqlDriver.name
+    DBAPI_DRIVER_MSSQL_PYTHON = _MssqlPythonDriver.name
+    SUPPORTED_DBAPI_DRIVERS = tuple(_DRIVERS)
 
     def __init__(
         self,
@@ -103,28 +254,24 @@ class MsSqlHook(DbApiHook):
 
         return driver.lower()
 
+    @cached_property
+    def _driver(self) -> _DbApiDriver:
+        return _DRIVERS[self.dbapi_driver]
+
     @property
     def sqlalchemy_scheme(self) -> str:
         """Sqlalchemy scheme either from constructor, connection extras or the default of the driver."""
         extra_scheme = self.connection_extra_lower.get("sqlalchemy_scheme")
         if not self._sqlalchemy_scheme and extra_scheme and (":" in extra_scheme or "/" in extra_scheme):
             raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
-        return self._sqlalchemy_scheme or extra_scheme or self._default_sqlalchemy_scheme
-
-    @property
-    def _default_sqlalchemy_scheme(self) -> str:
-        if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON:
-            return self.MSSQL_PYTHON_SQLALCHEMY_SCHEME
-        return self.DEFAULT_SQLALCHEMY_SCHEME
+        return self._sqlalchemy_scheme or extra_scheme or self._driver.default_sqlalchemy_scheme
 
     @cached_property
     def placeholder(self) -> str:
         """Return SQL placeholder, ``?`` for mssql_python (it has no plain ``%s`` support)."""
-        if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON and not self.connection_extra.get(
-            "placeholder"
-        ):
-            return "?"
-        return super().placeholder
+        if self.connection_extra.get("placeholder"):
+            return super().placeholder
+        return self._driver.placeholder
 
     @property
     def dialect_name(self) -> str:
@@ -136,50 +283,18 @@ class MsSqlHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        """
-        Return the SQLAlchemy URL when ``dbapi_driver`` is ``mssql_python``.
-
-        The URL is built from the connection fields and extras. ``Connection.get_uri()`` packs extras that
-        do not survive a round trip (a ``true`` for example) into one ``__extra__`` parameter, which
-        mssql-python rejects as an unknown keyword. With ``pymssql`` the URI from ``get_uri()`` is used.
-        """
-        if self.dbapi_driver != self.DBAPI_DRIVER_MSSQL_PYTHON:
-            return super().sqlalchemy_url
-        try:
-            from sqlalchemy.engine import URL
-        except (ImportError, ModuleNotFoundError) as err:
-            raise AirflowOptionalProviderFeatureException(
-                "SQLAlchemy is not installed. Install it with: "
-                "pip install 'apache-airflow-providers-common-sql[sqlalchemy]'"
-            ) from err
-
-        conn = self.connection
-        return URL.create(
-            drivername=self.sqlalchemy_scheme,
-            username=conn.login or None,
-            password=conn.password or None,
-            host=conn.host or None,
-            port=conn.port,
-            database=self.schema or conn.schema or None,
-            query={key: str(val) for key, val in self._mssql_python_extras().items()},
+        """Return the SQLAlchemy URL, for the drivers that build one (``mssql_python``)."""
+        return self._driver.build_sqlalchemy_url(
+            self.connection, self.schema or self.connection.schema, self.sqlalchemy_scheme
         )
 
     def get_uri(self) -> str:
-        if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON:
-            return self.sqlalchemy_url.render_as_string(hide_password=False)
-
-        from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
-
-        r = list(urlsplit(super().get_uri()))
-        # change the sqlalchemy driver:
-        r[0] = self.sqlalchemy_scheme
-        # remove query string parameters that are meant for the hook, not for the sqlalchemy dialect:
-        qs = parse_qs(r[3], keep_blank_values=True)
-        for k in list(qs.keys()):
-            if k.lower() in self._AIRFLOW_ONLY_EXTRAS:
-                qs.pop(k, None)
-        r[3] = urlencode(qs, doseq=True)
-        return urlunsplit(r)
+        try:
+            url = self.sqlalchemy_url
+        except NotImplementedError:
+            # Same fallback as ``get_sqlalchemy_engine``: the driver has no URL of its own.
+            return self._driver.rewrite_uri(super().get_uri(), self.sqlalchemy_scheme)
+        return url.render_as_string(hide_password=False)
 
     def get_sqlalchemy_connection(
         self, connect_kwargs: dict | None = None, engine_kwargs: dict | None = None
@@ -190,78 +305,16 @@ class MsSqlHook(DbApiHook):
 
     def get_conn(self) -> Any:
         """Return a ``pymssql`` or ``mssql_python`` connection object, depending on ``dbapi_driver``."""
-        if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON:
-            return self._get_mssql_python_conn()
-        return self._get_pymssql_conn()
-
-    def _get_pymssql_conn(self) -> PymssqlConnection:
-        """Return ``pymssql`` connection object."""
-        conn = self.connection
-        extra_conn_args = {
-            key: val for key, val in conn.extra_dejson.items() if key.lower() not in self._AIRFLOW_ONLY_EXTRAS
-        }
-        return pymssql.connect(
-            server=conn.host or "",
-            user=conn.login,
-            password=conn.password,
-            database=self.schema or conn.schema or "",
-            port=str(conn.port),
-            **extra_conn_args,
-        )
-
-    def _mssql_python_extras(self) -> dict[str, Any]:
-        """Return the connection extras that are passed on to mssql-python, without the empty ones."""
-        return {
-            key: val
-            for key, val in self.connection.extra_dejson.items()
-            if key.lower() not in self._MSSQL_PYTHON_IGNORED_EXTRAS and val not in (None, "")
-        }
-
-    def _get_mssql_python_conn(self) -> Any:
-        """Return ``mssql_python`` connection object."""
-        try:
-            mssql_python = import_module("mssql_python")
-        except ImportError as e:
-            raise AirflowOptionalProviderFeatureException(
-                "The 'mssql_python' dbapi_driver needs the mssql-python package. Install it with: "
-                "pip install 'apache-airflow-providers-microsoft-mssql[mssql-python]'"
-            ) from e
-
-        conn = self.connection
-        server = conn.host or ""
-        if server and conn.port:
-            server = f"{server},{conn.port}"
-        params: dict[str, Any] = {
-            "Server": server,
-            "Database": self.schema or conn.schema,
-            "UID": conn.login,
-            "PWD": conn.password,
-        }
-        params.update(self._mssql_python_extras())
-        # The keyword arguments are escaped by mssql-python when it builds the connection string.
-        return mssql_python.connect(**{key: val for key, val in params.items() if val not in (None, "")})
+        return self._driver.connect(self.connection, self.schema or self.connection.schema)
 
     def set_autocommit(self, conn: Any, autocommit: bool) -> None:
-        if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON:
-            super().set_autocommit(conn, autocommit)
-        else:
-            conn.autocommit(autocommit)
+        self._driver.set_autocommit(conn, autocommit)
 
     def get_autocommit(self, conn: Any) -> bool:
-        if self.dbapi_driver == self.DBAPI_DRIVER_MSSQL_PYTHON:
-            return super().get_autocommit(conn)
-        return conn.autocommit_state
+        return self._driver.get_autocommit(conn)
 
     def _make_common_data_structure(self, result: Any) -> tuple | list[tuple] | None:
-        """Turn the ``Row`` objects of mssql_python into plain tuples and leave other results alone."""
-        if self.dbapi_driver != self.DBAPI_DRIVER_MSSQL_PYTHON:
-            return super()._make_common_data_structure(result)
-        row_class = import_module("mssql_python").Row
-        if isinstance(result, row_class):
-            return tuple(result)
-        if isinstance(result, list):
-            return [tuple(row) if isinstance(row, row_class) else row for row in result]
-        return result
+        return self._driver.make_common_data_structure(result)
 
     def get_openlineage_database_info(self, connection: Connection) -> DatabaseInfo:
         """Return MSSQL specific information for OpenLineage."""

@@ -465,7 +465,8 @@ class BaseXCom:
                 dag_id=dag_id,
                 task_id=task_id,
                 run_id=run_id,
-                map_index=map_index,
+                # Sent explicitly: an omitted map index would read every instance of a mapped task.
+                map_index=-1 if map_index is None else map_index,
             ),
         )
 
@@ -502,8 +503,10 @@ class BaseXCom:
         :param dag_id: Dag ID to pull the XCom from.
         :param task_id: Task ID to pull the XCom from.
         :param map_index: Map index of the task instance to pull the XCom from.
-            *None* (default) pulls the XCom of a non-mapped task, which has
-            map index ``-1``.
+            *None* (default) pulls the task's result: the XCom of a non-mapped
+            task, or for a mapped task the XComs of all its instances as a
+            list, the same values ``get_all`` returns. A mapped task with no
+            values, or one read with *include_prior_dates*, reads *None*.
         :param key: A key for the XCom. Only XCom with this key will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified Dag run is returned. If *True*, the latest matching XCom is
@@ -523,20 +526,16 @@ class BaseXCom:
             ),
         )
 
-        if not isinstance(msg, XComResult):
-            raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
-
-        if msg.value is not None:
-            return cls._load(msg)
-        log.debug(
-            "No XCom value found; defaulting to None.",
-            key=key,
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-        )
-        return None
+        if (value := cls._load_result(msg)) is None:
+            log.debug(
+                "No XCom value found; defaulting to None.",
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            )
+        return value
 
     @classmethod
     async def aget_one(
@@ -565,8 +564,10 @@ class BaseXCom:
         :param dag_id: Dag ID to pull the XCom from.
         :param task_id: Task ID to pull the XCom from.
         :param map_index: Map index of the task instance to pull the XCom from.
-            *None* (default) pulls the XCom of a non-mapped task, which has
-            map index ``-1``.
+            *None* (default) pulls the task's result: the XCom of a non-mapped
+            task, or for a mapped task the XComs of all its instances as a
+            list, the same values ``get_all`` returns. A mapped task with no
+            values, or one read with *include_prior_dates*, reads *None*.
         :param key: A key for the XCom. Only XCom with this key will be returned.
         :param include_prior_dates: If *False* (default), only XCom from the
             specified Dag run is returned. If *True*, the latest matching XCom is
@@ -585,20 +586,16 @@ class BaseXCom:
             ),
         )
 
-        if not isinstance(msg, XComResult):
-            raise TypeError(f"Expected XComResult, received: {type(msg)} {msg}")
-
-        if msg.value is not None:
-            return await asyncio.to_thread(cls._load, msg)
-        log.debug(
-            "No XCom value found; defaulting to None.",
-            key=key,
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-        )
-        return None
+        if (value := await asyncio.to_thread(cls._load_result, msg)) is None:
+            log.debug(
+                "No XCom value found; defaulting to None.",
+                key=key,
+                dag_id=dag_id,
+                task_id=task_id,
+                run_id=run_id,
+                map_index=map_index,
+            )
+        return value
 
     @classmethod
     def get_all(
@@ -646,10 +643,7 @@ class BaseXCom:
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        if not msg.root:
-            return None
-
-        return cls._load_many(msg.root)
+        return cls._load_result(msg)
 
     @classmethod
     async def aget_all(
@@ -697,10 +691,7 @@ class BaseXCom:
         if not isinstance(msg, XComSequenceSliceResult):
             raise TypeError(f"Expected XComSequenceSliceResult, received: {type(msg)} {msg}")
 
-        if not msg.root:
-            return None
-
-        return await asyncio.to_thread(cls._load_many, msg.root)
+        return await asyncio.to_thread(cls._load_result, msg)
 
     @classmethod
     def store_value(cls, coordinate: XComCoordinate, key: str, value: Any) -> JsonValue:
@@ -735,6 +726,18 @@ class BaseXCom:
         :meth:`deserialize_value`.
         """
         return cls.deserialize_value(_XComValueWrapper(stored))
+
+    @classmethod
+    def _load_result(cls, result: Any) -> Any:
+        """Load an XCom read's result, one stored value or a mapped task's values; *None* if empty."""
+        match result:
+            case XComResult(value=None) | XComSequenceSliceResult(root=[]):
+                return None
+            case XComResult():
+                return cls._load(result)
+            case XComSequenceSliceResult(root=values):
+                return cls._load_many(values)
+        raise TypeError(f"Expected XComResult or XComSequenceSliceResult, received: {type(result)} {result}")
 
     @classmethod
     def _load_many(cls, values: list[JsonValue]) -> list[Any]:

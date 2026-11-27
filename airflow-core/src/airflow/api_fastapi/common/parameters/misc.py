@@ -90,12 +90,15 @@ class _IsAliveFilter(BaseParam[bool]):
 
         from sqlalchemy import case
 
-        from airflow.jobs.job import Job
+        from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job
 
         # The case wraps the result so it is always True/False (never NULL), keeping the negated
         # is_alive=False query exact.
         alive = case(
-            (Job.is_alive_clause(("SchedulerJob", "TriggererJob", "DagProcessorJob")), True),
+            (
+                Job.is_alive_clause(("SchedulerJob", "TriggererJob", "DagProcessorJob", EXECUTOR_JOB_TYPE)),
+                True,
+            ),
             else_=False,
         )
         return select.where(alive if self.value else ~alive)

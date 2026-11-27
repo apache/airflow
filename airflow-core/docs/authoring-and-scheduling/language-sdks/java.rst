@@ -682,8 +682,9 @@ position, and the SDK passes them in. A ``Task`` class receives both in ``execut
 running task, such as ``context.ti.taskId``, ``context.ti.tryNumber`` and ``context.dagRun.logicalDate``.
 
 A value a method returns, or a ``Task`` class passes to ``client.setXCom``, becomes the task's ``return_value``
-XCom, and is what a downstream task receives. An uncaught exception fails the task, and retries it if the task
-has retries.
+XCom, and is what a downstream task receives. A ``void`` method pushes nothing. Any other method's result is
+pushed, so returning ``null`` stores a null XCom. An uncaught exception fails the task, and retries it if the
+task has retries.
 
 The ``Client``
 ~~~~~~~~~~~~~~
@@ -705,11 +706,12 @@ The ``Client``
      - A ``Connection`` with ``id``, ``type``, ``host``, ``schema``, ``login``, ``password``, ``port`` and
        ``extra``. Throws when the connection does not exist.
    * - ``getXCom(taskId)``
-     - The ``return_value`` XCom of a task in the same Dag run, or ``null`` when it does not exist. Overloads
-       read another key, Dag or run; see the API reference. For the Java types values arrive as, see
-       :ref:`java-sdk/types`.
+     - The ``return_value`` XCom of a task in the same Dag run, or ``null`` when it does not exist. For a mapped
+       task, it is the values of all its instances in a ``List`` ordered by map index. Overloads read another
+       key, Dag, run, or one instance of a mapped task; a map index that selects no task instance reads
+       ``null``. See the API reference. For the Java types values arrive as, see :ref:`java-sdk/types`.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
-     - Publishes an XCom value. The value must be JSON-serializable.
+     - Publishes an XCom value. The value must be JSON-serializable; ``null`` stores a null XCom.
    * - ``getTaskStateStore()``
      - This task instance's key/value store, with ``get``, ``set``, ``delete`` and ``clear``. See
        :ref:`java-sdk/task-state-store`.

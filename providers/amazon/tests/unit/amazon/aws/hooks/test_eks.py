@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from contextlib import AbstractContextManager
@@ -58,6 +59,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
 
 from unit.amazon.aws.utils.eks_test_constants import (
@@ -1358,6 +1360,65 @@ class TestEksHook:
             # Verify region arguments are properly included
             if expected_region_args:
                 assert expected_region_args in command_arg
+
+    @mock.patch.object(EksHook, "conn", new_callable=PropertyMock)
+    def test_generate_config_file_uses_regional_sts_and_keeps_environment(self, mock_conn, monkeypatch):
+        """The kubeconfig gets the regional STS endpoint even with "legacy", and the environment is unchanged."""
+        monkeypatch.setenv("AWS_STS_REGIONAL_ENDPOINTS", "legacy")
+        mock_conn.return_value.describe_cluster.return_value = {
+            "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
+        }
+        hook = EksHook(aws_conn_id=None, region_name="us-west-2")
+
+        with hook.generate_config_file(
+            eks_cluster_name="test-cluster",
+            pod_namespace="ns",
+            credentials_file="/tmp/test_credentials.aws_creds",
+        ) as config_file:
+            config = yaml.safe_load(Path(config_file).read_text())
+
+        command_arg = config["users"][0]["user"]["exec"]["args"][1]
+        regional_sts_url = "https://sts.us-west-2.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
+        assert f"--sts-url '{regional_sts_url}'" in command_arg
+        assert os.environ["AWS_STS_REGIONAL_ENDPOINTS"] == "legacy"
+
+    @pytest.mark.parametrize(
+        ("extra", "expected_sts_endpoint"),
+        [
+            pytest.param(
+                {"service_config": {"sts": {"endpoint_url": "https://sts-fips.us-west-2.amazonaws.com"}}},
+                "https://sts-fips.us-west-2.amazonaws.com",
+                id="sts-service-config",
+            ),
+            pytest.param(
+                {"endpoint_url": "https://fips.eks.us-west-2.amazonaws.com"},
+                "https://sts.us-west-2.amazonaws.com",
+                id="connection-wide-endpoint-url-is-not-used",
+            ),
+        ],
+    )
+    @mock.patch.object(EksHook, "get_connection")
+    @mock.patch.object(EksHook, "conn", new_callable=PropertyMock)
+    def test_generate_config_file_uses_sts_endpoint_of_hook_connection(
+        self, mock_conn, mock_get_connection, extra, expected_sts_endpoint
+    ):
+        mock_get_connection.return_value = Connection(conn_id="eks_conn", conn_type="aws", extra=extra)
+        mock_conn.return_value.describe_cluster.return_value = {
+            "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
+        }
+        hook = EksHook(aws_conn_id="eks_conn", region_name="us-west-2")
+
+        with hook.generate_config_file(
+            eks_cluster_name="test-cluster",
+            pod_namespace="ns",
+            credentials_file="/tmp/test_credentials.aws_creds",
+        ) as config_file:
+            config = yaml.safe_load(Path(config_file).read_text())
+
+        command_arg = config["users"][0]["user"]["exec"]["args"][1]
+        sts_url = f"{expected_sts_endpoint}/?Action=GetCallerIdentity&Version=2011-06-15"
+        assert f"--sts-url '{sts_url}'" in command_arg
+        mock_get_connection.assert_called_with("eks_conn")
 
     def test_command_template_captures_stderr_separately(self):
         """Verify COMMAND keeps stderr out of stdout while preserving errors."""

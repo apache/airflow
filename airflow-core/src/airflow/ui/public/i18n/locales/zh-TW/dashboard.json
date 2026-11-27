@@ -55,6 +55,7 @@
   "history": "歷史記錄",
   "importErrors": {
     "bundle": "套件包",
+    "copyStackTrace": "複製堆疊追蹤",
     "dagImportError_one": "Dag 匯入錯誤",
     "dagImportError_other": "Dag 匯入錯誤",
     "searchByFile": "依檔案搜尋",
@@ -72,6 +73,7 @@
   "stats": {
     "activeDags": "啟用中的 Dags",
     "failedDags": "失敗的 Dags",
+    "failingTriggers": "持續失敗的觸發器",
     "queuedDags": "排隊中的 Dags",
     "requiredActions": "待回應的任務實例",
     "runningDags": "執行中的 Dags",

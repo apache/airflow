@@ -237,12 +237,12 @@ class TestAwsConnectionWrapper:
 
         if botocore_config:
             assert wrap_conn.botocore_config == botocore_config, "Expected provided botocore_config"
-            assert mock_botocore_config.assert_not_called
+            mock_botocore_config.assert_not_called()
         elif not botocore_config_kwargs:
             assert wrap_conn.botocore_config is None, "Expected default botocore_config"
-            assert mock_botocore_config.assert_not_called
+            mock_botocore_config.assert_not_called()
         else:
-            assert mock_botocore_config.assert_called_once
+            mock_botocore_config.assert_called_once()
             if botocore_config_kwargs.get("signature_version") == "unsigned":
                 botocore_config_kwargs["signature_version"] = UNSIGNED
             assert mock.call(**botocore_config_kwargs) in mock_botocore_config.mock_calls

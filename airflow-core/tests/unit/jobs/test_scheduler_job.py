@@ -47,6 +47,7 @@ from sqlalchemy.orm import joinedload
 from airflow import settings
 from airflow._shared.module_loading import qualname
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
+from airflow._shared.observability.metrics.metrics_registry import MetricsRegistry
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.tokens import JWTGenerator
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstance as TIDataModel
@@ -69,10 +70,11 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
-from airflow.jobs.job import Job, run_job
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, run_job
 from airflow.jobs.scheduler_job_runner import (
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
+    TI_METRIC_STATES,
     SchedulerJobRunner,
 )
 from airflow.listeners.listener import get_listener_manager
@@ -483,18 +485,24 @@ class TestSchedulerJob:
         mock_jwt_generator = MagicMock(spec=JWTGenerator)
         mock_jwt_generator.generate.return_value = "mock-token"
 
-        default_executor = mock.MagicMock(name="DefaultExecutor", slots_available=8, slots_occupied=0)
+        default_executor = mock.MagicMock(
+            spec=BaseExecutor, name="DefaultExecutor", slots_available=8, slots_occupied=0
+        )
         default_executor.name = ExecutorName(alias="default_exec", module_path="default.exec.module.path")
         default_executor.jwt_generator = mock_jwt_generator
         default_executor.team_name = None  # Global executor
         default_executor.sentry_integration = ""
         default_executor._drain_events_with_task_ids.return_value = {}, {}
-        second_executor = mock.MagicMock(name="SeconadaryExecutor", slots_available=8, slots_occupied=0)
+        default_executor.overrides_get_health.return_value = False
+        second_executor = mock.MagicMock(
+            spec=BaseExecutor, name="SeconadaryExecutor", slots_available=8, slots_occupied=0
+        )
         second_executor.name = ExecutorName(alias="secondary_exec", module_path="secondary.exec.module.path")
         second_executor.jwt_generator = mock_jwt_generator
         second_executor.team_name = None  # Global executor
         second_executor.sentry_integration = ""
         second_executor._drain_events_with_task_ids.return_value = {}, {}
+        second_executor.overrides_get_health.return_value = False
 
         # TODO: Task-SDK Make it look like a bound method. Needed until we remove the old queue_workload
         # interface from executors
@@ -4177,7 +4185,9 @@ class TestSchedulerJob:
                 if future.done():
                     pytest.fail(f"the selection did not wait on the writer's locks: {future.result()}")
                 assert time.monotonic() < deadline, "the selection did not wait on the writer's locks"
-                time.sleep(0.05)
+                # MySQL refreshes information_schema.innodb_trx only after it has gone unread for 100ms,
+                # so polling faster keeps returning the state from before the selection waited.
+                time.sleep(0.2)
             # A user marks one of the task instances success while the selection runs.
             writer.execute(
                 update(TaskInstance)
@@ -7172,6 +7182,30 @@ class TestSchedulerJob:
         assert old_job.state == State.FAILED
         assert old_task_job.state == State.RUNNING
         assert "Marked 1 SchedulerJob instances as failed" in caplog.messages
+
+    def test_adopt_or_reset_orphaned_tasks_fails_stale_executor_jobs(self):
+        """A stale ExecutorJob row gets marked failed with an end_date, a fresh one is left alone."""
+        session = settings.Session()
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        stale_executor_job = Job(job_type=EXECUTOR_JOB_TYPE, state=State.RUNNING)
+        stale_executor_job.latest_heartbeat = timezone.utcnow() - timedelta(minutes=15)
+        session.add(stale_executor_job)
+
+        fresh_executor_job = Job(job_type=EXECUTOR_JOB_TYPE, state=State.RUNNING)
+        fresh_executor_job.latest_heartbeat = timezone.utcnow()
+        session.add(fresh_executor_job)
+        session.flush()
+
+        self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+        session.expire_all()
+
+        assert stale_executor_job.state == State.FAILED
+        assert stale_executor_job.end_date is not None
+        assert fresh_executor_job.state == State.RUNNING
+        assert fresh_executor_job.end_date is None
 
     def test_should_update_dag_next_dagrun(self, session, dag_maker):
         """We should always update next_dagrun after scheduler creates a new dag run."""
@@ -12031,6 +12065,7 @@ class TestSchedulerJob:
         # Mock the executor to simulate a task failure
         mock_executor = MagicMock(spec=BaseExecutor)
         mock_executor.has_task = mock.MagicMock(return_value=False)
+        mock_executor.overrides_get_health.return_value = False
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(scheduler_job, executors=[mock_executor])
 
@@ -13266,6 +13301,16 @@ class TestSchedulerJob:
         ti = session.merge(ti)
         session.refresh(ti)
         assert ti.state != State.NONE
+
+
+@pytest.mark.non_db_test_override
+@pytest.mark.parametrize("state", sorted(TI_METRIC_STATES))
+def test_ti_metric_state_has_legacy_name(state):
+    """Plain StatsD drops tags, so a gauge without a legacy name merges every task into one series."""
+    metric = MetricsRegistry().get(f"ti.{state}")
+    assert metric is not None
+    assert metric.get("legacy_name", "-") != "-"
+    assert {"dag_id", "task_id"} <= set(metric.get("name_variables", []))
 
 
 @pytest.mark.need_serialized_dag

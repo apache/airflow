@@ -112,8 +112,21 @@ type ConnectionClient interface {
 // another task's XCom, or to push under a custom key.
 type XComClient interface {
 	// GetXCom returns the value stored under key by the task identified by
-	// dagID/runID/taskID. For a mapped task instance pass its mapIndex,
-	// otherwise pass nil. If no value exists the error wraps XComNotFound.
+	// dagID/runID/taskID, or nil if none was pushed.
+	//
+	// A nil mapIndex reads the task's result, which depends on whether the task
+	// is mapped, as its definition in the Dag says, not on how many instances it
+	// ran:
+	//
+	//   - For a task that is not mapped, nil reads its value.
+	//   - For a mapped task, nil reads the values of all its instances as a
+	//     []any ordered by map index. Instances that pushed nothing are left
+	//     out. If none pushed a value, including when the task expanded to no
+	//     instances, the result is nil.
+	//
+	// A map index reads that one instance's value. One that selects no task
+	// instance of the task, such as any map index of a task that is not
+	// mapped, reads nil.
 	//
 	// value is reserved for future typed decoding and is currently ignored; the
 	// stored value is returned as the first result instead.
@@ -127,7 +140,8 @@ type XComClient interface {
 
 	// PushXCom stores value under key for the given task instance ti.
 	//
-	// value must be JSON serializable; nil is allowed and is pushed as null.
+	// value must be JSON serializable; nil, including a nil pointer, slice or
+	// map, is allowed and is pushed as null.
 	// A time.Time, a byte slice or array such as a uuid.UUID, or a non-finite
 	// float is rejected before it is sent.
 	PushXCom(ctx context.Context, ti TaskInstance, key string, value any) error

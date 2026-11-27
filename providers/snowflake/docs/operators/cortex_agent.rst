@@ -45,7 +45,7 @@ Authentication
 ^^^^^^^^^^^^^^
 
 ``SnowflakeCortexAgentHook`` (and the operator built on it) authenticate according to the connection's
-``authenticator`` extra:
+**Authenticator** field (``authenticator``):
 
 - **OAuth**: set ``authenticator`` to ``oauth`` and configure a refresh token, a client
   credentials grant, or ``azure_conn_id``, as on the Snowflake connection generally.

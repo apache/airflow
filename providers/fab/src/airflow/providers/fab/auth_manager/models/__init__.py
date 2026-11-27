@@ -276,6 +276,9 @@ class User(Model, BaseUser):
     last_login: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     fail_login_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Incremented on every password change. Tokens and sessions record the value they were issued
+    # under and stop being accepted once it moves on.
+    token_generation: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     roles: Mapped[list[Role]] = relationship(
         "Role",
         secondary=assoc_user_role,
