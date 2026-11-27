@@ -1841,14 +1841,8 @@ class TestXComsSetEndpoint:
         dag_result = XComModelV2.get_for_attempt(ti.id, "return_value", session=session).dag_result
         assert dag_result is True
 
-    def test_set_xcom_value_error_returns_rfc9457(self, client, create_task_instance, authenticate_as, session):
-        """
-        When XComModel.set_for_attempt raises ValueError the endpoint must return a 404
-        response whose ``detail`` field is an RFC 9457-compliant dict containing the
-        ``reason`` and ``message`` keys, not a bare string.
-
-        Regression test for issue #70044.
-        """
+    def test_set_xcom_handles_value_error(self, client, create_task_instance, authenticate_as, session):
+        """Test that setting an XCom returns a 404 response when a ValueError is raised."""
         ti = create_task_instance()
         session.commit()
         authenticate_as(ti)
@@ -1859,14 +1853,14 @@ class TestXComsSetEndpoint:
         ):
             response = client.post(
                 f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
-                json='"value"',
+                json="value",
             )
 
         assert response.status_code == 404
-        detail = response.json()["detail"]
-        assert isinstance(detail, dict), f"detail must be a dict (RFC 9457), got {type(detail)}: {detail!r}"
-        assert detail["reason"] == "not_found"
-        assert detail["message"] == "unknown task instance id"
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "unknown task instance id",
+        }
 
 
 class TestXComsDeleteEndpoint:
