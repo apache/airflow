@@ -243,6 +243,10 @@ class TestListBackfills(TestBackfillEndpoint):
         assert response.status_code == 200
         assert [each["id"] for each in response.json()["backfills"]] == [b2.id]
 
+        response = test_client.get("/backfills", params={"max_active_runs_lte": 0})
+        assert response.status_code == 200
+        assert response.json()["backfills"] == []
+
     def test_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/backfills", params={})
         assert response.status_code == 401
