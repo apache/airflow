@@ -101,6 +101,8 @@ class QdrantHook(BaseHook):
         grpc_port = extra.get("grpc_port", 6334)
         prefer_gprc = extra.get("prefer_gprc", False)
         https = extra.get("https", None)
+        if https is None and "://" not in (url or ""):
+            https = True
         prefix = extra.get("prefix", None)
 
         return QdrantClient(

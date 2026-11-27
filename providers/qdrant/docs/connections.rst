@@ -49,7 +49,8 @@ Prefer GRPC (optional)
     Whether to use GRPC for custom methods. Defaults to ``False``.
 
 HTTPS (optional)
-    Whether to use HTTPS for requests. Defaults to ``True`` if an API key is provided. ``False`` otherwise.
+    Connections use HTTPS by default unless the URL specifies a scheme. To connect to an HTTP-only
+    instance after upgrading, set the connection extra ``{"https": false}`` or provide an explicit HTTP URL.
 
 Prefix (optional)
     Prefix to add to the REST URL endpoints. Defaults to ``None``.
