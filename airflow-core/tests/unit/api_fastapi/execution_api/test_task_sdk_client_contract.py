@@ -320,6 +320,16 @@ class TestAssetOperations:
         assert result == ErrorResponse(error=ErrorType.ASSET_NOT_FOUND, detail=by)
 
 
+def _exception_names(node: ast.expr | None) -> set[str]:
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, ast.Attribute):
+        return {node.attr}
+    if isinstance(node, ast.Tuple):
+        return {name for elt in node.elts for name in _exception_names(elt)}
+    return set()
+
+
 def _find_methods_handling_server_errors() -> set[str]:
     tree = ast.parse(Path(client_module.__file__).read_text())
     classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
@@ -339,9 +349,7 @@ def _find_methods_handling_server_errors() -> set[str]:
         for method in classes[cls_name].body
         if isinstance(method, ast.FunctionDef)
         and any(
-            isinstance(handler, ast.ExceptHandler)
-            and isinstance(handler.type, ast.Name)
-            and handler.type.id == "ServerResponseError"
+            isinstance(handler, ast.ExceptHandler) and "ServerResponseError" in _exception_names(handler.type)
             for handler in ast.walk(method)
         )
     }
