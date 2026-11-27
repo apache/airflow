@@ -19,6 +19,8 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from botocore.credentials import ReadOnlyCredentials
+from sqlalchemy.engine import URL
 
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.athena_sql import AthenaSQLHook
@@ -49,13 +51,24 @@ class TestAthenaSQLHookConn:
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = conn
 
+    @pytest.mark.parametrize(
+        ("token", "expected_query"),
+        [
+            pytest.param(
+                AWS_SESSION_TOKEN,
+                "aws_session_token=aws_session_token&region_name=us-east-1&work_group=test-work-group",
+                id="session-token",
+            ),
+            pytest.param(None, "region_name=us-east-1&work_group=test-work-group", id="no-session-token"),
+        ],
+    )
     @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_credentials")
-    def test_get_uri(self, mock_get_credentials):
+    def test_get_uri(self, mock_get_credentials, token, expected_query):
         mock_get_credentials.return_value = mock.Mock(
-            access_key=AWS_ACCESS_KEY_ID, secret_key=AWS_SECRET_ACCESS_KEY, token=AWS_SESSION_TOKEN
+            access_key=AWS_ACCESS_KEY_ID, secret_key=AWS_SECRET_ACCESS_KEY, token=token
         )
 
-        expected_athena_uri = "awsathena+rest://aws_access_key_id:aws_secret_access_key@athena.us-east-1.amazonaws.com:443/athena_sql_schema?aws_session_token=aws_session_token&region_name=us-east-1&work_group=test-work-group"
+        expected_athena_uri = f"awsathena+rest://aws_access_key_id:aws_secret_access_key@athena.us-east-1.amazonaws.com:443/athena_sql_schema?{expected_query}"
 
         athena_uri = self.db_hook.get_uri()
 
@@ -139,6 +152,89 @@ class TestAthenaSQLHookConn:
         ):
             self.db_hook.get_conn()
             mock_connect.assert_called_once_with(**expected_call_args)
+
+    # Guards the PyAthena>=3.28.0 floor: older releases fall back to AWS_ATHENA_S3_STAGING_DIR
+    # when s3_staging_dir is empty, which workgroups that use managed query results reject.
+    @mock.patch.dict("os.environ", {"AWS_ATHENA_S3_STAGING_DIR": "s3://env-bucket/staging/"})
+    @mock.patch("airflow.providers.amazon.aws.hooks.athena_sql.AthenaSQLHook.get_session", autospec=True)
+    def test_get_conn_empty_s3_staging_dir_skips_env_fallback(self, mock_get_session):
+        self.db_hook.get_connection.return_value = Connection(
+            conn_type="athena",
+            schema=SCHEMA_NAME,
+            extra={"work_group": WORK_GROUP, "region_name": REGION_NAME, "s3_staging_dir": ""},
+        )
+
+        assert self.db_hook.get_conn().s3_staging_dir is None
+
+    @pytest.mark.parametrize("schema", [SCHEMA_NAME, "sales#archive"])
+    @mock.patch("airflow.providers.common.sql.hooks.sql.create_engine", autospec=True)
+    @mock.patch.object(
+        AthenaSQLHook,
+        "get_credentials",
+        autospec=True,
+        return_value=ReadOnlyCredentials(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN),
+    )
+    def test_get_sqlalchemy_engine_keeps_empty_s3_staging_dir(
+        self, mock_get_credentials, mock_create_engine, schema
+    ):
+        self.db_hook.get_connection.return_value = Connection(
+            conn_type="athena",
+            schema=schema,
+            extra={"work_group": WORK_GROUP, "region_name": REGION_NAME, "s3_staging_dir": ""},
+        )
+
+        self.db_hook.get_sqlalchemy_engine()
+
+        mock_create_engine.assert_called_once()
+        url = mock_create_engine.call_args.kwargs["url"]
+        assert isinstance(url, URL)
+        assert url.database == schema
+        assert url.query["s3_staging_dir"] == ""
+
+    @pytest.mark.parametrize(
+        ("change_uri", "expected_query"),
+        [
+            pytest.param(
+                lambda uri: uri.replace(f"work_group={WORK_GROUP}", "work_group=other-work-group"),
+                {"work_group": "other-work-group", "s3_staging_dir": ""},
+                id="other-work-group",
+            ),
+            pytest.param(
+                lambda uri: f"{uri}&s3_staging_dir=s3%3A%2F%2Fexplicit-bucket%2F",
+                {"work_group": WORK_GROUP, "s3_staging_dir": "s3://explicit-bucket/"},
+                id="explicit-s3-staging-dir",
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.common.sql.hooks.sql.create_engine", autospec=True)
+    @mock.patch.object(
+        AthenaSQLHook,
+        "get_credentials",
+        autospec=True,
+        return_value=ReadOnlyCredentials(AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN),
+    )
+    def test_get_sqlalchemy_engine_uses_overridden_get_uri(
+        self, mock_get_credentials, mock_create_engine, change_uri, expected_query
+    ):
+        class AthenaSQLHookWithCustomUri(AthenaSQLHook):
+            def get_uri(self) -> str:
+                return change_uri(super().get_uri())
+
+        hook = AthenaSQLHookWithCustomUri()
+        hook.get_connection = mock.Mock(  # type: ignore[method-assign]
+            return_value=Connection(
+                conn_type="athena",
+                schema=SCHEMA_NAME,
+                extra={"work_group": WORK_GROUP, "region_name": REGION_NAME, "s3_staging_dir": ""},
+            )
+        )
+
+        hook.get_sqlalchemy_engine()
+
+        mock_create_engine.assert_called_once()
+        url = mock_create_engine.call_args.kwargs["url"]
+        assert isinstance(url, URL)
+        assert {key: url.query.get(key) for key in expected_query} == expected_query
 
     def test_conn_id_default_setter(self):
         assert self.db_hook.athena_conn_id == "athena_default"
