@@ -21,16 +21,16 @@ readonly DOCKERHUB_USER
 DOCKERHUB_REPO=${DOCKERHUB_REPO:="airflow"}
 readonly DOCKERHUB_REPO
 
-PGBOUNCER_EXPORTER_VERSION="0.21.0"
+PGBOUNCER_EXPORTER_VERSION="0.22.0"
 readonly PGBOUNCER_EXPORTER_VERSION
 # The commit that PGBOUNCER_EXPORTER_VERSION's tag pointed at when it was reviewed. The image
 # is built from this commit, not from the tag: tags on the upstream repository are mutable and
 # can be moved to different content without this file changing. Update both together, and
 # re-check the diff upstream when you do.
-PGBOUNCER_EXPORTER_COMMIT_SHA="9e444947e9f21df7a4e120156a1e3fa5fae26b4a"
+PGBOUNCER_EXPORTER_COMMIT_SHA="bb10c05d2009b101acefbfcb2eb5a482457b3aa9"
 readonly PGBOUNCER_EXPORTER_COMMIT_SHA
 
-AIRFLOW_PGBOUNCER_EXPORTER_VERSION="2026.10.13"
+AIRFLOW_PGBOUNCER_EXPORTER_VERSION="2026.11.22"
 readonly AIRFLOW_PGBOUNCER_EXPORTER_VERSION
 
 EXPECTED_GO_VERSION="1.27.2"
