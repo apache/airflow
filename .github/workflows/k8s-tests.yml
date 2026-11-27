@@ -209,7 +209,7 @@ jobs:
       # bump it to force-invalidate a poisoned cache without waiting for a dependency change to rotate it.
       # keep go-version in sync with go-sdk/go.mod and the sibling Go SDK job in ci-amd.yml.
       - name: "Setup Go for lang-SDK build"
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e  # v7.0.0
+        uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5  # v7.1.0
         with:
           go-version: 1.25
           cache: false
