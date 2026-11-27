@@ -38,11 +38,12 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanE
 from opentelemetry.trace import StatusCode
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 from pydantic import ValidationError
-from sqlalchemy import delete, select, update
+from sqlalchemy import Column, PrimaryKeyConstraint, UniqueConstraint, delete, select, update
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
+from sqlalchemy.sql import visitors
 from sqlalchemy.sql.selectable import Select
 
 from airflow._shared.observability.traces import OverrideableRandomIdGenerator
@@ -130,6 +131,28 @@ def _where_column_keys(statement) -> set[str]:
             keys.add(left.key)
         stack.extend(clause.get_children())
     return keys
+
+
+def _get_indexed_column_names(table) -> set[str]:
+    """Columns read by an index of ``table`` (predicates and INCLUDE columns too), its primary or unique keys."""
+    clauses = []
+    for index in table.indexes:
+        clauses.extend(index.expressions)
+        clauses.extend(index.dialect_kwargs.get(f"{dialect}_where") for dialect in ("postgresql", "sqlite"))
+        clauses.extend(
+            table.c[column] if isinstance(column, str) else column
+            for column in index.dialect_kwargs.get("postgresql_include") or []
+        )
+    for constraint in table.constraints:
+        if isinstance(constraint, (PrimaryKeyConstraint, UniqueConstraint)):
+            clauses.extend(constraint.columns)
+    return {
+        element.name
+        for clause in clauses
+        if clause is not None
+        for element in visitors.iterate(clause)
+        if isinstance(element, Column)
+    }
 
 
 def _is_task_instance_update(statement) -> bool:
@@ -5611,6 +5634,52 @@ class TestTIHealthEndpoint:
         assert len(for_update_selects) == 0
         session.refresh(ti)
         assert ti.last_heartbeat_at == new_time
+
+    def test_ti_heartbeat_fast_path_writes_no_indexed_column(
+        self, client, session, create_task_instance, monkeypatch
+    ):
+        """
+        The heartbeat UPDATE changes no column that an index or key of task_instance reads.
+
+        PostgreSQL can then apply it as a heap-only tuple (HOT) update: the new row version goes on the same
+        page and no index gets a new entry. If one of these columns ever needs an index, the cost is that
+        every heartbeat also writes an entry into every index on task_instance.
+        """
+        ti = create_task_instance(
+            task_id="test_ti_heartbeat_fast_path_writes_no_indexed_column",
+            state=State.RUNNING,
+            hostname="random-hostname",
+            pid=1547,
+            session=session,
+        )
+        session.commit()
+
+        original_execute = Session.execute
+        task_instance_updates = []
+
+        def capturing_execute(session_obj, statement, *args, **kwargs):
+            if _is_task_instance_update(statement):
+                task_instance_updates.append(statement)
+            return original_execute(session_obj, statement, *args, **kwargs)
+
+        monkeypatch.setattr(Session, "execute", capturing_execute)
+
+        response = client.put(
+            f"/execution/task-instances/{ti.id}/heartbeat",
+            json={"hostname": "random-hostname", "pid": 1547},
+        )
+
+        assert response.status_code == 204
+        [heartbeat_update] = task_instance_updates
+        # Columns set from a parameter, including an ``onupdate`` default like updated_at, are in the compiled
+        # params, whose WHERE parameters get suffixed names (id_1, state_1, ...) that match no column. Columns
+        # set to a SQL expression, such as func.now(), are in postfetch.
+        compiled = heartbeat_update.compile(dialect=session.get_bind().dialect)
+        written_columns = set(compiled.params) & set(TaskInstance.__table__.c.keys())
+        written_columns |= {column.name for column in compiled.postfetch}
+        assert written_columns >= {"last_heartbeat_at", "updated_at"}
+        indexed_columns = _get_indexed_column_names(TaskInstance.__table__)
+        assert not written_columns & indexed_columns
 
     def test_ti_heartbeat_fallback_updates_on_fast_path_miss(
         self, client, session, create_task_instance, monkeypatch, time_machine
