@@ -2204,7 +2204,18 @@ class ActivitySubprocess(WatchedSubprocess):
     def _handle_set_rendered_map_index(
         self, msg: SetRenderedMapIndex, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
-        self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
+        try:
+            self.client.task_instances.set_rendered_map_index(self.id, msg.rendered_map_index)
+        except ServerResponseError as e:
+            # The rendered map index is a UI label, so a late best-effort update from a
+            # finishing worker must not fail the task's real outcome. On retry/clear the
+            # server replaces the TI id, and this endpoint reports a replaced id as plain
+            # 404 (unlike the RTIF endpoint there is no separate 410 "archived" response),
+            # so a stale update cannot be told from a bogus one -- and neither should
+            # fail the task.
+            if e.response.status_code != HTTPStatus.NOT_FOUND:
+                raise
+            log.debug("Skipping rendered map index update; task instance is no longer live", ti_id=self.id)
         return None, {}
 
     def _handle_get_asset_by_name(
