@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers.google.version_compat import BaseOperator
@@ -121,6 +121,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.project_id = project_id
         self.cancel_on_kill = cancel_on_kill
         self.job_id: str | None = None
+        self._job: BigQueryJob | None = None
 
     def _prepare_job_configuration(self):
         self.source_project_dataset_tables = (
@@ -181,7 +182,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
             self.project_id = self.hook.project_id
 
         configuration = self._prepare_job_configuration()
-        # The ID is set before submitting so on_kill can cancel the job while insert_job waits for it.
+        # The ID is set before submitting so on_kill can cancel the job even before insert_job returns.
         self.job_id = self.hook.generate_job_id(
             job_id=None,
             dag_id=self.dag_id,
@@ -191,9 +192,11 @@ class BigQueryToBigQueryOperator(BaseOperator):
             run_after=self.hook.get_run_after_or_logical_date(context),
             force_rerun=True,
         )
-        self._job_conf = self.hook.insert_job(
-            configuration=configuration, job_id=self.job_id, project_id=self.project_id
-        ).to_api_repr()
+        self._job = self.hook.insert_job(
+            configuration=configuration, job_id=self.job_id, project_id=self.project_id, nowait=True
+        )
+        self._job.result()
+        self._job_conf = self._job.to_api_repr()
 
         dest_table_info = self._job_conf["configuration"]["copy"]["destinationTable"]
         BigQueryTableLink.persist(
@@ -205,7 +208,8 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
     def on_kill(self) -> None:
         if self.hook and self.job_id and self.cancel_on_kill:
-            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=self.location)
+            location = (self._job.location if self._job else None) or self.location
+            self.hook.cancel_job(job_id=self.job_id, project_id=self.project_id, location=location)
         else:
             self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
 
