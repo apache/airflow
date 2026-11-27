@@ -31,7 +31,6 @@ from airflow.providers.common.compat.openlineage.facet import (
     SchemaDatasetFacet,
     SchemaDatasetFacetFields,
 )
-from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
@@ -109,7 +108,7 @@ class TestTrinoHookConn:
             extra=json.dumps(extras),
         )
         with pytest.raises(
-            AirflowException,
+            ValueError,
             match=re.escape(
                 "Multiple authentication methods specified: password, kerberos. Only one is allowed."
             ),
