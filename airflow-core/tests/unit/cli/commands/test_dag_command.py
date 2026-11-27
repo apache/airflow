@@ -702,6 +702,19 @@ class TestCliDags:
         clear_db_dags()
         self.setup_class()
 
+    def test_pause_and_unpause_notify_listener(self, dag_scheduling_state_changes):
+        args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
+
+        dag_command.dag_pause(args)
+        assert dag_scheduling_state_changes == [
+            ("example_bash_operator", DagSchedulingState.ACTIVE, DagSchedulingState.PAUSED)
+        ]
+
+        dag_command.dag_unpause(args)
+        assert dag_scheduling_state_changes[1:] == [
+            ("example_bash_operator", DagSchedulingState.PAUSED, DagSchedulingState.ACTIVE)
+        ]
+
     @pytest.mark.parametrize(
         ("command", "expected_state"),
         [

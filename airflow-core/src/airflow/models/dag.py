@@ -39,6 +39,7 @@ from sqlalchemy import (
     Text,
     and_,
     case,
+    event,
     func,
     inspect as sa_inspect,
     or_,
@@ -62,6 +63,7 @@ from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetDagRunQueue, build_consumed_by_dag_clause
 from airflow.models.base import Base, StringID
 from airflow.models.dagbundle import DagBundleModel
@@ -82,6 +84,7 @@ if TYPE_CHECKING:
     from typing import TypeAlias
 
     from dateutil.relativedelta import relativedelta
+    from sqlalchemy.orm import SessionTransaction
     from sqlalchemy.orm.state import InstanceState
     from sqlalchemy.sql.elements import ColumnElement
 
@@ -108,6 +111,8 @@ if TYPE_CHECKING:
 log = structlog.getLogger(__name__)
 
 TAG_MAX_LEN = 100
+
+_SCHEDULING_STATE_CHANGES_KEY = "dag_scheduling_state_changes"
 
 _team_name_cache_ttl = airflow_conf.getint("core", "team_name_cache_ttl", fallback=30)
 _team_name_cache: TTLCache = TTLCache(maxsize=1024, ttl=_team_name_cache_ttl)
@@ -507,9 +512,21 @@ class DagModel(Base):
         return DagSchedulingState.ACTIVE
 
     def set_scheduling_state(self, state: DagSchedulingState) -> None:
-        """Set the Dag's scheduling state."""
+        """
+        Set the Dag's scheduling state.
+
+        Writers must call this instead of assigning the flags or running a bulk UPDATE: a change of a
+        persistent Dag is queued here for the ``on_dag_scheduling_state_change`` listener hook, which
+        fires once the outermost transaction commits.
+        """
+        old_state = self.scheduling_state
         self.is_paused = state == DagSchedulingState.PAUSED
         self.is_draining = state == DagSchedulingState.DRAINING
+        instance_state: InstanceState = sa_inspect(self)
+        if old_state != state and instance_state.persistent and (session := instance_state.session):
+            session.info.setdefault(_SCHEDULING_STATE_CHANGES_KEY, []).append(
+                (session.get_nested_transaction() or session.get_transaction(), self.dag_id, old_state, state)
+            )
 
     @classmethod
     def start_drain(cls, dag_id: str, *, session: Session) -> None:
@@ -920,6 +937,52 @@ class DagModel(Base):
             .where(DagModel.dag_id.in_(dag_ids))
         )
         return {dag_id: team_name for dag_id, team_name in session.execute(stmt)}
+
+
+def _is_within(transaction: SessionTransaction | None, ancestor: SessionTransaction) -> bool:
+    if ancestor.parent is None:
+        return True
+    while transaction is not None:
+        if transaction is ancestor:
+            return True
+        transaction = transaction.parent
+    return False
+
+
+@event.listens_for(Session, "after_soft_rollback")
+def _discard_rolled_back_scheduling_state_changes(
+    session: Session, previous_transaction: SessionTransaction
+) -> None:
+    changes = session.info.get(_SCHEDULING_STATE_CHANGES_KEY)
+    if changes:
+        changes[:] = [change for change in changes if not _is_within(change[0], previous_transaction)]
+
+
+@event.listens_for(Session, "after_transaction_end")
+def _forget_scheduling_state_changes(session: Session, transaction: SessionTransaction) -> None:
+    if transaction.parent is None:
+        session.info.pop(_SCHEDULING_STATE_CHANGES_KEY, None)
+
+
+@event.listens_for(Session, "after_commit")
+def _notify_scheduling_state_changes(session: Session) -> None:
+    # A savepoint release fires this event too, but only the outermost commit makes a change durable.
+    if session.get_nested_transaction() is not None:
+        return
+    first_old_states: dict[str, DagSchedulingState] = {}
+    last_new_states: dict[str, DagSchedulingState] = {}
+    for _, dag_id, old_state, new_state in session.info.pop(_SCHEDULING_STATE_CHANGES_KEY, ()):
+        first_old_states.setdefault(dag_id, old_state)
+        last_new_states[dag_id] = new_state
+    for dag_id, new_state in last_new_states.items():
+        if first_old_states[dag_id] == new_state:
+            continue
+        try:
+            get_listener_manager().hook.on_dag_scheduling_state_change(
+                dag_id=dag_id, old_state=first_old_states[dag_id], new_state=new_state
+            )
+        except Exception:
+            log.exception("Error while calling listener")
 
 
 STATICA_HACK = True

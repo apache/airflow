@@ -22,7 +22,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Query, Response, status
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
-from sqlalchemy import delete, func, insert, select, update
+from sqlalchemy import delete, func, insert, select
 from sqlalchemy.orm import selectinload
 
 from airflow.api.common import delete_dag as delete_dag_module
@@ -90,7 +90,7 @@ from airflow.models.dag_favorite import DagFavorite
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagrun import DagRun
 from airflow.utils.sqlalchemy import with_row_locks
-from airflow.utils.state import DagRunState, DagSchedulingState
+from airflow.utils.state import DagRunState
 
 dags_router = AirflowRouter(tags=["DAG"], prefix="/dags")
 
@@ -443,15 +443,14 @@ def patch_dags(
     ).subquery()
 
     scheduling_state = get_scheduling_state(patch_body)
-    session.execute(
-        update(DagModel)
-        .where(DagModel.dag_id.in_(select(filtered_dag_ids.c.dag_id)))
-        .values(
-            is_paused=scheduling_state == DagSchedulingState.PAUSED,
-            is_draining=scheduling_state == DagSchedulingState.DRAINING,
+    for dag in session.scalars(
+        with_row_locks(
+            select(DagModel).where(DagModel.dag_id.in_(select(filtered_dag_ids.c.dag_id))),
+            of=DagModel,
+            session=session,
         )
-        .execution_options(synchronize_session="fetch")
-    )
+    ):
+        dag.set_scheduling_state(scheduling_state)
 
     return DAGCollectionResponse(
         dags=list(dags),

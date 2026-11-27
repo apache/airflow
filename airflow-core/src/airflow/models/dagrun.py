@@ -116,7 +116,7 @@ from airflow.utils.sqlalchemy import (
     nulls_first,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, DagSchedulingState, State, TaskInstanceState
 from airflow.utils.strings import get_random_string
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
@@ -1144,15 +1144,13 @@ class DagRun(Base, LoggingMixin):
                 self.dag_id,
                 max_consecutive_failed_dag_runs,
             )
-            filter_query = [
-                DagModel.dag_id == self.dag_id,
-            ]
-            session.execute(
-                update(DagModel)
-                .where(or_(*filter_query))
-                .values(is_paused=True, is_draining=False)
-                .execution_options(synchronize_session="fetch")
-            )
+            dag_model = session.scalars(
+                with_row_locks(
+                    select(DagModel).where(DagModel.dag_id == self.dag_id), of=DagModel, session=session
+                ).execution_options(populate_existing=True)
+            ).one_or_none()
+            if dag_model is not None:
+                dag_model.set_scheduling_state(DagSchedulingState.PAUSED)
             session.add(
                 Log(
                     event="paused",
