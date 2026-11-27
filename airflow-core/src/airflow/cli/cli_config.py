@@ -424,9 +424,11 @@ ARG_BACKFILL_REPROCESS_BEHAVIOR = Arg(
     ("--reprocess-behavior",),
     help=(
         "Select which Dag runs to create: 'none' (Missing Runs), 'failed' (Missing and Errored Runs), "
-        "or 'completed' (All Runs). Default is 'none'."
+        "or 'completed' (All Runs). With 'failed_tasks' (Failed Tasks Only) only the failed task "
+        "instances of failed runs are cleared; with 'new_tasks' (New Tasks Only) only tasks added in "
+        "the latest Dag version are run for existing runs. Default is 'none'."
     ),
-    choices=("none", "failed", "completed"),
+    choices=("none", "failed", "completed", "failed_tasks", "new_tasks"),
 )
 ARG_BACKFILL_RUN_ON_LATEST_VERSION = Arg(
     ("--run-on-latest-version",),
