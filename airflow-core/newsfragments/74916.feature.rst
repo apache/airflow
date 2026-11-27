@@ -1,0 +1,1 @@
+Add ``on_success_succeed_dagrun`` to teardown tasks. With ``on_failure_fail_dagrun=True`` and ``on_success_succeed_dagrun=False``, a successful teardown no longer hides a failed task.
