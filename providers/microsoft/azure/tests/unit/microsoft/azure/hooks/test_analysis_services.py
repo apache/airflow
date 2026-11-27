@@ -23,6 +23,7 @@ import httpx
 import pytest
 from azure.core.credentials import AccessToken
 from azure.core.exceptions import ClientAuthenticationError
+from azure.identity.aio import DefaultAzureCredential
 
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.analysis_services import (
@@ -81,7 +82,11 @@ class TestAzureAnalysisServicesHook:
 
     def test_defines_connection_form_widget(self):
         pytest.importorskip("flask_appbuilder")
-        assert set(AzureAnalysisServicesHook.get_connection_form_widgets()) == {"tenantId"}
+        assert set(AzureAnalysisServicesHook.get_connection_form_widgets()) == {
+            "tenantId",
+            "managed_identity_client_id",
+            "workload_identity_tenant_id",
+        }
 
     def test_defines_connection_ui_field_behaviour(self):
         assert AzureAnalysisServicesHook.get_ui_field_behaviour() == {
@@ -105,8 +110,9 @@ class TestAzureAnalysisServicesHook:
         assert first_client is client_class.return_value
         assert second_client is first_client
 
+    @mock.patch(f"{MODULE}.get_async_default_azure_credential", autospec=True)
     @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
-    def test_get_credential_creates_and_caches_credential(self, credential_class):
+    def test_get_credential_creates_and_caches_credential(self, credential_class, default_credential):
         hook = AzureAnalysisServicesHook(CONN_ID)
 
         first_credential = hook._get_credential()
@@ -119,6 +125,55 @@ class TestAzureAnalysisServicesHook:
         )
         assert first_credential is credential_class.return_value
         assert second_credential is first_credential
+        default_credential.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("empty_value", [None, ""])
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            {},
+            {
+                "managed_identity_client_id": "identity-client-id",
+                "workload_identity_tenant_id": "identity-tenant-id",
+                "exclude_environment_credential": True,
+            },
+        ],
+    )
+    @mock.patch(f"{MODULE}.ClientSecretCredential", autospec=True)
+    @mock.patch(f"{MODULE}.get_async_default_azure_credential", autospec=True)
+    async def test_default_credential_lifecycle(
+        self, default_credential, secret_credential, create_mock_connection, empty_value, extra
+    ):
+        create_mock_connection(
+            Connection(
+                conn_id="default-auth",
+                conn_type="azure_analysis_services",
+                host=HOST,
+                login=empty_value,
+                password=empty_value,
+                extra=extra,
+            )
+        )
+        credential = mock.create_autospec(DefaultAzureCredential, instance=True)
+        credential.get_token.return_value = AccessToken("token", 0)
+        default_credential.return_value = credential
+        hook = AzureAnalysisServicesHook("default-auth")
+
+        assert hook._get_credential() is credential
+        assert hook._get_credential() is credential
+        assert await hook._get_headers() == HEADERS
+        await hook.aclose()
+        await hook.aclose()
+
+        default_credential.assert_called_once_with(
+            managed_identity_client_id=extra.get("managed_identity_client_id"),
+            workload_identity_tenant_id=extra.get("workload_identity_tenant_id"),
+        )
+        secret_credential.assert_not_called()
+        credential.get_token.assert_awaited_once_with(TOKEN_SCOPE)
+        credential.close.assert_awaited_once_with()
+        assert hook._credential is None
 
     @mock.patch(f"{MODULE}.BaseHook.get_connection", autospec=True)
     def test_caches_connection(self, get_connection):
