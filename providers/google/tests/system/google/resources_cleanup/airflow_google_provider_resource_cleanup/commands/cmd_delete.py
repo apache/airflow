@@ -130,7 +130,7 @@ async def handle_asset_type(
     else:
         print(f"Auxiliary resource cleanup requested: '{asset_type}'. Deleting attempt...")
 
-    handler = delete_handlers[asset_type]()
+    handler = delete_handlers[asset_type](project_id=cfg.project_id)
 
     await handler.handle(safe_resources)
 

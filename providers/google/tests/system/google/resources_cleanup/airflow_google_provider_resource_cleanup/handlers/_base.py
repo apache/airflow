@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import traceback
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
@@ -25,16 +26,28 @@ from collections.abc import Awaitable, Callable
 
 class BaseDeleteHandler:
     # The function signature for the DELETERS's value: def f(resource: dict, prefix: str)
-    DELETERS: dict[str, Callable[[dict, str], Awaitable[bool | None]]] = {}
+    # Deleters may also accept an optional keyword-only `project_id: str | None = None` parameter.
+    DELETERS: dict[str, Callable[..., Awaitable[bool | None]]] = {}
     DELETION_ORDER: list[str] = []  # list of asset types to delete by order
     SEMAPHORE_COUNT: int = 10
     SLEEP_AFTER_EACH_REQUEST = 0.01
 
-    def __init__(self):
+    def __init__(self, project_id: str | None = None):
         if not self.DELETERS or not self.DELETION_ORDER:
             raise NotImplementedError(
                 "To be able to use this handler you need to define DELETERS and DELETION_ORDER!"
             )
+        self.project_id = project_id
+
+    def _call_deleter(
+        self,
+        deleter: Callable[..., Awaitable[bool | None]],
+        resource: dict,
+        prefix: str,
+    ) -> Awaitable[bool | None]:
+        if self.project_id is not None and "project_id" in inspect.signature(deleter).parameters:
+            return deleter(resource, prefix, project_id=self.project_id)
+        return deleter(resource, prefix)
 
     def categorize_resources(self, resources):
         categorized_resources = defaultdict(list)
@@ -55,7 +68,7 @@ class BaseDeleteHandler:
                 print(f"{prefix}Unknown asset type:", asset_type)
             else:
                 deleter = self.DELETERS[asset_type]
-                if await deleter(resource, prefix) is not False:
+                if await self._call_deleter(deleter, resource, prefix) is not False:
                     print(f"{prefix}Resource deleted!")
 
             await asyncio.sleep(self.SLEEP_AFTER_EACH_REQUEST)
