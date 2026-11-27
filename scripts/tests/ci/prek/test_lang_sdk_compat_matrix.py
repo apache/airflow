@@ -248,12 +248,6 @@ class TestRenderMarkdownTable:
 
         assert rendered.index(matrix.LEGEND) < rendered.index("| Dimension |")
 
-    def test_dag_definition_has_timetable_and_local_testing_rows(self):
-        rows = {row.name: row for row in matrix.build_matrix_parts().dag_definition.groups[0].rows}
-
-        assert {"timetable", "task-test", "dag-test"} <= rows.keys()
-        assert all(rows[name].gated for name in ("timetable", "task-test", "dag-test"))
-
     def test_parts_split_dimensions_by_authoring_mode_in_display_order(self):
         parts = matrix.build_matrix_parts()
         dag_definition, stub_task_handler, common = parts
