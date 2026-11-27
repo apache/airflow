@@ -241,10 +241,43 @@ async def test_run_command_async():
     process = MagicMock()
     process.returncode = 0
     process.communicate = AsyncMock(return_value=(b"out", b"err"))
+    env = {"TEST_ENV": "value"}
 
     with patch.object(
         helpers.asyncio, "create_subprocess_shell", AsyncMock(return_value=process)
     ) as mock_create:
-        await helpers.run_command_async("echo test")
+        await helpers.run_command_async("echo test", env=env)
 
-    mock_create.assert_awaited_once()
+    mock_create.assert_awaited_once_with(
+        "echo test",
+        stdout=helpers.asyncio.subprocess.PIPE,
+        stderr=helpers.asyncio.subprocess.PIPE,
+        env=env,
+    )
+
+
+def test_get_access_token_refreshes_and_reuses_credentials(monkeypatch):
+    credentials = MagicMock(valid=False, token=None)
+
+    def refresh(_request):
+        credentials.valid = True
+        credentials.token = "test-token"
+
+    credentials.refresh.side_effect = refresh
+    mock_default = MagicMock(return_value=(credentials, None))
+    monkeypatch.setattr(helpers, "_google_credentials", None)
+    monkeypatch.setattr(helpers.google.auth, "default", mock_default)
+
+    assert helpers._get_access_token() == "test-token"
+    assert helpers._get_access_token() == "test-token"
+
+    mock_default.assert_called_once_with(scopes=[helpers.GOOGLE_CLOUD_PLATFORM_SCOPE])
+    credentials.refresh.assert_called_once()
+
+
+def test_get_access_token_requires_token(monkeypatch):
+    credentials = MagicMock(valid=True, token=None)
+    monkeypatch.setattr(helpers, "_google_credentials", credentials)
+
+    with pytest.raises(RuntimeError, match="did not provide an access token"):
+        helpers._get_access_token()
