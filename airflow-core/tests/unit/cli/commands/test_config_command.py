@@ -609,6 +609,18 @@ class TestConfigLint:
 
         assert f"`{option}` configuration parameter from `{section}` section." in normalized_output
 
+    @pytest.mark.parametrize("option", ["local_task_job_heartbeat_sec", "task_instance_heartbeat_sec"])
+    def test_lint_detects_removed_task_heartbeat_options(self, option, stdout_capture):
+        with conf_vars({("scheduler", option): "10"}), stdout_capture as temp_stdout:
+            config_command.lint_config(
+                cli_parser.get_parser().parse_args(["config", "lint", "--section", "scheduler"])
+            )
+
+        normalized_output = re.sub(r"\s+", " ", temp_stdout.getvalue().strip())
+
+        assert f"Removed `{option}` configuration parameter from `scheduler` section." in normalized_output
+        assert "`min_heartbeat_interval` in the `workers` section" in normalized_output
+
 
 class TestCliConfigUpdate:
     @conf_vars({("core", "executor"): "SequentialExecutor"})
@@ -708,6 +720,23 @@ class TestCliConfigUpdate:
         assert os.path.exists(backup_path), "Backup file should be created."
         backup_content = open(backup_path).read()
         assert "backup_config" in backup_content, "Backup file should contain the original content."
+
+    @pytest.mark.parametrize("option", ["local_task_job_heartbeat_sec", "task_instance_heartbeat_sec"])
+    def test_update_config_fix_removes_task_heartbeat_options(self, option, tmp_path, monkeypatch, capsys):
+        cfg_file = tmp_path / "airflow.cfg"
+        cfg_file.write_text(f"[scheduler]\n{option} = 10\n")
+        monkeypatch.setattr(config_command, "AIRFLOW_CONFIG", str(cfg_file))
+        monkeypatch.setattr(
+            conf, "as_dict", lambda *args, **kwargs: {"scheduler": {option: ("10", "airflow.cfg")}}
+        )
+        monkeypatch.setattr(conf, "write_custom_config", lambda file, **kwargs: file.write(""))
+
+        args = cli_parser.get_parser().parse_args(["config", "update", "--fix", "--all-recommendations"])
+        config_command.update_config(args)
+
+        output = capsys.readouterr().out
+        assert f"Removed 'scheduler/{option}' from configuration." in output
+        assert "Renamed" not in output
 
     @pytest.mark.parametrize(
         ("flag", "present_key", "absent_key"),
