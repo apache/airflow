@@ -733,10 +733,13 @@ including ``partition_key`` in the request body):
 Handling late or corrected events
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Once a partition has triggered a Dag run, a later event for the same partition
-key never changes that run's consumed events. Instead, it starts collecting
-events for the partition again from scratch. What happens next depends on
-``refire_policy`` on ``PartitionedAssetTimetable``:
+.. versionadded:: 3.5.0
+
+``refire_policy`` on ``PartitionedAssetTimetable`` controls what happens when a
+late or corrected event arrives for a partition that has already triggered a Dag
+run. By default, the earlier Dag run is left as it is, and the late event starts
+collecting events for the partition again from scratch. ``"newrun"`` and
+``"rerun"`` instead reuse the events that triggered the earlier Dag run:
 
 .. code-block:: python
 
@@ -766,17 +769,28 @@ events for the partition again from scratch. What happens next depends on
 
 * ``"newrun"`` — the late event, together with the events that triggered the
   previous Dag run for the partition, triggers a new Dag run right away. Only the
-  earlier events that the late event replaces are left out, so the new run
-  consumes the late event plus every other asset's and source key's earlier
-  event. For a single-asset condition without a rollup mapper, this is the same
-  as the default.
+  earlier events that the late events replace are left out, so the new run
+  consumes the late events plus every other asset's and source key's earlier
+  event. This also holds when several late events arrive before the scheduler
+  handles them. For a single-asset condition without a rollup mapper, this is
+  the same as the default.
 * ``"rerun"`` — like ``"newrun"``, the condition is satisfied right away, but
   instead of creating a new Dag run, Airflow clears the Dag run that the
-  partition previously triggered and adds the late event to the events it
-  consumes. Its ``clear_number`` is incremented. Only the Dag run triggered by
-  this partition is cleared; manual or backfill Dag runs with the same partition
-  key are never touched. If that Dag run no longer exists, a new one is created
-  as with ``"newrun"``.
+  partition previously triggered. The cleared Dag run consumes the same events
+  a ``"newrun"`` Dag run would, and runs on the latest version of the Dag. Its
+  ``clear_number`` is incremented, and the task instances of earlier attempts
+  are kept as try history. Only the Dag run triggered by this partition is
+  cleared; manual or backfill Dag runs with the same partition key are never
+  touched.
+
+``"newrun"`` and ``"rerun"`` find the earlier events through the Dag run the
+partition triggered, and deleting that Dag run removes this link. A late event
+that arrives after the Dag run was deleted is therefore handled as with the
+default. With ``"rerun"``, if the Dag run is deleted after the late event
+arrived but before the scheduler handled it, a new Dag run is created as with
+``"newrun"``. The earlier events are also not reused, and the late event is
+handled as with the default, when the Dag's assets or partition mappers have
+changed since the earlier Dag run.
 
 With ``"rerun"``, a Dag run that has already finished goes back to ``queued``,
 and all its task instances run again. A Dag run that is still queued or running

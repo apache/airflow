@@ -293,6 +293,13 @@ class TestPartitionedAssetTimetable:
         deserialized = PartitionedAssetTimetable.deserialize(serialized)
         assert deserialized.refire_policy == refire_policy
 
+    @pytest.mark.parametrize("refire_policy", ["bogus", "Rerun"])
+    def test_deserialize_rejects_unknown_refire_policy(self, refire_policy):
+        serialized = PartitionedAssetTimetable(assets=ensure_serialized_asset(Asset("test"))).serialize()
+        serialized["refire_policy"] = refire_policy
+        with pytest.raises(ValueError, match="RefirePolicy"):
+            PartitionedAssetTimetable.deserialize(serialized)
+
     @pytest.mark.parametrize("batch_asset_events", [False, True])
     @pytest.mark.parametrize("use_default_mapper", [False, True])
     def test_rollup_requires_batching(self, batch_asset_events, use_default_mapper):

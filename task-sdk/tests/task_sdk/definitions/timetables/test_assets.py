@@ -54,34 +54,31 @@ def test_partitioned_timetable_refire_policy_defaults_to_none():
     assert PartitionedAssetTimetable(assets=Asset("test")).refire_policy is None
 
 
-@pytest.mark.parametrize("refire_policy", [None, "rerun", "newrun"])
-def test_partitioned_timetable_accepts_valid_refire_policy(refire_policy):
+@pytest.mark.parametrize(
+    ("refire_policy", "expected"),
+    [
+        (None, None),
+        ("rerun", PartitionedAssetTimetable.RefirePolicy.RERUN),
+        ("newrun", PartitionedAssetTimetable.RefirePolicy.NEWRUN),
+        (PartitionedAssetTimetable.RefirePolicy.RERUN, PartitionedAssetTimetable.RefirePolicy.RERUN),
+    ],
+)
+def test_partitioned_timetable_accepts_valid_refire_policy(refire_policy, expected):
     timetable = PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
     timetable.validate()
-    assert timetable.refire_policy == refire_policy
+    DAG("refire-policy", schedule=timetable).validate()
+    assert timetable.refire_policy is expected
 
 
 @pytest.mark.parametrize("refire_policy", ["Rerun", "rerun ", "always", ""])
 def test_partitioned_timetable_rejects_invalid_refire_policy(refire_policy):
-    timetable = PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
-    with pytest.raises(AirflowTimetableInvalid, match="refire_policy"):
-        timetable.validate()
+    with pytest.raises(ValueError, match="RefirePolicy"):
+        PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
 
 
-@pytest.mark.parametrize(
-    ("refire_policy", "expected"),
-    [
-        ("rerun", nullcontext()),
-        ("always", pytest.raises(AirflowTimetableInvalid, match="refire_policy")),
-    ],
-)
-def test_dag_validate_checks_refire_policy(refire_policy, expected):
-    dag = DAG(
-        "refire-policy",
-        schedule=PartitionedAssetTimetable(assets=Asset("a"), refire_policy=refire_policy),
-    )
-    with expected:
-        dag.validate()
+def test_partitioned_timetable_refire_policy_is_keyword_only():
+    with pytest.raises(TypeError):
+        PartitionedAssetTimetable(Asset("test"), {}, IdentityMapper(), "rerun")
 
 
 @pytest.mark.parametrize("configured", [False, True])

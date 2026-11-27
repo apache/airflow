@@ -530,7 +530,7 @@ class _Serializer:
                 (encode_asset_like(asset), encode_partition_mapper(partition_mapper))
                 for asset, partition_mapper in timetable.partition_mapper_config.items()
             ],
-            "refire_policy": timetable.refire_policy,
+            "refire_policy": None if timetable.refire_policy is None else timetable.refire_policy.value,
         }
 
     BUILTIN_PARTITION_MAPPERS: dict[type, str] = {

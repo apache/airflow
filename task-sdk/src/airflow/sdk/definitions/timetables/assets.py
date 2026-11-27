@@ -17,7 +17,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, ClassVar
+from enum import Enum
+from typing import TYPE_CHECKING
 
 import attrs
 
@@ -73,16 +74,30 @@ class AssetTriggeredTimetable(BaseTimetable):
 
 @attrs.define
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
-    """Asset-driven timetable that listens for partitioned assets."""
+    """
+    Asset-driven timetable that listens for partitioned assets.
 
-    _VALID_REFIRE_POLICIES: ClassVar[tuple[str | None, ...]] = (None, "rerun", "newrun")
+    :param refire_policy: How an event for a partition that already triggered a Dag run is
+        handled. ``None`` (the default) collects events for the partition again from scratch;
+        ``"newrun"`` reuses the earlier events and creates a new Dag run; ``"rerun"`` reuses
+        them and clears the earlier Dag run. Keyword-only.
+    """
+
+    class RefirePolicy(str, Enum):
+        """How an event for a partition that already triggered a Dag run is handled."""
+
+        NEWRUN = "newrun"
+        """Reuse the earlier events of the partition and create a new Dag run."""
+
+        RERUN = "rerun"
+        """Reuse the earlier events of the partition and clear the Dag run it triggered."""
 
     partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
     default_partition_mapper: PartitionMapper = IdentityMapper()
-    # How an event for an already-fired partition is handled: None (default) starts
-    # collecting events for the partition from scratch; "newrun" and "rerun" reuse the
-    # earlier events, then create a new Dag run or clear the earlier one, respectively.
-    refire_policy: str | None = None
+    # None (the default) collects events for an already-fired partition from scratch.
+    refire_policy: RefirePolicy | None = attrs.field(
+        default=None, converter=attrs.converters.optional(RefirePolicy), kw_only=True
+    )
 
     # The factory needs the partition mappers to be initialized first.
     batch_asset_events: bool = attrs.field(
@@ -96,13 +111,6 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         ):
             return "Partition rollups require batch_asset_events=True"
         return super().get_batching_requirement()
-
-    def validate(self) -> None:
-        super().validate()
-        if self.refire_policy not in self._VALID_REFIRE_POLICIES:
-            raise AirflowTimetableInvalid(
-                f"refire_policy must be one of {self._VALID_REFIRE_POLICIES!r}, got {self.refire_policy!r}"
-            )
 
 
 class PartitionedAtRuntime(BaseTimetable):

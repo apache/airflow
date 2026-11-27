@@ -1027,6 +1027,22 @@ class AssetPartitionDagRun(Base):
             self.pending_partition_key = None
         return value
 
+    @classmethod
+    def get_latest_fired(
+        cls, *, target_dag_id: str, partition_key: str, session: Session
+    ) -> AssetPartitionDagRun | None:
+        """Return the latest APDR for the partition that has already created a Dag run, if any."""
+        return session.scalar(
+            select(cls)
+            .where(
+                cls.target_dag_id == target_dag_id,
+                cls.partition_key == partition_key,
+                cls.created_dag_run_id.is_not(None),
+            )
+            .order_by(cls.id.desc())
+            .limit(1)
+        )
+
 
 class PartitionedAssetKeyLog(Base):
     """
