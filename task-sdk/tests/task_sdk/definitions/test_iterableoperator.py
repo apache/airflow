@@ -3774,6 +3774,25 @@ class TestIndexedTaskUnmapper:
                 run.unmapper.unmap(0, {"arg1": 1})
         assert run.unmapper.do_xcom_push is False
 
+    @pytest.mark.parametrize(
+        ("expand_input", "expected"),
+        [
+            pytest.param(
+                DictOfListsExpandInput({"arg1": make_xcom_arg(["{{ 7*7 }}"])}),
+                "{{ 7*7 }}",
+                id="from-upstream",
+            ),
+            pytest.param(DictOfListsExpandInput({"arg1": ["{{ 7*7 }}"]}), "49", id="literal"),
+        ],
+    )
+    def test_a_value_an_upstream_returned_is_not_rendered(self, expand_input, expected):
+        """As for a mapped task instance: a value an upstream returned is data, a literal one is rendered."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, expand_input)
+            with mock_context(task=iterable_op) as context:
+                task = run_of(iterable_op, context).unmapper.unmap(0, {"arg1": "{{ 7*7 }}"})
+        assert task.task.arg1 == expected
+
 
 class TestIndexedTaskOutcomes:
     """What the indexed tasks ended with, turned into the task's own outcome and its callbacks."""

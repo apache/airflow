@@ -933,6 +933,7 @@ class IndexedTaskUnmapper:
         stop_requested: Callable[[], bool],
     ) -> None:
         self._params = operator.params
+        self._expand_input = operator.expand_input
         self._mapped_operator = mapped_operator
         self._context = context
         self._jinja_env = operator.get_template_env(dag=operator.dag)
@@ -972,7 +973,8 @@ class IndexedTaskUnmapper:
             template_fields=self._mapped_operator.template_fields,
             context=indexed_ti.context_for(context),
             jinja_env=self._jinja_env,
-            seen_oids=set(),
+            # The values an upstream returned are data, not templates, as for a mapped task instance.
+            seen_oids=self._expand_input.get_resolved_oids(mapped_kwargs),
         )
         # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
         indexed_ti.input_fingerprint = self._input_fingerprint.of(mapped_kwargs, unmapped_task)

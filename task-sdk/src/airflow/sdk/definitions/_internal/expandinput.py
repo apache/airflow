@@ -251,6 +251,16 @@ class ExpandInput(ABC, ResolveMixin):
     def resolve(self, context: Mapping[str, Any]) -> Any:
         raise NotImplementedError()
 
+    def get_resolved_oids(self, kwargs: Mapping[str, Any]) -> set[int]:
+        """
+        Return the ids of the values in an item's ``kwargs`` that were resolved at run time.
+
+        Rendering skips them, so a value an upstream returned is never taken for a template: what
+        :meth:`resolve` returns next to the kwargs for ``.expand()``, and what ``.iterate()``
+        renders an indexed task with.
+        """
+        raise NotImplementedError()
+
 
 @attrs.define(slots=False)
 class DecoratedExpandInput(ExpandInput):
@@ -277,6 +287,9 @@ class DecoratedExpandInput(ExpandInput):
 
     def resolve(self, context: Mapping[str, Any]) -> tuple[Mapping[str, Any], set[int]]:
         return self.delegate.resolve(context)
+
+    def get_resolved_oids(self, kwargs: Mapping[str, Any]) -> set[int]:
+        return self.delegate.get_resolved_oids(kwargs["op_kwargs"])
 
 
 @attrs.define(kw_only=True)
@@ -385,9 +398,11 @@ class DictOfListsExpandInput(ExpandInput):
         all_lengths = self._get_map_lengths(sized_resolved)
 
         data = {k: self._expand_mapped_field(k, v, map_index, all_lengths) for k, v in resolved.items()}
+        return data, self.get_resolved_oids(data)
+
+    def get_resolved_oids(self, kwargs: Mapping[str, Any]) -> set[int]:
         literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
-        resolved_oids = {id(v) for k, v in data.items() if k not in literal_keys}
-        return data, resolved_oids
+        return {id(v) for k, v in kwargs.items() if k not in literal_keys}
 
 
 def _describe_type(value: Any) -> str:
@@ -462,10 +477,11 @@ class ListOfDictsExpandInput(ExpandInput):
                     f"expand_kwargs() input dict keys must all be str, "
                     f"but {key!r} is of type {_describe_type(key)}"
                 )
-        # filter out parse time resolved values from the resolved_oids
-        resolved_oids = {id(v) for k, v in mapping.items() if not _is_parse_time_mappable(v)}
+        return mapping, self.get_resolved_oids(mapping)
 
-        return mapping, resolved_oids
+    def get_resolved_oids(self, kwargs: Mapping[str, Any]) -> set[int]:
+        # filter out parse time resolved values from the resolved_oids
+        return {id(v) for v in kwargs.values() if not _is_parse_time_mappable(v)}
 
 
 EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.
