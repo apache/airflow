@@ -20,11 +20,12 @@ import ast
 import json
 import os
 import subprocess
+import time
 from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import Any
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import urlopen
 
 import jmespath
@@ -79,17 +80,24 @@ def get_schema_k8s(api_version, kind, kubernetes_version):
         filename = f"{kind}-{api_version}.json"
 
     url = SCHEMA_URL_TEMPLATE.format(kubernetes_version=kubernetes_version, filename=filename)
-    try:
-        resp = urlopen(url, timeout=30)
-        schema = json.loads(resp.read())
-    except HTTPError as e:
-        if e.code == 404:
-            raise FileNotFoundError(
-                f"K8s JSON schema not found at {url}\n"
-                f"Ensure schemas for K8s v{kubernetes_version} are published to airflow-site."
-            ) from e
-        raise
-    return schema
+    max_attempts = 3
+    for attempt in range(max_attempts):
+        try:
+            resp = urlopen(url, timeout=30)
+            return json.loads(resp.read())
+        except HTTPError as e:
+            if e.code == 404:
+                raise FileNotFoundError(
+                    f"K8s JSON schema not found at {url}\n"
+                    f"Ensure schemas for K8s v{kubernetes_version} are published to airflow-site."
+                ) from e
+            if attempt == max_attempts - 1:
+                raise
+            time.sleep(1.0 * (2**attempt))
+        except (URLError, TimeoutError, OSError):
+            if attempt == max_attempts - 1:
+                raise
+            time.sleep(1.0 * (2**attempt))
 
 
 @cache
