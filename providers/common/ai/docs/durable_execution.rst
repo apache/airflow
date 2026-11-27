@@ -171,6 +171,20 @@ Without the option, the task fails with:
 
     ValueError: Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path to be set, to say where its journal is kept. Example: durable_cache_path = file:///tmp/airflow_durable_cache
 
+For S3, the IAM role must also have ``s3:ListBucket`` permission on the bucket, in
+addition to permissions to read, write, and delete journal objects. Without
+``s3:ListBucket``, S3 returns ``403 Access Denied`` instead of ``404 Not Found``
+when the journal does not exist. This is treated as a storage read failure, so even
+the first task attempt fails. Read failures stop the attempt to avoid repeating
+completed LLM calls or tool operations when an existing journal cannot be read.
+They raise the original storage error, so Airflow retries them according to the
+task's configured retry policy.
+
+A corrupt journal also fails the task attempt and is left unchanged, but Airflow does
+not retry it. The ``path`` field on the ``Durable: journal is corrupt`` task-log warning
+names the file to inspect and restore before running the task again. Deleting it allows
+completed LLM calls and tool operations to run again.
+
 .. _durable-replay:
 
 How a retry replays
