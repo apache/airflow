@@ -43,11 +43,13 @@ API_FASTAPI_PATH = AIRFLOW_CORE_ROOT_PATH / "src" / "airflow" / "api_fastapi"
 
 MODES = ("default", "multi_team")
 
-# The auth manager interface is sync, so these calls cannot be awaited directly.
 ALLOWED_OFFLOADS = frozenset(
     {
+        # The auth manager interface is sync, so these calls cannot be awaited directly.
         "airflow-core/src/airflow/api_fastapi/auth/middlewares/refresh_token.py::JWTRefreshMiddleware.refresh_user",
         "airflow-core/src/airflow/api_fastapi/auth/middlewares/team_authorization.py::TeamAuthorizationMiddleware.dispatch",
+        # CPU-only response validation; the route awaits its database calls.
+        "airflow-core/src/airflow/api_fastapi/execution_api/routes/task_state_store.py::get_task_state_store",
     }
 )
 OFFLOAD_NAMES = frozenset({"run_in_threadpool", "run_in_executor", "to_thread"})
