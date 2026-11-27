@@ -28,6 +28,7 @@ import { server } from "src/mocks/server";
 import { Wrapper } from "src/utils/Wrapper";
 
 import TriggerDAGForm from "./TriggerDAGForm";
+import type { DagRunTriggerParams } from "./types";
 
 const dagParams = vi.hoisted(() => ({
   paramsDict: {
@@ -115,6 +116,108 @@ describe("TriggerDAGForm", () => {
   beforeEach(() => {
     useDagParamsMock.mockReturnValue(dagParams);
     togglePauseMock.mockClear();
+  });
+
+  it("enables Trigger when the last required field is filled and disables it when cleared", async () => {
+    useDagParamsMock.mockReturnValue({
+      paramsDict: {
+        required_field: {
+          description: null,
+          schema: { maxLength: 30, minLength: 10, title: "Required text field", type: "string" },
+          value: null,
+        },
+      },
+    });
+
+    const { container } = render(
+      <TriggerDAGForm
+        dagId="example_params_ui_tutorial"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={vi.fn()}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+
+    await screen.findByText("Required text field");
+    const input = container.querySelector<HTMLInputElement>('input[name="element_required_field"]');
+
+    if (input === null) {
+      throw new Error("Expected the required text input to be rendered");
+    }
+    const submit = screen.getByTestId("trigger-dag-submit");
+
+    expect(submit).toBeDisabled();
+    fireEvent.change(input, { target: { value: "Wind report" } });
+    expect(submit).toBeEnabled();
+    fireEvent.change(input, { target: { value: "" } });
+    expect(submit).toBeDisabled();
+  });
+
+  it("submits a nested YAML object and blocks invalid input until the field is corrected", async () => {
+    useDagParamsMock.mockReturnValue({
+      paramsDict: {
+        ...dagParams.paramsDict,
+        settings: { description: null, schema: { type: "object" }, value: { enabled: false } },
+      },
+    });
+    const onSubmitTrigger = vi.fn<(params: DagRunTriggerParams) => void>();
+
+    render(
+      <TriggerDAGForm
+        dagId="manual_dag"
+        error={undefined}
+        hasSchedule={false}
+        isPartitioned={false}
+        isPaused={false}
+        isPending={false}
+        onSubmitTrigger={onSubmitTrigger}
+        open
+      />,
+      { wrapper: Wrapper },
+    );
+    const format = await screen.findByRole("combobox", { name: "flexibleForm.objectInputFormat" });
+
+    expect(format).toHaveValue("json");
+    fireEvent.change(format, { target: { value: "yaml" } });
+
+    const editor = screen.getByRole("textbox", { name: "settings" });
+    const submit = screen.getByTestId("trigger-dag-submit");
+
+    const message = screen.getByDisplayValue("Hello");
+
+    fireEvent.change(message, { target: { value: "" } });
+    expect(editor).toHaveValue("enabled: false\n");
+    fireEvent.change(editor, { target: { value: "a: [" } });
+    expect(editor).toHaveValue("a: [");
+    expect(submit).toBeDisabled();
+    fireEvent.change(message, { target: { value: "Updated" } });
+    expect(submit).toBeDisabled();
+    fireEvent.click(submit);
+    expect(onSubmitTrigger).not.toHaveBeenCalled();
+
+    fireEvent.change(editor, { target: { value: "- a\n- b" } });
+    expect(screen.getByText(/validationErrorYamlObject/u)).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(editor, { target: { value: "limit: .inf" } });
+    expect(screen.getByText(/validationErrorYamlNumber/u)).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    fireEvent.change(editor, { target: { value: "a:\n  b: c" } });
+    expect(submit).toBeEnabled();
+    fireEvent.change(format, { target: { value: "json" } });
+    expect(
+      screen.getByDisplayValue('{\n  "a": {\n    "b": "c"\n  }\n}', { normalizer: (text) => text }),
+    ).toBeInTheDocument();
+    fireEvent.click(submit);
+    await waitFor(() => expect(onSubmitTrigger).toHaveBeenCalledOnce());
+    const submitted: unknown = JSON.parse(onSubmitTrigger.mock.calls[0]?.[0].conf ?? "{}");
+
+    expect(submitted).toHaveProperty("settings.a.b", "c");
+    expect(submitted).toHaveProperty("message", "Updated");
   });
 
   it.each([

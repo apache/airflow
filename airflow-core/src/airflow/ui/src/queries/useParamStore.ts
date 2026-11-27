@@ -120,9 +120,10 @@ const createParamStore = () =>
           2,
         );
 
+        // Field editors can pass back the same dictionary after changing a value in place.
         return state.conf === newConf && JSON.stringify(state.paramsDict) === JSON.stringify(newParamsDict)
           ? {}
-          : { conf: newConf, paramsDict: newParamsDict };
+          : { conf: newConf, paramsDict: { ...newParamsDict } };
       }),
   }));
 

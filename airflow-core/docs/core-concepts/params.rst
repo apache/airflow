@@ -335,11 +335,10 @@ The following features are supported in the Trigger UI Form:
             ``Param(["one@example.com", "two@example.com"], type="array", items={"type": "string", "format": "idn-email"})``
 
         * - ``object``
-          - | Generates a JSON entry field with
-            | text validation.
-          - * | The HTML form does only validate the syntax of the
-              | JSON input. In order to validate the content for
-              | specific structures take a look to the
+          - | The Trigger Dag form accepts JSON by default.
+            | Select YAML to enter a mapping instead.
+          - * | Both formats submit the same object as run configuration.
+              | For constraints on the object's structure, see
               | `JSON Schema Object details <https://json-schema.org/understanding-json-schema/reference/object.html>`_.
             * | ``enum=[{"name": "dev"}, {"name": "prod"}]``:
               | Generates a drop-down select list of objects;
