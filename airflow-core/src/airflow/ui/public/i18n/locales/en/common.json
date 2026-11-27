@@ -353,6 +353,11 @@
       "title": "Search"
     },
     "taskInstance": {
+      "defaultLogSources": {
+        "helper": "Sources that task logs are filtered to when you open them. A source that a log doesn't contain is skipped, and the source filter on the log itself still takes precedence.",
+        "label": "Default log sources",
+        "placeholder": "Type a source and press Enter"
+      },
       "defaultTab": {
         "helper": "Tab shown first when you open a task instance. Links to a specific tab still open that tab.",
         "label": "Default task instance tab"

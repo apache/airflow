@@ -17,12 +17,13 @@
  * under the License.
  */
 import "@testing-library/jest-dom";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type * as OpenapiQueries from "openapi/queries";
 
+import { DEFAULT_LOG_SOURCES_KEY } from "src/constants/localStorage";
 import { TimezoneProvider } from "src/context/timezone";
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -46,6 +47,27 @@ beforeAll(() => {
   Object.defineProperty(HTMLElement.prototype, "offsetWidth", { value: 800 });
 });
 
+const renderCallbackLogs = () =>
+  render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={["/dags/my_dag/runs/run_1/callbacks"]}>
+        <TimezoneProvider>
+          <Routes>
+            <Route
+              element={<CallbackLogs callbackId={CALLBACK_ID} />}
+              path="/dags/:dagId/runs/:runId/callbacks"
+            />
+          </Routes>
+        </TimezoneProvider>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
+
+afterEach(() => {
+  localStorage.clear();
+  Reflect.deleteProperty(navigator, "clipboard");
+});
+
 describe("CallbackLogs", () => {
   it("renders the callback's logs with the task log viewer", async () => {
     vi.mocked(useDeadlinesServiceGetCallbackLogs).mockReturnValue({
@@ -59,20 +81,7 @@ describe("CallbackLogs", () => {
       isLoading: false,
     } as unknown as ReturnType<typeof useDeadlinesServiceGetCallbackLogs>);
 
-    render(
-      <BaseWrapper>
-        <MemoryRouter initialEntries={["/dags/my_dag/runs/run_1/callbacks"]}>
-          <TimezoneProvider>
-            <Routes>
-              <Route
-                element={<CallbackLogs callbackId={CALLBACK_ID} />}
-                path="/dags/:dagId/runs/:runId/callbacks"
-              />
-            </Routes>
-          </TimezoneProvider>
-        </MemoryRouter>
-      </BaseWrapper>,
-    );
+    renderCallbackLogs();
 
     expect(vi.mocked(useDeadlinesServiceGetCallbackLogs).mock.lastCall?.[0]).toEqual({
       accept: "application/x-ndjson",
@@ -82,5 +91,30 @@ describe("CallbackLogs", () => {
     });
     await waitFor(() => expect(screen.getByText(/Deadline miss callback started/u)).toBeInTheDocument());
     expect(screen.getByText(/Deadline miss callback finished/u)).toBeInTheDocument();
+  });
+
+  it("filters the logs to a saved default source", async () => {
+    const writeText = vi.fn();
+
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    localStorage.setItem(DEFAULT_LOG_SOURCES_KEY, JSON.stringify(["task"]));
+    vi.mocked(useDeadlinesServiceGetCallbackLogs).mockReturnValue({
+      data: {
+        content: [
+          { event: "Loading plugins", level: "info", logger: "airflow.plugins_manager" },
+          { event: "Deadline miss callback started", level: "info", logger: "task" },
+        ],
+      },
+      error: null,
+      isLoading: false,
+    } as unknown as ReturnType<typeof useDeadlinesServiceGetCallbackLogs>);
+
+    renderCallbackLogs();
+
+    await waitFor(() => expect(screen.getByText(/Deadline miss callback started/u)).toBeInTheDocument());
+    expect(screen.queryByText(/Loading plugins/u)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "clipboard.copy" }));
+    expect(writeText).toHaveBeenCalledWith("INFO - Deadline miss callback started");
   });
 });

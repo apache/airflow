@@ -18,11 +18,12 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 // Resolve the route module during test collection, outside the per-test timeout.
 import "src/pages/TaskInstance";
 
+import { DEFAULT_LOG_SOURCES_KEY } from "src/constants/localStorage";
 import i18n from "src/i18n/config";
 import { AppWrapper, createAppRouter } from "src/utils/AppWrapper";
 
@@ -148,6 +149,60 @@ describe("Task log settings", () => {
     fireEvent.click(screen.getByTestId("log-settings-button"));
     await waitFor(() => expect(screen.getByTestId("log-settings-wrap")).toHaveTextContent("wrap.unwrap"));
     expect(screen.getByTestId("log-settings-expand")).toHaveTextContent("expand.collapse");
+  });
+});
+
+const dagBagLine = /Filling up the DagBag/u;
+const stdoutLine = /Task instance is in running state/u;
+
+const sourceSelect = () => screen.getAllByRole("combobox")[1];
+
+const renderWithDefaultSources = (sources: Array<string>) => {
+  localStorage.setItem(DEFAULT_LOG_SOURCES_KEY, JSON.stringify(sources));
+
+  return renderLogSourceTask();
+};
+
+describe("Task log default sources", () => {
+  afterEach(() => {
+    localStorage.clear();
+    Reflect.deleteProperty(navigator, "clipboard");
+  });
+
+  it("filters the log to a saved default source", async () => {
+    const logList = await renderWithDefaultSources(["task.stdout"]);
+
+    expect(logList).toHaveTextContent(stdoutLine);
+    expect(logList).not.toHaveTextContent(dagBagLine);
+    expect(sourceSelect()).toHaveTextContent("task.stdout");
+  });
+
+  it("shows the whole log when it lacks the saved default source", async () => {
+    const logList = await renderWithDefaultSources(["task.stderr"]);
+
+    expect(logList).toHaveTextContent(dagBagLine);
+    expect(sourceSelect()).toHaveTextContent("logs.allSources");
+  });
+
+  it("shows the whole log after all sources is picked over a saved default", async () => {
+    const logList = await renderWithDefaultSources(["task.stdout"]);
+
+    fireEvent.click(sourceSelect() as HTMLElement);
+    fireEvent.click(await screen.findByRole("option", { name: "logs.allSources" }));
+
+    await waitFor(() => expect(logList).toHaveTextContent(dagBagLine));
+  });
+
+  it("copies only the lines of a saved default source", async () => {
+    const writeText = vi.fn();
+
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    await renderWithDefaultSources(["task.stdout"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "clipboard.copy" }));
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringMatching(stdoutLine));
+    expect(writeText).not.toHaveBeenCalledWith(expect.stringMatching(dagBagLine));
   });
 });
 

@@ -16,9 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { ReactNode } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { Box, createListCollection, Flex, Heading, Stack, Text } from "@chakra-ui/react";
+import { CreatableSelect } from "chakra-react-select";
 import { useTranslation } from "react-i18next";
 
 import { Select, SegmentedControl, Switch } from "src/system-components";
@@ -33,6 +34,7 @@ import {
   useClearTaskInstanceDefaultOptions,
   useDefaultGraphDirection,
   useDefaultLandingPage,
+  useDefaultLogSources,
   useDefaultMatchAnywhere,
   useDefaultTaskInstanceTab,
   useDefaultTaskGroupsExpanded,
@@ -148,6 +150,64 @@ const ToggleSetting = ({
   </Box>
 );
 
+const TagsSetting = ({
+  helper,
+  label,
+  onChange,
+  placeholder,
+  values,
+}: {
+  readonly helper?: string;
+  readonly label: string;
+  readonly onChange: (values: Array<string>) => void;
+  readonly placeholder: string;
+  readonly values: Array<string>;
+}) => {
+  const [inputValue, setInputValue] = useState("");
+
+  const commitInput = () => {
+    const entry = inputValue.trim();
+
+    if (entry !== "" && !values.includes(entry)) {
+      onChange([...values, entry]);
+    }
+    setInputValue("");
+  };
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if ((event.key === "Enter" || event.key === "Tab") && inputValue.trim() !== "") {
+      event.preventDefault();
+      commitInput();
+    }
+  };
+
+  return (
+    <Box py={3}>
+      <Text fontWeight="medium">{label}</Text>
+      {helper === undefined ? undefined : (
+        <Text color="fg.muted" fontSize="sm" mb={2}>
+          {helper}
+        </Text>
+      )}
+      <CreatableSelect
+        aria-label={label}
+        components={{ DropdownIndicator: null }}
+        inputValue={inputValue}
+        isClearable
+        isMulti
+        menuIsOpen={false}
+        onBlur={commitInput}
+        onChange={(chips) => onChange(chips.map((chip) => chip.value))}
+        onInputChange={setInputValue}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        size="sm"
+        value={values.map((value) => ({ label: value, value }))}
+      />
+    </Box>
+  );
+};
+
 const Section = ({ children, title }: { readonly children: ReactNode; readonly title: string }) => (
   <Box>
     <Heading
@@ -182,6 +242,7 @@ export const Settings = () => {
   const [markTaskOptions, setMarkTaskOptions] = useMarkTaskInstanceDefaultOptions();
   const [defaultTaskInstanceTab, setDefaultTaskInstanceTab] = useDefaultTaskInstanceTab();
   const [defaultLandingPage, setDefaultLandingPage] = useDefaultLandingPage();
+  const [defaultLogSources, setDefaultLogSources] = useDefaultLogSources();
   const [matchAnywhere, setMatchAnywhere] = useDefaultMatchAnywhere();
   const [showRecentTasks, setShowRecentTasks] = useShowDagsListRecentTasks();
 
@@ -349,6 +410,13 @@ export const Settings = () => {
             options={taskInstanceTabOptions}
             testId="default-task-instance-tab"
             value={defaultTaskInstanceTab}
+          />
+          <TagsSetting
+            helper={translate("settings.taskInstance.defaultLogSources.helper")}
+            label={translate("settings.taskInstance.defaultLogSources.label")}
+            onChange={setDefaultLogSources}
+            placeholder={translate("settings.taskInstance.defaultLogSources.placeholder")}
+            values={defaultLogSources}
           />
         </Section>
       </Stack>

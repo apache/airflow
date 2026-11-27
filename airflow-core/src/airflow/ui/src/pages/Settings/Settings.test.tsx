@@ -30,6 +30,7 @@ import {
   DEFAULT_MATCH_ANYWHERE_KEY,
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
+  DEFAULT_LOG_SOURCES_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
 } from "src/constants/localStorage";
 import { BaseWrapper } from "src/utils/Wrapper";
@@ -81,6 +82,7 @@ beforeAll(async () => {
               title: "Search",
             },
             taskInstance: {
+              defaultLogSources: { helper: "helper", label: "Default log sources", placeholder: "Add" },
               defaultTab: { helper: "helper", label: "Default task instance tab" },
               title: "Task Instance",
             },
@@ -212,5 +214,51 @@ describe("Dags list recent tasks setting", () => {
     unmount();
     render(<Settings />, { wrapper: BaseWrapper });
     expect(screen.getByTestId("dags-list-show-recent-tasks")).toHaveAttribute("data-state", "unchecked");
+  });
+});
+
+const storedSources = () => JSON.parse(localStorage.getItem(DEFAULT_LOG_SOURCES_KEY) ?? "[]") as unknown;
+
+const typeSource = (value: string) => {
+  const input = screen.getByRole("combobox", { name: "Default log sources" });
+
+  fireEvent.change(input, { target: { value } });
+
+  return input;
+};
+
+describe("default log sources setting", () => {
+  it("adds a source on Enter and keeps it after a reload", async () => {
+    const { unmount } = render(<Settings />, { wrapper: BaseWrapper });
+
+    fireEvent.keyDown(typeSource(" task "), { key: "Enter" });
+    await waitFor(() => expect(storedSources()).toEqual(["task"]));
+    unmount();
+    render(<Settings />, { wrapper: BaseWrapper });
+    expect(screen.getByText("task")).toBeInTheDocument();
+  });
+
+  it("adds a typed source when the field loses focus", async () => {
+    render(<Settings />, { wrapper: BaseWrapper });
+
+    fireEvent.blur(typeSource("task.stderr"));
+    await waitFor(() => expect(storedSources()).toEqual(["task.stderr"]));
+  });
+
+  it("does not add a source twice", async () => {
+    localStorage.setItem(DEFAULT_LOG_SOURCES_KEY, JSON.stringify(["task"]));
+    render(<Settings />, { wrapper: BaseWrapper });
+
+    fireEvent.keyDown(typeSource("task"), { key: "Enter" });
+    fireEvent.keyDown(typeSource("task.stdout"), { key: "Enter" });
+    await waitFor(() => expect(storedSources()).toEqual(["task", "task.stdout"]));
+  });
+
+  it("removes a source", async () => {
+    localStorage.setItem(DEFAULT_LOG_SOURCES_KEY, JSON.stringify(["task", "task.stdout"]));
+    render(<Settings />, { wrapper: BaseWrapper });
+
+    fireEvent.click(screen.getByLabelText("Remove task"));
+    await waitFor(() => expect(storedSources()).toEqual(["task.stdout"]));
   });
 });

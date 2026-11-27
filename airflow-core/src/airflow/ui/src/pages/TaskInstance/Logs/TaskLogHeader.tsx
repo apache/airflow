@@ -38,8 +38,9 @@ import { IconButton, Menu, Select, LazyClipboard } from "src/system-components";
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 
 import { LOG_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
+import { useDefaultLogSources } from "src/hooks/useUserSettings";
 import { defaultSystem } from "src/theme";
-import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
+import { ALL_LOG_SOURCES, type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
 import { LogSearchInput, type LogSearchInputProps } from "./LogSearchInput";
 
@@ -53,6 +54,7 @@ export type TaskLogHeaderProps = {
   readonly showLogLevel: boolean;
   readonly showSource: boolean;
   readonly showTimestamp: boolean;
+  readonly sourceFilters?: Array<string>;
   readonly sourceOptions?: Array<string>;
   readonly taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly toggleExpanded?: () => void;
@@ -75,6 +77,7 @@ export const TaskLogHeader = ({
   showLogLevel,
   showSource,
   showTimestamp,
+  sourceFilters,
   sourceOptions,
   taskInstance,
   toggleExpanded,
@@ -88,7 +91,7 @@ export const TaskLogHeader = ({
 }: TaskLogHeaderProps) => {
   const { t: translate } = useTranslation(["common", "dag", "components"]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const sources = searchParams.getAll(LOG_SEARCH_PARAMS.source);
+  const [defaultLogSources] = useDefaultLogSources();
   const logLevels = searchParams.getAll(LOG_SEARCH_PARAMS.level);
   const hasLogLevels = logLevels.length > 0;
 
@@ -103,7 +106,7 @@ export const TaskLogHeader = ({
     value: string;
   }>({
     items: [
-      { label: translate("dag:logs.allSources"), value: "all" },
+      { label: translate("dag:logs.allSources"), value: ALL_LOG_SOURCES },
       ...(sourceOptions ?? []).map((source) => ({ label: source, value: source })),
     ],
   });
@@ -127,6 +130,10 @@ export const TaskLogHeader = ({
 
     if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
       searchParams.delete(LOG_SEARCH_PARAMS.source);
+      // Keep an explicit "all" so the saved default sources don't filter the log back down.
+      if (defaultLogSources.length > 0) {
+        searchParams.append(LOG_SEARCH_PARAMS.source, ALL_LOG_SOURCES);
+      }
     } else {
       searchParams.delete(LOG_SEARCH_PARAMS.source);
       value
@@ -191,7 +198,7 @@ export const TaskLogHeader = ({
             maxW="250px"
             multiple
             onValueChange={handleSourceChange}
-            value={sources}
+            value={sourceFilters ?? []}
           >
             <Select.Trigger clearable>
               <Select.ValueText placeholder={translate("dag:logs.allSources")} />
