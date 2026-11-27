@@ -537,12 +537,14 @@ def get_provider_info():
                         "password": "secret (service principal), or an API key when no client_id is set",
                         "tenantId": "tenantId (service principal only)",
                         "index": "index used when the hook is given none",
+                        "api_version": "REST API version to call (default the SDK's own)",
                         "batch_size": "documents per write request, 1 to 1000 (default 1000)",
                     },
                 },
                 "conn-fields": {
                     "tenantId": {"label": "Azure Tenant ID", "schema": {"type": ["string", "null"]}},
                     "index": {"label": "Default Index", "schema": {"type": ["string", "null"]}},
+                    "api_version": {"label": "API Version", "schema": {"type": ["string", "null"]}},
                     "batch_size": {
                         "label": "Batch Size",
                         "schema": {"type": ["integer", "null"], "minimum": 1, "maximum": 1000},
