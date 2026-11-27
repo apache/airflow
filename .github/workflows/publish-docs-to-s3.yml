@@ -146,6 +146,9 @@ jobs:
       registry-providers: ${{ steps.derive_registry_inputs.outputs.registry-providers }}
       registry-full-build: ${{ steps.derive_registry_inputs.outputs.registry-full-build }}
       docs-kind: ${{ steps.docs_kind.outputs.docs-kind }}
+      build-java-sdk-docs: ${{ steps.sdk_docs.outputs.java-sdk-docs }}
+      build-ts-sdk-docs: ${{ steps.sdk_docs.outputs.ts-sdk-docs }}
+      sdk-docs-sha: ${{ steps.sdk_docs.outputs.sha }}
     if: contains(fromJSON('[
       "ashb",
       "bugraoz93",
@@ -172,6 +175,53 @@ jobs:
           ref: ${{ inputs.ref }}
           fetch-tags: true
           fetch-depth: 0
+      # Decided here, on the checkout of the ref, so that the SDK doc jobs are skipped outright
+      # instead of taking a runner only to find there is nothing to build. The SDK jobs check out
+      # the commit decided on (`sha`), so a branch ref that moves meanwhile, or a re-run of a failed
+      # SDK job, cannot build a commit the decision did not see (e.g. a -SNAPSHOT version).
+      - name: "Decide whether to build the Java and TypeScript SDK docs"
+        id: sdk_docs
+        env:
+          REF: ${{ inputs.ref }}
+          INCLUDE_DOCS: ${{ inputs.include-docs }}
+        shell: bash
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+          # The Java SDK Javadoc is only built (and later published) for full doc
+          # builds (include-docs == 'all') or when 'java-sdk' is explicitly listed.
+          # When a specific list of packages is passed (e.g. a provider release
+          # wave like "amazon cncf.kubernetes ..."), the Java SDK must NOT be added
+          # automatically — a providers-only publish should not suddenly refresh the
+          # java-sdk docs as a side effect.
+          #
+          # Between Java SDK releases java-sdk/gradle.properties carries a -SNAPSHOT development
+          # version. Its Javadoc must not be published: it would become a versioned folder and the
+          # stable docs of the Java SDK, for example when an Airflow release publishes all docs.
+          if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" java-sdk "* ]]; then
+            echo "java-sdk-docs=false" >> "${GITHUB_OUTPUT}"
+            echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'java-sdk' — skipping Javadoc build."
+          elif [[ ! -f "java-sdk/gradlew" ]]; then
+            echo "java-sdk-docs=false" >> "${GITHUB_OUTPUT}"
+            echo "java-sdk/ not found at ref ${REF} — skipping Javadoc build."
+          elif grep -Eq '^[[:space:]]*projectVersion[[:space:]]*=[[:space:]]*[^[:space:]]+-SNAPSHOT[[:space:]]*$' \
+              java-sdk/gradle.properties; then
+            echo "java-sdk-docs=false" >> "${GITHUB_OUTPUT}"
+            echo "The Java SDK at ref ${REF} has a -SNAPSHOT development version — skipping Javadoc build."
+          else
+            echo "java-sdk-docs=true" >> "${GITHUB_OUTPUT}"
+          fi
+          # Mirrors the java-sdk rule: only build for full doc builds (include-docs == 'all')
+          # or when 'ts-sdk' is explicitly listed. A providers-only publish wave must not
+          # refresh the ts-sdk docs as a side effect.
+          if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" ts-sdk "* ]]; then
+            echo "ts-sdk-docs=false" >> "${GITHUB_OUTPUT}"
+            echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'ts-sdk' — skipping TypeDoc build."
+          elif [[ -f "ts-sdk/docs/typedoc.config.mjs" ]]; then
+            echo "ts-sdk-docs=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "ts-sdk-docs=false" >> "${GITHUB_OUTPUT}"
+            echo "ts-sdk/docs/ not found at ref ${REF} — skipping TypeDoc build."
+          fi
       - name: "Derive registry trigger inputs"
         id: derive_registry_inputs
         env:
@@ -506,6 +556,7 @@ jobs:
 
   build-java-sdk-docs:
     needs: [build-info, runner-info]
+    if: needs.build-info.outputs.build-java-sdk-docs == 'true'
     timeout-minutes: 30
     name: "Build Java SDK Javadoc"
     runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '4+8', '16+32') }}
@@ -517,51 +568,17 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
-    outputs:
-      built: ${{ steps.sdk-present.outputs.exists }}
     steps:
       - name: "Checkout ${{ inputs.ref }}"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ inputs.ref }}
-      - name: "Decide whether to build the Java SDK Javadoc"
-        id: sdk-present
-        env:
-          REF: ${{ inputs.ref }}
-          INCLUDE_DOCS: ${{ inputs.include-docs }}
-        run: |
-          # The Java SDK Javadoc is only built (and later published) for full doc
-          # builds (include-docs == 'all') or when 'java-sdk' is explicitly listed.
-          # When a specific list of packages is passed (e.g. a provider release
-          # wave like "amazon cncf.kubernetes ..."), the Java SDK must NOT be added
-          # automatically — a providers-only publish should not suddenly refresh the
-          # java-sdk docs as a side effect.
-          #
-          # Between Java SDK releases java-sdk/gradle.properties carries a -SNAPSHOT development
-          # version. Its Javadoc must not be published: it would become a versioned folder and the
-          # stable docs of the Java SDK, for example when an Airflow release publishes all docs.
-          if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" java-sdk "* ]]; then
-            echo "exists=false" >> "${GITHUB_OUTPUT}"
-            echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'java-sdk' — skipping Javadoc build."
-          elif [[ ! -f "java-sdk/gradlew" ]]; then
-            echo "exists=false" >> "${GITHUB_OUTPUT}"
-            echo "java-sdk/ not found at ref ${REF} — skipping Javadoc build."
-          elif grep -Eq '^[[:space:]]*projectVersion[[:space:]]*=[[:space:]]*[^[:space:]]+-SNAPSHOT[[:space:]]*$' \
-              java-sdk/gradle.properties; then
-            echo "exists=false" >> "${GITHUB_OUTPUT}"
-            echo "The Java SDK at ref ${REF} has a -SNAPSHOT development version — skipping Javadoc build."
-          else
-            echo "exists=true" >> "${GITHUB_OUTPUT}"
-          fi
+          ref: ${{ needs.build-info.outputs.sdk-docs-sha }}
       - name: "Install Breeze"
-        if: steps.sdk-present.outputs.exists == 'true'
         uses: ./.github/actions/breeze
       - name: "Build Java SDK Javadoc"
-        if: steps.sdk-present.outputs.exists == 'true'
         run: breeze build-docs --sdk-docs-only --sdk=java
       - name: "Upload Java SDK docs"
-        if: steps.sdk-present.outputs.exists == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: java-sdk-docs
@@ -572,6 +589,7 @@ jobs:
 
   build-ts-sdk-docs:
     needs: [build-info, runner-info]
+    if: needs.build-info.outputs.build-ts-sdk-docs == 'true'
     timeout-minutes: 30
     name: "Build TypeScript SDK API reference"
     runs-on: ${{ format(fromJSON(needs.runner-info.outputs.runner-type)[0], '4+8', '16+32') }}
@@ -583,50 +601,26 @@ jobs:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_USERNAME: ${{ github.actor }}
       VERBOSE: "true"
-    outputs:
-      built: ${{ steps.sdk-present.outputs.exists }}
     steps:
       - name: "Checkout ${{ inputs.ref }}"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-          ref: ${{ inputs.ref }}
-      - name: "Decide whether to build the TypeScript SDK API reference"
-        id: sdk-present
-        env:
-          REF: ${{ inputs.ref }}
-          INCLUDE_DOCS: ${{ inputs.include-docs }}
-        run: |
-          # Mirrors the java-sdk rule: only build for full doc builds (include-docs == 'all')
-          # or when 'ts-sdk' is explicitly listed. A providers-only publish wave must not
-          # refresh the ts-sdk docs as a side effect.
-          if [[ "${INCLUDE_DOCS}" != "all" && " ${INCLUDE_DOCS} " != *" ts-sdk "* ]]; then
-            echo "exists=false" >> "${GITHUB_OUTPUT}"
-            echo "include-docs='${INCLUDE_DOCS}' is a specific package list without 'ts-sdk' — skipping TypeDoc build."
-          elif [[ -f "ts-sdk/docs/typedoc.config.mjs" ]]; then
-            echo "exists=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "exists=false" >> "${GITHUB_OUTPUT}"
-            echo "ts-sdk/docs/ not found at ref ${REF} — skipping TypeDoc build."
-          fi
+          ref: ${{ needs.build-info.outputs.sdk-docs-sha }}
       - name: "Install Breeze"
-        if: steps.sdk-present.outputs.exists == 'true'
         uses: ./.github/actions/breeze
       # The TypeDoc toolchain is installed with `npm ci` inside the build container, which
       # reads its download cache from HOME. Without this the ~250 pinned packages are
       # fetched from the registry on every run.
       - name: "Cache TypeDoc toolchain downloads"
-        if: steps.sdk-present.outputs.exists == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:
           path: ts-sdk/docs/.npm-home/.npm
           key: ts-sdk-docs-npm-${{ hashFiles('ts-sdk/docs/package-lock.json') }}
           restore-keys: ts-sdk-docs-npm-
       - name: "Build TypeScript SDK API reference"
-        if: steps.sdk-present.outputs.exists == 'true'
         run: breeze build-docs --sdk-docs-only --sdk=typescript
       - name: "Upload TypeScript SDK docs"
-        if: steps.sdk-present.outputs.exists == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: ts-sdk-docs
@@ -637,13 +631,13 @@ jobs:
 
   publish-docs-to-s3:
     needs: [build-docs, build-java-sdk-docs, build-ts-sdk-docs, build-info, runner-info, update-registry]
-    # `update-registry` is skipped for non-provider distributions, and a job whose dependency was
-    # skipped is skipped in turn, so its result is checked rather than implied - which means the
-    # two that are not conditional have to be asserted here as well.
+    # `update-registry` is skipped for non-provider distributions, and the SDK doc jobs when
+    # build-info decides not to build them. A job whose dependency was skipped is skipped in turn,
+    # so results are checked rather than implied, and `build-docs` has to be asserted as well.
     if: >
       !cancelled() && needs.build-docs.result == 'success' &&
-      needs.build-java-sdk-docs.result == 'success' &&
-      needs.build-ts-sdk-docs.result == 'success' &&
+      contains(fromJSON('["success", "skipped"]'), needs.build-java-sdk-docs.result) &&
+      contains(fromJSON('["success", "skipped"]'), needs.build-ts-sdk-docs.result) &&
       needs.update-registry.result != 'failure'
     name: "Publish documentation to S3"
     outputs:
@@ -692,13 +686,13 @@ jobs:
       - name: "Move docs to generated folder"
         run: mv /mnt/_build generated/_build
       - name: "Download Java SDK docs artifact"
-        if: needs.build-java-sdk-docs.outputs.built == 'true'
+        if: needs.build-java-sdk-docs.result == 'success'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: java-sdk-docs
           path: generated/_build/docs/java-sdk
       - name: "Download TypeScript SDK docs artifact"
-        if: needs.build-ts-sdk-docs.outputs.built == 'true'
+        if: needs.build-ts-sdk-docs.result == 'success'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: ts-sdk-docs
