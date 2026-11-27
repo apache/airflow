@@ -21,14 +21,16 @@ from cadwyn import (
     RequestInfo,
     ResponseInfo,
     VersionChange,
+    VersionChangeWithSideEffects,
     convert_request_to_next_version_for,
     convert_response_to_previous_version_for,
     endpoint,
     schema,
 )
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TISuccessStatePayload
 from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
+from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParams
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
@@ -63,6 +65,16 @@ class AddExecutionTimeoutToTIRunContext(VersionChange):
         response.body.pop("execution_timeout", None)
 
 
+class AddExternalClearTargetField(VersionChange):
+    """Add the ``external_clear_target`` field a task reports with its success, for cross-Dag clears."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TISuccessStatePayload).field("external_clear_target").didnt_exist,
+    )
+
+
 class MakeVariableValueNonNullable(VersionChange):
     """
     Make the Variable value non-nullable in reads and writes.
@@ -92,4 +104,20 @@ class AddCallbackStateEndpoint(VersionChange):
 
     instructions_to_migrate_to_previous_version = (
         endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
+    )
+
+
+class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
+    """
+    Resolve an omitted XCom ``map_index`` by the producing task's definition.
+
+    A mapped task is now redirected to the slice endpoint, which lists the values
+    of all its instances, except with ``include_prior_dates``. An unmapped task
+    still reads map index -1, as do older clients.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXcomFilterParams).field("map_index").had(type=int, default=-1),
     )

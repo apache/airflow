@@ -46,11 +46,13 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
    * - ``@task.llm`` and :class:`~airflow.providers.common.ai.operators.llm.LLMOperator`
      - Sends the prompt to the model from ``llm_conn_id`` and returns the output as the
        task's return value: a string by default, or an instance of ``output_type``,
-       dumped to a dict when ``serialize_output=True``. Before Airflow 3.3 an instance is
-       always dumped to a dict. ``decision_policy`` is experimental; see below.
+       dumped to a dict when ``serialize_output=True``. Some models arrive as dicts without it;
+       see :ref:`When a model arrives as a dict <structured-output-dict-shape>`.
+       ``decision_policy`` is experimental; see below.
    * - ``@task.agent`` and :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - Runs an agent with the model from ``llm_conn_id`` and the given toolsets, and
-       returns its output under the same rules as ``@task.llm``. Code mode is
+       returns its output as the task's return value. Some models arrive as dicts; see
+       :ref:`When a model arrives as a dict <structured-output-dict-shape>`. Code mode is
        experimental; see below.
    * - Per-tool approval on ``AgentOperator`` (:doc:`tool_approval`)
      - On Airflow 3.3 and later, a call to a tool marked with Pydantic AI's approval API
@@ -142,7 +144,8 @@ Pydantic AI toolsets, but the Pydantic AI class they inherit from can change.
        :doc:`connections/pydantic_ai_azure` keep their meaning, so an existing connection
        keeps producing the same model.
    * - :class:`~airflow.providers.common.ai.toolsets.sql.SQLToolset`
-     - Exposes ``list_tables``, ``get_schema``, ``query`` and ``check_query``. Read-only
+     - Exposes ``list_tables``, ``get_schema``, ``query`` and ``check_query``, each named
+       ``<tool_prefix>_<name>`` when ``tool_prefix`` is set. Read-only
        unless ``allow_writes=True``. When ``allowed_tables`` is set, other tables are
        refused. ``query`` returns at most ``max_rows`` rows, and keeps the rows and column
        names within ``max_result_bytes`` bytes. When ``query`` fails or refuses a
@@ -276,6 +279,10 @@ Everything this provider ships that is not in the table above is experimental.
    * - The Claude Agent SDK adapter (:doc:`frameworks/claude_agent_sdk`)
      - New; the SDK is pre-1.0, and its in-process MCP server turns a handler's exception
        into an error result the adapter has to work around.
+   * - The OpenAI Codex SDK adapter (:doc:`frameworks/openai_codex`)
+     - New and not yet run against a model; the SDK is pre-1.0 (0.163.0), many fields of the
+       ``codex app-server`` protocol it wraps are marked unstable, and no user-level setting
+       that removes its file-editing tool was found, so the adapter relies on a read-only sandbox.
    * - The ``common_ai.tool_calls`` metric and
        :func:`~airflow.providers.common.ai.tools.tracing.agent_framework_tracing`
        (:doc:`observability`)

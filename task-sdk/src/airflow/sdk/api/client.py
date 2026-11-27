@@ -61,6 +61,7 @@ from airflow.sdk.api.datamodels._generated import (
     DagRunNoteUpdatePayload,
     DagRunStateResponse,
     DagRunType,
+    ExternalClearTargetPayload,
     HITLDetailRequest,
     HITLDetailResponse,
     HITLUser,
@@ -202,17 +203,10 @@ def get_json_error(response: httpx2.Response):
         raise err
 
 
-def raise_on_4xx_5xx(response: httpx2.Response):
-    return get_json_error(response) or response.raise_for_status()
-
-
-# Py 3.11+ version
-def raise_on_4xx_5xx_with_note(response: httpx2.Response):
+def require_2xx(response: httpx2.Response):
     try:
         return get_json_error(response) or response.raise_for_status()
     except httpx2.HTTPStatusError as e:
-        if TYPE_CHECKING:
-            assert hasattr(e, "add_note")
         e.add_note(
             f"Correlation-id={response.headers.get('correlation-id', None) or response.request.headers.get('correlation-id', 'no-correlation-id')}"
         )
@@ -223,11 +217,6 @@ def raise_on_4xx_5xx_with_note(response: httpx2.Response):
         if detail is not None:
             e.add_note(f"Server error detail: {detail!r}")
         raise
-
-
-if hasattr(BaseException, "add_note"):
-    # Py 3.11+
-    raise_on_4xx_5xx = raise_on_4xx_5xx_with_note
 
 
 def add_correlation_id(request: httpx2.Request):
@@ -344,6 +333,7 @@ class TaskInstanceOperations:
         rendered_map_index,
         *,
         loop_decision: LoopDecisionPayload | None = None,
+        external_clear_target: ExternalClearTargetPayload | None = None,
     ):
         """Tell the API server that this TI has succeeded."""
         body = TISuccessStatePayload(
@@ -352,6 +342,7 @@ class TaskInstanceOperations:
             outlet_events=outlet_events,
             rendered_map_index=rendered_map_index,
             loop_decision=loop_decision,
+            external_clear_target=external_clear_target,
         )
         self.client.patch(f"task-instances/{id}/state", content=body.model_dump_json())
 
@@ -626,6 +617,26 @@ class VariableOperations:
         return VariableKeysResponse.model_validate_json(resp.read())
 
 
+_OMITTED_MAP_INDEX_RESOLVED_VERSION = "2027-02-28"
+
+
+def _build_xcom_slice_path(xcom_path: str) -> str:
+    return f"{xcom_path}/slice"
+
+
+def _find_slice_redirect(response: httpx2.Response) -> httpx2.URL | None:
+    """
+    Return where a Get XCom response redirects to, if that is its slice endpoint.
+
+    The server does so for an omitted map index on a mapped task, since the
+    slice lists one stored value per instance.
+    """
+    if response.status_code != HTTPStatus.TEMPORARY_REDIRECT or "location" not in response.headers:
+        return None
+    target = response.request.url.join(response.headers["location"])
+    return target if target.path == _build_xcom_slice_path(response.request.url.path) else None
+
+
 class XComOperations:
     __slots__ = ("client",)
 
@@ -664,35 +675,95 @@ class XComOperations:
         include_prior_dates: bool = False,
         *,
         previous_iteration: bool = False,
-    ) -> XComResponse:
-        """Get a XCom value from the API server."""
+    ) -> XComResponse | XComSequenceSliceResponse:
+        """
+        Get a XCom value from the API server.
+
+        Any *map_index* is sent as given. An omitted one reads the task's
+        result: its value, or for a mapped task the values of all its
+        instances, as a slice response. A mapped task with no values, or one
+        read with *include_prior_dates*, reads as not found.
+        """
         params: dict[str, str | int] = {}
         if previous_iteration:
             params["previous_iteration"] = True
-        if map_index is not None and map_index >= 0:
-            params.update({"map_index": map_index})
+        if map_index is not None:
+            params["map_index"] = map_index
         if include_prior_dates:
             params.update({"include_prior_dates": include_prior_dates})
         try:
             resp = self.client.get(_path("xcoms", dag_id, run_id, task_id, tail=key), params=params)
         except ServerResponseError as e:
-            if e.response.status_code == HTTPStatus.NOT_FOUND:
-                log.debug(
-                    "XCom not found",
-                    dag_id=dag_id,
-                    run_id=run_id,
-                    task_id=task_id,
-                    key=key,
-                    map_index=map_index,
-                    detail=e.detail,
-                    status_code=e.response.status_code,
-                )
-                # Airflow 2.x just ignores the absence of an XCom and moves on with a return value of None
-                # Hence returning with key as `key` and value as `None`, so that the message is sent back to task runner
-                # and the default value of None in xcom_pull is used.
-                return XComResponse(key=key, value=None)
-            raise
+            if e.response.status_code != HTTPStatus.NOT_FOUND:
+                raise
+            mapped = self._get_mapped_slice_or_none(
+                dag_id,
+                run_id,
+                task_id,
+                key,
+                map_index,
+                include_prior_dates=include_prior_dates,
+                previous_iteration=previous_iteration,
+                server_version=e.response.headers.get("Airflow-API-Version", API_VERSION),
+            )
+            if mapped is not None:
+                return mapped
+            log.debug(
+                "XCom not found",
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                key=key,
+                map_index=map_index,
+                detail=e.detail,
+                status_code=e.response.status_code,
+            )
+            # A missing XCom is not an error, as in Airflow 2; xcom_pull then returns its default.
+            return XComResponse(key=key, value=None)
+        except httpx2.HTTPStatusError as e:  # require_2xx raises for the redirect too.
+            if (slice_url := _find_slice_redirect(e.response)) is None:
+                raise
+            mapped = XComSequenceSliceResponse.model_validate_json(self.client.get(slice_url).read())
+            # A mapped task with no values is not found not an empty slice.
+            return mapped if mapped.root else XComResponse(key=key, value=None)
         return XComResponse.model_validate_json(resp.read())
+
+    def _get_mapped_slice_or_none(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        key: str,
+        map_index: int | None,
+        *,
+        include_prior_dates: bool,
+        previous_iteration: bool,
+        server_version: str,
+    ) -> XComSequenceSliceResponse | None:
+        """
+        Read a mapped task's values from the slice endpoint.
+
+        This is for a server that reads map index -1 for an omitted map index,
+        and so finds nothing for a mapped task. A server that resolves it by
+        how the task is defined redirects a mapped task's read instead.
+        A read with *include_prior_dates* is left not found, since the slice
+        mixes earlier runs' values.
+        """
+        if map_index is not None or include_prior_dates:
+            return None
+        if server_version >= _OMITTED_MAP_INDEX_RESOLVED_VERSION:
+            return None
+        response = self.get_sequence_slice(
+            dag_id,
+            run_id,
+            task_id,
+            key,
+            None,
+            None,
+            None,
+            previous_iteration=previous_iteration,
+        )
+        return response if response.root else None  # Empty may also be an unmapped task.
 
     def set(
         self,
@@ -805,7 +876,10 @@ class XComOperations:
             params["step"] = step
         if include_prior_dates:
             params["include_prior_dates"] = include_prior_dates
-        resp = self.client.get(f"{_path('xcoms', dag_id, run_id, task_id, tail=key)}/slice", params=params)
+        resp = self.client.get(
+            _build_xcom_slice_path(_path("xcoms", dag_id, run_id, task_id, tail=key)),
+            params=params,
+        )
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
@@ -1323,7 +1397,7 @@ class Client(httpx2.Client):
                 "airflow-api-version": API_VERSION,
             },
             event_hooks={
-                "response": [self._update_auth, raise_on_4xx_5xx],
+                "response": [self._update_auth, require_2xx],
                 "request": [add_correlation_id, inject_trace_context],
             },
             **kwargs,

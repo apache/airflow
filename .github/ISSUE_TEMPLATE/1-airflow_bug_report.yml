@@ -130,6 +130,7 @@ body:
         - apache-livy
         - apache-pig
         - apache-pinot
+        - apache-polaris
         - apache-spark
         - apache-tinkerpop
         - apprise

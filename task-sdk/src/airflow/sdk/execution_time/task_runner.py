@@ -52,6 +52,7 @@ from airflow.sdk.api.client import get_hostname, getuser
 from airflow.sdk.api.datamodels._generated import (
     AssetProfile,
     DagRun,
+    ExternalClearTargetPayload,
     LoopDecisionPayload,
     PreviousTIResponse,
     TaskInstance,
@@ -59,8 +60,12 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.bases.operator import BaseOperator, ExecutorSafeguard
-from airflow.sdk.bases.skipmixin import XCOM_SKIPMIXIN_KEY
-from airflow.sdk.bases.xcom import BaseXCom, _is_legacy_xcom_backend
+from airflow.sdk.bases.xcom import (
+    BaseXCom,
+    build_loop_error,
+    is_legacy_xcom_backend,
+    is_stored_through_backend,
+)
 from airflow.sdk.configuration import conf
 from airflow.sdk.coordinators._dag_importer import find_claiming_importer
 from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager
@@ -74,6 +79,7 @@ from airflow.sdk.definitions.asset import (
     AssetUriRef,
 )
 from airflow.sdk.definitions.context import render_template_to_string
+from airflow.sdk.definitions.external_clear import SupportsExternalClearTarget
 from airflow.sdk.definitions.loop import LoopDecision
 from airflow.sdk.definitions.mappedoperator import MappedOperator
 from airflow.sdk.definitions.param import process_params
@@ -137,7 +143,7 @@ from airflow.sdk.execution_time.comms import (
     ValidateInletsAndOutlets,
 )
 from airflow.sdk.execution_time.context import (
-    AssetStateStoreAccessors,
+    _CURRENT_TEAM_NAME_ENV_VAR,
     ConnectionAccessor,
     InletEventsAccessors,
     MacrosAccessor,
@@ -146,10 +152,13 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _get_worker_state_store_backend,
+    build_state_store_stats_tags,
     context_get_outlet_events,
     context_to_airflow_vars,
+    create_asset_state_store,
     get_previous_dagrun_success,
     set_current_context,
+    set_current_team_name,
 )
 from airflow.sdk.execution_time.email_backend import (
     _DEFAULT_EMAIL_BACKEND,
@@ -248,6 +257,9 @@ class RuntimeTaskInstance(TaskInstance):
     _loop_decision: LoopDecisionPayload | None = None
     """A loop gate's evaluation of ``until``, reported with its terminal state."""
 
+    _external_clear_target: ExternalClearTargetPayload | None = None
+    """The cross-Dag clear target resolved after a successful run, reported with its success."""
+
     max_tries: int = 0
     """The maximum number of retries for the task."""
 
@@ -342,7 +354,6 @@ class RuntimeTaskInstance(TaskInstance):
         # Cache the context object, which ensures that all calls to get_template_context
         # are operating on the same context object.
         if self._cached_template_context is None:
-            state_store_stats_tags = {**self.stats_tags, "operator": self.task.task_type}
             self._cached_template_context = {
                 # From the Task Execution interface
                 "dag": self.task.dag,
@@ -366,7 +377,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "conn": ConnectionAccessor(),
                 "task_state_store": TaskStateStoreAccessor(
                     ti_id=self.id,
-                    stats_tags=state_store_stats_tags,
+                    stats_tags=build_state_store_stats_tags(self),
                     scope=TaskScope(
                         dag_id=self.dag_id,
                         run_id=self.run_id,
@@ -376,14 +387,8 @@ class RuntimeTaskInstance(TaskInstance):
                     ),
                 ),
             }
-            _asset_types = (Asset, AssetNameRef, AssetUriRef, AssetAlias)
-            if any(isinstance(i, _asset_types) for i in self.task.inlets + self.task.outlets):
-                self._cached_template_context["asset_state_store"] = AssetStateStoreAccessors(
-                    self.task.inlets, self.task.outlets, stats_tags=state_store_stats_tags
-                )
-                # AssetAlias inlets are resolved to their concrete assets at context build time via
-                # GetAssetsByAlias comms. If an alias maps to no active assets, it doesn't contribute to
-                # asset_state. AssetAlias outlets are skipped downstream in context.py
+            if (asset_state_store := create_asset_state_store(self)) is not None:
+                self._cached_template_context["asset_state_store"] = asset_state_store
         if TYPE_CHECKING:
             assert self._cached_template_context is not None
         if from_server:
@@ -440,11 +445,6 @@ class RuntimeTaskInstance(TaskInstance):
                         ),
                     }
                 )
-
-            # Backward compatibility: old servers may still send upstream_map_indexes
-            upstream_map_indexes = getattr(from_server, "upstream_map_indexes", None)
-            if upstream_map_indexes is not None:
-                setattr(self, "_upstream_map_indexes", upstream_map_indexes)
 
         return self._cached_template_context
 
@@ -546,6 +546,20 @@ class RuntimeTaskInstance(TaskInstance):
             return None
         return LazyXComSequence(xcom_arg=PlainXComArg(producer, key), ti=self)
 
+    def _is_task_mapped(self, dag_id: str, run_id: str, task_id: str) -> bool:
+        """
+        Whether a task of this Dag run is mapped, by this task's Dag.
+
+        A task of another run or Dag reads False, since its Dag version may
+        differ; the server decides for those.
+        """
+        if not (dag_id == self.dag_id and run_id == self.run_id):
+            return False
+        try:
+            return self.task.dag.get_task(task_id).get_needs_expansion()
+        except TaskNotFound:
+            return False
+
     def xcom_pull(
         self,
         task_ids: str | Iterable[str] | None = None,
@@ -572,8 +586,8 @@ class RuntimeTaskInstance(TaskInstance):
         :param dag_id: If provided, only pulls XComs from this Dag. If *None*
             (default), the Dag of the calling task is used.
         :param map_indexes: If provided, only pull XComs with matching indexes.
-            If *None* (default), this is inferred from the task(s) being pulled
-            (see below for details).
+            If not provided (default), every instance of the task(s) being pulled
+            is pulled (see below for details).
         :param include_prior_dates: If False, only XComs from the current
             logical_date are returned. If *True*, XComs from previous dates
             are returned as well.
@@ -581,14 +595,15 @@ class RuntimeTaskInstance(TaskInstance):
             If *None* (default), the run_id of the calling task is used.
 
         When pulling one single task (``task_id`` is *None* or a str) without
-        specifying ``map_indexes``, the return value is a single XCom entry
-        (map_indexes is set to map_index of the calling task instance).
+        specifying ``map_indexes``, the XComs of all its instances are pulled. If
+        exactly one is found, it is returned on its own; otherwise they are
+        returned as a list.
 
-        When pulling task is mapped the specified ``map_index`` is used, so by default
-        pulling on mapped task will result in no matching XComs if the task instance
-        of the method call is not mapped. Otherwise, the map_index of the calling task
-        instance is used. Setting ``map_indexes`` to *None* will pull XCom as it would
-        from a non mapped task.
+        Setting ``map_indexes`` to *None* pulls the task's result: the XCom of a
+        non-mapped task, or for a mapped task the XComs of all its instances as a
+        list. A mapped task with no XComs, or one pulled with
+        ``include_prior_dates``, matches no XCom. A map index the task has no
+        instance at matches no XCom either.
 
         In either case, ``default`` (*None* if not specified) is returned if no
         matching XComs are found.
@@ -633,14 +648,17 @@ class RuntimeTaskInstance(TaskInstance):
             return xcoms
 
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
-            value = XCom.get_one(
-                run_id=run_id,
-                key=key,
-                task_id=t_id,
-                dag_id=dag_id,
-                map_index=m_idx,
-                include_prior_dates=include_prior_dates,
-            )
+            if m_idx is None and not include_prior_dates and self._is_task_mapped(dag_id, run_id, t_id):
+                value = XCom.get_all(run_id=run_id, key=key, task_id=t_id, dag_id=dag_id)
+            else:
+                value = XCom.get_one(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    map_index=m_idx,
+                    include_prior_dates=include_prior_dates,
+                )
             xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
@@ -696,14 +714,17 @@ class RuntimeTaskInstance(TaskInstance):
             return xcoms
 
         for t_id, m_idx in product(task_ids, map_indexes_iterable):
-            value = await XCom.aget_one(
-                run_id=run_id,
-                key=key,
-                task_id=t_id,
-                dag_id=dag_id,
-                map_index=m_idx,
-                include_prior_dates=include_prior_dates,
-            )
+            if m_idx is None and not include_prior_dates and self._is_task_mapped(dag_id, run_id, t_id):
+                value = await XCom.aget_all(run_id=run_id, key=key, task_id=t_id, dag_id=dag_id)
+            else:
+                value = await XCom.aget_one(
+                    run_id=run_id,
+                    key=key,
+                    task_id=t_id,
+                    dag_id=dag_id,
+                    map_index=m_idx,
+                    include_prior_dates=include_prior_dates,
+                )
             xcoms.append(default if value is None else value)
 
         if single_task_requested and single_map_index_requested:
@@ -1001,11 +1022,7 @@ def _xcom_push(
     # Private function, as we don't want to expose the ability to manually set `mapped_length` to SDK
     # consumers
 
-    if key == XCOM_SKIPMIXIN_KEY:
-        # The branch/skip decision is control-plane data the scheduler reads (via
-        # NotPreviouslySkippedDep) to skip mapped or cleared downstream tasks. It must
-        # bypass any custom XCom backend, which could externalize it into a pointer the
-        # scheduler cannot interpret, silently leaving those tasks unskipped (#50491).
+    if not is_stored_through_backend(key):
         _xcom_push_to_db(ti, key, value)
         return
 
@@ -1131,16 +1148,11 @@ def _fail_lang_sdk_task(what: StartupDetails, coordinator_classpath: str, log: L
 
 
 def check_xcom_backend_supports_loops(dag) -> None:
-    if not _is_legacy_xcom_backend(XCom):
+    if not is_legacy_xcom_backend(XCom):
         return
     if not any(isinstance(group, LoopTaskGroup) for group in dag.task_group.get_task_group_dict().values()):
         return
-    raise TypeError(
-        f"Dag {dag.dag_id!r} uses a loop, but XCom backend {XCom.__module__}.{XCom.__qualname__} stores "
-        "values through serialize_value rather than store_value, so every iteration of a task could store "
-        "its XCom in the same place. Implement store_value and include ti.id in the storage location; for "
-        "XComObjectStorageBackend, upgrade apache-airflow-providers-common-io."
-    )
+    raise build_loop_error(XCom, f"Dag {dag.dag_id!r}")
 
 
 @detail_span("parse")
@@ -1245,6 +1257,34 @@ def parse(what: StartupDetails, log: Logger) -> RuntimeTaskInstance:
 #   accessible wherever needed during task execution without modifying every layer of the call stack.
 SUPERVISOR_COMMS: CommsDecoder[ToTask, ToSupervisor]
 
+# True while code serves an in-process supervisor request (dag.test()). That code acts as
+# the server side, so get_supervisor_comms() returns None there. Other task threads are unaffected.
+_supervisor_comms_hidden: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "_supervisor_comms_hidden", default=False
+)
+
+
+def get_supervisor_comms() -> CommsDecoder[ToTask, ToSupervisor] | None:
+    """
+    Return the comms to the supervisor, or ``None``.
+
+    ``None`` outside a task execution context and inside :func:`hide_supervisor_comms`. Code that
+    decides whether it runs inside a task should ask this instead of checking for ``SUPERVISOR_COMMS``.
+    """
+    if _supervisor_comms_hidden.get():
+        return None
+    return globals().get("SUPERVISOR_COMMS")
+
+
+@contextmanager
+def hide_supervisor_comms() -> Iterator[None]:
+    """Hide the comms from the code run inside this block, and only from it."""
+    token = _supervisor_comms_hidden.set(True)
+    try:
+        yield
+    finally:
+        _supervisor_comms_hidden.reset(token)
+
 
 # State machine!
 # 1. Start up (receive details from supervisor)
@@ -1304,6 +1344,8 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
         get_listener_manager().hook.on_starting(component=TaskRunnerMarker())
     except Exception:
         log.exception("error calling listener")
+
+    set_current_team_name(msg.ti_context.dag_run.team_name)
 
     with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
         ti = parse(msg, log)
@@ -1516,6 +1558,12 @@ def _prepare(ti: RuntimeTaskInstance, log: Logger, context: Context) -> ToSuperv
     jinja_env = ti.task.dag.get_template_env()
     ti.render_templates(context=context, jinja_env=jinja_env)
 
+    # Build the asset lookups now. This makes sync supervisor calls, which may
+    # deadlock if they are first made from async task code instead.
+    context["inlet_events"].build_lookups()
+    if (asset_state_store := context.get("asset_state_store")) is not None:
+        asset_state_store.build_lookups()
+
     if rendered_fields := _serialize_rendered_fields(ti.task):
         # so that we do not call the API unnecessarily
         SUPERVISOR_COMMS.send(msg=SetRenderedFields(rendered_fields=rendered_fields))
@@ -1702,6 +1750,7 @@ def _run_task_and_map_outcome(
                     SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
 
         _push_xcom_if_needed(result, ti, log)
+        _resolve_external_clear_target(context, ti, log)
 
         msg, state = _handle_current_task_success(context, ti)
     except DownstreamTasksSkipped as skip:
@@ -1917,6 +1966,7 @@ def _handle_current_task_success(
         outlet_events=outlet_events,
         rendered_map_index=ti.rendered_map_index,
         loop_decision=ti._loop_decision,
+        external_clear_target=ti._external_clear_target,
     )
     return msg, TaskInstanceState.SUCCESS
 
@@ -2524,6 +2574,23 @@ def _render_map_index(context: Context, ti: RuntimeTaskInstance, log: Logger) ->
     return rendered_map_index
 
 
+def _resolve_external_clear_target(context: Context, ti: RuntimeTaskInstance, log: Logger) -> None:
+    """Resolve the task's cross-Dag clear target for this run, to report with its success."""
+    if not isinstance(ti.task, SupportsExternalClearTarget):
+        return
+    if (target := ti.task.get_external_clear_target(context)) is None:
+        return
+    if (logical_date := target.logical_date or context.get("logical_date")) is None:
+        log.debug("Not recording an external clear target in a run without a logical date")
+        return
+    ti._external_clear_target = ExternalClearTargetPayload(
+        dag_id=target.dag_id,
+        task_id=target.task_id,
+        logical_date=logical_date,
+        recursion_depth=target.recursion_depth,
+    )
+
+
 def _push_xcom_if_needed(result: Any, ti: RuntimeTaskInstance, log: Logger):
     """Push XCom values when task has ``do_xcom_push`` set to ``True`` and the task returns a result."""
     if ti.task.do_xcom_push:
@@ -2751,6 +2818,8 @@ def reinit_supervisor_comms() -> None:
     can continue to access variables etc.
     """
     import socket
+
+    set_current_team_name(os.environ.get(_CURRENT_TEAM_NAME_ENV_VAR))
 
     if "SUPERVISOR_COMMS" not in globals():
         global SUPERVISOR_COMMS

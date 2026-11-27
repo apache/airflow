@@ -25,6 +25,7 @@ import { NavLink, resolvePath, useLocation, useResolvedPath } from "react-router
 
 import { Menu } from "src/system-components";
 
+import { mergePersistentSearchParams } from "src/constants/persistentSearchParams";
 import { useContainerWidth } from "src/utils";
 
 export type NavTab = {
@@ -33,16 +34,41 @@ export type NavTab = {
   /** Additional route segments that should also mark this tab as active. */
   readonly matchPaths?: Array<string>;
   readonly search?: string;
+  readonly showIconWithLabel?: boolean;
   readonly value: string;
 };
 
 type Props = {
+  /** Query parameters to copy from the current url onto every tab link. */
+  readonly persistentKeys?: ReadonlyArray<string>;
   readonly tabs: Array<NavTab>;
 };
 
 const INDICATOR_HEIGHT = "2px";
+const NO_KEYS: ReadonlyArray<string> = [];
 
 const trimTrailingSlash = (path: string) => path.replace(/\/$/u, "");
+
+const reserveBoldWidth = {
+  content: "attr(data-label)",
+  fontWeight: "bold",
+  height: 0,
+  overflow: "hidden",
+  visibility: "hidden",
+};
+
+const TabLabel = ({ label }: { readonly label: string }) => (
+  <Box
+    _after={reserveBoldWidth}
+    alignItems="center"
+    as="span"
+    data-label={label}
+    display="flex"
+    flexDirection="column"
+  >
+    {label}
+  </Box>
+);
 
 const TabContent = ({ active, children, ...rest }: { readonly active: boolean } & CenterProps) => (
   <Center
@@ -53,6 +79,7 @@ const TabContent = ({ active, children, ...rest }: { readonly active: boolean } 
     color={active ? "fg" : "fg.muted"}
     fontSize="md"
     fontWeight={active ? "bold" : "medium"}
+    gap={2}
     height="40px"
     mb={`-${INDICATOR_HEIGHT}`}
     px={4}
@@ -63,14 +90,17 @@ const TabContent = ({ active, children, ...rest }: { readonly active: boolean } 
   </Center>
 );
 
-export const NavTabs = ({ tabs }: Props) => {
+export const NavTabs = ({ persistentKeys = NO_KEYS, tabs }: Props) => {
   const { t: translate } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const containerWidth = useContainerWidth(containerRef);
-  const [widths, setWidths] = useState<{ more: number; tabs: Array<number> }>({ more: 0, tabs: [] });
+  const [widths, setWidths] = useState<{ more: number; tabs: Array<number> }>({
+    more: 0,
+    tabs: [],
+  });
 
-  const { pathname } = useLocation();
+  const { pathname, search: currentSearch } = useLocation();
   const basePath = useResolvedPath(".").pathname;
   // NavLink compares the raw location against its resolved target, and a run id carries ":" and
   // "+". Landing on a link where those arrived percent-encoded leaves the two spellings of the
@@ -89,7 +119,29 @@ export const NavTabs = ({ tabs }: Props) => {
     );
   });
   const showLabels = containerWidth > 600;
-  const getTabContent = ({ icon, label }: NavTab) => (showLabels || !Boolean(icon) ? label : icon);
+  const getTabContent = ({ icon, label, showIconWithLabel = false }: NavTab): ReactNode => {
+    if (!Boolean(icon)) {
+      return <TabLabel label={label} />;
+    }
+    if (!showLabels) {
+      return icon;
+    }
+
+    return showIconWithLabel ? (
+      <>
+        <Box aria-hidden as="span" display="flex" flexShrink={0}>
+          {icon}
+        </Box>
+        <TabLabel label={label} />
+      </>
+    ) : (
+      <TabLabel label={label} />
+    );
+  };
+  const getTabLink = ({ search, value }: NavTab) => ({
+    pathname: value,
+    search: mergePersistentSearchParams(currentSearch, search, persistentKeys),
+  });
   const moreLabel = showLabels ? (
     <HStack as="span" gap={1}>
       {translate("moreTabs")}
@@ -148,7 +200,7 @@ export const NavTabs = ({ tabs }: Props) => {
     >
       {tabs.map((tab, index) =>
         visibleIndexes.has(index) ? (
-          <NavLink end key={tab.value} title={tab.label} to={{ pathname: tab.value, search: tab.search }}>
+          <NavLink end key={tab.value} title={tab.label} to={getTabLink(tab)}>
             <TabContent
               active={index === activeIndex}
               aria-current={index === activeIndex ? "page" : undefined}
@@ -177,7 +229,7 @@ export const NavTabs = ({ tabs }: Props) => {
               // The index tabs' value is "", which the menu treats as no item, so keyboard
               // navigation could not move off them.
               <Menu.Item asChild key={tab.value} value={`tab:${tab.value}`}>
-                <NavLink to={{ pathname: tab.value, search: tab.search }}>
+                <NavLink to={getTabLink(tab)}>
                   {/* The label names the item; a plugin icon's alt text would repeat it. */}
                   <span aria-hidden>{tab.icon}</span>
                   {tab.label}

@@ -62,6 +62,7 @@ from airflow.sdk import (
     BaseOperator,
     BaseOperatorLink,
     Connection,
+    ExternalClearTarget,
     dag as dag_decorator,
     get_current_context,
     task as task_decorator,
@@ -76,6 +77,7 @@ from airflow.sdk.api.datamodels._generated import (
     AssetResponse,
     DagRun,
     DagRunState,
+    ExternalClearTargetPayload,
     PreviousTIResponse,
     TaskInstance,
     TaskInstanceState,
@@ -109,7 +111,7 @@ from airflow.sdk.exceptions import (
     ErrorType,
     TaskDeferred,
 )
-from airflow.sdk.execution_time import task_runner
+from airflow.sdk.execution_time import context as context_module, task_runner
 from airflow.sdk.execution_time.comms import (
     AssetEventResult,
     AssetEventsResult,
@@ -126,7 +128,9 @@ from airflow.sdk.execution_time.comms import (
     DeleteTaskStateStore,
     DRCount,
     ErrorResponse,
+    GetAssetByName,
     GetAssetByUri,
+    GetAssetEventByAsset,
     GetAssetsByAlias,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
@@ -179,6 +183,7 @@ from airflow.sdk.execution_time.context import (
     TriggeringAssetEventsAccessor,
     VariableAccessor,
     _wrap_external_ref,
+    set_current_team_name,
 )
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.execution_time.task_runner import (
@@ -198,6 +203,7 @@ from airflow.sdk.execution_time.task_runner import (
     finalize,
     get_startup_details,
     parse,
+    reinit_supervisor_comms,
     run,
     startup,
 )
@@ -2281,6 +2287,45 @@ def test_startup_and_run_dag_with_rtif(
     mock_supervisor_comms.assert_has_calls(expected_calls)
 
 
+@mock.patch("airflow.sdk.execution_time.task_runner.set_current_team_name", autospec=True)
+def test_startup_sets_the_current_team(mock_set_current_team_name, mocked_parse, make_ti_context):
+    ti_context = make_ti_context()
+    ti_context.dag_run.team_name = "team_a"
+    what = StartupDetails(
+        ti=TaskInstance(
+            id=uuid7(),
+            task_id="my_task",
+            dag_id="basic_dag",
+            run_id="c",
+            try_number=1,
+            dag_version_id=uuid7(),
+            queue="default",
+        ),
+        dag_rel_path="",
+        bundle_info=FAKE_BUNDLE,
+        ti_context=ti_context,
+        start_date=timezone.utcnow(),
+        sentry_integration="",
+    )
+    mocked_parse(what, "basic_dag", CustomOperator(task_id="my_task"))
+
+    startup(what)
+
+    mock_set_current_team_name.assert_called_once_with("team_a")
+
+
+@mock.patch.dict(os.environ)
+def test_reinit_supervisor_comms_restores_the_current_team(monkeypatch, mock_supervisor_comms):
+    monkeypatch.setattr(context_module, "_current_team_name", None)
+    set_current_team_name("team_a")
+    # A child interpreter starts with only the environment it inherited.
+    monkeypatch.setattr(context_module, "_current_team_name", None)
+
+    reinit_supervisor_comms()
+
+    assert context_module._current_team_name == "team_a"
+
+
 @patch("os.execvp")
 @patch("os.set_inheritable")
 def test_task_run_with_user_impersonation(
@@ -2735,6 +2780,81 @@ def test_run_with_asset_inlets(create_runtime_ti, mock_supervisor_comms):
 
     with pytest.raises(KeyError):
         inlet_events[Asset(name="no such asset in inlets")]
+
+
+def test_run_mapped_task_with_constructor_inlets(create_runtime_ti, mock_supervisor_comms):
+    """Inlets added by a mapped operator's ``__init__`` are accessible in the context during execution."""
+    asset_event_resp = AssetEventResult(
+        id=1,
+        created_dagruns=[],
+        timestamp=timezone.utcnow(),
+        asset=AssetResponse(name="b", uri="b", group="asset"),
+    )
+
+    def _send(msg=None, *args, **kwargs):
+        if isinstance(msg, ValidateInletsAndOutlets):
+            return InactiveAssetsResult(inactive_assets=[])
+        if isinstance(msg, GetAssetEventByAsset):
+            return AssetEventsResult(asset_events=[asset_event_resp])
+        return OKResponse(ok=True)
+
+    mock_supervisor_comms.send.side_effect = _send
+
+    captured = {}
+
+    class InletReaderOperator(BaseOperator):
+        def __init__(self, *, inlet_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.inlet_name = inlet_name
+            self.inlets.append(Asset(inlet_name))
+
+        def execute(self, context):
+            captured["inlets"] = context["inlets"]
+            captured["events"] = list(context["inlet_events"][Asset(self.inlet_name)])
+
+    with DAG("dag_with_mapped_inlet_task"):
+        mapped = InletReaderOperator.partial(task_id="t").expand(inlet_name=["a", "b"])
+
+    ti = create_runtime_ti(task=mapped, map_index=1)
+    state, _, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+
+    assert error is None
+    assert state == TaskInstanceState.SUCCESS
+    assert captured == {"inlets": [Asset("b")], "events": [asset_event_resp]}
+
+
+@pytest.mark.parametrize(
+    ("inlet", "expected_message"),
+    [
+        pytest.param(Asset.ref(name="a"), GetAssetByName(name="a"), id="inlet-events-ref"),
+        pytest.param(AssetAlias(name="alias"), GetAssetsByAlias(alias_name="alias"), id="state-store-alias"),
+    ],
+)
+def test_asset_lookups_built_before_execute(
+    inlet, expected_message, create_runtime_ti, mock_supervisor_comms
+):
+    captured = {}
+
+    def get_sent_messages():
+        return [c.args[0] if c.args else c.kwargs["msg"] for c in mock_supervisor_comms.send.call_args_list]
+
+    def side_effect(msg=None, *args, **kwargs):
+        if isinstance(msg, ValidateInletsAndOutlets):
+            return InactiveAssetsResult(inactive_assets=[])
+        if isinstance(msg, GetAssetByName):
+            return AssetResult(name=msg.name, uri=msg.name, group="asset")
+        return OKResponse(ok=True)
+
+    class LookupCheckOperator(BaseOperator):
+        def execute(self, context):
+            captured["messages"] = get_sent_messages()
+
+    ti = create_runtime_ti(task=LookupCheckOperator(task_id="t", inlets=[inlet]))
+    mock_supervisor_comms.send.side_effect = side_effect
+    state, _, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    assert error is None
+    assert state == TaskInstanceState.SUCCESS
+    assert expected_message in captured["messages"]
 
 
 @mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
@@ -3588,6 +3708,62 @@ class TestRuntimeTaskInstance:
             result = runtime_ti.xcom_pull(key="test_key", **pull_kwargs)
 
         assert not isinstance(result, LazyXComSequence)
+
+    @staticmethod
+    def _make_mapped_dag():
+        @task_decorator
+        def mapped(value): ...
+
+        with DAG("mapped_dag", schedule=None) as dag:
+            mapped.expand(value=[1, 2]) >> BaseOperator(task_id="after")
+        return dag
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("pull_method", "get_all_method"),
+        [
+            pytest.param("xcom_pull", "get_all", id="sync"),
+            pytest.param("axcom_pull", "aget_all", id="async"),
+        ],
+    )
+    async def test_xcom_pull_of_a_mapped_task_in_this_run_reads_the_slice_directly(
+        self, create_runtime_ti, pull_method, get_all_method
+    ):
+        dag = self._make_mapped_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task("after"), dag_id="mapped_dag")
+
+        with patch.object(XCom, get_all_method, autospec=True, return_value=[1, 2]) as get_all:
+            result = getattr(runtime_ti, pull_method)(key="k", task_ids="mapped", map_indexes=None)
+            if inspect.isawaitable(result):
+                result = await result
+
+        assert result == [1, 2]
+        get_all.assert_called_once_with(
+            run_id=runtime_ti.run_id, key="k", task_id="mapped", dag_id=runtime_ti.dag_id
+        )
+
+    @pytest.mark.parametrize(
+        "pull_kwargs",
+        [
+            pytest.param({"task_ids": "mapped", "run_id": "other_run"}, id="other run"),
+            pytest.param({"task_ids": "mapped", "dag_id": "other_dag"}, id="other dag"),
+            pytest.param({"task_ids": "mapped", "include_prior_dates": True}, id="prior dates"),
+            pytest.param({"task_ids": "after"}, id="unmapped task"),
+            pytest.param({"task_ids": "removed"}, id="task missing from the dag"),
+        ],
+    )
+    def test_xcom_pull_leaves_other_omitted_map_indexes_to_the_server(self, create_runtime_ti, pull_kwargs):
+        dag = self._make_mapped_dag()
+        runtime_ti = create_runtime_ti(task=dag.get_task("after"), dag_id="mapped_dag")
+
+        with (
+            patch.object(XCom, "get_all", autospec=True) as get_all,
+            patch.object(XCom, "get_one", autospec=True, return_value=7) as get_one,
+        ):
+            assert runtime_ti.xcom_pull(key="k", map_indexes=None, **pull_kwargs) == 7
+
+        get_all.assert_not_called()
+        assert get_one.call_args.kwargs["map_index"] is None
 
     @pytest.mark.asyncio
     async def test_axcom_pull_of_a_loop_task_from_outside_the_loop_returns_a_list_for_one_iteration(
@@ -5010,6 +5186,98 @@ def _recording_email_backend(
     than imported because the Task SDK must not depend on ``airflow-core``.
     """
     raise AssertionError("should be patched in the test")
+
+
+class _ClearTargetOperator(BaseOperator):
+    """Points a clear at ``child.wait`` on the rendered ``target_date``."""
+
+    template_fields = ("target_date",)
+
+    def __init__(self, *, target_date: str | None, **kwargs):
+        super().__init__(**kwargs)
+        self.target_date = target_date
+
+    def execute(self, context):
+        pass
+
+    def get_external_clear_target(self, context):
+        logical_date = None if self.target_date is None else datetime.fromisoformat(self.target_date)
+        return ExternalClearTarget(dag_id="child", task_id="wait", logical_date=logical_date)
+
+
+class TestExternalClearTarget:
+    @staticmethod
+    def _run(runtime_ti):
+        return run(
+            runtime_ti,
+            context=runtime_ti.get_template_context(),
+            log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger),
+        )
+
+    def test_reports_target_resolved_from_rendered_templates(self, create_runtime_ti, mock_supervisor_comms):
+        task = _ClearTargetOperator(
+            task_id="mark", target_date="{{ logical_date.replace(hour=0).isoformat() }}"
+        )
+        runtime_ti = create_runtime_ti(task=task, logical_date=timezone.datetime(2026, 10, 1, 5))
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert isinstance(msg, SucceedTask)
+        assert msg.external_clear_target == ExternalClearTargetPayload(
+            dag_id="child", task_id="wait", logical_date=timezone.datetime(2026, 10, 1), recursion_depth=10
+        )
+
+    def test_target_without_a_date_points_at_the_run_logical_date(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = _ClearTargetOperator(task_id="mark", target_date=None)
+        runtime_ti = create_runtime_ti(task=task, logical_date=timezone.datetime(2026, 10, 1, 5))
+
+        _, msg, _ = self._run(runtime_ti)
+
+        assert msg.external_clear_target.logical_date == timezone.datetime(2026, 10, 1, 5)
+
+    def test_target_without_a_date_reports_nothing_in_a_run_without_one(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        task = _ClearTargetOperator(task_id="mark", target_date=None)
+        runtime_ti = create_runtime_ti(task=task, logical_date=None)
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.external_clear_target is None
+
+    @pytest.mark.parametrize("declares_target", [False, True], ids=["no-method", "returns-none"])
+    def test_operator_without_target_reports_nothing(
+        self, create_runtime_ti, mock_supervisor_comms, declares_target
+    ):
+        class PlainOperator(BaseOperator):
+            def execute(self, context):
+                pass
+
+        class NoTargetThisRun(PlainOperator):
+            def get_external_clear_target(self, context):
+                return None
+
+        task_class = NoTargetThisRun if declares_target else PlainOperator
+        runtime_ti = create_runtime_ti(task=task_class(task_id="plain"))
+
+        state, msg, _ = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert msg.external_clear_target is None
+
+    def test_target_that_cannot_be_resolved_fails_the_task(self, create_runtime_ti, mock_supervisor_comms):
+        task = _ClearTargetOperator(task_id="mark", target_date="{{ params.get('missing', '') }}")
+        runtime_ti = create_runtime_ti(task=task)
+
+        state, msg, error = self._run(runtime_ti)
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(msg, TaskState)
+        assert isinstance(error, ValueError)
 
 
 class TestEmailNotifications:

@@ -61,6 +61,7 @@
   "dagWarnings": {
     "error_one": "오류 1개",
     "errorAndWarning": "오류 1개 및 {{warningText}}",
+    "failingWatcher": "{{assetName}}의 {{watcherName}} Watcher가 계속 실패합니다.",
     "types": {
       "asset conflict": "에셋 충돌",
       "duplicate dag id": "중복된 Dag ID",
@@ -68,6 +69,7 @@
       "runtime varying value": "런타임에 변하는 값",
       "task group cycle": "태스크 그룹 순환"
     },
+    "viewTrigger": "트리거 보기",
     "warning_one": "경고 1개",
     "warning_other": "경고 {{count, number}}개"
   },
@@ -95,7 +97,7 @@
   "flexibleForm": {
     "durationPlaceholder": "ISO 8601 형식의 기간 입력",
     "placeholder": "값 선택",
-    "placeholderArray": "각 문자열을 새 줄에 입력하세요.",
+    "placeholderArray": "값을 입력하고 Enter 키 누르기",
     "placeholderExamples": "입력하여 옵션 보기",
     "placeholderMulti": "하나 또는 여러 값 선택",
     "validationErrorArrayElement": "잘못된 {{type}} 값: {{values}}",

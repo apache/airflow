@@ -19,7 +19,6 @@
 /**
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
-import airflowPlugin, { airflowNamespace } from "./airflow-plugin/index.js";
 import { ERROR, WARN } from "./levels.js";
 
 const allExtensions = "*.{j,t}s{x,}";
@@ -35,25 +34,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
     // Files in the root directory
     allExtensions,
   ],
-  plugins: { [airflowNamespace]: airflowPlugin },
   rules: {
-    /**
-     * Disallow the `React` type namespace. `@types/react` declares `export as
-     * namespace React`, so `React.ReactNode` type-checks even in files that
-     * never import React — only a syntax rule can catch those. `React.FC` and
-     * friends are reported by `@typescript-eslint/no-restricted-types`.
-     *
-     * @example
-     * ```typescript
-     * // ❌ Incorrect
-     * const node: React.ReactNode = null;
-     *
-     * // ✅ Correct
-     * const node: ReactNode = null;
-     * ```
-     */
-    [`${airflowNamespace}/no-react-namespace-types`]: ERROR,
-
     /**
      * Enforce getter and setter pairs in objects and classes.
      *

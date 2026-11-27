@@ -61,6 +61,7 @@
   "dagWarnings": {
     "error_one": "1 個錯誤",
     "errorAndWarning": "1 個錯誤與 {{warningText}}",
+    "failingWatcher": "{{assetName}} 上的監聽器 {{watcherName}} 持續失敗",
     "types": {
       "asset conflict": "資源衝突",
       "duplicate dag id": "重複的 Dag ID",
@@ -68,6 +69,7 @@
       "runtime varying value": "執行時變動的值",
       "task group cycle": "任務群組循環"
     },
+    "viewTrigger": "檢視觸發器",
     "warning_one": "1 個警告",
     "warning_other": "{{count, number}} 個警告"
   },

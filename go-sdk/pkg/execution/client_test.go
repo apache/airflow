@@ -438,15 +438,19 @@ func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
 	}
 }
 
-// A task that returns a nil slice or a nil any pushes null, so PushXCom must not
-// inherit the task state store's nil rule.
-func TestCoordinatorClientPushXComAllowsNil(t *testing.T) {
+// A nil value pushes null, so PushXCom must not inherit the task state store's
+// nil rule. Unlike a task's return value, an explicit nil slice or map is not
+// turned into an empty one.
+func TestCoordinatorClientPushXComNilValues(t *testing.T) {
 	tests := []struct {
 		name  string
 		value any
+		want  any
 	}{
-		{name: "nil", value: nil},
-		{name: "typed nil", value: []string(nil)},
+		{name: "nil", value: nil, want: nil},
+		{name: "nil pointer", value: (*string)(nil), want: nil},
+		{name: "nil slice", value: []string(nil), want: nil},
+		{name: "nil map", value: map[string]int(nil), want: nil},
 	}
 
 	for _, tc := range tests {
@@ -468,7 +472,7 @@ func TestCoordinatorClientPushXComAllowsNil(t *testing.T) {
 			require.NoError(t, err)
 			sentMap := rawToMap(t, sent.Body)
 			require.Contains(t, sentMap, "value")
-			assert.Nil(t, sentMap["value"])
+			assert.Equal(t, tc.want, sentMap["value"])
 		})
 	}
 }

@@ -63,7 +63,10 @@ from airflow.sdk.api.datamodels._generated import (
     TaskInstance,
     TIRunContext,
 )
+from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DeferTask,
+    ErrorResponse,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -158,6 +161,40 @@ def test_put_variable_value_from_older_runtime_is_kept():
     upgraded = get_schema_version_migrator().upgrade(body, PutVariable, "2026-10-30")
 
     assert upgraded["value"] == "x"
+
+
+@pytest.mark.parametrize(
+    ("trigger_kwargs", "accepted"),
+    [
+        pytest.param({"key": "value"}, True, id="dict"),
+        pytest.param('{"key": "value"}', False, id="string"),
+    ],
+)
+def test_defer_task_trigger_kwargs_from_older_runtime(trigger_kwargs, accepted):
+    body = {
+        "type": "DeferTask",
+        "classpath": "my-classpath",
+        "trigger_kwargs": trigger_kwargs,
+        "next_method": "execute_callback",
+    }
+
+    if accepted:
+        upgraded = get_schema_version_migrator().upgrade(body, DeferTask, "2026-10-30")
+        assert upgraded["trigger_kwargs"] == trigger_kwargs
+    else:
+        with pytest.raises(ValidationError):
+            get_schema_version_migrator().upgrade(body, DeferTask, "2026-10-30")
+
+
+def test_defer_task_trigger_kwargs_is_string_only_before_2026_12_01():
+    from airflow.sdk.execution_time.schema.versions import bundle
+
+    versioned = generate_versioned_models(bundle)
+    fields = {"classpath": "my-classpath", "trigger_kwargs": "{}", "next_method": "execute_callback"}
+
+    assert versioned["2026-10-30"][DeferTask](**fields).trigger_kwargs == "{}"
+    with pytest.raises(ValidationError):
+        versioned["2026-12-01"][DeferTask](**fields)
 
 
 @pytest.mark.parametrize(
@@ -656,6 +693,30 @@ class TestRealBundleRetryReason:
         body = {"type": "TaskState", "state": "failed", "end_date": None, "rendered_map_index": None}
         out = real_migrator.upgrade(body, TaskState, "2026-06-16")
         assert out["retry_reason"] is None
+
+
+class TestRealBundleXComBackendError:
+    """A runtime whose version has no type for an XCom backend failure gets a generic one."""
+
+    @pytest.fixture
+    def real_migrator(self) -> SchemaVersionMigrator:
+        return get_schema_version_migrator()
+
+    @pytest.mark.parametrize(
+        ("version", "expected"),
+        [
+            pytest.param("2027-02-28", ErrorType.XCOM_BACKEND_ERROR, id="head"),
+            pytest.param("2026-10-30", ErrorType.GENERIC_ERROR, id="3.4.0"),
+            pytest.param("2026-06-16", ErrorType.GENERIC_ERROR, id="oldest"),
+        ],
+    )
+    def test_downgrade_reports_the_error_the_version_knows(self, real_migrator, version, expected):
+        msg = ErrorResponse(error=ErrorType.XCOM_BACKEND_ERROR, detail={"message": "backend refused"})
+
+        out = real_migrator.downgrade(msg, version)
+
+        assert out.error.value == expected.value
+        assert out.detail == {"message": "backend refused"}
 
 
 class TestRealBundleFirstTaskRescheduleStartDate:

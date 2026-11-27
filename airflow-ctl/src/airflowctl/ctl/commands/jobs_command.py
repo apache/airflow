@@ -36,6 +36,10 @@ def check(args, api_client=NEW_API_CLIENT) -> None:
 
     hostname = socket.getfqdn() if args.local else args.hostname
     alive_jobs = api_client.jobs.list(job_type=args.job_type, hostname=hostname, is_alive=True).jobs
+    if not args.job_type:
+        # ExecutorJob rows share a host with the scheduler that owns them, not a host of their own,
+        # so an unscoped check should not count them alongside the job types --job-type can select.
+        alive_jobs = [job for job in alive_jobs if job.job_type != "ExecutorJob"]
     if args.limit > 0:
         alive_jobs = alive_jobs[: args.limit]
 

@@ -37,6 +37,7 @@ import { IconButton, Select, Menu, NumberInputField, NumberInputRoot } from "src
 import { AttrSelectFilterMulti } from "src/components/AttrSelectFilterMulti";
 import { StateBadge } from "src/components/StateBadge";
 
+import { GRAPH_FILTER_KEYS } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { taskInstanceStateOptions } from "src/constants/stateOptions";
 import { useGroups } from "src/context/groups";
@@ -67,14 +68,6 @@ export const GraphTaskFilters = () => {
     (item) => item.value !== "all" && item.value !== "none",
   );
 
-  const allGraphFilterKeys = [
-    SearchParamsKeys.GRAPH_OPERATOR,
-    SearchParamsKeys.GRAPH_TASK_GROUP,
-    SearchParamsKeys.GRAPH_TASK_STATE,
-    SearchParamsKeys.GRAPH_MAP_INDEX,
-    SearchParamsKeys.GRAPH_DURATION_GTE,
-  ];
-
   const handleMultiChange = (key: string) => (values: Array<string> | undefined) => {
     setSearchParams(
       (prev) => {
@@ -90,7 +83,7 @@ export const GraphTaskFilters = () => {
   };
 
   const handleNumberChange =
-    (key: string, condition: (n: number) => boolean) => (details: NumberInputValueChangeDetails) => {
+    (key: string, condition: (value: number) => boolean) => (details: NumberInputValueChangeDetails) => {
       setSearchParams(
         (prev) => {
           const next = new URLSearchParams(prev);
@@ -112,7 +105,7 @@ export const GraphTaskFilters = () => {
       (prev) => {
         const next = new URLSearchParams(prev);
 
-        allGraphFilterKeys.forEach((key) => next.delete(key));
+        GRAPH_FILTER_KEYS.forEach((key) => next.delete(key));
 
         return next;
       },
@@ -132,7 +125,7 @@ export const GraphTaskFilters = () => {
       (prev) => {
         const next = new URLSearchParams(prev);
 
-        allGraphFilterKeys.forEach((key) => next.delete(key));
+        GRAPH_FILTER_KEYS.forEach((key) => next.delete(key));
 
         return next;
       },

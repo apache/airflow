@@ -93,7 +93,7 @@ The hook reads credentials from the Airflow connection of type ``llamaindex``:
   an OpenAI-compatible proxy that accepts OpenAI's exact model names (e.g.
   an internal gateway) -- not Ollama or vLLM (see above).
 - **extra** JSON --
-  ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}`` --
+  ``{"embed_model": "text-embedding-3-small", "llm_model": "gpt-6.1-sol"}`` --
   default model identifiers stored on the connection.
 
 Parameters
@@ -125,7 +125,7 @@ Parameters
        input. Only pass trusted values.
    * - ``llm_model``
      - ``None`` (falls back to ``extra["llm_model"]``)
-     - LLM model name, e.g. ``gpt-5``. Required when calling ``get_llm()``.
+     - LLM model name, e.g. ``gpt-6.1-sol``. Required when calling ``get_llm()``.
 
 .. seealso::
    `llama_index.embeddings.openai.OpenAIEmbedding <https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai/>`__

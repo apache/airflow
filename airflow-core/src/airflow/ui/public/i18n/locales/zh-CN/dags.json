@@ -97,6 +97,7 @@
       "downstream": "下游",
       "existingTasks": "清除现有任务",
       "future": "未来",
+      "includeDependentDags": "清除依赖 Dags 中的任务",
       "keepTaskState": "保留任务存储并继续执行",
       "laterIterations": "后续迭代",
       "onlyFailed": "只清除失败任务",

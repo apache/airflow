@@ -101,7 +101,7 @@ class TestTimeSensor:
             assert op.target_datetime.time() == pendulum.time(1, 0)
             assert op.target_datetime.tzinfo == timezone.utc
 
-    @time_machine.travel("2020-07-07 00:00:00", tick=False)
+    @time_machine.travel("2020-07-07 00:00:00+00:00", tick=False)
     def test_task_is_deferred(self):
         with DAG(
             dag_id="test_task_is_deferred",
