@@ -622,7 +622,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Nothing is committed: the caller persists both changes together, normally with
         ``update_user``.
         """
-        user.password = self._hash_password(password)
+        user.password = None if is_empty_password(password) else self._hash_password(password)
         # Incremented in SQL so that concurrent password changes cannot write the same value.
         user.token_generation = self.user_model.token_generation + 1
 
@@ -2312,7 +2312,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Return whether the password matches the user's stored password.
 
         An empty password, or a user without a stored password, never matches, and still runs
-        the fake hash check, as a wrong password does.
+        the fake hash check.
         """
         if user.password is None or is_empty_password(password):
             check_password_hash(current_app.config["AUTH_DB_FAKE_PASSWORD_HASH_CHECK"], "password")
@@ -2360,7 +2360,11 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self._rotate_session_id()
             self.update_user_auth_stat(user, True)
             return user
-        self.update_user_auth_stat(user, False)
+        # A user without a local password has nothing to guess here. When auth_user_db is a
+        # fallback after another method, as in basic_auth with LDAP, that method has already
+        # counted the failure.
+        if user.password is not None:
+            self.update_user_auth_stat(user, False)
         log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
         return None
 

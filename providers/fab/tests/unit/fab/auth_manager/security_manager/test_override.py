@@ -454,7 +454,7 @@ class TestFabAirflowSecurityManagerOverride:
     @mock.patch(
         "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash", autospec=True
     )
-    def test_auth_user_db_fails_user_without_password_like_a_wrong_password(
+    def test_auth_user_db_fails_user_without_password_without_counting_a_failed_login(
         self, mock_check_password_hash, mock_find_user, mock_update_user_auth_stat
     ):
         sm = EmptySecurityManager()
@@ -467,7 +467,7 @@ class TestFabAirflowSecurityManagerOverride:
             assert sm.auth_user_db("test_user", "test_password") is None
 
         mock_check_password_hash.assert_called_once_with("fake-hash", "password")
-        mock_update_user_auth_stat.assert_called_once_with(sm, user, False)
+        mock_update_user_auth_stat.assert_not_called()
 
     def test_update_user_clears_cached_permissions(self):
         sm = EmptySecurityManager()

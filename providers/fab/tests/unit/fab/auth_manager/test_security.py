@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import importlib.metadata
 import json
 import logging
 from typing import TYPE_CHECKING
@@ -30,6 +31,7 @@ import time_machine
 from flask_appbuilder import expose, has_access
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.views import BaseView, ModelView
+from packaging.version import Version
 from sqlalchemy import Date, Float, Integer, String, delete
 from werkzeug.security import generate_password_hash
 
@@ -1381,7 +1383,30 @@ def test_add_user_uses_configured_hash_method(mock_hash, app, security_manager):
 USERNAME_WITHOUT_PASSWORD = "user_without_password"
 
 
-@pytest.mark.parametrize("hash_method", ["scrypt", "pbkdf2:sha256"])
+@pytest.mark.parametrize("password", ["", "\x00"])
+def test_reset_password_to_blank_stores_no_password_hash(password, app, security_manager):
+    try:
+        user = create_user(app, USERNAME_WITHOUT_PASSWORD)
+        with app.test_request_context():
+            assert security_manager.reset_password(user.id, password)
+            assert security_manager.find_user(username=USERNAME_WITHOUT_PASSWORD).password is None
+    finally:
+        delete_user(app, USERNAME_WITHOUT_PASSWORD)
+
+
+@pytest.mark.parametrize(
+    "hash_method",
+    [
+        pytest.param(
+            "scrypt",
+            marks=pytest.mark.skipif(
+                Version(importlib.metadata.version("werkzeug")) < Version("3.0.0"),
+                reason="werkzeug < 3 has no scrypt",
+            ),
+        ),
+        "pbkdf2:sha256",
+    ],
+)
 @pytest.mark.parametrize("password", ["", "\x00", "\x00" * 8])
 def test_blank_password_does_not_match_hash_of_empty_password(password, hash_method, app, security_manager):
     email = f"{USERNAME_WITHOUT_PASSWORD}@example.org"
