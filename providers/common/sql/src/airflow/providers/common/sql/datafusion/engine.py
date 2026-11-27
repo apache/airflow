@@ -360,3 +360,8 @@ class DataFusionEngine(LoggingMixin):
         """Get the schema of a table."""
         schema = str(self.session_context.table(table_name).schema())
         return schema
+
+    def get_schema_columns(self, table_name: str) -> list[dict[str, str]]:
+        """Get the structured column definitions of a table."""
+        table = self.session_context.table(table_name)
+        return [{"name": f.name, "type": str(f.type)} for f in table.schema()]
