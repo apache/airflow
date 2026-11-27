@@ -40,6 +40,7 @@ import org.apache.airflow.sdk.execution.comm.Discriminator
 import org.apache.airflow.sdk.execution.comm.PutVariable
 import org.apache.airflow.sdk.execution.comm.SetTaskStateStore
 import org.apache.airflow.sdk.execution.comm.SetXCom
+import org.apache.airflow.sdk.internal.registerDiscoveredModules
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 import org.msgpack.core.buffer.ArrayBufferInput
@@ -84,22 +85,21 @@ object Frame {
   private val userValueMapper: ObjectMapper by lazy {
     mapper.copy().apply {
       registerModule(SimpleModule().setSerializerModifier(RejectEmptyBeans))
-      findAndRegisterModules()
+      registerDiscoveredModules()
     }
   }
 
   /**
    * Converts a user value into JSON-shaped data (maps, lists, strings, numbers,
-   * booleans, null) before it goes on the wire.
+   * booleans, null) with [valueMapper].
+   *
+   * The tree is read back with [mapper], which has no discovered modules:
+   * jackson-module-scala replaces untyped deserialization with Scala
+   * collections, which [packAny] cannot send.
    *
    * @throws IllegalArgumentException if [value] is or contains an object with no
    *   properties to encode, or a byte array.
    */
-  internal fun encodeUserValue(value: Any?): Any? = encodeUserValue(value, userValueMapper)
-
-  // The tree is read back with [mapper], which has no discovered modules:
-  // jackson-module-scala replaces untyped deserialization with Scala
-  // collections, which [packAny] cannot send.
   internal fun encodeUserValue(
     value: Any?,
     valueMapper: ObjectMapper,
@@ -177,16 +177,12 @@ object Frame {
   @Suppress("UNCHECKED_CAST")
   private fun toBody(value: Any): Map<String, Any?> {
     if (value is Map<*, *>) return value as Map<String, Any?>
-    val userValue =
-      when (value) {
-        is SetXCom -> value.value
-        is SetTaskStateStore -> value.value
-        else -> return mapper.convertValue(value, MutableMap::class.java) as MutableMap<String, Any?>
-      }
-    val encoded = encodeUserValue(userValue)
-    return (mapper.convertValue(value, MutableMap::class.java) as MutableMap<String, Any?>).also {
-      if (encoded != null || "value" in it) it["value"] = encoded
+    // Encode the user value first, so [mapper] never sees the raw object.
+    when (value) {
+      is SetXCom -> value.value = encodeUserValue(value.value, userValueMapper)
+      is SetTaskStateStore -> value.value = encodeUserValue(value.value, userValueMapper)
     }
+    return mapper.convertValue(value, MutableMap::class.java) as MutableMap<String, Any?>
   }
 }
 

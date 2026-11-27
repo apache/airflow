@@ -898,9 +898,9 @@ class CommsTest {
   }
 
   @Test
-  @DisplayName("setXCom still encodes a Java bean, enum and date-time as Jackson did before")
+  @DisplayName("setXCom encodes a Java bean as its properties, an enum as its name and a date-time as an ISO-8601 string")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
-  fun setXComSendsJavaObjectsAsBefore() {
+  fun setXComEncodesJavaObjects() {
     val details = setXComDetails()
     val at = OffsetDateTime.of(2024, 12, 1, 1, 0, 0, 0, ZoneOffset.UTC)
 
@@ -919,7 +919,7 @@ class CommsTest {
   }
 
   @Test
-  @DisplayName("taskStateStore.set still encodes a Java bean as Jackson did before")
+  @DisplayName("taskStateStore.set encodes a Java bean as its properties")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun taskStateStoreSetSendsBean() {
     val (body, failure) =
@@ -983,7 +983,7 @@ class CommsTest {
     return error
   }
 
-  /** A class with no JavaBean properties; Jackson would previously have stored `{}`. */
+  /** A class with no JavaBean properties. */
   private class NoProperties
 
   /** A class Jackson stores as its bean properties. */

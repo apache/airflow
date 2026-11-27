@@ -24,9 +24,6 @@ import com.fasterxml.jackson.databind.SerializerProvider
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.databind.ser.std.StdSerializer
 
-/** A type with no properties, so it can only be encoded through [TestValueModule]. */
-class ModuleEncoded
-
 /**
  * Registered through `META-INF/services/com.fasterxml.jackson.databind.Module`,
  * the way a bundle picks up a module such as `jackson-module-scala`.

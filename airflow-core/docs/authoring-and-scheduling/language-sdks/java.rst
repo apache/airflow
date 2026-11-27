@@ -712,8 +712,7 @@ The ``Client``
        ``null``. See the API reference. For the Java types values arrive as, see :ref:`java-sdk/types`.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
      - Publishes an XCom value. The value must be JSON-serializable; ``null`` stores a null XCom.
-       Objects are encoded with Jackson and the Jackson modules in the bundle; an object with no
-       properties to encode raises ``IllegalArgumentException`` instead of being stored as ``{}``.
+       See :ref:`java-sdk/types`.
    * - ``getTaskStateStore()``
      - This task instance's key/value store, with ``get``, ``set``, ``delete`` and ``clear``. See
        :ref:`java-sdk/task-state-store`.
