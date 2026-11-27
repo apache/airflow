@@ -21,6 +21,7 @@ import atexit
 import json as json_lib
 import logging
 import os
+import ssl
 import sys
 import warnings
 from collections.abc import Callable, Mapping
@@ -478,6 +479,47 @@ def create_async_metadata_engine(
     )
 
 
+def _translate_mysql_ssl_mode(async_uri: str, connect_args: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """
+    Replace mysqlclient's ``ssl_mode`` URL parameter with an ``ssl`` connect arg for aiomysql/asyncmy.
+
+    Neither async driver has an ``ssl_mode`` argument, and they take TLS settings only as an
+    ``ssl.SSLContext``, which a URL cannot carry. A sync MySQL URL commonly sets ``ssl_mode``, so without
+    this every async DB call raises ``TypeError: connect() got an unexpected keyword argument 'ssl_mode'``.
+    ``ssl_ca`` is consumed with it. An ``ssl`` entry already in ``connect_args`` takes precedence.
+    """
+    url = make_url(async_uri)
+    if url.get_backend_name() != "mysql" or "ssl_mode" not in url.query:
+        return async_uri, connect_args
+
+    query = dict(url.query)
+
+    def pop_query_value(key: str) -> str | None:
+        value = query.pop(key, None)
+        return value[-1] if isinstance(value, tuple) else value
+
+    mode = str(pop_query_value("ssl_mode")).upper()
+    ssl_ca = pop_query_value("ssl_ca")
+    translated_uri = url.set(query=query).render_as_string(hide_password=False)
+    if mode == "DISABLED":
+        return translated_uri, connect_args
+    if mode == "REQUIRED":
+        context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+    elif mode in ("VERIFY_CA", "VERIFY_IDENTITY"):
+        if not ssl_ca:
+            raise ValueError(f"ssl_mode={mode} requires ssl_ca in the database URL")
+        context = ssl.create_default_context(cafile=ssl_ca)
+        context.check_hostname = mode == "VERIFY_IDENTITY"
+    else:
+        raise ValueError(
+            f"Unsupported ssl_mode={mode} for the async MySQL driver, which cannot fall back to plaintext. "
+            "Use REQUIRED, VERIFY_CA or VERIFY_IDENTITY to encrypt, or DISABLED not to."
+        )
+    return translated_uri, {"ssl": context, **connect_args}
+
+
 def _configure_async_session() -> None:
     """Configure the async engine and session factory."""
     global AsyncSession, async_engine
@@ -501,9 +543,10 @@ def _configure_async_session() -> None:
         engine_args["max_overflow"] = conf.getint("database", "SQL_ALCHEMY_MAX_OVERFLOW", fallback=10)
     engine_args.update(_get_isolation_level_args(SQL_ALCHEMY_CONN_ASYNC))
 
+    async_uri, connect_args = _translate_mysql_ssl_mode(SQL_ALCHEMY_CONN_ASYNC, _get_connect_args("async"))
     async_engine = create_async_metadata_engine(
-        SQL_ALCHEMY_CONN_ASYNC,
-        connect_args=_get_connect_args("async"),
+        async_uri,
+        connect_args=connect_args,
         engine_args=engine_args,
     )
     setup_event_handlers(async_engine.sync_engine)

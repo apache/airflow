@@ -218,7 +218,8 @@ Two functions can be overridden:
 
 The default implementations call ``sqlalchemy.create_engine`` / ``sqlalchemy.ext.asyncio.create_async_engine``
 with the same arguments Airflow has always used, so there is **no behavioral change** unless you provide an
-override.
+override. ``create_async_metadata_engine`` receives ``sql_alchemy_conn_async`` and ``connect_args`` after Airflow
+has translated a MySQL ``ssl_mode`` into an ``ssl`` connect argument, so an override does not need to handle it.
 
 Example: registering a ``do_connect`` handler that refreshes a JWT token before every new physical connection:
 
