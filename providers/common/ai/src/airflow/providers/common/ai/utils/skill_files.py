@@ -53,6 +53,9 @@ DEFAULT_RESOURCE_EXCLUDES = ("__pycache__", "*.pyc", "*.pyo", ".DS_Store", ".git
 # literal text, and the tools take them to mean the skill's root.
 _SKILL_DIR_PREFIXES = ("${SKILL_DIR}/", "${CLAUDE_SKILL_DIR}/")
 
+# The variables a script inherits from the worker, the same as pydantic-ai's ``LocalWorkspaceBackend``.
+_INHERITED_ENV_NAMES = ("PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE")
+
 _SCRIPT_TIMEOUT_SECONDS = 30.0
 # How long to wait for the pipe to close after the script was killed; a process that left its group can hold it open.
 _REAP_TIMEOUT_SECONDS = 2.0
@@ -74,6 +77,11 @@ class SkillRunState:
     """The skill directories one run can reach, by skill name."""
 
     skill_dirs: dict[str, Path]
+
+
+def _build_script_env(inherit_env: Sequence[str]) -> dict[str, str]:
+    names = (*_INHERITED_ENV_NAMES, *inherit_env)
+    return {name: os.environ[name] for name in names if name in os.environ}
 
 
 def _strip_skill_dir_prefix(relative: str) -> str:
@@ -212,10 +220,12 @@ class _SkillFilesToolset(FunctionToolset[Any]):
         resources: bool,
         scripts: bool,
         exclude_resources: Sequence[str],
+        inherit_env: Sequence[str],
         max_retries: int | None,
     ) -> None:
         super().__init__(id=TOOLSET_ID, max_retries=validate_max_retries(max_retries))
         self._runs = runs
+        self._inherit_env = tuple(inherit_env)
         self._exclude_patterns = (*DEFAULT_RESOURCE_EXCLUDES, *exclude_resources)
         if resources:
             self.add_function(self.read_skill_resource, takes_ctx=True)
@@ -271,15 +281,18 @@ class _SkillFilesToolset(FunctionToolset[Any]):
             path.suffix.lower() in _SCRIPT_SUFFIXES or os.access(path, os.X_OK)
         ):
             raise ModelRetry(f"{script!r} is not a runnable script.")
-        return await _run_script(path, skill_root, _build_script_args(args))
+        return await _run_script(
+            path, skill_root, _build_script_args(args), _build_script_env(self._inherit_env)
+        )
 
 
-async def _run_script(script: Path, cwd: Path, argv: list[str]) -> str:
+async def _run_script(script: Path, cwd: Path, argv: list[str], env: Mapping[str, str]) -> str:
     try:
         process = await asyncio.create_subprocess_exec(
             *_build_script_command(script),
             *argv,
             cwd=cwd,
+            env=env,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.STDOUT,
@@ -356,6 +369,7 @@ def build_skill_files_toolset(
     resources: bool,
     scripts: bool,
     exclude_resources: Sequence[str],
+    inherit_env: Sequence[str],
     max_retries: int | None,
 ) -> FunctionToolset[Any] | None:
     """
@@ -371,5 +385,6 @@ def build_skill_files_toolset(
         resources=resources,
         scripts=scripts,
         exclude_resources=exclude_resources,
+        inherit_env=inherit_env,
         max_retries=max_retries,
     )

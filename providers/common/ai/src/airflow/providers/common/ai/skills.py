@@ -315,6 +315,9 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
     :param scripts: ``"worker"`` registers ``run_skill_script``, which runs a script as a subprocess
         of the worker, with the worker's permissions and a 30 second timeout. A script that prints more
         than 50,000 bytes is killed and its output cut off there. ``None`` registers no script tool. Defaults to ``"worker"``.
+    :param inherit_env: Names of worker environment variables a script receives besides ``PATH``, ``HOME``,
+        ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. The values are read on the worker
+        when the script runs and are not stored in the Dag; a name the worker has not set is skipped.
     :param max_retries: Correction attempts the model gets per tool call. Defaults to the agent's.
     """
 
@@ -329,6 +332,7 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         exclude_resources: list[str] | None = None,
         resources: bool = True,
         scripts: Literal["worker"] | None = "worker",
+        inherit_env: Collection[str] = (),
         max_retries: int | None = None,
     ) -> None:
         if not sources:
@@ -340,6 +344,8 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
                 f"AirflowSkills scripts must be 'worker' or None, got {scripts!r}. Running scripts in a "
                 "sandbox needs a way to copy skills into it, which is not available yet."
             )
+        if isinstance(inherit_env, str) or not all(isinstance(name, str) and name for name in inherit_env):
+            raise TypeError("inherit_env must be a collection of variable names, not a string.")
         self._sources = list(sources)
         self._include = include
         self._exclude = exclude
@@ -349,6 +355,7 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
             resources=resources,
             scripts=scripts is not None,
             exclude_resources=exclude_resources or [],
+            inherit_env=list(inherit_env),
             max_retries=max_retries,
         )
         self._finalizer: weakref.finalize | None = None

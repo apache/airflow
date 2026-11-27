@@ -187,6 +187,10 @@ Parameters
   A script that runs past the timeout is killed, and the model gets the output it had printed so far,
   followed by a note that it timed out.
   Running scripts in a sandbox is not supported yet, and any other value raises ``ValueError``.
+- ``inherit_env``: Names of worker environment variables a script receives, besides ``PATH``,
+  ``HOME``, ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. A name is looked up on the
+  worker when the script runs, so no value is stored in the Dag file or its serialized form, and a
+  name the worker has not set is skipped. Default: none.
 - ``max_retries``: How many times the model may correct failed calls to one of the two tools.
   Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
@@ -217,8 +221,10 @@ Trust model
   untrusted input, the way an HTTP handler treats a request.
 - With ``GitSkills``, scripts can change outside Dag review. Point ``repo_url`` at a trusted
   repository and set ``branch`` to a tag, because a branch name moves.
-- A script runs with the worker's own permissions and environment, the same as any task code on that
-  worker. It can read an ``AIRFLOW_CONN_*`` variable set on the worker.
+- A script runs with the worker's own permissions, the same as any task code on that worker, but
+  receives only ``PATH``, ``HOME``, ``LANG``, ``LC_ALL``, ``LC_CTYPE`` and the variables
+  ``inherit_env`` names. It cannot read the worker's ``AIRFLOW_CONN_*`` variables from its
+  environment, though it can still read any file the worker's user can.
 
 Version requirements
 ~~~~~~~~~~~~~~~~~~~~
@@ -259,6 +265,9 @@ needs, will then leave the ``skills`` extra. New code should use ``AirflowSkills
      - ``load_capability``; the catalog is part of the prompt
    * - ``exclude_resources=[...]``, ``max_retries=...``
      - The same parameters
+   * - A script inherits the worker's whole environment
+     - A script receives only ``PATH``, ``HOME``, ``LANG``, ``LC_ALL`` and ``LC_CTYPE``. Name any other
+       variable it needs in ``inherit_env``.
    * - A skill nested more than one level below a source
      - Not found, and no warning or error says so. Check your layout: each skill directory must sit
        directly in a source directory.

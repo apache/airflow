@@ -53,6 +53,7 @@ def make_toolset(skill_dir: Path, **overrides: Any):
         "resources": True,
         "scripts": True,
         "exclude_resources": [],
+        "inherit_env": (),
         "max_retries": None,
     }
     options.update(overrides)
@@ -94,7 +95,12 @@ class TestToolRegistration:
     def test_returns_none_when_both_tools_are_off(self):
         assert (
             build_skill_files_toolset(
-                runs={}, resources=False, scripts=False, exclude_resources=[], max_retries=None
+                runs={},
+                resources=False,
+                scripts=False,
+                exclude_resources=[],
+                inherit_env=(),
+                max_retries=None,
             )
             is None
         )
@@ -668,17 +674,41 @@ class TestRunSkillScript:
             )
 
     @pytest.mark.asyncio
-    async def test_a_script_runs_with_the_workers_environment(self, skill_dir, monkeypatch):
-        monkeypatch.setenv("SKILL_TEST_FLAG", "set")
+    async def test_a_script_does_not_see_the_workers_other_variables(self, skill_dir, monkeypatch):
+        monkeypatch.setenv("AIRFLOW_CONN_SKILL_TEST", "secret")
         self.write_script(
-            skill_dir, "scripts/env.py", "import os\nprint(os.environ.get('SKILL_TEST_FLAG', 'unset'))\n"
+            skill_dir,
+            "scripts/env.py",
+            "import os\nprint(os.environ.get('AIRFLOW_CONN_SKILL_TEST', 'unset'))\nprint('PATH' in os.environ)\n",
         )
 
         output = await call(
             make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/env.py"
         )
 
-        assert output == "set"
+        assert output == "unset\nTrue"
+
+    @pytest.mark.asyncio
+    async def test_inherit_env_passes_the_named_worker_variables(self, skill_dir, monkeypatch):
+        monkeypatch.setenv("A_SKILL_VAR", "a")
+        monkeypatch.setenv("B_SKILL_VAR", "b")
+        monkeypatch.delenv("MISSING_SKILL_VAR", raising=False)
+        self.write_script(
+            skill_dir,
+            "scripts/env.py",
+            "import os\n"
+            "for name in ('A_SKILL_VAR', 'B_SKILL_VAR', 'MISSING_SKILL_VAR'):\n"
+            "    print(os.environ.get(name, 'unset'))\n",
+        )
+
+        output = await call(
+            make_toolset(skill_dir, inherit_env=("A_SKILL_VAR", "MISSING_SKILL_VAR")),
+            "run_skill_script",
+            skill_name="demo",
+            script="scripts/env.py",
+        )
+
+        assert output == "a\nunset\nunset"
 
 
 class TestKillProcess:

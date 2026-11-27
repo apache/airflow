@@ -326,6 +326,11 @@ class TestAirflowSkillsConstruction:
 
         assert (capability.get_toolset() is not None) is expected
 
+    @pytest.mark.parametrize("inherit_env", ["PATH", ["PATH", 1]])
+    def test_inherit_env_must_be_a_collection_of_names(self, inherit_env):
+        with pytest.raises(TypeError, match="inherit_env must be a collection of variable names"):
+            AirflowSkills(["skills"], inherit_env=inherit_env)
+
     def test_two_of_them_cannot_be_combined(self):
         with pytest.raises(ValueError, match="only one AirflowSkills"):
             AirflowSkills.combine([AirflowSkills(["a"]), AirflowSkills(["b"])])

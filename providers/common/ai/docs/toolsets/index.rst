@@ -57,7 +57,7 @@ with is resolved in the worker and is not part of any of that.
      - ``SKILL.md`` instruction bundles that the model loads when it needs one, plus tools
        to read a skill's files and run its scripts
      - ``scripts=None`` to stop skill scripts running on the worker; ``resources=False``;
-       ``exclude_resources``; ``include`` / ``exclude`` to choose the skills
+       ``inherit_env``; ``exclude_resources``; ``include`` / ``exclude`` to choose the skills
    * - :doc:`AgentSkillsToolset <skills>` (deprecated)
      - ``SKILL.md`` instruction bundles that the model loads when it needs one. Use the
        ``AirflowSkills`` capability instead; see :ref:`agent-skills-migration`
@@ -229,8 +229,8 @@ making on purpose rather than inheriting.
      - Remote server, or a child process on the worker host for ``stdio``
    * - ``AirflowSkills``
      - ``GitSkills.conn_id`` for private repositories; none for local directories
-     - Worker process; a skill script runs as a subprocess of the worker with the worker's
-       environment
+     - Worker process; a skill script runs as a subprocess of the worker, with only ``PATH``,
+       ``HOME``, locale variables and those named in ``inherit_env``
    * - ``AgentSkillsToolset`` (deprecated)
      - ``GitSkills.conn_id`` for private repositories; none for local directories
      - Worker process
