@@ -63,6 +63,7 @@ expected_config_response = {
     "enable_swagger_ui": True,
     "require_confirmation_dag_change": False,
     "default_wrap": False,
+    "default_match_anywhere": False,
     "test_connection": "Disabled",
     "dashboard_alert": [],
     "show_external_log_redirect": False,
@@ -80,6 +81,7 @@ def _theme_conf_vars(theme: dict) -> dict:
         ("api", "hide_paused_dags_by_default"): "true",
         ("api", "fallback_page_limit"): "100",
         ("api", "default_wrap"): "false",
+        ("api", "default_match_anywhere"): "false",
         ("api", "auto_refresh_interval"): "3",
         ("api", "require_confirmation_dag_change"): "false",
         ("api", "theme"): json.dumps(theme),
@@ -160,6 +162,14 @@ class TestGetConfig:
 
         assert response.status_code == 200
         assert response.json() == expected_config_response
+
+    def test_get_config_returns_default_match_anywhere_enabled(self, test_client):
+        """The server-side default search mode is reflected in the UI config."""
+        with conf_vars({("api", "default_match_anywhere"): "true"}):
+            response = test_client.get("/config")
+
+        assert response.status_code == 200
+        assert response.json()["default_match_anywhere"] is True
 
     def test_get_config_should_response_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get("/config")
