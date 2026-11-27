@@ -1,0 +1,1 @@
+Fix row explosion in ``DagModelOperation.find_orm_dags``: the one-to-many ``DagModel`` collections were eager-loaded with ``joinedload`` in a single statement, multiplying the returned rows per DAG (a cartesian product across collections). They are now loaded with ``selectinload``, which removed the dominant cost of DagModel sync on deployments with many DAGs.
