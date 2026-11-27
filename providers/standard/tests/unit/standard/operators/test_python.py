@@ -967,6 +967,7 @@ class TestDagBundleImportInSubprocess(BasePythonTest):
     pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
     @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Dag Bundle import fix is for Airflow 3.x+")
+    @mock.patch.dict(os.environ, {"AIRFLOW_VAR_PYTHON_VIRTUALENV_OPERATOR_CACHE_KEY": ""})
     @mock.patch("airflow.providers.standard.operators.python._execute_in_subprocess")
     def test_dag_bundle_import_in_subprocess(
         self, mock_execute_subprocess, dag_maker, opcls, test_class_ref, tmp_path
@@ -1588,6 +1589,7 @@ class TestPythonVirtualenvOperator(_VenvTestBase):
             op_args=[4],
         )
 
+    @pytest.mark.filterwarnings("error:Using Variable.get from:DeprecationWarning")
     def test_caching(self):
         def f(a):
             import sys
