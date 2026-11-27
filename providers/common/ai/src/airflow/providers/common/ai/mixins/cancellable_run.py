@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from pydantic_ai import CancellationToken
 from pydantic_ai.exceptions import FallbackExceptionGroup
@@ -31,12 +31,24 @@ if TYPE_CHECKING:
     from pydantic_ai import Agent, AgentRunResult
 
 
+def _raise_chain_exhausted(group: FallbackExceptionGroup) -> NoReturn:
+    """Raise ``group`` as the provider's own error, with the durable journal's progress so far."""
+    if isinstance(group, FallbackChainExhaustedError):
+        raise group
+    journal = find_active_journal()
+    raise FallbackChainExhaustedError.from_group(
+        group,
+        replayed_steps=None if journal is None else journal.stats.replayed.total(),
+        recorded_steps=None if journal is None else journal.stats.recorded.total(),
+    ) from group
+
+
 class CancellableAgentRunMixin:
     """
-    Run a pydantic-ai agent synchronously with kill-time cancellation wired in.
+    Run a pydantic-ai agent with kill-time cancellation wired in.
 
     The wrapper holds the in-flight run's ``CancellationToken`` so :meth:`on_kill` can
-    cancel it. Cancelling makes ``run_sync`` raise ``RunCancelled`` and unwind, giving the
+    cancel it. Cancelling makes the run raise ``RunCancelled`` and unwind, giving the
     agent's toolsets a chance to exit (tearing down a provisioned sandbox, for one) before
     SIGKILL rather than leaving the run to die mid-flight.
 
@@ -65,14 +77,23 @@ class CancellableAgentRunMixin:
         try:
             return agent.run_sync(user_prompt, cancellation_token=self._cancellation_token, **run_kwargs)
         except FallbackExceptionGroup as group:
-            if isinstance(group, FallbackChainExhaustedError):
-                raise
-            journal = find_active_journal()
-            raise FallbackChainExhaustedError.from_group(
-                group,
-                replayed_steps=None if journal is None else journal.stats.replayed.total(),
-                recorded_steps=None if journal is None else journal.stats.recorded.total(),
-            ) from group
+            _raise_chain_exhausted(group)
+        finally:
+            self._cancellation_token = None
+
+    async def run_agent_async(
+        self, agent: Agent[Any, Any], user_prompt: Any, **run_kwargs: Any
+    ) -> AgentRunResult[Any]:
+        """
+        Await ``agent.run`` under a fresh cancellation token held for :meth:`on_kill`.
+
+        A failed fallback chain is raised as in :meth:`run_agent_sync`.
+        """
+        self._cancellation_token = CancellationToken()
+        try:
+            return await agent.run(user_prompt, cancellation_token=self._cancellation_token, **run_kwargs)
+        except FallbackExceptionGroup as group:
+            _raise_chain_exhausted(group)
         finally:
             self._cancellation_token = None
 
@@ -82,7 +103,7 @@ class CancellableAgentRunMixin:
             return
         self.log.info("Task killed, cancelling in-flight agent run")
         # Cancel from a separate thread, not inline. on_kill runs in the Task SDK's
-        # SIGTERM handler on the same thread that drives run_sync, and cancel() only
+        # SIGTERM handler on the same thread that drives the run, and cancel() only
         # interrupts a blocked run when issued from a different thread. Called inline it
         # defers until the in-flight await returns, so the worker is SIGKILLed at the
         # grace deadline before the run unwinds.

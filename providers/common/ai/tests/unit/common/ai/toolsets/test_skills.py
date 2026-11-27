@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import threading
 import types
 from collections import Counter
 from unittest.mock import MagicMock, patch
@@ -505,6 +506,24 @@ class TestSkillsXCom:
         )
         mock_get_context.assert_called_once()
         assert ti.pushes == 0
+
+    @pytest.mark.asyncio
+    @patch(_GET_CONTEXT, autospec=True)
+    async def test_publishes_off_the_event_loop_of_an_awaited_run(self, mock_get_context, tmp_path):
+        """The XCom calls block on the supervisor, and an async task shares its event loop with the run."""
+        _write_skill(tmp_path, "alpha")
+        called_on: list[int] = []
+        ti = MagicMock(spec=["task", "task_id", "map_index", "xcom_pull", "xcom_push"])
+        ti.task.do_xcom_push = True
+        ti.xcom_pull.side_effect = lambda **kwargs: called_on.append(threading.get_ident())
+        ti.xcom_push.side_effect = lambda **kwargs: called_on.append(threading.get_ident())
+        mock_get_context.return_value = {"ti": ti}
+
+        result = await Agent(_calling(), toolsets=[AgentSkillsToolset(sources=[str(tmp_path)])]).run("go")
+
+        assert result.output == "done"
+        assert len(called_on) == 2
+        assert threading.get_ident() not in called_on
 
     @patch.object(
         _FakeTaskInstance, "xcom_push", autospec=True, side_effect=RuntimeError("xcom backend down")
