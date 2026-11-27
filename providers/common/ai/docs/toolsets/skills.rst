@@ -184,7 +184,7 @@ Parameters
   the worker with a 30 second timeout; ``None`` registers no script tool. Default ``"worker"``.
   A script that prints more than 50,000 bytes is killed, and the model gets the first 50,000 bytes
   followed by a note that the output was cut off.
-  A script that runs past the timeout is killed, and the model gets the output it had printed so
+  A script that runs past the timeout is killed, and the model gets the output it had printed so far,
   followed by a note that it timed out.
   Running scripts in a sandbox is not supported yet, and any other value raises ``ValueError``.
 - ``max_retries``: How many times the model may correct failed calls to one of the two tools.
@@ -201,7 +201,7 @@ Trust model
 - The model chooses which script runs and with what arguments. Treat a script's arguments as
   untrusted input, the way an HTTP handler treats a request.
 - With ``GitSkills``, scripts can change outside Dag review. Point ``repo_url`` at a trusted
-  repository and pin ``branch``.
+  repository and set ``branch`` to a tag, because a branch name moves.
 - A script runs with the worker's own permissions and environment, the same as any task code on that
   worker. It can read an ``AIRFLOW_CONN_*`` variable set on the worker.
 
@@ -212,6 +212,10 @@ Version requirements
 exact same version, so installing the ``skills`` extra decides which ``pydantic-ai-slim`` you get.
 ``AirflowSkills`` needs ``pydantic-ai-harness>=0.66.0``, and reads skills through harness's
 ``LocalWorkspaceBackend``, which works on POSIX systems only.
+
+``AirflowSkills`` keeps each run's skill directories in the memory of the worker process, so it works
+with Airflow's own durable execution (``durable=True``) and not with the Temporal, DBOS or Prefect
+engines of pydantic-ai.
 
 .. _agent-skills-migration:
 
@@ -240,6 +244,9 @@ needs, will then leave the ``skills`` extra. New code should use ``AirflowSkills
      - ``load_capability``; the catalog is part of the prompt
    * - ``exclude_resources=[...]``, ``max_retries=...``
      - The same parameters
+   * - A skill nested more than one level below a source
+     - Not found, and no warning or error says so. Check your layout: each skill directory must sit
+       directly in a source directory.
 
 ``exclude_tools`` has no other counterpart: ``AirflowSkills`` has no ``list_skills`` or ``load_skill``
 tool to hide. To offer fewer skills, use ``include`` or ``exclude``.
