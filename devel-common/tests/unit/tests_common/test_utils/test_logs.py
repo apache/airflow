@@ -29,8 +29,8 @@ def capture() -> StructlogCapture:
     cap = StructlogCapture()
     cap.entries.extend(
         [
-            {"event": "some message", "level": "info", "count": 1},
-            {"event": "other message", "level": "error"},
+            {"event": "some message", "log_level": "info", "count": 1},
+            {"event": "other message", "log_level": "error"},
         ]
     )
     return cap
@@ -41,7 +41,7 @@ class TestStructlogCaptureContains:
         "target",
         [
             pytest.param({"event": "some message"}, id="str-event"),
-            pytest.param({"level": "error"}, id="str-other-key"),
+            pytest.param({"log_level": "error"}, id="str-other-key"),
             pytest.param({"count": 1}, id="non-str-value"),
             pytest.param({"event": re.compile(r"some mess")}, id="pattern"),
         ],

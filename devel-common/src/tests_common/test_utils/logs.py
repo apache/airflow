@@ -92,11 +92,14 @@ class StructlogCapture:
     >>> def test_something(cap_structlog):
     ...     log.info("some event", field1=False, field2=[1, 2])
     ...     log.info("some event", field1=True)
-    ...     assert "some_event" in cap_structlog  # a string searches on `event` field
-    ...     assert {"event": "some_event", "field1": True} in cap_structlog  # Searches only on passed fields
+    ...     assert "some event" in cap_structlog  # a string searches on `event` field
+    ...     assert {"event": "some event", "field1": True} in cap_structlog  # Searches only on passed fields
     ...     assert {"field2": [1, 2]} in cap_structlog
     ...
     ...     assert "not logged" not in cap_structlog  # not in works too
+
+    A ``re.Pattern`` value in a dict is matched with ``.match``, i.e. from the start of the field's value.
+    A dict does not match an entry that lacks one of its keys or whose value does not match.
 
     This fixture class will also manage the log level of stdlib loggers via ``at_level`` and ``set_level``.
     """
