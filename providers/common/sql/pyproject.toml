@@ -102,6 +102,9 @@ dependencies = [
 "google" = [
     "apache-airflow-providers-google>=23.1.0"  # use next version
 ]
+"microsoft.azure" = [
+    "apache-airflow-providers-microsoft-azure>=15.4.0"  # use next version
+]
 
 [dependency-groups]
 dev = [
@@ -112,6 +115,7 @@ dev = [
     "apache-airflow-providers-apache-iceberg",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-google",
+    "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",

@@ -163,6 +163,7 @@ Dependent package                                                               
 ========================================================================================================================  ====================
 `apache-airflow-providers-amazon <https://airflow.apache.org/docs/apache-airflow-providers-amazon>`_                      ``amazon``
 `apache-airflow-providers-common-messaging <https://airflow.apache.org/docs/apache-airflow-providers-common-messaging>`_  ``common.messaging``
+`apache-airflow-providers-common-sql <https://airflow.apache.org/docs/apache-airflow-providers-common-sql>`_              ``common.sql``
 `apache-airflow-providers-duckdb <https://airflow.apache.org/docs/apache-airflow-providers-duckdb>`_                      ``duckdb``
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                      ``google``
 `apache-airflow-providers-openlineage <https://airflow.apache.org/docs/apache-airflow-providers-openlineage>`_            ``openlineage``
@@ -181,9 +182,9 @@ Install them when installing from PyPI. For example:
     pip install apache-airflow-providers-microsoft-azure[amazon]
 
 
-====================  ====================================================
+====================  ===============================================================================
 Extra                 Dependencies
-====================  ====================================================
+====================  ===============================================================================
 ``amazon``            ``apache-airflow-providers-amazon``
 ``oracle``            ``apache-airflow-providers-oracle``
 ``sftp``              ``apache-airflow-providers-sftp``
@@ -191,7 +192,9 @@ Extra                 Dependencies
 ``google``            ``apache-airflow-providers-google``
 ``openlineage``       ``apache-airflow-providers-openlineage>=2.3.0``
 ``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``
-====================  ====================================================
+``datafusion``        ``datafusion>=50.0.0,<52.0.0``, ``apache-airflow-providers-common-sql>=1.33.0``
+``common.sql``        ``apache-airflow-providers-common-sql``
+====================  ===============================================================================
 
 Downloading official packages
 -----------------------------

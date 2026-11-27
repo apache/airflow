@@ -26,16 +26,18 @@ Changelog
 ---------
 
 .. note::
-    The S3 and GCS DataFusion object storage providers used by ``AnalyticsOperator`` moved out of
-    common-sql into the provider that owns the connection type. ``s3://`` sources now need
-    ``apache-airflow-providers-amazon[datafusion]`` and ``gs://`` sources need
-    ``apache-airflow-providers-google[datafusion]``; without them, resolving the storage type raises
-    a ``ValueError`` naming the extra to install. Connection errors for these storage types (unknown
-    connection type, unsupported or conflicting credential fields) now surface as
-    ``ObjectStoreCreationException`` instead of ``ValueError``. Importing ``S3ObjectStorageProvider``
-    or ``GCSObjectStorageProvider`` from
+    The S3, GCS and Azure DataFusion object storage providers used by ``AnalyticsOperator`` moved out
+    of common-sql into the provider that owns the connection type. ``s3://`` sources now need
+    ``apache-airflow-providers-amazon[datafusion]``, ``gs://`` sources need
+    ``apache-airflow-providers-google[datafusion]``, and ``az://``/``abfs(s)://`` sources need
+    ``apache-airflow-providers-microsoft-azure[datafusion]``; without them, resolving the storage type
+    raises a ``ValueError`` naming the extra to install. Connection errors for these storage types
+    (unknown connection type, unsupported or conflicting credential fields, conflicting ``AZURE_*``
+    environment variables) now surface as ``ObjectStoreCreationException`` instead of ``ValueError``.
+    Importing ``S3ObjectStorageProvider``, ``GCSObjectStorageProvider`` or
+    ``AzureObjectStorageProvider`` from
     ``airflow.providers.common.sql.datafusion.object_storage_provider`` still works but emits
-    ``AirflowProviderDeprecationWarning``.
+    ``AirflowProviderDeprecationWarning``. Only ``LocalObjectStorageProvider`` remains in common-sql.
 
 3.1.0
 .....
