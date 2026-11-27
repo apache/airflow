@@ -30,6 +30,8 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.dag_processing.dagbag import DagBag
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.backfill import (
     Backfill,
@@ -1609,6 +1611,8 @@ class TestCancelBackfill(TestBackfillEndpoint):
         to_date = timezone.utcnow()
         backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
         session.add(backfill)
+        session.flush()
+        session.add(BackfillDagRun(backfill_id=backfill.id, sort_ordinal=1))
         session.commit()
         response = test_client.put(
             f"/backfills/{backfill.id}/cancel",
@@ -1636,6 +1640,20 @@ class TestCancelBackfill(TestBackfillEndpoint):
         response = test_client.put(f"/backfills/{backfill.id}/cancel")
         assert response.status_code == 409
         check_last_log(session, dag_id=None, event="cancel_backfill", logical_date=None)
+
+    def test_cancel_backfill_without_dag_runs(self, session, test_client):
+        (dag,) = self._create_dag_models()
+        from_date = timezone.utcnow()
+        to_date = timezone.utcnow()
+        backfill = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(backfill)
+        session.commit()
+        response = test_client.put(f"/backfills/{backfill.id}/cancel")
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Backfill has no Dag runs yet. Try again shortly."
+        session.refresh(backfill)
+        assert backfill.is_paused is False
+        assert backfill.completed_at is None
 
     def test_cancel_backfill_end_states(self, dag_maker, session, test_client):
         """
@@ -1672,6 +1690,27 @@ class TestCancelBackfill(TestBackfillEndpoint):
         dag_runs = session.scalars(query).all()
         states = [x.state for x in dag_runs]
         assert states == ["running", "failed", "failed", "failed", "failed"]
+
+    def test_run_cleared_after_cancel_is_started(self, dag_maker, session, test_client):
+        with dag_maker(schedule="@daily") as dag:
+            EmptyOperator(task_id="hi")
+        b = _create_backfill(
+            dag_id=dag.dag_id,
+            from_date=timezone.datetime(2021, 1, 1),
+            to_date=timezone.datetime(2021, 1, 2),
+            max_active_runs=2,
+            reverse=False,
+            dag_run_conf={},
+            triggering_user_name="test_user",
+        )
+        assert test_client.put(f"/backfills/{b.id}/cancel").status_code == 200
+        run_id = session.scalar(select(DagRun.run_id).where(DagRun.backfill_id == b.id).limit(1))
+        test_client.post(f"/dags/{dag.dag_id}/dagRuns/{run_id}/clear", json={"dry_run": False})
+
+        SchedulerJobRunner(job=Job())._start_queued_dagruns(session)
+        session.flush()
+
+        assert session.scalar(select(DagRun.state).where(DagRun.run_id == run_id)) == DagRunState.RUNNING
 
     def test_cancel_backfill_not_found(self, test_client):
         response = test_client.put("/backfills/999999/cancel")
