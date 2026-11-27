@@ -323,7 +323,6 @@ def create_task_execution_api_app(
         api_version_parameter_name="Airflow-API-Version",
         api_version_default_value=bundle.versions[0].value,
         versions=bundle,
-        changelog_url=None,
         dependencies=[Depends(_extract_w3c_trace_context)] if mode == "unsafe-always" else None,
         telemetry=NATIVE_TELEMETRY_DISABLED,
     )

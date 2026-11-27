@@ -24,6 +24,7 @@ from collections.abc import Iterable
 from functools import lru_cache
 from typing import Any
 
+from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 log = get_task_logger()
@@ -92,10 +93,28 @@ class DurableStorage:
 
         path = self._get_path()
         try:
-            self._cache = json.loads(path.read_text())
-        except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
-            self._cache = {}
+            cache = json.loads(path.read_text())
+            if not isinstance(cache, dict):
+                # JSON that is not an object is as corrupt as a cut-off file.
+                raise ValueError("the journal file does not hold a JSON object")
+        except FileNotFoundError:
+            cache = {}
+        except OSError:
+            log.warning(
+                "Durable: could not read the journal; failing this attempt so finished steps don't run again",
+                path=str(path),
+            )
+            raise
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as err:
+            log.warning(
+                "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
+                path=str(path),
+            )
+            raise DurableJournalError(
+                "durable execution cannot replay a corrupt journal; inspect or restore the journal before retrying"
+            ) from err
 
+        self._cache = cache
         return self._cache
 
     def _write(self, text: str) -> None:
@@ -108,18 +127,27 @@ class DurableStorage:
         """
         Store one journal step and rewrite the journal file.
 
-        :return: ``True`` if the entry was written, ``False`` if it could not be encoded.
+        Best-effort: the save runs after the step already succeeded, so a failed write
+        must not fail the step. It is skipped with a warning, and the step runs again on
+        the next retry.
+
+        :return: ``True`` if the entry was written, ``False`` if it could not be encoded
+            or the write failed.
         """
         cache = self._load_cache()
-        cache[key] = entry
         try:
-            text = json.dumps(cache)
+            text = json.dumps({**cache, key: entry})
         except (TypeError, ValueError):
             # Only this entry is skipped; the rest of the journal is still written.
-            del cache[key]
             log.warning("Durable: could not store step", key=key, exc_info=True)
             return False
-        self._write(text)
+        try:
+            self._write(text)
+        except Exception:
+            # The step already ran, so a failed write must not fail it; it runs again on retry.
+            log.warning("Durable: could not write the journal file", key=key, exc_info=True)
+            return False
+        cache[key] = entry
         return True
 
     def load_step(self, key: str) -> dict[str, Any] | None:
@@ -129,18 +157,18 @@ class DurableStorage:
 
     def delete_steps(self, keys: Iterable[str]) -> None:
         """Remove these steps, and the journal file once nothing is left in it."""
-        cache = self._load_cache()
-        for key in keys:
-            cache.pop(key, None)
         # Runs after the run has already succeeded, so it must never raise; a file left
         # behind holds only steps a retry of this run would replay.
         try:
+            cache = self._load_cache()
+            for key in keys:
+                cache.pop(key, None)
             if cache:
                 self._write(json.dumps(cache))
             else:
                 self._get_path().unlink()
-                self._cache = None
+                self._cache = {}
         except FileNotFoundError:
-            self._cache = None
+            self._cache = {}
         except Exception:
             log.warning("Durable: could not clean up the journal file", exc_info=True)

@@ -1,5 +1,4 @@
-
-.. Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -45,7 +44,7 @@ Login
 Password
     Specify the snowflake password. For public key authentication, the passphrase for the private key.
     For OAuth, the OAuth Client Secret. For Programmatic Access Token (PAT) authentication, specify
-    the PAT token value and set ``authenticator`` to ``programmatic_access_token``.
+    the PAT token value and set the **Authenticator** field to ``programmatic_access_token``.
 
 Schema (optional)
     Specify the snowflake schema to be used.
@@ -59,7 +58,9 @@ Extra (optional)
     * ``region``: Warehouse region.
     * ``warehouse``: Snowflake warehouse name.
     * ``role``: Snowflake role.
-    * ``authenticator``: To connect using OAuth set this parameter ``oauth``. To connect without a stored secret using
+    * ``authenticator``: Set this in the **Authenticator** field of the connection form. In the Airflow 2 UI,
+      leaving that field blank removes an ``authenticator`` key typed into the Extra JSON when the connection
+      is saved. To connect using OAuth set this parameter ``oauth``. To connect without a stored secret using
       `Workload Identity Federation <https://docs.snowflake.com/en/user-guide/workload-identity-federation>`_,
       set it to ``WORKLOAD_IDENTITY`` and also set ``workload_identity_provider`` (see below). For Programmatic Access
       Token (PAT) authentication, set it to ``programmatic_access_token`` and put the PAT token in the

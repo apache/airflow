@@ -103,7 +103,7 @@ internal class ArgValuesTest {
 
         override fun setXCom(
           key: String,
-          value: Any,
+          value: Any?,
           dagId: String,
           taskId: String,
           runId: String,

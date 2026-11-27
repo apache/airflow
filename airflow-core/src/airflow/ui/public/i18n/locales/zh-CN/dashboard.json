@@ -22,7 +22,7 @@
   "favorite": {
     "favoriteDags_one": "前 1 个收藏的 Dag",
     "favoriteDags_other": "前 {{count, number}} 个收藏的 Dag",
-    "noDagRuns": "此 Dag 尚未被触发过。",
+    "noDagRuns": "此 Dag 尚无 Dag 执行。",
     "noFavoriteDags": "尚无收藏的 Dag。请点击 Dag 列表旁的星号图示，将 Dag 加入收藏。"
   },
   "group": "分组",
@@ -31,7 +31,7 @@
     "degraded": "部分可用",
     "degradedHint": {
       "dagProcessor": "部分已配置的 Dag 套件包没有 Dag 处理器在解析它们。",
-      "triggerer": "部分团队没有正在运行延后任务的触发器。"
+      "triggerer": "部分团队没有为其运行延后任务的触发器进程。"
     },
     "down": "不可用",
     "health": "健康状态",
@@ -48,12 +48,14 @@
     "metaDatabase": "系统数据库",
     "scheduler": "调度器",
     "status": "状态",
-    "triggerer": "触发器",
+    "triggerer": "触发器进程",
     "unhealthy": "健康状态异常",
     "unknownStatus": "未知"
   },
   "history": "历史记录",
   "importErrors": {
+    "bundle": "套件包",
+    "copyStackTrace": "复制堆栈跟踪",
     "dagImportError_one": "Dag 导入错误",
     "dagImportError_other": "Dag 导入错误",
     "searchByFile": "依文件搜索",
@@ -71,6 +73,7 @@
   "stats": {
     "activeDags": "已启用的 Dags",
     "failedDags": "失败的 Dags",
+    "failingTriggers": "持续失败的触发器",
     "queuedDags": "排队的 Dags",
     "requiredActions": "待操作的任务实例",
     "runningDags": "执行中的 Dags",

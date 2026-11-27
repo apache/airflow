@@ -248,7 +248,7 @@ class KubernetesSecretsBackend(BaseSecretsBackend, LoggingMixin):
         if secret.data is None or data_key not in secret.data:
             self.log.warning(
                 "Secret '%s' does not have data key '%s'.",
-                secret.metadata.name,
+                secret.metadata.name if secret.metadata else None,
                 data_key,
             )
             return None

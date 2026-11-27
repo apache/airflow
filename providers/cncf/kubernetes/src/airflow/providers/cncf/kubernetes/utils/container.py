@@ -24,19 +24,22 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_container_status import V1ContainerStatus
     from kubernetes.client.models.v1_pod import V1Pod
+    from kubernetes_asyncio.client.models import (
+        V1ContainerStatus as AsyncV1ContainerStatus,
+        V1Pod as AsyncV1Pod,
+    )
 
 
-def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
+def get_container_status(
+    pod: V1Pod | AsyncV1Pod, container_name: str
+) -> V1ContainerStatus | AsyncV1ContainerStatus | None:
     """Retrieve container status."""
+    container_statuses: list[V1ContainerStatus | AsyncV1ContainerStatus] = []
     if pod and pod.status:
-        container_statuses = []
         if pod.status.container_statuses:
             container_statuses.extend(pod.status.container_statuses)
         if pod.status.init_container_statuses:
             container_statuses.extend(pod.status.init_container_statuses)
-
-    else:
-        container_statuses = None
 
     if container_statuses:
         # In general the variable container_statuses can store multiple items matching different containers.
@@ -47,56 +50,56 @@ def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus |
     return None
 
 
-def container_is_running(pod: V1Pod, container_name: str) -> bool:
+def container_is_running(pod: V1Pod | AsyncV1Pod, container_name: str) -> bool:
     """
     Examine V1Pod ``pod`` to determine whether ``container_name`` is running.
 
     If that container is present and running, returns True.  Returns False otherwise.
     """
     container_status = get_container_status(pod, container_name)
-    if not container_status:
+    if not container_status or not container_status.state:
         return False
     return container_status.state.running is not None
 
 
-def container_is_completed(pod: V1Pod, container_name: str) -> bool:
+def container_is_completed(pod: V1Pod | AsyncV1Pod, container_name: str) -> bool:
     """
     Examine V1Pod ``pod`` to determine whether ``container_name`` is completed.
 
     If that container is present and completed, returns True.  Returns False otherwise.
     """
     container_status = get_container_status(pod, container_name)
-    if not container_status:
+    if not container_status or not container_status.state:
         return False
     return container_status.state.terminated is not None
 
 
-def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
+def container_is_succeeded(pod: V1Pod | AsyncV1Pod, container_name: str) -> bool:
     """
     Examine V1Pod ``pod`` to determine whether ``container_name`` is completed and succeeded.
 
     If that container is present and completed and succeeded, returns True.  Returns False otherwise.
     """
     container_status = get_container_status(pod, container_name)
-    if not container_status or container_status.state.terminated is None:
+    if not container_status or not container_status.state or container_status.state.terminated is None:
         return False
     return container_status.state.terminated.exit_code == 0
 
 
-def container_is_wait(pod: V1Pod, container_name: str) -> bool:
+def container_is_wait(pod: V1Pod | AsyncV1Pod, container_name: str) -> bool:
     """
     Examine V1Pod ``pod`` to determine whether ``container_name`` is waiting.
 
     If that container is present and waiting, returns True.  Returns False otherwise.
     """
     container_status = get_container_status(pod, container_name)
-    if not container_status:
+    if not container_status or not container_status.state:
         return False
 
     return container_status.state.waiting is not None
 
 
-def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
+def container_is_terminated(pod: V1Pod | AsyncV1Pod, container_name: str) -> bool:
     """
     Examine V1Pod ``pod`` to determine whether ``container_name`` is terminated.
 
@@ -106,12 +109,12 @@ def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
     if not container_statuses:
         return False
     container_status = next((x for x in container_statuses if x.name == container_name), None)
-    if not container_status:
+    if not container_status or not container_status.state:
         return False
     return container_status.state.terminated is not None
 
 
-def container_is_in_spec(pod: V1Pod, container_name: str) -> bool:
+def container_is_in_spec(pod: V1Pod | AsyncV1Pod, container_name: str) -> bool:
     """
     Examine V1Pod ``pod`` to determine whether ``container_name`` is declared in its spec.
 
@@ -128,8 +131,13 @@ def container_is_in_spec(pod: V1Pod, container_name: str) -> bool:
     return container_name in declared_names
 
 
-def get_container_termination_message(pod: V1Pod, container_name: str):
+def get_container_termination_message(pod: V1Pod | AsyncV1Pod, container_name: str) -> str | None:
     with suppress(AttributeError, TypeError):
-        container_statuses = pod.status.container_statuses
-        container_status = next((x for x in container_statuses if x.name == container_name), None)
-        return container_status.state.terminated.message if container_status else None
+        if not pod or not pod.status:
+            return None
+        container_status = next(
+            (status for status in pod.status.container_statuses or [] if status.name == container_name), None
+        )
+        if container_status and container_status.state and container_status.state.terminated:
+            return container_status.state.terminated.message
+    return None

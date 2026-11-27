@@ -50,6 +50,14 @@ class EcsOperatorError(Exception):
         return EcsOperatorError, (self.failures, self.message)
 
 
+class RemovedFeatureError(AirflowException, TypeError):
+    """
+    Raise when code uses something that this version of the Amazon provider has removed.
+
+    ``TypeError`` is what Airflow 3 raises for an operator argument that does not exist.
+    """
+
+
 class S3HookUriParseFailure(AirflowException):
     """When parse_s3_url fails to parse URL, this error is thrown."""
 
@@ -84,6 +92,10 @@ class NeptuneImportTaskFailedError(AirflowException):
 
 class GlueJobRunStoppedError(AirflowException):
     """Raised when a Glue job run finishes in a state that is not a real success."""
+
+
+class GlueJobRunStopTimeoutError(AirflowException):
+    """Raised when a previous Glue job run does not reach a terminal state after being stopped."""
 
 
 class DataSyncTaskNotFoundError(AirflowException):
@@ -129,3 +141,7 @@ class WaiterMaxAttemptsError(AirflowException):
 
 class WaiterNoCredentialsError(WaiterMaxAttemptsError):
     """Raised when an AWS waiter exhausts all attempts due to missing credentials."""
+
+
+class SensorTriggerFailedError(AirflowException):
+    """Raised when the trigger a deferred sensor was waiting on reports a failure."""

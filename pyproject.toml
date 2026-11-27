@@ -119,7 +119,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-beam>=5.8.1"
 ]
 "apache.cassandra" = [
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\""
+    "apache-airflow-providers-apache-cassandra>=3.7.0"
 ]
 "apache.drill" = [
     "apache-airflow-providers-apache-drill>=2.8.1"
@@ -156,6 +156,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "apache.pinot" = [
     "apache-airflow-providers-apache-pinot>=4.5.1"
+]
+"apache.polaris" = [
+    "apache-airflow-providers-apache-polaris>=0.1.0"
 ]
 "apache.spark" = [
     "apache-airflow-providers-apache-spark>=4.11.1"
@@ -236,7 +239,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-exasol>=4.6.1"
 ]
 "fab" = [
-    "apache-airflow-providers-fab>=3.6.0" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=3.10.2" # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
 ]
 "facebook" = [
     "apache-airflow-providers-facebook>=3.7.0"
@@ -261,6 +264,9 @@ apache-airflow = "airflow.__main__:main"
 ]
 "http" = [
     "apache-airflow-providers-http>=4.13.2"
+]
+"huggingface" = [
+    "apache-airflow-providers-huggingface>=0.1.0"
 ]
 "ibm.db2" = [
     "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\""
@@ -431,7 +437,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-anthropic>=0.1.0",
     "apache-airflow-providers-apache-arrow>=0.1.0",
     "apache-airflow-providers-apache-beam>=5.8.1",
-    "apache-airflow-providers-apache-cassandra>=3.7.0; python_version !=\"3.14\"",
+    "apache-airflow-providers-apache-cassandra>=3.7.0",
     "apache-airflow-providers-apache-drill>=2.8.1",
     "apache-airflow-providers-apache-druid>=3.12.0",
     "apache-airflow-providers-apache-flink>=1.6.0",
@@ -444,6 +450,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-apache-livy>=3.9.2",
     "apache-airflow-providers-apache-pig>=4.6.0",
     "apache-airflow-providers-apache-pinot>=4.5.1",
+    "apache-airflow-providers-apache-polaris>=0.1.0",
     "apache-airflow-providers-apache-spark>=4.11.1",
     "apache-airflow-providers-apache-tinkerpop>=1.0.0; python_version !=\"3.14\"",
     "apache-airflow-providers-apprise>=1.4.1",
@@ -470,7 +477,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-edge3>=1.0.0",
     "apache-airflow-providers-elasticsearch>=6.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-exasol>=4.6.1",
-    "apache-airflow-providers-fab>=3.6.0", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
+    "apache-airflow-providers-fab>=3.10.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
     "apache-airflow-providers-facebook>=3.7.0",
     "apache-airflow-providers-ftp>=3.12.0",
     "apache-airflow-providers-git>=0.0.2", # Set from MIN_VERSION_OVERRIDE in update_airflow_pyproject_toml.py
@@ -479,6 +486,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-grpc>=3.7.0",
     "apache-airflow-providers-hashicorp>=4.0.0",
     "apache-airflow-providers-http>=4.13.2",
+    "apache-airflow-providers-huggingface>=0.1.0",
     "apache-airflow-providers-ibm-db2>=0.1.0; platform_machine !=\"aarch64\"",
     "apache-airflow-providers-ibm-mq>=0.1.0; platform_machine !=\"aarch64\" and platform_machine !=\"arm64\"",
     "apache-airflow-providers-imap>=3.8.0",
@@ -556,13 +564,13 @@ apache-airflow = "airflow.__main__:main"
     "cloudpickle>=2.2.1,<3.1.2",
 ]
 "fab-oauth" = [
-    "apache-airflow-providers-fab[oauth]",
+    "apache-airflow-providers-fab[oauth]>=3.10.2",
 ]
 "github-enterprise" = [
-    "apache-airflow-providers-fab[oauth]",
+    "apache-airflow-providers-fab[oauth]>=3.10.2",
 ]
 "google-auth" = [
-    "apache-airflow-providers-fab[oauth]",
+    "apache-airflow-providers-fab[oauth]>=3.10.2",
 ]
 "ldap" = [
     "python-ldap>=3.4.4",
@@ -585,7 +593,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.13.6",
+    "uv>=0.13.7",
 ]
 
 [project.urls]
@@ -598,7 +606,7 @@ Homepage = "https://airflow.apache.org/"
 "Source Code" = "https://github.com/apache/airflow"
 LinkedIn = "https://www.linkedin.com/company/apache-airflow/"
 Mastodon = "https://fosstodon.org/@airflow"
-Bluesky = "https://bsky.app/profile/apache-airflow.bsky.social"
+Bluesky = "https://bsky.app/profile/airflow.apache.org"
 YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 
 [tool.hatch.build]
@@ -941,6 +949,8 @@ banned-module-level-imports = ["numpy", "pandas", "polars"]
 "airflow.AirflowException".msg = "Use airflow.exceptions.AirflowException instead."
 
 # Deprecated imports
+"airflow.utils.operator_helpers.KeywordParameters".msg = "Use airflow.providers.common.compat.sdk.KeywordParameters or airflow.sdk.bases.decorator.KeywordParameters"
+"airflow.utils.operator_helpers.determine_kwargs".msg = "Use airflow.providers.common.compat.sdk.determine_kwargs or airflow.sdk.bases.decorator.determine_kwargs"
 "airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 "airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 
@@ -1028,6 +1038,7 @@ filterwarnings = [
     # Avoid building cartesian product which might impact performance
     "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
     'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
+    'error:implicitly coercing SELECT object to scalar subquery:sqlalchemy.exc.SAWarning:airflow',
     'error:Class.*will not make use of SQL compilation caching',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
@@ -1103,6 +1114,7 @@ warn_unused_ignores = false
 plugins = [
     "airflow_mypy.plugins.decorators",
     "airflow_mypy.plugins.outputs",
+    "airflow_mypy.plugins.sqlalchemy_version",
 ]
 pretty = true
 show_error_codes = true
@@ -1171,6 +1183,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pig/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/pinot/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/polaris/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/apache/polaris/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/src",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/spark/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/apache/tinkerpop/src",
@@ -1243,6 +1257,8 @@ mypy_path = [
     "$MYPY_CONFIG_FILE_DIR/providers/hashicorp/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/http/src",
     "$MYPY_CONFIG_FILE_DIR/providers/http/tests",
+    "$MYPY_CONFIG_FILE_DIR/providers/huggingface/src",
+    "$MYPY_CONFIG_FILE_DIR/providers/huggingface/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/db2/src",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/db2/tests",
     "$MYPY_CONFIG_FILE_DIR/providers/ibm/mq/src",
@@ -1522,6 +1538,7 @@ apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-apache-livy = false
 apache-airflow-providers-apache-pig = false
 apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-apache-polaris = false
 apache-airflow-providers-apache-spark = false
 apache-airflow-providers-apache-tinkerpop = false
 apache-airflow-providers-apprise = false
@@ -1558,6 +1575,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-huggingface = false
 apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
@@ -1720,6 +1738,7 @@ apache-airflow-providers-apache-kylin = false
 apache-airflow-providers-apache-livy = false
 apache-airflow-providers-apache-pig = false
 apache-airflow-providers-apache-pinot = false
+apache-airflow-providers-apache-polaris = false
 apache-airflow-providers-apache-spark = false
 apache-airflow-providers-apache-tinkerpop = false
 apache-airflow-providers-apprise = false
@@ -1756,6 +1775,7 @@ apache-airflow-providers-google = false
 apache-airflow-providers-grpc = false
 apache-airflow-providers-hashicorp = false
 apache-airflow-providers-http = false
+apache-airflow-providers-huggingface = false
 apache-airflow-providers-ibm-db2 = false
 apache-airflow-providers-ibm-mq = false
 apache-airflow-providers-imap = false
@@ -1893,6 +1913,7 @@ apache-airflow-providers-apache-kylin = { workspace = true }
 apache-airflow-providers-apache-livy = { workspace = true }
 apache-airflow-providers-apache-pig = { workspace = true }
 apache-airflow-providers-apache-pinot = { workspace = true }
+apache-airflow-providers-apache-polaris = { workspace = true }
 apache-airflow-providers-apache-spark = { workspace = true }
 apache-airflow-providers-apache-tinkerpop = { workspace = true }
 apache-airflow-providers-apprise = { workspace = true }
@@ -1929,6 +1950,7 @@ apache-airflow-providers-google = { workspace = true }
 apache-airflow-providers-grpc = { workspace = true }
 apache-airflow-providers-hashicorp = { workspace = true }
 apache-airflow-providers-http = { workspace = true }
+apache-airflow-providers-huggingface = { workspace = true }
 apache-airflow-providers-ibm-db2 = { workspace = true }
 apache-airflow-providers-ibm-mq = { workspace = true }
 apache-airflow-providers-imap = { workspace = true }
@@ -2039,6 +2061,7 @@ members = [
     "providers/apache/livy",
     "providers/apache/pig",
     "providers/apache/pinot",
+    "providers/apache/polaris",
     "providers/apache/spark",
     "providers/apache/tinkerpop",
     "providers/apprise",
@@ -2075,6 +2098,7 @@ members = [
     "providers/grpc",
     "providers/hashicorp",
     "providers/http",
+    "providers/huggingface",
     "providers/ibm/db2",
     "providers/ibm/mq",
     "providers/imap",

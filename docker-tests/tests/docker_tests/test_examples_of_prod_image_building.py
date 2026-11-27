@@ -77,7 +77,16 @@ def docker_examples(directory: Path, xfails: dict[str, str] | None = None):
 def test_dockerfile_example(dockerfile, relative_path, tmp_path):
     image_name = relative_path.lower().replace("/", "-")
     content = Path(dockerfile).read_text()
-    test_image = os.environ.get("TEST_IMAGE", get_latest_airflow_image())
+    test_image = os.environ.get("TEST_IMAGE")
+    if test_image:
+        # Source-built images carry constraints from the same checkout as their providers.
+        content = content.replace(
+            "https://raw.githubusercontent.com/apache/airflow/"
+            "constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_MAJOR_MINOR}.txt",
+            "${HOME}/constraints.txt",
+        )
+    else:
+        test_image = get_latest_airflow_image()
 
     test_image_file = tmp_path / image_name
     test_image_file.write_text(re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content))
@@ -91,3 +100,15 @@ def test_dockerfile_example(dockerfile, relative_path, tmp_path):
         assert image
     finally:
         docker.image.remove(image_name, force=True)
+
+
+def test_source_image_uses_its_own_constraints(monkeypatch, mocker, tmp_path):
+    monkeypatch.setenv("TEST_IMAGE", "airflow-ci:test")
+    build = mocker.patch.object(docker, "build", autospec=True)
+    mocker.patch.object(docker.image, "remove", autospec=True)
+    relative_path = "extending/slim-with-providers/Dockerfile"
+
+    test_dockerfile_example(DOCKER_EXAMPLES_DIR / relative_path, relative_path, tmp_path)
+
+    content = build.call_args.kwargs["file"].read_text()
+    assert '--constraint "${HOME}/constraints.txt"' in content

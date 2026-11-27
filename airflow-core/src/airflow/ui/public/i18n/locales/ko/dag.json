@@ -85,6 +85,8 @@
     "upcomingCount_other": "예정된 데드라인 {{count, number}}건"
   },
   "extraLinks": "추가 링크",
+  "failingWatcherTriggers_one": "실패 중인 Watcher 트리거 {{count, number}}개",
+  "failingWatcherTriggers_other": "실패 중인 Watcher 트리거 {{count, number}}개",
   "grid": {
     "buttons": {
       "newerRuns": "최신 실행",
@@ -108,13 +110,33 @@
     "allSources": "모든 소스",
     "critical": "크리티컬",
     "debug": "디버그",
+    "durable": {
+      "detail": {
+        "already_succeeded": "작업이 이미 완료되어 새로 실행할 필요가 없었습니다.",
+        "reconnected": "약 {{duration}} 걸리는 작업의 중복 실행을 피했습니다.",
+        "reconnectedFailed": "작업을 중복 실행하지 않고 기존 작업을 기다렸지만, 해당 작업이 실패했습니다.",
+        "reconnectedNoDuration": "작업을 중복 실행하지 않고 기존 작업을 사용했습니다.",
+        "reconnectedRunning": "작업을 다시 시작하지 않고 실행 중인 작업을 기다리고 있습니다."
+      },
+      "job": {
+        "id": "작업 ID: {{id}}",
+        "runTime": "실행 시간: {{duration}}",
+        "submittedAt": "제출 시간:"
+      },
+      "title": {
+        "already_succeeded": "이미 완료된 작업의 결과 사용",
+        "reconnected": "기존 작업에 다시 연결됨"
+      }
+    },
     "error": "오류",
     "info": "정보",
     "noTryNumber": "시도 횟수 없음",
     "search": {
       "matchCount": "{{total, number}}개 중 {{current, number}}개",
+      "nextMatch": "다음 일치 항목",
       "noMatches": "일치하는 결과 없음",
-      "placeholder": "로그 검색"
+      "placeholder": "로그 검색",
+      "previousMatch": "이전 일치 항목"
     },
     "settings": "로그 설정",
     "tryNotStarted": "이 시도는 아직 시작되지 않았습니다.",

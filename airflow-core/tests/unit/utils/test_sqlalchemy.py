@@ -19,18 +19,18 @@ from __future__ import annotations
 
 import datetime
 import pickle
-from copy import deepcopy
 from unittest import mock
 from uuid import UUID
 
 import pytest
 from kubernetes.client import Configuration, models as k8s
-from sqlalchemy import Column, MetaData, Table, text
+from sqlalchemy import Column, MetaData, Table, select, text, update
 from sqlalchemy.dialects import mysql, postgresql, sqlite
-from sqlalchemy.exc import OperationalError, StatementError
+from sqlalchemy.exc import InternalError, OperationalError, StatementError
 from sqlalchemy.schema import CreateTable
 
 from airflow import settings
+from airflow.models.pool import Pool
 from airflow.sdk import DAG
 from airflow.sdk.timezone import utcnow
 from airflow.serialization.enums import DagAttributeTypes, Encoding
@@ -44,7 +44,9 @@ from airflow.utils.sqlalchemy import (
     ensure_pod_is_valid_after_unpickling,
     get_dialect_name,
     is_deadlock_error,
+    is_lock_not_available_error,
     prohibit_commit,
+    with_db_lock_timeout,
     with_row_locks,
 )
 from airflow.utils.state import State
@@ -52,11 +54,17 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import sync_dag_to_db
+from tests_common.test_utils.db import clear_db_pools
 
 pytestmark = pytest.mark.db_test
 
 
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
+
+
+class _UnserializablePod(k8s.V1Pod):
+    def to_dict(self, serialize=False):
+        raise AttributeError("missing model field")
 
 
 class TestGetDialectName:
@@ -333,55 +341,23 @@ class TestExecutorConfigType:
         assert instance.compare_values("a", "a") is True
 
     def test_result_processor_bad_pickled_obj(self, mocker):
-        """
-        If unpickled obj is missing attrs that curr lib expects
-        """
-        test_container = k8s.V1Container(name="base")
-        test_pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[test_container]))
-        copy_of_test_pod = deepcopy(test_pod)
-        # curr api expects attr `tty`
-        assert "tty" in test_container.openapi_types
-        # it lives in protected attr _tty
-        assert hasattr(test_container, "_tty")
-        # so, let's remove it before pickling, to simulate what happens in real life
-        del test_container._tty
-        # now let's prove that this blows up when calling to_dict
-        with pytest.raises(AttributeError):
-            test_pod.to_dict()
-        # no such problem with the copy
-        assert copy_of_test_pod.to_dict()
-        # so we need to roundtrip it through json
-        fixed_pod = ensure_pod_is_valid_after_unpickling(test_pod)
-        # and, since the missing attr was None anyway, we actually have the same pod
-        assert fixed_pod.to_dict() == copy_of_test_pod.to_dict()
-
-        # now, let's verify that result processor makes this all work
-        # first, check that bad pod is still bad
-        with pytest.raises(AttributeError):
-            test_pod.to_dict()
-        # define what will be retrieved from db
-        input = pickle.dumps({"pod_override": TEST_POD})
-
-        # get the result processor method
+        """Repair executor configs whose Kubernetes models cannot serialize after an upgrade."""
+        input = pickle.dumps({"pod_override": _UnserializablePod(spec=TEST_POD.spec)})
         config_type = ExecutorConfigType()
         mock_dialect = mocker.MagicMock()
         mock_dialect.dbapi = None
         process = config_type.result_processor(mock_dialect, None)
 
-        # apply the result processor
         result = process(input)
 
-        # show that the pickled (bad) pod is now a good pod, and same as the copy made
-        # before making it bad
-        assert result["pod_override"].to_dict() == copy_of_test_pod.to_dict()
+        assert result["pod_override"].to_dict() == TEST_POD.to_dict()
 
     def test_ensure_pod_is_valid_after_unpickling_is_picklable_in_cluster(self, monkeypatch):
         """The repaired pod must not capture the unpicklable in-cluster Configuration.
 
         In-cluster, the kubernetes client installs a process-global default ``Configuration`` whose
         ``refresh_api_key_hook`` is an unpicklable local closure. When the repair branch re-deserializes
-        the pod it must round-trip through a fresh ``Configuration`` so it stays picklable onto the
-        KubernetesExecutor queue.
+        the pod it must remain picklable for the KubernetesExecutor queue.
         """
 
         def _make_unpicklable_hook():
@@ -395,19 +371,11 @@ class TestExecutorConfigType:
         monkeypatch.setattr(Configuration, "_default", dirty, raising=False)
 
         container = k8s.V1Container(name="base")
-        pod = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[container]))
-        # Force the repair (re-deserialize) branch the way real version-skew does: drop a protected
-        # attr so ``to_dict()`` raises and ``ensure_pod_is_valid_after_unpickling`` reserializes.
-        del container._tty
-        with pytest.raises(AttributeError):
-            pod.to_dict()
-
+        pod = _UnserializablePod(spec=k8s.V1PodSpec(containers=[container]))
         fixed_pod = ensure_pod_is_valid_after_unpickling(pod)
 
         assert fixed_pod is not None
-        pickle.dumps(fixed_pod)
-        assert fixed_pod.local_vars_configuration.refresh_api_key_hook is None
-        assert fixed_pod.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+        assert pickle.loads(pickle.dumps(fixed_pod)).to_dict() == TEST_POD.to_dict()
 
 
 class TestApplyRegexQueryTimeout:
@@ -576,8 +544,79 @@ class TestIsDeadlockError:
         orig = getattr(errors, error_name)("db error")
         assert is_deadlock_error(self._make_error(orig)) is expected
 
+    def test_mysql_connector_deadlock(self):
+        # mysql-connector-python raises InternalError for 1213, with a generic sqlstate next to the MySQL code.
+        orig = mock.Mock(
+            spec=["sqlstate", "args"],
+            sqlstate="40001",
+            args=(1213, "1213 (40001): Deadlock found when trying to get lock", "40001"),
+        )
+        assert is_deadlock_error(InternalError("statement", {}, orig)) is True
+
     def test_dbapi_error_without_orig_is_not_deadlock(self):
         assert is_deadlock_error(OperationalError("statement", {}, None)) is False
 
     def test_non_dbapi_error_is_not_deadlock(self):
         assert is_deadlock_error(RuntimeError("deadlock")) is False
+
+
+def _lock_default_pool_nowait(session):
+    Pool.slots_stats(lock_rows=True, session=session)
+
+
+def _update_default_pool_with_lock_timeout(session):
+    with with_db_lock_timeout(session, lock_timeout=1):
+        session.execute(update(Pool).where(Pool.pool == Pool.DEFAULT_POOL_NAME).values(slots=Pool.slots))
+
+
+class TestIsLockNotAvailableError:
+    @staticmethod
+    def _make_error(orig):
+        return OperationalError("statement", {}, orig)
+
+    @pytest.mark.parametrize(
+        "orig",
+        [
+            pytest.param(
+                mock.Mock(
+                    spec=["sqlstate", "args"], sqlstate="55P03", args=("could not obtain lock on row",)
+                ),
+                id="psycopg3",
+            ),
+            pytest.param(RuntimeError("55P03"), id="scheduler-advisory-lock"),
+        ],
+    )
+    def test_is_lock_not_available_error(self, orig):
+        assert is_lock_not_available_error(self._make_error(orig)) is True
+
+    @pytest.mark.parametrize(
+        ("error_name", "expected"),
+        [
+            pytest.param("LockNotAvailable", True, id="psycopg3-lock-not-available"),
+            pytest.param("DeadlockDetected", False, id="psycopg3-deadlock"),
+        ],
+    )
+    def test_is_lock_not_available_error_psycopg3(self, error_name, expected):
+        errors = pytest.importorskip("psycopg.errors", reason="Test only runs when psycopg v3 is installed.")
+        orig = getattr(errors, error_name)("db error")
+        assert is_lock_not_available_error(self._make_error(orig)) is expected
+
+    def test_error_without_orig_is_not_lock_error(self):
+        assert is_lock_not_available_error(OperationalError("statement", {}, None)) is False
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.parametrize(
+        "lock_default_pool",
+        [
+            pytest.param(_lock_default_pool_nowait, id="scheduler-pool-nowait"),
+            pytest.param(_update_default_pool_with_lock_timeout, id="lock-timeout"),
+        ],
+    )
+    def test_lock_held_by_another_transaction(self, lock_default_pool):
+        clear_db_pools()
+        with Session.session_factory() as holder, Session.session_factory() as waiter:
+            holder.execute(select(Pool.pool).where(Pool.pool == Pool.DEFAULT_POOL_NAME).with_for_update())
+            with pytest.raises(OperationalError) as ctx:
+                lock_default_pool(waiter)
+
+        assert is_lock_not_available_error(ctx.value) is True

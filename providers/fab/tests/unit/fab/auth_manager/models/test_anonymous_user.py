@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
 
@@ -32,3 +34,17 @@ class TestAnonymousUser:
         user = AnonymousUser()
         user._perms = perms
         assert user.perms == perms
+
+    @pytest.mark.db_test
+    def test_unknown_public_role_grants_nothing_in_an_app_context(self, minimal_app_for_auth_api):
+        """A Flask view resolving a public role that does not exist grants nothing instead of failing."""
+        app = minimal_app_for_auth_api
+        previous = app.config.get("AUTH_ROLE_PUBLIC")
+        app.config["AUTH_ROLE_PUBLIC"] = "DoesNotExist"
+        try:
+            with app.app_context():
+                user = AnonymousUser()
+                assert user.roles == []
+                assert user.perms == set()
+        finally:
+            app.config["AUTH_ROLE_PUBLIC"] = previous

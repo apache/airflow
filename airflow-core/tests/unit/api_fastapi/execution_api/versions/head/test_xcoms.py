@@ -42,7 +42,14 @@ from airflow.models.dynamic_region import SENTINEL_REGION_ID, AmbiguousProducerE
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import LegacyTaskDataOwner, TaskInstance
 from airflow.models.trigger import Trigger
-from airflow.models.xcom import XCOM_RETURN_KEY, XComModel, XComModelV1, XComModelV2, xcom_entity
+from airflow.models.xcom import (
+    EXTERNAL_CLEAR_TARGET_XCOM_KEY,
+    XCOM_RETURN_KEY,
+    XComModel,
+    XComModelV1,
+    XComModelV2,
+    xcom_entity,
+)
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import task_group
@@ -541,6 +548,53 @@ def test_loop_task_reads_from_inside_the_loop_stay_on_one_pass(client, outside_l
     assert client.get(f"{fanout_url}/item/-1").json() == "2-1"
 
 
+def test_outside_caller_reads_every_iteration_of_a_mapped_loop_task(client, outside_loop_run):
+    dr = outside_loop_run[0]
+    url = get_loop_url(dr, "body.fanout")
+
+    response = client.get(url)
+
+    assert [r.status_code for r in response.history] == [307]
+    assert response.json() == LOOP_SEQUENCES["mapped"][1]
+    assert response.json() == client.get(f"{url}/slice").json()
+
+
+@pytest.mark.parametrize(
+    ("task_id", "params", "expected"),
+    [
+        pytest.param("body.step", {}, "step-2", id="unmapped"),
+        pytest.param("body.fanout", {"map_index": 1}, "2-1", id="mapped-one"),
+    ],
+)
+def test_inside_caller_reads_a_loop_task_on_its_own_pass(client, outside_loop_run, task_id, params, expected):
+    dr, _, _, steps, authenticate_as = outside_loop_run
+    authenticate_as(steps[2])
+
+    response = client.get(get_loop_url(dr, task_id), params=params)
+
+    assert response.status_code == 200
+    assert response.json() == {"key": "key", "value": expected}
+
+
+def test_inside_caller_reads_every_instance_of_a_loop_task_on_its_own_pass(client, outside_loop_run):
+    dr, _, _, steps, authenticate_as = outside_loop_run
+    authenticate_as(steps[2])
+
+    response = client.get(get_loop_url(dr, "body.fanout"))
+
+    assert [r.status_code for r in response.history] == [307]
+    assert response.json() == ["2-0", "2-1"]
+
+
+def test_inside_caller_reads_a_map_index_past_the_expansion_as_not_found(client, outside_loop_run):
+    dr, _, _, steps, authenticate_as = outside_loop_run
+    authenticate_as(steps[2])
+
+    response = client.get(get_loop_url(dr, "body.fanout"), params={"map_index": 2})
+
+    assert response.status_code == 404
+
+
 @pytest.fixture
 def deferred_loop_pass(session, outside_loop_run):
     dr, _, _, steps, _ = outside_loop_run
@@ -697,6 +751,17 @@ def test_normal_xcom_push_rejects_loop_reserved_prefix(client, create_task_insta
         f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/_airflow_loop_decision_reason", json="forged"
     )
     assert response.status_code == 400
+
+
+def test_normal_xcom_push_rejects_the_external_clear_target_key(client, create_task_instance):
+    ti = create_task_instance()
+    forged = {"dag_id": "other", "task_id": "t", "logical_date": "2026-10-01T00:00:00Z", "recursion_depth": 1}
+
+    response = client.post(
+        f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{EXTERNAL_CLEAR_TARGET_XCOM_KEY}", json=forged
+    )
+
+    assert (response.status_code, response.json()["detail"]) == (400, "Reserved XCom key")
 
 
 def test_loop_result_item_read_loads_no_producer_rows(dag_maker, session, client, authenticate_as):
@@ -1151,6 +1216,9 @@ class TestXComsGetEndpoint:
             pytest.param(slice(-1, None, -1), id="-1::-1"),
             pytest.param(slice(-2, -1, None), id="-2:-1"),
             pytest.param(slice(-1, -3, -1), id="-1:-3:-1"),
+            pytest.param(slice(-2, 10, None), id="-2:10"),
+            pytest.param(slice(2, -10, -1), id="2:-10:-1"),
+            pytest.param(slice(1, -10, -1), id="1:-10:-1"),
         ],
     )
     def test_xcom_get_with_slice(self, client, dag_maker, session, key):
@@ -1357,6 +1425,166 @@ class TestXComsGetEndpoint:
 
         assert response.status_code == 404
         assert "XCom" in response.json()["detail"]["message"]
+
+
+class TestXComsGetOmittedMapIndex:
+    """An omitted map index reads a task's value by how the task is defined."""
+
+    @pytest.fixture(autouse=True)
+    def dag_run(self, dag_maker, session):
+        with dag_maker(dag_id="dag", serialized=True):
+            EmptyOperator(task_id="plain")
+            PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2], [3]])
+            PythonOperator.partial(task_id="empty", python_callable=str).expand(op_args=[])
+
+            @task_group
+            def group(value):
+                PythonOperator(task_id="inner", python_callable=str)
+                PythonOperator(task_id="sibling", python_callable=str)
+
+            group.expand(value=[1, 2])
+        dag_run = dag_maker.create_dagrun(run_id="runid")
+        tis = {(ti.task_id, ti.region_index): ti for ti in dag_run.get_task_instances(session=session)}
+        # The mapped task's instance 1 pushes nothing.
+        values = {
+            ("plain", -1): "plain",
+            ("mapped", 0): "mapped 0",
+            ("mapped", 2): "mapped 2",
+            ("group.inner", 0): "inner 0",
+            ("group.inner", 1): "inner 1",
+        }
+        for coordinates, value in values.items():
+            session.add(XComModelV2(key=XCOM_RETURN_KEY, value=value, task_instance_id=tis[coordinates].id))
+        session.commit()
+        return dag_run
+
+    @staticmethod
+    def get(client, task_id, *, dag_id="dag", run_id="runid", **params):
+        return client.get(
+            f"/execution/xcoms/{dag_id}/{run_id}/{task_id}/{XCOM_RETURN_KEY}",
+            params=params,
+            follow_redirects=False,
+        )
+
+    @staticmethod
+    def assert_redirected_to_slice(response):
+        assert response.status_code == 307
+        location = response.headers["location"]
+        assert not urllib.parse.urlsplit(location).netloc  # Relative, so a proxy's URL is kept.
+        target = response.request.url.join(location)
+        assert target.path == f"{response.request.url.path}/slice"
+        assert target.query == response.request.url.query
+
+    @pytest.mark.parametrize(
+        ("task_id", "params", "expected"),
+        [
+            pytest.param("plain", {}, "plain", id="unmapped"),
+            pytest.param("plain", {"map_index": -1}, "plain", id="unmapped-minus-one"),
+            pytest.param("plain", {"map_index": 0}, None, id="unmapped-index"),
+            pytest.param("mapped", {"map_index": 0}, "mapped 0", id="mapped-one"),
+            pytest.param("mapped", {"map_index": 1}, None, id="mapped-one-not-pushed"),
+            pytest.param("mapped", {"map_index": 3}, None, id="mapped-past-end"),
+            pytest.param("mapped", {"map_index": -1}, None, id="mapped-minus-one"),
+            pytest.param("mapped", {"offset": -1}, "mapped 2", id="mapped-offset"),
+            pytest.param("mapped", {"include_prior_dates": True}, None, id="mapped-prior-dates"),
+            pytest.param("group.inner", {"map_index": 1}, "inner 1", id="mapped-group-one"),
+            pytest.param("missing", {}, None, id="unknown-task"),
+        ],
+    )
+    def test_read(self, client, task_id, params, expected):
+        response = self.get(client, task_id, **params)
+
+        if expected is None:
+            assert response.status_code == 404
+            assert response.json()["detail"]["reason"] == "not_found"
+        else:
+            assert response.status_code == 200
+            assert response.json() == {"key": XCOM_RETURN_KEY, "value": expected}
+
+    @pytest.mark.parametrize(
+        ("task_id", "params"),
+        [
+            pytest.param("mapped", {}, id="mapped"),
+            pytest.param("mapped", {"previous_iteration": True}, id="mapped-keeps-query"),
+            pytest.param("empty", {}, id="mapped-to-none"),
+            pytest.param("group.inner", {}, id="mapped-group"),
+        ],
+    )
+    def test_every_instance_is_redirected_to_the_slice(self, client, task_id, params):
+        self.assert_redirected_to_slice(self.get(client, task_id, **params))
+
+    @pytest.mark.parametrize(
+        ("sent_key", "expected"),
+        [
+            pytest.param("a%2Fb", "a%2Fb/slice", id="slash"),
+            pytest.param("%2E", "%2E/slice", id="dot"),
+            pytest.param("my%20key", "my%20key/slice", id="space"),
+        ],
+    )
+    def test_redirect_quotes_the_key_as_one_segment(self, client, sent_key, expected):
+        response = client.get(f"/execution/xcoms/dag/runid/mapped/{sent_key}", follow_redirects=False)
+        assert response.status_code == 307
+        assert response.headers["location"] == expected
+
+    @pytest.mark.parametrize("task_id", ["plain", "missing"])
+    def test_task_without_regional_instances_does_not_load_the_dag(self, client, mocker, task_id):
+        get_task = mocker.spy(TaskCoordinateResolver, "get_task")
+        self.get(client, task_id)
+        assert get_task.call_count == 0
+
+    @pytest.mark.parametrize("same_run_caller", [True, False], ids=["same-run-caller", "no-caller"])
+    def test_same_run_caller_reads_by_its_own_dag_version(
+        self, client, mocker, session, dag_run, authenticate_as, same_run_caller
+    ):
+        # The task's live instances disagree on its definition across Dag versions.
+        mocker.patch.object(
+            TaskCoordinateResolver, "_producer_task", side_effect=AmbiguousProducerError("differ")
+        )
+        if same_run_caller:
+            authenticate_as(dag_run.get_task_instance("plain", session=session))
+
+        response = self.get(client, "mapped")
+
+        if same_run_caller:
+            self.assert_redirected_to_slice(response)
+        else:
+            assert response.status_code == 409
+
+    def test_caller_in_the_same_mapped_group_reads_every_instance(
+        self, client, session, dag_run, authenticate_as
+    ):
+        """The caller's own map index doesn't narrow an omitted one, even for a task in its mapped group."""
+        sibling = next(
+            ti
+            for ti in dag_run.get_task_instances(session=session)
+            if ti.task_id == "group.sibling" and ti.region_index == 1
+        )
+        authenticate_as(sibling)
+
+        response = self.get(client, "group.inner")
+
+        self.assert_redirected_to_slice(response)
+
+    def test_another_dag_is_read_by_its_own_definition(
+        self, client, dag_maker, session, dag_run, authenticate_as
+    ):
+        # "plain" is mapped in the other Dag, and not in the caller's.
+        with dag_maker(dag_id="other", serialized=True):
+            PythonOperator.partial(task_id="plain", python_callable=str).expand(op_args=[[1], [2]])
+        other_run = dag_maker.create_dagrun(run_id="other_run")
+        for ti in other_run.get_task_instances(session=session):
+            session.add(
+                XComModelV2(key=XCOM_RETURN_KEY, value=f"other {ti.region_index}", task_instance_id=ti.id)
+            )
+        session.commit()
+        authenticate_as(dag_run.get_task_instance("plain", session=session))
+
+        other = self.get(client, "plain", dag_id="other", run_id="other_run")
+        own = self.get(client, "plain")
+
+        self.assert_redirected_to_slice(other)
+        assert own.status_code == 200
+        assert own.json() == {"key": XCOM_RETURN_KEY, "value": "plain"}
 
 
 class TestXComsSetEndpoint:
@@ -1658,6 +1886,28 @@ class TestXComsDeleteEndpoint:
             assert XComModelV2.get_for_attempt(ti.id, "xcom_1", session=verify) is None
             assert verify.get(XComModelV1, (ti.dag_run.id, ti.task_id, ti.map_index, "xcom_1")) is None
             assert XComModelV2.get_for_attempt(ti1.id, "xcom_1", session=verify) is not None
+
+    @pytest.mark.parametrize(
+        ("key", "detail"),
+        [
+            ("_airflow_loop_decision_reason", "Reserved loop XCom key"),
+            (EXTERNAL_CLEAR_TARGET_XCOM_KEY, "Reserved XCom key"),
+        ],
+    )
+    def test_xcom_delete_rejects_reserved_key(
+        self, client, create_task_instance, authenticate_as, session, key, detail
+    ):
+        ti = create_task_instance()
+        ti.xcom_push(key=key, value='"reason"', session=session)
+        session.commit()
+        authenticate_as(ti)
+
+        response = client.delete(f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/{key}")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == detail
+        with create_session(scoped=False) as verify:
+            assert XComModelV2.get_for_attempt(ti.id, key, session=verify) is not None
 
     @pytest.mark.parametrize(
         ("target_task_id", "ti_map_index"),

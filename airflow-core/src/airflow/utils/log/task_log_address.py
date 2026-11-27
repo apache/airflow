@@ -171,12 +171,33 @@ def _load_node_kinds(
     return kinds
 
 
+def _has_loaded_regions(region_id: UUID, regions: Mapping[UUID, DynamicRegion]) -> bool:
+    """Whether ``region_id`` and every region it is nested in or forked from are in ``regions``."""
+    seen: set[UUID] = set()
+    pending = [region_id]
+    while pending:
+        current = pending.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        region = regions.get(current)
+        if region is None:
+            return False
+        pending.extend(
+            ancestor_id
+            for ancestor_id in (region.parent_region_id, region.forked_from_region_id)
+            if ancestor_id is not None
+        )
+    return True
+
+
 def prepare_task_log_contexts(
     tis: Collection[TaskInstance],
     *,
     session: Session | None = None,
     dag_bag: DBDagBag | None = None,
     filename_template: str | None = None,
+    skip_missing_regions: bool = False,
 ) -> dict[UUID, TaskLogContext]:
     """
     Load shared address inputs in batches before rendering workloads or reading logs.
@@ -184,13 +205,20 @@ def prepare_task_log_contexts(
     Pass the caller's ``dag_bag`` so the loop and map nodes of a Dag version come from its cache instead of
     deserializing the Dag again. Writers pass the configured ``filename_template``; readers omit it to use
     each run's pinned template.
+
+    :param skip_missing_regions: Leave out the task instances whose regions are not all found, such as those
+        of a Dag run deleted meanwhile, instead of raising ``KeyError``.
     """
     if not tis:
         return {}
     if session is None:
         with create_session(scoped=False) as session:
             return prepare_task_log_contexts(
-                tis, session=session, dag_bag=dag_bag, filename_template=filename_template
+                tis,
+                session=session,
+                dag_bag=dag_bag,
+                filename_template=filename_template,
+                skip_missing_regions=skip_missing_regions,
             )
     runs: dict[tuple[str, str], DagRun] = {}
     for ti in tis:
@@ -234,6 +262,12 @@ def prepare_task_log_contexts(
         node_kinds = _load_node_kinds(nested, runs, session, dag_bag)
     contexts = {}
     for ti in tis:
+        if (
+            skip_missing_regions
+            and ti.region_id != SENTINEL_REGION_ID
+            and not _has_loaded_regions(ti.region_id, regions)
+        ):
+            continue
         run = runs[ti.dag_id, ti.run_id]
         template = filename_template if filename_template is not None else templates.get(run.log_template_id)
         if template is None:

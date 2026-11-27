@@ -20,10 +20,12 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 
 ## Environment Setup
 
+- Claude Code users need v2.1.281 or later (check with `claude --version`); older versions do not reliably read `AGENTS.md`, and the repo has no `CLAUDE.md`. If your session reports an older version, tell the user to upgrade.
 - Install prek: `uv tool install prek`
 - Enable commit hooks: `prek install`
 - Install breeze shim (one-time, per machine): `scripts/tools/setup_breeze` — installs `~/.local/bin/breeze` that runs breeze via `uv run --locked` from the current git worktree's `dev/breeze`, with dependencies pinned by `dev/breeze/uv.lock` (so each worktree, including ephemeral agent worktrees, gets its own breeze tied to its sources). See [ADR 0017](dev/breeze/doc/adr/0017-use-uvx-to-run-breeze-from-local-sources.md).
 - **Never run pytest, python, or airflow commands directly on the host** — always use `breeze`. The only exception is the `uv run --project <PROJECT> ...` commands listed below, run against the workspace sources.
+- **Local Kubernetes clusters also go through `breeze k8s`** — create, deploy to and delete kind clusters with `breeze k8s`, including clusters used only to check Kubernetes behaviour, with no Airflow deployed. Take the steps from the [typical testing pattern](contributing-docs/testing/k8s_tests.rst#typical-testing-pattern-for-kubernetes-tests) and the options and allowed values from `breeze k8s <command> --help`; Kubernetes versions take a `v` prefix (e.g. `--kubernetes-version v1.35.8`). Choose the Python and Kubernetes versions from the task, such as the versions in the issue being reproduced, and tell the user if breeze does not support them rather than substituting others. Do not run `kind create cluster`, or `helm install` this repo's Airflow chart. Run `kubectl` only through `breeze k8s shell` for that cluster, passing the command with `-c` instead of opening an interactive shell (e.g. `breeze k8s shell --python 3.12 --kubernetes-version v1.35.8 -c 'kubectl get pods -A'`), never from the host shell, so it cannot reach other clusters through the host's `~/.kube/config`.
 - If a step needs `breeze` and it cannot run (Docker missing, or its Docker calls refused by a sandbox or socket proxy), stop and tell the user which call failed. Do not build a substitute host environment instead, such as a virtualenv with a released Airflow version.
 - Place temporary scripts in `dev/` (mounted as `/opt/airflow/dev/` inside Breeze).
 
@@ -43,7 +45,7 @@ Don't spell out **Directed Acyclic Graph** except for historical context.
 - **Run core or provider non-db tests suite in parallel:** `breeze testing <test_group> --skip-db-tests --use-xdist` (test groups: `core-tests`, `providers-tests`)
 - **Run single provider complete test suite:** `breeze testing providers-tests --test-type "Providers[PROVIDERS_LIST]"` (e.g., `Providers[google]` or `Providers[amazon]` or "Providers[amazon,google]")
 - **Run Helm tests in parallel with xdist** `breeze testing helm-tests --use-xdist`
-- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version 1.35.0`
+- **Run Helm tests with specific K8s version:** `breeze testing helm-tests --use-xdist --kubernetes-version <version>` (bare version, e.g. `1.35.8`, unlike the `v`-prefixed `breeze k8s` versions; allowed versions in `breeze testing helm-tests --help`)
 - **Run specific Helm test type:** `breeze testing helm-tests --use-xdist --test-type <type>` (types: `airflow_aux`, `airflow_core`, `apiserver`, `dagprocessor`, `other`, `redis`, `security`, `statsd`, `webserver`)
 - **Run other suites of tests** `breeze testing <test_group>` (test groups: `airflow-ctl-tests`, `docker-compose-tests`, `task-sdk-tests`)
 - **Run scripts tests:** `uv run --project scripts pytest scripts/tests/ -xvs`
@@ -162,7 +164,7 @@ reported as such are described in "What is NOT considered a security vulnerabili
 - Target exactly 100% coverage of what the PR changes — no more, no less. Every changed or added behaviour must have a test; every test must fail without the PR's change. Do not add tests for pre-existing logic that was already present before the PR, and do not test standard-library or third-party functions. The exception is deliberate behaviour or integration tests, which may cross those boundaries by design.
 - Use pytest patterns, not `unittest.TestCase`.
 - Use `spec`/`autospec` when mocking.
-- Prefer `@mock.patch` decorators over `with mock.patch(...)` context managers for patching. Use `conf_vars` (from `tests_common.test_utils.config`) for Airflow config overrides — as a decorator when the value is fixed, as a context manager when it varies via `@pytest.mark.parametrize`.
+- Prefer `@mock.patch` decorators over `with mock.patch(...)` context managers for patching. Use `conf_vars` (from `tests_common.test_utils.config`) for Airflow config overrides — as a decorator when the value is fixed, as a context manager when it varies via `@pytest.mark.parametrize` or is only known at run time. In `async def` tests always use it as a context manager inside the body: as a decorator it hides the coroutine from pytest-asyncio and the test fails.
 - Use `time_machine` for time-dependent tests. Do not use `datetime.now()`
 - Use `@pytest.mark.parametrize` for multiple similar inputs — consolidate tests that only differ in input/expected values into a single parametrized test.
 - Use `@pytest.mark.db_test` for tests that require database access.
@@ -214,8 +216,8 @@ own agent harness. In Claude Code:
 its `verify-rc` skill verifies a release candidate and, per
 [`.apache-magpie-overrides/release-verify-rc.md`](.apache-magpie-overrides/release-verify-rc.md),
 can test your own changes against a providers wave.
-The contributor-facing summary lives in the [Agent-assisted contribution
-section of `README.md`](README.md#agent-assisted-contribution-apache-magpie).
+The contributor-facing summary lives in
+[`contributing-docs/33_agent_assisted_contribution.md`](contributing-docs/33_agent_assisted_contribution.md).
 
 Airflow-specific modifications to framework-skill workflows live in
 [`.apache-magpie-overrides/`](.apache-magpie-overrides/) — the installed

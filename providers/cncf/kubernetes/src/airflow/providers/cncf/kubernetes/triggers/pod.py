@@ -48,6 +48,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
+    from kubernetes.client.models import V1Pod as SyncV1Pod
     from kubernetes_asyncio.client.models import V1Pod
     from pendulum import DateTime
     from sqlalchemy.orm.session import Session
@@ -568,48 +569,56 @@ class KubernetesPodTrigger(BaseTrigger):
         On Airflow 3.3.0+ pod deletion on user kill is handled in ``on_kill()`` only; this avoids
         deleting pods on triggerer restart. On older Airflow versions, ``cleanup()`` still uses
         ``safe_to_cancel()`` because ``on_kill()`` is not wired for user kills.
+
+        Always releases the hook's cached API client, since the triggerer invokes ``cleanup()``
+        after the trigger finishes for any reason (event fired, cancelled, or killed).
         """
-        # TODO: Remove this Airflow < 3.3 cleanup branch (early return, ``safe_to_cancel``, and
-        # related tests) once the minimum Airflow version supported by this provider is >= 3.3.
-        # In Airflow 3.3+, ``BaseTrigger.on_kill()`` handles user-initiated kills; keeping the
-        # legacy path for backward compatibility with older Airflow versions.
-        if AIRFLOW_V_3_3_PLUS:
-            return
-
-        if self._fired_event:
-            self.log.debug("Skipping cleanup since an event has already been fired.")
-            return
-
-        if self.on_kill_action == OnKillAction.KEEP_POD:
-            self.log.debug("Skipping cleanup since on_kill_action is set to %r.", self.on_kill_action.value)
-            return
-
         try:
-            safe = await self.safe_to_cancel()
-        except Exception:
-            self.log.warning(
-                "Could not determine task state during cleanup; skipping pod deletion to be safe.",
-                exc_info=True,
-            )
-            return
+            # TODO: Remove this Airflow < 3.3 cleanup branch (early return, ``safe_to_cancel``, and
+            # related tests) once the minimum Airflow version supported by this provider is >= 3.3.
+            # In Airflow 3.3+, ``BaseTrigger.on_kill()`` handles user-initiated kills; keeping the
+            # legacy path for backward compatibility with older Airflow versions.
+            if AIRFLOW_V_3_3_PLUS:
+                return
 
-        if not safe:
-            self.log.debug(
-                "Skipping cleanup since the task is still in deferred state (likely a triggerer restart)."
-            )
-            return
+            if self._fired_event:
+                self.log.debug("Skipping cleanup since an event has already been fired.")
+                return
 
-        self.log.info("Deleting pod %s in namespace %s.", self.pod_name, self.pod_namespace)
-        try:
-            await self.hook.delete_pod(
-                name=self.pod_name,
-                namespace=self.pod_namespace,
-                grace_period_seconds=self.termination_grace_period,
-            )
-        except Exception:
-            self.log.exception("Unexpected error while deleting pod %s", self.pod_name)
+            if self.on_kill_action == OnKillAction.KEEP_POD:
+                self.log.debug(
+                    "Skipping cleanup since on_kill_action is set to %r.", self.on_kill_action.value
+                )
+                return
 
-    def define_container_state(self, pod: V1Pod) -> ContainerState:
+            try:
+                safe = await self.safe_to_cancel()
+            except Exception:
+                self.log.warning(
+                    "Could not determine task state during cleanup; skipping pod deletion to be safe.",
+                    exc_info=True,
+                )
+                return
+
+            if not safe:
+                self.log.debug(
+                    "Skipping cleanup since the task is still in deferred state (likely a triggerer restart)."
+                )
+                return
+
+            self.log.info("Deleting pod %s in namespace %s.", self.pod_name, self.pod_namespace)
+            try:
+                await self.hook.delete_pod(
+                    name=self.pod_name,
+                    namespace=self.pod_namespace,
+                    grace_period_seconds=self.termination_grace_period,
+                )
+            except Exception:
+                self.log.exception("Unexpected error while deleting pod %s", self.pod_name)
+        finally:
+            await self.hook.close()
+
+    def define_container_state(self, pod: V1Pod | SyncV1Pod) -> ContainerState:
         if pod.status is None or pod.status.container_statuses is None:
             return ContainerState.UNDEFINED
 
@@ -639,7 +648,7 @@ class KubernetesPodTrigger(BaseTrigger):
                 return ContainerState.TERMINATED if state_obj.exit_code == 0 else ContainerState.FAILED
         return ContainerState.UNDEFINED
 
-    def define_pod_container_state(self, pod: V1Pod) -> ContainerState:
+    def define_pod_container_state(self, pod: V1Pod | SyncV1Pod) -> ContainerState:
         """Infer workload state from terminal pod phase first, then from the base container state."""
         if pod.status is None:
             return ContainerState.UNDEFINED

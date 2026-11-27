@@ -17,13 +17,24 @@
 
 from __future__ import annotations
 
-from cadwyn import ResponseInfo, VersionChange, convert_response_to_previous_version_for, endpoint, schema
+from cadwyn import (
+    RequestInfo,
+    ResponseInfo,
+    VersionChange,
+    VersionChangeWithSideEffects,
+    convert_request_to_next_version_for,
+    convert_response_to_previous_version_for,
+    endpoint,
+    schema,
+)
 
-from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext
+from airflow.api_fastapi.execution_api.datamodels.taskinstance import TIRunContext, TISuccessStatePayload
+from airflow.api_fastapi.execution_api.datamodels.variable import VariablePostBody, VariableResponse
+from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParams
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
-    """Add Dag processor lifecycle and parse-token endpoints."""
+    """Add Dag processor lifecycle, inventory, shared-source publication, and requested-work endpoints."""
 
     description = __doc__
 
@@ -32,6 +43,11 @@ class AddDagProcessorJobEndpoints(VersionChange):
         endpoint("/jobs/{job_id}/heartbeat", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/complete", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/parse-token", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/parse-results", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/bundles", ["GET"]).didnt_exist,
+        endpoint("/jobs/{job_id}/bundles/{bundle_name:path}/inventory", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/requested-work/{kind}/claim", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/requested-work/{kind}/{work_id}/ack", ["POST"]).didnt_exist,
     )
 
 
@@ -47,3 +63,61 @@ class AddExecutionTimeoutToTIRunContext(VersionChange):
     def remove_execution_timeout_field(response: ResponseInfo) -> None:  # type: ignore[misc]
         """Strip ``execution_timeout`` from the run context for older clients."""
         response.body.pop("execution_timeout", None)
+
+
+class AddExternalClearTargetField(VersionChange):
+    """Add the ``external_clear_target`` field a task reports with its success, for cross-Dag clears."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(TISuccessStatePayload).field("external_clear_target").didnt_exist,
+    )
+
+
+class MakeVariableValueNonNullable(VersionChange):
+    """
+    Make the Variable value non-nullable in reads and writes.
+
+    A Variable read never returned null; a missing Variable is a 404. Setting a Variable to null
+    stored the string ``"None"``. Older clients may still send null, which keeps doing that.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(VariableResponse).field("val").had(type=str | None),
+        schema(VariablePostBody).field("value").had(type=str | None),
+    )
+
+    @convert_request_to_next_version_for(VariablePostBody)  # type: ignore[arg-type]
+    def store_null_value_as_none_string(request: RequestInfo) -> None:
+        """Keep the old behavior of storing ``str(None)`` when an older client sets null."""
+        if "val" in request.body and request.body["val"] is None:
+            request.body["val"] = "None"
+
+
+class AddCallbackStateEndpoint(VersionChange):
+    """Add the callback terminal-state endpoint."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        endpoint("/callbacks/{callback_id}/state", ["PATCH"]).didnt_exist,
+    )
+
+
+class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
+    """
+    Resolve an omitted XCom ``map_index`` by the producing task's definition.
+
+    A mapped task is now redirected to the slice endpoint, which lists the values
+    of all its instances, except with ``include_prior_dates``. An unmapped task
+    still reads map index -1, as do older clients.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXcomFilterParams).field("map_index").had(type=int, default=-1),
+    )

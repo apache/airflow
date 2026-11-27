@@ -38,6 +38,7 @@ from airflow.triggers.base import TriggerEvent
 
 from tests_common.test_utils.file_loading import load_file_from_resources, load_json_from_resources
 from tests_common.test_utils.operators.run_deferrable import run_trigger
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 from unit.microsoft.azure.test_utils import (
     mock_json_response,
     mock_response,
@@ -149,6 +150,7 @@ class TestMSGraphTrigger:
                 "api_version": APIVersion.v1.value,
                 "serializer": f"{ResponseSerializer.__module__}.{ResponseSerializer.__name__}",
                 "pagination_link": False,
+                "rendered": False,
             }
 
     def test_get_conn(self):
@@ -163,6 +165,18 @@ class TestMSGraphTrigger:
 
             assert isinstance(actual, HttpxRequestAdapter)
             assert actual.base_url == "https://graph.microsoft.com/v1.0/"
+
+
+@pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="The triggerer renders templated fields from Airflow 3.3")
+class TestMSGraphTriggerRendering:
+    @pytest.mark.parametrize(("rendered", "expected"), [(False, "users/me"), (True, "users/{{ user_id }}")])
+    def test_render_template_fields(self, rendered, expected):
+        trigger = MSGraphTrigger(url="users/{{ user_id }}", rendered=rendered)
+        trigger.template_fields = ("url",)
+
+        trigger.render_template_fields(context={"user_id": "me"})
+
+        assert trigger.url == expected
 
 
 class TestResponseSerializer:

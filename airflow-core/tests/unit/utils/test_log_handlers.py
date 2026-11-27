@@ -848,7 +848,7 @@ class TestFileTaskLogHandler:
 
                     assert len(sources) > 0, f"Expected sources but got: {sources}"
                     assert len(logs) > 0, f"Expected logs but got: {logs}"
-                    assert logs[0] == log_content
+                    assert list(logs[0]) == log_content.split("\n")
                     assert f"s3://test-airflow-logs/logs/{log_relative_path}" in sources[0]
 
 

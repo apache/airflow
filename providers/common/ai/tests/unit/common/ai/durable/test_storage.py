@@ -20,9 +20,12 @@ import json
 from unittest.mock import patch
 
 import pytest
+from structlog.typing import FilteringBoundLogger
 
 from airflow.providers.common.ai.durable import storage as storage_module
+from airflow.providers.common.ai.durable.journal import DurableJournal
 from airflow.providers.common.ai.durable.storage import DurableStorage
+from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.compat.sdk import ObjectStoragePath
 
 from tests_common.test_utils.config import conf_vars
@@ -82,6 +85,17 @@ class TestSaveLoad:
     def test_missing_key_is_none(self, storage):
         assert storage.load_step("missing") is None
 
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
+    @patch.object(ObjectStoragePath, "read_text", autospec=True, side_effect=OSError("S3 is unavailable"))
+    def test_a_storage_read_failure_stops_the_task_before_it_can_replay_live(self, _, mock_log, storage):
+        with pytest.raises(OSError, match="S3 is unavailable"):
+            storage.load_step("k")
+
+        mock_log.warning.assert_called_once_with(
+            "Durable: could not read the journal; failing this attempt so finished steps don't run again",
+            path=str(storage._get_path()),
+        )
+
     def test_an_entry_that_cannot_be_encoded_is_skipped_and_the_rest_kept(self, storage):
         circular: dict = {}
         circular["self"] = circular
@@ -106,6 +120,33 @@ class TestSaveLoad:
 
 
 class TestDeleteSteps:
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
+    @patch.object(
+        DurableStorage,
+        "_load_cache",
+        autospec=True,
+        side_effect=DurableJournalError("the journal is corrupt"),
+    )
+    def test_a_corrupt_journal_does_not_make_cleanup_raise(self, _, mock_log, storage):
+        storage.delete_steps(["a"])
+
+        mock_log.warning.assert_called_once_with(
+            "Durable: could not clean up the journal file", exc_info=True
+        )
+
+    @pytest.mark.parametrize("journal_exists", [True, False])
+    @patch.object(ObjectStoragePath, "read_text", autospec=True, side_effect=OSError("S3 is unavailable"))
+    def test_saving_after_cleanup_does_not_read_storage(self, mock_read, storage, journal_exists):
+        storage._cache = {}
+        if journal_exists:
+            storage.save_step("a", ENTRY)
+
+        storage.delete_steps(["a"])
+
+        assert storage.save_step("b", ENTRY)
+        assert storage.load_step("b") == ENTRY
+        mock_read.assert_not_called()
+
     def test_deleting_the_last_steps_removes_the_file(self, storage, tmp_path):
         storage.save_step("a", ENTRY)
 
@@ -124,6 +165,90 @@ class TestDeleteSteps:
 
     def test_deleting_when_there_is_no_file_does_not_raise(self, storage):
         storage.delete_steps(["a"])
+
+
+def store_down():
+    return patch.object(DurableStorage, "_write", autospec=True, side_effect=OSError("store unavailable"))
+
+
+class TestStoreFailures:
+    def test_a_failed_write_skips_the_step_without_raising(self, storage):
+        with store_down(), patch.object(storage_module, "log", spec=FilteringBoundLogger) as mock_log:
+            assert not storage.save_step("k", ENTRY)
+
+        assert storage.load_step("k") is None
+        mock_log.warning.assert_called_once_with(
+            "Durable: could not write the journal file", key="k", exc_info=True
+        )
+
+    def test_a_failed_write_keeps_the_previous_value_of_a_step(self, storage):
+        storage.save_step("meta", {"high_water": 1})
+
+        with store_down():
+            assert not storage.save_step("meta", {"high_water": 2})
+
+        assert storage.load_step("meta") == {"high_water": 1}
+
+    def test_an_entry_that_cannot_be_encoded_keeps_the_previous_value_of_a_step(self, storage):
+        storage.save_step("meta", {"high_water": 1})
+
+        assert not storage.save_step("meta", {"high_water": object()})
+
+        assert storage.load_step("meta") == {"high_water": 1}
+
+    def test_a_skipped_step_is_not_written_by_a_later_save(self, storage, tmp_path):
+        with store_down():
+            storage.save_step("skipped", ENTRY)
+        storage.save_step("written", ENTRY)
+
+        (journal_file,) = tmp_path.iterdir()
+        assert set(json.loads(journal_file.read_text())) == {"written"}
+
+    def test_an_outage_after_the_work_succeeded_does_not_fail_the_task(self, storage):
+        journal = DurableJournal(storage)
+        first, second = journal.start_run(), journal.start_run()
+        first.save(0, ENTRY)
+        second.save(0, ENTRY)
+
+        with store_down():
+            journal.cleanup()
+
+    def test_an_outage_does_not_replace_the_error_the_run_failed_with(self, storage):
+        run = DurableJournal(storage).start_run()
+        run.save(0, ENTRY)
+
+        with store_down():
+            run.fail(RuntimeError("the agent's own error"))
+
+
+class TestJournalThatIsNotAnObject:
+    @pytest.mark.parametrize(
+        ("content", "cause_type"),
+        [
+            pytest.param(b"{truncated", json.JSONDecodeError, id="cut off mid-write"),
+            pytest.param(b'["not", "a", "journal"]', ValueError, id="a JSON list"),
+            pytest.param(b"null", ValueError, id="JSON null"),
+            pytest.param(b"\xff", UnicodeDecodeError, id="invalid encoding"),
+        ],
+    )
+    @patch.object(storage_module, "log", spec=FilteringBoundLogger)
+    def test_is_not_treated_as_a_missing_journal(self, mock_log, storage, content, cause_type):
+        journal = storage._get_path()
+        journal.write_bytes(content)
+
+        with pytest.raises(DurableJournalError) as exc_info:
+            storage.load_step("k")
+        assert isinstance(exc_info.value.__cause__, cause_type)
+        mock_log.warning.assert_called_once_with(
+            "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
+            path=str(journal),
+        )
+
+        with pytest.raises(DurableJournalError) as exc_info:
+            storage.save_step("k", ENTRY)
+        assert isinstance(exc_info.value.__cause__, cause_type)
+
+        assert journal.read_bytes() == content
 
 
 class TestMissingConfig:

@@ -59,3 +59,15 @@ if __name__ == "__main__":
                 footer="EOF",
                 file_name=script.name,
             )
+
+    # Keys are inlined verbatim: install_os_dependencies.sh hashes them into the marker that pinned
+    # OS-dependencies images are matched on. Dockerfile.ci always builds from a checkout, so it keeps
+    # copying them from the build context.
+    for key in sorted((SCRIPTS_DOCKER_DIR / "keys").glob("*.asc")):
+        insert_content(
+            file_path=DOCKERFILE_FILE,
+            content=[f'COPY <<"EOF" /keys/{key.name}\n', *key.read_text().splitlines(keepends=True)],
+            header="# The content below is automatically copied from scripts/docker/",
+            footer="EOF",
+            file_name=f"keys/{key.name}",
+        )

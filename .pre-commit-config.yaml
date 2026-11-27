@@ -331,8 +331,9 @@ repos:
           PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_fork_ci_gate_config.py
         language: python
-        files: ^\.github/fork-ci-gate\.toml$|^dev/breeze/src/airflow_breeze/utils/fork_ci_gate\.py$
+        files: ^\.github/fork-ci-gate\.toml$|^dev/breeze/src/airflow_breeze/utils/fork_ci_gate\.py$|^\.asf\.yaml$
         pass_filenames: false
+        additional_dependencies: ['pyyaml']
       - id: check-java-sdk-version-in-sync
         name: Check Java SDK JDK version is consistent across build files
         env:
@@ -364,17 +365,20 @@ repos:
         additional_dependencies: ['rich>=13.6.0']
         pass_filenames: false
       - id: sync-java-sdk-supervisor-schema
-        name: Sync Java SDK supervisor schema with configured version
+        name: Sync Java SDK supervisor schema with the distribution that owns it
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
-        description: "Download the Supervisor Schema when Java SDK's bundled schema.json drifts"
+        description: "Copy task-sdk's supervisor schema when Java SDK's vendored schema.json drifts"
         entry: ./scripts/ci/prek/sync_java_sdk_supervisor_schema.py
         language: python
         pass_filenames: false
         files: >
           (?x)
+          ^task-sdk/src/airflow/sdk/execution_time/schema/schema\.json$|
+          ^task-sdk/src/airflow/sdk/execution_time/schema/versions/v\d{4}_\d{2}_\d{2}\.py$|
           ^java-sdk/gradle\.properties$|
-          ^java-sdk/sdk/schema/schema\.json$
+          ^java-sdk/sdk/schema/schema\.json$|
+          ^scripts/ci/prek/sync_java_sdk_supervisor_schema\.py$
       - id: regenerate-java-sdk-verification-metadata
         name: Regenerate the Java SDK dependency verification metadata
         env:
@@ -829,7 +833,7 @@ repos:
           - --skip=providers/.*/src/airflow/providers/*/*.rst,providers/*/docs/changelog.rst,docs/*/commits.rst,providers/*/docs/commits.rst,providers/*/*/docs/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md,*.svg
           - --exclude-file=.codespellignorelines
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: c92afdf2c6ca336aaa8f39e2bd8d48f62dbd8e1f  # frozen: v1.31.1
+    rev: 06a39750ec31860bb44f2acf67182c40016cd1e7  # frozen: v1.32.0
     hooks:
       - id: zizmor
         name: Run zizmor to check for github workflow syntax errors
@@ -841,7 +845,7 @@ repos:
         require_serial: true
         entry: zizmor
   - repo: https://github.com/lycheeverse/lychee
-    rev: d9d97b51e395bd72c6498e0c6c4943dcae7b410a  # frozen: nightly
+    rev: d119b686aba77707bb4fc2037bdce3eea0ccaee6  # frozen: nightly
     hooks:
       # Use the upstream `lychee-docker` variant rather than the script-based
       # `lychee` hook because the prebuilt lychee binaries that the script
@@ -1018,12 +1022,12 @@ repos:
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
       - id: check-extras-order
-        name: Check order of extras in Dockerfile
+        name: Check order of extras in Dockerfile and sync its defaults to the docs
         env:
           PYTHONPYCACHEPREFIX: .build/pycache
         entry: ./scripts/ci/prek/check_order_dockerfile_extras.py
         language: python
-        files: ^Dockerfile$
+        files: ^Dockerfile$|^docker-stack-docs/build-arg-ref\.rst$
         pass_filenames: false
       - id: generate-airflow-diagrams
         name: Generate airflow diagrams
@@ -1036,7 +1040,8 @@ repos:
           ^airflow-core/docs/.*/diagram_[^/]*\.py$|
           ^contributing-docs/images/diagram_[^/]*\.py$|
           ^docs/images/.*\.py$|
-          ^airflow-ctl/docs/images/diagrams/.*\.py$
+          ^airflow-ctl/docs/images/diagrams/.*\.py$|
+          ^dev/breeze/doc/ci/images/diagram_[^/]*\.py$
         pass_filenames: true
       - id: prevent-deprecated-sqlalchemy-usage
         name: Prevent deprecated sqlalchemy usage
@@ -1505,7 +1510,7 @@ repos:
         entry: ./dev/skill-evals/eval.py
         language: node
         language_version: '22.22.0'
-        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.332']
         stages: ['manual']
         files: >
           (?x)
@@ -1544,7 +1549,7 @@ repos:
         entry: env PROMPTFOO_CONFIG_DIR=.build/promptfoo promptfoo view
         language: node
         language_version: '22.22.0'
-        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.185']
+        additional_dependencies: ['promptfoo@0.121.17', '@anthropic-ai/claude-agent-sdk@0.3.332']
         stages: ['manual']
         files: >
           (?x)
@@ -1725,6 +1730,26 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
+      - id: check-scheduled-workflows-skip-forks
+        name: Check scheduled workflows skip their cron runs in forks
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Forks that enable Actions get every cron, so each scheduled job must skip outside apache/airflow
+        entry: ./scripts/ci/prek/check_scheduled_workflows_skip_forks.py
+        language: python
+        pass_filenames: true
+        require_serial: true
+        files: ^\.github/workflows/.*\.yml$
+      - id: check-fork-ci-tests-merge
+        name: Check fork CI jobs test the pushed commit merged with the base branch
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        description: Every job of a fork run that checks out the pushed commit merges it with the base branch
+        entry: ./scripts/ci/prek/check_fork_ci_tests_merge.py
+        language: python
+        pass_filenames: false
+        require_serial: true
+        files: ^\.github/workflows/.*\.yml$|^scripts/ci/prek/check_fork_ci_tests_merge\.py$
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
         env:
@@ -1787,6 +1812,25 @@ repos:
         language: python
         files: changelog\.(rst|txt)$
         entry: ./scripts/ci/prek/check_changelog_format.py
+        pass_filenames: true
+      - id: check-rst-license-header
+        name: Check the shape of the license header in RST files
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        language: python
+        files: \.rst$
+        # The cli-and-env-variables-ref.rst files start with a ``:tocdepth:`` field list, which only
+        # counts as document metadata while it is the first element, so the header cannot go above it.
+        # The provider README.rst files are generated and published as the PyPI description, where
+        # the indented header renders as an empty block quote.
+        exclude:
+          (?x)
+          ^\.github/.*$|
+          newsfragments/.*\.rst$|
+          ^scripts/ci/license-templates/|
+          ^(airflow-core|airflow-ctl)/docs/cli-and-env-variables-ref\.rst$|
+          ^providers/.*/README\.rst$
+        entry: ./scripts/ci/prek/check_rst_license_header.py
         pass_filenames: true
       - id: check-newsfragments-are-valid
         name: Check newsfragments are valid
