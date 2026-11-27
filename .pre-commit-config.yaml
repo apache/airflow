@@ -1484,6 +1484,14 @@ repos:
           ^scripts/ci/prek/generate_agent_skills\.py$
         pass_filenames: false
         additional_dependencies: ['pyyaml', 'rich>=13.6.0']
+      - id: check-moved-docs-redirects
+        name: Check moved docs have redirects
+        env:
+          PYTHONPYCACHEPREFIX: .build/pycache
+        entry: ./scripts/ci/prek/check_moved_docs_redirects.py
+        language: system
+        always_run: true
+        pass_filenames: false
       - id: check-documented-commands
         name: Check documented breeze and prek commands exist
         env:
