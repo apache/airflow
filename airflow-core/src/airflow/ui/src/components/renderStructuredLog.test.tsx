@@ -24,6 +24,7 @@ import { Wrapper } from "src/utils/Wrapper";
 
 import {
   extractTIContext,
+  maxContextSearchRecords,
   renderStructuredLog,
   renderTIContextPreamble,
   tiContextFields,
@@ -49,11 +50,11 @@ const renderWithLevel = (showLogLevel: boolean) => {
 };
 
 describe("tiContextFields", () => {
-  it("contains the six fields bound via bind_contextvars", () => {
+  it("contains the fields bound via bind_contextvars", () => {
     expect(tiContextFields).toEqual(
-      expect.arrayContaining(["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index"]),
+      expect.arrayContaining(["ti_id", "dag_id", "task_id", "run_id", "try_number", "map_index", "dag_tags"]),
     );
-    expect(tiContextFields).toHaveLength(6);
+    expect(tiContextFields).toHaveLength(7);
   });
 });
 
@@ -203,6 +204,30 @@ describe("extractTIContext", () => {
     expect(extractTIContext([nullContext as never, { dag_id: "my_dag", event: "x" }])).toEqual({
       dag_id: "my_dag",
     });
+  });
+
+  it("collects fields bound after the first TI record, keeping the earliest value", () => {
+    const lines = [
+      { dag_id: "my_dag", event: "starting", task_id: "t1", ti_id: "abc-123" },
+      { dag_id: "other_dag", dag_tags: ["team:a"], event: "running" },
+    ];
+
+    expect(extractTIContext(lines as never)).toEqual({
+      dag_id: "my_dag",
+      dag_tags: ["team:a"],
+      task_id: "t1",
+      ti_id: "abc-123",
+    });
+  });
+
+  it("stops searching a bounded distance past the first TI record", () => {
+    const lines = [
+      { dag_id: "my_dag", event: "starting", ti_id: "abc-123" },
+      ...Array.from({ length: maxContextSearchRecords }, () => "plain line"),
+      { dag_tags: ["team:a"], event: "too late" },
+    ];
+
+    expect(extractTIContext(lines as never)).toEqual({ dag_id: "my_dag", ti_id: "abc-123" });
   });
 });
 

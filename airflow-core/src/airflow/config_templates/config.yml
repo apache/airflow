@@ -1008,6 +1008,16 @@ logging:
       type: string
       default: "filename,lineno"
       example: ~
+    dag_tags_in_logs:
+      description: |
+        Set to ``True`` to include the Dag's tags, sorted, in a ``dag_tags`` structured field on task
+        logs, e.g. ``dag_tags=["env:prod", "team:a"]``. Only lines logged by the task process after
+        the Dag is parsed carry the field; lines the supervisor writes to the task log (forwarded
+        stdout/stderr, and messages such as the process being killed or exiting abnormally) do not.
+      version_added: 3.5.0
+      type: boolean
+      example: ~
+      default: "False"
     simple_log_format:
       description: |
         Defines the format of log messages for simple logging configuration
