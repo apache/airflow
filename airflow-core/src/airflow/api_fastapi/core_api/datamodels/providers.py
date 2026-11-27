@@ -201,6 +201,7 @@ class ProviderInfoResponse(BaseModel):
     notifications: list[str] | None = None
     executors: list[str] | None = None
     db_managers: list[str] | None = Field(None, validation_alias="db-managers")
+    db_cleanup_tables: list[str] | None = Field(None, validation_alias="db-cleanup-tables")
     cli: list[str] | None = None
     config: dict[str, ProviderConfigSectionInfo] | None = None
     task_decorators: list[ProviderTaskDecoratorInfo] | None = Field(None, validation_alias="task-decorators")
