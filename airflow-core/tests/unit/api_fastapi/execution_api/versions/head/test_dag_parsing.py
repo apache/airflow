@@ -2064,11 +2064,13 @@ def test_undecodable_callback_is_released_and_retried_after_a_cooldown(
     assert (broken.processor_job_id, broken.processor_claim_id) == (None, None)
     assert broken.decode_retry_after == timezone.utcnow() + UNDECODABLE_CALLBACK_RETRY_INTERVAL
     assert client.post(url, json=claim).json() == []
+    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
     second = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 2})
     assert [item["id"] for item in second.json()] == [str(healthy.id)]
 
     # After the cooldown, a server that can decode the row delivers it to the same live Job.
     broken.data = stored
+    session.add(DagProcessorCallback(priority_weight=100, callback=request))
     session.commit()
     time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
     third = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 3})
@@ -2076,6 +2078,27 @@ def test_undecodable_callback_is_released_and_retried_after_a_cooldown(
     assert [(item["id"], item["callback"]) for item in third.json()] == [
         (str(broken.id), request.model_dump(mode="json"))
     ]
+
+
+def test_defer_callback_preserves_row_and_fences_late_retries(
+    client, session, job, create_requested_work, time_machine
+):
+    row = create_requested_work("callbacks")
+    base = f"/execution/jobs/{job.id}/requested-work/callbacks"
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+    assert client.post(f"{base}/claim", json=claim).json()[0]["id"] == str(row.id)
+    url = f"{base}/{row.id}/defer"
+    body = {"claim_id": claim["claim_id"]}
+    assert client.post(url, json=body).status_code == 204
+    session.refresh(row)
+    assert (row.processor_job_id, row.processor_claim_id) == (None, None)
+    assert client.post(f"{base}/claim", json=claim).json() == []
+    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
+    replacement = {**claim, "claim_id": str(uuid7()), "claim_sequence": 2}
+    assert client.post(f"{base}/claim", json=replacement).json()[0]["id"] == str(row.id)
+    assert client.post(url, json=body).status_code == 409
+    session.refresh(row)
+    assert str(row.processor_claim_id) == replacement["claim_id"]
 
 
 def test_callback_claim_openapi_exposes_nested_request_models(client):

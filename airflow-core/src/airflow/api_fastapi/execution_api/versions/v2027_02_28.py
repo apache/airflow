@@ -53,6 +53,7 @@ class AddDagProcessorJobEndpoints(VersionChange):
         endpoint("/jobs/{job_id}/bundles/{bundle_name:path}/inventory", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/requested-work/{kind}/claim", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/requested-work/{kind}/{work_id}/ack", ["POST"]).didnt_exist,
+        endpoint("/jobs/{job_id}/requested-work/callbacks/{work_id}/defer", ["POST"]).didnt_exist,
     )
 
 

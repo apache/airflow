@@ -82,6 +82,7 @@ NON_DEFAULT_TOKEN_POLICY: dict[str, set[str]] = {
     "POST /jobs/{job_id}/bundles/{bundle_name:path}/inventory": {"dag_processor"},
     "POST /jobs/{job_id}/requested-work/{kind}/claim": {"dag_processor"},
     "POST /jobs/{job_id}/requested-work/{kind}/{work_id}/ack": {"dag_processor"},
+    "POST /jobs/{job_id}/requested-work/callbacks/{work_id}/defer": {"dag_processor"},
 }
 
 # Routes that check the Job of a dag_processor token themselves instead of requiring it to be open.
@@ -97,6 +98,7 @@ DAG_PROCESSOR_LIFECYCLE_ROUTES = {
     "POST /jobs/{job_id}/bundles/{bundle_name:path}/inventory",
     "POST /jobs/{job_id}/requested-work/{kind}/claim",
     "POST /jobs/{job_id}/requested-work/{kind}/{work_id}/ack",
+    "POST /jobs/{job_id}/requested-work/callbacks/{work_id}/defer",
 }
 
 # Every message a Dag file parsing process can send its supervisor, mapped to the Execution API

@@ -43,6 +43,18 @@ def get_decodable_callback_filter() -> ColumnElement[bool]:
     return or_(retry_after.is_(None), retry_after <= timezone.utcnow())
 
 
+def get_callback_retry_order(sequence: int) -> ColumnElement[bool]:
+    """Alternate fresh callbacks and due retries even when there is only one claim slot."""
+    retry = DagProcessorCallback.decode_retry_after
+    return retry.is_(None) if sequence % 2 else retry.is_not(None)
+
+
+def defer_callback(work: DagProcessorCallback) -> None:
+    work.processor_job_id = None
+    work.processor_claim_id = None
+    work.decode_retry_after = timezone.utcnow() + UNDECODABLE_CALLBACK_RETRY_INTERVAL
+
+
 def get_available_work_filter(processor_job_id: SQLColumnExpression[int | None]) -> ColumnElement[bool]:
     """Select unowned work or work whose owning Job has ended."""
     # Correlate by owner so polling an empty queue never materializes the entire Job history.
@@ -51,7 +63,12 @@ def get_available_work_filter(processor_job_id: SQLColumnExpression[int | None])
 
 
 def prepare_callback_source_filter(
-    bundle_names: Collection[str], pinned_only: Collection[str], *, limit: int, session: Session
+    bundle_names: Collection[str],
+    pinned_only: Collection[str],
+    *,
+    limit: int,
+    session: Session,
+    sequence: int = 0,
 ) -> ColumnElement[bool]:
     """Select runnable callbacks before applying the queue limit, including rows from older writers."""
     model = DagProcessorCallback
@@ -66,16 +83,17 @@ def prepare_callback_source_filter(
         .where(
             model.bundle_name.in_(restricted),
             model.is_version_pinned.is_(None),
+            get_decodable_callback_filter(),
             get_available_work_filter(model.processor_job_id),
         )
-        .order_by(model.id)
+        .order_by(get_callback_retry_order(sequence), model.decode_retry_after, model.id)
         .limit(limit)
     )
     for row in session.scalars(with_row_locks(legacy, session=session, skip_locked=True)):
         try:
             row.is_version_pinned = row.get_callback_request().bundle_version is not None
         except UndecodableCallbackError:
-            row.is_version_pinned = False
+            defer_callback(row)
     session.flush()
     return or_(
         model.bundle_name.in_(set(bundle_names) - restricted),

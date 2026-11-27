@@ -21,7 +21,11 @@ import pytest
 from sqlalchemy import select, text
 
 from airflow.callbacks.callback_requests import DagCallbackRequest
-from airflow.dag_processing.claims import get_available_work_filter, prepare_callback_source_filter
+from airflow.dag_processing.claims import (
+    UNDECODABLE_CALLBACK_RETRY_INTERVAL,
+    get_available_work_filter,
+    prepare_callback_source_filter,
+)
 from airflow.models.callback import DagProcessorCallback
 from airflow.models.dagbag import DagPriorityParsingRequest
 
@@ -40,7 +44,9 @@ def test_available_work_looks_up_owner_without_scanning_job_history(session, mod
     assert not any("SCAN job" in plan for plan in plans), plans
 
 
-def test_pinned_routing_classifies_legacy_rows_in_bounded_batches(session):
+def test_pinned_routing_classifies_legacy_rows_in_bounded_batches(session, time_machine):
+    time_machine.move_to("2026-11-27", tick=False)
+
     def add(bundle, version):
         callback = DagProcessorCallback(
             priority_weight=1,
@@ -54,6 +60,7 @@ def test_pinned_routing_classifies_legacy_rows_in_bounded_batches(session):
 
     live = add("paused", None)
     damaged = add("paused", "damaged")
+    original = damaged.data
     damaged.data = {"req_class": "unknown"}
     pinned = add("paused", "")
     healthy = add("healthy", None)
@@ -67,10 +74,21 @@ def test_pinned_routing_classifies_legacy_rows_in_bounded_batches(session):
         )
         return set(session.scalars(select(DagProcessorCallback.id).where(predicate)))
 
-    for classified_count in range(1, 4):
+    for inspected_count in range(1, 4):
         eligible = eligible_rows()
         assert healthy.id in eligible
         assert {live.id, damaged.id}.isdisjoint(eligible)
-        assert sum(row.is_version_pinned is not None for row in (live, damaged, pinned)) == classified_count
+        assert (
+            sum(
+                row.is_version_pinned is not None or row.decode_retry_after is not None
+                for row in (live, damaged, pinned)
+            )
+            == inspected_count
+        )
     assert eligible == {pinned.id, healthy.id}
     assert healthy.is_version_pinned is None
+    assert damaged.is_version_pinned is None
+    damaged.data = original
+    assert damaged.id not in eligible_rows()
+    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
+    assert damaged.id in eligible_rows()
