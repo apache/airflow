@@ -95,3 +95,4 @@ def test_context_without_finished_tis_indexes_the_list_each_copy_fetches(dag_mak
     session.flush()
 
     assert tis["downstream_2"].are_dependencies_met(dep_context=dep_context, session=session)
+    assert "upstream_2" in dep_context.finished_tis_index.by_task_id
