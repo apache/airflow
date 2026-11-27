@@ -52,6 +52,15 @@ describe("ButtonGroupToggle", () => {
     expect(onChange).toHaveBeenCalledWith("active");
   });
 
+  it("exposes the selected option to assistive tech", () => {
+    render(<ButtonGroupToggle onChange={vi.fn()} options={options} value="active" />, {
+      wrapper: BaseWrapper,
+    });
+
+    expect(screen.getByText("Active")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("All")).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("renders disabled options", () => {
     const optionsWithDisabled = [
       { label: "All", value: "all" },
