@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import shutil
 import stat
 import sys
 from pathlib import Path
@@ -363,6 +364,37 @@ class TestRunSkillScript:
         )
 
         assert output == "hi --a"
+
+    @pytest.mark.parametrize(
+        ("suffix", "interpreter"),
+        [
+            pytest.param(".sh", "sh", id="sh"),
+            pytest.param(".bash", "bash", id="bash"),
+            pytest.param(".zsh", "zsh", id="zsh"),
+        ],
+    )
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs a POSIX shell")
+    @pytest.mark.asyncio
+    async def test_a_script_suffix_picks_its_interpreter(self, skill_dir, suffix, interpreter):
+        if shutil.which(interpreter) is None:
+            pytest.skip(f"{interpreter} is not installed")
+        self.write_script(skill_dir, f"scripts/hi{suffix}", "echo hello\n")
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script=f"scripts/hi{suffix}"
+        )
+
+        assert output == "hello"
+
+    @pytest.mark.parametrize("suffix", [".ps1", ".bat", ".cmd", ".fish"])
+    @pytest.mark.asyncio
+    async def test_a_suffix_that_cannot_run_on_posix_is_not_a_script(self, skill_dir, suffix):
+        self.write_script(skill_dir, f"scripts/tool{suffix}", "echo x\n")
+
+        with pytest.raises(ModelRetry, match="not a runnable script"):
+            await call(
+                make_toolset(skill_dir), "run_skill_script", skill_name="demo", script=f"scripts/tool{suffix}"
+            )
 
     @pytest.mark.asyncio
     async def test_an_executable_with_an_unresolvable_shebang_is_reported(self, skill_dir):

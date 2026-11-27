@@ -59,15 +59,12 @@ _SCRIPT_TIMEOUT_SECONDS = 30.0
 _REAP_TIMEOUT_SECONDS = 2.0
 _MAX_SCRIPT_OUTPUT_BYTES = 50_000
 _SCRIPT_PARENTS = frozenset({".", "scripts"})
-_SCRIPT_SUFFIXES = frozenset({".py", ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd"})
+_SCRIPT_SUFFIXES = frozenset({".py", ".sh", ".bash", ".zsh"})
 _IGNORED_SCRIPT_NAMES = frozenset({"__init__.py", "SKILL.md"})
 _SHELL_INTERPRETERS: dict[str, list[str]] = {
     ".sh": ["sh"],
     ".bash": ["bash"],
     ".zsh": ["zsh"],
-    ".fish": ["fish"],
-    ".bat": ["cmd", "/c"],
-    ".cmd": ["cmd", "/c"],
 }
 
 
