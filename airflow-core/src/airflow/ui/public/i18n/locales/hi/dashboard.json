@@ -54,6 +54,7 @@
   },
   "history": "इतिहास",
   "importErrors": {
+    "bundle": "बंडल",
     "dagImportError_one": "डैग आयात त्रुटि",
     "dagImportError_other": "डैग आयात त्रुटियां",
     "searchByFile": "फ़ाइल द्वारा खोजें",
