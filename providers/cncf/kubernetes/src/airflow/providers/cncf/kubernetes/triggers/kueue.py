@@ -145,15 +145,17 @@ def list_job_pods(client: CoreV1Api, namespace: str, label_selector: str, job_ui
 
 @generic_api_retry
 def is_pod_deleted(client: CoreV1Api, pod: k8s.V1Pod) -> bool:
-    """Return whether the pod no longer exists."""
+    """Return whether the pod no longer exists or is being deleted, e.g. gracefully by a preemption."""
     metadata = cast("k8s.V1ObjectMeta", pod.metadata)
     try:
-        client.read_namespaced_pod(name=cast("str", metadata.name), namespace=cast("str", metadata.namespace))
+        pod = client.read_namespaced_pod(
+            name=cast("str", metadata.name), namespace=cast("str", metadata.namespace)
+        )
     except ApiException as e:
         if e.status == 404:
             return True
         raise
-    return False
+    return cast("k8s.V1ObjectMeta", pod.metadata).deletion_timestamp is not None
 
 
 def collect_xcom_results(
@@ -185,8 +187,8 @@ def collect_xcom_results(
             pod_manager.log.warning("Cannot read the XCom of the pod %s: %s", pod.metadata.name, e)
         except ApiException as e:
             # Skip a pod deleted meanwhile, e.g. by a preemption: kubernetes.stream reports any failed
-            # exec with status 0, so check that the pod is gone. Raise other failures, such as a
-            # forbidden exec: skipped, the sidecar would keep the Job running forever.
+            # exec with status 0, so check that the pod is gone or terminating. Raise other failures,
+            # such as a forbidden exec: skipped, the sidecar would keep the Job running forever.
             if e.status != 404 and not (e.status == 0 and is_pod_deleted(client, pod)):
                 raise
             pod_manager.log.warning("The pod %s was deleted before its XCom was read", pod.metadata.name)
