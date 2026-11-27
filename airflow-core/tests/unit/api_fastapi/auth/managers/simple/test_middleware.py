@@ -32,7 +32,7 @@ def all_access_test_client():
     with conf_vars(
         {
             ("core", "simple_auth_manager_all_admins"): "true",
-            ("webserver", "expose_config"): "true",
+            ("api", "expose_config"): "true",
         }
     ):
         app = create_app()
