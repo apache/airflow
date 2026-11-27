@@ -65,7 +65,7 @@ class TestLogin:
 
     @patch("airflow.providers.fab.auth_manager.api_fastapi.routes.login.get_fab_auth_manager", autospec=True)
     def test_logout(self, mock_get_fab_auth_manager, test_client):
-        mock_get_fab_auth_manager.return_value.apiserver_endpoint = "/"
+        mock_get_fab_auth_manager.return_value.get_url_logout.return_value = "/auth/logout"
         response = test_client.get("/logout", follow_redirects=False)
         assert response.status_code == 307
         assert response.headers["location"] == "/auth/logout/"
@@ -79,7 +79,7 @@ class TestLogin:
     )
     def test_logout_cookie_uses_subpath(self, mock_cookie_path, mock_get_fab_auth_manager, test_client):
         """Cookies on logout must be scoped to the configured subpath."""
-        mock_get_fab_auth_manager.return_value.apiserver_endpoint = "/"
+        mock_get_fab_auth_manager.return_value.get_url_logout.return_value = "/auth/logout"
         response = test_client.get("/logout", follow_redirects=False)
         assert response.status_code == 307
         cookies = response.headers.get_list("set-cookie")

@@ -20,12 +20,11 @@ import logging
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import Any
-from urllib.parse import urljoin
 
 from fastapi import Body, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 
-from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, get_auth_manager
+from airflow.api_fastapi.app import get_auth_manager
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.api_fastapi.core_api.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.providers.common.compat.sdk import conf
