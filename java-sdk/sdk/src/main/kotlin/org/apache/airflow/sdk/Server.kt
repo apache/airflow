@@ -20,9 +20,6 @@
 package org.apache.airflow.sdk
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.xenomachina.argparser.ArgParser
-import com.xenomachina.argparser.MissingValueException
-import com.xenomachina.argparser.default
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.network.sockets.aSocket
@@ -64,25 +61,64 @@ internal fun sendQueuedLogs(
   if (written) runBlocking { withTimeoutOrNull(timeout.toMillis()) { closed.join() } }
 }
 
-private class Args(
-  parser: ArgParser,
-) {
-  private fun parseAddress(address: String): InetSocketAddress =
-    InetSocketAddress(
-      address.substringBeforeLast(':'),
-      address.substringAfterLast(':').toInt(),
-    )
+private data class ServerArgs(
+  val comm: InetSocketAddress?,
+  val logs: InetSocketAddress?,
+  val describeSources: File?,
+)
 
-  val comm by parser
-    .storing("--comm", help = "Address (host:port) to communicate with parent") { parseAddress(this) }
-    .default(null)
-  val logs by parser
-    .storing("--logs", help = "Address (host:port) to send Airflow logs to") { parseAddress(this) }
-    .default(null)
-  val describeSources by parser
-    .storing("--describe-sources", help = "File to write each Dag's declaring class to, instead of serving") {
-      File(this)
-    }.default(null)
+private fun parseServerArgs(arguments: Array<String>): ServerArgs {
+  var comm: InetSocketAddress? = null
+  var logs: InetSocketAddress? = null
+  var describeSources: File? = null
+  var index = 0
+
+  while (index < arguments.size) {
+    val argument = arguments[index]
+    val separator = argument.indexOf('=')
+    val option = if (separator < 0) argument else argument.substring(0, separator)
+    if (option != "--comm" && option != "--logs" && option != "--describe-sources") {
+      throw IllegalArgumentException("Unknown argument: $option")
+    }
+
+    val value =
+      if (separator >= 0) {
+        argument.substring(separator + 1)
+      } else {
+        val next = arguments.getOrNull(index + 1)
+        if (next == null || next.startsWith("--")) {
+          throw IllegalArgumentException("Missing value for $option")
+        }
+        index++
+        next
+      }
+
+    when (option) {
+      "--comm" -> comm = parseAddress(option, value)
+      "--logs" -> logs = parseAddress(option, value)
+      "--describe-sources" -> {
+        if (value.isEmpty()) throw IllegalArgumentException("Missing value for $option")
+        describeSources = File(value)
+      }
+    }
+    index++
+  }
+
+  return ServerArgs(comm, logs, describeSources)
+}
+
+private fun parseAddress(
+  option: String,
+  address: String,
+): InetSocketAddress {
+  val separator = address.lastIndexOf(':')
+  if (separator <= 0 || separator == address.lastIndex) {
+    throw IllegalArgumentException("$option must use host:port")
+  }
+  val port =
+    address.substring(separator + 1).toIntOrNull() ?: throw IllegalArgumentException("$option port must be numeric")
+  if (port !in 0..65535) throw IllegalArgumentException("$option port must be between 0 and 65535")
+  return InetSocketAddress(address.substring(0, separator), port)
 }
 
 /**
@@ -172,11 +208,11 @@ sealed class Server {
      */
     @JvmStatic
     fun create(args: Array<String>): Server {
-      val args = ArgParser(args).parseInto(::Args)
-      args.describeSources?.let { return SourceDescriber(it) }
+      val parsed = parseServerArgs(args)
+      parsed.describeSources?.let { return SourceDescriber(it) }
       return CoordinatorServer(
-        args.comm ?: throw MissingValueException("--comm"),
-        args.logs ?: throw MissingValueException("--logs"),
+        parsed.comm ?: throw IllegalArgumentException("Missing required argument: --comm"),
+        parsed.logs ?: throw IllegalArgumentException("Missing required argument: --logs"),
       )
     }
   }
