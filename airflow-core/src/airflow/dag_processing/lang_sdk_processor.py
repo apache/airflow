@@ -431,6 +431,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             DagSerialization.fill_config_defaults(dag.data)
             try:
                 deserialized = DagSerialization.validate_serialized_dag(dag.data)
+                deserialized.timetable.validate()
                 self._apply_team_rules(dag.data, deserialized)
                 normalize_loops(dag.data, deserialized)
             except DeserializationError as e:
