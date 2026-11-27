@@ -68,9 +68,9 @@ class AllLambdaConfigKeys(InvokeLambdaKwargsConfigKeys):
 
 
 if AIRFLOW_V_3_3_PLUS:
-    from airflow.executors.workloads import ExecuteCallback, ExecuteTask
+    from airflow.executors.workloads import ExecuteCallback, ExecuteTask, TestConnection
 
-    CommandType: TypeAlias = Sequence[str] | Sequence[ExecuteTask | ExecuteCallback]
+    CommandType: TypeAlias = Sequence[str] | Sequence[ExecuteTask | ExecuteCallback | TestConnection]
 else:
     CommandType: TypeAlias = Sequence[str]  # type: ignore[no-redef, misc]
 

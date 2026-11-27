@@ -54,7 +54,9 @@ from airflow.utils.helpers import prune_dict
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
-    _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+    _SUPPORTED_WORKLOAD_TYPES = frozenset(
+        {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK, WorkloadType.TEST_CONNECTION}
+    )
 
 if hasattr(BaseExecutor, "get_task_key"):
     from airflow.executors.workloads.types import TaskInstanceUuid
@@ -90,6 +92,7 @@ class AwsLambdaExecutor(BaseExecutor):
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
     elif AIRFLOW_V_3_3_PLUS:
         supports_callbacks: bool = True
+        supports_connection_test: bool = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -299,6 +302,18 @@ class AwsLambdaExecutor(BaseExecutor):
                 self.running.add(key)
                 continue
 
+            if AIRFLOW_V_3_3_PLUS and isinstance(workload, workloads.TestConnection):
+                key = workload.key
+
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.TEST_CONNECTION][key]
+                else:
+                    del self.queued_connection_tests[key]  # type: ignore[attr-defined]
+
+                self.execute_async(key=key, command=[workload], queue=workload.queue)
+                self.running.add(key)
+                continue
+
             raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
 
     def execute_async(
@@ -322,7 +337,9 @@ class AwsLambdaExecutor(BaseExecutor):
             workload = command[0]
 
             if AIRFLOW_V_3_3_PLUS:
-                if not isinstance(workload, (workloads.ExecuteTask, workloads.ExecuteCallback)):
+                if not isinstance(
+                    workload, (workloads.ExecuteTask, workloads.ExecuteCallback, workloads.TestConnection)
+                ):
                     raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
             else:
                 if not isinstance(workload, workloads.ExecuteTask):
