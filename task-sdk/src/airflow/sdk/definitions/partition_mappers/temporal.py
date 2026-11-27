@@ -204,6 +204,13 @@ class FanOutMapper(PartitionMapper):
         same default. Subclasses can extend or override the defaults by
         setting :attr:`default_downstream_mapper_by_window_name` on the subclass.
         """
+        # The defaults assume the window's built-in unit; a custom step would collapse
+        # several members onto one downstream key.
+        if getattr(window, "step", None) is not None:
+            raise ValueError(
+                f"{cls.__name__} has no default downstream_mapper for a {type(window).__name__} "
+                "with a custom step; pass downstream_mapper explicitly."
+            )
         mapper_cls = cls.default_downstream_mapper_by_window_name.get(type(window).__name__)
         if mapper_cls is None:
             raise ValueError(

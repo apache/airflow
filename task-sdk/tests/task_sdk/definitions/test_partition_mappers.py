@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import ClassVar
 
 import pytest
@@ -24,7 +24,7 @@ import pytest
 from airflow.sdk.definitions.partition_mappers.base import PartitionMapper, RollupMapper
 from airflow.sdk.definitions.partition_mappers.fixed_key import FixedKeyMapper
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
-from airflow.sdk.definitions.partition_mappers.temporal import StartOfDayMapper
+from airflow.sdk.definitions.partition_mappers.temporal import FanOutMapper, StartOfDayMapper
 from airflow.sdk.definitions.partition_mappers.window import (
     DayWindow,
     HourWindow,
@@ -236,3 +236,44 @@ class TestSdkCategoricalRollupGuard:
         else:
             with pytest.raises(TypeError, match=match):
                 RollupMapper(upstream_mapper=upstream_mapper_factory(), window=window_factory())
+
+
+class TestSdkWindowStep:
+    """SDK-side step validation and serialization mirror the core ``Window``."""
+
+    @pytest.mark.parametrize(
+        ("window_cls", "step", "error", "match"),
+        [
+            pytest.param(HourWindow, timedelta(minutes=7), ValueError, "divide its period", id="not-divisor"),
+            pytest.param(HourWindow, timedelta(0), ValueError, "positive whole number", id="zero"),
+            pytest.param(
+                HourWindow, timedelta(milliseconds=500), ValueError, "positive whole number", id="sub-second"
+            ),
+            pytest.param(HourWindow, 300, TypeError, "must be a timedelta", id="int"),
+            pytest.param(MonthWindow, timedelta(days=1), TypeError, "does not support 'step'", id="month"),
+        ],
+    )
+    def test_invalid_step_raises(self, window_cls, step, error, match):
+        with pytest.raises(error, match=match):
+            window_cls(step=step)
+
+    @pytest.mark.parametrize(
+        ("window", "expected"),
+        [
+            pytest.param(HourWindow(), {"direction": "forward"}, id="unset"),
+            pytest.param(
+                DayWindow(step=timedelta(minutes=5)), {"direction": "forward", "step": 300}, id="five-minutes"
+            ),
+        ],
+    )
+    def test_serialize(self, window, expected):
+        assert window.serialize() == expected
+
+    def test_deserialize_restores_step(self):
+        restored = WeekWindow.deserialize({"direction": "backward", "step": 21600})
+        assert restored.step == timedelta(hours=6)
+        assert restored.direction is Window.Direction.BACKWARD
+
+    def test_fan_out_with_step_requires_explicit_downstream_mapper(self):
+        with pytest.raises(ValueError, match="custom step"):
+            FanOutMapper(upstream_mapper=StartOfDayMapper(), window=DayWindow(step=timedelta(hours=6)))
