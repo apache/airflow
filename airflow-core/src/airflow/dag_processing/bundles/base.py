@@ -33,7 +33,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pendulum
-from pendulum.parsing import ParserError
 
 from airflow.configuration import conf
 
@@ -100,7 +99,7 @@ class BundleUsageTrackingManager:
         try:
             dt = pendulum.parse(val)
             return dt if isinstance(dt, pendulum.DateTime) else None
-        except ParserError:
+        except ValueError:
             return None
 
     @staticmethod
