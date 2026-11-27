@@ -208,7 +208,7 @@ class TestS3KeysUnchangedTrigger:
             "verify": None,
             "region_name": None,
             "botocore_config": None,
-            "polling_period_seconds": 0,
+            "polling_period_seconds": 60,
         }
 
     @pytest.mark.asyncio
@@ -223,6 +223,20 @@ class TestS3KeysUnchangedTrigger:
 
             assert task.done() is True
             asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.triggers.s3.asyncio.sleep", new_callable=async_mock.AsyncMock
+    )
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async")
+    async def test_run_waits_between_checks(self, mock_is_keys_unchanged, mock_client, mock_sleep):
+        """The trigger sleeps for ``polling_period_seconds`` between two checks of the bucket."""
+        mock_is_keys_unchanged.side_effect = [{"status": "pending"}, {"status": "success"}]
+        trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test", polling_period_seconds=7)
+        actual = [event async for event in trigger.run()]
+        assert actual == [TriggerEvent({"status": "success"})]
+        mock_sleep.assert_awaited_once_with(7)
 
     def test_run_raise_value_error(self):
         """
