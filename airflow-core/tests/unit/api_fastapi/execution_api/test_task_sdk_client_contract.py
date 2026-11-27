@@ -324,15 +324,18 @@ def _find_methods_handling_server_errors() -> set[str]:
     tree = ast.parse(Path(client_module.__file__).read_text())
     classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
     properties = {
-        node.returns.id: node.name
+        node.name: stmt.value.func.id
         for node in classes["Client"].body
         if isinstance(node, ast.FunctionDef)
-        and isinstance(node.returns, ast.Name)
-        and node.returns.id.endswith("Operations")
+        for stmt in node.body
+        if isinstance(stmt, ast.Return)
+        and isinstance(stmt.value, ast.Call)
+        and isinstance(stmt.value.func, ast.Name)
+        and stmt.value.func.id.endswith("Operations")
     }
     return {
         f"{prop}.{method.name}"
-        for cls_name, prop in properties.items()
+        for prop, cls_name in properties.items()
         for method in classes[cls_name].body
         if isinstance(method, ast.FunctionDef)
         and any(
