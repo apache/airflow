@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from datetime import UTC, datetime
 from functools import cached_property
 from pathlib import Path
@@ -24,6 +25,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
@@ -60,7 +62,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
-    :param success_run_history_limit: Number of past successful runs of the application to keep.
+    :param success_run_history_limit: (deprecated) Number of past successful runs of the application
+        to keep. This parameter has no effect because ``successfulRunHistoryLimit`` is only supported
+        on ``ScheduledSparkApplication`` resources, not ``SparkApplication``.
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor.
@@ -91,7 +95,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         template_spec=None,
         get_logs: bool = True,
         do_xcom_push: bool = False,
-        success_run_history_limit: int = 1,
+        success_run_history_limit: int | None = None,
         startup_timeout_seconds=600,
         log_events_on_failure: bool = False,
         reattach_on_restart: bool = True,
@@ -113,7 +117,17 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.namespace: str = namespace
         self.get_logs = get_logs
         self.log_events_on_failure = log_events_on_failure
-        self.success_run_history_limit = success_run_history_limit
+        if success_run_history_limit is not None:
+            warnings.warn(
+                "`success_run_history_limit` is deprecated and will be removed in a future release. "
+                "It has no effect because `successfulRunHistoryLimit` is only supported on "
+                "`ScheduledSparkApplication`, not `SparkApplication`.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.success_run_history_limit = success_run_history_limit
+        else:
+            self.success_run_history_limit = 1
         self.random_name_suffix = random_name_suffix
 
         # fix mypy typing

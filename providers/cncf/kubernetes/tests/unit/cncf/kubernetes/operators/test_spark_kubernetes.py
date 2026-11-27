@@ -33,6 +33,7 @@ import yaml
 from kubernetes.client import models as k8s
 
 from airflow import DAG
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection, DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN
@@ -1630,3 +1631,19 @@ class TestSparkKubernetesLifecycle:
             app_name_envs = [e for e in env if e["name"] == "SPARK_APPLICATION_NAME"]
             assert len(app_name_envs) == 1  # not duplicated
             assert app_name_envs[0]["value"] == "user-defined"
+
+    def test_success_run_history_limit_deprecated_warning(self):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="`success_run_history_limit` is deprecated",
+        ):
+            op = SparkKubernetesOperator(
+                task_id="test_task",
+                success_run_history_limit=5,
+            )
+        assert op.success_run_history_limit == 5
+
+    def test_success_run_history_limit_default_no_warning(self, recwarn):
+        op = SparkKubernetesOperator(task_id="test_task")
+        assert op.success_run_history_limit == 1
+        assert not [w for w in recwarn if issubclass(w.category, AirflowProviderDeprecationWarning)]
