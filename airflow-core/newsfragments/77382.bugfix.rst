@@ -1,0 +1,1 @@
+Keep servicing parser processes and collecting their results between individual Dag bundle refreshes in the Dag processor, so a slow refresh of many bundles no longer stalls parsing.

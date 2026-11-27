@@ -689,6 +689,33 @@ class TestDagFileProcessorManager:
         assert len(import_errors) == 1
         assert import_errors[0].filename == "test_zip.zip/broken_dag.py"
 
+    def test_refresh_dag_bundles_services_parsers_between_bundles(self, tmp_path, configure_dag_bundles):
+        paths = {}
+        for name in ("bundleone", "bundletwo"):
+            paths[name] = tmp_path / name
+            paths[name].mkdir()
+            (paths[name] / "test_dag.py").write_text("from airflow.sdk import DAG\n")
+
+        with configure_dag_bundles(paths):
+            DagBundlesManager().sync_bundles_to_db()
+            manager = DagFileProcessorManager(max_runs=1)
+            manager._dag_bundles = list(DagBundlesManager().get_all_dag_bundles())
+            events: list[str] = []
+            for bundle in manager._dag_bundles:
+                original = bundle.refresh
+                bundle.refresh = lambda b=bundle, o=original: (events.append(f"refresh:{b.name}"), o())[1]
+            with (
+                mock.patch.object(manager, "_service_processor_sockets"),
+                mock.patch.object(manager, "_collect_results", side_effect=lambda: events.append("collect")),
+            ):
+                manager._refresh_dag_bundles({})
+
+        assert events[:3] == [
+            f"refresh:{manager._dag_bundles[0].name}",
+            "collect",
+            f"refresh:{manager._dag_bundles[1].name}",
+        ]
+
     def test_refresh_dag_bundles_calls_legacy_deactivate_deleted_dags_override(
         self, tmp_path, configure_dag_bundles
     ):
@@ -7292,6 +7319,7 @@ class TestDagFileProcessorManagerWithAPIClient:
         assert self._get_connection_bundles(api_requests) == ["bundle_b"]
 
 
+@mock.patch.object(DagFileProcessorManager, "_service_processor_sockets", autospec=True)
 @mock.patch.object(
     DagFileProcessorManager,
     "_find_files_in_bundle",
@@ -7299,7 +7327,7 @@ class TestDagFileProcessorManagerWithAPIClient:
     return_value=DagBundleDiscoveryResult(files=set()),
 )
 @conf_vars({("core", "multi_team"): "True"})
-def test_refresh_reads_one_fresh_catalog_per_pass(find_files, tmp_path):
+def test_refresh_reads_one_fresh_catalog_per_pass(find_files, _sockets, tmp_path):
     client = mock.create_autospec(DagProcessorAPIClient, instance=True)
     manager = DagFileProcessorManager(max_runs=1, api_client=client, bundle_refresh_check_interval=0)
     states = []
@@ -7353,9 +7381,10 @@ def test_refresh_reads_one_fresh_catalog_per_pass(find_files, tmp_path):
 @pytest.mark.parametrize("catalog_failed", [False, True])
 @pytest.mark.parametrize("has_pending_inventory", [False, True])
 @mock.patch("airflow.dag_processing.manager.time", autospec=True)
+@mock.patch.object(DagFileProcessorManager, "_service_processor_sockets", autospec=True)
 @mock.patch.object(DagFileProcessorManager, "_find_files_in_bundle", autospec=True)
 def test_catalog_omission_releases_source_and_allows_recovery(
-    find_files, clock, catalog_failed, has_pending_inventory, tmp_path
+    find_files, _sockets, clock, catalog_failed, has_pending_inventory, tmp_path
 ):
     clock.monotonic.return_value = 100
     (tmp_path / "a.py").touch()
