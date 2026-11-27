@@ -784,6 +784,34 @@ class TestRunSkillScript:
 
     @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
     @pytest.mark.asyncio
+    async def test_cancelling_the_call_closes_the_pipe_a_process_that_left_the_group_holds(self, skill_dir):
+        ready = skill_dir / "leader-ready"
+        # The child floods the pipe after 1.5 s and ends itself on EPIPE (or its 20 s alarm), so none outlives the test.
+        script = self.escaping_script(skill_dir, delay=1.5) + (
+            f"import pathlib, time\npathlib.Path({str(ready)!r}).write_text('x')\ntime.sleep(30)\n"
+        )
+        self.write_script(skill_dir, "scripts/spawn.py", script)
+        task = asyncio.create_task(
+            call(make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.py")
+        )
+        for _ in range(100):
+            if ready.exists():
+                break
+            await asyncio.sleep(0.05)
+        assert ready.exists()
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        for _ in range(100):
+            if (skill_dir / "pipe-closed").exists():
+                break
+            await asyncio.sleep(0.05)
+
+        assert (skill_dir / "pipe-closed").exists()
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
     async def test_the_output_kept_at_a_timeout_is_cut_at_the_output_cap(self, skill_dir, monkeypatch):
         monkeypatch.setattr(skill_files, "_MAX_SCRIPT_OUTPUT_BYTES", 10)
         monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 0.3)
