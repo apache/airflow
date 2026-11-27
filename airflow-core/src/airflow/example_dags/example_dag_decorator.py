@@ -42,7 +42,7 @@ class GetRequestOperator(BaseOperator):
         self.url = url
 
     def execute(self, context: Context):
-        return httpx2.get(self.url).json()
+        return httpx2.get(self.url, timeout=15).json()
 
 
 @dag(
@@ -57,7 +57,12 @@ def example_dag_decorator(url: str = "https://httpbingo.org/get"):
 
     :param url: URL to get IP address from. Defaults to "https://httpbingo.org/get".
     """
-    get_ip = GetRequestOperator(task_id="get_ip", url=url)
+    get_ip = GetRequestOperator(
+        task_id="get_ip",
+        url=url,
+        retries=2,
+        retry_delay=pendulum.duration(seconds=5),
+    )
 
     @task
     def get_external_ip(raw_json: dict[str, Any]) -> str:
