@@ -166,7 +166,10 @@ def _resolve_shebang_command(script: Path) -> list[str] | None:
     interpreter = parts[0]
     resolved = interpreter if Path(interpreter).is_absolute() else shutil.which(interpreter)
     if not resolved or not Path(resolved).exists():
-        return None
+        raise ModelRetry(
+            f"{script.name!r} names the interpreter {interpreter!r} in its shebang, and the worker does not "
+            "have it. The skill needs a fix; do not retry this script."
+        )
     return [resolved, *parts[1:]]
 
 
@@ -203,6 +206,11 @@ def _build_script_args(args: Mapping[str, Any] | None) -> list[str]:
 
 
 def _kill_process(process: asyncio.subprocess.Process) -> None:
+    # The script is its own process group leader (``start_new_session``), so its pid is the group id. After the
+    # script has exited and asyncio has reaped it, the number stays reserved while any member of the group lives,
+    # and ``killpg`` hits only that group. Once the group is empty the number can be reused, and ``killpg`` then
+    # either finds nothing (``ESRCH``) or, if another group leader was given the same pid in the milliseconds since
+    # the script exited, signals that group. asyncio offers no way to signal the group before it reaps the leader.
     try:
         os.killpg(process.pid, signal.SIGKILL)
     except OSError:
@@ -299,21 +307,29 @@ async def _run_script(script: Path, cwd: Path, argv: list[str], env: Mapping[str
     except OSError as exc:
         raise ModelRetry(f"Failed to start {script.name!r}: {exc}") from None
     output = bytearray()
+    timed_out = False
     try:
-        truncated = await asyncio.wait_for(_collect_output(process, output), timeout=_SCRIPT_TIMEOUT_SECONDS)
+        async with asyncio.timeout(_SCRIPT_TIMEOUT_SECONDS):
+            await _collect_output(process, output)
     except TimeoutError:
-        await _reap_process(process)
-        note = f"Script {script.name!r} timed out after {_SCRIPT_TIMEOUT_SECONDS:g} seconds and was killed."
-        partial = _decode_output(output)
-        return f"{partial}\n{note}" if partial else note
+        # A script that exited before the deadline is not a timeout, even if the deadline came while a
+        # background child it left was still being read.
+        timed_out = process.returncode is None
     except BaseException:
         _kill_process(process)
         raise
+    # Still ``None`` when the script is running, which is when the reap below kills it.
+    exit_code = process.returncode
+    await _reap_process(process)
     text = _decode_output(output)
-    if truncated:
-        text = f"{text}\n[output truncated at {_MAX_SCRIPT_OUTPUT_BYTES} bytes and the script was killed]"
-    elif process.returncode:
-        text = f"{text}\n\nScript exited with code {process.returncode}".strip()
+    if timed_out:
+        note = f"Script {script.name!r} timed out after {_SCRIPT_TIMEOUT_SECONDS:g} seconds and was killed."
+        return f"{text}\n{note}" if text else note
+    if len(output) > _MAX_SCRIPT_OUTPUT_BYTES:
+        killed = " and the script was killed" if exit_code is None else ""
+        text = f"{text}\n[output truncated at {_MAX_SCRIPT_OUTPUT_BYTES} bytes{killed}]"
+    if exit_code:
+        text = f"{text}\n\nScript exited with code {exit_code}".strip()
     return text or "(no output)"
 
 
@@ -338,13 +354,28 @@ async def _reap_process(process: asyncio.subprocess.Process) -> None:
         await process.wait()
 
     with contextlib.suppress(TimeoutError):
-        await asyncio.wait_for(finish(), timeout=_REAP_TIMEOUT_SECONDS)
+        async with asyncio.timeout(_REAP_TIMEOUT_SECONDS):
+            await finish()
+    _close_output_pipe(process)
 
 
-async def _wait_for_exit(process: asyncio.subprocess.Process) -> int:
-    while (returncode := process.returncode) is None:  # noqa: ASYNC110
+def _close_output_pipe(process: asyncio.subprocess.Process) -> None:
+    """
+    Close our end of the output pipe, which a process that left the group can keep open.
+
+    The pipe then no longer holds a file descriptor, and that process gets ``EPIPE`` instead of blocking on a
+    pipe nobody reads. asyncio has no public handle for this, so it goes through ``Process._transport``, as
+    pydantic-ai's ``LocalWorkspaceBackend`` does. Closing an already closed pipe does nothing.
+    """
+    transport = getattr(process, "_transport", None)
+    pipe = transport.get_pipe_transport(1) if transport is not None else None
+    if pipe is not None:
+        pipe.close()
+
+
+async def _wait_for_exit(process: asyncio.subprocess.Process) -> None:
+    while process.returncode is None:  # noqa: ASYNC110
         await asyncio.sleep(_EXIT_POLL_INTERVAL_SECONDS)
-    return returncode
 
 
 async def _read_output(stream: asyncio.StreamReader | None, data: bytearray) -> None:
@@ -355,14 +386,14 @@ async def _read_output(stream: asyncio.StreamReader | None, data: bytearray) -> 
         data.extend(chunk)
 
 
-async def _collect_output(process: asyncio.subprocess.Process, data: bytearray) -> bool:
+async def _collect_output(process: asyncio.subprocess.Process, data: bytearray) -> None:
     """
-    Read the script's output into *data* up to the cap, and return whether it was cut off there.
+    Read the script's output into *data*, one byte past the cap at most.
 
     Returns once the script has exited and its output has been read for a short grace period, even if a
-    background child still holds the pipe; then kills the process group, including such a child. A script
-    that prints more than the cap is killed too. *data* is filled as the output arrives, so the caller
-    still has what was read when the timeout cancels this.
+    background child still holds the pipe, or once the output passes the cap. The caller then reaps the
+    process group. *data* is filled as the output arrives, so the caller still has what was read when the
+    timeout cancels this.
     """
     reader = asyncio.create_task(_read_output(process.stdout, data))
     exit_waiter = asyncio.create_task(_wait_for_exit(process))
@@ -380,8 +411,6 @@ async def _collect_output(process: asyncio.subprocess.Process, data: bytearray) 
         for task in (reader, exit_waiter):
             task.cancel()
         await asyncio.gather(reader, exit_waiter, return_exceptions=True)
-    await _reap_process(process)
-    return len(data) > _MAX_SCRIPT_OUTPUT_BYTES
 
 
 def build_skill_files_toolset(

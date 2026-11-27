@@ -300,6 +300,25 @@ class TestRunSkillScript:
             path.chmod(path.stat().st_mode | stat.S_IXUSR)
         return path
 
+    @staticmethod
+    def escaping_script(skill_dir: Path, *, delay: float) -> str:
+        """A script that starts a child in a new session, which holds the output pipe and floods it after *delay*."""
+        child = (
+            "import os, pathlib, signal, sys, time\n"
+            "signal.alarm(20)\n"
+            f"time.sleep({delay})\n"
+            "try:\n"
+            "    while True:\n"
+            "        os.write(1, b'x' * 65536)\n"
+            "except BrokenPipeError:\n"
+            f"    pathlib.Path({str(skill_dir / 'pipe-closed')!r}).write_text('x')\n"
+        )
+        return (
+            "import subprocess, sys\n"
+            f"subprocess.Popen([sys.executable, '-c', {child!r}], start_new_session=True)\n"
+            "print('started')\n"
+        )
+
     @pytest.mark.asyncio
     async def test_runs_a_python_script_in_the_skill_directory(self, skill_dir):
         self.write_script(
@@ -467,8 +486,26 @@ class TestRunSkillScript:
     async def test_an_executable_with_an_unresolvable_shebang_is_reported(self, skill_dir):
         self.write_script(skill_dir, "scripts/tool", "#!/nonexistent/interpreter\n", executable=True)
 
-        with pytest.raises(ModelRetry, match="Failed to start"):
+        with pytest.raises(ModelRetry, match="names the interpreter '/nonexistent/interpreter'"):
             await call(make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/tool")
+
+    @pytest.mark.asyncio
+    async def test_a_python_script_whose_shebang_interpreter_is_missing_is_not_run_by_the_worker(
+        self, skill_dir
+    ):
+        marker = skill_dir / "ran"
+        self.write_script(
+            skill_dir,
+            "scripts/tool.py",
+            f"#!/usr/bin/env python-that-does-not-exist\nimport pathlib\npathlib.Path({str(marker)!r}).write_text('x')\n",
+        )
+
+        with pytest.raises(ModelRetry, match="names the interpreter 'python-that-does-not-exist'"):
+            await call(
+                make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/tool.py"
+            )
+
+        assert not marker.exists()
 
     @pytest.mark.asyncio
     async def test_stderr_is_merged_and_a_failure_is_reported_as_text(self, skill_dir):
@@ -518,6 +555,24 @@ class TestRunSkillScript:
         )
 
         assert output == "x" * 10 + "\n[output truncated at 10 bytes and the script was killed]"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_a_script_that_exited_is_not_reported_as_killed_when_a_background_child_overflows(
+        self, skill_dir, monkeypatch
+    ):
+        monkeypatch.setattr(skill_files, "_MAX_SCRIPT_OUTPUT_BYTES", 10)
+        monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 10)
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 5.0)
+        self.write_script(
+            skill_dir, "scripts/spawn.sh", "echo started\n(sleep 0.3; echo yyyyyyyyyyyyyyyyyyyy) &\nexit 3\n"
+        )
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh"
+        )
+
+        assert output == "started\nyy\n[output truncated at 10 bytes]\n\nScript exited with code 3"
 
     @pytest.mark.asyncio
     async def test_output_of_exactly_the_cap_is_not_truncated(self, skill_dir, monkeypatch):
@@ -630,10 +685,10 @@ class TestRunSkillScript:
     async def test_a_background_child_is_killed_when_the_script_exits(self, skill_dir, monkeypatch):
         monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 0.2)
         marker = skill_dir / "survived"
-        self.write_script(skill_dir, "scripts/spawn.sh", f"echo started\n(sleep 1 && touch {marker}) &\n")
+        self.write_script(skill_dir, "scripts/spawn.sh", f"echo started\n(sleep 2 && touch {marker}) &\n")
 
         await call(make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh")
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(2.5)
 
         assert not marker.exists()
 
@@ -654,7 +709,7 @@ class TestRunSkillScript:
     async def test_output_a_background_child_prints_within_the_grace_period_is_kept(
         self, skill_dir, monkeypatch
     ):
-        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 1.0)
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 5.0)
         self.write_script(skill_dir, "scripts/spawn.sh", "echo a\n(sleep 0.1 && echo b) &\n")
 
         output = await call(
@@ -662,6 +717,70 @@ class TestRunSkillScript:
         )
 
         assert output == "a\nb"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_a_script_that_closes_its_output_and_keeps_running_still_reports_its_exit_code(
+        self, skill_dir
+    ):
+        self.write_script(skill_dir, "scripts/quiet.sh", "exec >&- 2>&-\nsleep 0.5\nexit 4\n")
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/quiet.sh"
+        )
+
+        assert output == "Script exited with code 4"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_a_script_that_exited_before_the_timeout_is_not_reported_as_timed_out(
+        self, skill_dir, monkeypatch
+    ):
+        """The timeout comes while the output of a background child is still being read."""
+        monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 0.5)
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 10)
+        self.write_script(skill_dir, "scripts/spawn.sh", "echo started\nsleep 30 &\nexit 3\n")
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh"
+        )
+
+        assert output == "started\n\nScript exited with code 3"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_a_timeout_during_the_grace_period_reaps_the_script_once(self, skill_dir, monkeypatch):
+        monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 0.6)
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 0.2)
+        monkeypatch.setattr(skill_files, "_REAP_TIMEOUT_SECONDS", 1.0)
+        self.write_script(skill_dir, "scripts/spawn.py", self.escaping_script(skill_dir, delay=5))
+        real_reap = skill_files._reap_process
+
+        with mock.patch.object(skill_files, "_reap_process", autospec=True, side_effect=real_reap) as reap:
+            output = await call(
+                make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.py"
+            )
+
+        assert output == "started"
+        reap.assert_called_once()
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_a_process_that_left_the_group_gets_a_closed_pipe(self, skill_dir, monkeypatch):
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 0.2)
+        monkeypatch.setattr(skill_files, "_REAP_TIMEOUT_SECONDS", 0.5)
+        self.write_script(skill_dir, "scripts/spawn.py", self.escaping_script(skill_dir, delay=1))
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.py"
+        )
+        for _ in range(100):
+            if (skill_dir / "pipe-closed").exists():
+                break
+            await asyncio.sleep(0.05)
+
+        assert output == "started"
+        assert (skill_dir / "pipe-closed").exists()
 
     @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
     @pytest.mark.asyncio

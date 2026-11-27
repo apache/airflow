@@ -168,7 +168,10 @@ Where it differs from ``AgentSkillsToolset``:
   file has a ``.py``, ``.sh``, ``.bash`` or ``.zsh`` suffix or is executable. It refuses
   ``SKILL.md`` and ``__init__.py``, and a script path that ``exclude_resources`` matches.
   An argument name must start with a letter and contain only letters, digits, ``-`` and ``_``;
-  the tool refuses any other name.
+  the tool refuses any other name. A script that starts with a shebang runs under the interpreter it
+  names, and if the worker does not have that interpreter the tool refuses the script with an error
+  that says so, even for a ``.py`` file. A ``.py`` file without a shebang runs under the worker's own
+  Python.
 - After the history is compacted, the model has to load a skill again before the tools accept it.
 
 Parameters
@@ -183,13 +186,15 @@ Parameters
 - ``resources``: Register ``read_skill_resource``. Default ``True``.
 - ``scripts``: ``"worker"`` registers ``run_skill_script``, which runs a script as a subprocess of
   the worker with a 30 second timeout; ``None`` registers no script tool. Default ``"worker"``.
-  A script that prints more than 50,000 bytes is killed, and the model gets the first 50,000 bytes
-  followed by a note that the output was cut off.
+  When a script prints more than 50,000 bytes, the model gets the first 50,000 bytes followed by a
+  note that the output was cut off, and the script is killed if it is still running. If it had already
+  exited and a background process printed the excess, the script's exit code is reported too.
   A script that runs past the timeout is killed, and the model gets the output it had printed so far,
   followed by a note that it timed out.
   The call returns when the script itself exits, with the script's own exit code. A process the script
   started in the background can keep printing for 2 more seconds, and then it is killed along with the
-  script's process group; a process that left the group, for example with ``setsid``, is not killed.
+  script's process group. A process that left the group, for example with ``setsid``, is not killed, but
+  the worker closes its end of the output pipe, so that process gets a broken-pipe error when it next writes.
   Running scripts in a sandbox is not supported yet, and any other value raises ``ValueError``.
 - ``inherit_env``: Names of worker environment variables a script receives, besides ``PATH``,
   ``HOME``, ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. A name is looked up on the

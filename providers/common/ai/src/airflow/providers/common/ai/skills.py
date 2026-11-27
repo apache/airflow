@@ -320,9 +320,9 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
     :param resources: Register ``read_skill_resource``. Defaults to ``True``.
     :param scripts: ``"worker"`` registers ``run_skill_script``, which runs a script as a subprocess
         of the worker, with the worker's permissions and a 30 second timeout. A script that prints more
-        than 50,000 bytes is killed and its output cut off there. The call returns when the script exits;
-        processes it left running in the background get 2 more seconds of output, then are killed with the
-        script's process group. ``None`` registers no script tool. Defaults to ``"worker"``.
+        than 50,000 bytes has its output cut off there, and is killed if it is still running. The call
+        returns when the script exits; processes it left running in the background get 2 more seconds of
+        output, then are killed with the script's process group. ``None`` registers no script tool. Defaults to ``"worker"``.
     :param inherit_env: Names of worker environment variables a script receives besides ``PATH``, ``HOME``,
         ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. The values are read on the worker
         when the script runs and are not stored in the Dag; a name the worker has not set is skipped, and
