@@ -61,6 +61,7 @@
   "history": "Historia",
   "importErrors": {
     "bundle": "Paczka Dagów",
+    "copyStackTrace": "Kopiuj stos wywołań",
     "dagImportError_few": "Błędy importu Dagów",
     "dagImportError_many": "Błędów importu Dagów",
     "dagImportError_one": "Błąd importu Daga",
@@ -80,6 +81,7 @@
   "stats": {
     "activeDags": "Aktywne Dagi",
     "failedDags": "Nieudane Dagi",
+    "failingTriggers": "Wyzwalacze z błędami",
     "queuedDags": "Zakolejkowane Dagi",
     "requiredActions": "Wymagane akcje",
     "runningDags": "Wykonywane Dagi",
