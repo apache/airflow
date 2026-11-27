@@ -1171,6 +1171,13 @@ class TestWorkerSets:
         ],
     )
     def test_create_hpa_sets(self, enable_default, expected):
+        scale_to_zero_metric = {
+            "type": "External",
+            "external": {
+                "metric": {"name": "queue_length"},
+                "target": {"type": "Value", "value": "10"},
+            },
+        }
         docs = render_chart(
             name="test",
             values={
@@ -1180,7 +1187,10 @@ class TestWorkerSets:
                         "enableDefault": enable_default,
                         "sets": [
                             {"name": "set1"},
-                            {"name": "set2"},
+                            {
+                                "name": "set2",
+                                "hpa": {"minReplicaCount": 0, "metrics": [scale_to_zero_metric]},
+                            },
                         ],
                     },
                 },
@@ -1189,6 +1199,8 @@ class TestWorkerSets:
         )
 
         assert jmespath.search("[*].metadata.name", docs) == expected
+        assert jmespath.search("[*].spec.minReplicas", docs) == [1] * (len(expected) - 1) + [0]
+        assert jmespath.search("spec.metrics", docs[-1]) == [scale_to_zero_metric]
 
     @pytest.mark.parametrize(
         "workers_values",

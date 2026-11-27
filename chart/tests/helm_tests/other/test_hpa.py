@@ -48,12 +48,21 @@ class TestHPA:
 
     def test_min_max_replicas_default(self):
         docs = render_chart(
-            values={"workers": {"celery": {"hpa": {"enabled": True}}}},
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {"celery": {"hpa": {"enabled": True}}},
+            },
             show_only=["templates/workers/worker-hpa.yaml"],
         )
 
-        assert jmespath.search("spec.minReplicas", docs[0]) == 0
+        assert jmespath.search("spec.minReplicas", docs[0]) == 1
         assert jmespath.search("spec.maxReplicas", docs[0]) == 5
+        assert jmespath.search("spec.metrics", docs[0]) == [
+            {
+                "type": "Resource",
+                "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+            }
+        ]
 
     def test_min_max_replicas(self):
         docs = render_chart(

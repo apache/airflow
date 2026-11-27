@@ -2059,7 +2059,7 @@
                                 "minReplicaCount": {
                                     "description": "Minimum number of Airflow Celery workers created by HPA.",
                                     "type": "integer",
-                                    "default": 0
+                                    "default": 1
                                 },
                                 "maxReplicaCount": {
                                     "description": "Maximum number of Airflow Celery workers created by HPA.",

@@ -796,7 +796,7 @@ workers:
       enabled: false
 
       # Minimum number of Airflow Celery workers created by HPA
-      minReplicaCount: 0
+      minReplicaCount: 1
 
       # Maximum number of Airflow Celery workers created by HPA
       maxReplicaCount: 5
