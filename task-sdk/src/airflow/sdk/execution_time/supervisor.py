@@ -22,6 +22,7 @@ from __future__ import annotations
 import atexit
 import contextlib
 import functools
+import gc
 import importlib.util
 import io
 import logging
@@ -384,6 +385,20 @@ def _import_task_runner_before_fork() -> None:
     # If it fails to import, the child imports it again and reports the error in its own log.
     with suppress(ImportError):
         import airflow.sdk.execution_time.task_runner  # noqa: F401
+
+
+def _is_gc_frozen() -> bool:
+    """
+    Return whether Python-level objects have already been frozen by a host process.
+
+    CPython 3.12 moves immortal built-in type tuples into the permanent generation during GC
+    passes, so ``gc.get_freeze_count()`` is non-zero even on a fresh interpreter. Checking whether
+    ``sys.modules`` is still in ``gc.get_objects()`` distinguishes a fresh interpreter from a
+    pre-forked worker (LocalExecutor, Celery) that called ``gc.freeze()``.
+    """
+    if gc.get_freeze_count() == 0:
+        return False
+    return not any(obj is sys.modules for obj in gc.get_objects())
 
 
 def _reset_signals():
@@ -1667,6 +1682,7 @@ class ActivitySubprocess(WatchedSubprocess):
 
     _terminal_state: str | None = attrs.field(default=None, init=False)
     _wait_completed: bool = attrs.field(default=False, init=False)
+    _gc_frozen: bool = attrs.field(default=False, init=False)
     # Retain the full report until delivery succeeds, including reports deferred until process exit.
     _pending_terminal_state_msg: (
         TaskState | SucceedTask | RetryTask | DeferTask | RescheduleTask | AwaitInputTask | None
@@ -1712,24 +1728,42 @@ class ActivitySubprocess(WatchedSubprocess):
         # Tests override `target` with a local stub to exercise the base
         # infrastructure; keep bare fork for those.
         use_exec = target is _subprocess_main and task_process_uses_exec()
-        if target is _subprocess_main and not use_exec:
+        bare_fork = target is _subprocess_main and not use_exec
+        if bare_fork:
             _import_task_runner_before_fork()
-        proc: Self = super().start(
-            id=what.id,
-            client=client,
-            target=target,
-            logger=logger,
-            use_exec=use_exec,
-            new_process_group=True,
-            **kwargs,
-        )
-        # Tell the task process what it needs to do!
-        proc._on_child_started(
-            ti=what,
-            dag_rel_path=dag_rel_path,
-            bundle_info=bundle_info,
-            sentry_integration=sentry_integration,
-        )
+        # Only freeze when a host hasn't already frozen the heap: ``gc.unfreeze()`` releases the
+        # entire permanent generation, so unfreezing in ``wait()`` would undo the freeze that
+        # LocalExecutor and Celery workers inherit from their parent process.
+        gc_frozen = bare_fork and not _is_gc_frozen()
+        if gc_frozen:
+            # A GC pass in either process writes to the headers of the objects the task process
+            # inherits, which splits the pages both processes share copy-on-write. ``wait()``
+            # unfreezes once the task process exits, so a worker that supervises many tasks in one
+            # process collects these objects again between tasks.
+            gc.freeze()
+        try:
+            proc: Self = super().start(
+                id=what.id,
+                client=client,
+                target=target,
+                logger=logger,
+                use_exec=use_exec,
+                new_process_group=True,
+                **kwargs,
+            )
+            proc._gc_frozen = gc_frozen
+            # Tell the task process what it needs to do!
+            proc._on_child_started(
+                ti=what,
+                dag_rel_path=dag_rel_path,
+                bundle_info=bundle_info,
+                sentry_integration=sentry_integration,
+            )
+        except BaseException:
+            # No caller gets a proc to ``wait()`` on, so nothing else would unfreeze the GC.
+            if gc_frozen:
+                gc.unfreeze()
+            raise
         return proc
 
     def _on_child_started(
@@ -1805,6 +1839,9 @@ class ActivitySubprocess(WatchedSubprocess):
             self._monitor_subprocess()
         finally:
             self.selector.close()
+            if self._gc_frozen:
+                gc.unfreeze()
+                self._gc_frozen = False
 
         # self._monitor_subprocess() will set the exit code when the process has finished
         # If it hasn't, assume it's failed
