@@ -1800,9 +1800,8 @@ def _run_task_and_map_outcome(
         error = e
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
-        msg, state = _handle_current_task_failed(ti, e, log, context)
-        _log_task_failure(log, state)
         log.info("::group::Post Execute")
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
@@ -1820,14 +1819,16 @@ def _run_task_and_map_outcome(
         error = e
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
-        log.error("Task exited", exit_code=e.code)
         log.info("::group::Post Execute")
-        msg, state = _handle_current_task_failed(ti, e, log, context)
+        msg, state = _handle_current_task_failed(ti, e, log, context, log_failure=False)
+        if state in (TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.UP_FOR_RESCHEDULE):
+            log.warning("Task exited", exit_code=e.code)
+        else:
+            log.error("Task exited", exit_code=e.code)
         error = e
     except BaseException as e:
-        msg, state = _handle_current_task_failed(ti, e, log, context)
-        _log_task_failure(log, state)
         log.info("::group::Post Execute")
+        msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
 
     return state, msg, error
@@ -2000,9 +2001,6 @@ def _evaluate_retry_policy(
             # Mask here, where mask_secret() registered the value: the API server rendering this
             # later has its own masker and does not know the worker's secrets.
             decision = replace(decision, reason=cast("str", redact(decision.reason)))
-            # Close the group so the retry policy decision is not hidden inside "Post Execute".
-            log.info("::endgroup::")
-            log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
         return decision
     except Exception:
         log.exception("Retry policy evaluation failed, falling back to default behaviour")
@@ -2025,12 +2023,16 @@ def _handle_handler_failure(
     through the retry-count check, so an exception that means "do not retry" still means
     that when it surfaces from a handler.
     """
-    log.exception("Task failed with exception")
     if isinstance(exception, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)):
+        log.exception("Task failed with exception")
         return _terminal_failure(ti), TaskInstanceState.FAILED, exception
+    # _handle_current_task_failed logs the failure once the state is known; keep
+    # the original exc_info in case it raises before it can log.
+    exc_info = sys.exc_info()
     try:
         msg, state = _handle_current_task_failed(ti, exception, log, context)
     except Exception:
+        log.error("Task failed with exception", exc_info=exc_info)
         # The failure path itself failed. Re-entering it would just fail again and
         # escape, losing the callbacks this whole function exists to preserve, so fail
         # closed on a plain FAILED state instead.
@@ -2062,6 +2064,8 @@ def _handle_current_task_failed(
     exception: BaseException,
     log: Logger,
     context: Context,
+    *,
+    log_failure: bool = True,
 ) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState]:
     """
     Handle a failed task: evaluate the retry policy (if any) and decide the next state.
@@ -2073,13 +2077,18 @@ def _handle_current_task_failed(
     bounds, the task goes to ``up_for_reschedule`` without using a retry; past its
     bounds, the standard logic runs with the reason saying why.  For DEFAULT (or when
     no policy is configured), the standard ``_finalize_task_failure`` logic runs.
+
+    The failure is logged here, once the state is known: as a warning while a
+    retry remains, else as an error. Callers that log the failure themselves
+    pass ``log_failure=False``. A retry policy decision is logged after the
+    failure, outside the "Post Execute" group.
     """
     from airflow.sdk.definitions.retry_policy import RetryAction
 
     decision = _evaluate_retry_policy(ti, exception, log, context)
     if decision is not None and decision.action == RetryAction.FAIL:
         ti.end_date = datetime.now(tz=UTC)
-        return (
+        msg, state = (
             TaskState(
                 state=TaskInstanceState.FAILED,
                 end_date=ti.end_date,
@@ -2088,11 +2097,11 @@ def _handle_current_task_failed(
             ),
             TaskInstanceState.FAILED,
         )
-    if decision is not None and decision.action == RetryAction.RETRY:
-        return _finalize_task_failure(
+    elif decision is not None and decision.action == RetryAction.RETRY:
+        msg, state = _finalize_task_failure(
             ti, log, retry_delay_override=decision.retry_delay, retry_reason=decision.reason
         )
-    if decision is not None and decision.action == RetryAction.RESCHEDULE:
+    elif decision is not None and decision.action == RetryAction.RESCHEDULE:
         if (limit := _reschedule_limit_reached(ti, decision, context)) is None:
             ti.end_date = datetime.now(tz=UTC)
             delay = decision.retry_delay if decision.retry_delay is not None else ti.task.retry_delay
@@ -2104,16 +2113,25 @@ def _handle_current_task_failed(
                 max_reschedules=decision.max_reschedules,
                 reschedule_timeout=decision.reschedule_timeout,
             )
-            return (
+            msg, state = (
                 RescheduleTask(reschedule_date=reschedule_date, end_date=ti.end_date),
                 TaskInstanceState.UP_FOR_RESCHEDULE,
             )
-        log.info("Reschedule limit reached, applying the standard retry logic", limit=limit)
-        reason = f"Reschedule limit reached ({limit})"
-        if decision.reason:
-            reason = f"{reason}: {decision.reason}"
-        return _finalize_task_failure(ti, log, retry_reason=reason)
-    return _finalize_task_failure(ti, log)
+        else:
+            log.info("Reschedule limit reached, applying the standard retry logic", limit=limit)
+            reason = f"Reschedule limit reached ({limit})"
+            if decision.reason:
+                reason = f"{reason}: {decision.reason}"
+            msg, state = _finalize_task_failure(ti, log, retry_reason=reason)
+    else:
+        msg, state = _finalize_task_failure(ti, log)
+    if log_failure:
+        _log_task_failure(log, state)
+    if decision is not None and decision.reason:
+        # Close the group so the retry policy decision is not hidden inside "Post Execute".
+        log.info("::endgroup::")
+        log.info("Retry policy decision", action=decision.action.value, reason=decision.reason)
+    return msg, state
 
 
 def _reschedule_count(ti: RuntimeTaskInstance) -> int:
@@ -2290,6 +2308,7 @@ def _handle_trigger_dag_run(
                     AirflowException(f"{drte.trigger_dag_id} failed with failed state {comms_msg.state}"),
                     log,
                     context,
+                    log_failure=False,
                 )
             if comms_msg.state in drte.allowed_states:
                 log.info(
