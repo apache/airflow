@@ -202,18 +202,28 @@ class TestRenderedTaskInstanceFields:
         rtif.write()
 
     @pytest.mark.parametrize(
-        ("rtif_num", "num_to_keep", "remaining_rtifs", "expected_query_count"),
+        ("rtif_num", "num_to_keep", "surviving_runs", "expected_query_count", "same_run_after"),
         [
-            (0, 1, 0, 2),
-            (1, 1, 1, 2),
-            (1, 0, 1, 0),
-            (3, 1, 1, 2),
-            (4, 2, 2, 2),
-            (5, 2, 2, 2),
+            (0, 1, set(), 2, False),
+            (1, 1, {"0"}, 2, False),
+            (1, 0, {"0"}, 0, False),
+            # Only the num_to_keep runs past the retained ones are cleared; older ones are left to db clean.
+            (3, 1, {"0", "2"}, 2, False),
+            (4, 2, {"2", "3"}, 2, False),
+            (5, 2, {"0", "3", "4"}, 2, False),
+            # Equal run_after falls back to DagRun.id, so the most recently created runs are kept.
+            (5, 2, {"0", "3", "4"}, 2, True),
         ],
     )
     def test_delete_old_records(
-        self, rtif_num, num_to_keep, remaining_rtifs, expected_query_count, dag_maker, session
+        self,
+        rtif_num,
+        num_to_keep,
+        surviving_runs,
+        expected_query_count,
+        same_run_after,
+        dag_maker,
+        session,
     ):
         """
         Test that RTIF records from older dag runs are deleted, keeping only
@@ -223,7 +233,11 @@ class TestRenderedTaskInstanceFields:
             task = BashOperator(task_id="test", bash_command="echo {{ ds }}")
         rtif_list = []
         for num in range(rtif_num):
-            dr = dag_maker.create_dagrun(run_id=str(num), logical_date=dag.start_date + timedelta(days=num))
+            dr = dag_maker.create_dagrun(
+                run_id=str(num),
+                logical_date=dag.start_date + timedelta(days=num),
+                run_after=dag.start_date + timedelta(days=0 if same_run_after else num),
+            )
             ti = dr.task_instances[0]
             ti.task = task
             rtif_list.append(RTIF(ti, render_templates=False))
@@ -240,19 +254,21 @@ class TestRenderedTaskInstanceFields:
 
         with assert_queries_count(expected_query_count, margin=_get_mysql_margin(session)):
             RTIF.delete_old_records(task_id=task.task_id, dag_id=task.dag_id, num_to_keep=num_to_keep)
-        result = session.scalars(select_rtifs(RTIF, dag_id=dag.dag_id, task_id=task.task_id)).all()
-        assert remaining_rtifs == len(result)
+        run_ids = session.scalars(
+            select_rtifs(TaskInstance.run_id, dag_id=dag.dag_id, task_id=task.task_id)
+        ).all()
+        assert set(run_ids) == surviving_runs
 
     @pytest.mark.parametrize(
-        ("num_runs", "num_to_keep", "remaining_rtifs", "expected_query_count"),
+        ("num_runs", "num_to_keep", "surviving_runs", "expected_query_count"),
         [
-            (3, 1, 1, 2),
-            (4, 2, 2, 2),
-            (5, 2, 2, 2),
+            (3, 1, {"run_0", "run_2"}, 2),
+            (4, 2, {"run_2", "run_3"}, 2),
+            (5, 2, {"run_0", "run_3", "run_4"}, 2),
         ],
     )
     def test_delete_old_records_mapped(
-        self, num_runs, num_to_keep, remaining_rtifs, expected_query_count, dag_maker, session
+        self, num_runs, num_to_keep, surviving_runs, expected_query_count, dag_maker, session
     ):
         """
         Test that RTIF records from older dag runs are deleted for mapped tasks,
@@ -282,10 +298,8 @@ class TestRenderedTaskInstanceFields:
         run_ids = session.scalars(
             select_rtifs(TaskInstance.run_id, dag_id=dag.dag_id, task_id=mapped.task_id)
         ).all()
-        rtif_num_runs = Counter(run_ids)
-        assert len(rtif_num_runs) == remaining_rtifs
-        # Check that we have _all_ the data for each row
-        assert len(run_ids) == remaining_rtifs * 2
+        # Both map indexes of every surviving run are kept.
+        assert Counter(run_ids) == dict.fromkeys(surviving_runs, 2)
 
     def test_delete_old_records_sparse_task(self, dag_maker, session):
         """
