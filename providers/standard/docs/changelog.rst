@@ -35,6 +35,13 @@
 Changelog
 ---------
 
+.. note::
+  ``HITLOperator`` form fields (its ``params``) are now kept in ``task.hitl_params`` instead of the
+  task's ``params``, so a field without a default, or with a default outside its own schema, no
+  longer fails the task when it starts. The fields are no longer part of ``{{ params }}``,
+  ``context["params"]`` or ``{{ task.params }}``; use ``{{ task.hitl_params }}`` to show them in a
+  notifier message.
+
 1.22.0
 ......
 
