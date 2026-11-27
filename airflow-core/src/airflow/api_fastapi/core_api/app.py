@@ -23,11 +23,12 @@ import re
 import warnings
 from hashlib import md5
 from pathlib import Path
+from urllib.parse import urlencode
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -163,6 +164,7 @@ def init_views(app: FastAPI) -> None:
     """Init views by registering the different routers."""
     from airflow.api_fastapi.core_api.routes.public import public_router
     from airflow.api_fastapi.core_api.routes.ui import ui_router
+    from airflow.api_fastapi.core_api.security import get_optional_user
 
     app.include_router(ui_router)
     app.include_router(public_router)
@@ -224,7 +226,17 @@ def init_views(app: FastAPI) -> None:
         return JSONResponse(status_code=404, content={"error": "API route not found"})
 
     @app.get("/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
-    def webapp(request: Request, rest_of_path: str):
+    def webapp(request: Request, rest_of_path: str, user=Depends(get_optional_user)):
+        if user is None and "text/html" in request.headers.get("accept", "").lower():
+            next_url = request.url.path
+            if request.url.query:
+                next_url += f"?{request.url.query}"
+            login_path = request.url_for("login").path
+            return RedirectResponse(
+                f"{login_path}?{urlencode({'next': next_url})}",
+                status_code=302,
+                headers={"Cache-Control": "no-store"},
+            )
         return templates.TemplateResponse(
             request,
             "/index.html",
