@@ -1,0 +1,2 @@
+Harden the default security contexts of git-sync sidecar and init containers by disabling privilege
+escalation and dropping all Linux capabilities.
