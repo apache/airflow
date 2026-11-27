@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 from sqlalchemy import select
 
@@ -89,3 +91,22 @@ def test_asset_listener_on_asset_event_emitted(asset, ti, listener_manager, sess
             asset_id=asset_event.asset_id,
         )
     ]
+
+
+def test_asset_event_keeps_positional_order_of_pre_existing_fields():
+    asset = ensure_serialized_asset(Asset(uri="test://asset/", name="test_asset"))
+    timestamp = datetime(2026, 1, 1, tzinfo=UTC)
+
+    event = AssetEvent(
+        asset, {"k": "v"}, "dag", "task", "run", -1, [], "pk", id=1, timestamp=timestamp, asset_id=2
+    )
+
+    assert (event.asset, event.extra, event.source_dag_id, event.partition_key) == (
+        asset,
+        {"k": "v"},
+        "dag",
+        "pk",
+    )
+    assert (event.id, event.timestamp, event.asset_id) == (1, timestamp, 2)
+    with pytest.raises(TypeError):
+        AssetEvent(1, timestamp, 2, asset, {}, "dag", "task", "run", -1, [], "pk")
