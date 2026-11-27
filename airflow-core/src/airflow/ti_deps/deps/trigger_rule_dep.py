@@ -161,14 +161,14 @@ class TriggerRuleDep(BaseTIDep):
             This extra closure allows us to query the database only when needed,
             and at most once.
             """
-            from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
-
             contexts = (
                 dep_context.coordinate_resolver(ti, session=session).producer_contexts(ti)
                 if regional
                 else None
             )
-            return get_mapped_ti_count(task, ti.run_id, session=session, producer_contexts=contexts)
+            return dep_context.get_mapped_ti_count(
+                task, ti.run_id, session=session, producer_contexts=contexts
+            )
 
         def _iter_expansion_dependencies(task_group: SerializedTaskGroup | None) -> Iterator[str]:
             if is_mapped(task):
@@ -227,6 +227,7 @@ class TriggerRuleDep(BaseTIDep):
                     if regional
                     else None
                 ),
+                count_mapped_tis=dep_context.get_mapped_ti_count,
             )
 
         def _is_relevant_upstream(upstream: SchedulingTI, relevant_ids: set[str] | KeysView[str]) -> bool:

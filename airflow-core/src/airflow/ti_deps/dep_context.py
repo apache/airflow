@@ -28,11 +28,15 @@ from airflow.exceptions import TaskNotFound
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from sqlalchemy.orm.session import Session
 
     from airflow.models.dagrun import DagRun
+    from airflow.models.dynamic_region import ProducerContext
     from airflow.models.task_coordinates import SchedulingTI, TaskCoordinateResolver
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.definitions.node import DAGNode
 
 
 @attr.define
@@ -203,6 +207,36 @@ class DepContext:
             finished_tis = self.finished_tis
         return finished_tis
 
+    mapped_ti_counts: dict[tuple[str, str, str, frozenset[tuple[str, ProducerContext]]], int] = attr.ib(
+        factory=dict, repr=False
+    )
+    """
+    Per-pass memo of mapped task instance counts, keyed by ``(dag_id, run_id, node_id, producer contexts)``,
+    so the copies of a mapped task group share one count lookup instead of each copy running its own.
+    ``init=True`` for the same reasons as :attr:`upstream_task_id_counts`.
+    """
+
+    def get_mapped_ti_count(
+        self,
+        task: DAGNode,
+        run_id: str,
+        *,
+        session: Session,
+        producer_contexts: Mapping[str, ProducerContext] | None = None,
+    ) -> int:
+        """
+        Return :func:`~airflow.serialization.definitions.mappedoperator.get_mapped_ti_count`, memoized.
+
+        A count that cannot be computed yet raises and is not stored, so it is looked up again later.
+        """
+        from airflow.serialization.definitions.mappedoperator import get_mapped_ti_count
+
+        key = (task.dag_id, run_id, task.node_id, frozenset((producer_contexts or {}).items()))
+        if (count := self.mapped_ti_counts.get(key)) is None:
+            count = get_mapped_ti_count(task, run_id, session=session, producer_contexts=producer_contexts)
+            self.mapped_ti_counts[key] = count
+        return count
+
     def invalidate_upstream_task_id_counts(self) -> None:
         """
         Drop the memoized trigger-rule upstream counts.
@@ -213,3 +247,4 @@ class DepContext:
         self.upstream_task_id_counts.clear()
         self.producer_tis.clear()
         self.regional_runs.clear()
+        self.mapped_ti_counts.clear()

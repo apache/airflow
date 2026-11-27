@@ -3421,6 +3421,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         *,
         session: Session,
         producer_contexts: Mapping[str, ProducerContext] | None = None,
+        count_mapped_tis: Callable[..., int] | None = None,
     ) -> int | range | None:
         if TYPE_CHECKING:
             assert self.task
@@ -3432,6 +3433,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             relative=upstream,
             session=session,
             producer_contexts=producer_contexts,
+            count_mapped_tis=count_mapped_tis,
         )
 
     def clear_db_references(self, session: Session):
@@ -3774,6 +3776,7 @@ def _get_relevant_map_indexes(
     ti_count: int | None,
     session: Session,
     producer_contexts: Mapping[str, ProducerContext] | None = None,
+    count_mapped_tis: Callable[..., int] | None = None,
 ) -> int | range | None:
     """
     Infer the map indexes of a relative that's "relevant" to this ti.
@@ -3818,6 +3821,8 @@ def _get_relevant_map_indexes(
     :param relative: The relative task to find relevant map indexes for.
     :param ti_count: The total count of task instance this task was expanded
         by the scheduler, i.e. ``expanded_ti_count`` in the template context.
+    :param count_mapped_tis: A callable that replaces ``get_mapped_ti_count`` for the common ancestor's count,
+        e.g. a memoized one shared by every task instance checked in a scheduling pass.
     :return: Specific map index or map indexes to pull, or ``None`` if we
         want to "whole" return value (i.e. no mapped task groups involved).
     """
@@ -3842,7 +3847,7 @@ def _get_relevant_map_indexes(
     # should use a "partial" value. Let's break down the mapped ti count
     # between the ancestor and further expansion happened inside it.
 
-    ancestor_ti_count = get_mapped_ti_count(
+    ancestor_ti_count = (count_mapped_tis or get_mapped_ti_count)(
         common_ancestor, run_id, session=session, producer_contexts=producer_contexts
     )
     ancestor_map_index = map_index * ancestor_ti_count // ti_count
