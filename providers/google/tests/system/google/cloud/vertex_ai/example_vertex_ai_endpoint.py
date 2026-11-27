@@ -48,10 +48,18 @@ from airflow.providers.google.cloud.operators.vertex_ai.endpoint_service import 
 )
 
 try:
+    from airflow.sdk import task
+except ImportError:
+    # Airflow 2 path
+    from airflow.decorators import task  # type: ignore[attr-defined,no-redef]
+
+try:
     from airflow.sdk import TriggerRule
 except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
+
+from system.google.cloud.vertex_ai.helpers import undeploy_models_and_delete_endpoint
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
@@ -196,6 +204,14 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    @task(trigger_rule=TriggerRule.ALL_DONE)
+    def cleanup_endpoint(ti=None) -> None:
+        """Undeploy all models from the endpoint and delete it if the test body left it behind."""
+        endpoint_id = ti.xcom_pull(task_ids="create_endpoint", key="endpoint_id")
+        if not endpoint_id:
+            return
+        undeploy_models_and_delete_endpoint(project_id=PROJECT_ID, region=REGION, endpoint_id=endpoint_id)
+
     (
         # TEST SETUP
         create_image_dataset
@@ -208,6 +224,7 @@ with DAG(
         >> delete_endpoint
         >> list_endpoints
         # TEST TEARDOWN
+        >> cleanup_endpoint()
         >> delete_auto_ml_image_training_job
         >> delete_image_dataset
     )
