@@ -1220,18 +1220,18 @@ def down(
 
 
 @main.command(name="exec", help="Joins the interactive shell of running airflow container.")
+@option_project_name
 @option_verbose
 @option_dry_run
 @click.argument("exec_args", nargs=-1, type=click.UNPROCESSED)
-def exec(exec_args: tuple):
+def exec(exec_args: tuple, project_name: str):
     perform_environment_checks()
-    container_running = find_airflow_container()
-    if container_running:
+    if container_id := find_airflow_container(project_name):
         cmd_to_run = [
             "docker",
             "exec",
-            "-it",
-            container_running,
+            "-it" if sys.stdin.isatty() and sys.stdout.isatty() else "-i",
+            container_id,
             "/opt/airflow/scripts/docker/entrypoint_exec.sh",
         ]
         if exec_args:
@@ -1246,7 +1246,7 @@ def exec(exec_args: tuple):
             sys.exit(1)
         sys.exit(process.returncode)
     else:
-        console_print("[error]No airflow containers are running[/]")
+        console_print(f"[error]No airflow container is running in the {project_name} compose project[/]")
         sys.exit(1)
 
 
@@ -1255,8 +1255,8 @@ def stop_exec_on_error(returncode: int):
     sys.exit(returncode)
 
 
-def find_airflow_container() -> str | None:
-    shell_params = ShellParams()
+def find_airflow_container(project_name: str) -> str | None:
+    shell_params = ShellParams(project_name=project_name)
     check_docker_resources(shell_params.airflow_image_name)
     shell_params.print_badge_info()
     cmd = [
@@ -1266,6 +1266,7 @@ def find_airflow_container() -> str | None:
         shell_params.project_name,
         "ps",
         "--all",
+        "--quiet",
         "--filter",
         "status=running",
         "airflow",
@@ -1282,16 +1283,8 @@ def find_airflow_container() -> str | None:
         stop_exec_on_error(docker_compose_ps_command.returncode)
         return None
 
-    output = docker_compose_ps_command.stdout
-    container_info = output.strip().splitlines()
-    if container_info:
-        container_running = container_info[-1].split(" ")[0]
-        if container_running.startswith("-"):
-            # On docker-compose v1 we get '--------' as output here
-            stop_exec_on_error(docker_compose_ps_command.returncode)
-        return container_running
-    stop_exec_on_error(1)
-    return None
+    container_ids = docker_compose_ps_command.stdout.split()
+    return container_ids[-1] if container_ids else None
 
 
 @main.command(
