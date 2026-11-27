@@ -79,6 +79,12 @@ vi.mock("react-i18next", () => ({
   }),
 }));
 
+vi.mock("src/components/BackfillProgressBar", () => ({
+  BackfillProgressBar: ({ backfillId }: { readonly backfillId: number }) => (
+    <span>{`progress-${backfillId}`}</span>
+  ),
+}));
+
 vi.mock("src/components/Time", () => ({
   default: ({ datetime }: { readonly datetime: string | null }) => <span>{datetime}</span>,
 }));
@@ -223,6 +229,29 @@ describe("Backfills filters", () => {
     expect(mocks[mutateKey]).toHaveBeenCalledWith({ backfillId: 7 });
   });
 
+  it("refreshes the list only while a displayed backfill is incomplete", () => {
+    mocks.listBackfills.mockReturnValue({ data: undefined, error: undefined, isLoading: false });
+
+    renderBackfills();
+
+    const [, , options] = mocks.listBackfills.mock.lastCall as [
+      unknown,
+      undefined,
+      {
+        refetchInterval: (query: {
+          state: { data?: { backfills: Array<BackfillResponse> } };
+        }) => number | false;
+      },
+    ];
+
+    expect(options.refetchInterval({ state: { data: { backfills: [makeBackfill()] } } })).toBe(5000);
+    expect(
+      options.refetchInterval({
+        state: { data: { backfills: [makeBackfill({ completed_at: "2026-07-06T00:00:00Z" })] } },
+      }),
+    ).toBe(false);
+  });
+
   it("an in-progress backfill can be cancelled", async () => {
     mocks.listBackfills.mockReturnValue({
       data: { backfills: [makeBackfill()], total_entries: 1 },
@@ -254,6 +283,8 @@ describe("Backfills filters", () => {
     // Exactly one row is still running, so only it gets a progress badge and actions.
     expect(await screen.findByText("components:banner.backfillInProgress")).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "components:banner.cancel" })).toHaveLength(1);
+    expect(screen.getByText("progress-7")).toBeInTheDocument();
+    expect(screen.queryByText("progress-8")).not.toBeInTheDocument();
   });
 
   it("opens a backfill's associated slots in a dialog", async () => {
@@ -314,7 +345,7 @@ describe("Backfills filters", () => {
         state: { data: makeBackfill({ completed_at: "2026-08-06T00:00:00Z" }) },
       }),
     ).toBe(false);
-    expect(mocks.listBackfills).toHaveBeenCalledWith({
+    expect(mocks.listBackfills.mock.lastCall?.[0]).toEqual({
       dagId: "example_dag",
       limit: 25,
       offset: 0,

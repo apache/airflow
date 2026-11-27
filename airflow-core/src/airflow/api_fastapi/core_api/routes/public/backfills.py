@@ -24,7 +24,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import NonNegativeInt
 from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload
 
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.app import get_auth_manager
@@ -34,7 +34,12 @@ from airflow.api_fastapi.common.db.common import (
     SessionDep,
     paginated_select,
 )
-from airflow.api_fastapi.common.parameters import QueryLimit, QueryOffset, SortParam
+from airflow.api_fastapi.common.parameters import (
+    QueryDagRunStateFilter,
+    QueryLimit,
+    QueryOffset,
+    SortParam,
+)
 from airflow.api_fastapi.common.router import AirflowRouter
 from airflow.api_fastapi.core_api.datamodels.backfills import (
     BackfillCollectionResponse,
@@ -151,6 +156,7 @@ def list_backfill_dag_runs(
         SortParam,
         Depends(SortParam(["id", "sort_ordinal"], BackfillDagRun).dynamic_depends(default="sort_ordinal")),
     ],
+    state: QueryDagRunStateFilter,
     session: SessionDep,
 ) -> BackfillDagRunCollectionResponse:
     """List Dag runs associated with a backfill, including skipped slots."""
@@ -161,8 +167,10 @@ def list_backfill_dag_runs(
     select_stmt, total_entries = paginated_select(
         statement=select(BackfillDagRun)
         .where(BackfillDagRun.backfill_id == backfill_id)
-        # Load backfill for dag_id; dag_run may be null for skipped slots.
-        .options(joinedload(BackfillDagRun.backfill), joinedload(BackfillDagRun.dag_run)),
+        # Outer join: dag_run is null for skipped slots, which the state filter matches with "none".
+        .outerjoin(BackfillDagRun.dag_run)
+        .options(joinedload(BackfillDagRun.backfill), contains_eager(BackfillDagRun.dag_run)),
+        filters=[state],
         order_by=order_by,
         offset=offset,
         limit=limit,

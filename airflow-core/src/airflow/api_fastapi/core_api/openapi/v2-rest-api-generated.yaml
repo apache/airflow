@@ -1334,6 +1334,14 @@ paths:
           title: Order By
         description: 'Attributes to order by, multi criteria sort is supported. Prefix
           with `-` for descending order. Supported attributes: `id, sort_ordinal`'
+      - name: state
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: State
       responses:
         '200':
           description: Successful Response

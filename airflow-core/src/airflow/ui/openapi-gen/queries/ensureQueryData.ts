@@ -272,15 +272,17 @@ export const ensureUseBackfillServiceGetBackfillData = (queryClient: QueryClient
 * @param data.limit
 * @param data.offset
 * @param data.orderBy Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
+* @param data.state
 * @returns BackfillDagRunCollectionResponse Successful Response
 * @throws ApiError
 */
-export const ensureUseBackfillServiceListBackfillDagRunsData = (queryClient: QueryClient, { backfillId, limit, offset, orderBy }: {
+export const ensureUseBackfillServiceListBackfillDagRunsData = (queryClient: QueryClient, { backfillId, limit, offset, orderBy, state }: {
   backfillId: number;
   limit?: number;
   offset?: number;
   orderBy?: string[];
-}) => queryClient.ensureQueryData({ queryKey: Common.UseBackfillServiceListBackfillDagRunsKeyFn({ backfillId, limit, offset, orderBy }), queryFn: () => BackfillService.listBackfillDagRuns({ backfillId, limit, offset, orderBy }) });
+  state?: string[];
+}) => queryClient.ensureQueryData({ queryKey: Common.UseBackfillServiceListBackfillDagRunsKeyFn({ backfillId, limit, offset, orderBy, state }), queryFn: () => BackfillService.listBackfillDagRuns({ backfillId, limit, offset, orderBy, state }) });
 /**
 * List Backfills Ui
 * @param data The data for the request.

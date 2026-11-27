@@ -35,6 +35,7 @@ import type { BackfillResponse } from "openapi/requests/types.gen";
 
 import { IconButton } from "src/system-components";
 
+import { BackfillProgressBar } from "src/components/BackfillProgressBar";
 import { DataTable } from "src/components/DataTable";
 import type { DataTableFeatures } from "src/components/DataTable/features";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
@@ -43,7 +44,7 @@ import Time from "src/components/Time";
 
 import { isReprocessBehavior } from "src/constants/reprocessBehaviourParams";
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
-import { type DurationFormat, useDurationFormat } from "src/utils";
+import { type DurationFormat, useAutoRefresh, useDurationFormat } from "src/utils";
 
 import { BackfillDagRunsModal } from "./BackfillDagRunsModal";
 import { BackfillsFilters } from "./BackfillsFilters";
@@ -149,6 +150,13 @@ const getColumns = ({
     header: translate("table.completedAt"),
   },
   {
+    accessorKey: "progress",
+    cell: ({ row }) =>
+      row.original.completed_at === null ? <BackfillProgressBar backfillId={row.original.id} /> : undefined,
+    enableSorting: false,
+    header: translate("components:backfill.progress"),
+  },
+  {
     accessorKey: "duration",
     cell: ({ row }) => (
       <Text>
@@ -204,6 +212,7 @@ const getColumns = ({
 export const Backfills = () => {
   const { t: translate } = useTranslation(["common", "components", "dags"]);
   const { formatElapsed } = useDurationFormat();
+  const refetchInterval = useAutoRefresh({});
   const { setTableURLState, tableURLState } = useTableURLState();
   const location = useLocation();
   const navigate = useNavigate();
@@ -232,28 +241,38 @@ export const Backfills = () => {
   const activeParam = searchParams.get(ACTIVE_PARAM);
   const reprocessBehavior = isReprocessBehavior(reprocessBehaviorParam) ? reprocessBehaviorParam : undefined;
 
-  const { data, error, isLoading } = useBackfillServiceListBackfillsUi({
-    // The backend reads this as "completed_at is null", so only an explicit choice sends it.
-    active: activeParam === null || activeParam === "" ? undefined : activeParam === "true",
-    completedAtGte: completedAtGte ?? undefined,
-    completedAtLte: completedAtLte ?? undefined,
-    createdAtGte: createdAtGte ?? undefined,
-    createdAtLte: createdAtLte ?? undefined,
-    dagId,
-    durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
-    durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
-    fromDateGte: fromDateGte ?? undefined,
-    fromDateLte: fromDateLte ?? undefined,
-    limit: pagination.pageSize,
-    maxActiveRunsGte:
-      maxActiveRunsGte !== null && maxActiveRunsGte !== "" ? Number(maxActiveRunsGte) : undefined,
-    maxActiveRunsLte:
-      maxActiveRunsLte !== null && maxActiveRunsLte !== "" ? Number(maxActiveRunsLte) : undefined,
-    offset: pagination.pageIndex * pagination.pageSize,
-    reprocessBehavior,
-    toDateGte: toDateGte ?? undefined,
-    toDateLte: toDateLte ?? undefined,
-  });
+  const { data, error, isLoading } = useBackfillServiceListBackfillsUi(
+    {
+      // The backend reads this as "completed_at is null", so only an explicit choice sends it.
+      active: activeParam === null || activeParam === "" ? undefined : activeParam === "true",
+      completedAtGte: completedAtGte ?? undefined,
+      completedAtLte: completedAtLte ?? undefined,
+      createdAtGte: createdAtGte ?? undefined,
+      createdAtLte: createdAtLte ?? undefined,
+      dagId,
+      durationGte: durationGte !== null && durationGte !== "" ? Number(durationGte) : undefined,
+      durationLte: durationLte !== null && durationLte !== "" ? Number(durationLte) : undefined,
+      fromDateGte: fromDateGte ?? undefined,
+      fromDateLte: fromDateLte ?? undefined,
+      limit: pagination.pageSize,
+      maxActiveRunsGte:
+        maxActiveRunsGte !== null && maxActiveRunsGte !== "" ? Number(maxActiveRunsGte) : undefined,
+      maxActiveRunsLte:
+        maxActiveRunsLte !== null && maxActiveRunsLte !== "" ? Number(maxActiveRunsLte) : undefined,
+      offset: pagination.pageIndex * pagination.pageSize,
+      reprocessBehavior,
+      toDateGte: toDateGte ?? undefined,
+      toDateLte: toDateLte ?? undefined,
+    },
+    undefined,
+    {
+      // Keeps `completed_at` current so a row drops its progress bar once the backfill finishes.
+      refetchInterval: (query) =>
+        query.state.data?.backfills.some((backfill) => backfill.completed_at === null)
+          ? refetchInterval
+          : false,
+    },
+  );
 
   const onSelectBackfill = (id: number) => {
     void Promise.resolve(

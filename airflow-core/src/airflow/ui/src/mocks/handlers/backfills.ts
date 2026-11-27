@@ -65,6 +65,9 @@ const backfillRunning = {
 };
 
 export const handlers: Array<HttpHandler> = [
+  http.get("/api/v2/backfills/:backfillId/dag_runs", () =>
+    HttpResponse.json({ backfill_dag_runs: [], total_entries: 0 }),
+  ),
   http.get("/ui/backfills", ({ request }) => {
     const url = new URL(request.url);
     const fromDateGte = url.searchParams.get("from_date_gte");

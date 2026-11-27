@@ -26,7 +26,7 @@ import { Wrapper } from "src/utils/Wrapper";
 import { BackfillInProgressBadge } from "./BackfillInProgressBadge";
 
 const { mockBackfills } = vi.hoisted(() => ({
-  mockBackfills: { current: [] as Array<{ completed_at: string | null }> },
+  mockBackfills: { current: [] as Array<{ completed_at: string | null; id: number }> },
 }));
 
 vi.mock("openapi/queries", () => ({
@@ -37,6 +37,12 @@ vi.mock("openapi/queries", () => ({
 
 vi.mock("src/queries/useConfig", () => ({ useConfig: () => undefined }));
 
+vi.mock("./BackfillProgressBar", () => ({
+  BackfillProgressBar: ({ backfillId }: { readonly backfillId: number }) => (
+    <span>{`progress-${backfillId}`}</span>
+  ),
+}));
+
 const label = i18n.t("banner.backfillInProgress", { ns: "components" });
 
 afterEach(() => {
@@ -45,15 +51,16 @@ afterEach(() => {
 
 describe("BackfillInProgressBadge", () => {
   it("links to the Backfills tab while a backfill has not finished", () => {
-    mockBackfills.current = [{ completed_at: null }];
+    mockBackfills.current = [{ completed_at: null, id: 1 }];
 
     render(<BackfillInProgressBadge dagId="example_dag" />, { wrapper: Wrapper });
 
     expect(screen.getByRole("link", { name: label })).toHaveAttribute("href", "/dags/example_dag/backfills");
+    expect(screen.getByText("progress-1")).toBeInTheDocument();
   });
 
   it("renders nothing once every backfill has completed", () => {
-    mockBackfills.current = [{ completed_at: "2024-08-22T19:00:00+00:00" }];
+    mockBackfills.current = [{ completed_at: "2024-08-22T19:00:00+00:00", id: 1 }];
 
     render(<BackfillInProgressBadge dagId="example_dag" />, { wrapper: Wrapper });
 

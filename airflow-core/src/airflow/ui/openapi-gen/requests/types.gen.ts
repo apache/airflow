@@ -4227,6 +4227,7 @@ export type ListBackfillDagRunsData = {
      * Attributes to order by, multi criteria sort is supported. Prefix with `-` for descending order. Supported attributes: `id, sort_ordinal`
      */
     orderBy?: Array<(string)>;
+    state?: Array<(string)>;
 };
 
 export type ListBackfillDagRunsResponse = BackfillDagRunCollectionResponse;

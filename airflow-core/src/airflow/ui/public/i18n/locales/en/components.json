@@ -23,6 +23,8 @@
     "partitionsAffected_other": "{{count, number}} partitions will be backfilled:",
     "partitionsNone": "No partitions matching selected range.",
     "permissionDenied": "Dry Run Failed: User does not have permission to create backfills.",
+    "progress": "Progress",
+    "progressSummary": "{{success, number}} succeeded, {{failed, number}} failed, {{remaining, number}} remaining",
     "reprocessBehavior": "Reprocess Behavior",
     "run": "Run Backfill",
     "running": "Running",
