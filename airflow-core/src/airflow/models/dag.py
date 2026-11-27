@@ -57,7 +57,6 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy.sql import expression
 
-from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.assets.evaluation import AssetEvaluator
 from airflow.configuration import conf as airflow_conf
@@ -595,10 +594,6 @@ class DagModel(Base):
             self._deadline = value
         else:
             self._deadline = {Encoding.TYPE: DAT.DEADLINE_ALERT, Encoding.VAR: encode_deadline_alert(value)}
-
-    @property
-    def timezone(self):
-        return settings.TIMEZONE
 
     @staticmethod
     @provide_session
