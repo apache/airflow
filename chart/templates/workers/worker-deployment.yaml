@@ -25,11 +25,12 @@
 {{- if .Values.workers.celery.enableDefault -}}
   {{- $workerSets = concat (list (dict "name" "default")) $workerSets -}}
 {{- end -}}
+{{- if and $workerSets (contains "CeleryExecutor" .Values.executor) -}}
+{{- $metadataSecretChecksum := include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") $ | sha256sum -}}
 {{- range $workerSet := $workerSets -}}
   {{- $workers := (include "workersMergeValues" (list $.Values.workers.celery $workerSet) | fromYaml) -}}
   {{- $_ := set $globals.Values.workers "celery" $workers -}}
-  {{- with $globals -}}
-{{- if contains "CeleryExecutor" .Values.executor }}
+  {{- with $globals }}
 ---
 {{- $persistence := .Values.workers.celery.persistence.enabled }}
 {{- $keda := .Values.workers.celery.keda.enabled }}
@@ -111,7 +112,7 @@ spec:
           {{- mustMerge .Values.workers.celery.labels .Values.labels | toYaml | nindent 8 }}
         {{- end }}
       annotations:
-        checksum/metadata-secret: {{ include (print $.Template.BasePath "/secrets/metadata-connection-secret.yaml") . | sha256sum }}
+        checksum/metadata-secret: {{ $metadataSecretChecksum }}
         checksum/result-backend-secret: {{ include (print $.Template.BasePath "/secrets/result-backend-connection-secret.yaml") . | sha256sum }}
         checksum/pgbouncer-config-secret: {{ include (print $.Template.BasePath "/secrets/pgbouncer-config-secret.yaml") . | sha256sum }}
         checksum/kerberos-keytab: {{ include (print $.Template.BasePath "/secrets/kerberos-keytab-secret.yaml") . | sha256sum }}
