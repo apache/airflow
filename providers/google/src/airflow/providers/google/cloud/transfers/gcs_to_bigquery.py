@@ -28,6 +28,7 @@ from google.api_core.exceptions import BadRequest, Conflict
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
     CopyJob,
+    DatasetReference,
     ExternalConfig,
     ExtractJob,
     LoadJob,
@@ -902,7 +903,15 @@ class GCSToBigQueryOperator(BaseOperator):
             )
 
         project_id = self.project_id or self.hook.project_id
-        table_object = self.hook.get_client(project_id).get_table(self.destination_project_dataset_table)
+        # ``Client.get_table`` does not understand the legacy ``project:dataset.table`` form,
+        # so resolve the table the same way the load job does.
+        dest_project_id, dest_dataset_id, dest_table_id = self.hook.split_tablename(
+            table_input=self.destination_project_dataset_table,
+            default_project_id=self.hook.project_id,
+        )
+        table_object = self.hook.get_client(project_id).get_table(
+            TableReference(DatasetReference(dest_project_id, dest_dataset_id), dest_table_id)
+        )
 
         output_dataset_facets = get_facets_from_bq_table(table_object)
 
