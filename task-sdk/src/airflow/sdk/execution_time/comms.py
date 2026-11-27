@@ -1197,6 +1197,13 @@ class SetExecutionTimeout(BaseModel):
     type: Literal["SetExecutionTimeout"] = "SetExecutionTimeout"
 
 
+class StartTaskFinalization(BaseModel):
+    """Start bounded task finalization without reporting a task outcome."""
+
+    retry: RetryTask
+    type: Literal["StartTaskFinalization"] = "StartTaskFinalization"
+
+
 class TriggerDagRun(TriggerDAGRunPayload):
     dag_id: str
     run_id: Annotated[str, Field(title="Dag Run Id")]
@@ -1407,6 +1414,7 @@ ToSupervisor = Annotated[
     | SetXCom
     | SkipDownstreamTasks
     | SetExecutionTimeout
+    | StartTaskFinalization
     | SucceedTask
     | ValidateInletsAndOutlets
     | TaskState

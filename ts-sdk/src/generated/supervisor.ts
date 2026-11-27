@@ -612,10 +612,11 @@ export type MappedLength = number | null;
 export type Type73 = "SetXCom";
 export type Tasks = (string | [unknown, unknown])[];
 export type Type74 = "SkipDownstreamTasks";
+export type Type75 = "StartTaskFinalization";
 export type DagRelPath = string;
 export type StartDate6 = string;
 export type SentryIntegration = string;
-export type Type75 = "StartupDetails";
+export type Type76 = "StartupDetails";
 export type State7 = "success";
 export type EndDate7 = string;
 export type TaskOutlets = AssetProfile[] | null;
@@ -625,22 +626,22 @@ export type OutletEvents =
     }[]
   | null;
 export type RenderedMapIndex4 = string | null;
-export type Type76 = "SucceedTask";
+export type Type77 = "SucceedTask";
 export type Count1 = number;
-export type Type77 = "TICount";
+export type Type78 = "TICount";
 export type Breadcrumbs = {
   [k: string]: unknown;
 }[];
-export type Type78 = "TaskBreadcrumbsResult";
+export type Type79 = "TaskBreadcrumbsResult";
 export type StartDate7 = string | null;
-export type Type79 = "TaskRescheduleStartDate";
+export type Type80 = "TaskRescheduleStartDate";
 export type State8 = "failed" | "skipped" | "removed";
 export type EndDate8 = string | null;
-export type Type80 = "TaskState";
+export type Type81 = "TaskState";
 export type RenderedMapIndex5 = string | null;
 export type RetryReason1 = string | null;
-export type Type81 = "TaskStateStoreResult";
-export type Type82 = "TaskStatesResult";
+export type Type82 = "TaskStateStoreResult";
+export type Type83 = "TaskStatesResult";
 export type LogicalDate7 = string | null;
 export type RunAfter2 = string | null;
 export type Conf2 = {
@@ -651,10 +652,10 @@ export type PartitionKey7 = string | null;
 export type Note2 = string | null;
 export type DagId23 = string;
 export type DagRunId = string;
-export type Type83 = "TriggerDagRun";
+export type Type84 = "TriggerDagRun";
 export type TiId9 = string;
 export type Note3 = string | null;
-export type Type84 = "UpdateDagRunNote";
+export type Type85 = "UpdateDagRunNote";
 export type TiId10 = string;
 /**
  * @minItems 1
@@ -663,22 +664,22 @@ export type ChosenOptions1 = [string, ...string[]];
 export type ParamsInput1 = {
   [k: string]: unknown;
 } | null;
-export type Type85 = "UpdateHITLDetail";
+export type Type86 = "UpdateHITLDetail";
 export type TiId11 = string;
-export type Type86 = "ValidateInletsAndOutlets";
+export type Type87 = "ValidateInletsAndOutlets";
 export type Keys = string[];
 export type TotalEntries = number;
-export type Type87 = "VariableKeysResult";
+export type Type88 = "VariableKeysResult";
 export type Key19 = string;
 export type Value2 = string;
-export type Type88 = "VariableResult";
+export type Type89 = "VariableResult";
 export type Len = number;
-export type Type89 = "XComCountResponse";
+export type Type90 = "XComCountResponse";
 export type Key20 = string;
-export type Type90 = "XComResult";
-export type Type91 = "XComSequenceIndexResult";
+export type Type91 = "XComResult";
+export type Type92 = "XComSequenceIndexResult";
 export type Root = JsonValue[];
-export type Type92 = "XComSequenceSliceResult";
+export type Type93 = "XComSequenceSliceResult";
 
 export interface SupervisorWireSchema {}
 /**
@@ -1892,6 +1893,16 @@ export interface SkipDownstreamTasks {
   type?: Type74;
 }
 /**
+ * Start bounded task finalization without reporting a task outcome.
+ *
+ * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
+ * via the `definition` "StartTaskFinalization".
+ */
+export interface StartTaskFinalization {
+  retry: RetryTask;
+  type?: Type75;
+}
+/**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
  * via the `definition` "StartupDetails".
  */
@@ -1902,7 +1913,7 @@ export interface StartupDetails {
   start_date: StartDate6;
   ti_context: TIRunContext;
   sentry_integration: SentryIntegration;
-  type?: Type75;
+  type?: Type76;
 }
 /**
  * Update a task's state to success. Includes task_outlets and outlet_events for registering asset events.
@@ -1918,7 +1929,7 @@ export interface SucceedTask {
   rendered_map_index?: RenderedMapIndex4;
   loop_decision?: LoopDecisionPayload | null;
   external_clear_target?: ExternalClearTargetPayload | null;
-  type?: Type76;
+  type?: Type77;
 }
 /**
  * Response containing count of Task Instances matching certain filters.
@@ -1928,7 +1939,7 @@ export interface SucceedTask {
  */
 export interface TICount {
   count: Count1;
-  type?: Type77;
+  type?: Type78;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1936,7 +1947,7 @@ export interface TICount {
  */
 export interface TaskBreadcrumbsResult {
   breadcrumbs: Breadcrumbs;
-  type?: Type78;
+  type?: Type79;
 }
 /**
  * Response containing the first reschedule date for a task instance.
@@ -1946,7 +1957,7 @@ export interface TaskBreadcrumbsResult {
  */
 export interface TaskRescheduleStartDate {
   start_date: StartDate7;
-  type?: Type79;
+  type?: Type80;
 }
 /**
  * Update a task's state.
@@ -1961,7 +1972,7 @@ export interface TaskRescheduleStartDate {
 export interface TaskState {
   state: State8;
   end_date?: EndDate8;
-  type?: Type80;
+  type?: Type81;
   rendered_map_index?: RenderedMapIndex5;
   retry_reason?: RetryReason1;
   loop_decision?: LoopDecisionPayload | null;
@@ -1974,7 +1985,7 @@ export interface TaskState {
  */
 export interface TaskStateStoreResult {
   value: JsonValue | null;
-  type?: Type81;
+  type?: Type82;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -1982,7 +1993,7 @@ export interface TaskStateStoreResult {
  */
 export interface TaskStatesResult {
   task_states: TaskStates;
-  type?: Type82;
+  type?: Type83;
 }
 export interface TaskStates {
   [k: string]: unknown;
@@ -2000,7 +2011,7 @@ export interface TriggerDagRun {
   note?: Note2;
   dag_id: DagId23;
   run_id: DagRunId;
-  type?: Type83;
+  type?: Type84;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2009,7 +2020,7 @@ export interface TriggerDagRun {
 export interface UpdateDagRunNote {
   ti_id: TiId9;
   note: Note3;
-  type?: Type84;
+  type?: Type85;
 }
 /**
  * Update the response content part of an existing Human-in-the-loop response.
@@ -2021,7 +2032,7 @@ export interface UpdateHITLDetail {
   ti_id: TiId10;
   chosen_options: ChosenOptions1;
   params_input?: ParamsInput1;
-  type?: Type85;
+  type?: Type86;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2029,7 +2040,7 @@ export interface UpdateHITLDetail {
  */
 export interface ValidateInletsAndOutlets {
   ti_id: TiId11;
-  type?: Type86;
+  type?: Type87;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2038,7 +2049,7 @@ export interface ValidateInletsAndOutlets {
 export interface VariableKeysResult {
   keys: Keys;
   total_entries: TotalEntries;
-  type?: Type87;
+  type?: Type88;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2047,7 +2058,7 @@ export interface VariableKeysResult {
 export interface VariableResult {
   key: Key19;
   value: Value2;
-  type?: Type88;
+  type?: Type89;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2055,7 +2066,7 @@ export interface VariableResult {
  */
 export interface XComCountResponse {
   len: Len;
-  type?: Type89;
+  type?: Type90;
 }
 /**
  * Response to ReadXCom request.
@@ -2066,7 +2077,7 @@ export interface XComCountResponse {
 export interface XComResult {
   key: Key20;
   value: JsonValue | null;
-  type?: Type90;
+  type?: Type91;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2074,7 +2085,7 @@ export interface XComResult {
  */
 export interface XComSequenceIndexResult {
   root: JsonValue;
-  type?: Type91;
+  type?: Type92;
 }
 /**
  * This interface was referenced by `SupervisorWireSchema`'s JSON-Schema
@@ -2082,7 +2093,7 @@ export interface XComSequenceIndexResult {
  */
 export interface XComSequenceSliceResult {
   root: Root;
-  type?: Type92;
+  type?: Type93;
 }
 
 /** Cadwyn schema version this SDK was generated against.
