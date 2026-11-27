@@ -108,6 +108,7 @@ sensors:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
       - airflow.providers.http.sensors.http
+      - airflow.providers.http.sensors.remote_external_task
 
 hooks:
   - integration-name: Hypertext Transfer Protocol (HTTP)
