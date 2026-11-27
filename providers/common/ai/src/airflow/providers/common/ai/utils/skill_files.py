@@ -36,15 +36,13 @@ import signal
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+import yaml
 from pydantic_ai import ModelRetry, RunContext
 from pydantic_ai.toolsets import FunctionToolset
 
 from airflow.providers.common.ai.utils.toolset_base import validate_max_retries
-
-if TYPE_CHECKING:
-    from pydantic_ai.toolsets.abstract import ToolsetTool
 
 TOOLSET_ID = "airflow_skills"
 
@@ -122,9 +120,6 @@ def _parse_resource(path: Path, text: str) -> Any:
         except json.JSONDecodeError:
             return text
     if suffix in (".yaml", ".yml"):
-        # The harness, which requires PyYAML, is imported before any run can reach this tool.
-        import yaml
-
         try:
             return yaml.safe_load(text)
         except yaml.YAMLError:
@@ -201,19 +196,13 @@ class _SkillFilesToolset(FunctionToolset[Any]):
         exclude_resources: Sequence[str],
         max_retries: int | None,
     ) -> None:
-        super().__init__(id=TOOLSET_ID)
+        super().__init__(id=TOOLSET_ID, max_retries=validate_max_retries(max_retries))
         self._runs = runs
         self._exclude_patterns = (*DEFAULT_RESOURCE_EXCLUDES, *exclude_resources)
-        self._max_retries = validate_max_retries(max_retries)
         if resources:
             self.add_function(self.read_skill_resource, takes_ctx=True)
         if scripts:
             self.add_function(self.run_skill_script, takes_ctx=True)
-
-    async def get_tools(self, ctx: RunContext[Any]) -> dict[str, ToolsetTool[Any]]:
-        max_retries = ctx.max_retries if self._max_retries is None else self._max_retries
-        tools = await super().get_tools(ctx)
-        return {name: dataclasses.replace(tool, max_retries=max_retries) for name, tool in tools.items()}
 
     def _get_skill_dir(self, ctx: RunContext[Any], skill_name: str) -> Path:
         state = self._runs.get(ctx.run_id or "")
