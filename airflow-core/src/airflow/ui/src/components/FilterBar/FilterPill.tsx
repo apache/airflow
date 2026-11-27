@@ -185,7 +185,7 @@ export const FilterPill = ({
         </Box>
       </Box>
       <IconButton
-        aria-label={`Remove ${filter.config.label} filter`}
+        aria-label={translate("common:filters.removeNamedFilter", { label: filter.config.label })}
         borderRadius="full"
         data-testid={`${filter.config.key}-pill-remove`}
         label={translate("common:filters.removeFilter")}

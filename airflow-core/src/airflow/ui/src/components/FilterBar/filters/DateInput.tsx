@@ -19,6 +19,7 @@
 import type { ChangeEvent, KeyboardEvent } from "react";
 
 import { Box, Input, Text } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { MdClose } from "react-icons/md";
 
 import { IconButton } from "src/system-components";
@@ -59,6 +60,7 @@ export const DateInput = ({
   onFocus,
   placeholder,
 }: DateInputProps) => {
+  const { t: translate } = useTranslation("common");
   const fieldName = inputType === "date" ? field : (`${field}Time` as const);
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
@@ -88,7 +90,7 @@ export const DateInput = ({
         />
         {Boolean(inputValue) && !Boolean(disabled) && (
           <IconButton
-            aria-label={`Clear ${field} ${inputType}`}
+            aria-label={translate("common:filters.clearInput", { label })}
             onClick={(event) => {
               event.stopPropagation();
               onClear();
