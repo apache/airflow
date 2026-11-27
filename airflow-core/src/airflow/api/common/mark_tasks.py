@@ -212,6 +212,12 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
     ).scalar_one()
     dag_run.state = state
+    if state == DagRunState.QUEUED:
+        # Match ``clear_task_instances``: the scheduler picks queued runs ordered by
+        # ``last_scheduling_decision`` (nulls first) before ``run_after``. A stale value left from
+        # when the run was running would let later runs of the same Dag be picked first.
+        dag_run.last_scheduling_decision = None
+        dag_run.start_date = None
     session.merge(dag_run)
 
 

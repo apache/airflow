@@ -21,9 +21,11 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import select
 
+from airflow._shared.timezones import timezone
 from airflow.api.common.mark_tasks import (
     find_task_relatives,
     set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
     set_dag_run_state_to_success,
 )
 from airflow.models.dagrun import DagRun
@@ -172,3 +174,21 @@ def test_find_task_relatives_upstream_still_includes_setups(dag_maker: DagMaker[
 
     assert "normal_t" in relatives
     assert "setup_t" in relatives
+
+
+def test_set_dag_run_state_to_queued_resets_scheduling_decision(dag_maker: DagMaker[SerializedDAG]):
+    """A run sent back to queued must not keep the ordering key from when it was running."""
+    with dag_maker("TEST_DAG_QUEUED") as dag:
+        EmptyOperator(task_id="task")
+    dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+    dr.start_date = timezone.utcnow()
+    dr.last_scheduling_decision = timezone.utcnow()
+    dag_maker.session.flush()
+
+    set_dag_run_state_to_queued(dag=dag, run_id=dr.run_id, commit=True, session=dag_maker.session)
+
+    run = dag_maker.session.scalar(select(DagRun).filter_by(dag_id=dr.dag_id, run_id=dr.run_id))
+    assert run is not None
+    assert run.state == DagRunState.QUEUED
+    assert run.last_scheduling_decision is None
+    assert run.start_date is None
