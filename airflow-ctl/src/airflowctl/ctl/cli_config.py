@@ -1347,6 +1347,7 @@ CONNECTION_COMMANDS = (
         args=(
             Arg(flags=("file",), metavar="FILEPATH", help="Connections JSON file"),
             ARG_ACTION_ON_EXISTING_KEY,
+            ARG_AUTH_ENVIRONMENT,
         ),
     ),
 )
