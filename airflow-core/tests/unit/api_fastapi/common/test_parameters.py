@@ -25,7 +25,7 @@ from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Column, MetaData, String, Table, create_engine, select
+from sqlalchemy import Column, Float, Integer, MetaData, String, Table, create_engine, select
 from sqlalchemy.orm import aliased
 
 from airflow.api_fastapi.common.parameters import (
@@ -39,7 +39,7 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
 from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
-from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
+from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter, Range
 from airflow.api_fastapi.common.parameters.search import (
     _escape_like_pattern,
     _PrefixPatternParam,
@@ -218,6 +218,33 @@ class TestSortParam:
 
 def _compile(statement):
     return str(statement.compile(compile_kwargs={"literal_binds": True})).lower()
+
+
+class TestRangeFilter:
+    @pytest.mark.parametrize(
+        ("bound_name", "operator"),
+        [
+            ("lower_bound_gte", ">="),
+            ("lower_bound_gt", ">"),
+            ("upper_bound_lte", "<="),
+            ("upper_bound_lt", "<"),
+        ],
+    )
+    @pytest.mark.parametrize(("column_type", "bound"), [(Integer, 0), (Float, 0.0)])
+    def test_zero_bounds_are_applied(self, bound_name, operator, column_type, bound):
+        table = Table("measurements", MetaData(), Column("duration", column_type))
+        bounds = {
+            "lower_bound_gte": None,
+            "lower_bound_gt": None,
+            "upper_bound_lte": None,
+            "upper_bound_lt": None,
+        }
+        bounds[bound_name] = bound
+        range_filter = RangeFilter(Range(**bounds), table.c.duration)
+
+        sql = _compile(range_filter.to_orm(select(table)))
+
+        assert f"duration {operator} {bound}" in sql
 
 
 def _has_ilike(sql: str, term: str) -> bool:
