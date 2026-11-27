@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import time
+from subprocess import check_output
+from textwrap import dedent
 from typing import TYPE_CHECKING
 from unittest.mock import Mock, patch
 from uuid import uuid4
@@ -244,3 +248,177 @@ class TestKubernetesExecutor(BaseK8STest):
         mock_log.warning.assert_not_called()
 
         executor.kube_client.read_namespaced_pod.assert_not_called()
+
+
+@pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
+class TestKubernetesExecutorCallbacks(BaseK8STest):
+    """
+    Integration tests for deadline callbacks run as pods on the Kubernetes executor.
+
+    Each test triggers its own Dag run and follows the callback that run created, so other callback pods in
+    the namespace cannot satisfy it.  No public API exposes executor callback rows, so the callback is looked
+    up in the metadata database from inside the scheduler pod.
+
+    Prerequisites:
+      - The ``example_deadline_callback`` Dag must be loaded in the cluster.
+    """
+
+    _DAG_ID = "example_deadline_callback"
+    _CALLBACK_LABEL = "airflow-workload-type=callback"
+    _CALLBACK_ANNOTATION_KEY = "callback_id"
+    _TERMINAL_STATES = ("success", "failed")
+
+    _QUERY_CALLBACK_SCRIPT = dedent(
+        """\
+        import json
+        import sys
+
+        from sqlalchemy import select
+
+        from airflow.models.callback import Callback
+        from airflow.models.dagrun import DagRun
+        from airflow.models.deadline import Deadline
+        from airflow.utils.session import create_session
+
+        dag_id, run_id = sys.argv[1:3]
+        with create_session() as session:
+            row = session.execute(
+                select(Callback.id, Callback.state)
+                .join(Deadline, Deadline.callback_id == Callback.id)
+                .join(DagRun, DagRun.id == Deadline.dagrun_id)
+                .where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+            ).first()
+        print("CALLBACK_ROW " + json.dumps(None if row is None else [str(row[0]), row[1]]))
+        """
+    )
+
+    @classmethod
+    def _find_callback(cls, dag_id: str, run_id: str, namespace: str = "airflow") -> tuple[str, str] | None:
+        """Return ``(callback_id, state)`` of the callback created for a Dag run, if it exists yet."""
+        output = check_output(
+            [
+                "kubectl",
+                "exec",
+                "-n",
+                namespace,
+                "deploy/airflow-scheduler",
+                "-c",
+                "scheduler",
+                "--",
+                "python",
+                "-c",
+                cls._QUERY_CALLBACK_SCRIPT,
+                dag_id,
+                run_id,
+            ]
+        )
+        # Airflow logs to stdout before and after the result, at interpreter exit included, so find it by
+        # its marker rather than its position.
+        line = next(line for line in output.decode().splitlines() if line.startswith("CALLBACK_ROW "))
+        row = json.loads(line.removeprefix("CALLBACK_ROW "))
+        return None if row is None else (row[0], row[1])
+
+    @classmethod
+    def _wait_for_callback_state(
+        cls, dag_id: str, run_id: str, states: tuple[str, ...], timeout: int = 180
+    ) -> tuple[str, str]:
+        deadline = time.monotonic() + timeout
+        found = None
+        while time.monotonic() < deadline:
+            found = cls._find_callback(dag_id, run_id)
+            if found is not None and found[1] in states:
+                return found
+            time.sleep(2)
+        raise AssertionError(
+            f"Callback for {dag_id}/{run_id} did not reach one of {states} within {timeout}s (last seen: {found})"
+        )
+
+    @classmethod
+    def _find_callback_pod(cls, callback_id: str, namespace: str = "airflow") -> dict | None:
+        raw = check_output(
+            ["kubectl", "get", "pods", "-n", namespace, "-l", cls._CALLBACK_LABEL, "-o", "json"]
+        )
+        return next(
+            (
+                pod
+                for pod in json.loads(raw)["items"]
+                if pod["metadata"].get("annotations", {}).get(cls._CALLBACK_ANNOTATION_KEY) == callback_id
+            ),
+            None,
+        )
+
+    @classmethod
+    def _wait_for_callback_pod(cls, callback_id: str, timeout: int = 120) -> dict:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if pod := cls._find_callback_pod(callback_id):
+                return pod
+            time.sleep(0.5)
+        raise AssertionError(f"No pod for callback {callback_id} appeared within {timeout}s")
+
+    @classmethod
+    def _wait_for_callback_pod_gone(cls, callback_id: str, timeout: int = 120) -> None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if cls._find_callback_pod(callback_id) is None:
+                return
+            time.sleep(2)
+        raise AssertionError(f"Pod for callback {callback_id} was not deleted within {timeout}s")
+
+    def _trigger_dag_run(self, dag_id: str) -> str:
+        result_json = self.start_dag(dag_id=dag_id, host=self.host)
+        dag_runs = result_json.get("dag_runs", [])
+        matching = [r for r in dag_runs if r["dag_id"] == dag_id]
+        assert matching, f"No dag runs returned for dag_id={dag_id!r}"
+        newest = max(matching, key=lambda r: r["queued_at"])
+        return newest["dag_run_id"]
+
+    @pytest.mark.execution_timeout(300)
+    def test_deadline_callback_executes_on_kubernetes(self):
+        run_id = self._trigger_dag_run(self._DAG_ID)
+
+        callback_id, state = self._wait_for_callback_state(self._DAG_ID, run_id, self._TERMINAL_STATES)
+
+        assert state == "success", f"Callback {callback_id} ended in state {state!r}"
+
+    @pytest.mark.execution_timeout(300)
+    def test_callback_pod_annotations_and_labels(self):
+        run_id = self._trigger_dag_run(self._DAG_ID)
+        callback_id, _ = self._wait_for_callback_state(
+            self._DAG_ID, run_id, ("queued", "running", *self._TERMINAL_STATES)
+        )
+
+        pod = self._wait_for_callback_pod(callback_id)
+        annotations = pod["metadata"]["annotations"]
+        labels = pod["metadata"]["labels"]
+        containers = pod["spec"]["containers"]
+
+        assert annotations[self._CALLBACK_ANNOTATION_KEY] == callback_id
+        for forbidden in ("dag_id", "run_id", "task_id", "try_number", "map_index"):
+            assert forbidden not in annotations, f"Unexpected annotation {forbidden!r} found on callback pod"
+
+        assert labels.get("airflow-workload-type") == "callback", (
+            f"Expected label airflow-workload-type=callback, got: {labels}"
+        )
+        assert labels.get("kubernetes_executor") == "True", (
+            f"Expected label kubernetes_executor=True, got: {labels}"
+        )
+        assert "airflow-worker" in labels, f"airflow-worker label missing. Got: {labels}"
+
+        assert containers, "No containers found in callback pod spec"
+        full_cmd = (containers[0].get("command") or []) + (containers[0].get("args") or [])
+        assert any("execute_workload" in part for part in full_cmd), (
+            f"Container command does not include 'execute_workload'. Full command: {full_cmd}"
+        )
+        assert any("--json-string" in part for part in full_cmd), (
+            f"Container command does not include '--json-string'. Full command: {full_cmd}"
+        )
+
+    @pytest.mark.execution_timeout(300)
+    def test_callback_pod_is_cleaned_up_after_success(self):
+        run_id = self._trigger_dag_run(self._DAG_ID)
+        callback_id, state = self._wait_for_callback_state(self._DAG_ID, run_id, self._TERMINAL_STATES)
+
+        assert state == "success", f"Callback {callback_id} ended in state {state!r}"
+
+        self._wait_for_callback_pod_gone(callback_id)

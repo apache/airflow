@@ -49,6 +49,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
+    CALLBACK_POD_ANNOTATION_KEY,
     POD_EXECUTOR_DONE_KEY,
     TASK_INSTANCE_ID_ANNOTATION,
     TASK_INSTANCE_ID_LABEL,
@@ -63,7 +64,12 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_to_key,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_4_PLUS
+from airflow.providers.cncf.kubernetes.version_compat import (
+    AIRFLOW_V_3_0_PLUS,
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 from airflow.providers.common.compat.sdk import Stats, conf
 from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import remove_escape_codes
@@ -72,6 +78,14 @@ from airflow.utils.state import TaskInstanceState
 
 if hasattr(BaseExecutor, "get_task_key"):
     from airflow.executors.workloads.types import TaskInstanceUuid
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.executors.workloads import ExecuteTask
+
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.executors.workloads import ExecuteCallback
+    from airflow.models.callback import CallbackKey
+    from airflow.utils.state import CallbackState
 
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
@@ -88,9 +102,13 @@ if TYPE_CHECKING:
     from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
     from airflow.executors import workloads
-    from airflow.executors.workloads import ExecuteTask
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+        WorkloadCommand,
+        WorkloadKey,
+        WorkloadState,
+    )
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
@@ -123,6 +141,13 @@ class KubernetesExecutor(BaseExecutor):
     supports_multi_team: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
 
+    if AIRFLOW_V_3_4_PLUS:
+        supported_workload_types: frozenset[WorkloadType] = frozenset(
+            {WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK}
+        )
+    elif AIRFLOW_V_3_3_PLUS:
+        supports_callbacks: bool = True
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -152,7 +177,7 @@ class KubernetesExecutor(BaseExecutor):
         self.scheduler_job_id: str | None = None
         self._last_completed_pod_adoption = 0.0
         self.kubernetes_queue: str | None = None
-        self.task_publish_retries: Counter[TaskInstanceUuid | TaskInstanceKey] = Counter()
+        self.task_publish_retries: Counter[WorkloadKey] = Counter()
         self.task_publish_max_retries = self.conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
@@ -173,7 +198,7 @@ class KubernetesExecutor(BaseExecutor):
         # adopted pod has no entry here, so a pre-execution failure falls through to a normal fail
         # instead of requeuing. The orphaned task instance itself is still recovered by the
         # scheduler's adopt_or_reset_orphaned_tasks(), which re-queues it with a fresh attempt.
-        self.pod_launch_attempts: dict[TaskInstanceUuid | TaskInstanceKey, _PodLaunchAttempt] = {}
+        self.pod_launch_attempts: dict[WorkloadKey, _PodLaunchAttempt] = {}
         self.RUNNING_POD_LOG_LINES = self.conf.getint(
             "kubernetes_executor", "running_pod_log_lines", fallback=KubernetesExecutor.RUNNING_POD_LOG_LINES
         )
@@ -367,8 +392,8 @@ class KubernetesExecutor(BaseExecutor):
 
     def execute_async(
         self,
-        key: TaskInstanceUuid | TaskInstanceKey,
-        command: Any,
+        key: WorkloadKey,
+        command: WorkloadCommand,
         queue: str | None = None,
         executor_config: Any | None = None,
     ) -> None:
@@ -416,9 +441,12 @@ class KubernetesExecutor(BaseExecutor):
                     queue,
                 )
 
-        self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
+        if not self._is_callback_key(key):
+            self.event_buffer[key] = (TaskInstanceState.QUEUED, self.scheduler_job_id)
         job = KubernetesJob(key, command, kube_executor_config, pod_template_file, coordinator_kube_image)
-        self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
+        # Requeuing after a pre-execution failure checks the TaskInstance row, which callbacks don't have.
+        if not self._is_callback_key(key):
+            self.pod_launch_attempts[key] = _PodLaunchAttempt(job=job)
         self.task_queue.put(job)
 
     # TODO: Remove this once the minimum supported Airflow version is 3.1+ and defer to BaseExecutor.queue_workload.
@@ -431,24 +459,38 @@ class KubernetesExecutor(BaseExecutor):
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
             self.queued_tasks[workload.ti.key] = workload
 
-    def _process_workloads(self, workloads: Sequence[workloads.All]) -> None:
-        from airflow.executors.workloads import ExecuteTask
+    @staticmethod
+    def _is_callback_key(key: WorkloadKey) -> bool:
+        return AIRFLOW_V_3_3_PLUS and isinstance(key, CallbackKey)
 
-        # Airflow V3 version
-        for w in workloads:
-            if not isinstance(w, ExecuteTask):
-                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(w)}")
+    def _process_workloads(self, workload_items: Sequence[workloads.All]) -> None:
+        for workload in workload_items:
+            key: WorkloadKey
+            command: WorkloadCommand
+            if isinstance(workload, ExecuteTask):
+                # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
+                command = [workload]
+                key = self.get_task_key(workload.ti) if self.supports_task_instance_uuid else workload.ti.key
+                queue = workload.ti.queue
+                executor_config = workload.ti.executor_config or {}
 
-            # TODO: AIP-72 handle populating tokens once https://github.com/apache/airflow/issues/45107 is handled.
-            command = [w]
-            key = self.get_task_key(w.ti) if self.supports_task_instance_uuid else w.ti.key
-            queue = w.ti.queue
-            executor_config = w.ti.executor_config or {}
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                else:
+                    del self.queued_tasks[key]
+            elif AIRFLOW_V_3_3_PLUS and isinstance(workload, ExecuteCallback):
+                command = [workload]
+                key = workload.callback.key
+                queue = None
+                executor_config = {}
 
-            if AIRFLOW_V_3_4_PLUS:
-                del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
+                if AIRFLOW_V_3_4_PLUS:
+                    del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][key]
+                else:
+                    del self.queued_callbacks[key]
             else:
-                del self.queued_tasks[key]
+                raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
+
             # Add to running before execute_async: it may fail() the task, which must remove the key again.
             self.running.add(key)
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
@@ -464,13 +506,7 @@ class KubernetesExecutor(BaseExecutor):
         immutable task instance id and launch ownership here prevents an obsolete workload from creating
         a stale worker pod.
         """
-        try:
-            from airflow.executors.workloads import ExecuteTask
-        except ImportError:
-            # Compatibility with older Airflow versions tested by provider compatibility jobs.
-            return True
-
-        if not task.command or not isinstance(task.command[0], ExecuteTask):
+        if not AIRFLOW_V_3_0_PLUS or not task.command or not isinstance(task.command[0], ExecuteTask):
             return True
 
         return self._should_create_pod_for_execute_task(task, task.command[0])
@@ -845,6 +881,7 @@ class KubernetesExecutor(BaseExecutor):
         if (
             self.supports_task_instance_uuid
             and not isinstance(key, TaskInstanceUuid)
+            and not self._is_callback_key(key)
             and state != "completed"
         ):
             self.log.warning("Ignoring pod %s/%s without a task instance UUID", namespace, pod_name)
@@ -974,13 +1011,16 @@ class KubernetesExecutor(BaseExecutor):
 
         # If we don't have a TI state, look it up from the db. event_buffer expects the TI state
         if state is None:
-            state = self._get_task_instance_state(key, session=session)
+            if self._is_callback_key(key):
+                # Callbacks don't have a TaskInstance row. The scheduler only applies this result to a
+                # callback still QUEUED or RUNNING, so a state the supervisor already reported wins.
+                state = CallbackState.SUCCESS
+            else:
+                state = self._get_task_instance_state(key, session=session)
 
         self.event_buffer[key] = state, termination_reason
 
-    def _get_task_instance_state(
-        self, key: TaskInstanceUuid | TaskInstanceKey, *, session: Session
-    ) -> TaskInstanceState | None:
+    def _get_task_instance_state(self, key: WorkloadKey, *, session: Session) -> TaskInstanceState | None:
         """Look up the current task instance state from the metadata database."""
         from airflow.models.taskinstance import TaskInstance
 
@@ -1228,6 +1268,12 @@ class KubernetesExecutor(BaseExecutor):
 
         pod_metadata = cast("k8s.V1ObjectMeta", pod.metadata)
         pod_name, namespace = cast("str", pod_metadata.name), cast("str", pod_metadata.namespace)
+        # Pods from _list_pods carry a ResourceField, not a dict, as annotations; ``in`` never matches
+        # on it, so look the callback id up with .get().
+        if (pod_metadata.annotations or {}).get(CALLBACK_POD_ANNOTATION_KEY):
+            # Callbacks are not adopted, matching the other executors that run them.
+            self.log.debug("Not adopting callback pod %s", pod_name)
+            return
         self.log.info("attempting to adopt pod %s", pod_name)
         ti_key = annotations_to_key(cast("dict[str, str]", pod_metadata.annotations))
         if ti_key not in tis_to_flush_by_key:
@@ -1384,13 +1430,22 @@ class KubernetesExecutor(BaseExecutor):
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
                 continue
 
-            task_id = task_instance_id_from_pod(pod) if self.supports_task_instance_uuid else None
-            ti_id = TaskInstanceUuid(task_id) if task_id else annotations_to_key(pod.metadata.annotations)
+            ti_id: WorkloadKey
+            state: WorkloadState | str = "completed"
+            if callback_id := (pod.metadata.annotations or {}).get(CALLBACK_POD_ANNOTATION_KEY):
+                ti_id = CallbackKey(id=callback_id)
+                # Before the callback supervisor reports its own state, this event is the only record
+                # that the callback finished. The scheduler ignores it for a callback already terminal.
+                state = CallbackState.SUCCESS
+                self.running.add(ti_id)
+            else:
+                task_id = task_instance_id_from_pod(pod) if self.supports_task_instance_uuid else None
+                ti_id = TaskInstanceUuid(task_id) if task_id else annotations_to_key(pod.metadata.annotations)
             pod_name = pod.metadata.name
             namespace = pod.metadata.namespace
             self.completed[(namespace, pod_name)] = KubernetesResults(
                 key=ti_id,
-                state="completed",
+                state=state,
                 pod_name=pod_name,
                 namespace=namespace,
                 resource_version=pod.metadata.resource_version,
