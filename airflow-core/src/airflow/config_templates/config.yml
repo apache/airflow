@@ -1768,10 +1768,9 @@ api:
         disables eviction, so the API server retains every deserialized Dag it loads until restart, matching
         the behavior before 3.2.2.
 
-        The cache is keyed by Dag version ID, so lookups by Dag ID
-        (e.g., viewing a Dag's details) always query the database for the latest
-        version, but the deserialized result is cached for subsequent
-        version-specific lookups.
+        The cache is keyed by Dag version ID. Lookups by Dag ID
+        (e.g., viewing a Dag's details) fetch the latest serialized row, but reuse
+        its cached deserialized Dag when the version ID and hash are unchanged.
       version_added: 3.2.2
       type: integer
       example: ~
@@ -1783,14 +1782,15 @@ api:
         database on next access. Set to 0 to disable TTL, leaving eviction to the
         ``dag_cache_size`` LRU policy.
 
-        An entry's TTL is refreshed only when the entry is checked against the database after
-        ``[core] min_serialized_dag_update_interval``, not on every request. If the TTL is shorter
-        than that interval, even frequently requested entries can expire and reload between
-        checks. ``dag_cache_size`` remains the only hard ceiling on memory.
+        An entry's TTL is refreshed only when the entry is checked against the database: on
+        every lookup by Dag ID, or after ``[core] min_serialized_dag_update_interval`` for
+        version-specific lookups. If the TTL is shorter than that interval, even frequently
+        requested versions can expire and reload between checks. ``dag_cache_size`` remains
+        the only hard ceiling on memory.
 
         Note: this does not govern staleness. A Dag update that creates a new version is picked
-        up immediately, because the new version is a different cache key. A version rewritten in
-        place is re-checked against its current ``dag_hash`` once
+        up immediately, because the new version is a different cache key. For version-specific
+        lookups, a version rewritten in place is re-checked against its current ``dag_hash`` once
         ``[core] min_serialized_dag_update_interval`` has elapsed since the entry was last
         validated, so that option bounds how long a rewritten version can be served stale.
       version_added: 3.2.2
