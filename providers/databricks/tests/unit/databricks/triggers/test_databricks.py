@@ -23,10 +23,13 @@ import pytest
 from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.models import Connection
+from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState, SQLStatementState, WarehouseState
+from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.providers.databricks.triggers.databricks import (
     DatabricksExecutionTrigger,
     DatabricksSQLStatementExecutionTrigger,
+    DatabricksSqlSensorTrigger,
     DatabricksWarehouseStateTrigger,
 )
 from airflow.triggers.base import TriggerEvent
@@ -859,3 +862,168 @@ class TestDatabricksWarehouseStateTrigger:
             )
         ]
         mock_a_get_warehouse_state.assert_not_called()
+
+
+SQL_END_TIME = 9999999999.0
+SQL_QUERY = "SELECT 1 FROM default.table1 LIMIT 1"
+SQL_WAREHOUSE_NAME = "test_warehouse"
+
+
+class TestDatabricksSqlSensorTrigger:
+    @pytest.fixture(autouse=True)
+    def setup_connections(self, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id=DEFAULT_CONN_ID,
+                conn_type="databricks",
+                host=HOST,
+                login=LOGIN,
+                password=PASSWORD,
+                extra=None,
+            )
+        )
+        self.trigger = DatabricksSqlSensorTrigger(
+            sql=SQL_QUERY,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            sql_warehouse_name=SQL_WAREHOUSE_NAME,
+            poke_interval=POLLING_INTERVAL_SECONDS,
+            end_time=SQL_END_TIME,
+        )
+
+    def test_serialize(self):
+        assert self.trigger.serialize() == (
+            "airflow.providers.databricks.triggers.databricks.DatabricksSqlSensorTrigger",
+            {
+                "sql": SQL_QUERY,
+                "databricks_conn_id": DEFAULT_CONN_ID,
+                "http_path": None,
+                "sql_warehouse_name": SQL_WAREHOUSE_NAME,
+                "session_configuration": None,
+                "http_headers": None,
+                "catalog": "",
+                "schema": "default",
+                "client_parameters": {},
+                "hook_params": {},
+                "query_tags": None,
+                "end_time": SQL_END_TIME,
+                "timeout": 3600.0,
+                "poke_interval": POLLING_INTERVAL_SECONDS,
+                "silent_fail": False,
+                "caller": "DatabricksSqlSensorTrigger",
+            },
+        )
+
+    def test_serialize_round_trip(self):
+        trigger = DatabricksSqlSensorTrigger(
+            sql=SQL_QUERY,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            http_path="/sql/1.0/warehouses/12345",
+            sql_warehouse_name=SQL_WAREHOUSE_NAME,
+            session_configuration={"ansi_mode": "true"},
+            http_headers=[("X-Header", "val")],
+            catalog="main",
+            schema="analytics",
+            client_parameters={"_socket_timeout": 60},
+            hook_params={"retry_limit": 5},
+            query_tags={"env": "prod"},
+            end_time=SQL_END_TIME,
+            timeout=1800.0,
+            poke_interval=15.0,
+            silent_fail=True,
+            caller="CustomCaller",
+        )
+        classpath, kwargs = trigger.serialize()
+        restored = DatabricksSqlSensorTrigger(**kwargs)
+        assert restored.sql == SQL_QUERY
+        assert restored.databricks_conn_id == DEFAULT_CONN_ID
+        assert restored.http_path == "/sql/1.0/warehouses/12345"
+        assert restored.sql_warehouse_name == SQL_WAREHOUSE_NAME
+        assert restored.session_configuration == {"ansi_mode": "true"}
+        assert restored.http_headers == [("X-Header", "val")]
+        assert restored.catalog == "main"
+        assert restored.schema == "analytics"
+        assert restored.client_parameters == {"_socket_timeout": 60}
+        assert restored.hook_params == {"retry_limit": 5}
+        assert restored.query_tags == {"env": "prod"}
+        assert restored.end_time == SQL_END_TIME
+        assert restored.timeout == 1800.0
+        assert restored.poke_interval == 15.0
+        assert restored.silent_fail is True
+        assert restored.caller == "CustomCaller"
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DatabricksSqlHook, "run")
+    async def test_run_success(self, mock_run):
+        mock_run.return_value = [(1,)]
+
+        events = [event async for event in self.trigger.run()]
+        assert events == [TriggerEvent({"status": "success"})]
+        mock_run.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch.object(DatabricksSqlHook, "run")
+    async def test_run_polling_then_success(self, mock_run, mock_sleep):
+        mock_run.side_effect = [[], [(1,)]]
+
+        events = [event async for event in self.trigger.run()]
+        assert events == [TriggerEvent({"status": "success"})]
+        assert mock_run.call_count == 2
+        mock_sleep.assert_called_once_with(POLLING_INTERVAL_SECONDS)
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DatabricksSqlHook, "run")
+    async def test_run_timeout(self, mock_run):
+        trigger = DatabricksSqlSensorTrigger(
+            sql=SQL_QUERY,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            sql_warehouse_name=SQL_WAREHOUSE_NAME,
+            timeout=30.0,
+            end_time=0,
+        )
+        events = [event async for event in trigger.run()]
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "timeout",
+                    "message": "Sensor timed out after 30.0 seconds.",
+                }
+            )
+        ]
+        mock_run.assert_not_called()
+
+    @pytest.mark.asyncio
+    @mock.patch.object(DatabricksSqlHook, "run")
+    async def test_run_error(self, mock_run):
+        mock_run.side_effect = AirflowException("Databricks cluster terminated")
+
+        events = [event async for event in self.trigger.run()]
+        assert events == [
+            TriggerEvent(
+                {
+                    "status": "error",
+                    "message": "Databricks cluster terminated",
+                }
+            )
+        ]
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.databricks.triggers.databricks.asyncio.sleep")
+    @mock.patch.object(DatabricksSqlHook, "run")
+    async def test_run_silent_fail(self, mock_run, mock_sleep):
+        mock_run.side_effect = [AirflowException("Transient error"), [(1,)]]
+
+        trigger = DatabricksSqlSensorTrigger(
+            sql=SQL_QUERY,
+            databricks_conn_id=DEFAULT_CONN_ID,
+            sql_warehouse_name=SQL_WAREHOUSE_NAME,
+            poke_interval=POLLING_INTERVAL_SECONDS,
+            end_time=SQL_END_TIME,
+            silent_fail=True,
+        )
+
+        events = [event async for event in trigger.run()]
+        assert events == [TriggerEvent({"status": "success"})]
+        assert mock_run.call_count == 2
+        mock_sleep.assert_called_once_with(POLLING_INTERVAL_SECONDS)
+
