@@ -287,7 +287,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         },
     ],
     "breeze exec": [
-        {"name": "Drops in the interactive shell of active airflow container"},
+        {
+            "name": "Project selection",
+            "options": [
+                "--project-name",
+            ],
+        },
     ],
     "breeze run": [
         {

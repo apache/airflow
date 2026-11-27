@@ -1,4 +1,4 @@
-<svg class="rich-terminal" viewBox="0 0 1482 294.0" xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 1482 416.0" xmlns="http://www.w3.org/2000/svg">
     <!-- Generated with Rich https://www.textualize.io -->
     <style>
 
@@ -37,12 +37,14 @@
 .breeze-exec-r3 { fill: #c5c8c6;font-weight: bold }
 .breeze-exec-r4 { fill: #68a0b3;font-weight: bold }
 .breeze-exec-r5 { fill: #868887 }
-.breeze-exec-r6 { fill: #98a84b;font-weight: bold }
+.breeze-exec-r6 { fill: #d0b344;font-weight: bold }
+.breeze-exec-r7 { fill: #8d7b39 }
+.breeze-exec-r8 { fill: #98a84b;font-weight: bold }
     </style>
 
     <defs>
     <clipPath id="breeze-exec-clip-terminal">
-      <rect x="0" y="0" width="1463.0" height="243.0" />
+      <rect x="0" y="0" width="1463.0" height="365.0" />
     </clipPath>
     <clipPath id="breeze-exec-line-0">
     <rect x="0" y="1.5" width="1464" height="24.65"/>
@@ -71,9 +73,24 @@
 <clipPath id="breeze-exec-line-8">
     <rect x="0" y="196.7" width="1464" height="24.65"/>
             </clipPath>
+<clipPath id="breeze-exec-line-9">
+    <rect x="0" y="221.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-exec-line-10">
+    <rect x="0" y="245.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-exec-line-11">
+    <rect x="0" y="269.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-exec-line-12">
+    <rect x="0" y="294.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="breeze-exec-line-13">
+    <rect x="0" y="318.7" width="1464" height="24.65"/>
+            </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="292" rx="8"/><text class="breeze-exec-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;exec</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="414" rx="8"/><text class="breeze-exec-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;exec</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
@@ -88,11 +105,16 @@
 </text><text class="breeze-exec-r1" x="1464" y="68.8" textLength="12.2" clip-path="url(#breeze-exec-line-2)">
 </text><text class="breeze-exec-r1" x="12.2" y="93.2" textLength="695.4" clip-path="url(#breeze-exec-line-3)">Joins&#160;the&#160;interactive&#160;shell&#160;of&#160;running&#160;airflow&#160;container.</text><text class="breeze-exec-r1" x="1464" y="93.2" textLength="12.2" clip-path="url(#breeze-exec-line-3)">
 </text><text class="breeze-exec-r1" x="1464" y="117.6" textLength="12.2" clip-path="url(#breeze-exec-line-4)">
-</text><text class="breeze-exec-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-exec-line-5)">╭─</text><text class="breeze-exec-r5" x="24.4" y="142" textLength="195.2" clip-path="url(#breeze-exec-line-5)">&#160;Common&#160;options&#160;</text><text class="breeze-exec-r5" x="219.6" y="142" textLength="1220" clip-path="url(#breeze-exec-line-5)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-exec-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-exec-line-5)">─╮</text><text class="breeze-exec-r1" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-exec-line-5)">
-</text><text class="breeze-exec-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-exec-line-6)">│</text><text class="breeze-exec-r4" x="24.4" y="166.4" textLength="109.8" clip-path="url(#breeze-exec-line-6)">--verbose</text><text class="breeze-exec-r6" x="158.6" y="166.4" textLength="24.4" clip-path="url(#breeze-exec-line-6)">-v</text><text class="breeze-exec-r1" x="207.4" y="166.4" textLength="585.6" clip-path="url(#breeze-exec-line-6)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="breeze-exec-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-exec-line-6)">│</text><text class="breeze-exec-r1" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-exec-line-6)">
-</text><text class="breeze-exec-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#breeze-exec-line-7)">│</text><text class="breeze-exec-r4" x="24.4" y="190.8" textLength="109.8" clip-path="url(#breeze-exec-line-7)">--dry-run</text><text class="breeze-exec-r6" x="158.6" y="190.8" textLength="24.4" clip-path="url(#breeze-exec-line-7)">-D</text><text class="breeze-exec-r1" x="207.4" y="190.8" textLength="719.8" clip-path="url(#breeze-exec-line-7)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="breeze-exec-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#breeze-exec-line-7)">│</text><text class="breeze-exec-r1" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-exec-line-7)">
-</text><text class="breeze-exec-r5" x="0" y="215.2" textLength="12.2" clip-path="url(#breeze-exec-line-8)">│</text><text class="breeze-exec-r4" x="24.4" y="215.2" textLength="109.8" clip-path="url(#breeze-exec-line-8)">--help&#160;&#160;&#160;</text><text class="breeze-exec-r6" x="158.6" y="215.2" textLength="24.4" clip-path="url(#breeze-exec-line-8)">-h</text><text class="breeze-exec-r1" x="207.4" y="215.2" textLength="329.4" clip-path="url(#breeze-exec-line-8)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-exec-r5" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#breeze-exec-line-8)">│</text><text class="breeze-exec-r1" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-exec-line-8)">
+</text><text class="breeze-exec-r5" x="0" y="142" textLength="24.4" clip-path="url(#breeze-exec-line-5)">╭─</text><text class="breeze-exec-r5" x="24.4" y="142" textLength="231.8" clip-path="url(#breeze-exec-line-5)">&#160;Project&#160;selection&#160;</text><text class="breeze-exec-r5" x="256.2" y="142" textLength="1183.4" clip-path="url(#breeze-exec-line-5)">─────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-exec-r5" x="1439.6" y="142" textLength="24.4" clip-path="url(#breeze-exec-line-5)">─╮</text><text class="breeze-exec-r1" x="1464" y="142" textLength="12.2" clip-path="url(#breeze-exec-line-5)">
+</text><text class="breeze-exec-r5" x="0" y="166.4" textLength="12.2" clip-path="url(#breeze-exec-line-6)">│</text><text class="breeze-exec-r4" x="24.4" y="166.4" textLength="170.8" clip-path="url(#breeze-exec-line-6)">--project-name</text><text class="breeze-exec-r1" x="219.6" y="166.4" textLength="500.2" clip-path="url(#breeze-exec-line-6)">Compose&#160;project&#160;name.&#160;Defaults&#160;to&#160;breeze-</text><text class="breeze-exec-r6" x="719.8" y="166.4" textLength="305" clip-path="url(#breeze-exec-line-6)">&lt;worktree&#160;directory&#160;name&gt;</text><text class="breeze-exec-r1" x="1024.8" y="166.4" textLength="414.8" clip-path="url(#breeze-exec-line-6)">&#160;in&#160;a&#160;linked&#160;worktree,&#160;or&#160;breeze&#160;&#160;</text><text class="breeze-exec-r5" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#breeze-exec-line-6)">│</text><text class="breeze-exec-r1" x="1464" y="166.4" textLength="12.2" clip-path="url(#breeze-exec-line-6)">
+</text><text class="breeze-exec-r5" x="0" y="190.8" textLength="12.2" clip-path="url(#breeze-exec-line-7)">│</text><text class="breeze-exec-r1" x="219.6" y="190.8" textLength="268.4" clip-path="url(#breeze-exec-line-7)">in&#160;the&#160;main&#160;checkout.&#160;</text><text class="breeze-exec-r7" x="488" y="190.8" textLength="829.6" clip-path="url(#breeze-exec-line-7)">(breeze&#160;|&#160;breeze-prek&#160;|&#160;breeze-quick-start&#160;|&#160;breeze-task-sdk-test&#160;|&#160;</text><text class="breeze-exec-r5" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#breeze-exec-line-7)">│</text><text class="breeze-exec-r1" x="1464" y="190.8" textLength="12.2" clip-path="url(#breeze-exec-line-7)">
+</text><text class="breeze-exec-r5" x="0" y="215.2" textLength="12.2" clip-path="url(#breeze-exec-line-8)">│</text><text class="breeze-exec-r7" x="219.6" y="215.2" textLength="707.6" clip-path="url(#breeze-exec-line-8)">breeze-airflowctl-test&#160;|&#160;breeze-e2e-test&#160;|&#160;docker-compose)</text><text class="breeze-exec-r5" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#breeze-exec-line-8)">│</text><text class="breeze-exec-r1" x="1464" y="215.2" textLength="12.2" clip-path="url(#breeze-exec-line-8)">
 </text><text class="breeze-exec-r5" x="0" y="239.6" textLength="1464" clip-path="url(#breeze-exec-line-9)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-exec-r1" x="1464" y="239.6" textLength="12.2" clip-path="url(#breeze-exec-line-9)">
+</text><text class="breeze-exec-r5" x="0" y="264" textLength="24.4" clip-path="url(#breeze-exec-line-10)">╭─</text><text class="breeze-exec-r5" x="24.4" y="264" textLength="195.2" clip-path="url(#breeze-exec-line-10)">&#160;Common&#160;options&#160;</text><text class="breeze-exec-r5" x="219.6" y="264" textLength="1220" clip-path="url(#breeze-exec-line-10)">────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="breeze-exec-r5" x="1439.6" y="264" textLength="24.4" clip-path="url(#breeze-exec-line-10)">─╮</text><text class="breeze-exec-r1" x="1464" y="264" textLength="12.2" clip-path="url(#breeze-exec-line-10)">
+</text><text class="breeze-exec-r5" x="0" y="288.4" textLength="12.2" clip-path="url(#breeze-exec-line-11)">│</text><text class="breeze-exec-r4" x="24.4" y="288.4" textLength="109.8" clip-path="url(#breeze-exec-line-11)">--verbose</text><text class="breeze-exec-r8" x="158.6" y="288.4" textLength="24.4" clip-path="url(#breeze-exec-line-11)">-v</text><text class="breeze-exec-r1" x="207.4" y="288.4" textLength="585.6" clip-path="url(#breeze-exec-line-11)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="breeze-exec-r5" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#breeze-exec-line-11)">│</text><text class="breeze-exec-r1" x="1464" y="288.4" textLength="12.2" clip-path="url(#breeze-exec-line-11)">
+</text><text class="breeze-exec-r5" x="0" y="312.8" textLength="12.2" clip-path="url(#breeze-exec-line-12)">│</text><text class="breeze-exec-r4" x="24.4" y="312.8" textLength="109.8" clip-path="url(#breeze-exec-line-12)">--dry-run</text><text class="breeze-exec-r8" x="158.6" y="312.8" textLength="24.4" clip-path="url(#breeze-exec-line-12)">-D</text><text class="breeze-exec-r1" x="207.4" y="312.8" textLength="719.8" clip-path="url(#breeze-exec-line-12)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="breeze-exec-r5" x="1451.8" y="312.8" textLength="12.2" clip-path="url(#breeze-exec-line-12)">│</text><text class="breeze-exec-r1" x="1464" y="312.8" textLength="12.2" clip-path="url(#breeze-exec-line-12)">
+</text><text class="breeze-exec-r5" x="0" y="337.2" textLength="12.2" clip-path="url(#breeze-exec-line-13)">│</text><text class="breeze-exec-r4" x="24.4" y="337.2" textLength="109.8" clip-path="url(#breeze-exec-line-13)">--help&#160;&#160;&#160;</text><text class="breeze-exec-r8" x="158.6" y="337.2" textLength="24.4" clip-path="url(#breeze-exec-line-13)">-h</text><text class="breeze-exec-r1" x="207.4" y="337.2" textLength="329.4" clip-path="url(#breeze-exec-line-13)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="breeze-exec-r5" x="1451.8" y="337.2" textLength="12.2" clip-path="url(#breeze-exec-line-13)">│</text><text class="breeze-exec-r1" x="1464" y="337.2" textLength="12.2" clip-path="url(#breeze-exec-line-13)">
+</text><text class="breeze-exec-r5" x="0" y="361.6" textLength="1464" clip-path="url(#breeze-exec-line-14)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="breeze-exec-r1" x="1464" y="361.6" textLength="12.2" clip-path="url(#breeze-exec-line-14)">
 </text>
     </g>
     </g>
