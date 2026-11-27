@@ -258,6 +258,12 @@ def get_provider_info():
             "airflow.providers.microsoft.azure.fs.adls",
             "airflow.providers.microsoft.azure.fs.msgraph",
         ],
+        "object-storage-providers": [
+            {
+                "storage-type": "azure",
+                "provider-class-name": "airflow.providers.microsoft.azure.datafusion.object_storage.AzureObjectStorageProvider",
+            }
+        ],
         "hooks": [
             {
                 "integration-name": "Microsoft Azure Analysis Services",

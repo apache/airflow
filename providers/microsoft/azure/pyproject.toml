@@ -132,6 +132,13 @@ dependencies = [
 "duckdb" = [
     "apache-airflow-providers-duckdb>=0.1.0"
 ]
+"datafusion" = [
+    "datafusion>=50.0.0,<52.0.0",
+    "apache-airflow-providers-common-sql>=1.33.0",
+]
+"common.sql" = [
+    "apache-airflow-providers-common-sql"
+]
 
 [dependency-groups]
 dev = [
@@ -141,6 +148,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-common-compat",
     "apache-airflow-providers-common-messaging",
+    "apache-airflow-providers-common-sql",
     "apache-airflow-providers-duckdb",
     "apache-airflow-providers-google",
     "apache-airflow-providers-openlineage",
@@ -148,6 +156,7 @@ dev = [
     "apache-airflow-providers-sftp",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "pywinrm>=0.5.0",
+    "apache-airflow-providers-microsoft-azure[datafusion]",
     "moto>=5.1.2",
 ]
 

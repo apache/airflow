@@ -344,7 +344,7 @@ Supported Storage Systems
 -------------------------
 - S3 (requires ``apache-airflow-providers-amazon[datafusion]``)
 - GCS (requires ``apache-airflow-providers-google[datafusion]``)
-- Azure Blob Storage
+- Azure Blob Storage (requires ``apache-airflow-providers-microsoft-azure[datafusion]``)
 - Local File System
 
 .. note::
