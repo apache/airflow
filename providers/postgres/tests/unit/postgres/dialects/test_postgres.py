@@ -116,6 +116,11 @@ class TestPostgresDialect:
             ),
             (
                 None,
+                "name",
+                "ON CONFLICT (id) DO UPDATE SET name = excluded.name",
+            ),
+            (
+                None,
                 ["name", "age"],
                 "ON CONFLICT (id) DO UPDATE SET name = excluded.name, age = excluded.age",
             ),

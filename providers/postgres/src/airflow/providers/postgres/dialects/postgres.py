@@ -132,6 +132,8 @@ class PostgresDialect(Dialect):
         if replace_target is None:
             replace_target = [self.escape_word(f) for f in target_fields if f not in replace_index]
         else:
+            if isinstance(replace_target, str):
+                replace_target = [replace_target]
             replace_target = [self.escape_word(f) for f in replace_target]
 
         if replace_target:
