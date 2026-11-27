@@ -55,6 +55,8 @@ Gradle only appends to the file, so the script empties the component list before
 
 Review every entry in the diff. Generating the file records what the repositories served at that moment; it does not make those bytes trustworthy. Cross-check new coordinates and checksums against the dependency's official release information, and never bypass a failure with lenient or disabled verification.
 
+For a Dependabot PR that changes Java SDK dependencies, a committer can dispatch `.github/workflows/java-sdk-dependabot-verification-metadata.yml` (Actions tab or `gh workflow run`) with the PR number, for a branch in this repository. It regenerates the file with the same script, validates it, and pushes it as a follow-up commit. CI for that commit waits for a maintainer's approval, but approving runs is not a review of the entries and green CI verifies against the same file, so review the new entries on the PR. The workflow is manual because the metadata is checksum-only. If validation refuses the file, regenerate it with the hook and review why.
+
 Not covered: the `example/`, `scala_spark_example/`, and `kubernetes-tests/lang_sdk/java_example/` builds, and the JDK auto-provisioned by the foojay resolver.
 
 ## Building documentation
