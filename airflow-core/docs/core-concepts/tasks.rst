@@ -144,6 +144,8 @@ maximum time allowed for every execution. If ``execution_timeout`` is breached, 
 if the task has not stopped within ``[core] killed_task_cleanup_time`` seconds after ``execution_timeout`` elapses
 (for example because it is blocked in native code), the supervisor sends it SIGTERM, and SIGKILL after the same
 period again. Tasks run by a language SDK do not raise ``AirflowTaskTimeout`` and are stopped only this way.
+For a Python task, the same backstop covers parsing a plain Python Dag file inside the task process, using
+``[core] dagbag_import_timeout``.
 
 In addition, sensors have a ``timeout`` parameter. This only matters for sensors in ``reschedule`` mode. ``timeout`` controls the maximum
 time allowed for the sensor to succeed. If ``timeout`` is breached, ``AirflowSensorTimeout`` will be raised and the sensor fails immediately
