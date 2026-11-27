@@ -496,6 +496,12 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
 ``dag-args`` (MUST †)
     Dag-level arguments (schedule, tags, default queue, and so on) can be set on a Dag definition.
 
+``timetable`` (MAY †)
+    A Dag definition can be scheduled by any of Airflow's built-in timetable classes (those in
+    ``airflow.timetables``), not only by a cron expression or preset passed as the schedule, and
+    can reference a custom timetable from an Airflow plugin. A timetable runs in the scheduler,
+    so a Language SDK never defines one.
+
 ``task-args`` (MUST †)
     Task-level arguments (retries, pool, queue, and so on) can be set on a task of a Dag definition.
 
@@ -543,8 +549,16 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
 ``human-in-the-loop`` (MAY †)
     A Dag definition can declare a task that waits for human input.
 
+``task-test`` (SHOULD †)
+    The SDK provides a documented way to run one task of a Dag definition locally the way Airflow
+    runs it, as ``airflow tasks test`` does for a Python Dag. A unit-test helper that calls the
+    task code directly does not count. The mechanism is not prescribed: an ``airflow`` CLI command,
+    a CLI of the SDK, or a subcommand of the bundle run by its own runtime (``java``, ``node``, the
+    Go binary) all count.
+
 ``dag-test`` (SHOULD †)
-    A Dag definition can be exercised locally with ``airflow dags test``.
+    The SDK provides a documented way to run a whole Dag definition locally, with any of the
+    mechanisms ``task-test`` allows, running the tasks in the order their dependencies define.
 
 ``asset-definition`` (MAY †)
     Assets can be declared in the target language: the equivalents of Python's ``Asset``,

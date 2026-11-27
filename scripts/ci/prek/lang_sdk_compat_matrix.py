@@ -105,6 +105,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("listeners", "MAY", "runtime", False),
     Capability(DAG_DEFINITION_GATE, "SHOULD", "dag-definition", False),
     Capability("dag-args", "MUST", "dag-definition", True),
+    Capability("timetable", "MAY", "dag-definition", True),
     Capability("task-args", "MUST", "dag-definition", True),
     Capability("dag-params", "MUST", "dag-definition", True),
     Capability("dag-callbacks", "MAY", "dag-definition", True),
@@ -118,6 +119,7 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
     Capability("trigger-dag-run", "MAY", "dag-definition", True),
     Capability("dynamic-dag-generation", "MAY", "dag-definition", True),
     Capability("human-in-the-loop", "MAY", "dag-definition", True),
+    Capability("task-test", "SHOULD", "dag-definition", True),
     Capability("dag-test", "SHOULD", "dag-definition", True),
     Capability("asset-definition", "MAY", "dag-definition", True),
     Capability("asset-scheduling", "MAY", "dag-definition", True),
@@ -131,9 +133,13 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
 CAPABILITY_NAMES = {cap.name for cap in CAPABILITY_DIMENSIONS}
 SHARED_CAPABILITY_NAMES = {cap.name for cap in CAPABILITY_DIMENSIONS if cap.group == "shared"}
 
+TIER_LEGEND = (
+    "Tiers: MUST is required, SHOULD is expected, MAY is optional. "
+    "A tier marked {dagger} applies only when {gate} is supported."
+)
 LEGEND = (
     f"Marks: {SUPPORTED_MARK} supported · {UNSUPPORTED_MARK} not supported · "
-    f"{NA_MARK} not applicable. A tier marked † applies only when `{DAG_DEFINITION_GATE}` is supported."
+    f"{NA_MARK} not applicable. " + TIER_LEGEND.format(dagger="†", gate=f"`{DAG_DEFINITION_GATE}`")
 )
 
 
@@ -163,9 +169,9 @@ class MatrixPart(NamedTuple):
 
 
 class MatrixParts(NamedTuple):
-    common: MatrixPart
     dag_definition: MatrixPart
     stub_task_handler: MatrixPart
+    common: MatrixPart
 
 
 def _build_capability_rows(groups: tuple[Group, ...], mode: Mode | None) -> list[MatrixRow]:
@@ -187,16 +193,6 @@ def build_matrix_parts() -> MatrixParts:
     """Split the dimensions into the parts both renderers publish, in display order."""
     return MatrixParts(
         MatrixPart(
-            "Common to both authoring modes",
-            [
-                MatrixGroup(
-                    "TaskInstance states",
-                    [MatrixRow("state", state, tier, False, None) for state, tier in STATE_DIMENSIONS],
-                ),
-                MatrixGroup("Task runtime", _build_capability_rows(("runtime",), None)),
-            ],
-        ),
-        MatrixPart(
             "Dag definition",
             [
                 MatrixGroup(
@@ -212,6 +208,16 @@ def build_matrix_parts() -> MatrixParts:
                     "Python Dag with stub TaskHandler",
                     _build_capability_rows(("stub-task-handler", "shared"), STUB_TASK_HANDLER_MODE),
                 )
+            ],
+        ),
+        MatrixPart(
+            "Common to both authoring modes",
+            [
+                MatrixGroup("Task runtime", _build_capability_rows(("runtime",), None)),
+                MatrixGroup(
+                    "TaskInstance states",
+                    [MatrixRow("state", state, tier, False, None) for state, tier in STATE_DIMENSIONS],
+                ),
             ],
         ),
     )
@@ -410,6 +416,8 @@ def render_markdown_table(doc: Capabilities) -> list[str]:
         f"*Min. Airflow version: {doc.min_airflow_version} · "
         f"supervisor schema: {doc.supervisor_schema_version}*\n",
         "\n",
+        f"*{LEGEND}*\n",
+        "\n",
         "| Dimension | Tier | Supported | Since (Airflow) | Since (SDK) | Notes |\n",
         "|---|---|---|---|---|---|\n",
     ]
@@ -423,7 +431,5 @@ def render_markdown_table(doc: Capabilities) -> list[str]:
                     f"{_format_version(entry, 'since')} | {_format_version(entry, 'sdk_version')} | "
                     f"{_format_note(entry)} |\n"
                 )
-    lines.append("\n")
-    lines.append(f"*{LEGEND}*\n")
     lines.append("\n")
     return lines

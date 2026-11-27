@@ -102,6 +102,15 @@ class TestRenderCentralTable:
         assert "   * - Min. Airflow version\n     - 3.3\n" in rendered
         assert "2026-06-16" in rendered
 
+    def test_legend_renders_before_the_tables(self, capabilities_doc):
+        rendered = "".join(
+            hook.render_central_table(
+                [hook.SdkCapabilities("Go", matrix.parse_capabilities(capabilities_doc(), source="test"))]
+            )
+        )
+
+        assert rendered.index("*Marks:*") < rendered.index(".. list-table::")
+
     def test_supported_mark_shows_sdk_version_when_present(self, capabilities_doc, capabilities_entry):
         doc = capabilities_doc()
         doc["capabilities"]["xcom-read-write"] = capabilities_entry(True, since="3.4.0", sdk_version="1.0.0")
