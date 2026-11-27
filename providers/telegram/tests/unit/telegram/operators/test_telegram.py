@@ -22,7 +22,6 @@ from unittest import mock
 import pytest
 import telegram
 
-import airflow
 from airflow.models import Connection
 from airflow.providers.telegram.operators.telegram import TelegramFileOperator, TelegramOperator
 
@@ -71,10 +70,8 @@ class TestTelegramOperator:
         )
 
     def test_should_throw_exception_if_connection_id_is_none(self):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
+        with pytest.raises(ValueError, match="No valid Telegram connection id supplied"):
             TelegramOperator(task_id="telegram", telegram_conn_id=None)
-
-        assert str(ctx.value) == "No valid Telegram connection id supplied."
 
     @mock.patch("airflow.providers.telegram.operators.telegram.TelegramHook")
     def test_should_throw_exception_if_telegram_hook_throws_any_exception(self, mock_telegram_hook):
@@ -198,3 +195,7 @@ class TestTelegramFileOperator:
         assert "telegram_conn_id" in operator.template_fields
         operator.render_template_fields({"conn_id": "telegram_staging"})
         assert operator.telegram_conn_id == "telegram_staging"
+
+    def test_should_throw_exception_if_connection_id_is_none(self):
+        with pytest.raises(ValueError, match="No valid Telegram connection id supplied"):
+            TelegramFileOperator(task_id="telegram", telegram_conn_id=None, file="/tmp/file.txt")

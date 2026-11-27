@@ -78,23 +78,25 @@ class TestTelegramHook:
         assert str(ctx.value) == "The conn_id `telegram-webhook-non-existent` isn't defined"
 
     def test_should_raise_exception_if_conn_id_doesnt_contain_token(self):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
+        with pytest.raises(ValueError, match=r"Missing token\(password\) in Telegram connection"):
             TelegramHook(telegram_conn_id="telegram-webhook-without-token")
 
-        assert str(ctx.value) == "Missing token(password) in Telegram connection"
+    def test_should_raise_exception_if_neither_token_nor_conn_id_is_provided(self):
+        with pytest.raises(ValueError, match="Cannot get token: No valid Telegram connection supplied"):
+            TelegramHook(telegram_conn_id=None)
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_chat_id_is_not_provided_anywhere(self, mock_get_conn):
         hook = TelegramHook(telegram_conn_id="telegram_default")
         error_message = "'chat_id' must be provided for telegram message"
-        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
+        with pytest.raises(ValueError, match=error_message):
             hook.send_message({"text": "test telegram message"})
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_message_text_is_not_provided(self, mock_get_conn):
         hook = TelegramHook(telegram_conn_id="telegram_default")
         error_message = "'text' must be provided for telegram message"
-        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
+        with pytest.raises(ValueError, match=error_message):
             hook.send_message({"chat_id": "-420913222"})
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
@@ -202,14 +204,14 @@ class TestTelegramHook:
     ):
         hook = TelegramHook(telegram_conn_id="telegram_default")
         error_message = "'chat_id' must be provided for telegram document message"
-        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
+        with pytest.raises(ValueError, match=error_message):
             hook.send_file({"file": "/file/to/path"})
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_file_path_is_not_provided_when_sending_file(self, mock_get_conn):
         hook = TelegramHook(telegram_conn_id="telegram_default")
         error_message = "'file' parameter must be provided for sending a Telegram document message"
-        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
+        with pytest.raises(ValueError, match=error_message):
             hook.send_file({"chat_id": "-420913222"})
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
