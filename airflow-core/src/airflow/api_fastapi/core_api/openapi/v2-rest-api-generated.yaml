@@ -10,13 +10,12 @@ info:
     \ is a case-insensitive substring match (SQL ``ILIKE '%term%'``) where ``%`` matches\
     \ any sequence and ``_`` matches any single character (e.g. ``%customer_%``) \u2014\
     \ convenient, but it cannot use B-tree indexes, so it is slow on large tables.\
-    \ ``*_prefix_pattern`` matches the start of the value, is case-sensitive and index-friendly\
-    \ (prefer it at scale); there ``%`` and ``_`` are literal and trailing non-alphanumeric\
-    \ characters are stripped so the range scan stays index-compatible under locale-aware\
-    \ collations (e.g. ``test_`` matches values starting with ``test``, and ``s3://``\
-    \ matches ``s3``). In both, ``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches\
-    \ everything. Regular expressions are not supported by these parameters; regex-capable\
-    \ endpoints expose a separate parameter."
+    \ ``*_prefix_pattern`` matches the start of the value and is case-sensitive; there\
+    \ ``%`` and ``_`` are literal and trailing non-alphanumeric characters are stripped\
+    \ (e.g. ``test_`` matches values starting with ``test``, and ``s3://`` matches\
+    \ ``s3``). In both, ``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches everything.\
+    \ Regular expressions are not supported by these parameters; regex-capable endpoints\
+    \ expose a separate parameter."
   version: '2'
 paths:
   /api/v2/assets:
@@ -67,11 +66,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: uri
         in: query
         required: false
@@ -107,11 +104,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Uri Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: dag_ids
         in: query
         required: false
@@ -232,11 +227,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: order_by
         in: query
         required: false
@@ -474,11 +467,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: extra
         in: query
         required: false
@@ -1911,11 +1902,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Connection Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -2768,11 +2757,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Run Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: triggering_user_name_pattern
         in: query
         required: false
@@ -2794,11 +2781,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Triggering User Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: dag_id_pattern
         in: query
         required: false
@@ -2820,11 +2805,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Dag Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: partition_key_pattern
         in: query
         required: false
@@ -2846,11 +2829,11 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. Here `|` is matched
-            literally, not as OR. See "Filtering with pattern parameters".
+          description: Case-sensitive prefix match. Here `|` is matched literally,
+            not as OR. See "Filtering with pattern parameters".
           title: Partition Key Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. Here `|` is matched
-          literally, not as OR. See "Filtering with pattern parameters".
+        description: Case-sensitive prefix match. Here `|` is matched literally, not
+          as OR. See "Filtering with pattern parameters".
       - name: consuming_asset_pattern
         in: query
         required: false
@@ -4064,11 +4047,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Dag Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -4090,11 +4071,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Dag Display Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: exclude_stale
         in: query
         required: false
@@ -4396,11 +4375,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Dag Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: exclude_stale
         in: query
         required: false
@@ -5174,11 +5151,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Dag Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: task_id_prefix_pattern
         in: query
         required: false
@@ -5186,11 +5161,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Task Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: run_id_prefix_pattern
         in: query
         required: false
@@ -5198,11 +5171,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Run Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: owner_prefix_pattern
         in: query
         required: false
@@ -5210,11 +5181,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Owner Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: owner_display_name_prefix_pattern
         in: query
         required: false
@@ -5222,11 +5191,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Owner Display Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: event_prefix_pattern
         in: query
         required: false
@@ -5234,11 +5201,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Event Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: teams
         in: query
         required: false
@@ -5496,11 +5461,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Filename Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: filename
         in: query
         required: false
@@ -6062,11 +6025,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Pool Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -7602,11 +7563,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Xcom Key Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: dag_display_name_pattern
         in: query
         required: false
@@ -7628,11 +7587,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Dag Display Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: run_id_pattern
         in: query
         required: false
@@ -7654,11 +7611,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Run Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: task_id_pattern
         in: query
         required: false
@@ -7680,11 +7635,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Task Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: map_index_filter
         in: query
         required: false
@@ -8501,11 +8454,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Pool Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: queue
         in: query
         required: false
@@ -8535,11 +8486,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Queue Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: executor
         in: query
         required: false
@@ -8593,11 +8542,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Operator Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: map_index
         in: query
         required: false
@@ -8627,11 +8574,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Rendered Map Index Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: limit
         in: query
         required: false
@@ -9649,15 +9594,14 @@ paths:
           - type: string
           - type: 'null'
           description: Case-sensitive prefix match on task display name (`_task_display_property_value`
-            else `task_id`). Index-friendly alternative to `task_display_name_pattern`;
-            on large databases combine with `dag_id_prefix_pattern` (or a specific
-            Dag in the path) so composite indexes apply. See "Filtering with pattern
-            parameters".
+            else `task_id`). On large databases combine with `dag_id_prefix_pattern`
+            (or a specific Dag in the path) to narrow the rows scanned. See "Filtering
+            with pattern parameters".
           title: Task Display Name Prefix Pattern
         description: Case-sensitive prefix match on task display name (`_task_display_property_value`
-          else `task_id`). Index-friendly alternative to `task_display_name_pattern`;
-          on large databases combine with `dag_id_prefix_pattern` (or a specific Dag
-          in the path) so composite indexes apply. See "Filtering with pattern parameters".
+          else `task_id`). On large databases combine with `dag_id_prefix_pattern`
+          (or a specific Dag in the path) to narrow the rows scanned. See "Filtering
+          with pattern parameters".
       - name: task_group_id
         in: query
         required: false
@@ -9691,11 +9635,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Dag Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: run_id_pattern
         in: query
         required: false
@@ -9717,11 +9659,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Run Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: state
         in: query
         required: false
@@ -9759,11 +9699,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Pool Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: queue
         in: query
         required: false
@@ -9793,11 +9731,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Queue Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: executor
         in: query
         required: false
@@ -9859,11 +9795,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Operator Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: map_index
         in: query
         required: false
@@ -9893,11 +9827,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Rendered Map Index Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: limit
         in: query
         required: false
@@ -11343,11 +11275,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Variable Key Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -11816,11 +11746,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Tag Name Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       responses:
         '200':
           description: Successful Response
@@ -12494,11 +12422,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Dag Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: task_id
         in: query
         required: false
@@ -12528,11 +12454,9 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
-          description: Case-sensitive, index-friendly prefix match. See "Filtering
-            with pattern parameters".
+          description: Case-sensitive prefix match. See "Filtering with pattern parameters".
           title: Task Id Prefix Pattern
-        description: Case-sensitive, index-friendly prefix match. See "Filtering with
-          pattern parameters".
+        description: Case-sensitive prefix match. See "Filtering with pattern parameters".
       - name: map_index
         in: query
         required: false
