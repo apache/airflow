@@ -537,18 +537,15 @@ class TestLoginRouter:
         assert response.status_code == 500
 
     @pytest.mark.parametrize(
-        ("base_url", "req_scheme", "req_port", "expected_https", "expected_host", "expected_port"),
+        ("base_url", "req_scheme", "req_port", "expected_https", "expected_host"),
         [
-            pytest.param(
-                "http://localhost:8080", "http", 8080, "off", "localhost:8080", 8080, id="http-local"
-            ),
+            pytest.param("http://localhost:8080", "http", 8080, "off", "localhost:8080", id="http-local"),
             pytest.param(
                 "https://airflow.example.com",
                 "http",
                 8000,
                 "on",
                 "airflow.example.com",
-                443,
                 id="tls-reverse-proxy",
             ),
             pytest.param(
@@ -557,7 +554,6 @@ class TestLoginRouter:
                 8000,
                 "on",
                 "airflow.example.com:8443",
-                8443,
                 id="https-custom-port",
             ),
             pytest.param(
@@ -566,7 +562,6 @@ class TestLoginRouter:
                 80,
                 "off",
                 "airflow.example.com",
-                80,
                 id="http-default-port",
             ),
             pytest.param(
@@ -575,13 +570,12 @@ class TestLoginRouter:
                 8080,
                 "off",
                 "airflow.example.com",
-                80,
                 id="http-reverse-proxy",
             ),
         ],
     )
     def test_prepare_request_scheme_and_port(
-        self, base_url, req_scheme, req_port, expected_https, expected_host, expected_port
+        self, base_url, req_scheme, req_port, expected_https, expected_host
     ):
         mock_request = Mock(spec=Request)
         mock_request.url.scheme = req_scheme
@@ -595,4 +589,4 @@ class TestLoginRouter:
 
         assert data["https"] == expected_https
         assert data["http_host"] == expected_host
-        assert data["server_port"] == expected_port
+        assert "server_port" not in data

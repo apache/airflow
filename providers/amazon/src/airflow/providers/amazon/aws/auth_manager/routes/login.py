@@ -337,21 +337,10 @@ def _init_saml_auth(request: Request) -> OneLogin_Saml2_Auth:
 def _prepare_request(request: Request) -> dict:
     parsed = urlparse(conf.get("api", "base_url", fallback="http://localhost"))
     host = parsed.netloc or parsed.hostname or "localhost"
-    is_https = parsed.scheme == "https" or _is_secure_request(request)
-    server_port: int | None
-    if parsed.port is not None:
-        server_port = parsed.port
-    elif is_https:
-        server_port = 443
-    elif parsed.scheme == "http":
-        server_port = 80
-    else:
-        server_port = request.url.port or 80
 
     data: dict[str, Any] = {
-        "https": "on" if is_https else "off",
+        "https": "on" if parsed.scheme == "https" else "off",
         "http_host": host,
-        "server_port": server_port,
         "script_name": request.url.path,
         "get_data": request.query_params,
         "post_data": {},
