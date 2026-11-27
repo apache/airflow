@@ -45,7 +45,7 @@ repos:
         entry: ../scripts/ci/prek/update_chart_dependencies.py
         stages: ['manual']
         language: python
-        files: ^\.pre-commit-config\.yaml$|^../scripts/ci/prek/update_build_dependencies\.py$
+        files: ^\.pre-commit-config\.yaml$
         pass_filenames: false
         require_serial: true
       - id: mypy-helm-tests
