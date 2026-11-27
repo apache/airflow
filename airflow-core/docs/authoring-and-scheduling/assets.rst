@@ -730,6 +730,60 @@ including ``partition_key`` in the request body):
         "partition_key": "us|2026-03-10T09:00:00"
       }'
 
+.. _monitor-pending-asset-partitions:
+
+Monitoring pending partitioned Dag runs
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When required asset inputs are incomplete, Airflow tracks a pending partitioned Dag
+run before creating the Dag run itself. To warn when this wait exceeds your expectations,
+set :ref:`[scheduler] pending_partitioned_dag_run_timeout <config:scheduler__pending_partitioned_dag_run_timeout>`.
+The value is a JSON object mapping exact consumer Dag IDs to positive, finite numbers
+of seconds. Keys identify the consuming Dags, not asset names or URIs. The default,
+``{}``, disables monitoring. For example, in ``airflow.cfg``:
+
+.. code-block:: ini
+
+    [scheduler]
+    pending_partitioned_dag_run_timeout = {"clean_and_combine_player_stats": 7200}
+
+Use the same setting on every scheduler. For each configured, active partitioned Dag,
+the scheduler adds a warning when its oldest pending partitioned Dag run is strictly
+older than the configured threshold. It reports how many partitioned Dag runs are
+pending and when the oldest became pending. Several pending runs can share a partition key.
+
+The warning reports the length of the wait, not its cause. Check both the Dag's asset
+inputs and the scheduler's pending partition backlog: older pending runs from other
+Dags can occupy the scheduler's evaluation window and delay an otherwise ready partition.
+
+To view **Pending partitioned Dag runs** in the UI, open **Dags → the affected Dag → Overview**
+and click the warning icon before the breadcrumb. This works before any Dag run exists;
+the warning is not shown on Dag list rows or cards. It is also available through
+``GET /api/v2/dagWarnings`` with ``warning_type=asset partition pending`` in the
+:doc:`REST API </stable-rest-api-ref>`.
+
+Age is measured from when the pending partitioned Dag run was first recorded. Choose a
+threshold that allows for expected upstream delays and rollup windows. Paused, draining,
+and stale Dags are excluded. Time spent paused is still included in the age, so a resumed
+Dag can warn on its first check.
+
+Each scheduler checks up to 100 Dag IDs every 60 seconds, rotating through configured
+Dags and Dags with an existing warning. Updates are eventually consistent: with more
+than 100 Dags, a full pass takes multiple checks. The warning clears on the next check
+of that Dag when no pending partitioned Dag runs exceed the threshold, the Dag becomes ineligible,
+or its policy is removed.
+
+Invalid configuration errors identify the offending entry. Each scheduler also checks
+up to 100 previously unchecked configured Dag IDs per poll and logs IDs that do not
+match a registered Dag. Check for typos, or whether the Dag has been parsed yet.
+These diagnostics do not stop monitoring valid Dags. An ID is checked again after
+it is removed from the policy and re-added, or when the scheduler restarts.
+
+This advisory warning does not send notifications or recover inputs automatically.
+It only monitors existing pending partitioned Dag runs. When none exists, it cannot
+detect stale assets, missed expected runs, or progress already removed after a Dag
+definition change. Use separate freshness or expected-cadence monitoring for these cases.
+
 Rollup mappers
 ~~~~~~~~~~~~~~
 

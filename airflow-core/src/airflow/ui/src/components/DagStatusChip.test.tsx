@@ -123,6 +123,28 @@ describe("DagStatusChip", () => {
     expect(screen.getByRole("button", { name: warningName(1) })).toBeInTheDocument();
   });
 
+  it("opens pending partition warnings before a Dag run exists", async () => {
+    const message =
+      "2 pending partitioned Dag runs; oldest pending since 2026-11-12T12:00:00+00:00. " +
+      "The configured wait threshold is 60 seconds. Inspect the pending asset inputs for this Dag.";
+
+    mockUseDagServiceGetDag.mockReturnValue(liveDagQuery);
+    mockUseDagWarningServiceListDagWarnings.mockReturnValue({
+      data: {
+        dag_warnings: [{ message, warning_type: "asset partition pending" }],
+        total_entries: 1,
+      },
+      isLoading: false,
+    });
+
+    renderChip();
+
+    fireEvent.click(screen.getByRole("button", { name: warningName(1) }));
+
+    await waitFor(() => expect(screen.getByText("Pending partitioned Dag runs")).toBeInTheDocument());
+    expect(screen.getByText(message)).toBeInTheDocument();
+  });
+
   it("lets the parse error outrank the warnings for name and severity", async () => {
     mockUseImportErrorServiceGetImportErrors.mockReturnValue(importErrorQuery);
     mockUseDagWarningServiceListDagWarnings.mockReturnValue(warningsQuery);
