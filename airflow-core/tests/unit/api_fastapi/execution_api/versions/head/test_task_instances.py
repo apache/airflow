@@ -7097,7 +7097,7 @@ class TestTIPatchRenderedMapIndex:
     def teardown_method(self):
         clear_db_runs()
 
-    def test_ti_patch_rendered_map_index(self, client, session, create_task_instance):
+    def test_ti_patch_rendered_map_index(self, client, session, create_task_instance, event_loop_queries):
         """Test updating rendered_map_index for a task instance."""
         ti = create_task_instance(
             task_id="test_ti_patch_rendered_map_index",
@@ -7114,10 +7114,34 @@ class TestTIPatchRenderedMapIndex:
 
         assert response.status_code == 204
         assert response.text == ""
+        assert event_loop_queries == []
 
         session.expire_all()
         ti = session.get(TaskInstance, ti.id)
         assert ti.rendered_map_index == rendered_map_index
+
+    @mock.patch.object(AsyncSession, "commit", autospec=True, side_effect=SQLAlchemyError)
+    def test_ti_patch_rendered_map_index_commit_failure(
+        self, mock_commit, client, session, create_task_instance, monkeypatch
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_patch_rendered_map_index_commit_failure",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti._rendered_map_index = "original_label"
+        session.commit()
+        monkeypatch.setattr(client._transport, "raise_server_exceptions", False)
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/rendered-map-index",
+            json="new_label",
+        )
+
+        assert response.status_code == 500
+        mock_commit.assert_awaited_once()
+        session.refresh(ti)
+        assert ti.rendered_map_index == "original_label"
 
     def test_ti_patch_rendered_map_index_not_found(self, client, session):
         """Test 404 error when task instance does not exist."""

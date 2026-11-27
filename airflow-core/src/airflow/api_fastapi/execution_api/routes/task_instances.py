@@ -1420,10 +1420,10 @@ def ti_put_rtif(
         ]
     ),
 )
-def ti_patch_rendered_map_index(
+async def ti_patch_rendered_map_index(
     task_instance_id: UUID,
     rendered_map_index: Annotated[str, Body()],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ):
     """Update rendered_map_index for a task instance, sent by the worker during task execution."""
     bind_contextvars(ti_id=str(task_instance_id))
@@ -1438,7 +1438,7 @@ def ti_patch_rendered_map_index(
     log.debug("Updating rendered_map_index", length=len(rendered_map_index))
 
     query = update(TI).where(TI.id == task_instance_id).values(_rendered_map_index=rendered_map_index)
-    result = session.execute(query)
+    result = await session.execute(query)
 
     result = cast("CursorResult[Any]", result)
     if result.rowcount == 0:
