@@ -61,7 +61,6 @@ PIP package                                 Version required
 ``pandas``                                  ``>=2.2.3; python_version >= "3.13" and python_version < "3.14"``
 ``pandas``                                  ``>=2.3.3; python_version >= "3.14"``
 ``pyhive[hive_pure_sasl]``                  ``>=0.7.0``
-``jmespath``                                ``>=0.7.0``
 ==========================================  =================================================================
 
 Optional cross provider package dependencies

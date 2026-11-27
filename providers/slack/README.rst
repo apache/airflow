@@ -53,17 +53,15 @@ The package supports the following python versions: 3.11,3.12,3.13,3.14
 Requirements
 ------------
 
-==========================================  ======================================
+==========================================  ==================
 PIP package                                 Version required
-==========================================  ======================================
+==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.10.1``
 ``apache-airflow-providers-common-sql``     ``>=1.27.0``
 ``slack-sdk``                               ``>=3.36.0``
 ``aiohttp``                                 ``>=3.14.0``
-``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
-``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
-==========================================  ======================================
+==========================================  ==================
 
 The changelog for the provider package can be found in the
 `changelog <https://airflow.apache.org/docs/apache-airflow-providers-slack/9.11.1/changelog.html>`_.

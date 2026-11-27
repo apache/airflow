@@ -65,13 +65,12 @@ dependencies = [
     "azure-batch>=15.1.0",
     # 2.2.0 adds force deletion support for Hosted agents and agent versions.
     "azure-ai-projects>=2.2.0",
+    "azure-common>=1.1.28",
     "azure-cosmos>=4.15.0",
     "azure-mgmt-cosmosdb>=9.9.0",
     "azure-datalake-store>=1.0.1",
     "azure-identity>=1.25.3",
     "azure-keyvault-secrets>=4.11.0",
-    "azure-mgmt-datalake-store>=0.5.0",
-    "azure-mgmt-resource>=25.0.0",
     # 12.0.0 is excluded: on a 413 its async client writes the first half of the batch, then retries
     # the second half with a keyword it does not accept (TypeError). Fixed since 12.1.0b2.
     "azure-search-documents>=11.6.0,!=12.0.0",
@@ -100,10 +99,7 @@ dependencies = [
     "microsoft-kiota-serialization-text>=1.9.4",
     "microsoft-kiota-abstractions>=1.9.4,<2.0.0",
     "microsoft-kiota-authentication-azure>=1.9.4,<2.0.0",
-    # TODO: verify if we really need to have this as explicit dependency.
-    # It was added in https://github.com/apache/airflow/pull/47990/files
-    # maybe this should be set from upstream
-    "msal-extensions>=1.3.0",
+    "msrestazure>=0.6.4.post1",
 ]
 
 # The optional dependencies should be modified in place in the generated file

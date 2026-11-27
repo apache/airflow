@@ -58,7 +58,6 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``ibm-db``                                  ``>=3.2.0; platform_machine != "aarch64"``
 ``ibm-db-sa``                               ``>=0.4.0; platform_machine != "aarch64"``
-``methodtools``                             ``>=0.4.7``
 ==========================================  ==========================================
 
 Optional dependencies

@@ -59,13 +59,12 @@ PIP package                                 Version required
 ``aiohttp``                                 ``>=3.14.0``
 ``azure-batch``                             ``>=15.1.0``
 ``azure-ai-projects``                       ``>=2.2.0``
+``azure-common``                            ``>=1.1.28``
 ``azure-cosmos``                            ``>=4.15.0``
 ``azure-mgmt-cosmosdb``                     ``>=9.9.0``
 ``azure-datalake-store``                    ``>=1.0.1``
 ``azure-identity``                          ``>=1.25.3``
 ``azure-keyvault-secrets``                  ``>=4.11.0``
-``azure-mgmt-datalake-store``               ``>=0.5.0``
-``azure-mgmt-resource``                     ``>=25.0.0``
 ``azure-search-documents``                  ``>=11.6.0,!=12.0.0``
 ``azure-storage-blob``                      ``>=12.28.0``
 ``azure-mgmt-storage``                      ``>=24.0.1``
@@ -86,7 +85,7 @@ PIP package                                 Version required
 ``microsoft-kiota-serialization-text``      ``>=1.9.4``
 ``microsoft-kiota-abstractions``            ``>=1.9.4,<2.0.0``
 ``microsoft-kiota-authentication-azure``    ``>=1.9.4,<2.0.0``
-``msal-extensions``                         ``>=1.3.0``
+``msrestazure``                             ``>=0.6.4.post1``
 ==========================================  =====================
 
 Optional cross provider package dependencies
