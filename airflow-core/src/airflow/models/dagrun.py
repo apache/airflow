@@ -1995,6 +1995,7 @@ class DagRun(Base, LoggingMixin):
                                 and fti.region_index in removed_indexes
                             ):
                                 finished_tis[i] = replace(fti, state=TaskInstanceState.REMOVED)
+                        dep_context.invalidate_finished_tis_index()
                     ready_tis.extend(revised_tis)
                     revised_expansion_keys.add(expansion_key)
                     if revised_tis:
