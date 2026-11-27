@@ -81,7 +81,11 @@ class CalendarService:
             granularity,
         )
 
-        planned_data = self._get_planned_dag_runs(dag, raw_dag_states, date_filter, granularity)
+        baseline_states = raw_dag_states
+        if not raw_dag_states and dag.timetable.periodic:
+            baseline_states = self._get_latest_dag_run_state(dag_id, session)
+
+        planned_data = self._get_planned_dag_runs(dag, baseline_states, date_filter, granularity)
 
         all_data = historical_data + planned_data
         return CalendarTimeRangeCollectionResponse(
@@ -138,6 +142,23 @@ class CalendarService:
         ]
 
         return calendar_results, dag_states
+
+    def _get_latest_dag_run_state(self, dag_id: str, session: Session) -> Sequence[Row]:
+        """Get the Dag's most recent run, regardless of the requested date range."""
+        effective_date = sa.func.coalesce(DagRun.partition_date, DagRun.logical_date)
+
+        select_stmt = (
+            sa.select(
+                DagRun.data_interval_start,
+                DagRun.data_interval_end,
+                DagRun.run_after,
+                DagRun.partition_date,
+            )
+            .where(DagRun.dag_id == dag_id, effective_date.is_not(None))
+            .order_by(effective_date.desc())
+            .limit(1)
+        )
+        return session.execute(select_stmt).all()
 
     def _get_planned_dag_runs(
         self,
@@ -232,7 +253,7 @@ class CalendarService:
         # thousands of steps before hitting the year boundary.
         for _ in range(self.MAX_PLANNED_RUNS):
             dt = cron_timetable._get_next(dt)
-            if dt.year != year:
+            if self._is_past_range(dt, year, date_filter):
                 break
             if dag.end_date and dt > dag.end_date:
                 break
@@ -273,7 +294,7 @@ class CalendarService:
             effective_date = curr_info.partition_date or curr_info.logical_date
             if not effective_date:
                 break
-            if effective_date.year != year:
+            if self._is_past_range(effective_date, year, date_filter):
                 break
 
             if not self._is_date_in_range(effective_date, date_filter):
@@ -354,6 +375,20 @@ class CalendarService:
         if granularity == "hourly":
             return dt.replace(minute=0, second=0, microsecond=0)
         return dt.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def _is_past_range(self, dt: datetime, year: int, date_filter: RangeFilter) -> bool:
+        """
+        Check if planned run iteration can stop at ``dt``.
+
+        With an upper bound, iteration stops past it, so a range in a later year than the
+        baseline run (e.g. January after a December run) still gets its planned runs.
+        Without one, it stops at the end of the baseline run's year.
+        """
+        value = date_filter.value
+        upper = value and (value.upper_bound_lte or value.upper_bound_lt)
+        if upper:
+            return dt > upper
+        return dt.year != year
 
     def _is_date_in_range(self, dt: datetime, date_filter: RangeFilter) -> bool:
         """Check if a date is within the specified range filter."""
