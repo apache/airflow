@@ -17,9 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+import gzip
+import io
+import json
 import uuid
 from unittest.mock import MagicMock, patch
 
+import fsspec.compression
 import pytest
 
 import airflow.models.xcom
@@ -409,6 +413,35 @@ class TestXComObjectStorageBackend:
         assert stored.startswith(f"{self.path}/dag/run/task/{'ti' if ti_id else 'write'}-")
         assert (stored == again) == (ti_id is not None)
         assert XComObjectStorageBackend.load_value(stored) == value
+
+    @pytest.mark.parametrize("compression", [None, "gzip"])
+    def test_write_large_value_closes_the_underlying_file(self, compression, monkeypatch):
+        class RecordingFile(io.BytesIO):
+            written = b""
+
+            def close(self):
+                self.written = self.getvalue()
+                super().close()
+
+        opened = []
+
+        def open_like_fsspec(self, mode="rb", compression=None, **kwargs):
+            # fsspec wraps the file for compression and leaves the wrapped file open when it closes.
+            raw = RecordingFile()
+            opened.append(raw)
+            return fsspec.compression.compr[compression](raw, mode=mode[0]) if compression else raw
+
+        monkeypatch.setattr(ObjectStoragePath, "open", open_like_fsspec)
+        value = {"key": "bigvaluebigvaluebigvalue" * 100}
+
+        with conf_vars({("common.io", "xcom_objectstorage_compression"): compression or ""}):
+            base = xcom_backend._get_base_path()
+            XComObjectStorageBackend._write_large_value(value, lambda suffix: base / f"key.json{suffix}")
+
+        (raw,) = opened
+        assert raw.closed
+        written = gzip.decompress(raw.written) if compression else raw.written
+        assert json.loads(written) == value
 
     @pytest.mark.skipif(not AIRFLOW_V_3_4_PLUS, reason="store_value is called from Airflow 3.4")
     @conf_vars({("common.io", "xcom_objectstorage_compression"): ""})

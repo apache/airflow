@@ -24,6 +24,7 @@ from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar
 from urllib.parse import urlsplit
 
+import fsspec.compression
 import fsspec.utils
 
 from airflow.providers.common.compat.sdk import conf
@@ -182,7 +183,12 @@ class XComObjectStorageBackend(BaseXCom):
         p = get_path(suffix)
         p.parent.mkdir(parents=True, exist_ok=True)
 
-        with p.open(mode="wb", compression=compression) as f:
+        # fsspec's ``compression=`` wrapper doesn't close the file it wraps, so the underlying file is
+        # closed here explicitly: otherwise the upload can be finalized later, or never if the process exits.
+        with contextlib.ExitStack() as stack:
+            f = stack.enter_context(p.open(mode="wb"))
+            if compression:
+                f = stack.enter_context(fsspec.compression.compr[compression](f, mode="w"))
             f.write(s_val_encoded)
         return p
 
