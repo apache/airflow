@@ -172,6 +172,10 @@ class DagBundleInventoryResponse(DagParseResultResponse):
     revision: UUID
 
 
+MAX_PROCESSOR_WORK_CLAIM_LIMIT = 100
+MAX_PROCESSOR_WORK_CLAIM_BUNDLES = 1000
+
+
 class ProcessorWorkClaimBody(StrictBaseModel):
     """
     A bounded claim whose sequence increases per Job and work kind.
@@ -181,8 +185,13 @@ class ProcessorWorkClaimBody(StrictBaseModel):
 
     claim_id: UUID
     claim_sequence: int = Field(ge=1, le=2**53 - 1)
-    bundle_names: list[str] = Field(min_length=1, max_length=1000)
-    limit: int = Field(default=20, ge=1, le=100)
+    bundle_names: list[str] = Field(min_length=1, max_length=MAX_PROCESSOR_WORK_CLAIM_BUNDLES)
+    limit: int = Field(default=20, ge=1, le=MAX_PROCESSOR_WORK_CLAIM_LIMIT)
+    replay_only: bool = Field(
+        default=False,
+        exclude_if=lambda value: not value,
+        description="Return only previously claimed work. Record an empty receipt if the claim never arrived.",
+    )
 
 
 class ProcessorWorkItem(StrictBaseModel):

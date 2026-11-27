@@ -34,7 +34,11 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParam
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
-    """Add Dag processor lifecycle, inventory, shared-source publication, and requested-work endpoints."""
+    """
+    Add Dag processor lifecycle, inventory, shared-source publication, and requested-work endpoints.
+
+    A processor finishing a finite run can replay an unanswered claim without acquiring new work.
+    """
 
     description = __doc__
 

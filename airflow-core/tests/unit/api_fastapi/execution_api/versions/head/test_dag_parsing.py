@@ -1971,6 +1971,45 @@ def test_retired_callback_claim_in_inactive_bundle_remains_eligible_for_cleanup(
 
 
 @pytest.mark.parametrize("kind", ["callbacks", "priority"])
+@pytest.mark.parametrize("previous_receipt", [False, True])
+def test_drain_replay_before_original_claim_leaves_queued_work_unclaimed(
+    client, session, job, create_requested_work, kind, previous_receipt
+):
+    url = f"/execution/jobs/{job.id}/requested-work/{kind}/claim"
+    if previous_receipt:
+        assert (
+            client.post(
+                url, json={"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+            ).json()
+            == []
+        )
+    queued = create_requested_work(kind)
+    original = {"claim_id": str(uuid7()), "claim_sequence": 2, "bundle_names": ["bundle"]}
+    for request in ({**original, "replay_only": True}, original):
+        response = client.post(url, json=request)
+        assert response.status_code == 200, response.json()
+        assert response.json() == []
+    session.refresh(queued)
+    assert queued.processor_job_id is None
+    fresh = client.post(url, json={**original, "claim_id": str(uuid7()), "claim_sequence": 3})
+    assert [item["id"] for item in fresh.json()] == [str(queued.id)]
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
+def test_drain_replay_after_original_claim_returns_its_work(client, job, create_requested_work, kind):
+    queued = create_requested_work(kind)
+    url = f"/execution/jobs/{job.id}/requested-work/{kind}/claim"
+    original = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
+
+    claimed = client.post(url, json=original)
+    replayed = client.post(url, json={**original, "replay_only": True})
+
+    assert [item["id"] for item in claimed.json()] == [str(queued.id)]
+    assert replayed.status_code == 200, replayed.json()
+    assert replayed.json() == claimed.json()
+
+
+@pytest.mark.parametrize("kind", ["callbacks", "priority"])
 @pytest.mark.parametrize("initially_empty", [False, True])
 @pytest.mark.parametrize("superseded", [False, True])
 def test_completed_claim_replay_cannot_take_new_work(

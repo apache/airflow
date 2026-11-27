@@ -571,6 +571,13 @@ class ProcessorWorkClaimBody(BaseModel):
     claim_sequence: Annotated[int, Field(ge=1, le=9007199254740991, title="Claim Sequence")]
     bundle_names: Annotated[list[str], Field(max_length=1000, min_length=1, title="Bundle Names")]
     limit: Annotated[int | None, Field(ge=1, le=100, title="Limit")] = 20
+    replay_only: Annotated[
+        bool | None,
+        Field(
+            description="Return only previously claimed work. Record an empty receipt if the claim never arrived.",
+            title="Replay Only",
+        ),
+    ] = False
 
 
 class TIAwaitingInputStatePayload(BaseModel):

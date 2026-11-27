@@ -129,9 +129,9 @@ class DagParsingRoute(ExecutionAPIRoute):
 router = VersionedAPIRouter(route_class=DagParsingRoute)
 
 
-def _compute_payload_hash(body: BaseModel) -> str:
+def _compute_payload_hash(body: BaseModel, *, exclude: set[str] | None = None) -> str:
     """Hash a request body independently of key order; a non-JSON float raises ValueError."""
-    payload = json.dumps(body.model_dump(mode="json"), sort_keys=True, allow_nan=False)
+    payload = json.dumps(body.model_dump(mode="json", exclude=exclude), sort_keys=True, allow_nan=False)
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
@@ -530,7 +530,7 @@ def _claim_work(
 ) -> list[ProcessorWorkItem]:
     model = source.model
     receipt = session.get(DagProcessorWorkClaim, (job_id, source.kind))
-    payload_hash = _compute_payload_hash(body)
+    payload_hash = _compute_payload_hash(body, exclude={"replay_only"})
     replaying = receipt is not None and body.claim_sequence <= receipt.claim_sequence
     query = source.build_query(replaying=replaying)
     if receipt is not None and replaying:
@@ -546,6 +546,9 @@ def _claim_work(
         receipt.claim_id = body.claim_id
         receipt.claim_sequence = body.claim_sequence
         receipt.payload_hash = payload_hash
+        if body.replay_only:
+            # Fence the original request if it arrives after this replay finds no receipt.
+            return []
         ready = select(DagBundleModel.name).where(DagBundleModel.active.is_(True))
         query = query.where(
             model.bundle_name.in_(body.bundle_names),
