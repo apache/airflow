@@ -279,6 +279,11 @@ ARG_LIST_LOCAL = Arg(
     action="store_true",
     help="Shows local parsed DAGs and their import errors, ignores content serialized in DB",
 )
+ARG_IMPORT_ERRORS_DAG_PATH = Arg(
+    ("--dag-path",),
+    metavar="PATH",
+    help="Check import errors in a local Dag file or directory. Incompatible with --bundle-name.",
+)
 
 # list_dag_runs
 ARG_NO_BACKFILL = Arg(
@@ -1290,7 +1295,7 @@ DAGS_COMMANDS = (
         name="list-import-errors",
         help="List all the DAGs that have import errors",
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_list_import_errors"),
-        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE, ARG_LIST_LOCAL),
+        args=(ARG_BUNDLE_NAME, ARG_OUTPUT, ARG_VERBOSE, ARG_LIST_LOCAL, ARG_IMPORT_ERRORS_DAG_PATH),
     ),
     ActionCommand(
         name="report",

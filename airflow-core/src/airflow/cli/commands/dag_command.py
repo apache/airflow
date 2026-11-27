@@ -28,6 +28,7 @@ import operator
 import re
 import subprocess
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from sqlalchemy import func, or_, select
@@ -672,9 +673,26 @@ def dag_details(args, *, session: Session = NEW_SESSION):
 @provide_session
 def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
     """Display dags with import errors on the command line."""
-    data = []
+    data: list[dict[str, str]] = []
 
-    if args.local:
+    if args.dag_path:
+        if args.bundle_name:
+            raise SystemExit("--dag-path cannot be used with --bundle-name")
+
+        path = Path(args.dag_path).resolve()
+        if path.is_file():
+            bundle_path = path.parent
+        elif path.is_dir():
+            bundle_path = path
+        else:
+            raise SystemExit(f"Dag path {path} does not exist or is not a file or directory.")
+
+        path_dagbag = BundleDagBag(path, bundle_path=bundle_path)
+        data.extend(
+            {"filepath": str(bundle_path / filename), "error": error}
+            for filename, error in path_dagbag.import_errors.items()
+        )
+    elif args.local:
         # Get import errors from local areas
 
         if args.bundle_name:
