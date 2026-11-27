@@ -198,6 +198,7 @@ from airflow.sdk.execution_time.task_runner import (
     _run_execute_callable,
     _serialize_outlet_events,
     _TaskRunner,
+    _will_be_retried,
     _xcom_push,
     check_xcom_backend_supports_loops,
     finalize,
@@ -6415,6 +6416,7 @@ class TestTaskRunnerCallsCallbacks:
             "expected_state",
             "expected_results",
             "extra_exceptions",
+            "extra_warnings",
         ),
         [
             pytest.param(
@@ -6423,6 +6425,7 @@ class TestTaskRunnerCallsCallbacks:
                 False,
                 TaskInstanceState.SUCCESS,
                 ["on-execute 1", "on-execute 3", "execute success", "on-success 1", "on-success 3"],
+                [],
                 [],
                 id="success",
             ),
@@ -6433,6 +6436,7 @@ class TestTaskRunnerCallsCallbacks:
                 TaskInstanceState.SKIPPED,
                 ["on-execute 1", "on-execute 3", "execute skipped", "on-skipped 1", "on-skipped 3"],
                 [],
+                [],
                 id="skipped",
             ),
             pytest.param(
@@ -6442,6 +6446,7 @@ class TestTaskRunnerCallsCallbacks:
                 TaskInstanceState.FAILED,
                 ["on-execute 1", "on-execute 3", "execute failure", "on-failure 1", "on-failure 3"],
                 [(1, mock.call("Task failed with exception"))],
+                [],
                 id="failure",
             ),
             pytest.param(
@@ -6450,7 +6455,8 @@ class TestTaskRunnerCallsCallbacks:
                 True,
                 TaskInstanceState.UP_FOR_RETRY,
                 ["on-execute 1", "on-execute 3", "execute failure", "on-retry 1", "on-retry 3"],
-                [(1, mock.call("Task failed with exception"))],
+                [],
+                [(0, mock.call("Task failed with exception, will retry", exc_info=True))],
                 id="retry",
             ),
         ],
@@ -6464,6 +6470,7 @@ class TestTaskRunnerCallsCallbacks:
         expected_state,
         expected_results,
         extra_exceptions,
+        extra_warnings,
     ):
         collected_results = []
 
@@ -6524,6 +6531,76 @@ class TestTaskRunnerCallsCallbacks:
         for index, calls in extra_exceptions:
             expected_exception_logs.insert(index, calls)
         assert log.exception.mock_calls == expected_exception_logs
+
+        expected_warning_logs = []
+        for index, calls in extra_warnings:
+            expected_warning_logs.insert(index, calls)
+        assert log.warning.mock_calls == expected_warning_logs
+
+
+class TestWillBeRetried:
+    """Unit tests for the predicate that picks the failure log severity on retries."""
+
+    @pytest.mark.parametrize(
+        ("should_retry", "expected"),
+        [(True, True), (False, False), (None, False)],
+        ids=["retry-remains", "final-try", "no-run-context"],
+    )
+    def test_without_policy_it_follows_the_server_should_retry(
+        self, create_runtime_ti, should_retry, expected
+    ):
+        ti = create_runtime_ti(BaseOperator(task_id="task"), should_retry=should_retry)
+        assert _will_be_retried(ti, ValueError("boom")) is expected
+
+    @pytest.mark.parametrize("should_retry", [True, False])
+    @pytest.mark.parametrize("action", [RetryAction.RETRY, RetryAction.DEFAULT])
+    def test_retry_or_default_decisions_follow_the_server_should_retry(
+        self, create_runtime_ti, action, should_retry
+    ):
+        class _Policy(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                return RetryDecision(action=action)
+
+        ti = create_runtime_ti(
+            BaseOperator(task_id="task", retry_policy=_Policy()), should_retry=should_retry
+        )
+        assert _will_be_retried(ti, ValueError("boom")) is should_retry
+
+    def test_fail_decision_means_final_try(self, create_runtime_ti):
+        class _Policy(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                return RetryDecision(action=RetryAction.FAIL, reason="do not retry")
+
+        ti = create_runtime_ti(BaseOperator(task_id="task", retry_policy=_Policy()), should_retry=True)
+        assert _will_be_retried(ti, ValueError("boom")) is False
+
+    def test_reschedule_within_bounds_is_retried(self, create_runtime_ti):
+        class _Policy(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                return RetryDecision(action=RetryAction.RESCHEDULE, max_reschedules=2)
+
+        ti = create_runtime_ti(BaseOperator(task_id="task", retry_policy=_Policy()), should_retry=False)
+        assert _will_be_retried(ti, ValueError("boom")) is True
+
+    def test_reschedule_past_bounds_falls_back_to_the_server_should_retry(self, create_runtime_ti):
+        class _Policy(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                return RetryDecision(action=RetryAction.RESCHEDULE, max_reschedules=1)
+
+        ti = create_runtime_ti(
+            BaseOperator(task_id="task", retry_policy=_Policy()),
+            should_retry=False,
+            task_reschedule_count=1,
+        )
+        assert _will_be_retried(ti, ValueError("boom")) is False
+
+    def test_broken_policy_falls_back_to_the_server_should_retry(self, create_runtime_ti):
+        class _BrokenPolicy(RetryPolicy):
+            def evaluate(self, exception, try_number, max_tries, context=None):
+                raise RuntimeError("policy bug")
+
+        ti = create_runtime_ti(BaseOperator(task_id="task", retry_policy=_BrokenPolicy()), should_retry=True)
+        assert _will_be_retried(ti, ValueError("boom")) is True
 
 
 class TestTriggerDagRunOperator:
