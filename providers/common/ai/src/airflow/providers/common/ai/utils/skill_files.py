@@ -59,6 +59,11 @@ _INHERITED_ENV_NAMES = ("PATH", "HOME", "LANG", "LC_ALL", "LC_CTYPE")
 _SCRIPT_TIMEOUT_SECONDS = 30.0
 # How long to wait for the pipe to close after the script was killed; a process that left its group can hold it open.
 _REAP_TIMEOUT_SECONDS = 2.0
+# Output read after the script itself has exited, in case a background child it started is still printing.
+_OUTPUT_DRAIN_GRACE_SECONDS = 2.0
+# asyncio's ``Process.wait`` returns only once the output pipe is closed, which a background child can prevent,
+# so the exit is found by polling ``returncode`` (pydantic-ai's ``LocalWorkspaceBackend`` does the same).
+_EXIT_POLL_INTERVAL_SECONDS = 0.005
 _MAX_SCRIPT_OUTPUT_BYTES = 50_000
 _MAX_RESOURCE_BYTES = 1_000_000
 _ARGUMENT_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
@@ -327,6 +332,7 @@ async def _reap_process(process: asyncio.subprocess.Process) -> None:
     """
     Kill the script's process group and wait until its pipe is closed.
 
+    When the script has already exited, this kills the background processes it left behind.
     Unread output keeps the pipe open, and ``Process.wait`` does not return, nor is the transport
     closed, until it is. So the output is read and dropped to EOF.
     """
@@ -342,25 +348,47 @@ async def _reap_process(process: asyncio.subprocess.Process) -> None:
         await asyncio.wait_for(finish(), timeout=_REAP_TIMEOUT_SECONDS)
 
 
-async def _collect_output(process: asyncio.subprocess.Process, data: bytearray) -> bool:
-    """
-    Read the script's output into *data* up to the cap; a script that prints more is killed.
+async def _wait_for_exit(process: asyncio.subprocess.Process) -> int:
+    while (returncode := process.returncode) is None:  # noqa: ASYNC110
+        await asyncio.sleep(_EXIT_POLL_INTERVAL_SECONDS)
+    return returncode
 
-    *data* is filled as the output arrives, so the caller still has what was read when the read is
-    cancelled by the timeout. Return whether the output was cut off at the cap.
-    """
-    stream = process.stdout
+
+async def _read_output(stream: asyncio.StreamReader | None, data: bytearray) -> None:
     while len(data) <= _MAX_SCRIPT_OUTPUT_BYTES and stream is not None:
         chunk = await stream.read(_MAX_SCRIPT_OUTPUT_BYTES + 1 - len(data))
         if not chunk:
             break
         data.extend(chunk)
-    truncated = len(data) > _MAX_SCRIPT_OUTPUT_BYTES
-    if truncated:
-        await _reap_process(process)
-    else:
-        await process.wait()
-    return truncated
+
+
+async def _collect_output(process: asyncio.subprocess.Process, data: bytearray) -> bool:
+    """
+    Read the script's output into *data* up to the cap, and return whether it was cut off there.
+
+    Returns once the script has exited and its output has been read for a short grace period, even if a
+    background child still holds the pipe; then kills the process group, including such a child. A script
+    that prints more than the cap is killed too. *data* is filled as the output arrives, so the caller
+    still has what was read when the timeout cancels this.
+    """
+    reader = asyncio.create_task(_read_output(process.stdout, data))
+    exit_waiter = asyncio.create_task(_wait_for_exit(process))
+    try:
+        done, _ = await asyncio.wait({reader, exit_waiter}, return_when=asyncio.FIRST_COMPLETED)
+        if reader in done:
+            if len(data) <= _MAX_SCRIPT_OUTPUT_BYTES:
+                await exit_waiter
+        else:
+            await asyncio.wait({reader}, timeout=_OUTPUT_DRAIN_GRACE_SECONDS)
+        if reader.done():
+            reader.result()
+    finally:
+        # ``_reap_process`` reads the same stream, so the reader must be gone before it starts.
+        for task in (reader, exit_waiter):
+            task.cancel()
+        await asyncio.gather(reader, exit_waiter, return_exceptions=True)
+    await _reap_process(process)
+    return len(data) > _MAX_SCRIPT_OUTPUT_BYTES
 
 
 def build_skill_files_toolset(

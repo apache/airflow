@@ -186,6 +186,9 @@ Parameters
   followed by a note that the output was cut off.
   A script that runs past the timeout is killed, and the model gets the output it had printed so far,
   followed by a note that it timed out.
+  The call returns when the script itself exits, with the script's own exit code. A process the script
+  started in the background can keep printing for 2 more seconds, and then it is killed along with the
+  script's process group; a process that left the group, for example with ``setsid``, is not killed.
   Running scripts in a sandbox is not supported yet, and any other value raises ``ValueError``.
 - ``inherit_env``: Names of worker environment variables a script receives, besides ``PATH``,
   ``HOME``, ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. A name is looked up on the

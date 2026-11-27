@@ -599,9 +599,9 @@ class TestRunSkillScript:
     @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
     @pytest.mark.asyncio
     async def test_a_timeout_keeps_the_output_printed_before_it(self, skill_dir, monkeypatch):
-        """A background child keeps the pipe open after the script exits, so the read ends only at the timeout."""
+        """The script is still running when the timeout comes."""
         monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 2)
-        self.write_script(skill_dir, "scripts/spawn.sh", "echo started\nsleep 30 &\n")
+        self.write_script(skill_dir, "scripts/spawn.sh", "echo started\nsleep 30\n")
 
         output = await call(
             make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh"
@@ -609,6 +609,59 @@ class TestRunSkillScript:
 
         assert output.startswith("started\n")
         assert output.endswith("Script 'spawn.sh' timed out after 2 seconds and was killed.")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_a_script_returns_when_it_exits_although_a_background_child_holds_the_pipe(
+        self, skill_dir, monkeypatch
+    ):
+        monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 10)
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 0.2)
+        self.write_script(skill_dir, "scripts/spawn.sh", "echo started\nsleep 30 &\n")
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh"
+        )
+
+        assert output == "started"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_a_background_child_is_killed_when_the_script_exits(self, skill_dir, monkeypatch):
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 0.2)
+        marker = skill_dir / "survived"
+        self.write_script(skill_dir, "scripts/spawn.sh", f"echo started\n(sleep 1 && touch {marker}) &\n")
+
+        await call(make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh")
+        await asyncio.sleep(1.5)
+
+        assert not marker.exists()
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_the_exit_code_is_kept_when_a_background_child_holds_the_pipe(self, skill_dir, monkeypatch):
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 0.2)
+        self.write_script(skill_dir, "scripts/spawn.sh", "echo started\nsleep 30 &\nexit 3\n")
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh"
+        )
+
+        assert output == "started\n\nScript exited with code 3"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_output_a_background_child_prints_within_the_grace_period_is_kept(
+        self, skill_dir, monkeypatch
+    ):
+        monkeypatch.setattr(skill_files, "_OUTPUT_DRAIN_GRACE_SECONDS", 1.0)
+        self.write_script(skill_dir, "scripts/spawn.sh", "echo a\n(sleep 0.1 && echo b) &\n")
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh"
+        )
+
+        assert output == "a\nb"
 
     @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
     @pytest.mark.asyncio
