@@ -66,7 +66,7 @@ class CohereHook(BaseHook):
         self.request_options = request_options
         self._client: cohere.ClientV2 | None = None
 
-        if self.max_retries:
+        if self.max_retries is not None:
             warnings.warn(
                 "Argument `max_retries` is deprecated. Use `request_options` dict for function-specific request configuration.",
                 AirflowProviderDeprecationWarning,
