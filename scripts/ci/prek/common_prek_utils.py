@@ -200,6 +200,18 @@ def read_default_python_major_minor_version_for_images() -> str:
     return value
 
 
+BRANCH_DEFAULTS_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "branch_defaults.py"
+
+
+def read_airflow_branch() -> str:
+    """Parse AIRFLOW_BRANCH, the upstream branch of this checkout, from branch_defaults.py."""
+    defaults = BRANCH_DEFAULTS_PATH.read_text(encoding="utf-8")
+    match = re.search(r'^AIRFLOW_BRANCH = "([^"]+)"$', defaults, re.MULTILINE)
+    if match is None:
+        raise RuntimeError(f"No AIRFLOW_BRANCH in {BRANCH_DEFAULTS_PATH}")
+    return match[1]
+
+
 def pre_process_mypy_files(files: list[str]) -> list[str]:
     """Pre-process files passed to mypy.
 

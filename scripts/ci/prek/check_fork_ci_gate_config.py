@@ -18,8 +18,9 @@
 """
 Validate ``.github/fork-ci-gate.toml`` (AIP-120 fork CI gate) and ``.asf.yaml``.
 
-The file must parse with the same rules the gate job uses, and every ``[pilot]`` join instant
-and ``enabled_since`` value that is new or changed relative to ``main`` must lie in the future.
+The file must parse with the same rules the gate job uses. Before merging a change, new or
+changed ``[pilot]`` join instants and later ``enabled_since`` values must be in the future.
+Runs of an already merged branch validate its configuration as a snapshot.
 The gate reads the file from the base branch, so an entry only takes effect when it merges,
 while the instant is compared with pull request creation: an instant before the merge would
 gate pull requests that already ran project CI. See "Contributor pilot" in
@@ -41,14 +42,12 @@ from datetime import UTC, datetime
 from types import ModuleType
 
 import yaml
-from common_prek_utils import AIRFLOW_ROOT_PATH
+from common_prek_utils import AIRFLOW_BREEZE_SOURCES_PATH, AIRFLOW_ROOT_PATH, read_airflow_branch
 
 CONFIG_PATH = ".github/fork-ci-gate.toml"
 ASF_YAML_PATH = ".asf.yaml"
 UPSTREAM_URL = "https://github.com/apache/airflow.git"
-GATE_MODULE_PATH = (
-    AIRFLOW_ROOT_PATH / "dev" / "breeze" / "src" / "airflow_breeze" / "utils" / "fork_ci_gate.py"
-)
+GATE_MODULE_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "utils" / "fork_ci_gate.py"
 
 
 def load_gate_module() -> ModuleType:
@@ -183,16 +182,32 @@ def resolve_base_ref() -> str | None:
         and _git("fetch", "--quiet", "--depth=1", "origin", f"refs/heads/{base_branch}") is not None
     ):
         return "FETCH_HEAD"
+    if not base_branch:
+        event_name = os.environ.get("GITHUB_EVENT_NAME")
+        if os.environ.get("GITHUB_REPOSITORY") == "apache/airflow" and event_name in (
+            "push",
+            "schedule",
+            "workflow_dispatch",
+        ):
+            # Entries on a merged branch were checked before their merge, and an entry merged
+            # after its instant passed must not fail every later run of the branch.
+            return "HEAD"
+        if event_name == "push":
+            # merge-with-base sets the tested base as the first parent and the pushed SHA as the second.
+            pushed_sha = os.environ.get("GITHUB_SHA")
+            if pushed_sha and _git("rev-parse", "--verify", "--quiet", "HEAD^2") == f"{pushed_sha}\n":
+                return "HEAD^1"
+
+    branch = base_branch or read_airflow_branch()
     head = (_git("rev-parse", "HEAD") or "").strip()
-    for candidate in ("upstream/main", "origin/main", "main"):
+    for candidate in (f"upstream/{branch}", f"origin/{branch}", branch):
         if _git("rev-parse", "--verify", "--quiet", candidate) is not None:
             merge_base = (_git("merge-base", "HEAD", candidate) or "").strip()
             # On a push to a fork's own main, that main is HEAD itself and compares with nothing.
             if merge_base and merge_base != head:
                 return merge_base
-    # A push in a contributor's fork has no base branch and a shallow checkout without main, and
-    # its origin is the fork: compare with apache/airflow's main, the branch the change targets.
-    if _git("fetch", "--quiet", "--depth=1", UPSTREAM_URL, "refs/heads/main") is not None:
+    # A shallow checkout can lack the upstream branch, and origin in a fork is the fork itself.
+    if _git("fetch", "--quiet", "--depth=1", UPSTREAM_URL, f"refs/heads/{branch}") is not None:
         return "FETCH_HEAD"
     return None
 
@@ -203,7 +218,7 @@ def main() -> int:
     if base_ref is None:
         # Comparing with the change itself would accept any new past instant, so fail instead.
         print(
-            f"{CONFIG_PATH}: no base revision to compare with; fetch apache/airflow's main and retry.",
+            f"{CONFIG_PATH}: no base revision to compare with. Fetch the comparison revision and retry.",
             file=sys.stderr,
         )
         return 1
