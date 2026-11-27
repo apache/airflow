@@ -892,6 +892,8 @@ class TaskInstancesOperations(BaseOperations):
         dag_run_id: str,
         task_id: str,
         map_index: int | None = None,
+        region_id: str | None = None,
+        region_index: int | None = None,
         *,
         suppress_error_log: bool = False,
     ) -> TaskInstanceResponse | ServerResponseError:
@@ -899,8 +901,13 @@ class TaskInstancesOperations(BaseOperations):
         path = _build_task_instance_path(
             dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
         )
+        if region_id is not None and (map_index is None or map_index < 0):
+            # The unmapped endpoint refuses a mapped task instance, which a region alone can select
+            # (a mapped task inside a loop). Like the UI, address it through the mapped one with -1.
+            path = f"{path}/-1"
         self.response = self.client.get(
             path,
+            params=_build_query_params(region_id=region_id, region_index=region_index),
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
         return validate_response(self.response.content, TaskInstanceResponse)
@@ -911,6 +918,8 @@ class TaskInstancesOperations(BaseOperations):
         dag_run_id: str,
         task_id: str,
         map_index: int | None = None,
+        region_id: str | None = None,
+        region_index: int | None = None,
         *,
         suppress_error_log: bool = False,
     ) -> TaskDependencyCollectionResponse | ServerResponseError:
@@ -920,6 +929,7 @@ class TaskInstancesOperations(BaseOperations):
         )
         self.response = self.client.get(
             f"{path}/dependencies",
+            params=_build_query_params(region_id=region_id, region_index=region_index),
             extensions={"airflowctl_suppress_error_log": suppress_error_log},
         )
         return validate_response(self.response.content, TaskDependencyCollectionResponse)
@@ -931,6 +941,8 @@ class TaskInstancesOperations(BaseOperations):
         task_id: str,
         try_number: int,
         map_index: int | None = None,
+        region_id: str | None = None,
+        region_index: int | None = None,
         *,
         suppress_error_log: bool = False,
     ) -> TaskInstancesLogResponse | ServerResponseError:
@@ -940,9 +952,12 @@ class TaskInstancesOperations(BaseOperations):
         )
         # Without full_content the endpoint returns one chunk and a continuation token, so a running or
         # remotely stored log would print only partially.
-        params: dict[str, Any] = {"full_content": True}
-        if map_index is not None and map_index >= 0:
-            params["map_index"] = map_index
+        params = _build_query_params(
+            full_content=True,
+            map_index=map_index if map_index is not None and map_index >= 0 else None,
+            region_id=region_id,
+            region_index=region_index,
+        )
         self.response = self.client.get(
             f"{path}/logs/{try_number}",
             params=params,

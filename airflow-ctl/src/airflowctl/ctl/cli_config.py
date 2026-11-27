@@ -29,6 +29,7 @@ import math
 import os
 import sys
 import typing
+import uuid
 from argparse import Namespace
 from collections.abc import Callable, Iterable
 from enum import Enum
@@ -461,6 +462,19 @@ ARG_MAP_INDEX = Arg(
     type=int,
     default=-1,
     help="Mapped task index",
+)
+ARG_REGION_ID = Arg(
+    flags=("--region-id",),
+    type=uuid.UUID,
+    help=(
+        "The region of the task instance, needed for one inside a task loop (pass it with --region-index). "
+        "'airflowctl tasks states-for-dag-run' lists the region of each task instance in a loop"
+    ),
+)
+ARG_REGION_INDEX = Arg(
+    flags=("--region-index",),
+    type=int,
+    help="The index of the task instance in its region (pass it with --region-id)",
 )
 
 # Task logs command args. Required primitive parameters stay positional per the
@@ -1450,6 +1464,8 @@ TASK_COMMANDS = (
             ARG_RUN_ID,
             ARG_LOGICAL_DATE,
             ARG_MAP_INDEX,
+            ARG_REGION_ID,
+            ARG_REGION_INDEX,
         ),
     ),
     ActionCommand(
@@ -1467,6 +1483,8 @@ TASK_COMMANDS = (
             ARG_RUN_ID,
             ARG_LOGICAL_DATE,
             ARG_MAP_INDEX,
+            ARG_REGION_ID,
+            ARG_REGION_INDEX,
         ),
     ),
     ActionCommand(
@@ -1494,6 +1512,8 @@ TASK_COMMANDS = (
             ARG_TASKS_LOGS_DAG_RUN_ID,
             ARG_TASK_ID,
             ARG_MAP_INDEX,
+            ARG_REGION_ID,
+            ARG_REGION_INDEX,
             ARG_TRY_NUMBER,
         ),
     ),

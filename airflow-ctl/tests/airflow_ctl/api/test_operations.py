@@ -2549,6 +2549,80 @@ class TestTaskInstancesOperations:
         )
         assert response == self.task_dependency_collection_response
 
+    @pytest.mark.parametrize(
+        ("method", "path_suffix", "response_model_attr"),
+        [
+            # The unmapped endpoint refuses a mapped task instance, which the region alone may select.
+            pytest.param("get", "/-1", "task_instance_response", id="get"),
+            pytest.param(
+                "get_dependencies", "/dependencies", "task_dependency_collection_response", id="dependencies"
+            ),
+        ],
+    )
+    def test_selects_task_instance_by_region(self, method, path_suffix, response_model_attr):
+        response_model = getattr(self, response_model_attr)
+        region_id = "0199a4c1-2b3c-7d4e-8f50-6a7b8c9d0e1f"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == (
+                f"/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id{path_suffix}"
+            )
+            assert dict(request.url.params) == {"region_id": region_id, "region_index": "2"}
+            return httpx.Response(200, json=json.loads(response_model.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = getattr(client.task_instances, method)(
+            dag_id="dag_id",
+            dag_run_id="dag_run_id",
+            task_id="task_id",
+            region_id=region_id,
+            region_index=2,
+        )
+        assert response == response_model
+
+    def test_get_selects_task_instance_by_region_and_map_index(self):
+        region_id = "0199a4c1-2b3c-7d4e-8f50-6a7b8c9d0e1f"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/2"
+            assert dict(request.url.params) == {"region_id": region_id, "region_index": "2"}
+            return httpx.Response(200, json=json.loads(self.task_instance_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.get(
+            dag_id="dag_id",
+            dag_run_id="dag_run_id",
+            task_id="task_id",
+            map_index=2,
+            region_id=region_id,
+            region_index=2,
+        )
+        assert response == self.task_instance_response
+
+    def test_logs_selects_task_instance_by_region(self):
+        log_response = TaskInstancesLogResponse(content=["line"], continuation_token=None)
+        region_id = "0199a4c1-2b3c-7d4e-8f50-6a7b8c9d0e1f"
+
+        def handle_request(request: httpx.Request) -> httpx.Response:
+            assert request.url.path == "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances/task_id/logs/1"
+            assert dict(request.url.params) == {
+                "full_content": "true",
+                "region_id": region_id,
+                "region_index": "2",
+            }
+            return httpx.Response(200, json=json.loads(log_response.model_dump_json()))
+
+        client = make_api_client(transport=httpx.MockTransport(handle_request))
+        response = client.task_instances.logs(
+            dag_id="dag_id",
+            dag_run_id="dag_run_id",
+            task_id="task_id",
+            try_number=1,
+            region_id=region_id,
+            region_index=2,
+        )
+        assert response == log_response
+
     def test_list(self):
         client = self._make_client_asserting_path(
             "/api/v2/dags/dag_id/dagRuns/dag_run_id/taskInstances", self.task_instance_collection_response
