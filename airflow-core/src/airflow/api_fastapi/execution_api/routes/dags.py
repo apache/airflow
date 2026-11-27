@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import select
 
-from airflow.api_fastapi.common.db.common import SessionDep
+from airflow.api_fastapi.common.db.common import AsyncSessionDep
 from airflow.api_fastapi.execution_api.datamodels.dags import DagResponse
-from airflow.models.dag import DagModel
+from airflow.models.dag import DagModel, DagTag
 
 router = APIRouter()
 
@@ -32,13 +33,25 @@ router = APIRouter()
         status.HTTP_404_NOT_FOUND: {"description": "DAG not found for the given dag_id"},
     },
 )
-def get_dag(
+async def get_dag(
     dag_id: str,
-    session: SessionDep,
+    session: AsyncSessionDep,
 ) -> DagResponse:
     """Get a DAG."""
-    dag_model: DagModel | None = session.get(DagModel, dag_id)
-    if not dag_model:
+    dag_row = (
+        await session.execute(
+            select(
+                DagModel.dag_id,
+                DagModel.is_paused,
+                DagModel.bundle_name,
+                DagModel.bundle_version,
+                DagModel.relative_fileloc,
+                DagModel.owners,
+                DagModel.next_dagrun,
+            ).where(DagModel.dag_id == dag_id)
+        )
+    ).one_or_none()
+    if dag_row is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,
             detail={
@@ -47,13 +60,15 @@ def get_dag(
             },
         )
 
+    tags = (await session.scalars(select(DagTag.name).where(DagTag.dag_id == dag_id))).all()
+
     return DagResponse(
-        dag_id=dag_model.dag_id,
-        is_paused=dag_model.is_paused,
-        bundle_name=dag_model.bundle_name,
-        bundle_version=dag_model.bundle_version,
-        relative_fileloc=dag_model.relative_fileloc,
-        owners=dag_model.owners,
-        tags=sorted(tag.name for tag in dag_model.tags),
-        next_dagrun=dag_model.next_dagrun,
+        dag_id=dag_row.dag_id,
+        is_paused=dag_row.is_paused,
+        bundle_name=dag_row.bundle_name,
+        bundle_version=dag_row.bundle_version,
+        relative_fileloc=dag_row.relative_fileloc,
+        owners=dag_row.owners,
+        tags=sorted(tags),
+        next_dagrun=dag_row.next_dagrun,
     )

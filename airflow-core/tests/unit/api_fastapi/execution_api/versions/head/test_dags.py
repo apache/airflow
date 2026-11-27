@@ -21,9 +21,10 @@ from datetime import UTC, datetime
 from unittest.mock import ANY
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import event, update
+from sqlalchemy.orm import Session
 
-from airflow.models import DagModel
+from airflow.models.dag import DagModel, DagTag
 from airflow.providers.standard.operators.empty import EmptyOperator
 
 from tests_common.test_utils.db import clear_db_runs
@@ -126,3 +127,27 @@ class TestDag:
             "tags": [],
             "next_dagrun": ANY,
         }
+
+    def test_get_dag_does_not_hydrate_orm_entities(self, client, session, dag_maker):
+        dag_id = "test_get_dag_no_orm_hydration"
+
+        with dag_maker(dag_id=dag_id, session=session, serialized=True, tags=["tag_a", "tag_b"]):
+            EmptyOperator(task_id="test_task")
+        session.commit()
+        session.expunge_all()
+
+        loaded: list[str] = []
+
+        def record(_, instance):
+            if isinstance(instance, (DagModel, DagTag)):
+                loaded.append(type(instance).__name__)
+
+        event.listen(Session, "loaded_as_persistent", record)
+        try:
+            response = client.get(f"/execution/dags/{dag_id}")
+        finally:
+            event.remove(Session, "loaded_as_persistent", record)
+
+        assert response.status_code == 200
+        assert response.json()["tags"] == ["tag_a", "tag_b"]
+        assert loaded == []
