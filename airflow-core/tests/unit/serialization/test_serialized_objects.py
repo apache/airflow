@@ -143,7 +143,6 @@ def test_recursive_serialize_calls_must_forward_kwargs():
     import airflow.serialization
 
     valid_recursive_call_count = 0
-    skipped_recursive_calls = 0  # when another serialize method called
     file = Path(airflow.serialization.__path__[0]) / "serialized_objects.py"
     content = file.read_text()
     tree = ast.parse(content)
@@ -161,9 +160,10 @@ def test_recursive_serialize_calls_must_forward_kwargs():
     kwonly_args = [x.arg for x in method_def.args.kwonlyargs]
     for elem in ast.walk(method_def):
         if isinstance(elem, ast.Call) and getattr(elem.func, "attr", "") == "serialize":
-            if not elem.func.value.id == "cls":
-                skipped_recursive_calls += 1
-                break
+            # Skip calls to some other object's serialize(); walking on rather than
+            # stopping is what keeps later branches in the method covered.
+            if getattr(elem.func.value, "id", "") != "cls":
+                continue
             kwargs = {y.arg: y.value for y in elem.keywords}
             for name in kwonly_args:
                 if name not in kwargs or getattr(kwargs[name], "id", "") != name:
@@ -176,7 +176,6 @@ def test_recursive_serialize_calls_must_forward_kwargs():
                 valid_recursive_call_count += 1
     print(f"validated calls: {valid_recursive_call_count}")
     assert valid_recursive_call_count > 0
-    assert skipped_recursive_calls == 1
 
 
 def test_strict_mode():
@@ -191,6 +190,28 @@ def test_strict_mode():
     BaseSerialization.serialize(obj)  # does not raise
     with pytest.raises(SerializationError, match="Encountered unexpected type"):
         BaseSerialization.serialize(obj, strict=True)  # now raises
+
+
+def test_strict_mode_applies_through_lazy_select_sequence():
+    """A LazySelectSequence is serialized by recursing on its contents, so strict must reach them."""
+
+    class Unserializable:
+        pass
+
+    class UnserializableLazySelectSequence(LazySelectSequence):
+        def __init__(self):
+            super().__init__(None, None, session="MockSession")
+
+        def __iter__(self) -> Iterator[Unserializable]:
+            return iter([Unserializable()])
+
+        def __len__(self) -> int:
+            return 1
+
+    var = UnserializableLazySelectSequence()
+    assert len(BaseSerialization.serialize(var)) == 1  # does not raise
+    with pytest.raises(SerializationError, match="Encountered unexpected type"):
+        BaseSerialization.serialize(var, strict=True)
 
 
 def test_prevent_re_serialization_of_serialized_operators():
