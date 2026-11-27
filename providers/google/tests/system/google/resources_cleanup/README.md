@@ -119,6 +119,18 @@ Example configuration:
     instance with remaining nested resources is left in place instead of
     bypassing resource protection or minimum-age filtering.
 
+-   To clean up AlloyDB instances, clusters, and eligible backups:
+    `python -m airflow_google_provider_resource_cleanup delete --project-id <PROJECT_ID> --asset-type alloydb`
+
+    AlloyDB cleanup processes instances, secondary clusters, primary clusters,
+    and then backups. AlloyDB refuses to delete a primary cluster that still has
+    secondary clusters. Cluster deletion sets `force=True`, because secondary
+    instances can only be deleted together with their cluster, so a cluster is
+    skipped when any of its instances is not selected for deletion (protected or
+    younger than `--min-age-days`). AlloyDB can reject deletion of backups
+    protected by an active retention policy or a dependency chain; see the
+    [AlloyDB backup deletion restrictions](https://cloud.google.com/alloydb/docs/backup/delete).
+
 -   To skip a service group during deletion, for example Composer:
     `python -m airflow_google_provider_resource_cleanup delete --project-id <PROJECT_ID> --skip-asset-type composer`
 

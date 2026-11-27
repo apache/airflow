@@ -21,6 +21,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from airflow_google_provider_resource_cleanup import constants as c, helpers
+from airflow_google_provider_resource_cleanup.handlers import dataform
 from airflow_google_provider_resource_cleanup.helpers import (
     GCPProjectConfig,
     check_white_list,
@@ -234,6 +235,18 @@ def test_run_command():
         helpers.run_command("echo test", log_prefix="[test] ")
 
     mock_system.assert_called_once_with("echo test")
+
+
+@pytest.mark.anyio
+@patch.object(helpers, "run_command_async", new_callable=AsyncMock)
+async def test_dataform_deleter_sends_delete_request(mock_run_command_async):
+    resource = {"name": "//dataform.googleapis.com/projects/p/locations/us-central1/repositories/repo"}
+
+    await dataform.DataformDeleteHandler.DELETERS["dataform.googleapis.com/Repository"](resource, "[1/1] ")
+
+    command = mock_run_command_async.await_args.args[0]
+    assert "curl -X DELETE" in command
+    assert "https://dataform.googleapis.com/v1/projects/p/locations/us-central1/repositories/repo" in command
 
 
 @pytest.mark.anyio
