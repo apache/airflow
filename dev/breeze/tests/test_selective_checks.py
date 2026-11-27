@@ -3788,6 +3788,46 @@ def test_upgrade_to_newer_dependencies(
 
 
 @pytest.mark.parametrize(
+    ("files", "expected"),
+    [
+        pytest.param(("uv.lock",), "true", id="uv-lock"),
+        pytest.param(("providers/amazon/pyproject.toml",), "true", id="provider-pyproject"),
+        pytest.param(("pyproject.toml",), "true", id="root-pyproject"),
+        pytest.param(("Dockerfile.ci",), "true", id="dockerfile-ci"),
+        pytest.param(("scripts/docker/install_mysql.sh",), "true", id="docker-scripts"),
+        pytest.param(
+            ("dev/breeze/src/airflow_breeze/files/hardened_python_image_digests.json",),
+            "true",
+            id="base-image-digests",
+        ),
+        pytest.param(("airflow-core/src/airflow/models/dag.py",), "false", id="regular-source"),
+        pytest.param(("README.md",), "false", id="docs-only"),
+    ],
+)
+def test_ci_image_dependencies_changed(files: tuple[str, ...], expected: str):
+    stderr = SelectiveChecks(
+        files=files,
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed({"ci-image-dependencies-changed": expected}, str(stderr))
+
+
+def test_ci_image_cache_python_versions_are_all_current_versions():
+    stderr = SelectiveChecks(
+        files=("providers/amazon/pyproject.toml",),
+        commit_ref=NEUTRAL_COMMIT,
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {"ci-image-cache-python-versions": CURRENT_PYTHON_VERSIONS_AS_LIST},
+        str(stderr),
+    )
+
+
+@pytest.mark.parametrize(
     ("files", "pr_labels", "github_event", "expected_constraints", "expected_pypi"),
     [
         pytest.param(

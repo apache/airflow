@@ -47,6 +47,7 @@ from airflow_breeze.commands.common_image_options import (
     option_github_token_for_images,
     option_image_file_dir,
     option_install_mysql_client_type,
+    option_keyed_cache_only,
     option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull,
@@ -93,6 +94,7 @@ from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import Output, console_print, get_console
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
+    check_buildx_version,
     check_remote_ghcr_io_commands,
     get_docker_build_env,
     make_sure_builder_configured,
@@ -265,6 +267,7 @@ option_ci_image_file_to_load = click.option(
 @option_github_token
 @option_install_mysql_client_type
 @option_include_success_outputs
+@option_keyed_cache_only
 @option_parallelism
 @option_platform_multiple
 @option_prepare_buildx_cache
@@ -304,6 +307,7 @@ def build(
     github_token: str | None,
     include_success_outputs,
     install_mysql_client_type: str,
+    keyed_cache_only: bool,
     parallelism: int,
     platform: str | None,
     prepare_buildx_cache: bool,
@@ -331,7 +335,10 @@ def build(
             console_print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
-    perform_environment_checks()
+    if keyed_cache_only and not prepare_buildx_cache:
+        console_print("[error]--keyed-cache-only can only be used with --prepare-buildx-cache[/]")
+        sys.exit(1)
+    perform_environment_checks(building_images=True)
     check_remote_ghcr_io_commands()
     fix_group_permissions()
     base_build_params = BuildCiParams(
@@ -356,6 +363,7 @@ def build(
         github_repository=github_repository,
         github_token=github_token,
         install_mysql_client_type=install_mysql_client_type,
+        keyed_cache_only=keyed_cache_only,
         prepare_buildx_cache=prepare_buildx_cache,
         push=push,
         python=python,
@@ -1014,6 +1022,7 @@ def build_ci_image_if_needed(command_params: ShellParams | BuildCiParams) -> Non
         ci_image_params=ci_image_params,
         output=None,
     ):
+        check_buildx_version(quiet=True)
         return_code, info = run_build_ci_image(
             ci_image_params=ci_image_params, param_description=ci_image_params.python, output=None
         )

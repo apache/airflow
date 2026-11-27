@@ -30,6 +30,14 @@ name: Refresh image registry cache
 # Every Python version is refreshed in both trigger paths. That is what makes the cache useful:
 # a version with no cache entry builds from scratch on every run, whichever way it got skipped.
 on:  # yamllint disable-line rule:truthy
+  # `refresh-image-cache-on-dependency-change.yml` calls it on the pushes to `main` that change the
+  # inputs of the dependency layers, so a merged dependency upgrade does not wait for the next canary.
+  workflow_call:
+    inputs:
+      platform:
+        description: "Platform to refresh the cache for"
+        type: string
+        default: "both"
   workflow_dispatch:
     inputs:
       platform:

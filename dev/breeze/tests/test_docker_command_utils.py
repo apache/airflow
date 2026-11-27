@@ -35,6 +35,7 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils import docker_command_utils
 from airflow_breeze.utils.docker_command_utils import (
     autodetect_docker_context,
+    build_cache,
     check_docker_compose_version,
     check_docker_is_running,
     check_docker_permission_denied,
@@ -42,6 +43,7 @@ from airflow_breeze.utils.docker_command_utils import (
     enter_shell,
     fix_ownership_using_docker,
     get_images_to_pull,
+    prepare_docker_build_cache_command,
     prepare_docker_build_command,
     pull_images_with_retries,
 )
@@ -1161,3 +1163,129 @@ def test_fix_ownership_using_docker_passes_lowercase_rootless_flag(
     fix_ownership_using_docker()
     docker_command = mock_run_command.call_args[0][0]
     assert expected in docker_command
+
+
+KEYED_CACHE_KEY = "0123456789abcdef"
+
+
+def _cache_to_refs(command: list[str]) -> list[str]:
+    return [flag for flag in command if flag.startswith("--cache-to=")]
+
+
+@pytest.mark.parametrize(
+    ("keyed_cache_only", "expect_shared_cache"),
+    [pytest.param(False, True, id="shared-and-keyed"), pytest.param(True, False, id="keyed-only")],
+)
+@mock.patch(
+    "airflow_breeze.params.build_ci_params.calculate_ci_image_cache_key", return_value=KEYED_CACHE_KEY
+)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_and_use_docker_context", return_value="default")
+def test_prepare_docker_build_cache_command_pushes_keyed_cache(
+    _mock_context, _mock_key, keyed_cache_only: bool, expect_shared_cache: bool
+):
+    params = BuildCiParams(platform="linux/amd64", keyed_cache_only=keyed_cache_only)
+    shared_cache = params.get_cache("linux/amd64")
+
+    expected = [f"--cache-to=type=registry,ref={shared_cache}-{KEYED_CACHE_KEY},mode=max"]
+    if expect_shared_cache:
+        expected.insert(0, f"--cache-to=type=registry,ref={shared_cache},mode=max")
+    assert _cache_to_refs(prepare_docker_build_cache_command(params)) == expected
+
+
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_and_use_docker_context", return_value="default")
+def test_prepare_docker_build_cache_command_prod_image_pushes_only_shared_cache(_mock_context):
+    params = BuildProdParams(platform="linux/amd64")
+
+    assert _cache_to_refs(prepare_docker_build_cache_command(params)) == [
+        f"--cache-to=type=registry,ref={params.get_cache('linux/amd64')},mode=max"
+    ]
+
+
+@pytest.mark.parametrize(
+    ("cache_present", "expect_build"),
+    [pytest.param(True, False, id="already-pushed"), pytest.param(False, True, id="missing")],
+)
+@mock.patch(
+    "airflow_breeze.params.build_ci_params.calculate_ci_image_cache_key", return_value=KEYED_CACHE_KEY
+)
+@mock.patch("airflow_breeze.utils.docker_command_utils.get_and_use_docker_context", return_value="default")
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_build_cache_keyed_only_skips_cache_already_in_registry(
+    mock_run_command, _mock_context, _mock_key, cache_present: bool, expect_build: bool
+):
+    mock_run_command.return_value = subprocess.CompletedProcess(args=[], returncode=0 if cache_present else 1)
+    params = BuildCiParams(platform="linux/amd64", keyed_cache_only=True)
+
+    build_cache(params, output=None)
+
+    commands = [c.args[0] for c in mock_run_command.call_args_list]
+    assert commands[0] == [
+        "docker",
+        "buildx",
+        "imagetools",
+        "inspect",
+        f"{params.get_cache('linux/amd64')}-{KEYED_CACHE_KEY}",
+    ]
+    assert any(command[:3] == ["docker", "buildx", "build"] for command in commands) is expect_build
+
+
+@mock.patch("airflow_breeze.params.build_ci_params.calculate_ci_image_cache_key", return_value=None)
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_build_cache_keyed_only_fails_without_cache_key(mock_run_command, _mock_key):
+    params = BuildCiParams(platform="linux/amd64", keyed_cache_only=True)
+
+    assert build_cache(params, output=None).returncode == 1
+    mock_run_command.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("returncode", "stdout", "passes"),
+    [
+        pytest.param(
+            0, "github.com/docker/buildx v0.29.1 a32761aeb3debd39be1eca514af3693af0db334b", True, id="new"
+        ),
+        pytest.param(
+            0, "github.com/docker/buildx v0.10.0 876462897612d36679153c3414f7689626251501", True, id="min"
+        ),
+        pytest.param(0, "github.com/docker/buildx 0.12.1+ds1 0.12.1+ds1-1", True, id="distro-build"),
+        pytest.param(
+            0, "github.com/docker/buildx v0.9.1 ed00243a0ce2a0aee75311b06e32d33b44729689", False, id="too-old"
+        ),
+        pytest.param(0, "buildah version 1.33.7", False, id="no-version"),
+        pytest.param(1, "", False, id="buildx-missing"),
+    ],
+)
+@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
+def test_check_buildx_version(mock_run_command, returncode: int, stdout: str, passes: bool):
+    mock_run_command.return_value = subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout)
+
+    if passes:
+        docker_command_utils.check_buildx_version(quiet=True)
+    else:
+        with pytest.raises(SystemExit):
+            docker_command_utils.check_buildx_version(quiet=True)
+
+
+@pytest.mark.parametrize("building_images", [True, False])
+def test_perform_environment_checks_checks_buildx_only_when_building_images(building_images: bool):
+    with ExitStack() as stack:
+        for name in (
+            "check_docker_is_running",
+            "check_container_engine_is_docker",
+            "check_docker_version",
+            "check_docker_compose_version",
+            "check_windows_filesystem_mount",
+            "check_executable_entrypoint_permissions",
+            "check_uv_version",
+        ):
+            stack.enter_context(
+                mock.patch.object(docker_command_utils, name, autospec=True, return_value=True)
+            )
+        check_buildx = stack.enter_context(
+            mock.patch.object(docker_command_utils, "check_buildx_version", autospec=True)
+        )
+        docker_command_utils.perform_environment_checks.__wrapped__(
+            quiet=True, cleanup_stale_worktrees=False, building_images=building_images
+        )
+
+    assert check_buildx.called is building_images

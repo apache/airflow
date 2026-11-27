@@ -67,6 +67,7 @@ class CommonBuildParams:
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
     install_mysql_client_type: str = ALLOWED_INSTALL_MYSQL_CLIENT_TYPES[0]
+    keyed_cache_only: bool = False
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
     python_image: str | None = None
@@ -110,6 +111,9 @@ class CommonBuildParams:
         extra_flags = []
         extra_flags.append(f"--progress={self.build_progress}")
         if self.docker_cache == "registry":
+            keyed_cache = self.get_keyed_cache(self.platform)
+            if keyed_cache:
+                extra_flags.append(f"--cache-from={keyed_cache}")
             extra_flags.append(f"--cache-from={self.get_cache(self.platform)}")
         elif self.docker_cache == "disabled":
             extra_flags.append("--no-cache")
@@ -187,6 +191,10 @@ class CommonBuildParams:
             sys.exit(1)
         platform_tag = get_normalized_platform(single_platform).replace("/", "-")
         return f"{self.airflow_image_name}:cache-{platform_tag}"
+
+    def get_keyed_cache(self, single_platform: str) -> str | None:
+        """Registry cache ref specific to this checkout's dependency inputs, if the image type has one."""
+        return None
 
     def is_multi_platform(self) -> bool:
         return "," in self.platform

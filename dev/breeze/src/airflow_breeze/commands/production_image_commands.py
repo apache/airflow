@@ -395,7 +395,7 @@ def build(
             console_print("[warning]Since we are installing from sources - PIP is used by default[/]")
             use_uv = False
 
-    perform_environment_checks()
+    perform_environment_checks(building_images=True)
     check_remote_ghcr_io_commands()
     base_build_params = BuildProdParams(
         additional_airflow_extras=additional_airflow_extras,
