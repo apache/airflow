@@ -417,6 +417,17 @@ def _associate_asset_events_with_dag_run(
     )
     # The Core insert bypasses the ORM collection, which create_dagrun left as a loaded empty list.
     session.expire(dag_run, ["consumed_asset_events"])
+    dag_run.backfill_derived = bool(
+        session.scalar(
+            select(
+                exists().where(
+                    association_table.c.dag_run_id == dag_run.id,
+                    association_table.c.event_id == AssetEvent.id,
+                    AssetEvent.backfill_derived.is_(True),
+                )
+            )
+        )
+    )
     return cast("CursorResult", result).rowcount
 
 
