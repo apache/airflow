@@ -81,7 +81,7 @@ from airflow_breeze.global_constants import (
     get_airflow_version,
 )
 from airflow_breeze.utils.console import console_print
-from airflow_breeze.utils.docker_command_utils import is_docker_rootless
+from airflow_breeze.utils.docker_command_utils import is_docker_restricted, is_docker_rootless
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_ROOT_PATH,
@@ -97,6 +97,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_ENABLE_TTY_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_FILES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_HOST_ACCESS_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_CELERY_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
@@ -109,6 +110,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_PROVIDERS_AND_TESTS_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_PYCACHE_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_RESTRICTED_DOCKER_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
     get_default_project_name,
     get_host_id,
@@ -404,8 +406,15 @@ class ShellParams:
                     )
 
         compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_BASE_PATH)
-        self.add_docker_in_docker(compose_file_list)
-        self.add_git_worktree_mount(compose_file_list)
+        if self.restricted_docker:
+            console_print(
+                "[info]Restricted Docker daemon detected. Leaving out the Docker socket, the main git "
+                "directory of a worktree, added capabilities and the shared cache volumes.[/]"
+            )
+        else:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_HOST_ACCESS_PATH)
+            self.add_docker_in_docker(compose_file_list)
+            self.add_git_worktree_mount(compose_file_list)
         compose_file_list.extend(backend_files)
         compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FILES_PATH)
         if os.environ.get("CI", "false") == "true":
@@ -431,6 +440,8 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_DEBUG_PORTS_PATH)
         if self.mount_sources == MOUNT_SELECTED:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH)
+            if self.restricted_docker:
+                compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_RESTRICTED_DOCKER_PATH)
             if not self.force_lowest_dependencies:
                 compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH)
         elif self.mount_sources == MOUNT_ALL:
@@ -590,6 +601,10 @@ services:
     @cached_property
     def rootless_docker(self) -> bool:
         return is_docker_rootless()
+
+    @cached_property
+    def restricted_docker(self) -> bool:
+        return is_docker_restricted()
 
     @property
     def postgres_driver(self) -> str:
@@ -910,6 +925,12 @@ services:
             self.airflow_constraints_reference = self.default_constraints_branch
         if self.providers_constraints_reference == "default":
             self.providers_constraints_reference = self.default_constraints_branch
+
+        if self.restricted_docker:
+            # The cache volumes have one name for all checkouts, and a restricted daemon
+            # only mounts a volume that the same checkout created.
+            self.include_mypy_volume = False
+            self.include_pycache_volume = False
 
         if (
             self.backend

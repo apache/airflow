@@ -74,10 +74,12 @@ plus read-only `docker ps` / `docker info`. No `docker rm`, no
 `docker network prune`, nothing that writes outside the breeze workflow —
 those stay prompt-gated.
 
-The allows only skip the permission prompt. They do not make breeze work
-behind the magpie container gateway, which refuses Docker calls breeze
-depends on (BuildKit sessions, untyped `docker inspect`) by design, so breeze
-cannot run in a session whose `DOCKER_HOST` points at the gateway.
+The allows only skip the permission prompt. Breeze itself detects a
+`DOCKER_HOST` that points at the magpie container gateway and leaves out what
+the gateway refuses by design (see
+[Running Breeze behind a restricted Docker daemon](../dev/breeze/doc/03_developer_tasks.rst#running-breeze-behind-a-restricted-docker-daemon)).
+Building the CI image stays out of reach there, because the gateway refuses
+BuildKit sessions: build it from a terminal outside the sandbox.
 
 ## Scope notes
 
