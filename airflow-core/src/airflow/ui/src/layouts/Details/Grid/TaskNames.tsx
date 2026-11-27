@@ -26,9 +26,10 @@ import { Link as RouterLink, useParams, useSearchParams } from "react-router-dom
 
 import type { GridTISummaries } from "openapi/requests";
 
-import { TaskName } from "src/components/TaskName";
+import { TaskName, TaskNamePrefixContext } from "src/components/TaskName";
 
 import { useGroups } from "src/context/groups";
+import { commonNamePrefix } from "src/utils/commonNamePrefix";
 import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 
 import { ROW_HEIGHT } from "./constants";
@@ -94,7 +95,7 @@ export const TaskNames = ({ nodes, onRowClick, tiSummaries, virtualItems }: Prop
     virtualItems ?? nodes.map((_, index) => ({ index, size: ROW_HEIGHT, start: index * ROW_HEIGHT }));
 
   return (
-    <>
+    <TaskNamePrefixContext.Provider value={commonNamePrefix(nodes.map((node) => node.label))}>
       {itemsToRender.map((virtualItem) => {
         const node = nodes[virtualItem.index];
 
@@ -200,6 +201,6 @@ export const TaskNames = ({ nodes, onRowClick, tiSummaries, virtualItems }: Prop
           </Box>
         );
       })}
-    </>
+    </TaskNamePrefixContext.Provider>
   );
 };

@@ -32,6 +32,7 @@ import type { Direction } from "src/components/Graph/DirectionDropdown";
 import { edgeTypes, nodeTypes } from "src/components/Graph/graphTypes";
 import { getGatePathEdgeIdsForSelection, type CustomNodeProps } from "src/components/Graph/reactflowUtils";
 import { useGraphLayout } from "src/components/Graph/useGraphLayout";
+import { TaskNamePrefixContext } from "src/components/TaskName";
 
 import { SHOW_ALL_DEPENDENCIES_KEY, directionKey } from "src/constants/localStorage";
 import { useColorMode } from "src/context/colorMode";
@@ -41,6 +42,7 @@ import { useDefaultGraphDirection } from "src/hooks/useUserSettings";
 import { useDependencyGraph } from "src/queries/useDependencyGraph";
 import { useGridTiSummariesStream } from "src/queries/useGridTISummaries.ts";
 import { getReactFlowThemeStyle } from "src/theme";
+import { commonNamePrefix } from "src/utils/commonNamePrefix";
 
 import { FitViewOnLayout } from "./components/FitViewOnLayout";
 import { GraphControls } from "./components/GraphControls";
@@ -193,50 +195,54 @@ export const Graph = () => {
           <Spinner color="brand.solid" size="xl" />
         </Box>
       ) : undefined}
-      <ReactFlow
-        colorMode={colorMode}
-        defaultEdgeOptions={defaultEdgeOptions}
-        edges={edges}
-        edgesFocusable={false}
-        edgeTypes={edgeTypes}
-        maxZoom={1.5}
-        minZoom={0.01}
-        nodes={nodes}
-        nodesConnectable={false}
-        nodesDraggable={false}
-        nodesFocusable={false}
-        nodeTypes={nodeTypes}
-        onlyRenderVisibleElements
-        style={getReactFlowThemeStyle(colorMode)}
+      <TaskNamePrefixContext.Provider
+        value={commonNamePrefix(data?.nodes.map((node) => node.data.label) ?? [])}
       >
-        <Background />
-        {/* Fit the viewport after each new ELK layout instead of using the
+        <ReactFlow
+          colorMode={colorMode}
+          defaultEdgeOptions={defaultEdgeOptions}
+          edges={edges}
+          edgesFocusable={false}
+          edgeTypes={edgeTypes}
+          maxZoom={1.5}
+          minZoom={0.01}
+          nodes={nodes}
+          nodesConnectable={false}
+          nodesDraggable={false}
+          nodesFocusable={false}
+          nodeTypes={nodeTypes}
+          onlyRenderVisibleElements
+          style={getReactFlowThemeStyle(colorMode)}
+        >
+          <Background />
+          {/* Fit the viewport after each new ELK layout instead of using the
             fitView prop, which re-fires on every re-mount even when nodes are
             served from the React Query cache. */}
-        <FitViewOnLayout layoutData={data} />
-        <GraphControls dagId={dagId} selectedNodeId={selectedNodeId} />
-        {/* Hide the MiniMap for large graphs — it processes all nodes even when
+          <FitViewOnLayout layoutData={data} />
+          <GraphControls dagId={dagId} selectedNodeId={selectedNodeId} />
+          {/* Hide the MiniMap for large graphs — it processes all nodes even when
             onlyRenderVisibleElements is set, adding meaningful paint cost with
             little benefit at 500+ nodes where the map is a near-solid blob. */}
-        {data !== undefined && data.nodes.length <= 500 ? (
-          <MiniMap
-            nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-              nodeColor(
-                node,
-                colorMode === "dark" ? evenDark : evenLight,
-                colorMode === "dark" ? oddDark : oddLight,
-              )
-            }
-            nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
-              node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
-            }
-            nodeStrokeWidth={15}
-            pannable
-            style={{ height: 150, width: 200 }}
-            zoomable
-          />
-        ) : undefined}
-      </ReactFlow>
+          {data !== undefined && data.nodes.length <= 500 ? (
+            <MiniMap
+              nodeColor={(node: ReactFlowNode<CustomNodeProps>) =>
+                nodeColor(
+                  node,
+                  colorMode === "dark" ? evenDark : evenLight,
+                  colorMode === "dark" ? oddDark : oddLight,
+                )
+              }
+              nodeStrokeColor={(node: ReactFlowNode<CustomNodeProps>) =>
+                node.data.isSelected && selectedColor !== undefined ? selectedColor : ""
+              }
+              nodeStrokeWidth={15}
+              pannable
+              style={{ height: 150, width: 200 }}
+              zoomable
+            />
+          ) : undefined}
+        </ReactFlow>
+      </TaskNamePrefixContext.Provider>
     </Box>
   );
 };

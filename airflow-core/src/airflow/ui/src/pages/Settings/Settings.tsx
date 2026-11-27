@@ -38,7 +38,9 @@ import {
   useDefaultTaskGroupsExpanded,
   useMarkTaskInstanceDefaultOptions,
   useShowDagsListRecentTasks,
+  useTaskNameDisplay,
   type LandingPageOption,
+  type TaskNameDisplay,
 } from "src/hooks/useUserSettings";
 import { useDocumentTitle } from "src/utils";
 import type { Option } from "src/utils/option";
@@ -175,6 +177,7 @@ export const Settings = () => {
 
   const [graphDirection, setGraphDirection] = useDefaultGraphDirection();
   const [taskGroupsExpanded, setTaskGroupsExpanded] = useDefaultTaskGroupsExpanded();
+  const [taskNameDisplay, setTaskNameDisplay] = useTaskNameDisplay();
   const [clearRunOptions, setClearRunOptions] = useClearRunDefaultOptions();
   const [clearTaskOptions, setClearTaskOptions] = useClearTaskInstanceDefaultOptions();
   const [preventRunningTask, setPreventRunningTask] = useClearPreventRunningTaskDefault();
@@ -205,6 +208,12 @@ export const Settings = () => {
     { label: translate("components:graph.directionLeft"), value: "LEFT" },
     { label: translate("components:graph.directionUp"), value: "UP" },
     { label: translate("components:graph.directionDown"), value: "DOWN" },
+  ];
+
+  const taskNameDisplayOptions: Array<SelectOption<TaskNameDisplay>> = [
+    { label: translate("settings.graph.taskNameDisplay.options.middle"), value: "middle" },
+    { label: translate("settings.graph.taskNameDisplay.options.prefix"), value: "prefix" },
+    { label: translate("settings.graph.taskNameDisplay.options.end"), value: "end" },
   ];
 
   const clearRunToggleOptions: Array<Option> = [
@@ -287,6 +296,14 @@ export const Settings = () => {
             options={directionOptions}
             testId="default-graph-direction"
             value={graphDirection}
+          />
+          <SelectSetting
+            helper={translate("settings.graph.taskNameDisplay.helper")}
+            label={translate("settings.graph.taskNameDisplay.label")}
+            onChange={setTaskNameDisplay}
+            options={taskNameDisplayOptions}
+            testId="task-name-display"
+            value={taskNameDisplay}
           />
         </Section>
         <Section title={translate("settings.clearing.title")}>

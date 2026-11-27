@@ -16,15 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { CSSProperties } from "react";
+import { createContext, useContext, type CSSProperties } from "react";
 
-import { Box, type TextProps } from "@chakra-ui/react";
+import { Box, chakra, type TextProps } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { FiArrowDownRight, FiArrowUpRight } from "react-icons/fi";
 import { MdLoop } from "react-icons/md";
 
 import type { NodeResponse } from "openapi/requests/types.gen";
 
+import { useTaskNameDisplay } from "src/hooks/useUserSettings";
 import { formatNumber } from "src/utils";
 
 export type TaskNameProps = {
@@ -45,6 +46,50 @@ const iconStyle: CSSProperties = {
   display: "inline",
   position: "relative",
   verticalAlign: "middle",
+};
+
+// Sibling task ids usually differ only at the end (``load_d_0``, ``load_d_1``), so a plain
+// end ellipsis renders long ones identically. Truncate the middle instead and keep the tail.
+const TAIL_LENGTH = 12;
+
+/** Prefix shared by most task names in the surrounding grid or graph. */
+export const TaskNamePrefixContext = createContext("");
+
+const EndTruncatedLabel = ({ label }: { readonly label: string }) => (
+  <chakra.span minWidth={0} overflow="hidden" textOverflow="ellipsis" whiteSpace="nowrap">
+    {label}
+  </chakra.span>
+);
+
+const MiddleTruncatedLabel = ({ label }: { readonly label: string }) => {
+  if (label.length <= TAIL_LENGTH * 2) {
+    return <EndTruncatedLabel label={label} />;
+  }
+
+  return (
+    <>
+      <EndTruncatedLabel label={label.slice(0, -TAIL_LENGTH)} />
+      <chakra.span flexShrink={0} whiteSpace="pre">
+        {label.slice(-TAIL_LENGTH)}
+      </chakra.span>
+    </>
+  );
+};
+
+const TruncatedLabel = ({ label }: { readonly label: string }) => {
+  const [display] = useTaskNameDisplay();
+  const prefix = useContext(TaskNamePrefixContext);
+
+  if (display === "end") {
+    return <EndTruncatedLabel label={label} />;
+  }
+
+  const shown =
+    display === "prefix" && prefix !== "" && label.startsWith(prefix) && label.length > prefix.length
+      ? `…${label.slice(prefix.length)}`
+      : label;
+
+  return <MiddleTruncatedLabel label={shown} />;
 };
 
 export const TaskName = ({
@@ -71,42 +116,58 @@ export const TaskName = ({
   if (isGroup) {
     return (
       <Box
+        alignItems="center"
+        display="flex"
         fontSize="md"
         fontWeight="bold"
+        minWidth={0}
         overflow="hidden"
-        textOverflow="ellipsis"
+        title={label}
         whiteSpace="nowrap"
         {...rest}
       >
-        {label}
+        <TruncatedLabel label={label} />
         {/* A group can be both: a loop whose body is a mapped expansion carries both markers. */}
         {isLoop ? (
           <>
-            <MdLoop size={14} style={{ ...iconStyle, marginLeft: 4 }} />
-            {loopIterationsLabel === undefined ? undefined : ` ${loopIterationsLabel}`}
+            <MdLoop size={14} style={{ ...iconStyle, flexShrink: 0, marginLeft: 4 }} />
+            {loopIterationsLabel === undefined ? undefined : (
+              <chakra.span flexShrink={0} whiteSpace="pre">{` ${loopIterationsLabel}`}</chakra.span>
+            )}
           </>
         ) : undefined}
-        {isMapped ? " [ ]" : undefined}
+        {isMapped ? (
+          <chakra.span flexShrink={0} whiteSpace="pre">
+            {" [ ]"}
+          </chakra.span>
+        ) : undefined}
       </Box>
     );
   }
 
   return (
     <Box
+      alignItems="center"
+      display="flex"
       fontSize={isZoomedOut ? "lg" : "md"}
       fontWeight="bold"
+      minWidth={0}
       overflow="hidden"
-      textOverflow="ellipsis"
+      title={label}
       whiteSpace="nowrap"
       {...rest}
     >
-      {label}
-      {isMapped
-        ? ` [${childCount === undefined ? " " : formatNumber(childCount, i18n.language)}]`
-        : undefined}
-      {setupTeardownType === "setup" && <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={iconStyle} />}
+      <TruncatedLabel label={label} />
+      {isMapped ? (
+        <chakra.span flexShrink={0} whiteSpace="pre">
+          {` [${childCount === undefined ? " " : formatNumber(childCount, i18n.language)}]`}
+        </chakra.span>
+      ) : undefined}
+      {setupTeardownType === "setup" && (
+        <FiArrowUpRight size={isZoomedOut ? 24 : 15} style={{ ...iconStyle, flexShrink: 0 }} />
+      )}
       {setupTeardownType === "teardown" && (
-        <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={iconStyle} />
+        <FiArrowDownRight size={isZoomedOut ? 24 : 15} style={{ ...iconStyle, flexShrink: 0 }} />
       )}
     </Box>
   );

@@ -31,6 +31,7 @@ export const COLLAPSED_UI_ALERTS_KEY = "collapsed_ui_alerts";
 export const SHOW_ALL_DEPENDENCIES_KEY = "show_all_dependencies";
 export const DEFAULT_GRAPH_DIRECTION_KEY = "default_graph_direction";
 export const DEFAULT_TASK_GROUPS_EXPANDED_KEY = "default_task_groups_expanded";
+export const TASK_NAME_DISPLAY_KEY = "task_name_display";
 export const CLEAR_RUN_DEFAULT_OPTIONS_KEY = "clear_run_default_options";
 export const CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY = "clear_task_instance_default_options";
 export const CLEAR_PREVENT_RUNNING_TASK_KEY = "clear_prevent_running_task";

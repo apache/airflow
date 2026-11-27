@@ -32,6 +32,7 @@ import {
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
   MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
+  TASK_NAME_DISPLAY_KEY,
 } from "src/constants/localStorage";
 import type { DefaultTaskInstanceTab } from "src/constants/tab";
 
@@ -50,6 +51,11 @@ export const useDefaultGraphDirection = () =>
 
 export const useDefaultTaskGroupsExpanded = () =>
   useLocalStorage<boolean>(DEFAULT_TASK_GROUPS_EXPANDED_KEY, false);
+
+/** How task names too long for the grid or a graph node are shortened. */
+export type TaskNameDisplay = "end" | "middle" | "prefix";
+
+export const useTaskNameDisplay = () => useLocalStorage<TaskNameDisplay>(TASK_NAME_DISPLAY_KEY, "middle");
 
 /**
  * Fallback for the per-searchbar "match anywhere" (substring) toggle: the value a searchbar uses

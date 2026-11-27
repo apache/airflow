@@ -31,6 +31,7 @@ import {
   DEFAULT_TASK_GROUPS_EXPANDED_KEY,
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_TASK_INSTANCE_TAB_KEY,
+  TASK_NAME_DISPLAY_KEY,
 } from "src/constants/localStorage";
 import { BaseWrapper } from "src/utils/Wrapper";
 
@@ -70,6 +71,11 @@ beforeAll(async () => {
             graph: {
               defaultDirection: { helper: "helper", label: "Default graph direction" },
               taskGroupsExpanded: { helper: "helper", label: "Expand task groups by default" },
+              taskNameDisplay: {
+                helper: "helper",
+                label: "Long task names",
+                options: { end: "END-OPT", middle: "MIDDLE-OPT", prefix: "PREFIX-OPT" },
+              },
               title: "Graph",
             },
             marking: {
@@ -172,6 +178,22 @@ describe("Settings page", () => {
     expect(screen.getByTestId("default-task-instance-tab")).toHaveTextContent("DETAILS-TAB");
     expect(screen.getByTestId("clear-prevent-running-task")).toHaveAttribute("data-state", "unchecked");
     expect(screen.getByTestId("clear-keep-task-state")).toHaveAttribute("data-state", "checked");
+  });
+});
+
+describe("long task names setting", () => {
+  it("defaults to cutting the middle", () => {
+    render(<Settings />, { wrapper: BaseWrapper });
+
+    expect(screen.getByTestId("task-name-display")).toHaveTextContent("MIDDLE-OPT");
+  });
+
+  it("reflects the stored choice", () => {
+    localStorage.setItem(TASK_NAME_DISPLAY_KEY, JSON.stringify("prefix"));
+
+    render(<Settings />, { wrapper: BaseWrapper });
+
+    expect(screen.getByTestId("task-name-display")).toHaveTextContent("PREFIX-OPT");
   });
 });
 
