@@ -749,16 +749,23 @@ The shipped windows are :class:`~airflow.sdk.HourWindow` (sixty minutes per hour
 :class:`~airflow.sdk.DayWindow` (twenty-four hours per day),
 :class:`~airflow.sdk.WeekWindow` (seven days per week),
 :class:`~airflow.sdk.MonthWindow`, :class:`~airflow.sdk.QuarterWindow`, and
-:class:`~airflow.sdk.YearWindow`. Pair each window with an upstream mapper that
-decodes to the same temporal grain — for example
-:class:`~airflow.sdk.StartOfHourMapper` with :class:`~airflow.sdk.DayWindow`.
+:class:`~airflow.sdk.YearWindow`. Pair each window with the upstream mapper of the
+same downstream period — :class:`~airflow.sdk.StartOfHourMapper` with
+:class:`~airflow.sdk.HourWindow`, :class:`~airflow.sdk.StartOfDayMapper` with
+:class:`~airflow.sdk.DayWindow`, :class:`~airflow.sdk.StartOfMonthMapper` with
+:class:`~airflow.sdk.MonthWindow`, and so on. The upstream mapper decides which
+downstream run each upstream event joins; the window lists the upstream keys that
+run needs.
 
 Each upstream asset event carries a fine-grained partition key such as
-``2026-03-10T09:00:00`` (second precision). :class:`~airflow.sdk.StartOfHourMapper`
-normalizes that key to the hour boundary ``2026-03-10T09``, which is the format
-it encodes each expected member in — the same
-strings the scheduler matches against the twenty-four required members of
-:class:`~airflow.sdk.DayWindow`.
+``2026-03-10T09:00:00`` (second precision). :class:`~airflow.sdk.StartOfDayMapper`
+normalizes that key to the day ``2026-03-10``, which becomes the downstream partition
+key, so every hourly event of that day joins the same pending Dag run.
+:class:`~airflow.sdk.DayWindow` expands the day into its twenty-four hourly members,
+and the mapper encodes each member back in its ``input_format``
+(``2026-03-10T00:00:00`` through ``2026-03-10T23:00:00``) — the same strings the
+upstream producer emits, which the scheduler matches against the events that have
+arrived.
 
 The following hourly-to-daily example produces a daily summary once all twenty-four
 upstream hourly partitions for a calendar day have arrived:
@@ -772,7 +779,7 @@ upstream hourly partitions for a calendar day have arrived:
         DayWindow,
         PartitionedAssetTimetable,
         RollupMapper,
-        StartOfHourMapper,
+        StartOfDayMapper,
         task,
     )
 
@@ -796,7 +803,7 @@ upstream hourly partitions for a calendar day have arrived:
         schedule=PartitionedAssetTimetable(
             assets=hourly_sales,
             default_partition_mapper=RollupMapper(
-                upstream_mapper=StartOfHourMapper(),
+                upstream_mapper=StartOfDayMapper(),
                 window=DayWindow(),
             ),
         ),
@@ -817,6 +824,12 @@ error is a type mismatch: an identity-decoding mapper's ``expected_decoded_type`
 ``str``, but temporal windows such as :class:`~airflow.sdk.DayWindow` require
 ``datetime``; ``RollupMapper`` detects the mismatch at construction time and
 raises before the Dag is scheduled.
+
+The check compares only decoded types, so it does not catch a temporal mapper of the
+wrong period. ``RollupMapper(upstream_mapper=StartOfHourMapper(), window=DayWindow())``
+parses without error, but each hourly event becomes its own pending run keyed by the
+hour (e.g. ``2026-03-10T09``), and with the default wait policy none of them ever
+collects twenty-four hours.
 
 ``DayWindow`` always enumerates twenty-four hourly steps. With an upstream mapper
 configured for a local timezone that observes daylight-saving time, the spring-forward
