@@ -1314,7 +1314,8 @@ class TestLocalExecutorCallbackSupport:
         assert WorkloadType.EXECUTE_CALLBACK in executor.supported_workload_types
 
     @skip_non_fork_mp_start
-    def test_process_callback_workload_queue_management(self):
+    @mock.patch("airflow.sdk.execution_time.callback_supervisor.supervise_callback", return_value=0)
+    def test_process_callback_workload_queue_management(self, mock_supervise_callback):
         """Test that _process_workloads correctly removes callbacks from queued_callbacks."""
         executor = LocalExecutor(parallelism=1)
         callback_data = CallbackDTO(

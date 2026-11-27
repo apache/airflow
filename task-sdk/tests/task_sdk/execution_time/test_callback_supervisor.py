@@ -28,10 +28,12 @@ from operator import attrgetter
 from typing import Any
 from unittest.mock import ANY, Mock, patch
 
+import httpx2
 import pytest
 import structlog
+from task_sdk import make_client
 
-from airflow.sdk.api.client import CallbackOperations, Client
+from airflow.sdk.api.client import API_TIMEOUT, CallbackOperations, Client
 from airflow.sdk.api.datamodels._generated import CallbackTerminalState, XComResponse
 from airflow.sdk.execution_time.callback_supervisor import (
     CallbackSubprocess,
@@ -785,6 +787,31 @@ class TestSuperviseCallbackExchangesTokenFirst:
         # The row is still QUEUED, which the state endpoint rejects; the scheduler's
         # executor-event fallback is what fails it.
         client.callbacks.finish.assert_not_called()
+
+    @patch("tenacity.nap.time.sleep")
+    @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
+    @patch.object(CallbackSubprocess, "start")
+    def test_slow_exchange_still_runs_the_callback(self, mock_start, _nondumpable, _sleep):
+        """The server uses up the token, then takes longer than the usual timeout to answer."""
+        mock_start.return_value = Mock(wait=Mock(return_value=0))
+        exchanges = 0
+
+        def handle_request(request: httpx2.Request) -> httpx2.Response:
+            if request.url.path.endswith("/state"):
+                return httpx2.Response(204)
+            nonlocal exchanges
+            exchanges += 1
+            if exchanges > 1:
+                return httpx2.Response(409, json={"detail": {"reason": "invalid_state"}})
+            if request.extensions["timeout"]["read"] <= API_TIMEOUT:
+                raise httpx2.ReadTimeout("timed out", request=request)
+            return httpx2.Response(204, headers={"Refreshed-API-Token": "execution-token"})
+
+        client = make_client(transport=httpx2.MockTransport(handle_request))
+        assert self._supervise(client) == 0
+
+        assert exchanges == 1
+        mock_start.assert_called_once()
 
     @pytest.mark.parametrize("callback_kwargs_encoding", [None, "serde"])
     @patch("airflow.sdk.execution_time.callback_supervisor._make_process_nondumpable")
