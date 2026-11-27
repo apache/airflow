@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from urllib.parse import urlsplit
 
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.common.compat.assets import Asset
 
 if TYPE_CHECKING:
@@ -45,5 +45,8 @@ def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDa
         Dataset as OpenLineageDataset,
     )
 
-    bucket, key = S3Hook.parse_s3_url(asset.uri)
-    return OpenLineageDataset(namespace=f"s3://{bucket}", name=key if key else "/")
+    # Asset URIs are already normalized with "?" as a query string, so keep splitting them with
+    # urlsplit (not S3Hook.parse_s3_url) to leave existing dataset names unchanged.
+    parsed_uri = urlsplit(asset.uri, allow_fragments=False)
+    key = parsed_uri.path.lstrip("/")
+    return OpenLineageDataset(namespace=f"s3://{parsed_uri.netloc}", name=key if key else "/")

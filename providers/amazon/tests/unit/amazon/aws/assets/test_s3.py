@@ -77,3 +77,25 @@ def test_convert_asset_to_openlineage_no_path(uri):
     ol_dataset = convert_asset_to_openlineage(asset=Asset(uri=uri), lineage_context=S3Hook())
     assert ol_dataset.namespace == "s3://bucket"
     assert ol_dataset.name == "/"
+
+
+@pytest.mark.parametrize(
+    ("uri", "expected_uri", "expected_name"),
+    [
+        pytest.param(
+            "s3://bucket/dir/file?.csv", "s3://bucket/dir/file", "dir/file", id="blank query dropped"
+        ),
+        pytest.param("s3://bucket/dir/key?x=1", "s3://bucket/dir/key?x=1", "dir/key", id="query kept on uri"),
+        pytest.param(
+            "s3://bucket/dir/key?b=2&a=1", "s3://bucket/dir/key?a=1&b=2", "dir/key", id="query sorted"
+        ),
+    ],
+)
+def test_convert_asset_to_openlineage_question_mark_is_query(uri, expected_uri, expected_name):
+    # Airflow normalizes Asset URIs with "?" as a query string, so the lineage name stays what it was
+    # before S3Hook.parse_s3_url started keeping "?" in keys.
+    asset = Asset(uri=uri)
+    assert asset.uri == expected_uri
+    ol_dataset = convert_asset_to_openlineage(asset=asset, lineage_context=S3Hook())
+    assert ol_dataset.namespace == "s3://bucket"
+    assert ol_dataset.name == expected_name

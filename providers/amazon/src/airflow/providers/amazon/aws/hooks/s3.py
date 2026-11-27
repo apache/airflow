@@ -245,15 +245,21 @@ class S3Hook(AwsBaseHook):
         valid_s3_virtual_hosted_format = "https://bucket-name.s3.region-code.amazonaws.com/key-name"
         format = s3url.split("//")
         if re.match(r"s3[na]?:", format[0], re.IGNORECASE):
-            parsed_url = urlsplit(s3url, allow_fragments=False)
-            if not parsed_url.netloc:
+            # Split by hand: urlsplit would treat "?" in an S3 key as the start of a query string.
+            # Like urlsplit, drop tabs and newlines (e.g. a trailing newline from a templated value).
+            # Only a "//" directly after the scheme introduces the bucket name.
+            cleaned_url = re.sub(r"[\t\r\n]", "", s3url)
+            scheme_match = re.match(r"s3[na]?://", cleaned_url, re.IGNORECASE)
+            bucket_name, _, key = (
+                cleaned_url[scheme_match.end() :].partition("/") if scheme_match else ("", "", "")
+            )
+            if not bucket_name:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid format of the form: "
                     f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
                 )
 
-            bucket_name = parsed_url.netloc
-            key = parsed_url.path.lstrip("/")
+            key = key.lstrip("/")
         elif format[0] == "https:":
             temp_split = format[1].split(".")
             if temp_split[0] == "s3":
