@@ -200,7 +200,7 @@ importers:
         version: 1.65.0
       '@rolldown/plugin-babel':
         specifier: ^0.3.1
-        version: 0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.14)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
+        version: 0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.15)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
       '@stylistic/eslint-plugin':
         specifier: ^5.10.0
         version: 5.10.0(eslint@10.15.0(jiti@1.21.7))
@@ -239,7 +239,7 @@ importers:
         version: typescript@7.0.2
       '@vitejs/plugin-react':
         specifier: ^6.3.0
-        version: 6.3.0(@rolldown/plugin-babel@0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.14)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(babel-plugin-react-compiler@1.0.0)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
+        version: 6.3.0(@rolldown/plugin-babel@0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.15)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(babel-plugin-react-compiler@1.0.0)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
       '@vitest/coverage-v8':
         specifier: ^5.1.0
         version: 5.1.0(vitest@5.1.0)
@@ -256,8 +256,8 @@ importers:
         specifier: ^6.10.2
         version: 6.10.2(eslint@10.15.0(jiti@1.21.7))
       eslint-plugin-oxlint:
-        specifier: 1.93.0
-        version: 1.93.0(oxlint@1.94.0(oxlint-tsgolint@7.0.2007))
+        specifier: 1.95.0
+        version: 1.95.0(oxlint@1.94.0(oxlint-tsgolint@7.0.2007))
       eslint-plugin-perfectionist:
         specifier: ^5.14.0
         version: 5.14.0(@typescript/typescript6@6.0.2)(eslint@10.15.0(jiti@1.21.7))
@@ -409,8 +409,8 @@ packages:
     resolution: {integrity: sha512-snZbO7MEDOof+hvNa97EjEY7qD7h2kwvQr5AJC3ZhQudKW5dnej6k3kP9NQV88hJwaS8vDqRLFo9rivLEhle2g==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/helper-string-parser@7.29.14':
-    resolution: {integrity: sha512-CXvKMFvM80ihI7Vox9jb+kQjnyjESQNPM+vB7U0Zz6TWuZA+Z/FL0QPMH300h33qJtIx+REeBhXqWOPW48TcAQ==}
+  '@babel/helper-string-parser@7.29.15':
+    resolution: {integrity: sha512-C2FuapQ2Kh1OnVHAoLi5rD3GBJ8COb9Q609T6HEpLqaBAo560PDP5OxBE5dCI/h951MBO/+bCUYU5SZ+8ZlV+w==}
     engines: {node: '>=6.9.0'}
 
   '@babel/helper-string-parser@7.29.7':
@@ -434,8 +434,8 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
-  '@babel/parser@7.29.14':
-    resolution: {integrity: sha512-VL220vXuyO2z3rNIQwY7ftj9UwpqOt+33sH+sBWkOekbsSR2g7EEMnOx24ZlCH0xOA3DM/33SifVFGbnJD8r/w==}
+  '@babel/parser@7.29.15':
+    resolution: {integrity: sha512-RpKWyisHoP81twtSCgmE02iU0RnPcq1DN5bBEbpUePrjA9Q3wXhufnCJrrayPpoZieqFh3zyZQqwtSK0gGccRA==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -461,8 +461,8 @@ packages:
     resolution: {integrity: sha512-v+oN26xP4YIlQsbQ/CbTH1WG5m/l/DjKKZNy/Kp3f/AFvbgt7Em/D0FeMM3O2hX0YzeN2M16W8lOpyhIkfCBcQ==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/runtime@7.29.14':
-    resolution: {integrity: sha512-Y5tqevQaUAZhhj82BpYMNC1ssvLQTVAfwKdm8iy8qwmhvC2/CpcAu8OC+QEtjM7pMk7knx83u1Qj8gzkicyelw==}
+  '@babel/runtime@7.29.15':
+    resolution: {integrity: sha512-304gsbbGVmQc+cNGHzwHBlqepYdWLKj3VXCQBGt/EGcV7PUPfKI7kAUNW1FZEOCwlQiLvQjg1JEaAlRQ616h+Q==}
     engines: {node: '>=6.9.0'}
 
   '@babel/runtime@7.29.7':
@@ -497,8 +497,8 @@ packages:
     resolution: {integrity: sha512-WCsemW40Cpc6gouC1SrY6PBaZ+oLRlEVY9XBvZBI7il/HyUrb2nJ505wE1MHEFyDZNnrWDEuy4jL50WVHfTTSQ==}
     engines: {node: '>=6.9.0'}
 
-  '@babel/types@7.29.14':
-    resolution: {integrity: sha512-UjI/dKmwJwT9pOszJitq2G6EObZPnsZUfdCr92z2TlF3EZK9J3EdfOKUrCzHl6wFthbzwhzl1Soc/UIwxRiq6w==}
+  '@babel/types@7.29.15':
+    resolution: {integrity: sha512-/XKpKDakL//LZ66bq1XsZOswuqeI5MZqPLDu18o3XdkU1fNJ7bdPtzgnc4ZNS+bBGHV0FJG8jjb8SwcC3nNVQQ==}
     engines: {node: '>=6.9.0'}
 
   '@babel/types@7.29.7':
@@ -2822,10 +2822,10 @@ packages:
     peerDependencies:
       eslint: ^3 || ^4 || ^5 || ^6 || ^7 || ^8 || ^9
 
-  eslint-plugin-oxlint@1.93.0:
-    resolution: {integrity: sha512-tZrU8nHjuyxkPVyaVi18mwW6xapIvrBKCo/pE8ZwMxGf5XBabrFFObcOIjn+TSlD+ddNYFwie3woZyY1pPl7ew==}
+  eslint-plugin-oxlint@1.95.0:
+    resolution: {integrity: sha512-JVl2HXdkxg7MNSTzMapg4yhCep3OsxFxFuX8RmZxF9z4/SXwXodQJIsVK4Ce3Zej1QnodlohQOC47C7OokT4AQ==}
     peerDependencies:
-      oxlint: ~1.93.0
+      oxlint: ~1.95.0
 
   eslint-plugin-perfectionist@5.14.0:
     resolution: {integrity: sha512-z8mINHD3a4lMwtCuBJ5d5oZjfKwFjWF1gVKXxnUr04beCFwFYQP4TWd+182Mnk038n5Wc+LtSuvQMpbnPvdVSg==}
@@ -4403,6 +4403,10 @@ packages:
     resolution: {integrity: sha512-KGj/8Y43x35aZVDtt+J4mK1hoLGHULMYfSkODJNQjNDC3oW1PqPoxMwo0pLUsWM/UEGzON/NxeHywEfNXNP3Vw==}
     engines: {node: '>=0.10.0'}
 
+  source-map-js@1.2.4:
+    resolution: {integrity: sha512-J7ZjMvHd9O1fcT/5V09QWaaSl2BbWx3F6O08spde82Namf9UB0GxRVIPiNbVsdKkoizHiSpTodo3vp2bAy91MA==}
+    engines: {node: '>=6.0.0'}
+
   source-map@0.5.7:
     resolution: {integrity: sha512-LbrmJOMUSdEVxIKvdcJzQC+nQhe8FUZQTXQy6+I75skNgn3OoQ0DZA8YnFa7gp8tqtL3KPf1kmo0R5DoApeSGQ==}
     engines: {node: '>=0.10.0'}
@@ -5123,7 +5127,7 @@ snapshots:
 
   '@babel/helper-string-parser@7.29.11': {}
 
-  '@babel/helper-string-parser@7.29.14':
+  '@babel/helper-string-parser@7.29.15':
     optional: true
 
   '@babel/helper-string-parser@7.29.7': {}
@@ -5141,9 +5145,9 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.11
 
-  '@babel/parser@7.29.14':
+  '@babel/parser@7.29.15':
     dependencies:
-      '@babel/types': 7.29.14
+      '@babel/types': 7.29.15
     optional: true
 
   '@babel/parser@7.29.2':
@@ -5162,7 +5166,7 @@ snapshots:
 
   '@babel/runtime@7.29.13': {}
 
-  '@babel/runtime@7.29.14': {}
+  '@babel/runtime@7.29.15': {}
 
   '@babel/runtime@7.29.7': {}
 
@@ -5217,9 +5221,9 @@ snapshots:
       '@babel/helper-string-parser': 7.29.11
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@babel/types@7.29.14':
+  '@babel/types@7.29.15':
     dependencies:
-      '@babel/helper-string-parser': 7.29.14
+      '@babel/helper-string-parser': 7.29.15
       '@babel/helper-validator-identifier': 7.29.7
     optional: true
 
@@ -5752,14 +5756,14 @@ snapshots:
   '@rolldown/binding-win32-x64-msvc@1.2.18':
     optional: true
 
-  '@rolldown/plugin-babel@0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.14)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))':
+  '@rolldown/plugin-babel@0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.15)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))':
     dependencies:
       '@babel/core': 7.29.7
       artichokie: 0.4.5
       picomatch: 4.0.7
       rolldown: 1.2.18
     optionalDependencies:
-      '@babel/runtime': 7.29.14
+      '@babel/runtime': 7.29.15
       vite: 8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)
 
   '@rolldown/pluginutils@1.1.0': {}
@@ -5817,7 +5821,7 @@ snapshots:
   '@testing-library/dom@10.4.0':
     dependencies:
       '@babel/code-frame': 7.29.7
-      '@babel/runtime': 7.29.14
+      '@babel/runtime': 7.29.15
       '@types/aria-query': 5.0.4
       aria-query: 5.3.0
       chalk: 4.1.2
@@ -6298,12 +6302,12 @@ snapshots:
       d3-time-format: 4.1.0
       internmap: 2.0.3
 
-  '@vitejs/plugin-react@6.3.0(@rolldown/plugin-babel@0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.14)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(babel-plugin-react-compiler@1.0.0)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))':
+  '@vitejs/plugin-react@6.3.0(@rolldown/plugin-babel@0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.15)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)))(babel-plugin-react-compiler@1.0.0)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))':
     dependencies:
       '@rolldown/pluginutils': 1.1.0
       vite: 8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1)
     optionalDependencies:
-      '@rolldown/plugin-babel': 0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.14)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
+      '@rolldown/plugin-babel': 0.3.1(@babel/core@7.29.7)(@babel/runtime@7.29.15)(rolldown@1.2.18)(vite@8.3.7(@types/node@26.6.6)(jiti@1.21.7)(yaml@2.9.1))
       babel-plugin-react-compiler: 1.0.0
 
   '@vitest/coverage-v8@5.1.0(vitest@5.1.0)':
@@ -7832,7 +7836,7 @@ snapshots:
       safe-regex-test: 1.1.0
       string.prototype.includes: 2.0.1
 
-  eslint-plugin-oxlint@1.93.0(oxlint@1.94.0(oxlint-tsgolint@7.0.2007)):
+  eslint-plugin-oxlint@1.95.0(oxlint@1.94.0(oxlint-tsgolint@7.0.2007)):
     dependencies:
       jsonc-parser: 3.3.1
       oxlint: 1.94.0(oxlint-tsgolint@7.0.2007)
@@ -8677,9 +8681,9 @@ snapshots:
 
   magicast@0.3.5:
     dependencies:
-      '@babel/parser': 7.29.14
-      '@babel/types': 7.29.14
-      source-map-js: 1.2.2
+      '@babel/parser': 7.29.15
+      '@babel/types': 7.29.15
+      source-map-js: 1.2.4
     optional: true
 
   magicast@0.5.5:
@@ -9833,6 +9837,9 @@ snapshots:
   signal-exit@4.1.0: {}
 
   source-map-js@1.2.2: {}
+
+  source-map-js@1.2.4:
+    optional: true
 
   source-map@0.5.7: {}
 
