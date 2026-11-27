@@ -524,9 +524,10 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   * `Check translation completeness` runs when a UI translation file under
     `airflow-core/src/airflow/ui/public/i18n/` changed.
   * `Check that image builds quickly` runs when the CI image is built and a file the image is built
-    from changed: `Dockerfile*`, `.dockerignore`, `scripts/docker/`, `hatch_build.py`, `generated/`,
-    `uv.lock`, a `pyproject.toml` or the prek script that regenerates the provider dependencies before
-    the build. Any other change reuses the cached layers.
+    from changed: `Dockerfile*`, `.dockerignore`, `scripts/docker/`, `hatch_build.py`, `generated/`
+    (except the `known_*.txt` allowlists of the prek hooks), `uv.lock`, a `pyproject.toml` or the prek
+    script that regenerates the provider dependencies before the build. Any other change reuses the
+    cached layers.
   * `Publish documentation and validate versions` runs when the docs are built and a documentation
     tree, a `provider.yaml`, a `pyproject.toml`, a distribution's version file, a changelog, the release
     notes or the docs tooling changed.
