@@ -116,7 +116,7 @@ To customize the UI, simply:
 .. note::
 
   The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in the
-  the `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
+  `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
 
 2.  Alternatively, you can set a custom theme using the environment variable:
 

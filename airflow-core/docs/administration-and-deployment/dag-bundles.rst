@@ -191,7 +191,7 @@ You can combine multiple bundle types in a single deployment. The default ``Loca
 .. note::
 
     The whitespace, particularly on the last line, is important so a multi-line value works properly. More details can be found in the
-    the `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
+    `configparser docs <https://docs.python.org/3/library/configparser.html#supported-ini-file-structure>`_.
 
 If you want a view url different from the default provided by the Dag bundle, you can change the url in the kwargs of the Dag bundle configuration.
 For example, if you want to use a custom URL for the git Dag bundle:
