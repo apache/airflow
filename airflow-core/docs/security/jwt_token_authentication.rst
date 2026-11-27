@@ -353,8 +353,9 @@ The token flows through the execution stack as follows:
 
 Even if a workload token is intercepted in transit, it can only call ``/run``. That endpoint
 rejects re-runs (``409 Conflict`` unless the task instance is in ``QUEUED`` or ``RESTARTING``),
-so the attack surface for the longer-lived token is bounded to "start a task that is already
-queued". Every other endpoint rejects workload tokens.
+and every other endpoint rejects workload tokens. A workload token is still a credential: whoever
+presents it to ``/run`` while its task instance is queued receives that task instance's
+``execution`` token, so protect it like one until it expires.
 
 Token validation (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

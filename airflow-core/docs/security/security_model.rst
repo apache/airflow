@@ -517,10 +517,11 @@ potentially still executes with direct database access in the Dag File Processor
 
 **No cross-workload isolation in the Execution API**
    All worker workloads authenticate to the same Execution API with tokens signed by the same key and
-   sharing the same audience. While the ``ti:self`` scope enforcement prevents a worker from accessing
-   another task's specific endpoints (heartbeat, state transitions), shared resources such as connections,
-   variables, and XComs are accessible to all tasks. There is no isolation between tasks belonging to
-   different teams or Dag authors at the Execution API level.
+   sharing the same audience. The ``ti:self`` scope enforcement prevents a worker from accessing
+   another task's specific endpoints (heartbeat, state transitions) with its own token, but it is not a
+   boundary between tasks: task code that obtains another task's token can act as that task. Shared
+   resources such as connections, variables, and XComs are accessible to all tasks. There is no
+   isolation between tasks belonging to different teams or Dag authors at the Execution API level.
 
    What the Execution API **does** enforce, beyond ``ti:self``:
 
@@ -1004,9 +1005,10 @@ Workers accessing shared Execution API resources
 .................................................
 
 Worker tasks can access connections, variables, and XComs via the Execution API using their JWT token.
-While the ``ti:self`` scope prevents cross-task state manipulation, shared resources are accessible to
-all tasks. This is the current design — not a vulnerability. Reports that "a task can read another
-team's connection" are describing a known limitation of the current isolation model, documented in
+While the ``ti:self`` scope prevents a task from manipulating another task's state with its own token,
+shared resources are accessible to all tasks. This is the current design — not a vulnerability.
+Reports that "a task can read another team's connection" are describing a known limitation of the
+current isolation model, documented in
 :ref:`jwt-authentication-and-workload-isolation`.
 
 Execution API tokens not being revocable
