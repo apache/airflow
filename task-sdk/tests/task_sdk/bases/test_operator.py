@@ -23,7 +23,7 @@ import logging
 import uuid
 import warnings
 from datetime import UTC, date, datetime, timedelta
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from unittest import mock
 
 import jinja2
@@ -797,6 +797,203 @@ class TestBaseOperator:
 
         assert len(warnings) == 1
         assert isinstance(task.template_fields, list)
+
+    def test_template_fields_extra_class_level_merges_into_template_fields(self):
+        """Extras declared on the class appear in ``template_fields`` after init."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1",)
+            template_fields_extra = ("arg2", "arg3")
+
+            def __init__(self, arg1: str = "", arg2: str = "", arg3: str = "", **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+                self.arg2 = arg2
+                self.arg3 = arg3
+
+        task = ExtraTemplateOperator(task_id="op1", arg1="{{ x }}", arg2="{{ y }}", arg3="{{ z }}")
+
+        rendered = sorted(task.template_fields)
+        assert rendered == ["arg1", "arg2", "arg3"]
+
+    def test_template_fields_extra_renders_extra_string_fields(self):
+        """Jinja rendering picks up ``template_fields_extra`` as well."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1",)
+            template_fields_extra = ("arg2",)
+
+            def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+                self.arg2 = arg2
+
+        task = ExtraTemplateOperator(task_id="op1", arg1="{{ foo }}", arg2="{{ foo }}-extra")
+
+        task.render_template_fields(context={"foo": "rendered"})
+
+        assert task.arg1 == "rendered"
+        assert task.arg2 == "rendered-extra"
+
+    def test_template_fields_extra_creates_xcomarg_upstream_dependency(self):
+        """XComArg in an extra field wires up an upstream relationship."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1",)
+            template_fields_extra = ("arg2",)
+
+            def __init__(self, arg1: str = "", arg2: Any = "", **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+                self.arg2 = arg2
+
+        with DAG(dag_id="extra_xcomarg", schedule=None):
+            upstream = BaseOperator(task_id="upstream")
+            downstream = ExtraTemplateOperator(task_id="downstream", arg1="static", arg2=upstream.output)
+
+        assert upstream.task_id in downstream.upstream_task_ids
+
+    def test_template_fields_extra_default_is_empty_sequence(self):
+        """``template_fields_extra`` defaults to an empty sequence (a tuple)."""
+        assert BaseOperator.template_fields_extra == ()
+        # And it must be a sequence, not a frozenset, so the order contract is
+        # preserved across processes regardless of ``PYTHONHASHSEED``.
+        from collections.abc import Sequence
+
+        assert isinstance(BaseOperator.template_fields_extra, Sequence)
+
+    @pytest.mark.parametrize(
+        ("fields", "extras", "expected"),
+        [
+            pytest.param(
+                ("arg1", "arg2"),
+                ("arg2", "arg3"),
+                ["arg1", "arg2", "arg3"],
+                id="extras-partly-overlap-template_fields",
+            ),
+            pytest.param(
+                ("arg1", "arg2"),
+                ("arg1", "arg2", "arg3"),
+                ["arg1", "arg2", "arg3"],
+                id="extras-fully-overlap-template_fields",
+            ),
+            pytest.param(
+                ("arg3", "arg1", "arg2"),
+                ("arg2", "arg1"),
+                ["arg3", "arg1", "arg2"],
+                id="extras-and-template_fields-reverse-order",
+            ),
+            pytest.param(
+                ("arg1", "arg2"),
+                (),
+                ["arg1", "arg2"],
+                id="extras-empty",
+            ),
+        ],
+    )
+    def test_template_fields_extra_preserves_order_and_deduplicates(self, fields, extras, expected):
+        """Extras merged into ``template_fields`` keep first-seen order and drop duplicates."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = fields
+            template_fields_extra = extras
+
+        task = ExtraTemplateOperator(task_id="op1")
+
+        assert list(task.template_fields) == expected
+
+    def test_template_fields_extra_preserves_order_and_deduplicates_through_mapped_operator(self):
+        """The mapped-operator path applies the same merge, so the mapped task sees the same list."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1", "arg2")
+            template_fields_extra = ("arg2", "arg3")
+
+            def __init__(self, arg1: str = "", arg2: str = "", arg3: str = "", **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+                self.arg2 = arg2
+                self.arg3 = arg3
+
+        with DAG(dag_id="mapped_extra_order", schedule=None):
+            mapped = ExtraTemplateOperator.partial(task_id="m").expand(arg1=["a", "b"])
+
+        assert list(mapped.template_fields) == ["arg1", "arg2", "arg3"]
+
+    def test_template_fields_extra_propagates_through_mapped_operator(self):
+        """``partial().expand()`` carries ``template_fields_extra`` and merges into ``template_fields``."""
+
+        class ExtraTemplateOperator(BaseOperator):
+            template_fields = ("arg1",)
+            template_fields_extra = ("arg2",)
+
+            def __init__(self, arg1: str = "", arg2: str = "", **kwargs):
+                super().__init__(**kwargs)
+                self.arg1 = arg1
+                self.arg2 = arg2
+
+        with DAG(dag_id="mapped_extra", schedule=None):
+            mapped = ExtraTemplateOperator.partial(task_id="m").expand(arg1=["a", "b"])
+
+        assert mapped.template_fields_extra == ("arg2",)
+        assert list(mapped.template_fields) == ["arg1", "arg2"]
+
+        unmapped = mapped.unmap({"arg1": "{{ x }}-{{ y }}", "arg2": "{{ y }}-extra"})
+        unmapped.render_template_fields(context={"x": "xval", "y": "yval"})
+        assert unmapped.arg1 == "xval-yval"
+        assert unmapped.arg2 == "yval-extra"
+
+    def test_template_fields_extra_order_is_stable_across_processes(self, tmp_path):
+        """A subprocess started with a fresh ``PYTHONHASHSEED`` still sees the declared order.
+
+        This guards against regressions where ``template_fields_extra`` (or any
+        downstream materialisation of it) iterates a set / frozenset, since
+        string hashes in CPython are randomized per process and ``frozenset``
+        iteration order follows hash-table order.
+        """
+        import subprocess
+        import sys
+        import textwrap
+
+        # Pick a field-name ordering that is highly likely to flip if a
+        # ``frozenset`` ever sneaks back in: with the right seed, "a" hashes
+        # larger than "m", so ``frozenset({"a", "m"})`` can iterate as
+        # ``("m", "a")`` even though the source order is ``("a", "m")``.
+        script = textwrap.dedent(
+            """
+            from airflow.sdk.bases.operator import BaseOperator
+
+            class ExtrasOrderOperator(BaseOperator):
+                template_fields = ("a", "b", "c", "d", "e", "f", "g", "h", "i",
+                                   "j", "k", "l", "m", "n", "o")
+                template_fields_extra = ("a", "m")
+
+            task = ExtrasOrderOperator(task_id="op")
+            print(",".join(task.template_fields))
+            """
+        )
+        script_path = tmp_path / "extras_order_probe.py"
+        script_path.write_text(script)
+
+        env = dict(__import__("os").environ)
+        env.pop("PYTHONHASHSEED", None)
+
+        outputs = set()
+        # Three runs with a fresh interpreter each — the default
+        # ``PYTHONHASHSEED=random`` exposes any hash-order dependency.
+        for _ in range(3):
+            result = subprocess.run(
+                [sys.executable, str(script_path)],
+                env=env,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            outputs.add(result.stdout.strip())
+
+        assert outputs == {
+            "a,b,c,d,e,f,g,h,i,j,k,l,m,n,o",
+        }, f"template_fields order drifted across processes: {outputs}"
 
     def test_jinja_invalid_expression_is_just_propagated(self):
         """Test render_template propagates Jinja invalid expression errors."""
