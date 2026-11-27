@@ -1,0 +1,1 @@
+Add a trigger timeout lifecycle hook to support cleanup when deferred tasks exceed their execution timeout.

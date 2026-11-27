@@ -118,7 +118,7 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import TaskCoordinateResolver
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import Team
-from airflow.models.trigger import Trigger
+from airflow.models.trigger import Trigger, TriggerCancelReason
 from airflow.partition_mappers.base import (
     PartitionMapper as CorePartitionMapper,
     RollupMapper as CoreRollupMapper,
@@ -10983,7 +10983,8 @@ class TestSchedulerJob:
 
         # Create a Task Instance for the task that is allegedly deferred
         # but past its timeout, and one that is still good.
-        # We don't actually need a linked trigger here; the code doesn't check.
+        # These task instances have no linked triggers, so only the
+        # task-instance timeout transition is exercised.
         dr1 = dag_maker.create_dagrun()
         dr2 = dag_maker.create_dagrun(
             run_id="test2", logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
@@ -11007,7 +11008,97 @@ class TestSchedulerJob:
         session.refresh(ti2)
         assert ti1.state == State.SCHEDULED
         assert ti1.next_method == "__fail__"
+        assert ti1.next_kwargs == {"error": "Trigger timeout"}
+        assert ti1.trigger_id is None
         assert ti2.state == State.DEFERRED
+
+    def test_timeout_triggers_marks_trigger_for_cleanup(self, dag_maker, session):
+        """An expired deferred task marks its unreferenced trigger for timeout cleanup."""
+        with dag_maker(
+            dag_id="test_timeout_triggers_marks_trigger",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("dummy", session=session)
+
+        trigger = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+        )
+        session.add(trigger)
+        session.flush()
+
+        ti.state = State.DEFERRED
+        ti.trigger_id = trigger.id
+        ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        session.refresh(ti)
+        session.refresh(trigger)
+
+        assert ti.state == State.SCHEDULED
+        assert ti.next_method == "__fail__"
+        assert ti.trigger_id is None
+        assert trigger.cancel_reason == TriggerCancelReason.EXECUTION_TIMEOUT
+
+    def test_timeout_triggers_preserves_shared_trigger(self, dag_maker, session):
+        """A trigger still referenced by another deferred task is not cancelled."""
+        with dag_maker(
+            dag_id="test_timeout_triggers_shared_trigger",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy")
+
+        dr1 = dag_maker.create_dagrun()
+        dr2 = dag_maker.create_dagrun(
+            run_id="test2",
+            logical_date=DEFAULT_DATE + datetime.timedelta(seconds=1),
+        )
+
+        ti1 = dr1.get_task_instance("dummy", session=session)
+        ti2 = dr2.get_task_instance("dummy", session=session)
+
+        trigger = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+        )
+        session.add(trigger)
+        session.flush()
+
+        ti1.state = State.DEFERRED
+        ti1.trigger_id = trigger.id
+        ti1.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+
+        ti2.state = State.DEFERRED
+        ti2.trigger_id = trigger.id
+        ti2.trigger_timeout = timezone.utcnow() + datetime.timedelta(seconds=60)
+
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+        self.job_runner.check_trigger_timeouts(session=session)
+
+        session.refresh(ti1)
+        session.refresh(ti2)
+        session.refresh(trigger)
+
+        assert ti1.state == State.SCHEDULED
+        assert ti1.next_method == "__fail__"
+        assert ti1.trigger_id is None
+
+        assert ti2.state == State.DEFERRED
+        assert ti2.trigger_id == trigger.id
+
+        assert trigger.cancel_reason is None
 
     def test_awaiting_input_timeout_with_defaults_resumes(self, dag_maker):
         """
@@ -11182,11 +11273,11 @@ class TestSchedulerJob:
                     if call_count < retry_times - 1:
                         call_count += 1
                         raise OperationalError("any_statement", "any_params", "any_orig")
-                    return session.execute(*args, **kwargs)
+                    return session.scalars(*args, **kwargs)
 
                 return side_effect
 
-            might_fail_session.execute.side_effect = make_side_effect()
+            might_fail_session.scalars.side_effect = make_side_effect()
 
             try:
                 # Create a Task Instance for the task that is allegedly deferred

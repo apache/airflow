@@ -232,7 +232,7 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
 
         - Triggerer shutdown or restart — the trigger is redistributed, not cancelled.
         - Triggerer redistribution to another triggerer process.
-        - Trigger timeout — the trigger is killed, not cancelled by user.
+        - Trigger timeout — ``on_timeout()`` is invoked instead.
         - Normal trigger completion (the trigger fired an event).
 
         This method runs in the triggerer's asyncio event loop, so
@@ -245,6 +245,22 @@ class BaseTrigger(abc.ABC, Templater, LoggingMixin):
         ``on_kill()`` is given a bounded time to complete. Implementations
         that call slow external APIs should apply their own timeouts rather than relying on
         the framework bound.
+        """
+
+    async def on_timeout(self) -> None:
+        """
+        Cancel external work when the deferred task exceeds its execution timeout.
+
+        Override this method to stop external work associated with the timed-out
+        task. Unlike ``cleanup()``, this method is only called when the task
+        times out, not on normal completion or triggerer shutdown.
+
+        This method runs in the triggerer's asyncio event loop and must be
+        async-safe.
+
+        Exceptions are logged and do not affect the task state. Execution is
+        bounded by the triggerer, so implementations should use appropriate
+        timeouts for external API calls.
         """
 
     @staticmethod

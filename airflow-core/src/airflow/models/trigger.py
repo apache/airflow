@@ -127,6 +127,12 @@ class TriggerFailureReason(str, Enum):
     TRIGGER_FAILURE = "Trigger failure"
 
 
+class TriggerCancelReason(str, Enum):
+    """Reasons for cancelling a running trigger."""
+
+    EXECUTION_TIMEOUT = "execution_timeout"
+
+
 class Trigger(Base):
     """
     Base Trigger class.
@@ -155,6 +161,7 @@ class Trigger(Base):
     created_date: Mapped[datetime.datetime] = mapped_column(UtcDateTime, nullable=False)
     triggerer_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     queue: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    cancel_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     # What the triggerer records for every trigger, whatever its kind, and only when it changes: a failure,
     # a recovery (clears the count and its start; last_failed_at and last_error survive it) or an event.
@@ -370,7 +377,12 @@ class Trigger(Base):
 
     @classmethod
     def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> None:
-        unreferenced = (~cls.assets.any(), ~cls.callback.has(), ~cls.task_instance.has())
+        unreferenced = (
+            ~cls.assets.any(),
+            ~cls.callback.has(),
+            ~cls.task_instance.has(),
+            cls.cancel_reason.is_(None),
+        )
         ids = select(cls.id).where(*unreferenced).order_by(cls.id).limit(batch_size)
         ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
         ids_list = list(session.scalars(ids))
@@ -548,6 +560,7 @@ class Trigger(Base):
         # Uncorrelated IN subqueries: Postgres plans each once, where a correlated EXISTS is costed per row
         # and sets off its JIT on large tables.
         return or_(
+            cls.cancel_reason.is_not(None),
             and_(
                 cls.used_by_ref["ti_id"].as_string().is_not(None),
                 cls.id.in_(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id.is_not(None))),
@@ -715,9 +728,19 @@ class Trigger(Base):
 
         result: list[Row[Any]] = []
 
-        # Add triggers associated to callbacks first, then tasks, then assets
-        # It prioritizes callbacks, then DAGs over event driven scheduling which is fair
+        # Prioritize triggers awaiting timeout cleanup, followed by callbacks,
+        # task instances, and asset watchers.
         queries = [
+            # Triggers awaiting timeout cleanup
+            select(cls.id)
+            .where(
+                cls.cancel_reason == TriggerCancelReason.EXECUTION_TIMEOUT,
+                or_(
+                    cls.triggerer_id.is_(None),
+                    cls.triggerer_id.not_in(alive_triggerer_ids),
+                ),
+            )
+            .order_by(cls.created_date),
             # Callback triggers
             select(cls.id)
             .join(Callback, isouter=False)

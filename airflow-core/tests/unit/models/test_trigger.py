@@ -38,7 +38,7 @@ from airflow.models import TaskInstance, Trigger
 from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.callback import Callback, TriggererCallback
 from airflow.models.dag_version import DagVersion
-from airflow.models.trigger import RecordedFailure, handle_event_submit
+from airflow.models.trigger import RecordedFailure, TriggerCancelReason, handle_event_submit
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk.definitions.callback import AsyncCallback
@@ -215,6 +215,30 @@ def test_clean_unused(session, dag_maker):
     results = session.scalars(select(Trigger)).all()
     assert len(results) == 4
     assert {result.id for result in results} == expected_trigger_ids
+
+
+def test_clean_unused_preserves_triggers_awaiting_timeout_cleanup(session):
+    """Unused triggers awaiting timeout cleanup must not be deleted."""
+    unused_trigger = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+    )
+    timeout_trigger = Trigger(
+        classpath="...",
+        kwargs={},
+    )
+    timeout_trigger.cancel_reason = TriggerCancelReason.EXECUTION_TIMEOUT
+    session.add_all([unused_trigger, timeout_trigger])
+    session.commit()
+
+    unused_trigger_id = unused_trigger.id
+    timeout_trigger_id = timeout_trigger.id
+
+    Trigger.clean_unused()
+    session.expire_all()
+
+    assert session.get(Trigger, unused_trigger_id) is None
+    assert session.get(Trigger, timeout_trigger_id) is not None
 
 
 def test_clean_unused_releases_trigger_held_by_task_instance_without_state(session, dag_maker):
@@ -1444,8 +1468,16 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance,
             queue=queue,
         )
         session.add(trigger_callback)
+        trigger_timeout = Trigger(
+            classpath="airflow.triggers.testing.SuccessTrigger",
+            kwargs={},
+            created_date=new_logical_date,
+            queue=queue,
+        )
+        trigger_timeout.cancel_reason = TriggerCancelReason.EXECUTION_TIMEOUT
+        session.add(trigger_timeout)
         session.commit()
-        assert session.scalar(select(func.count()).select_from(Trigger)) == 5
+        assert session.scalar(select(func.count()).select_from(Trigger)) == 6
         # Create assets
         asset = AssetModel("test")
         asset.add_trigger(trigger_asset, "test_asset_watcher")
@@ -1460,13 +1492,40 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance,
             capacity=100, alive_triggerer_ids=[], queues=queues, session=session
         )
 
-        # Callback triggers should be first, followed by task triggers, then asset triggers
+        # Timeout cleanup triggers should be first, followed by callback triggers,
+        # task triggers, and finally asset triggers.
         assert trigger_ids_query == [
+            (trigger_timeout.id,),
             (trigger_callback.id,),
             (trigger_old.id,),
             (trigger_new.id,),
             (trigger_asset.id,),
         ]
+
+
+@pytest.mark.need_serialized_dag
+def test_get_sorted_triggers_includes_timeout_cleanup(session):
+    """Timeout-marked triggers remain selectable without task references."""
+    timeout_trigger = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+    )
+    timeout_trigger.cancel_reason = TriggerCancelReason.EXECUTION_TIMEOUT
+    unused_trigger = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+    )
+    session.add_all([timeout_trigger, unused_trigger])
+    session.commit()
+
+    result = Trigger.get_sorted_triggers(
+        capacity=10,
+        alive_triggerer_ids=[],
+        queues=None,
+        session=session,
+    )
+
+    assert result == [(timeout_trigger.id,)]
 
 
 @pytest.mark.need_serialized_dag

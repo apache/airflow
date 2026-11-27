@@ -52,7 +52,6 @@ from structlog.contextvars import bind_contextvars as bind_log_contextvars
 
 from airflow._shared.module_loading import import_string
 from airflow._shared.observability.metrics import stats
-from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.taskinstance import task_instance_to_runtime
 from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER, InProcessExecutionAPI
 from airflow.configuration import conf
@@ -180,6 +179,7 @@ _USER_ACTION_CANCEL_MSG = "__airflow_user_action__"
 # Private sentinel passed as the cancel message when a trigger's row moved to another triggerer, so
 # run_trigger() drops it locally without invoking on_kill()
 _REASSIGNED_CANCEL_MSG = "__airflow_reassigned__"
+_TIMEOUT_CANCEL_MSG = "__airflow_timeout__"
 
 _ON_CANCEL_TIMEOUT: int = conf.getint("triggerer", "on_kill_timeout", fallback=30)
 
@@ -474,6 +474,7 @@ class messages:
         to_cancel: set[int]
         # Triggers whose row now belongs to another triggerer; the runner drops them without on_kill()
         to_release: set[int] = Field(default_factory=set)
+        to_timeout: set[int] = Field(default_factory=set)
         # Seqs of shared-stream trigger events the supervisor has persisted
         # since the previous sync; the runner releases the matching broker
         # advances on receipt.
@@ -720,6 +721,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
 
     releasing_triggers: set[int] = attrs.field(factory=set, init=False)
 
+    timing_out_triggers: set[int] = attrs.field(factory=set, init=False)
+
     # A list of RunTrigger workloads to send to the async process when it next checks in. We can't send it
     # directly as all comms has to be initiated by the subprocess
     creating_triggers: deque[workloads.RunTrigger] = attrs.field(factory=deque, init=False)
@@ -832,6 +835,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 self.running_triggers.discard(id)
                 self.cancelling_triggers.discard(id)
                 self.releasing_triggers.discard(id)
+                self.timing_out_triggers.discard(id)
                 self.finalize_trigger_log(id)
 
             self.check_for_unhandled_triggers(msg.running_ids)
@@ -845,6 +849,7 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 to_create=[],
                 to_cancel=self.cancelling_triggers,
                 to_release=self.releasing_triggers,
+                to_timeout=self.timing_out_triggers,
                 events_persisted=events_persisted or None,
             )
 
@@ -1011,12 +1016,13 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self.watcher_logs.remove_left()
 
     def load_triggers(self) -> None:
-        """Assign triggers to this triggerer and update the runner with the IDs it should run."""
+        """Assign triggers and synchronize their lifecycle state."""
         if self.job is None:
             raise RuntimeError(
                 "TriggerRunnerSupervisor.load_triggers() requires a Job; "
                 "subclasses without a metadata-DB Job must override this method."
             )
+
         Trigger.assign_unassigned(
             self.job.id,
             self.capacity,
@@ -1024,8 +1030,31 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
             queues=self.queues,
             team_name=self.team_name,
         )
-        ids = Trigger.ids_for_triggerer(self.job.id, queues=self.queues, team_name=self.team_name)
+
+        ids = Trigger.ids_for_triggerer(
+            self.job.id,
+            queues=self.queues,
+            team_name=self.team_name,
+        )
         self.update_triggers(set(ids))
+
+        if not self.running_triggers:
+            return
+
+        with create_session() as session:
+            timeout_ids = set(
+                session.scalars(
+                    select(Trigger.id).where(
+                        Trigger.id.in_(self.running_triggers),
+                        Trigger.triggerer_id == self.job.id,
+                        Trigger.cancel_reason == "execution_timeout",
+                    )
+                )
+            )
+
+        self.cancelling_triggers.difference_update(timeout_ids)
+        self.releasing_triggers.difference_update(timeout_ids)
+        self.timing_out_triggers.update(timeout_ids)
 
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
@@ -1097,6 +1126,8 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
         self.running_triggers -= unhandled
         self.cancelling_triggers -= unhandled
         self.releasing_triggers -= unhandled
+        self.timing_out_triggers -= unhandled
+
         for trigger_id in unhandled:
             self.finalize_trigger_log(trigger_id)
         stats.incr("triggers.state_mismatch", len(unhandled), tags=prune_dict({"team_name": self.team_name}))
@@ -1685,6 +1716,9 @@ class TriggerRunner:
     # Inbound queue of triggers reassigned to another triggerer (dropped locally; on_kill() skipped)
     to_release: deque[int]
 
+    # Inbound queue of triggers cancelled due to execution timeout
+    to_timeout: deque[int]
+
     # Outbound queue of events
     events: deque[TriggerEventEntry]
 
@@ -1710,6 +1744,8 @@ class TriggerRunner:
         self.to_create = deque()
         self.to_cancel = deque()
         self.to_release = deque()
+        self.to_timeout = deque()
+        self.cancel_requested: set[int] = set()
         self.events = deque()
         self.failed_triggers = deque()
         self.team_name = None
@@ -1947,14 +1983,16 @@ class TriggerRunner:
             )
 
     async def cancel_triggers(self):
-        """Drain to_cancel and to_release; the cancel message tells run_trigger() if on_kill() applies."""
+        """Cancel triggers according to their lifecycle reason."""
         for queue, cancel_msg in (
-            (self.to_cancel, _USER_ACTION_CANCEL_MSG),
+            (self.to_timeout, _TIMEOUT_CANCEL_MSG),
             (self.to_release, _REASSIGNED_CANCEL_MSG),
+            (self.to_cancel, _USER_ACTION_CANCEL_MSG),
         ):
             while queue:
                 trigger_id = queue.popleft()
-                if trigger_id in self.triggers:
+                if trigger_id in self.triggers and trigger_id not in self.cancel_requested:
+                    self.cancel_requested.add(trigger_id)
                     self.triggers[trigger_id]["task"].cancel(cancel_msg)
                 await asyncio.sleep(0)
 
@@ -1968,6 +2006,8 @@ class TriggerRunner:
         for trigger_id, details in list(self.triggers.items()):
             if details["task"].done():
                 finished_ids.append(trigger_id)
+                self.cancel_requested.discard(trigger_id)
+
                 # Check to see if it exited for good reasons
                 saved_exc = None
                 try:
@@ -2002,8 +2042,11 @@ class TriggerRunner:
                     )
                     # TODO: better formatting of the exception?
                     self.failed_triggers.append((trigger_id, saved_exc))
+
                 del self.triggers[trigger_id]
+
             await asyncio.sleep(0)
+
         return finished_ids
 
     def process_trigger_events(self, finished_ids: list[int]) -> messages.TriggerStateChanges:
@@ -2072,6 +2115,7 @@ class TriggerRunner:
             self.to_create.extend(resp.to_create)
             self.to_cancel.extend(resp.to_cancel)
             self.to_release.extend(resp.to_release)
+            self.to_timeout.extend(resp.to_timeout)
             if resp.events_persisted:
                 self._shared_streams.confirm_persisted(resp.events_persisted)
 
@@ -2209,38 +2253,48 @@ class TriggerRunner:
                     self.events.append(TriggerEventEntry(trigger_id=trigger_id, event=event, persist_seq=seq))
                 span.set_status(Status(StatusCode.OK))
             except asyncio.CancelledError as e:
-                # A trigger can be cancelled for three reasons:
+                # A trigger can be cancelled for four reasons:
                 #   - The user acted on the task (mark failed / clear / mark succeeded).
-                #   - The trigger was reassigned to another triggerer (see
-                #     TriggerRunnerSupervisor.update_triggers); the new owner keeps running it.
-                #   - The triggerer is shutting down, here cancel_triggers() is not
-                #     involved — the shutdown path cancels tasks directly without a message.
-                # Only the first case should invoke on_kill().
+                #   - The deferred task exceeded its execution timeout.
+                #   - The trigger was reassigned to another triggerer; the new owner keeps running it.
+                #   - The triggerer is shutting down, which cancels tasks without a message.
                 #
-                # For timeout, raise immediately without calling on_kill().
-                if timeout := timeout_after:
-                    timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
-                    if timeout < timezone.utcnow():
-                        await self.log.aerror("Trigger cancelled due to timeout")
-                        span.set_status(Status(StatusCode.ERROR), description=str(e))
-                        raise
-                if e.args and e.args[0] == _REASSIGNED_CANCEL_MSG:
+                # Only user cancellation invokes on_kill(), while execution timeout invokes
+                # on_timeout(). Reassignment and shutdown invoke neither hook.
+                reason = e.args[0] if e.args else None
+
+                if reason == _REASSIGNED_CANCEL_MSG:
                     await self.log.ainfo(
-                        "Trigger reassigned to another triggerer, dropping it without on_kill", name=name
+                        "Trigger reassigned to another triggerer, skipping cancellation hooks",
+                        name=name,
                     )
-                elif e.args and e.args[0] == _USER_ACTION_CANCEL_MSG:
-                    await self.log.ainfo("Trigger cancelled by user action, invoking on_kill", name=name)
+                elif reason in (_TIMEOUT_CANCEL_MSG, _USER_ACTION_CANCEL_MSG):
+                    is_timeout = reason == _TIMEOUT_CANCEL_MSG
+                    hook = trigger.on_timeout if is_timeout else trigger.on_kill
+                    hook_name = "on_timeout" if is_timeout else "on_kill"
+
                     try:
-                        await asyncio.wait_for(trigger.on_kill(), timeout=_ON_CANCEL_TIMEOUT)
+                        await asyncio.wait_for(hook(), timeout=_ON_CANCEL_TIMEOUT)
                     except TimeoutError:
-                        await self.log.awarning("on_kill() timed out", timeout=_ON_CANCEL_TIMEOUT, name=name)
+                        await self.log.awarning(
+                            "%s() timed out",
+                            hook_name,
+                            timeout=_ON_CANCEL_TIMEOUT,
+                            name=name,
+                        )
                     except asyncio.CancelledError:
                         # on_kill() was itself cancelled (e.g. triggerer shutting down
                         # while on_kill() was running). Swallow it so the outer
                         # CancelledError (variable `e`) can be re-raised below.
                         pass
                     except Exception:
-                        await self.log.awarning("on_kill() raised an exception", name=name, exc_info=True)
+                        await self.log.awarning(
+                            "%s() raised an exception",
+                            hook_name,
+                            name=name,
+                            exc_info=True,
+                        )
+
                 span.set_status(Status(StatusCode.OK), description=str(e))
                 raise
             except Exception as e:
