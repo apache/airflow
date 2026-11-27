@@ -395,6 +395,15 @@ The operator returns batch prediction job id in :ref:`XCom <concepts:xcom>` unde
     :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
 
+Gemini models that are only available on the global or multi-regional endpoints can be used by
+setting ``region`` to ``global`` or to a multi-region such as ``us``:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator_global]
+    :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator_global]
+
 The :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`
 also provides deferrable mode:
 
