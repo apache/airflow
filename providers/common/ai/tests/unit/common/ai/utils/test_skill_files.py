@@ -594,18 +594,35 @@ class TestRunSkillScript:
     @pytest.mark.asyncio
     async def test_a_timeout_keeps_the_output_printed_before_it(self, skill_dir, monkeypatch):
         """A background child keeps the pipe open after the script exits, so the read ends only at the timeout."""
-        monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 0.5)
-        self.write_script(
-            skill_dir,
-            "scripts/spawn.py",
-            "import subprocess\nprint('started', flush=True)\nsubprocess.Popen(['sleep', '30'])\n",
-        )
+        monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 2)
+        self.write_script(skill_dir, "scripts/spawn.sh", "echo started\nsleep 30 &\n")
 
         output = await call(
-            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.py"
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.sh"
         )
 
-        assert output == "started\nScript 'spawn.py' timed out after 0.5 seconds and was killed."
+        assert output.startswith("started\n")
+        assert output.endswith("Script 'spawn.sh' timed out after 2 seconds and was killed.")
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_the_output_kept_at_a_timeout_is_cut_at_the_output_cap(self, skill_dir, monkeypatch):
+        monkeypatch.setattr(skill_files, "_MAX_SCRIPT_OUTPUT_BYTES", 10)
+        monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 0.3)
+        self.write_script(skill_dir, "scripts/slow.sh", "sleep 30\n")
+
+        async def collect_past_the_cap(process, data):
+            data.extend(b"x" * 15)
+            await asyncio.sleep(60)
+
+        with mock.patch.object(
+            skill_files, "_collect_output", autospec=True, side_effect=collect_past_the_cap
+        ):
+            output = await call(
+                make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/slow.sh"
+            )
+
+        assert output == "x" * 10 + "\nScript 'slow.sh' timed out after 0.3 seconds and was killed."
 
     @pytest.mark.parametrize(
         ("script", "message"),

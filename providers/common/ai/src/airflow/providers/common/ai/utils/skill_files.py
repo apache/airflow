@@ -293,17 +293,21 @@ async def _run_script(script: Path, cwd: Path, argv: list[str]) -> str:
     except TimeoutError:
         await _reap_process(process)
         note = f"Script {script.name!r} timed out after {_SCRIPT_TIMEOUT_SECONDS:g} seconds and was killed."
-        partial = output.decode("utf-8", errors="replace").strip()
+        partial = _decode_output(output)
         return f"{partial}\n{note}" if partial else note
     except BaseException:
         _kill_process(process)
         raise
-    text = output[:_MAX_SCRIPT_OUTPUT_BYTES].decode("utf-8", errors="replace").strip()
+    text = _decode_output(output)
     if truncated:
         text = f"{text}\n[output truncated at {_MAX_SCRIPT_OUTPUT_BYTES} bytes and the script was killed]"
     elif process.returncode:
         text = f"{text}\n\nScript exited with code {process.returncode}".strip()
     return text or "(no output)"
+
+
+def _decode_output(data: bytearray) -> str:
+    return data[:_MAX_SCRIPT_OUTPUT_BYTES].decode("utf-8", errors="replace").strip()
 
 
 async def _reap_process(process: asyncio.subprocess.Process) -> None:
