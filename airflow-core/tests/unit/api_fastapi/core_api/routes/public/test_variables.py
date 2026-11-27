@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import os
 from unittest import mock
 from unittest.mock import ANY
 
@@ -24,11 +25,13 @@ import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.common.hidden_entries import LIST_INCOMPLETE_HEADER
 from airflow.api_fastapi.core_api.datamodels.common import BulkBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.api_fastapi.core_api.services.public.variables import BulkVariableService
 from airflow.models.team import Team
 from airflow.models.variable import Variable
+from airflow.secrets.environment_variables import VAR_ENV_PREFIX
 from airflow.utils.session import NEW_SESSION, provide_session
 
 from tests_common.test_utils.asserts import assert_queries_count
@@ -1794,3 +1797,35 @@ class TestBulkVariables(TestVariableEndpoint):
         session.commit()
         updated_variables = session.scalars(select(Variable).where(Variable.key.in_(keys))).all()
         assert {variable.val for variable in updated_variables} == {"new_value"}
+
+
+class TestGetVariablesListIncompleteHeader(TestVariableEndpoint):
+    """The list only covers the metadata database; flag it when other sources may define variables."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_ambient_env_prefix(self, monkeypatch):
+        for key in list(os.environ):
+            if key.startswith(VAR_ENV_PREFIX):
+                monkeypatch.delenv(key, raising=False)
+
+    def test_no_header_when_only_the_database_is_used(self, test_client):
+        with conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}):
+            response = test_client.get("/variables")
+
+        assert response.status_code == 200
+        assert LIST_INCOMPLETE_HEADER not in response.headers
+
+    def test_header_when_env_var_defines_variables(self, test_client, monkeypatch):
+        monkeypatch.setenv(f"{VAR_ENV_PREFIX}MY_KEY", "value")
+        with conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}):
+            response = test_client.get("/variables")
+
+        assert response.status_code == 200
+        assert response.headers[LIST_INCOMPLETE_HEADER] == "true"
+
+    def test_header_when_secrets_backend_is_configured(self, test_client):
+        with conf_vars({("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}):
+            response = test_client.get("/variables")
+
+        assert response.status_code == 200
+        assert response.headers[LIST_INCOMPLETE_HEADER] == "true"

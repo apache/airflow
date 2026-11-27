@@ -18,13 +18,11 @@
 from __future__ import annotations
 
 import logging
-import os
 import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, TypeVar
 
-from airflow._shared.configuration.parser import CUSTOM_BACKEND_CONFIG_KEYS
-from airflow.configuration import conf
+from airflow.secrets.hidden_entries import get_hidden_entry_sources
 
 # Placeholder for masking sensitive values in CLI output
 SENSITIVE_PLACEHOLDER = "***"
@@ -112,26 +110,9 @@ def get_hidden_entries_warning(entity_name: str, env_prefix: str) -> str | None:
     :param env_prefix: Environment variable prefix used for this entity, e.g. ``AIRFLOW_CONN_``.
     :return: A warning message, or ``None`` if neither hiding source appears to be in use.
     """
-    # Connections and variables may also come from environment variables or a
-    # custom secrets backend. These sources can override database entries but
-    # are not included by commands that enumerate database rows.
-    has_env_vars = any(key.startswith(env_prefix) for key in os.environ)
-    # Only check whether custom backends are *configured*, without instantiating them (which could
-    # have side effects, e.g. opening a network connection to a Vault/AWS/GCP secrets service).
-    # Reads the same (section, key) pairs _get_custom_secret_backend() uses, so a new backend
-    # source only needs to be added in one place.
-    has_secrets_backend = any(
-        conf.get(section, key, fallback=None) for section, key in CUSTOM_BACKEND_CONFIG_KEYS.values()
-    )
-
-    if not has_env_vars and not has_secrets_backend:
+    sources = get_hidden_entry_sources(env_prefix)
+    if not sources:
         return None
-
-    sources = []
-    if has_env_vars:
-        sources.append(f"`{env_prefix}*` environment variables")
-    if has_secrets_backend:
-        sources.append("a configured secrets backend")
 
     return (
         f"This list only includes {entity_name} stored in the metadata database. "

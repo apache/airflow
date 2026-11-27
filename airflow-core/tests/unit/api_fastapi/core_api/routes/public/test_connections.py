@@ -26,6 +26,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.api_fastapi.common.hidden_entries import LIST_INCOMPLETE_HEADER
 from airflow.api_fastapi.core_api.datamodels.common import BulkActionResponse, BulkBody
 from airflow.api_fastapi.core_api.datamodels.connections import ConnectionBody
 from airflow.api_fastapi.core_api.services.public.connections import BulkConnectionService
@@ -2545,3 +2546,35 @@ class TestPostConnectionExtraBackwardCompatibility(TestConnectionEndpoint):
                 "method": "POST",
             },
         )
+
+
+class TestGetConnectionsListIncompleteHeader(TestConnectionEndpoint):
+    """The list only covers the metadata database; flag it when other sources may define connections."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_ambient_env_prefix(self, monkeypatch):
+        for key in list(os.environ):
+            if key.startswith(CONN_ENV_PREFIX):
+                monkeypatch.delenv(key, raising=False)
+
+    def test_no_header_when_only_the_database_is_used(self, test_client):
+        with conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}):
+            response = test_client.get("/connections")
+
+        assert response.status_code == 200
+        assert LIST_INCOMPLETE_HEADER not in response.headers
+
+    def test_header_when_env_var_defines_connections(self, test_client, monkeypatch):
+        monkeypatch.setenv(f"{CONN_ENV_PREFIX}MY_DB", "postgresql://u:p@host/db")
+        with conf_vars({("secrets", "backend"): "", ("workers", "secrets_backend"): ""}):
+            response = test_client.get("/connections")
+
+        assert response.status_code == 200
+        assert response.headers[LIST_INCOMPLETE_HEADER] == "true"
+
+    def test_header_when_secrets_backend_is_configured(self, test_client):
+        with conf_vars({("secrets", "backend"): "airflow.secrets.local_filesystem.LocalFilesystemBackend"}):
+            response = test_client.get("/connections")
+
+        assert response.status_code == 200
+        assert response.headers[LIST_INCOMPLETE_HEADER] == "true"
