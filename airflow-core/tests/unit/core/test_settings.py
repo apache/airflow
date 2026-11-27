@@ -761,6 +761,12 @@ def test_async_pool_is_closed_before_process_shutdown(driver):
         pytest.param(
             "mysql+aiomysql", "SELECT @@session.time_zone", "+00:00", marks=pytest.mark.backend("mysql")
         ),
+        pytest.param(
+            "mysql+aiomysql",
+            "SELECT @@session.transaction_isolation",
+            "READ-COMMITTED",
+            marks=pytest.mark.backend("mysql"),
+        ),
         pytest.param("sqlite+aiosqlite", "PRAGMA foreign_keys", 1, marks=pytest.mark.backend("sqlite")),
     ],
 )
