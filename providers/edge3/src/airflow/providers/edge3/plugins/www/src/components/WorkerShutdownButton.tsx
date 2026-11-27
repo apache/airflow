@@ -17,7 +17,7 @@
  * under the License.
  */
 import { Button, CloseButton, Dialog, IconButton, Portal, Text, useDisclosure } from "@chakra-ui/react";
-import { useUiServiceRequestWorkerShutdown } from "openapi/queries";
+import { useRequestWorkerShutdown } from "openapi/queries";
 import { FaPowerOff } from "react-icons/fa";
 
 interface WorkerShutdownButtonProps {
@@ -28,7 +28,7 @@ interface WorkerShutdownButtonProps {
 export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownButtonProps) => {
   const { onClose, onOpen, open } = useDisclosure();
 
-  const shutdownMutation = useUiServiceRequestWorkerShutdown({
+  const shutdownMutation = useRequestWorkerShutdown(undefined, {
     onError: (error) => {
       onShutdown({
         description: `Unable to request shutdown for worker ${workerName}: ${error}`,
@@ -47,7 +47,7 @@ export const WorkerShutdownButton = ({ onShutdown, workerName }: WorkerShutdownB
   });
 
   const handleShutdown = () => {
-    shutdownMutation.mutate({ workerName });
+    shutdownMutation.mutate({ path: { worker_name: workerName } });
   };
 
   return (

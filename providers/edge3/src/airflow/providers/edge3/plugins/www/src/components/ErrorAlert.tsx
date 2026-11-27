@@ -17,28 +17,26 @@
  * under the License.
  */
 import { HStack, Text } from "@chakra-ui/react";
-import type { ApiError } from "openapi-gen/requests/core/ApiError";
-import type { HTTPExceptionResponse, HTTPValidationError } from "openapi-gen/requests/types.gen";
+import type { AxiosError } from "axios";
+import type { HttpExceptionResponse, HttpValidationError } from "openapi/requests/types.gen";
 
 import { Alert } from "./ui";
-
-export type ExpandedApiError = {
-  body: HTTPExceptionResponse | HTTPValidationError | undefined;
-} & ApiError;
 
 type Props = {
   readonly error?: unknown;
 };
 
 export const ErrorAlert = ({ error: err }: Props) => {
-  const error = err as ExpandedApiError;
+  const error = err as AxiosError<HttpExceptionResponse | HttpValidationError>;
 
   // eslint-disable-next-line no-extra-boolean-cast
   if (!Boolean(error)) {
     return undefined;
   }
 
-  const details = error.body?.detail;
+  const { message, response } = error;
+  const statusText = response?.statusText ?? message;
+  const details = response?.data.detail;
   let detailMessage;
 
   if (details !== undefined) {
@@ -54,8 +52,8 @@ export const ErrorAlert = ({ error: err }: Props) => {
   return (
     <Alert status="error">
       <HStack align="start" flexDirection="column" gap={2} mt={-1}>
-        {error.status} {error.message}
-        {detailMessage === error.message ? undefined : (
+        {response?.status} {statusText}
+        {detailMessage === statusText ? undefined : (
           <Text whiteSpace="preserve" wordBreak="break-all">
             {detailMessage}
           </Text>
