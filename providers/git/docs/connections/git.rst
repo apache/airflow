@@ -156,3 +156,23 @@ Extra (optional)
             "github_installation_id": "67890",
             "private_key": "<content of your PEM-encoded private key>"
         }
+
+    **Git configuration:**
+
+    * ``git_config``: A JSON object of git configuration keys and values applied to every git
+      command the hook runs, passed to git through ``GIT_CONFIG_COUNT`` (git 2.31 or higher).
+      Booleans are written as ``true`` and ``false``. The credential configuration the hook sets
+      for token authentication is applied after these entries.
+
+    git sends credentials only after the server answers a request with 401, which a public
+    repository never does, so fetches from it count against the anonymous rate limit even when the
+    connection carries a token. ``http.<url>.proactiveAuth`` (git 2.46 or higher) makes git send
+    the token on the first request instead:
+
+    .. code-block:: json
+
+        {
+            "git_config": {
+                "http.https://gitlab.example.com/.proactiveAuth": "basic"
+            }
+        }
