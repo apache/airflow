@@ -29,6 +29,7 @@ from airflow_google_provider_resource_cleanup.commands.cmd_delete import (
     handle_delete,
 )
 from airflow_google_provider_resource_cleanup.handlers import get_delete_handlers
+from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
 
 pytestmark = pytest.mark.anyio
 
@@ -53,6 +54,7 @@ async def test_handle_asset_type():
         delete_handlers=mock_delete_handlers,
     )
 
+    mock_handler_cls.assert_called_once_with(project_id=cfg.project_id)
     mock_handler_instance.handle.assert_called_once()
     called_args = mock_handler_instance.handle.call_args[0][0]
     assert len(called_args) == 1
@@ -178,9 +180,13 @@ def test_get_delete_handlers_registers_implemented_handlers():
         "dataflow",
         "datafusion",
         "dataproc_metastore",
+        "dlp",
         "gke",
         "kafka",
         "spanner",
+        "sqladmin",
+        "storage",
+        "storagetransfer",
     ]:
         assert asset_type in handlers
 
@@ -233,3 +239,35 @@ async def test_handle_delete_skips_requested_asset_type(mock_args, handle_delete
 
     handle_delete_dependencies["get_resources_file_fn"].assert_not_called()
     handle_delete_dependencies["handle_asset_type_fn"].assert_not_called()
+
+
+async def test_base_delete_handler_forwards_project_id_only_when_supported():
+    received_calls: list[tuple[str, str | None]] = []
+
+    async def deleter_with_project(resource: dict, log_prefix: str, *, project_id: str | None = None):
+        received_calls.append(("with_project", project_id))
+
+    async def legacy_deleter(resource: dict, log_prefix: str):
+        received_calls.append(("legacy", None))
+
+    class DummyDeleteHandler(BaseDeleteHandler):
+        DELETERS = {
+            "example.googleapis.com/WithProject": deleter_with_project,
+            "example.googleapis.com/Legacy": legacy_deleter,
+        }
+        DELETION_ORDER = [
+            "example.googleapis.com/WithProject",
+            "example.googleapis.com/Legacy",
+        ]
+
+    await DummyDeleteHandler(project_id="configured-project").handle(
+        [
+            {"assetType": "example.googleapis.com/WithProject", "name": "r1"},
+            {"assetType": "example.googleapis.com/Legacy", "name": "r2"},
+        ]
+    )
+
+    assert received_calls == [
+        ("with_project", "configured-project"),
+        ("legacy", None),
+    ]
