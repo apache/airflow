@@ -23,6 +23,7 @@ import builtins
 import json
 import types
 from dataclasses import MISSING, fields
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -31,11 +32,13 @@ from extract_parameters import (
     Module,
     _get_source_line,
     _parse_requested_providers,
+    _provider_id_from_source,
     _resolve_dotted_path,
     _should_skip_class,
     compare_with_ast,
     discover_classes_from_provider,
     get_category,
+    get_durable_metadata,
     is_durable_capable,
     load_resumable_job_mixin,
     read_guide_docs,
@@ -237,6 +240,27 @@ class ManuallyDurableOperator:
 
     def execute(self, context):
         return None
+
+
+class OptInDurableOperator(ManuallyDurableOperator):
+    """Like AgentOperator and MSGraphAsyncOperator."""
+
+    def __init__(self, durable: bool = False):
+        self.durable = durable
+
+
+class AlwaysDurableOperator(ManuallyDurableOperator):
+    """Like PowerBIDatasetRefreshOperator, which takes `durable` from ResumableJobMixin."""
+
+    def __init__(self, durable: bool = True):
+        self.durable = durable
+
+
+class OnByDefaultDurableOperator(ManuallyDurableOperator):
+    """Like KubernetesPodOperator, which resolves the tri-state in __init__."""
+
+    def __init__(self, durable: bool | None = None):
+        self.durable = True if durable is None else durable
 
 
 class ManuallyDurableSubclass(ManuallyDurableOperator):
@@ -441,6 +465,69 @@ class TestIsDurableCapable:
                 return NoOwnExecuteIntermediate.execute(self, context)
 
         assert is_durable_capable(ExplicitDelegatesToIntermediate, FakeResumableJobMixin) is True
+
+
+class TestDurableMetadata:
+    def test_mixin_reports_its_mechanism(self):
+        meta = get_durable_metadata(FullyImplementedResumableOperator, FakeResumableJobMixin)
+        assert meta["durable_mechanism"] == "resumable_mixin"
+        assert meta["durable_gating_class"].endswith("FullyImplementedResumableOperator")
+
+    def test_marker_reports_its_mechanism(self):
+        meta = get_durable_metadata(ManuallyDurableOperator, None)
+        assert meta["durable_mechanism"] == "marker"
+
+    def test_subclass_is_gated_by_the_class_it_inherits_from(self):
+        meta = get_durable_metadata(ManuallyDurableSubclassNoOverride, FakeResumableJobMixin)
+        assert meta["durable_gating_class"].endswith("ManuallyDurableOperator")
+
+    @patch("extract_parameters._repo_relative_source", autospec=True)
+    def test_subclass_in_another_provider_is_gated_by_the_parents_provider(self, repo_relative_source):
+        """Mirrors EksPodOperator in amazon inheriting durability from KubernetesPodOperator."""
+        repo_relative_source.side_effect = {
+            ManuallyDurableOperator: Path("providers/cncf/kubernetes/src/airflow/providers/x.py"),
+            ManuallyDurableSubclassNoOverride: Path("providers/amazon/src/airflow/providers/y.py"),
+        }.get
+        meta = get_durable_metadata(ManuallyDurableSubclassNoOverride, FakeResumableJobMixin)
+        assert meta["durable_gating_provider"] == "cncf-kubernetes"
+
+    def test_explicit_false_default_is_the_only_opt_in(self):
+        assert get_durable_metadata(OptInDurableOperator, None)["durable_opt_in"] is True
+
+    @pytest.mark.parametrize(
+        "operator_cls",
+        [
+            pytest.param(OnByDefaultDurableOperator, id="tri-state-resolved-in-init"),
+            pytest.param(AlwaysDurableOperator, id="explicit-true"),
+            pytest.param(ManuallyDurableOperator, id="no-durable-parameter"),
+        ],
+    )
+    def test_everything_else_is_on_by_default(self, operator_cls):
+        assert get_durable_metadata(operator_cls, None)["durable_opt_in"] is False
+
+    def test_non_durable_class_reports_nothing(self):
+        assert get_durable_metadata(PlainOperator, FakeResumableJobMixin) == {
+            "supports_durable_execution": False,
+            "durable_mechanism": None,
+            "durable_gating_provider": None,
+            "durable_gating_class": None,
+            "durable_since_version": None,
+            "durable_opt_in": False,
+        }
+
+    @pytest.mark.parametrize(
+        ("path", "expected"),
+        [
+            (
+                "providers/cncf/kubernetes/src/airflow/providers/cncf/kubernetes/operators/pod.py",
+                "cncf-kubernetes",
+            ),
+            ("providers/amazon/src/airflow/providers/amazon/aws/operators/eks.py", "amazon"),
+            ("task-sdk/src/airflow/sdk/bases/resumablejobmixin.py", None),
+        ],
+    )
+    def test_gating_provider_comes_from_the_source_path(self, path, expected):
+        assert _provider_id_from_source(Path(path)) == expected
 
 
 # ---------------------------------------------------------------------------
