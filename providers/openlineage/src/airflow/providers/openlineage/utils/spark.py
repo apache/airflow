@@ -71,9 +71,9 @@ def _get_transport_information_as_spark_properties() -> dict:
         if hasattr(tp, "compression") and tp.compression:
             properties["compression"] = str(tp.compression)
 
-        if hasattr(tp.config.auth, "api_key") and tp.config.auth.get_bearer():
+        if hasattr(tp.config.auth, "api_key") and tp.config.auth.api_key:
             properties["auth.type"] = "api_key"
-            properties["auth.apiKey"] = tp.config.auth.get_bearer()
+            properties["auth.apiKey"] = tp.config.auth.api_key
 
         if hasattr(tp.config, "custom_headers") and tp.config.custom_headers:
             for key, value in tp.config.custom_headers.items():
