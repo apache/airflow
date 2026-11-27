@@ -25,6 +25,10 @@ import { afterEach, expect, it, vi } from "vitest";
 import { useDagRunServiceGetExecutionKey } from "openapi/queries";
 import { TaskInstanceService } from "openapi/requests";
 
+import { toaster } from "src/system-components";
+
+import { Wrapper } from "src/utils/Wrapper";
+
 import { useClearTaskInstances } from "./useClearTaskInstances";
 
 afterEach(() => vi.restoreAllMocks());
@@ -79,4 +83,24 @@ it("invalidates the Dag named in each request when one clear spans several Dags"
 
   expect(queryClient.getQueryState(secondDagRun)?.isInvalidated).toBe(true);
   expect(queryClient.getQueryState(firstDagRun)?.isInvalidated).toBe(false);
+});
+
+it("shows why the API refused to clear instead of the bare status text", async () => {
+  vi.spyOn(TaskInstanceService, "postClearTaskInstances").mockRejectedValue({
+    body: { detail: "Cannot clear running task instances" },
+    message: "Conflict",
+    status: 409,
+  });
+  const createToast = vi.spyOn(toaster, "create").mockImplementation(() => "toast-id");
+  const { result } = renderHook(() => useClearTaskInstances({ dagRunId: "run", onSuccessConfirm: vi.fn() }), {
+    wrapper: Wrapper,
+  });
+
+  act(() => result.current.mutate({ dagId: "dag", requestBody: { dag_run_id: "run" } }));
+
+  await waitFor(() =>
+    expect(createToast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: "Cannot clear running task instances", type: "error" }),
+    ),
+  );
 });
