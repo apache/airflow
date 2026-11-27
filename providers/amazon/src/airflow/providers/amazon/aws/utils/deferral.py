@@ -17,8 +17,15 @@
 from __future__ import annotations
 
 import warnings
+from typing import Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.amazon.aws.exceptions import (
+    WaiterMaxAttemptsError,
+    WaiterNoCredentialsError,
+    WaiterTerminalFailure,
+)
+from airflow.providers.common.compat.sdk import AirflowException
 
 DEFERRABLE_OVERRIDES_WAIT_WARNING = (
     "deferrable=True currently takes precedence over wait_for_completion=False, so this task still "
@@ -39,3 +46,25 @@ def should_defer(*, deferrable: bool, wait_for_completion: bool) -> bool:
     if deferrable and not wait_for_completion:
         warnings.warn(DEFERRABLE_OVERRIDES_WAIT_WARNING, AirflowProviderDeprecationWarning, stacklevel=2)
     return deferrable
+
+
+def build_error_from_trigger_event(event: dict[str, Any], message: str) -> AirflowException:
+    """
+    Build the exception ``execute_complete`` raises for an error event sent by a trigger.
+
+    Triggers put the class name of the error they caught in the event's ``error_type`` key. The
+    waiter errors are rebuilt as their own class, so a deferred task fails with the same exception
+    as the same task waiting synchronously. Any other class name, and an event from a triggerer
+    running a provider version that does not send ``error_type``, gives ``AirflowException``.
+
+    The event does not carry the waiter's last response, so ``WaiterTerminalFailure.last_response``
+    is empty.
+    """
+    error_type = event.get("error_type")
+    if error_type == WaiterTerminalFailure.__name__:
+        return WaiterTerminalFailure(message, last_response={})
+    if error_type == WaiterNoCredentialsError.__name__:
+        return WaiterNoCredentialsError(message)
+    if error_type == WaiterMaxAttemptsError.__name__:
+        return WaiterMaxAttemptsError(message)
+    return AirflowException(message)

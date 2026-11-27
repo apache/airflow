@@ -145,7 +145,9 @@ class TestRedshiftClusterTrigger:
         # at any given point there should be one trigger event returned to the task
         # so we validate for length of task to be 1
         assert len(task) == 1
-        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+        assert (
+            TriggerEvent({"status": "error", "message": "Test exception", "error_type": "Exception"}) in task
+        )
 
 
 WAITER_TRIGGER_PARAMS = [

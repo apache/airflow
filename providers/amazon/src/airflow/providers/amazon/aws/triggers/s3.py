@@ -147,7 +147,7 @@ class S3KeyTrigger(BaseTrigger):
                     self.log.info("Sleeping for %s seconds", self.poke_interval)
                     await asyncio.sleep(self.poke_interval)
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})
+            yield TriggerEvent({"status": "error", "message": str(e), "error_type": type(e).__name__})
 
 
 class S3KeysUnchangedTrigger(BaseTrigger):
@@ -265,4 +265,4 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                         self.inactivity_seconds = result.get("inactivity_seconds", 0)
                     await asyncio.sleep(self.polling_period_seconds)
         except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})
+            yield TriggerEvent({"status": "error", "message": str(e), "error_type": type(e).__name__})

@@ -190,6 +190,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
             {
                 "status": "error",
                 "message": str(error),
+                "error_type": type(error).__name__,
                 self.return_key: self.return_value,
             }
         )

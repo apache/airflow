@@ -235,6 +235,7 @@ class TestSsmRunCommandTrigger:
 
         # Should yield a failure event, not raise an exception
         assert response.payload["status"] == "failed"
+        assert response.payload["error_type"] == "AirflowException"
         assert response.payload["command_id"] == COMMAND_ID
         assert response.payload["exit_code"] == 1
         assert response.payload["command_status"] == "Failed"

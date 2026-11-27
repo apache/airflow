@@ -246,6 +246,7 @@ class TestSagemakerTrigger:
                 "status": expected_status,
                 "job_name": JOB_NAME,
                 "message": expected_message,
+                "error_type": "WaiterTerminalFailure",
             }
         )
 
@@ -266,6 +267,7 @@ class TestSagemakerTrigger:
                 "status": "timeout",
                 "job_name": JOB_NAME,
                 "message": "Waiter error: max attempts reached",
+                "error_type": "WaiterMaxAttemptsError",
             }
         )
 
@@ -309,18 +311,20 @@ class TestSagemakerTrigger:
             {
                 "status": "error",
                 "message": "SageMaker job failed",
+                "error_type": type(error).__name__,
                 "job_name": JOB_NAME,
             }
         )
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
-        ("errors", "expected_status", "expected_message"),
+        ("errors", "expected_status", "expected_message", "expected_error_type"),
         [
             pytest.param(
                 [NoCredentialsError(), NoCredentialsError()],
                 "error",
                 "Waiter error: max attempts reached due to missing credentials: Unable to locate credentials",
+                "WaiterNoCredentialsError",
                 id="no-credentials",
             ),
             pytest.param(
@@ -330,18 +334,21 @@ class TestSagemakerTrigger:
                 ],
                 "timeout",
                 "Waiter error: max attempts reached",
+                "WaiterMaxAttemptsError",
                 id="ordinary-exhaustion",
             ),
             pytest.param(
                 [WaiterError("test_waiter", "terminal failure", {"TrainingJobStatus": "Failed"})],
                 "failed",
                 "Error while waiting for training job: Failed\nWaiter test_waiter failed: terminal failure",
+                "WaiterTerminalFailure",
                 id="terminal-failure",
             ),
             pytest.param(
                 [AirflowException("Unexpected failure")],
                 "error",
                 "Unexpected failure",
+                "AirflowException",
                 id="generic-error",
             ),
         ],
@@ -349,7 +356,7 @@ class TestSagemakerTrigger:
     @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_async_conn")
     async def test_run_waiter_errors(
-        self, mock_async_conn, mock_get_waiter, errors, expected_status, expected_message
+        self, mock_async_conn, mock_get_waiter, errors, expected_status, expected_message, expected_error_type
     ):
         mock_get_waiter.return_value.wait = AsyncMock(side_effect=errors)
         trigger = SageMakerTrigger(
@@ -363,7 +370,14 @@ class TestSagemakerTrigger:
         events = [event async for event in trigger.run()]
 
         assert events == [
-            TriggerEvent({"status": expected_status, "job_name": JOB_NAME, "message": expected_message})
+            TriggerEvent(
+                {
+                    "status": expected_status,
+                    "job_name": JOB_NAME,
+                    "message": expected_message,
+                    "error_type": expected_error_type,
+                }
+            )
         ]
 
 

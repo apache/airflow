@@ -140,8 +140,16 @@ class RedshiftDataTrigger(BaseTrigger):
                 "status": "error",
                 "statement_id": self.statement_id,
                 "message": str(error),
+                "error_type": type(error).__name__,
                 "type": FAILED_STATE if isinstance(error, RedshiftDataQueryFailedError) else ABORTED_STATE,
             }
             yield TriggerEvent(response)
         except Exception as error:
-            yield TriggerEvent({"status": "error", "statement_id": self.statement_id, "message": str(error)})
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "statement_id": self.statement_id,
+                    "message": str(error),
+                    "error_type": type(error).__name__,
+                }
+            )

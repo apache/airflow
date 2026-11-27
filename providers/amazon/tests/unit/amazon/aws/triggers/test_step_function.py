@@ -126,5 +126,10 @@ class TestStepFunctionsExecutionCompleteTrigger:
         response = await generator.asend(None)
 
         assert response == TriggerEvent(
-            {"status": "error", "message": "Step function failed", "execution_arn": self.EXECUTION_ARN}
+            {
+                "status": "error",
+                "message": "Step function failed",
+                "error_type": "AirflowException",
+                "execution_arn": self.EXECUTION_ARN,
+            }
         )

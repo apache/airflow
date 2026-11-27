@@ -161,6 +161,7 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
                     "status": "timeout",
                     "job_name": self.job_name,
                     "message": str(error),
+                    "error_type": type(error).__name__,
                 }
             )
 
@@ -174,6 +175,7 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
                         "status": "failed",
                         "job_name": self.job_name,
                         "message": response.get("FailureReason") or str(error),
+                        "error_type": type(error).__name__,
                     }
                 )
 
@@ -183,6 +185,7 @@ class SageMakerTrigger(AwsBaseWaiterTrigger):
                         "status": "stopped",
                         "job_name": self.job_name,
                         "message": str(error),
+                        "error_type": type(error).__name__,
                     }
                 )
 

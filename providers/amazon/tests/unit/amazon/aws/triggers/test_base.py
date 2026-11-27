@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.exceptions import WaiterMaxAttemptsError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
@@ -145,15 +146,25 @@ class TestAwsBaseWaiterTrigger:
         assert "AWS Glue job failed." in res.payload["message"]
         assert res.payload["hello"] == "world"
 
-    def test_event_from_exception(self):
+    @pytest.mark.parametrize(
+        ("error", "expected_error_type"),
+        [
+            pytest.param(AirflowException("AWS Glue job failed."), "AirflowException", id="generic-error"),
+            pytest.param(
+                WaiterMaxAttemptsError("AWS Glue job failed."), "WaiterMaxAttemptsError", id="max-attempts"
+            ),
+        ],
+    )
+    def test_event_from_exception(self, error, expected_error_type):
         self.trigger.return_key = "hello"
         self.trigger.return_value = "world"
 
-        event = self.trigger._event_from_exception(AirflowException("AWS Glue job failed."))
+        event = self.trigger._event_from_exception(error)
 
         assert event.payload == {
             "status": "error",
             "message": "AWS Glue job failed.",
+            "error_type": expected_error_type,
             "hello": "world",
         }
 

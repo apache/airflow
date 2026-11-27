@@ -408,6 +408,7 @@ class DmsTableReloadCompleteTrigger(BaseTrigger):
                 {
                     "status": "error",
                     "message": str(error),
+                    "error_type": type(error).__name__,
                     "replication_task_arn": self.replication_task_arn,
                 }
             )
