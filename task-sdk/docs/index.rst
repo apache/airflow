@@ -180,6 +180,7 @@ For the full public API reference, see the :doc:`api` page.
   resumable-job-mixin
   api
   concepts
+  versioning
   task-handler
   lang-sdk
   executable-bundle-spec
