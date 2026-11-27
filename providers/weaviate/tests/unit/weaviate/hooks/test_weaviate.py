@@ -1131,3 +1131,38 @@ def test_get_conn_http_port_logic(connect_to_custom, http_secure, port, expected
     assert kwargs["http_host"] == "localhost"
     assert kwargs["http_port"] == expected
     assert kwargs["http_secure"] == http_secure
+
+
+@pytest.mark.parametrize(
+    ("method", "kwargs", "client_method", "client_kwargs"),
+    [
+        (
+            "create_alias",
+            {"alias_name": "Docs", "target_collection": "Docs_v2"},
+            "create",
+            {"alias_name": "Docs", "target_collection": "Docs_v2"},
+        ),
+        ("get_alias", {"alias_name": "Docs"}, "get", {"alias_name": "Docs"}),
+        ("list_aliases", {}, "list_all", {"collection": None}),
+        ("list_aliases", {"collection_name": "Docs_v2"}, "list_all", {"collection": "Docs_v2"}),
+        (
+            "update_alias",
+            {"alias_name": "Docs", "target_collection": "Docs_v2"},
+            "update",
+            {"alias_name": "Docs", "new_target_collection": "Docs_v2"},
+        ),
+        ("delete_alias", {"alias_name": "Docs"}, "delete", {"alias_name": "Docs"}),
+    ],
+)
+def test_alias_methods(weaviate_hook, method, kwargs, client_method, client_kwargs):
+    mock_client = MagicMock()
+    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+
+    result = getattr(weaviate_hook, method)(**kwargs)
+
+    client_call = getattr(mock_client.alias, client_method)
+    client_call.assert_called_once_with(**client_kwargs)
+    if method == "create_alias":
+        assert result is None
+    else:
+        assert result is client_call.return_value
