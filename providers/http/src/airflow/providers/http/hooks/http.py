@@ -27,7 +27,7 @@ from urllib.parse import urlparse
 import aiohttp
 import tenacity
 from aiohttp import ClientResponseError
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from requests import PreparedRequest, Request, Response, Session
 from requests.auth import HTTPBasicAuth
 from requests.exceptions import ConnectionError, HTTPError
@@ -42,7 +42,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.strings import to_boolean
 
 if TYPE_CHECKING:
-    from aiohttp.client_reqrep import ClientResponse
+    from aiohttp.client_middlewares import ClientHandlerType, ClientMiddlewareType
+    from aiohttp.client_reqrep import ClientRequest, ClientResponse
     from dns.rdtypes.IN.SRV import SRV
     from requests.adapters import HTTPAdapter
 
@@ -145,6 +146,28 @@ def _process_extra_options_from_connection(
         passed_extra_options["check_response"] = check_response
 
     return conn_extra_options, passed_extra_options
+
+
+def _redirect_leaves_origin(old_url: str, new_url: str) -> bool:
+    # Same origin rule as HttpHook / requests, so the two cannot drift.
+    return Session().should_strip_auth(old_url, new_url)
+
+
+def _build_connection_header_middleware(names: set[str]) -> ClientMiddlewareType:
+    """Pop Connection Extra headers on hops that leave the first-request origin."""
+    origin_url: str | None = None
+
+    async def middleware(req: ClientRequest, handler: ClientHandlerType) -> ClientResponse:
+        nonlocal origin_url
+        request_url = str(req.url)
+        if origin_url is None:
+            origin_url = request_url
+        elif _redirect_leaves_origin(origin_url, request_url):
+            for name in names:
+                req.headers.pop(name, None)
+        return await handler(req)
+
+    return middleware
 
 
 def _retryable_error_async(exception: BaseException) -> bool:
@@ -538,6 +561,7 @@ class SessionConfig(BaseModel):
     headers: dict[str, Any] | None = None
     auth: aiohttp.BasicAuth | None = None
     extra_options: dict[str, Any] | None = None
+    connection_headers: set[str] = Field(default_factory=set)
 
 
 class AsyncHttpSession(LoggingMixin):
@@ -561,11 +585,13 @@ class AsyncHttpSession(LoggingMixin):
         request: Callable[..., Awaitable[ClientResponse]],
         config: SessionConfig,
         method: str | None = None,
+        session: aiohttp.ClientSession | None = None,
     ) -> None:
         super().__init__()
         self.method = method or hook.method
         self._hook = hook
         self._request = request
+        self._session = session
         self.config = config
 
     @property
@@ -615,7 +641,14 @@ class AsyncHttpSession(LoggingMixin):
             For example, ``run(json=obj)`` is passed as
             ``aiohttp.ClientSession().get(json=obj)``.
         """
-        merged_headers = {**(self.headers or {}), **(headers or {})}
+        caller_names = {str(name).lower() for name in headers or {}}
+        merged_headers = {
+            **{k: v for k, v in (self.headers or {}).items() if str(k).lower() not in caller_names},
+            **(headers or {}),
+        }
+        connection_header_names = {
+            name for name in self.config.connection_headers if name.lower() not in caller_names
+        }
         extra_options = {**(self.extra_options or {}), **(extra_options or {})}
         if self._hook._srv_lookup_enabled:
             base_urls = await self._hook._get_srv_base_urls_async()
@@ -625,7 +658,14 @@ class AsyncHttpSession(LoggingMixin):
         for target_number, base_url in enumerate(base_urls, start=1):
             url = _url_from_endpoint(base_url, endpoint)
             try:
-                return await self._run_with_retries(url, data, json, merged_headers, extra_options)
+                return await self._run_with_retries(
+                    url,
+                    data,
+                    json,
+                    merged_headers,
+                    extra_options,
+                    connection_header_names=connection_header_names,
+                )
             except (aiohttp.ClientConnectorError, aiohttp.ConnectionTimeoutError):
                 if target_number == len(base_urls):
                     raise
@@ -640,6 +680,8 @@ class AsyncHttpSession(LoggingMixin):
         json: dict[str, Any] | str | None,
         merged_headers: dict[str, Any],
         extra_options: dict[str, Any],
+        *,
+        connection_header_names: set[str] | None = None,
     ) -> ClientResponse:
         from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed
 
@@ -654,14 +696,13 @@ class AsyncHttpSession(LoggingMixin):
                 extra_options.pop(option)
 
         async def request_func() -> ClientResponse:
-            response = await self._request(
+            response = await self._send(
                 url,
-                params=data if self.method == "GET" else None,
-                data=data if self.method in {"POST", "PUT", "PATCH", "DELETE"} else None,
+                data=data,
                 json=json,
                 headers=merged_headers,
-                auth=self.auth,
-                **extra_options,
+                extra_options=extra_options,
+                connection_header_names=connection_header_names,
             )
             if check_response:
                 response.raise_for_status()
@@ -686,6 +727,37 @@ class AsyncHttpSession(LoggingMixin):
                     raise e
 
         raise NotImplementedError  # should not reach this, but makes mypy happy
+
+    async def _send(
+        self,
+        url: str,
+        *,
+        data: dict[str, Any] | str | None,
+        json: dict[str, Any] | str | None,
+        headers: dict[str, Any],
+        extra_options: dict[str, Any],
+        connection_header_names: set[str] | None = None,
+    ) -> ClientResponse:
+        extra_options = dict(extra_options)
+        if connection_header_names is None:
+            connection_header_names = set(self.config.connection_headers)
+        if connection_header_names:
+            # Per-request middlewares= replaces session middleware; compose both.
+            session_middlewares = self._session._middlewares if self._session is not None else ()
+            extra_options["middlewares"] = (
+                _build_connection_header_middleware(connection_header_names),
+                *session_middlewares,
+                *(extra_options.get("middlewares") or ()),
+            )
+        return await self._request(
+            url,
+            params=data if self.method == "GET" else None,
+            data=data if self.method in {"POST", "PUT", "PATCH", "DELETE"} else None,
+            json=json,
+            headers=headers,
+            auth=self.auth,
+            **extra_options,
+        )
 
 
 class HttpAsyncHook(BaseHook):
@@ -760,6 +832,7 @@ class HttpAsyncHook(BaseHook):
             auth: aiohttp.BasicAuth | None = None
             headers: dict[str, Any] = {}
             extra_options: dict[str, Any] = {}
+            connection_headers: set[str] = set()
 
             if self.http_conn_id:
                 conn = await get_async_connection(conn_id=self.http_conn_id, hook=self)
@@ -781,6 +854,7 @@ class HttpAsyncHook(BaseHook):
                         conn=conn, extra_options={}
                     )
                     headers.update(conn_extra_options)
+                    connection_headers = set(conn_extra_options)
 
                 extra = conn.extra_dejson
                 self._srv_lookup_enabled = to_boolean(str(extra.get("srv_lookup", False)))
@@ -796,6 +870,7 @@ class HttpAsyncHook(BaseHook):
                 headers=headers,
                 auth=auth,
                 extra_options=extra_options,
+                connection_headers=connection_headers,
             )
         return self._config
 
@@ -841,7 +916,7 @@ class HttpAsyncHook(BaseHook):
         async with aiohttp.ClientSession() as session:
             request = self._get_request_func(session=session, method=method)
             config = await self.config()
-            yield AsyncHttpSession(hook=self, request=request, config=config, method=method)
+            yield AsyncHttpSession(hook=self, request=request, config=config, method=method, session=session)
 
     async def run(
         self,
@@ -868,7 +943,7 @@ class HttpAsyncHook(BaseHook):
             if session is not None:
                 request = self._get_request_func(session=session)
                 config = await self.config()
-                return await AsyncHttpSession(hook=self, request=request, config=config).run(
+                return await AsyncHttpSession(hook=self, request=request, config=config, session=session).run(
                     endpoint=endpoint, data=data, json=json, headers=headers, extra_options=extra_options
                 )
 
