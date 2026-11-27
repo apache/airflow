@@ -203,4 +203,12 @@ describe("Test SearchBar", () => {
 
     expect(screen.getByTestId("search-dags").getAttribute("placeholder")).toBe("Search Dags");
   });
+
+  it("gives the search input an accessible name", () => {
+    render(<SearchBar defaultValue="" onChange={vi.fn()} placeholder="Search Dags" />, {
+      wrapper: Wrapper,
+    });
+
+    expect(screen.getByRole("textbox", { name: "Search Dags" })).toBe(screen.getByTestId("search-dags"));
+  });
 });
