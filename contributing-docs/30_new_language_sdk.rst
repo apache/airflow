@@ -549,9 +549,11 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
     A Dag definition can declare a task that waits for human input.
 
 ``task-test`` (SHOULD †)
-    The SDK provides a documented way to run one task of a Dag definition locally. The mechanism
-    is not prescribed: an ``airflow`` CLI command, a CLI of the SDK, or a subcommand of the
-    bundle run by its own runtime (``java``, ``node``, the Go binary) all count.
+    The SDK provides a documented way to run one task of a Dag definition locally the way Airflow
+    runs it, as ``airflow tasks test`` does for a Python Dag. A unit-test helper that calls the
+    task code directly does not count. The mechanism is not prescribed: an ``airflow`` CLI command,
+    a CLI of the SDK, or a subcommand of the bundle run by its own runtime (``java``, ``node``, the
+    Go binary) all count.
 
 ``dag-test`` (SHOULD †)
     The SDK provides a documented way to run a whole Dag definition locally, with any of the
