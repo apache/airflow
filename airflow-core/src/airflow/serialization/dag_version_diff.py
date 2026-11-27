@@ -265,6 +265,7 @@ _DIFF_V1_PUBLIC_TASK_FIELDS = frozenset(
         "task_type",
         "template_ext",
         "template_fields",
+        "template_fields_extra",
         "template_fields_renderers",
         "trigger_rule",
         "ui_color",
