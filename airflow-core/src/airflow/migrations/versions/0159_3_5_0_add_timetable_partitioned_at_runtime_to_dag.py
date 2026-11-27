@@ -21,7 +21,7 @@ Add timetable_partitioned_at_runtime to dag.
 
 Revision ID: b8f1c0a4d276
 Revises: feb8b1e719ee
-Create Date: 2026-11-02 12:00:00.000000
+Create Date: 2026-11-10 12:00:00.000000
 
 """
 
