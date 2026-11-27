@@ -748,7 +748,7 @@ class PostgresHook(DbApiHook):
         with self._create_autocommit_connection(autocommit) as conn:
             conn.commit()
             with closing(conn.cursor()) as cur:
-                for chunked_rows in chunked(rows, commit_every):
+                for chunked_rows in chunked(rows, commit_every or None):
                     values = list(
                         map(
                             lambda row: self._serialize_cells(row, conn),
@@ -759,7 +759,7 @@ class PostgresHook(DbApiHook):
                     self.log.debug("Generated sql: %s", sql)
 
                     try:
-                        execute_values(cur, sql, values, page_size=commit_every)
+                        execute_values(cur, sql, values, page_size=commit_every or len(values))
                     except Exception as e:
                         self.log.error("Generated sql: %s", sql)
                         self.log.error("Parameters: %s", values)
