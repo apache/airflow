@@ -323,12 +323,12 @@ class MetastoreBackend(BaseStoreBackend):
 
     def _get_asset_state_store(self, scope: AssetScope, key: str, *, session: Session) -> str | None:
         row = session.scalar(
-            select(AssetStateStoreModel).where(
+            select(AssetStateStoreModel.value).where(
                 AssetStateStoreModel.asset_id == scope.asset_id,
                 AssetStateStoreModel.key == key,
             )
         )
-        return row.value if row is not None else None
+        return row
 
     def _store_asset_state(
         self,
@@ -473,7 +473,7 @@ class MetastoreBackend(BaseStoreBackend):
         self, scope: TaskScope, key: str, *, session: AsyncSession
     ) -> str | None:
         row = await session.scalar(
-            select(TaskStateStoreModel).where(
+            select(TaskStateStoreModel.value).where(
                 TaskStateStoreModel.dag_id == scope.dag_id,
                 TaskStateStoreModel.run_id == scope.run_id,
                 TaskStateStoreModel.task_id == scope.task_id,
@@ -482,7 +482,7 @@ class MetastoreBackend(BaseStoreBackend):
                 TaskStateStoreModel.key == key,
             )
         )
-        return row.value if row is not None else None
+        return row
 
     async def _aset_task_state_store(
         self,
@@ -553,12 +553,12 @@ class MetastoreBackend(BaseStoreBackend):
         self, scope: AssetScope, key: str, *, session: AsyncSession
     ) -> str | None:
         row = await session.scalar(
-            select(AssetStateStoreModel).where(
+            select(AssetStateStoreModel.value).where(
                 AssetStateStoreModel.asset_id == scope.asset_id,
                 AssetStateStoreModel.key == key,
             )
         )
-        return row.value if row is not None else None
+        return row
 
     async def _aset_asset_state_store(
         self,
