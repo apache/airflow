@@ -27,12 +27,6 @@ _VALUES_SCHEMA_FILE = AIRFLOW_ROOT_PATH / "chart/values.schema.json"
 _VALUES_SCHEMA_SCHEMA_FILE = AIRFLOW_ROOT_PATH / "chart/values_schema.schema.json"
 
 
-if __name__ != "__main__":
-    raise SystemExit(
-        "This file is intended to be executed as an executable program. You cannot use it as a module."
-    )
-
-
 def _list_all_field_types(data: dict | list) -> list:
     type_fields = []
 
@@ -85,7 +79,11 @@ def main() -> int:
     with open(_VALUES_SCHEMA_SCHEMA_FILE, encoding="utf-8") as schema_file:
         schema = json.loads(schema_file.read())
 
-    schema["definitions"]["leafs"]["if"]["oneOf"] = _get_one_of_for_schema(field_types)
+    one_of_for_schema = _get_one_of_for_schema(field_types)
+    schema["$defs"]["leaf"]["properties"]["properties"]["additionalProperties"]["if"]["oneOf"] = (
+        one_of_for_schema
+    )
+    schema["$defs"]["leaf"]["if"]["oneOf"] = one_of_for_schema
 
     with open(_VALUES_SCHEMA_SCHEMA_FILE, "w", encoding="utf-8") as schema_file:
         json.dump(schema, schema_file, indent=4)
@@ -94,4 +92,5 @@ def main() -> int:
     return 0
 
 
-sys.exit(main())
+if __name__ == "__main__":
+    sys.exit(main())

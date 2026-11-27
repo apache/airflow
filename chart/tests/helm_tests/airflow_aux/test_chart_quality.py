@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import json
 from pathlib import Path
 from typing import Any
@@ -27,6 +28,7 @@ from jsonschema.exceptions import best_match
 
 CHART_DIR = Path(__file__).parents[4] / "chart"
 VALUES_SCHEMA = json.loads((CHART_DIR / "values.schema.json").read_text())
+VALUES_SCHEMA_SCHEMA = json.loads((CHART_DIR / "values_schema.schema.json").read_text())
 
 
 def _iter_schemas_with_examples(schema: dict[str, Any], path: str = ""):
@@ -56,6 +58,45 @@ class TestChartQuality:
 
         # shouldn't raise
         validate(instance=values, schema=schema)
+
+    def test_values_schema_validates_against_meta_schema(self):
+        validator_class = validators.validator_for(VALUES_SCHEMA_SCHEMA)
+        validator_class.check_schema(VALUES_SCHEMA_SCHEMA)
+        validator = validator_class(VALUES_SCHEMA_SCHEMA)
+
+        assert not list(validator.iter_errors(VALUES_SCHEMA))
+
+    @pytest.mark.parametrize("required_field", ["description", "default"])
+    def test_values_schema_requires_metadata_for_nested_leafs(self, required_field):
+        validator_class = validators.validator_for(VALUES_SCHEMA_SCHEMA)
+        validator = validator_class(VALUES_SCHEMA_SCHEMA)
+
+        assert not list(validator.iter_errors(VALUES_SCHEMA))
+
+        schema_without_metadata = copy.deepcopy(VALUES_SCHEMA)
+        del schema_without_metadata["properties"]["scheduler"]["properties"]["replicas"][required_field]
+
+        assert any(
+            list(error.absolute_path) == ["properties", "scheduler", "properties", "replicas"]
+            and error.message == f"'{required_field}' is a required property"
+            for error in validator.iter_errors(schema_without_metadata)
+        )
+
+    @pytest.mark.parametrize("required_field", ["description", "default"])
+    def test_values_schema_requires_metadata_for_top_level_properties(self, required_field):
+        validator_class = validators.validator_for(VALUES_SCHEMA_SCHEMA)
+        validator = validator_class(VALUES_SCHEMA_SCHEMA)
+
+        assert not list(validator.iter_errors(VALUES_SCHEMA))
+
+        schema_without_metadata = copy.deepcopy(VALUES_SCHEMA)
+        del schema_without_metadata["properties"]["scheduler"][required_field]
+
+        assert any(
+            list(error.absolute_path) == ["properties", "scheduler"]
+            and error.message == f"'{required_field}' is a required property"
+            for error in validator.iter_errors(schema_without_metadata)
+        )
 
     @pytest.mark.parametrize("path", SCHEMAS_WITH_EXAMPLES)
     def test_schema_examples_validate_against_their_own_schema(self, path):
