@@ -313,6 +313,14 @@ class DatabricksWorkflowTaskGroup(TaskGroup):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DatabricksWorkflowTaskGroup`
 
+    .. note::
+        When the workflow job is created on Databricks by the launch task, member tasks have
+        their declared ``template_fields`` rendered against the launch task's execution context
+        (such as ``{{ ds }}``, ``{{ dag_run }}``, or ``{{ params }}``). Task-scoped expressions
+        requiring an individual member's task instance (such as ``{{ ti }}`` or task-specific
+        XCom pulls) are not supported when defining workflow job tasks, because member task instances
+        do not yet exist at workflow creation time.
+
     :param databricks_conn_id: The name of the databricks connection to use.
     :param existing_clusters: A list of existing clusters to use for this workflow.
     :param access_control_list: List of permissions to set on the job. Array of object

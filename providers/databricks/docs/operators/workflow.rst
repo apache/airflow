@@ -68,3 +68,10 @@ To minimize update conflicts, we recommend that you keep parameters in the ``not
 ``DatabricksWorkflowTaskGroup`` and not in the ``DatabricksNotebookOperator`` whenever possible.
 This is because, tasks in the ``DatabricksWorkflowTaskGroup`` are passed in on the job trigger time and
 do not modify the job definition.
+
+Templating in workflow tasks
+----------------------------
+
+When a workflow job is created or updated in Databricks by the launch task, member tasks have their declared ``template_fields`` rendered against the launch task's execution context (e.g. ``{{ ds }}``, ``{{ dag_run }}``, ``{{ params }}``).
+
+Because all tasks in the workflow are defined when the launch task executes, task-scoped expressions that require an individual member's task instance (such as ``{{ ti }}`` or task-specific XCom pulls) are not supported in workflow member definitions. Run-scoped expressions (execution dates, run configuration, parameters) should be used instead.
