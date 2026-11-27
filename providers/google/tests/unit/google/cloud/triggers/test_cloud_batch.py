@@ -20,6 +20,15 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from google.api_core.exceptions import (
+    Aborted,
+    DeadlineExceeded,
+    GatewayTimeout,
+    InternalServerError,
+    ResourceExhausted,
+    RetryError,
+    ServiceUnavailable,
+)
 from google.cloud.batch_v1 import Job, JobStatus
 
 from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
@@ -153,6 +162,79 @@ class TestCloudBatchJobFinishedTrigger:
             )
             == actual
         )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "transient_exception",
+        [
+            pytest.param(ServiceUnavailable("Service is currently unavailable."), id="ServiceUnavailable"),
+            pytest.param(InternalServerError("Internal server error."), id="InternalServerError"),
+            pytest.param(DeadlineExceeded("Deadline exceeded."), id="DeadlineExceeded"),
+            pytest.param(GatewayTimeout("Gateway timeout."), id="GatewayTimeout"),
+            pytest.param(ResourceExhausted("Quota exceeded."), id="ResourceExhausted"),
+            pytest.param(Aborted("Aborted."), id="Aborted"),
+            pytest.param(
+                RetryError("Timeout of 60.0s exceeded", ServiceUnavailable("Service unavailable.")),
+                id="RetryError",
+            ),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_batch.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
+    async def test_trigger_continues_polling_after_retryable_grpc_error(
+        self, mock_hook, mock_sleep, transient_exception, trigger: CloudBatchJobFinishedTrigger
+    ):
+        """
+        Transient gRPC errors from ``get_batch_job`` should not fail the deferred task while
+        the Batch job keeps running; the trigger waits and polls again.
+        """
+        job = Job(status=JobStatus(state=JobStatus.State.SUCCEEDED))
+        mock_hook.return_value.get_batch_job = mock.AsyncMock(side_effect=[transient_exception, job])
+
+        generator = trigger.run()
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
+
+        assert (
+            TriggerEvent(
+                {
+                    "job_name": JOB_NAME,
+                    "status": "success",
+                    "message": "Job completed",
+                }
+            )
+            == actual
+        )
+        assert mock_hook.return_value.get_batch_job.await_count == 2
+        mock_sleep.assert_awaited_once_with(POLL_SLEEP)
+
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.google.cloud.triggers.cloud_batch.asyncio.sleep", new_callable=mock.AsyncMock
+    )
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
+    async def test_trigger_yields_timeout_when_retries_exhaust_timeout(
+        self, mock_hook, mock_sleep, trigger: CloudBatchJobFinishedTrigger
+    ):
+        """Retries on transient errors count against the timeout like regular polls."""
+        mock_hook.return_value.get_batch_job = mock.AsyncMock(side_effect=ServiceUnavailable("Always 503"))
+
+        generator = trigger.run()
+        actual = await generator.asend(None)  # type:ignore[attr-defined]
+
+        assert (
+            TriggerEvent(
+                {
+                    "job_name": JOB_NAME,
+                    "status": "timed out",
+                    "message": f"Batch job with name {JOB_NAME} timed out",
+                }
+            )
+            == actual
+        )
+        assert mock_hook.return_value.get_batch_job.await_count == 2
+        mock_sleep.assert_awaited_once_with(POLL_SLEEP)
 
     async def _mock_job_with_state(self, state: JobStatus.State):
         job: Job = mock.MagicMock()
