@@ -158,7 +158,8 @@ Where it differs from ``AgentSkillsToolset``:
   given to ``read_skill_resource`` or ``run_skill_script`` names the skill's own directory, and a
   path without it is relative to the same directory.
 - The harness ignores the ``SKILL.md`` header fields that change behavior, such as ``model`` or
-  ``allowed-tools``, and emits a warning for them on every run.
+  ``allowed-tools``, and lists them in a ``UserWarning`` when a run starts. With Python's default
+  warning filter, the same warning is shown only once in a process.
 - ``read_skill_resource`` reads UTF-8 text files of up to 1,000,000 bytes in the skill, except the
   files the ``exclude_resources`` patterns match; a larger file is refused. It returns text, except
   that ``.json``, ``.yaml`` and ``.yml`` files are returned parsed (content that does not parse is
@@ -237,9 +238,10 @@ exact same version, so installing the ``skills`` extra decides which ``pydantic-
 ``AirflowSkills`` needs ``pydantic-ai-harness>=0.66.0``, and reads skills through harness's
 ``LocalWorkspaceBackend``, which works on POSIX systems only.
 
-``AirflowSkills`` keeps each run's skill directories in the memory of the worker process, so it works
-with Airflow's own durable execution (``durable=True``) and not with the Temporal, DBOS or Prefect
-engines of pydantic-ai.
+``AirflowSkills`` keeps each run's skill directories in the memory of the worker process. It has been
+tested with Airflow's own durable execution (``durable=True``). A Temporal activity can run in a
+different process, which does not hold that state. The DBOS and Prefect engines of pydantic-ai have
+not been tested.
 
 .. _agent-skills-migration:
 

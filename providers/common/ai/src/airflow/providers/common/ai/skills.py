@@ -386,7 +386,8 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         # run fails before it starts. Here the harness reads the directories as soon as the run starts, so the clone
         # has to exist by now. The copy returned below removes it when the run ends; for a run that never starts,
         # the finalizer (garbage collection, or at interpreter exit) is the backstop. The run's state is kept in
-        # ``self._runs`` in process memory, which is why only Airflow's durable execution is supported.
+        # ``self._runs`` in process memory, which a Temporal activity running in another process would not
+        # find.
         try:
             locations, cleanup = _materialize_skills(self._sources)
         except (ValueError, TypeError) as error:
