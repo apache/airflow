@@ -2360,7 +2360,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=22.1.0,!=25.2.0" },
     { name = "cachetools", specifier = ">=6.0.0" },
-    { name = "cadwyn", specifier = ">=9.0.0" },
+    { name = "cadwyn", specifier = ">=9.1.0" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "cron-descriptor", specifier = ">=1.2.24" },
     { name = "croniter", specifier = ">=6.2.2" },
@@ -9837,7 +9837,7 @@ dependencies = [
     { name = "asgiref" },
     { name = "attrs" },
     { name = "babel" },
-    { name = "cadwyn" },
+    { name = "cadwyn-core" },
     { name = "colorlog" },
     { name = "fsspec" },
     { name = "greenback" },
@@ -9915,7 +9915,7 @@ requires-dist = [
     { name = "asgiref", marker = "python_full_version >= '3.14'", specifier = ">=3.11.1" },
     { name = "attrs", specifier = ">=24.2.0,!=25.2.0" },
     { name = "babel", specifier = ">=2.17.0" },
-    { name = "cadwyn", specifier = ">=8.1.0" },
+    { name = "cadwyn-core", specifier = ">=9.1.0" },
     { name = "colorlog", specifier = ">=6.8.2" },
     { name = "datadog", marker = "extra == 'all'", specifier = ">=0.50.0" },
     { name = "datadog", marker = "extra == 'datadog'", specifier = ">=0.50.0" },
@@ -11541,9 +11541,10 @@ wheels = [
 
 [[package]]
 name = "cadwyn"
-version = "9.0.0"
+version = "9.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "cadwyn-core" },
     { name = "fastapi" },
     { name = "jinja2" },
     { name = "pydantic" },
@@ -11551,9 +11552,23 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/bd/2d/74a630944d1e7d912d321a7b5de664571ebb09780a874e15bb329e0b9a55/cadwyn-9.0.0.tar.gz", hash = "sha256:284d93307fe78771bfaeb533018e36e73d0798aa23f201a2520109d505d140e8", size = 1151606, upload-time = "2026-11-08T13:58:20.223Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/ae/0d160d3e7f7babaf80313b2936de35b217a19fb40762158dd8adb09e4d3c/cadwyn-9.1.0.tar.gz", hash = "sha256:2ec7d057b6fac1a085d5c1c9fe4bce4ecb5abd055e44b83cbb02b5c6025b0e72", size = 1065165, upload-time = "2026-11-21T13:10:43.822Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/24/ca33b802cc68ebf7756b8f18913e0aaf68275b05177a66e0269a4e8311c1/cadwyn-9.0.0-py3-none-any.whl", hash = "sha256:1d80dbe7e2d64c679eae38feed740600e01c488224fdcfc51d0017a4ae7cca27", size = 221021, upload-time = "2026-11-08T13:58:18.737Z" },
+    { url = "https://files.pythonhosted.org/packages/38/00/569e2f7cf962b88a5800f0b76d7ba477f79369f13b9f864be4a98a122dfd/cadwyn-9.1.0-py3-none-any.whl", hash = "sha256:8c7c8bb7fb4302702ebb8f74988a8bf4fb59fb05458bf5b4a74c42864dabea15", size = 94094, upload-time = "2026-11-21T13:10:42.677Z" },
+]
+
+[[package]]
+name = "cadwyn-core"
+version = "9.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2b/3c/bca2ccc88b975ff79d1b318975ea26f48122df7164f0efa38f63ba59c430/cadwyn_core-9.1.0.tar.gz", hash = "sha256:acbaf5feee7bbcffc4cec111d2afb89a359217851666f02b7a4e6c7fe4c9b36b", size = 137875, upload-time = "2026-11-21T13:10:40.052Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/87/3d/cf454d845fe5ea536ffc03761a4dae6633117011b7b863d3c76d076e9ec0/cadwyn_core-9.1.0-py3-none-any.whl", hash = "sha256:9c869f065a27e371b2275560299d5948ec183aa51ae6a240bef5bda255e8760b", size = 159065, upload-time = "2026-11-21T13:10:41.035Z" },
 ]
 
 [[package]]

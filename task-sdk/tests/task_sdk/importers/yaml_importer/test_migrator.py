@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import pytest
-from cadwyn import (
+from cadwyn_core import (
     HeadVersion,
     Version,
     VersionBundle,

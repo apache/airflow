@@ -41,7 +41,7 @@ from airflow.sdk.importers.yaml_importer.models import DagDocument
 from airflow.sdk.importers.yaml_importer.versions import get_bundle
 
 if TYPE_CHECKING:
-    from cadwyn import VersionBundle
+    from cadwyn_core import VersionBundle
 
 _SCHEMA_URL = "https://airflow.apache.org/schemas/dag/{date}.json"
 _SCHEMA_URL_RE = re.compile(r"https://airflow\.apache\.org/schemas/dag/(\d{4}-\d{2}-\d{2})\.json")
@@ -65,11 +65,11 @@ class _RequestInfo:
     """
     Duck-type stand-in for Cadwyn's ``RequestInfo``.
 
-    ``cadwyn.structure.data._AlterDataInstruction.__call__`` only reads
+    ``cadwyn_core.structure.data._AlterDataInstruction.__call__`` only reads
     and writes ``info.body``; the by-schema transformers we drive never
-    touch FastAPI's Request/Response. Passing this minimal object lets
-    us run cadwyn's migrations from a pure in-process code path with no
-    HTTP stack.
+    touch Starlette's Request/Response. Calling them with any object that
+    has a ``body`` attribute is supported Cadwyn API:
+    https://docs.cadwyn.dev/9.1/theory/design_decisions/#supported-api
     """
 
     body: dict[str, Any]

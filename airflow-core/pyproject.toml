@@ -81,7 +81,9 @@ dependencies = [
     "asgiref>=2.3.0; python_version < '3.14'",
     "asgiref>=3.11.1; python_version >= '3.14'",
     "attrs>=22.1.0, !=25.2.0",
-    "cadwyn>=9.0.0",
+    # Must move with the Task SDK's cadwyn-core floor: cadwyn_core fails to import next to another
+    # version of cadwyn.
+    "cadwyn>=9.1.0",
     "colorlog>=6.8.2",
     "cron-descriptor>=1.2.24",
     "croniter>=6.2.2",

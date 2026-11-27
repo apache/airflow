@@ -119,10 +119,10 @@ def resolve_body_class(body: Any) -> type[BaseModel] | None:
 
 
 def __getattr__(name: str) -> Any:
-    # Re-export ``bundle`` lazily so importing this package does not import ``cadwyn`` (-> FastAPI/
-    # Starlette) until something actually accesses ``schema.bundle``. The Task SDK supervisor imports
-    # this package on every worker, but only the foreign-language-SDK migration path touches the
-    # bundle, so a pure-Python worker never pays the cadwyn import.
+    # Re-export ``bundle`` lazily so importing this package does not import ``cadwyn_core`` until
+    # something actually accesses ``schema.bundle``. The Task SDK supervisor imports this package on
+    # every worker, but only the foreign-language-SDK migration path touches the bundle, so a
+    # pure-Python worker never pays the cadwyn_core import.
     if name == "bundle":
         from airflow.sdk.execution_time.schema.versions import get_bundle
 
