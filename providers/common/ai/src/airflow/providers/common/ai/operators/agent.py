@@ -81,6 +81,7 @@ from airflow.providers.common.ai.observability import (
     make_task_instance_run_key,
     stamp_identity_on_agent_spans,
 )
+from airflow.providers.common.ai.skills import AirflowSkills
 from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.logging import (
@@ -1298,11 +1299,14 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         Return the toolsets ``_build_agent`` hands the agent, including functions that build one per run.
 
         Unlike ``_declared_toolsets``, ``agent_params["toolsets"]`` counts only when
-        ``toolsets=`` is empty, because ``_build_agent`` ignores it otherwise.
+        ``toolsets=`` is empty, because ``_build_agent`` ignores it otherwise. It also holds the file
+        toolset of a top-level ``AirflowSkills``, which pydantic-ai registers with the other toolsets.
         """
         candidates = list(self.toolsets or self.agent_params.get("toolsets") or [])
         for capability in self._declared_capabilities:
             if (toolset := _resolve_capability_toolset(capability)) is not None:
+                candidates.append(toolset)
+            elif isinstance(capability, AirflowSkills) and (toolset := capability.get_toolset()) is not None:
                 candidates.append(toolset)
         return candidates
 

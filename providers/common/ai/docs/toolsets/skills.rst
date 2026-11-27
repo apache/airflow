@@ -190,7 +190,11 @@ Parameters
 - ``max_retries``: How many times the model may correct failed calls to one of the two tools.
   Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
-An agent can have only one ``AirflowSkills``; put every source in it.
+An agent can have only one ``AirflowSkills``; put every source in it. Its tools belong to a toolset
+with the id ``airflow_skills``. With ``durable=True``, another toolset with that id, or a second
+``AirflowSkills``, fails when the Dag loads. An ``AirflowSkills`` nested inside another capability,
+or built by a capability function, is not seen then and fails when the run starts. Without
+``durable``, a second ``AirflowSkills`` fails when the run starts.
 
 With ``durable=True``, a script that has run is replayed from the journal on a retry instead of
 running again.

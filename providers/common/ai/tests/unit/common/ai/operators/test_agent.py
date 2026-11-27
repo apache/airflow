@@ -2456,31 +2456,26 @@ class TestAgentOperatorDurable:
         assert counter.read_text() == "ran\n"
         assert op._durable_journal.stats.replayed["tool"] == 1
 
-    def test_a_toolset_sharing_the_airflow_skills_id_is_refused_when_the_run_starts(self, tmp_path):
-        """The operator's parse-time id check does not see the capability's toolset, so the clash surfaces
-        only when pydantic-ai registers the toolsets."""
-        (tmp_path / "library").mkdir()
-        op = AgentOperator(
-            task_id="t",
-            prompt="hi",
-            llm_conn_id="c",
-            durable=True,
-            enable_tool_logging=False,
-            toolsets=[FunctionToolset(id="airflow_skills")],
-            capabilities=[AirflowSkills([tmp_path / "library"])],
-        )
-        op.llm_hook = MagicMock(spec=["create_agent"])
-        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(
-            FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("done")])), **kw
-        )
-
-        with (
-            patch.object(
-                AgentOperator, "_build_durable_storage", autospec=True, return_value=MemoryStorage()
-            ),
-            pytest.raises(UserError, match="Two toolsets have the same `id` .airflow_skills."),
-        ):
-            op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
+    @pytest.mark.parametrize(
+        ("toolsets", "capabilities"),
+        [
+            pytest.param([FunctionToolset(id="airflow_skills")], [AirflowSkills(["a"])], id="toolset"),
+            pytest.param([], [AirflowSkills(["a"]), AirflowSkills(["b"])], id="two-airflow-skills"),
+        ],
+    )
+    def test_a_second_toolset_with_the_airflow_skills_id_is_refused_when_the_dag_loads(
+        self, toolsets, capabilities
+    ):
+        with pytest.raises(ValueError, match="more than one toolset has the id 'airflow_skills'"):
+            AgentOperator(
+                task_id="t",
+                prompt="hi",
+                llm_conn_id="c",
+                durable=True,
+                enable_tool_logging=False,
+                toolsets=toolsets,
+                capabilities=capabilities,
+            )
 
     @pytest.mark.parametrize("durable", [False, True])
     def test_a_skills_configuration_error_fails_the_task_without_a_retry(self, durable, tmp_path):
