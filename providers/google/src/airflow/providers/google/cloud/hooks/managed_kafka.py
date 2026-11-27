@@ -705,3 +705,21 @@ class ManagedKafkaHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+
+
+def oauth_cb(config_str: str) -> tuple[str, float]:
+    """Generate an authentication token for a ``confluent_kafka`` OAuth callback."""
+    try:
+        option = json.loads(config_str or "{}")
+    except json.JSONDecodeError:
+        raise ValueError("Invalid JSON in config_str")
+
+    if not isinstance(option, dict):
+        raise ValueError("config_str must contain a JSON object")
+
+    gcp_conn_id = option.get("gcp_conn_id")
+    if not gcp_conn_id:
+        raise ValueError("Missing 'gcp_conn_id' in config_str")
+
+    hook = ManagedKafkaHook(gcp_conn_id=gcp_conn_id)
+    return hook.get_confluent_token(config_str)

@@ -50,7 +50,8 @@ of parameters are described in the
     such as ``my_company.kafka.auth`` does not lead to authorization of the callables inside it.
     This is enforced for security reasons, to prevent malicious callbacks from being executed.
     The allowlist is empty by default, which disables string-valued callbacks entirely.
-    Managed authentication (Amazon MSK IAM, Google Managed Kafka) does not rely on this and is unaffected.
+    Automatically injected managed authentication (Amazon MSK IAM, Google Managed Kafka) does not
+    use the allowlist. An explicitly configured ``oauth_cb`` does.
 
 If you are defining the Airflow connection from the Airflow UI, the ``extra`` field will be renamed to ``Config Dict``.
 
@@ -87,3 +88,54 @@ An example ``extra`` (``Config Dict``) for an MSK connection:
 
 An explicit ``oauth_cb`` provided in the connection configuration is always respected and is never
 overwritten by the automatic MSK IAM callback.
+
+Explicit MSK IAM callback with an AWS connection
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To use credentials from a specific Airflow AWS connection instead of the signer's default credential
+chain, set ``oauth_cb`` explicitly. Install the Amazon provider with its ``msk`` extra so the callback
+and MSK IAM signer are available:
+
+.. code-block:: bash
+
+    pip install 'apache-airflow-providers-amazon[msk]'
+
+Create an `Amazon Web Services connection
+<https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/connections/aws.html>`_
+with the connection ID ``aws_msk_prod`` and the credentials or IAM role to use. Set its Extra to
+specify the MSK cluster's region:
+
+.. code-block:: json
+
+    {"region_name": "us-east-1"}
+
+Allow the public callback in the Airflow configuration:
+
+.. code-block:: ini
+
+    [apache_kafka]
+    callback_allowlist = airflow.providers.amazon.aws.hooks.msk.oauth_cb
+
+Then create a Kafka connection with the following Extra (``Config Dict`` in the UI):
+
+.. code-block:: json
+
+    {
+        "bootstrap.servers": "boot-abcde1.c2.kafka-serverless.us-east-1.amazonaws.com:9098",
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "OAUTHBEARER",
+        "group.id": "my-group",
+        "oauth_cb": "airflow.providers.amazon.aws.hooks.msk.oauth_cb",
+        "sasl.oauthbearer.config": "{\"aws_conn_id\":\"aws_msk_prod\"}"
+    }
+
+``confluent-kafka`` passes the ``sasl.oauthbearer.config`` string to ``oauth_cb(config_str)``.
+The callback parses it as JSON and uses ``aws_conn_id`` to select the AWS connection. You can
+also include ``region_name`` in that JSON string to override the region in the AWS connection.
+The explicit callback is used instead of the automatic MSK IAM callback.
+
+.. warning::
+
+    The callback allowlist controls which function can be imported, but does not restrict the
+    ``aws_conn_id`` passed to it. Anyone who can edit this Kafka connection can change which AWS
+    connection the callback uses. Restrict access to the Kafka connection accordingly.
