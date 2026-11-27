@@ -86,6 +86,8 @@ class AwsTaskLogFetcher(Thread):
         logger: Logger,
         aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
+        verify: bool | str | None = None,
+        botocore_config: dict | None = None,
     ):
         super().__init__()
         self._event = Event()
@@ -96,7 +98,12 @@ class AwsTaskLogFetcher(Thread):
         self.log_group = log_group
         self.log_stream_name = log_stream_name
 
-        self.hook = AwsLogsHook(aws_conn_id=aws_conn_id, region_name=region_name)
+        self.hook = AwsLogsHook(
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            verify=verify,
+            config=botocore_config,
+        )
 
     def run(self) -> None:
         continuation_token = AwsLogsHook.ContinuationToken()
