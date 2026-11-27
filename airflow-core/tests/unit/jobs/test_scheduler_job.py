@@ -8270,7 +8270,7 @@ class TestSchedulerJob:
         asset_event_ids = {event.id for event in asset_events}
         assert dag_run.consumed_asset_events == []
 
-        with assert_queries_count(1, session=session):
+        with assert_queries_count(2, session=session):  # the INSERT and the backfill-derived check
             consumed = _associate_asset_events_with_dag_run(
                 dag_run=dag_run,
                 asset_event_ids_select=select(AssetEvent.id.label("event_id")).where(
