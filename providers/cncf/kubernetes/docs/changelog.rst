@@ -38,7 +38,8 @@ Changelog
     With ``on_kill_action="keep_pod"`` and tries left, a pod whose try hits ``execution_timeout`` is
     now left running and the retry reattaches to it, in sync mode with ``durable=True`` (or
     ``reattach_on_restart=True`` below Airflow 3.3) and no ``retry_policy`` set. Set
-    ``on_kill_action="delete_pod"`` or ``durable=False`` to delete the pod on timeout as before.
+    ``on_kill_action="delete_pod"`` or ``durable=False`` (``reattach_on_restart=False`` below
+    Airflow 3.3) to delete the pod on timeout as before.
 
 .. note::
 

@@ -961,12 +961,22 @@ class KubernetesPodOperator(BaseOperator):
             # that the pod must be left running for the next try to reattach. A retry_policy (Airflow
             # 3.3+) can fail the task with tries left, which would leave the kept pod running forever.
             ti = context["ti"]
-            self._keep_pod_after_timeout = (
-                self.reattach_on_restart
-                and self.on_kill_action == OnKillAction.KEEP_POD
-                and ti.try_number <= ti.max_tries
-                and getattr(self, "retry_policy", None) is None
-            )
+            if self.on_kill_action == OnKillAction.KEEP_POD:
+                if not self.reattach_on_restart:
+                    keep_declined_because = "durable execution is off"
+                elif ti.try_number > ti.max_tries:
+                    keep_declined_because = "this is the last try"
+                elif getattr(self, "retry_policy", None) is not None:
+                    keep_declined_because = "a retry_policy is set and may not retry"
+                else:
+                    keep_declined_because = None
+                self._keep_pod_after_timeout = keep_declined_because is None
+                if keep_declined_because:
+                    self.log.info(
+                        "on_kill_action is keep_pod, but the pod is cleaned up after execution_timeout "
+                        "because %s.",
+                        keep_declined_because,
+                    )
             raise
         finally:
             pod_to_clean = self.pod or self.pod_request_obj
@@ -1442,6 +1452,10 @@ class KubernetesPodOperator(BaseOperator):
             xcom_result=result,
             context=context,
         )
+        # A pod kept after execution_timeout is still running for the retry to reattach to, so the
+        # cleanup callbacks wait for the try that actually cleans it up.
+        if self._keep_pod_after_timeout:
+            return
         for callback in self.callbacks:
             callback.on_pod_cleanup(
                 pod=pod, client=self.client, mode=ExecutionMode.SYNC, operator=self, context=context

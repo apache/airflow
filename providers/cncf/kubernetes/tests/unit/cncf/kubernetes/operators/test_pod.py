@@ -2987,18 +2987,40 @@ class TestKubernetesPodOperatorDurableExecution:
         assert result == mock_pod_request_obj
 
     @pytest.mark.parametrize(
-        ("durable", "on_kill_action", "try_number", "has_retry_policy", "expect_pod_kept"),
+        (
+            "durable",
+            "on_kill_action",
+            "try_number",
+            "has_retry_policy",
+            "expect_pod_kept",
+            "declined_because",
+        ),
         [
-            pytest.param(True, "keep_pod", 1, False, True, id="durable_keep_pod"),
-            pytest.param(True, "keep_pod", 2, False, False, id="durable_keep_pod_last_try"),
-            pytest.param(True, "delete_pod", 1, False, False, id="durable_default_on_kill"),
-            pytest.param(False, "keep_pod", 1, False, False, id="not_durable_keep_pod"),
-            pytest.param(True, "keep_pod", 1, True, False, id="durable_keep_pod_with_retry_policy"),
+            pytest.param(True, "keep_pod", 1, False, True, None, id="durable_keep_pod"),
+            pytest.param(
+                True, "keep_pod", 2, False, False, "this is the last try", id="durable_keep_pod_last_try"
+            ),
+            pytest.param(True, "delete_pod", 1, False, False, None, id="durable_default_on_kill"),
+            pytest.param(
+                False, "keep_pod", 1, False, False, "durable execution is off", id="not_durable_keep_pod"
+            ),
+            pytest.param(
+                True,
+                "keep_pod",
+                1,
+                True,
+                False,
+                "a retry_policy is set and may not retry",
+                id="durable_keep_pod_with_retry_policy",
+            ),
         ],
     )
     def test_execution_timeout_keeps_pod_only_when_durable_and_keep_pod(
-        self, durable, on_kill_action, try_number, has_retry_policy, expect_pod_kept
+        self, durable, on_kill_action, try_number, has_retry_policy, expect_pod_kept, declined_because, caplog
     ):
+        from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+
+        MockWrapper.reset()
         k = KubernetesPodOperator(
             image="ubuntu:16.04",
             task_id="task",
@@ -3006,6 +3028,7 @@ class TestKubernetesPodOperatorDurableExecution:
             log_pod_spec_on_failure=False,
             durable=durable,
             on_kill_action=on_kill_action,
+            callbacks=MockKubernetesPodOperatorCallback,
         )
         if has_retry_policy:
             # Set directly: the retry_policy argument only exists on Airflow 3.3+.
@@ -3034,9 +3057,18 @@ class TestKubernetesPodOperatorDurableExecution:
         if expect_pod_kept:
             mock_patch_already_checked.assert_not_called()
             mock_process_pod_deletion.assert_not_called()
+            MockWrapper.mock_callbacks.on_pod_cleanup.assert_not_called()
         else:
             mock_patch_already_checked.assert_called_once()
             mock_process_pod_deletion.assert_called_once()
+        if declined_because:
+            assert {
+                "event": "on_kill_action is keep_pod, but the pod is cleaned up after execution_timeout "
+                f"because {declined_because}.",
+                "log_level": "info",
+            } in caplog
+        else:
+            assert {"event": re.compile(r"on_kill_action is keep_pod, but .*")} not in caplog
 
     def test_durable_true_without_state_store_fallsback(self):
         """No task_state_store key in context (e.g. Airflow <3.3): unchanged label-search behavior."""
