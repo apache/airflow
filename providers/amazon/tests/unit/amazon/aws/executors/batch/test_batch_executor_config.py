@@ -17,158 +17,78 @@
 from __future__ import annotations
 
 import json
-from unittest import mock
+import os
 
 import pytest
 
-from airflow.providers.amazon.aws.executors.batch.batch_executor_config import (
-    _fetch_config_values,
-    _fetch_templated_kwargs,
-    build_submit_kwargs,
-)
+from airflow.providers.amazon.aws.executors.batch import batch_executor_config
 from airflow.providers.amazon.aws.executors.batch.utils import (
+    CONFIG_DEFAULTS,
     CONFIG_GROUP_NAME,
     AllBatchConfigKeys,
-    BatchSubmitJobKwargsConfigKeys,
 )
+from airflow.providers.common.compat.sdk import conf
+from airflow.utils.helpers import convert_camel_to_snake
 
 
-class TestFetchTemplatedKwargs:
-    def test_valid_json_string(self):
-        conf = mock.MagicMock()
-        payload = {"paramA": "valA", "paramB": 123}
-        conf.get.return_value = json.dumps(payload)
+class TestBatchExecutorConfig:
+    @staticmethod
+    def _unset_conf():
+        for env in os.environ:
+            if env.startswith(f"AIRFLOW__{CONFIG_GROUP_NAME.upper()}__"):
+                os.environ.pop(env)
 
-        result = _fetch_templated_kwargs(conf)
+    def teardown_method(self) -> None:
+        self._unset_conf()
 
-        conf.get.assert_called_once_with(CONFIG_GROUP_NAME, AllBatchConfigKeys.SUBMIT_JOB_KWARGS, fallback={})
-        assert result == payload
+    def test_config_defaults_are_applied(self):
+        submit_kwargs = batch_executor_config.build_submit_kwargs(conf)
+        found_keys = {convert_camel_to_snake(key): key for key in submit_kwargs.keys()}
 
-    def test_fallback_empty_dict(self):
-        conf = mock.MagicMock()
-        conf.get.side_effect = lambda group, key, fallback: fallback
+        for expected_key, expected_value in CONFIG_DEFAULTS.items():
+            # these config options are used by the executor,
+            # but are not expected to appear in the submit_kwargs.
+            if expected_key in [
+                AllBatchConfigKeys.AWS_CONN_ID,
+                AllBatchConfigKeys.CHECK_HEALTH_ON_STARTUP,
+                AllBatchConfigKeys.MAX_SUBMIT_JOB_ATTEMPTS,
+                AllBatchConfigKeys.SUBMIT_JOB_KWARGS,
+                AllBatchConfigKeys.REGION_NAME,
+            ]:
+                assert expected_key not in found_keys.keys()
+            else:
+                assert expected_key in found_keys.keys()
+                assert expected_value == submit_kwargs[found_keys[expected_key]]
 
-        result = _fetch_templated_kwargs(conf)
-        assert result == {}
+    def test_verify_tags_are_used_as_provided(self):
+        """Confirm that the ``tags`` provided are not converted to camelCase."""
+        templated_tags = {"Apache": "Airflow"}
 
-
-class TestFetchConfigValues:
-    def test_prunes_none_values(self):
-        conf = mock.MagicMock()
-        test_values = {
-            BatchSubmitJobKwargsConfigKeys.JOB_NAME: "test-job",
-            BatchSubmitJobKwargsConfigKeys.JOB_QUEUE: "test-queue",
-            BatchSubmitJobKwargsConfigKeys.JOB_DEFINITION: "test-def",
-            BatchSubmitJobKwargsConfigKeys.EKS_PROPERTIES_OVERRIDE: None,
-            BatchSubmitJobKwargsConfigKeys.NODE_OVERRIDE: None,
+        provided_run_submit_kwargs = {
+            "tags": templated_tags,  # The user should be allowed to pass arbitrary submit_job args
         }
-        conf.get.side_effect = lambda group, key, fallback=None: test_values.get(key, fallback)
 
-        result = _fetch_config_values(conf)
-
-        assert result == {
-            "job_name": "test-job",
-            "job_queue": "test-queue",
-            "job_definition": "test-def",
-        }
-
-
-class TestBuildSubmitKwargs:
-    def test_basic_build_submit_kwargs(self):
-        conf = mock.MagicMock()
-        test_values = {
-            BatchSubmitJobKwargsConfigKeys.JOB_NAME: "my-job",
-            BatchSubmitJobKwargsConfigKeys.JOB_QUEUE: "my-queue",
-            BatchSubmitJobKwargsConfigKeys.JOB_DEFINITION: "my-def",
-        }
-        conf.get.side_effect = lambda group, key, fallback=None: (
-            "{}" if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else test_values.get(key, fallback)
+        run_submit_kwargs_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
         )
+        os.environ[run_submit_kwargs_env_key] = json.dumps(provided_run_submit_kwargs)
+        submit_kwargs = batch_executor_config.build_submit_kwargs(conf)
 
-        result = build_submit_kwargs(conf)
+        # Verify that tag names are exempt from the camel-case conversion.
+        assert submit_kwargs["tags"] == templated_tags
 
-        assert result["jobName"] == "my-job"
-        assert result["jobQueue"] == "my-queue"
-        assert result["jobDefinition"] == "my-def"
-        assert result["containerOverrides"] == {"command": []}
-
-    def test_merges_templated_kwargs_and_preserves_container_overrides(self):
-        conf = mock.MagicMock()
-        templated = {
-            "containerOverrides": {"environment": [{"name": "FOO", "value": "BAR"}]},
-            "shareIdentifier": "share-123",
-        }
-        test_values = {
-            BatchSubmitJobKwargsConfigKeys.JOB_NAME: "templated-job",
-        }
-        conf.get.side_effect = lambda group, key, fallback=None: (
-            json.dumps(templated)
-            if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS
-            else test_values.get(key, fallback)
+    @pytest.mark.parametrize(
+        ("submit_job_kwargs", "match"),
+        [
+            ({"nodeOverrides": {}}, "Multi-node jobs are not currently supported."),
+            ({"eksPropertiesOverride": {}}, "Eks jobs are not currently supported."),
+        ],
+    )
+    def test_rejects_unsupported_submit_job_kwargs(self, submit_job_kwargs, match):
+        submit_job_kwargs_env_key = (
+            f"AIRFLOW__{CONFIG_GROUP_NAME}__{AllBatchConfigKeys.SUBMIT_JOB_KWARGS}".upper()
         )
+        os.environ[submit_job_kwargs_env_key] = json.dumps(submit_job_kwargs)
 
-        result = build_submit_kwargs(conf)
-
-        assert result["jobName"] == "templated-job"
-        assert result["shareIdentifier"] == "share-123"
-        assert result["containerOverrides"]["command"] == []
-        assert result["containerOverrides"]["environment"] == [{"name": "FOO", "value": "BAR"}]
-
-    def test_rejects_node_overrides(self):
-        conf = mock.MagicMock()
-        templated = {"nodeOverrides": {"numNodes": 2}}
-        conf.get.side_effect = lambda group, key, fallback=None: (
-            json.dumps(templated) if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else None
-        )
-
-        with pytest.raises(KeyError, match="Multi-node jobs are not currently supported."):
-            build_submit_kwargs(conf)
-
-    def test_rejects_eks_properties_override(self):
-        conf = mock.MagicMock()
-        templated = {"eksPropertiesOverride": {"podProperties": {}}}
-        conf.get.side_effect = lambda group, key, fallback=None: (
-            json.dumps(templated) if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else None
-        )
-
-        with pytest.raises(KeyError, match="Eks jobs are not currently supported."):
-            build_submit_kwargs(conf)
-
-    def test_missing_command_in_container_overrides_raises_key_error(self):
-        conf = mock.MagicMock()
-        conf.get.side_effect = lambda group, key, fallback=None: (
-            "{}" if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else None
-        )
-
-        class DroppingCommandDict(dict):
-            def __getitem__(self, key):
-                val = super().__getitem__(key)
-                if key == "containerOverrides" and isinstance(val, dict):
-                    val.pop("command", None)
-                return val
-
-        with mock.patch(
-            "airflow.providers.amazon.aws.executors.batch.batch_executor_config._fetch_config_values",
-            return_value=DroppingCommandDict(),
-        ):
-            with pytest.raises(
-                KeyError,
-                match=r'SubmitJob API needs kwargs\["containerOverrides"\]\["command"\] field',
-            ):
-                build_submit_kwargs(conf)
-
-    def test_json_decode_error_raises_value_error(self):
-        conf = mock.MagicMock()
-        conf.get.side_effect = lambda group, key, fallback=None: (
-            "{}" if key == AllBatchConfigKeys.SUBMIT_JOB_KWARGS else None
-        )
-
-        with mock.patch(
-            "airflow.providers.amazon.aws.executors.batch.batch_executor_config.json.dumps",
-            return_value="not valid json",
-        ):
-            with pytest.raises(
-                ValueError,
-                match="AWS Batch Executor config values must be JSON serializable.",
-            ):
-                build_submit_kwargs(conf)
+        with pytest.raises(KeyError, match=match):
+            batch_executor_config.build_submit_kwargs(conf)
