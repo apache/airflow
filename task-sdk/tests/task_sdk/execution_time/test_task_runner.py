@@ -6450,7 +6450,7 @@ class TestTaskRunnerCallsCallbacks:
                 True,
                 TaskInstanceState.UP_FOR_RETRY,
                 ["on-execute 1", "on-execute 3", "execute failure", "on-retry 1", "on-retry 3"],
-                [(1, mock.call("Task failed with exception"))],
+                [],
                 id="retry",
             ),
         ],
@@ -6524,6 +6524,9 @@ class TestTaskRunnerCallsCallbacks:
         for index, calls in extra_exceptions:
             expected_exception_logs.insert(index, calls)
         assert log.exception.mock_calls == expected_exception_logs
+        if expected_state == TaskInstanceState.UP_FOR_RETRY:
+            # A failure that will be retried is logged as a warning, not an error.
+            log.warning.assert_any_call("Task failed with exception", exc_info=True)
 
 
 class TestTriggerDagRunOperator:
