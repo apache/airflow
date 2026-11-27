@@ -133,10 +133,13 @@ CAPABILITY_DIMENSIONS: list[Capability] = [
 CAPABILITY_NAMES = {cap.name for cap in CAPABILITY_DIMENSIONS}
 SHARED_CAPABILITY_NAMES = {cap.name for cap in CAPABILITY_DIMENSIONS if cap.group == "shared"}
 
+TIER_LEGEND = (
+    "Tiers: MUST is required, SHOULD is expected, MAY is optional. "
+    "A tier marked † applies only when {gate} is supported."
+)
 LEGEND = (
     f"Marks: {SUPPORTED_MARK} supported · {UNSUPPORTED_MARK} not supported · "
-    f"{NA_MARK} not applicable. Tiers: MUST is required, SHOULD is expected, MAY is optional. "
-    f"A tier marked † applies only when `{DAG_DEFINITION_GATE}` is supported."
+    f"{NA_MARK} not applicable. " + TIER_LEGEND.format(gate=f"`{DAG_DEFINITION_GATE}`")
 )
 
 
