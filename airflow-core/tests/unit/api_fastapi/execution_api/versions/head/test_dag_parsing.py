@@ -47,6 +47,7 @@ from airflow.api_fastapi.execution_api.routes.dag_parsing import DagParsingRoute
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
 from airflow.callbacks.callback_requests import (
+    CALLBACK_REQUEST_CLASSES,
     DagCallbackRequest,
     DagRunContext,
     EmailRequest,
@@ -2065,7 +2066,7 @@ def test_undecodable_callback_is_released_and_retried_after_a_cooldown(
     assert broken.decode_retry_after == timezone.utcnow() + UNDECODABLE_CALLBACK_RETRY_INTERVAL
     assert client.post(url, json=claim).json() == []
     time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
-    second = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 2})
+    second = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 3})
     assert [item["id"] for item in second.json()] == [str(healthy.id)]
 
     # After the cooldown, a server that can decode the row delivers it to the same live Job.
@@ -2073,11 +2074,54 @@ def test_undecodable_callback_is_released_and_retried_after_a_cooldown(
     session.add(DagProcessorCallback(priority_weight=100, callback=request))
     session.commit()
     time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
-    third = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 3})
+    third = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 5})
     assert third.status_code == 200, third.json()
     assert [(item["id"], item["callback"]) for item in third.json()] == [
         (str(broken.id), request.model_dump(mode="json"))
     ]
+
+
+def test_failed_retry_yields_its_slot_to_fresh_work_after_clock_rollback(
+    client, session, job, create_requested_work, time_machine
+):
+    healthy = create_requested_work("callbacks", priority=2)
+    broken = create_requested_work("callbacks", priority=3)
+    broken.data = {"req_class": "FutureCallback"}
+    healthy.created_at = broken.created_at = timezone.utcnow() + timedelta(hours=1)
+    session.commit()
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
+    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
+    assert client.post(url, json=claim).json() == []
+    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
+    recovered = create_requested_work("callbacks", priority=1)
+    recovered.decode_retry_after = timezone.utcnow()
+    session.commit()
+    next_claim = {**claim, "claim_sequence": 2, "claim_id": str(uuid7()), "limit": 2}
+    delivered = client.post(url, json=next_claim).json()
+    assert [item["id"] for item in delivered] == [str(healthy.id), str(recovered.id)]
+    assert client.post(url, json=next_claim).json() == delivered
+
+
+def test_incompatible_replay_preserves_live_callback_owner(
+    client, session, job, create_requested_work, time_machine
+):
+    row = create_requested_work("callbacks")
+    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
+    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
+    delivered = client.post(url, json=claim).json()
+    assert [item["id"] for item in delivered] == [str(row.id)]
+    original = row.data
+    row.data = {**original, "req_class": "FutureCallback"}
+    session.commit()
+    retry = client.post(url, json=claim)
+    assert retry.status_code == 503
+    session.refresh(row)
+    assert (row.processor_job_id, str(row.processor_claim_id)) == (job.id, claim["claim_id"])
+    assert row.decode_retry_after is None
+    row.data = original
+    session.commit()
+    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
+    assert client.post(url, json=claim).json() == delivered
 
 
 def test_defer_callback_preserves_row_and_fences_late_retries(
@@ -2109,7 +2153,8 @@ def test_callback_claim_openapi_exposes_nested_request_models(client):
     callback_schema = next(variant for variant in variants if "discriminator" in variant)
     assert callback_schema["discriminator"]["propertyName"] == "type"
     mapping = callback_schema["discriminator"]["mapping"]
-    assert set(mapping) == {"DagCallbackRequest", "TaskCallbackRequest", "EmailRequest"}
+    assert set(mapping) == {cls.__name__ for cls in CALLBACK_REQUEST_CLASSES.values()}
+    assert CALLBACK_REQUEST_CLASSES["EmailNotificationRequest"] is EmailRequest
     assert {variant["$ref"] for variant in callback_schema["oneOf"]} == set(mapping.values())
     task_callback = schemas[mapping["TaskCallbackRequest"].rsplit("/", 1)[1]]
     task_instance = schemas[task_callback["properties"]["ti"]["$ref"].rsplit("/", 1)[1]]
