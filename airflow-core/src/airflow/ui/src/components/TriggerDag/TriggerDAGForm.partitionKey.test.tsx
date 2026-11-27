@@ -384,4 +384,39 @@ describe("TriggerDAGForm partition key suggestion", () => {
       expect.objectContaining({ partitionKey: undefined }) as unknown,
     );
   });
+
+  it("does not submit a suggestion the Dag that is not partitioned was mounted with", async () => {
+    const onSubmitTrigger = vi.fn();
+
+    render(
+      buildForm({ isPartitioned: false, onSubmitTrigger, suggestedPartitionKey: "2026-02-18T00:00:00" }),
+      {
+        wrapper: Wrapper,
+      },
+    );
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    await waitFor(() => expect(onSubmitTrigger).toHaveBeenCalledOnce());
+    expect(onSubmitTrigger).toHaveBeenCalledWith(
+      expect.objectContaining({ partitionKey: undefined }) as unknown,
+    );
+  });
+
+  it("does not seed a re-triggered run of a Dag that is not partitioned with the suggestion", async () => {
+    const onSubmitTrigger = vi.fn();
+
+    render(
+      buildForm({
+        isPartitioned: false,
+        onSubmitTrigger,
+        prefillConfig,
+        suggestedPartitionKey: "2026-02-18T00:00:00",
+      }),
+      { wrapper: Wrapper },
+    );
+    fireEvent.click(screen.getByTestId("trigger-dag-submit"));
+
+    await waitFor(() => expect(onSubmitTrigger).toHaveBeenCalledOnce());
+    expect(onSubmitTrigger).toHaveBeenCalledWith(expect.objectContaining({ partitionKey: "" }) as unknown);
+  });
 });

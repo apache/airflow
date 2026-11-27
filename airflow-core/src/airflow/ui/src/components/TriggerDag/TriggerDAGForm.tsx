@@ -94,6 +94,8 @@ const TriggerDAGForm = ({
   const [pausedDagAction, setPausedDagAction] = useState<PausedDagAction>("unpause");
   const [hasAppliedPrefill, setHasAppliedPrefill] = useState(false);
   const { mutate: togglePause } = useTogglePause({ dagId });
+  // Only a partitioned Dag has a partition key field, so a suggestion for any other Dag is ignored.
+  const partitionKeySuggestion = isPartitioned ? suggestedPartitionKey : undefined;
 
   const { control, handleSubmit, reset, setValue, watch } = useForm<DagRunTriggerParams>({
     defaultValues: {
@@ -106,7 +108,7 @@ const TriggerDAGForm = ({
       // For partitioned Dags, logical date is not applicable.
       logicalDate: isPartitioned ? "" : dayjs().format(DEFAULT_DATETIME_FORMAT),
       note: "",
-      partitionKey: suggestedPartitionKey ?? undefined,
+      partitionKey: partitionKeySuggestion ?? undefined,
     },
   });
 
@@ -115,16 +117,16 @@ const TriggerDAGForm = ({
   const userEditedPartitionKeyRef = useRef(false);
   // The suggestion last written into the field by the form itself; "" once the user edits the field.
   // State, not a ref, because the "suggested value" helper text is derived from it.
-  const [appliedSuggestion, setAppliedSuggestion] = useState(suggestedPartitionKey ?? "");
+  const [appliedSuggestion, setAppliedSuggestion] = useState(partitionKeySuggestion ?? "");
   // Read by the prefill effect, which must not depend on the suggestion: a new suggestion would
   // otherwise reset the whole form and discard what the user typed.
-  const latestSuggestionRef = useRef(suggestedPartitionKey);
+  const latestSuggestionRef = useRef(partitionKeySuggestion);
 
   // Must be declared before the prefill effect: effects of one commit run in declaration order, and
   // the prefill effect has to read the suggestion of this commit.
   useEffect(() => {
-    latestSuggestionRef.current = suggestedPartitionKey;
-  }, [suggestedPartitionKey]);
+    latestSuggestionRef.current = partitionKeySuggestion;
+  }, [partitionKeySuggestion]);
 
   // Push a conf into the param store. Seed the initial params only once they are available,
   // but always push the conf so a run's configuration propagates even
@@ -191,15 +193,15 @@ const TriggerDAGForm = ({
   // The suggestion is computed per request, so it can arrive late or change while the form is open.
   // Follow it until the user edits the field; clearing the field counts as an edit.
   useEffect(() => {
-    if (!open || !isPartitioned || userEditedPartitionKeyRef.current || suggestedPartitionKey === undefined) {
+    if (!open || userEditedPartitionKeyRef.current || partitionKeySuggestion === undefined) {
       return;
     }
     // A null suggestion means "none": the field is emptied.
-    const suggestion = suggestedPartitionKey ?? "";
+    const suggestion = partitionKeySuggestion ?? "";
 
     setAppliedSuggestion(suggestion);
     setValue("partitionKey", suggestion);
-  }, [open, isPartitioned, setValue, suggestedPartitionKey]);
+  }, [open, partitionKeySuggestion, setValue]);
 
   const onPartitionKeyEdit = useCallback(() => {
     userEditedPartitionKeyRef.current = true;
