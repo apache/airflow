@@ -632,6 +632,77 @@ class TestBedrockCreateKnowledgeBaseOperator:
 
         assert result == self.KNOWLEDGE_BASE_ID
 
+    def test_create_knowledge_base_with_custom_config(self, mock_conn):
+        """Test creating a knowledge base with a custom configuration."""
+        self.operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_managed_knowledge_base",
+            name=self.KNOWLEDGE_BASE_ID,
+            role_arn="role-arn",
+            knowledge_base_config={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {},
+            },
+        )
+        self.operator.wait_for_completion = False
+
+        result = self.operator.execute({})
+
+        assert result == self.KNOWLEDGE_BASE_ID
+        mock_conn.create_knowledge_base.assert_called_once_with(
+            name=self.KNOWLEDGE_BASE_ID,
+            roleArn="role-arn",
+            knowledgeBaseConfiguration={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {},
+            },
+        )
+
+    def test_role_arn_is_required(self):
+        with pytest.raises(ValueError, match="role_arn is required"):
+            BedrockCreateKnowledgeBaseOperator(
+                task_id="missing_role",
+                name=self.KNOWLEDGE_BASE_ID,
+                embedding_model_arn="embedding-model-arn",
+                storage_config={"type": "OPENSEARCH_SERVERLESS"},
+            )
+
+    @pytest.mark.parametrize(
+        ("embedding_model_arn", "storage_config"),
+        [
+            pytest.param(None, {"type": "OPENSEARCH_SERVERLESS"}, id="missing_embedding_model_arn"),
+            pytest.param("embedding-model-arn", None, id="missing_storage_config"),
+        ],
+    )
+    def test_vector_configuration_requires_embedding_and_storage(self, embedding_model_arn, storage_config):
+        with pytest.raises(
+            ValueError,
+            match="embedding_model_arn and storage_config are required",
+        ):
+            BedrockCreateKnowledgeBaseOperator(
+                task_id="missing_vector_configuration",
+                name=self.KNOWLEDGE_BASE_ID,
+                embedding_model_arn=embedding_model_arn,
+                role_arn="role-arn",
+                storage_config=storage_config,
+            )
+
+    def test_custom_vector_configuration_requires_storage(self):
+        """Custom VECTOR configurations should require storage_config."""
+        operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="missing_custom_vector_storage",
+            name=self.KNOWLEDGE_BASE_ID,
+            role_arn="role-arn",
+            knowledge_base_config={
+                "type": "VECTOR",
+                "vectorKnowledgeBaseConfiguration": {
+                    "embeddingModelArn": "embedding-model-arn",
+                },
+            },
+        )
+
+        with pytest.raises(ValueError, match="storage_config is required for VECTOR"):
+            operator.execute({})
+
     def test_knowledge_base_config_uses_rendered_embedding_model_arn(self, mock_conn):
         """The knowledgeBaseConfiguration must be built from embedding_model_arn as it
         stands at execute() time, since template rendering happens after __init__."""
@@ -693,6 +764,27 @@ class TestBedrockCreateKnowledgeBaseOperator:
             with pytest.raises(ClientError):
                 self.operator.execute({})
             assert mock_conn.create_knowledge_base.call_count == 1
+
+    def test_managed_knowledge_base_does_not_retry_vector_index_errors(self, mock_conn):
+        """Managed knowledge bases should not retry vector index errors."""
+        self.operator = BedrockCreateKnowledgeBaseOperator(
+            task_id="create_managed_knowledge_base",
+            name=self.KNOWLEDGE_BASE_ID,
+            role_arn="role-arn",
+            knowledge_base_config={
+                "type": "MANAGED",
+                "managedKnowledgeBaseConfiguration": {},
+            },
+        )
+        self.operator.wait_for_completion = False
+
+        validation_error = self._create_validation_error("no such index [bedrock-kb-index]")
+        mock_conn.create_knowledge_base.side_effect = validation_error
+
+        with pytest.raises(ClientError):
+            self.operator.execute({})
+
+        assert mock_conn.create_knowledge_base.call_count == 1
 
     @mock.patch("airflow.providers.amazon.aws.operators.bedrock.sleep")
     def test_retry_exhaustion_raises_original_error(self, mock_sleep, mock_conn):

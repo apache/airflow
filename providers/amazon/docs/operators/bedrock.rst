@@ -229,6 +229,40 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-supported.ht
     :start-after: [START howto_operator_bedrock_create_knowledge_base]
     :end-before: [END howto_operator_bedrock_create_knowledge_base]
 
+
+Managed Knowledge Bases
+-----------------------
+
+The ``BedrockCreateKnowledgeBaseOperator`` also supports Amazon Bedrock Managed
+Knowledge Bases through the ``knowledge_base_config`` parameter.
+
+When ``knowledge_base_config`` is provided, ``embedding_model_arn`` and
+``storage_config`` are optional. The configuration is passed directly to the
+Bedrock ``CreateKnowledgeBase`` API. For a managed knowledge base, no
+``storageConfiguration`` is required.
+
+The following example creates a managed knowledge base using the service-managed
+embedding model:
+
+.. code-block:: python
+
+    create_managed_knowledge_base = BedrockCreateKnowledgeBaseOperator(
+        task_id="create_managed_knowledge_base",
+        name="my-managed-knowledge-base",
+        role_arn="arn:aws:iam::123456789012:role/BedrockKBRole",
+        knowledge_base_config={
+            "type": "MANAGED",
+            "managedKnowledgeBaseConfiguration": {
+                "embeddingModelType": "MANAGED",
+            },
+        },
+    )
+
+For more information, see the
+`Amazon Bedrock CreateKnowledgeBase API documentation
+<https://docs.aws.amazon.com/bedrock/latest/APIReference/API_agent_CreateKnowledgeBase.html>`_.
+
+
 .. _howto/operator:BedrockDeleteKnowledgeBase:
 
 Delete an Amazon Bedrock Knowledge Base
