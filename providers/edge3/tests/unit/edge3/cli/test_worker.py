@@ -50,7 +50,7 @@ from airflow.providers.edge3.models.edge_worker import (
     EdgeWorkerState,
     EdgeWorkerVersionException,
 )
-from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG
+from airflow.providers.edge3.models.types import EXECUTE_CALLBACK_TAG, TEST_CONNECTION_TAG
 from airflow.providers.edge3.worker_api.datamodels import (
     EdgeJobFetched,
     WorkerRegistrationReturn,
@@ -65,7 +65,7 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import ExecuteCallback
 
 if AIRFLOW_V_3_3_PLUS:
-    from airflow.executors.workloads import ExecuteCallback
+    from airflow.executors.workloads import ExecuteCallback, TestConnection as ConnectionTestWorkload
 
 pytest.importorskip("pydantic", minversion="2.0.0")
 pytestmark = [pytest.mark.asyncio]
@@ -106,6 +106,14 @@ MOCK_CALLBACK_COMMAND = {
     "log_path": "test.log",
     "bundle_info": {"name": "test_bundle", "version": "1.0"},
     "type": "ExecuteCallback",
+}
+
+MOCK_TEST_CONNECTION_COMMAND = {
+    "token": "mock",
+    "connection_test_id": "12345678-1234-5678-1234-567812345678",
+    "connection_id": "test_conn",
+    "timeout": 60,
+    "type": "TestConnection",
 }
 
 
@@ -583,6 +591,93 @@ class TestEdgeWorker:
         mock_push_log_chunks.assert_called_once()
         assert len(worker_with_job.jobs) == 1  # no new job added (was removed at the end...)
         mock_logs_push.assert_not_called()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state", autospec=True)
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch.object(Job, "is_running", property(lambda _: False))
+    @patch.object(Job, "is_success", property(lambda _: True))
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_test_connection_has_no_log_path(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_launch_job,
+        mock_jobs_fetch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        connection_test_id = MOCK_TEST_CONNECTION_COMMAND["connection_test_id"]
+        edge_job = EdgeJobFetched(
+            dag_id=TEST_CONNECTION_TAG,
+            task_id=connection_test_id,
+            run_id=f"{TEST_CONNECTION_TAG}-{connection_test_id}",
+            map_index=-1,
+            try_number=0,
+            concurrency_slots=1,
+            command=MOCK_TEST_CONNECTION_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
+        mock_launch_job.return_value = Job(edge_job, _MockProcess(), tmp_path / "mock.log")
+        worker_with_job.concurrency = 1
+
+        await worker_with_job.fetch_and_run_job()
+
+        assert isinstance(edge_job.command, ConnectionTestWorkload)
+        mock_launch_job.assert_called_once_with(
+            edge_job,
+            edge_job.command,
+            Path(worker_with_job.base_log_folder, f"{TEST_CONNECTION_TAG}/{connection_test_id}.log"),
+        )
+        assert mock_jobs_set_state.call_args_list == [
+            call(edge_job.key, TaskInstanceState.RUNNING, task_instance_id=None),
+            call(edge_job.key, TaskInstanceState.SUCCESS, task_instance_id=None),
+        ]
+        mock_logs_push.assert_not_called()
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+    @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._launch_job")
+    @patch("airflow.providers.edge3.cli.worker.jobs_set_state", autospec=True)
+    @patch("airflow.providers.edge3.cli.worker.EdgeWorker._push_logs_in_chunks")
+    @patch("airflow.providers.edge3.cli.worker.logs_push")
+    @patch.object(Job, "is_running", property(lambda _: False))
+    @patch.object(Job, "is_success", property(lambda _: False))
+    @pytest.mark.asyncio
+    async def test_fetch_and_run_job_test_connection_failure_does_not_push_logs(
+        self,
+        mock_logs_push,
+        mock_push_log_chunks,
+        mock_jobs_set_state,
+        mock_launch_job,
+        mock_jobs_fetch,
+        tmp_path: Path,
+        worker_with_job: EdgeWorker,
+    ):
+        connection_test_id = MOCK_TEST_CONNECTION_COMMAND["connection_test_id"]
+        edge_job = EdgeJobFetched(
+            dag_id=TEST_CONNECTION_TAG,
+            task_id=connection_test_id,
+            run_id=f"{TEST_CONNECTION_TAG}-{connection_test_id}",
+            map_index=-1,
+            try_number=0,
+            concurrency_slots=1,
+            command=MOCK_TEST_CONNECTION_COMMAND,  # type: ignore[arg-type]
+        )
+        mock_jobs_fetch.side_effect = [edge_job, None]
+        mock_launch_job.return_value = Job(edge_job, _MockProcess(returncode=1), tmp_path / "mock.log")
+        worker_with_job.concurrency = 1
+
+        await worker_with_job.fetch_and_run_job()
+
+        mock_logs_push.assert_not_called()
+        assert mock_jobs_set_state.call_args_list[-1] == call(
+            edge_job.key, TaskInstanceState.FAILED, task_instance_id=None
+        )
 
     @patch("airflow.providers.edge3.cli.worker.jobs_fetch")
     @patch("airflow.providers.edge3.cli.worker.jobs_set_state", autospec=True)
@@ -1408,3 +1503,22 @@ class TestEdgeJobFetchedSerialization:
         assert deserialized.dag_id == EXECUTE_CALLBACK_TAG
         assert deserialized.command.type == EXECUTE_CALLBACK_TAG
         assert isinstance(deserialized.command, ExecuteCallback)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+    def test_serialize_with_test_connection(self):
+        connection_test_id = MOCK_TEST_CONNECTION_COMMAND["connection_test_id"]
+        fetched = EdgeJobFetched(
+            dag_id=TEST_CONNECTION_TAG,
+            task_id=connection_test_id,
+            run_id=f"{TEST_CONNECTION_TAG}-{connection_test_id}",
+            map_index=-1,
+            try_number=0,
+            concurrency_slots=1,
+            command=MOCK_TEST_CONNECTION_COMMAND,  # type: ignore[arg-type]
+        )
+        serialized = fetched.model_dump_json()
+        deserialized = EdgeJobFetched(**json.loads(serialized))
+
+        assert deserialized.dag_id == TEST_CONNECTION_TAG
+        assert deserialized.command.type == TEST_CONNECTION_TAG
+        assert isinstance(deserialized.command, ConnectionTestWorkload)

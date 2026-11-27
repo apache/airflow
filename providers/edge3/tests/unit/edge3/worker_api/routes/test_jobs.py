@@ -34,8 +34,12 @@ from airflow.providers.edge3.models.edge_worker import EdgeWorkerModel, EdgeWork
 from airflow.providers.edge3.models.types import (
     CALLBACK_JOB_MAP_INDEX,
     CALLBACK_JOB_TRY_NUMBER,
+    CONNECTION_TEST_JOB_MAP_INDEX,
+    CONNECTION_TEST_JOB_TRY_NUMBER,
     EXECUTE_CALLBACK_TAG,
+    TEST_CONNECTION_TAG,
     build_callback_run_id,
+    build_connection_test_run_id,
 )
 from airflow.providers.edge3.worker_api.datamodels import WorkerQueuesBody
 from airflow.providers.edge3.worker_api.routes import jobs
@@ -51,7 +55,12 @@ if TYPE_CHECKING:
     from airflow.executors.workloads import ExecuteCallback
 
 if AIRFLOW_V_3_3_PLUS:
-    from airflow.executors.workloads import CallbackFetchMethod, ExecuteCallback, TaskInstanceDTO
+    from airflow.executors.workloads import (
+        CallbackFetchMethod,
+        ExecuteCallback,
+        TaskInstanceDTO,
+        TestConnection as ConnectionTestWorkload,
+    )
     from airflow.executors.workloads.callback import CallbackDTO
 
 pytestmark = pytest.mark.db_test
@@ -416,6 +425,87 @@ class TestJobsApiRoutes:
 
             assert [job.task_id for job in fetched if job] == [callbacks[1][0], callbacks[0][0], "high"]
 
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+    @patch(f"{Stats.__module__}.Stats.incr")
+    def test_fetch_returns_connection_tests_after_callbacks_and_before_tasks(
+        self, mock_stats_incr, session: Session
+    ):
+        queued_dttm = timezone.datetime(2026, 1, 1)
+        callback_id = "11111111-1111-1111-1111-111111111111"
+        connection_test = ConnectionTestWorkload(
+            connection_test_id=uuid4(), connection_id="conn", timeout=60, token="test_token"
+        )
+        connection_test_id = str(connection_test.connection_test_id)
+        with create_session() as session:
+            session.add(
+                EdgeWorkerModel(
+                    worker_name="worker1", state=EdgeWorkerState.IDLE, queues=[QUEUE], team_name=None
+                )
+            )
+            session.add(
+                EdgeJobModel(
+                    dag_id=TEST_CONNECTION_TAG,
+                    task_id=connection_test_id,
+                    run_id=build_connection_test_run_id(connection_test_id),
+                    try_number=CONNECTION_TEST_JOB_TRY_NUMBER,
+                    map_index=CONNECTION_TEST_JOB_MAP_INDEX,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=connection_test.model_dump_json(),
+                    priority_weight=1,
+                    queued_dttm=queued_dttm - timedelta(seconds=1),
+                )
+            )
+            callback = ExecuteCallback(
+                callback=CallbackDTO(
+                    id=callback_id,
+                    fetch_method=CallbackFetchMethod.IMPORT_PATH,
+                    data={"path": "builtins.dict", "kwargs": {}},
+                ),
+                dag_rel_path=Path("test.py"),
+                bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+                token="test_token",
+                log_path="test.log",
+            )
+            session.add(
+                EdgeJobModel(
+                    dag_id=EXECUTE_CALLBACK_TAG,
+                    task_id=callback_id,
+                    run_id=build_callback_run_id(callback_id),
+                    try_number=CALLBACK_JOB_TRY_NUMBER,
+                    map_index=CALLBACK_JOB_MAP_INDEX,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=callback.model_dump_json(),
+                    priority_weight=1,
+                    queued_dttm=queued_dttm,
+                )
+            )
+            session.add(
+                EdgeJobModel(
+                    dag_id=DAG_ID,
+                    task_id="high",
+                    run_id=RUN_ID,
+                    try_number=1,
+                    map_index=-1,
+                    state=TaskInstanceState.QUEUED,
+                    queue=QUEUE,
+                    concurrency_slots=1,
+                    command=MOCK_COMMAND_STR,
+                    priority_weight=100,
+                    queued_dttm=queued_dttm - timedelta(seconds=2),
+                )
+            )
+            session.commit()
+
+            body = WorkerQueuesBody(free_concurrency=1, queues=[QUEUE], team_name=None)
+            fetched = [fetch("worker1", body, session) for _ in range(3)]
+
+            assert [job.task_id for job in fetched if job] == [callback_id, connection_test_id, "high"]
+            assert isinstance(fetched[1].command, ConnectionTestWorkload)
+
     @pytest.mark.parametrize(
         ("dag_id", "run_id", "try_number", "map_index"),
         [
@@ -688,6 +778,28 @@ class TestParseCommand:
         assert isinstance(result, ExecuteCallback)
         assert result.callback.id == "12345678-1234-5678-1234-567812345678"
         assert result.callback.fetch_method == CallbackFetchMethod.IMPORT_PATH
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="TestConnection workload requires Airflow 3.3+")
+    def test_parse_command_test_connection(self):
+        workload = ConnectionTestWorkload(
+            connection_test_id=UUID("12345678-1234-5678-1234-567812345678"),
+            connection_id="test_conn",
+            timeout=60,
+            token="test_token",
+        )
+        connection_test_id = str(workload.connection_test_id)
+
+        result = parse_command(
+            workload.model_dump_json(),
+            dag_id=TEST_CONNECTION_TAG,
+            task_id=connection_test_id,
+            run_id=build_connection_test_run_id(connection_test_id),
+            try_number=CONNECTION_TEST_JOB_TRY_NUMBER,
+            map_index=CONNECTION_TEST_JOB_MAP_INDEX,
+        )
+
+        assert isinstance(result, ConnectionTestWorkload)
+        assert result.connection_id == "test_conn"
 
     def test_parse_command_non_callback_dag_id_returns_execute_task(self):
         """Even if run_id starts with ExecuteCallback, dag_id must also match."""
