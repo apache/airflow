@@ -523,6 +523,15 @@ class TestResumeFailedJob:
         last_try = task_state.get(DURABLE_RECORD_KEY)["tries"][-1]
         assert (last_try["decision"], last_try["status"]) == ("resumed", expected_status)
 
+    @pytest.mark.parametrize("action", ["submit", "reconnect", "already_succeeded"])
+    def test_resume_stored_job_rejects_other_decisions(self, action):
+        op = ResumingOperator(task_id="test_task", resumed_id="job-001")
+
+        with pytest.raises(ValueError, match=f"got '{action}'"):
+            op.resume_stored_job(make_context(FakeTaskState()), ResumeDecision(action, "job-001"))
+
+        assert op.resume_calls == []
+
     def test_resume_stored_job_records_running_for_deferrable_callers(self):
         op = ResumingOperator(task_id="test_task", resumed_id="job-001")
         op._status_map["job-001"] = "FAILED"

@@ -189,7 +189,7 @@ the default retention window.
 
 On a retry, the task finds the stored ``job_id`` and reattaches instead of submitting a duplicate job. Another example of this sort of logic can be found in `example_task_state_store.py <https://github.com/apache/airflow/blob/main/airflow-core/src/airflow/example_dags/example_task_state_store.py>`_.
 
-For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task state store after submission and, on retry, reconnects to an active job or resubmits if the prior job reached a terminal failure state.
+For ``BaseOperator`` subclasses, the :class:`~airflow.sdk.bases.resumablejobmixin.ResumableJobMixin` encapsulates this pattern. It persists the external job ID to task state store after submission and, on retry, reconnects to an active job. If the prior job failed, it resumes that job when the operator supports it and ``resume_on_retry`` is on, and otherwise submits a new one. See :doc:`task-sdk:resumable-job-mixin`.
 
 Intra-task checkpointing
 ~~~~~~~~~~~~~~~~~~~~~~~~

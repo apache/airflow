@@ -98,6 +98,10 @@ ACTIVE_RUN_LIFE_CYCLE_STATES = (
     "BLOCKED",
     "WAITING_FOR_RETRY",
 )
+# Databricks repairs failed or canceled runs. A SKIPPED run, or one that never started for another
+# reason (e.g. MAXIMUM_CONCURRENT_RUNS_REACHED), has nothing to repair, so it gets a fresh run.
+REPAIRABLE_RUN_LIFE_CYCLE_STATES = ("TERMINATED", "INTERNAL_ERROR")
+REPAIRABLE_RUN_RESULT_STATES = ("FAILED", "TIMEDOUT", "CANCELED")
 
 
 def fetch_run_status(
@@ -147,6 +151,14 @@ def is_run_active(status: str) -> bool:
 def is_run_succeeded(status: str) -> bool:
     """Whether an encoded status means the run finished successfully."""
     return status == "TERMINATED:SUCCESS"
+
+
+def is_run_repairable(status: str) -> bool:
+    """Whether an encoded status means the run failed, timed out or was canceled, so it can be repaired."""
+    life_cycle_state, _, result_state = status.partition(":")
+    return (
+        life_cycle_state in REPAIRABLE_RUN_LIFE_CYCLE_STATES and result_state in REPAIRABLE_RUN_RESULT_STATES
+    )
 
 
 # jobs/runs/get answers 400 INVALID_PARAMETER_VALUE for a run it no longer knows about, never 404.
@@ -1341,10 +1353,10 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         before polling begins so that a worker crash and retry reconnects to the existing run
         instead of triggering a duplicate run of the same job. Set to ``False`` to always trigger a
         fresh run on retry. Requires Airflow 3.3+; on earlier versions it is silently ignored.
-    :param resume_on_retry: When ``True`` (the default), a retry that finds the stored run failed repairs
-        it instead of triggering a new run. Set to ``False`` to trigger a new run instead. Unlike
-        ``repair_run``, this acts between tries, not within one. Requires Airflow 3.5+. Only applies when
-        ``deferrable=False``.
+    :param resume_on_retry: When ``True`` (the default), a retry that finds the stored run failed, timed
+        out or canceled repairs it instead of triggering a new run. Set to ``False`` to trigger a new run
+        instead. Unlike ``repair_run``, this acts between tries, not within one. Requires Airflow 3.5+.
+        Only applies when ``deferrable=False``.
     :param forward_dag_params: Whether to forward Dag-level params as ``job_parameters``
         when no ``job_parameters`` are specified. (default: ``True``)
 
@@ -1599,7 +1611,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
 
     def resume_failed_job(self, external_id: JsonValue, status: str, context: Context) -> JsonValue | None:
         # cancel_previous_runs keeps only the newest run going; reviving this one would break that.
-        if status == RUN_NOT_FOUND_STATUS or self.cancel_previous_runs:
+        if not is_run_repairable(status) or self.cancel_previous_runs:
             return None
         run_id = cast("int", external_id)
         self._merged_json = self._build_run_now_payload(context)

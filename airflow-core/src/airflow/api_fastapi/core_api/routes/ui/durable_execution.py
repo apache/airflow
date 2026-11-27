@@ -61,7 +61,7 @@ def get_durable_execution(scope: TaskScopeDep, session: SessionDep) -> DurableEx
     if value is None:
         return DurableExecutionResponse(tries=[])
     record = json.loads(value)
-    # With [workers] state_store_backend set, the row holds only a reference to the offloaded value.
+    # With `[workers] state_store_backend` set, the row holds only a reference to the offloaded value.
     raw_tries = record.get("tries") if isinstance(record, dict) else None
     if not isinstance(raw_tries, list):
         return DurableExecutionResponse(tries=[])

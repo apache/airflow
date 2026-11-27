@@ -282,7 +282,11 @@ class ResumableJobMixin(ABC):
 
         Returns ``None`` when the operator declines, or when the resume raised and the job still looks
         failed, so the caller submits a new job. A new ID is stored so the next retry finds it.
+
+        Raises ``ValueError`` if ``decision.action`` is not ``"resume"``.
         """
+        if decision.action != "resume":
+            raise ValueError(f"resume_stored_job needs a 'resume' decision, got {decision.action!r}")
         ti = context.get("ti")
         stats_tags = {**(ti.stats_tags if ti is not None else {}), "operator": type(self).__name__}
         external_id, status = decision.external_id, decision.status or ""

@@ -3690,6 +3690,32 @@ class TestDatabricksRunNowOperatorDurable:
         assert op.run_id == RUN_ID
 
     @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
+    @pytest.mark.parametrize(
+        ("status", "repaired"),
+        [
+            ("TERMINATED:FAILED", True),
+            ("TERMINATED:TIMEDOUT", True),
+            ("TERMINATED:CANCELED", True),
+            ("INTERNAL_ERROR:FAILED", True),
+            ("SKIPPED:", False),
+            ("SKIPPED:MAXIMUM_CONCURRENT_RUNS_REACHED", False),
+            ("TERMINATED:EXCLUDED", False),
+            ("TERMINATED:UPSTREAM_FAILED", False),
+            ("NOT_FOUND:", False),
+        ],
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_repairs_only_failed_timed_out_or_canceled_runs(self, db_mock_class, status, repaired):
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.get_latest_repair_id.return_value = None
+
+        resumed_id = op.resume_failed_job(RUN_ID, status, self._context())
+
+        assert resumed_id == (RUN_ID if repaired else None)
+        assert db_mock.repair_run.called is repaired
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_5_PLUS, reason="resume_failed_job requires Airflow 3.5+")
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_on_kill_cancels_run_whose_repair_reply_was_lost(self, db_mock_class):
         op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID)
