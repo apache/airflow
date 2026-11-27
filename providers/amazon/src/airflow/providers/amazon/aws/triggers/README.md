@@ -151,3 +151,9 @@ def execute_complete(self, context, event=None):
         raise AirflowException(f"Error creating cluster: {event}")
     return
 ```
+
+## Keeping deferred tasks compatible
+
+A deferred task is stored as the class path of its trigger and the keyword arguments that `serialize` returned, together with the `method_name` and `kwargs` passed to `self.defer`. The task can still be deferred when the provider is upgraded or rolled back, so a trigger has to keep accepting what an earlier version stored, and the operator has to keep the method it resumes in.
+
+`tests/unit/amazon/aws/triggers/wire_format_9_x.py` lists what the 9.x versions of the provider store, and `test_wire_format.py` next to it checks that the current code still accepts all of it. Add an entry there for a new trigger, for a keyword argument that an existing trigger starts to serialize, and for a new `self.defer` call.
