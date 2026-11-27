@@ -22,19 +22,20 @@ from datetime import datetime
 
 from pydantic import JsonValue, field_validator
 
+from airflow.api_fastapi.common.types import DecodedJsonValue
 from airflow.api_fastapi.core_api.base import StrictBaseModel
 
 
 class TaskStateStoreResponse(StrictBaseModel):
     """Task state store value returned to a worker."""
 
-    value: JsonValue
+    value: DecodedJsonValue
 
 
 class TaskStateStorePutBody(StrictBaseModel):
     """Request body for setting a task state store value."""
 
-    value: JsonValue
+    value: DecodedJsonValue
     expires_at: datetime | None = None
 
     @field_validator("value")

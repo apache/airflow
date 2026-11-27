@@ -29,6 +29,9 @@ from pydantic import (
     BaseModel,
     BeforeValidator,
     ConfigDict,
+    JsonValue,
+    SerializeAsAny,
+    WrapValidator,
     field_validator,
     model_serializer,
     model_validator,
@@ -69,6 +72,16 @@ class TimeDelta(BaseModel):
 
 
 TimeDeltaWithValidation = Annotated[TimeDelta, BeforeValidator(_validate_timedelta_field)]
+
+
+DecodedJsonValue = Annotated[JsonValue, WrapValidator(lambda value, _handler: value), SerializeAsAny()]
+"""
+A ``JsonValue`` that is already decoded JSON, such as a request body or a value read from a JSON store.
+
+Pydantic validates and serializes ``JsonValue`` with a Python callback for every element, which takes
+tens of milliseconds for a value of a few hundred kilobytes. Decoded JSON cannot fail that check, so this
+type passes the value through unchanged while publishing the same schema as ``JsonValue``.
+"""
 
 
 # Common validator for theme icon fields (SVG-only, http(s) or app-relative path).
