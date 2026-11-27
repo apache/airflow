@@ -111,3 +111,6 @@ connection-types:
   - hook-class-name: airflow.providers.ftp.hooks.ftp.FTPHook
     hook-name: "FTP"
     connection-type: ftp
+
+filesystems:
+  - airflow.providers.ftp.fs.ftp
