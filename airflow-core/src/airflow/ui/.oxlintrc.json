@@ -4,12 +4,28 @@
     "typeAware": true
   },
   "plugins": ["jsx-a11y", "react", "unicorn", "typescript"],
-  "jsPlugins": ["eslint-plugin-perfectionist", "@stylistic/eslint-plugin"],
+  "jsPlugins": [
+    "eslint-plugin-perfectionist",
+    "@stylistic/eslint-plugin",
+    {
+      "name": "react-js",
+      "specifier": "eslint-plugin-react"
+    },
+    {
+      "name": "typescript-js",
+      "specifier": "@typescript-eslint/eslint-plugin"
+    },
+    {
+      "name": "unicorn-js",
+      "specifier": "eslint-plugin-unicorn"
+    }
+  ],
   "categories": {
     "correctness": "off"
   },
   "env": {
-    "builtin": true
+    "builtin": true,
+    "browser": true
   },
   "settings": {
     "react": {
@@ -248,7 +264,12 @@
     ],
     "unicorn/catch-error-name": "error",
     "unicorn/consistent-empty-array-spread": "error",
-    "unicorn/consistent-function-scoping": "off",
+    "unicorn/consistent-function-scoping": [
+      "error",
+      {
+        "checkArrowFunctions": true
+      }
+    ],
     "unicorn/error-message": "error",
     "unicorn/escape-case": "error",
     "unicorn/no-abusive-eslint-disable": "error",
@@ -269,7 +290,7 @@
     "unicorn/no-useless-fallback-in-spread": "error",
     "unicorn/no-useless-length-check": "error",
     "unicorn/no-useless-spread": "error",
-    "unicorn/no-useless-switch-case": "off",
+    "unicorn/no-useless-switch-case": "error",
     "unicorn/numeric-separators-style": "error",
     "unicorn/prefer-add-event-listener": "error",
     "unicorn/prefer-array-find": "error",
@@ -280,7 +301,7 @@
     "unicorn/prefer-date-now": "error",
     "unicorn/prefer-default-parameters": "error",
     "unicorn/prefer-dom-node-append": "error",
-    "unicorn/prefer-dom-node-dataset": "off",
+    "unicorn/prefer-dom-node-dataset": "error",
     "unicorn/prefer-dom-node-remove": "error",
     "unicorn/prefer-dom-node-text-content": "error",
     "unicorn/prefer-event-target": "error",
@@ -312,14 +333,25 @@
       {
         "allowConstantExport": true
       }
-    ]
+    ],
+    "react-js/destructuring-assignment": ["error", "always"],
+    "react-js/jsx-no-leaked-render": "error",
+    "react-js/no-deprecated": "error",
+    "typescript-js/no-invalid-this": [
+      "error",
+      {
+        "capIsConstructor": true
+      }
+    ],
+    "unicorn-js/consistent-destructuring": "error",
+    "unicorn-js/no-unnecessary-polyfills": "error"
   },
   "overrides": [
     {
       "files": ["rules/**/*.{js,jsx,ts,tsx}", "src/**/*.{js,jsx,ts,tsx}", "./*.{js,jsx,ts,tsx}"],
       "rules": {
-        "airflow/no-react-namespace-types": "error",
         "accessor-pairs": "error",
+        "airflow/no-react-namespace-types": "error",
         "array-callback-return": "error",
         "arrow-body-style": "error",
         "curly": "error",
@@ -418,7 +450,9 @@
         "no-template-curly-in-string": "error",
         "no-unmodified-loop-condition": "error",
         "no-unneeded-ternary": "error",
+        "no-unreachable-loop": "error",
         "no-unsafe-finally": "error",
+        "no-useless-assignment": "error",
         "no-useless-call": "error",
         "no-useless-catch": "error",
         "no-useless-computed-key": "error",

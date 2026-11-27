@@ -131,7 +131,7 @@ const isMappedTarget = (target: ClearTarget) => target.map_index >= 0 || target.
 // is severed from `props.dagId` / `props.taskInstance`. Disable the rule for
 // the parameter and the prop extraction; everything after uses local
 // variables.
-/* eslint-disable react/destructuring-assignment */
+/* eslint-disable react-js/destructuring-assignment */
 const ClearTaskInstanceDialog = (props: Props) => {
   const allMapped = props.allMapped === true;
   const allMappedTaskId = props.allMapped ? props.taskId : undefined;
@@ -148,7 +148,7 @@ const ClearTaskInstanceDialog = (props: Props) => {
   const { onCleared } = props;
   const closeDialog = props.onClose;
   const openDialog = props.open;
-  /* eslint-enable react/destructuring-assignment */
+  /* eslint-enable react-js/destructuring-assignment */
   const { t: translate } = useTranslation();
   const { onClose, onOpen, open } = useDisclosure();
   const isDialogOpen = openDialog && !open;

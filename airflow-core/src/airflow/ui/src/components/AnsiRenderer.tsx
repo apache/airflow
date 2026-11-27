@@ -118,6 +118,7 @@ const createChakraProps = (bundle: AnserJsonEntry) => {
     case "italic":
       props.fontStyle = "italic";
       break;
+    case null:
     case "reverse":
       // Could implement reverse video if needed
       break;
@@ -127,8 +128,6 @@ const createChakraProps = (bundle: AnserJsonEntry) => {
     case "underline":
       props.textDecoration = "underline";
       break;
-
-    case null:
     default:
       break;
   }

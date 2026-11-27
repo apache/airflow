@@ -311,7 +311,7 @@ describe("DagFolderTree (multiple bundles)", () => {
     );
 
     expect(teamANodes).toHaveLength(2);
-    expect(teamANodes.map((item) => item.getAttribute("data-value"))).toEqual([
+    expect(teamANodes.map((item) => item.dataset.value)).toEqual([
       "folder:analytics:team_a",
       "folder:ml:team_a",
     ]);
@@ -333,7 +333,7 @@ describe("DagFolderTree (multiple bundles)", () => {
     // ``etl`` exists in both bundles; only the one under ``ml`` is selected.
     const selected = nodes().filter((item) => item.getAttribute("aria-selected") === "true");
 
-    expect(selected.map((item) => item.getAttribute("data-value"))).toEqual(["folder:ml:team_a/etl"]);
+    expect(selected.map((item) => item.dataset.value)).toEqual(["folder:ml:team_a/etl"]);
   });
 
   it("expands down to the selected folder once folders finish loading", () => {
@@ -350,7 +350,7 @@ describe("DagFolderTree (multiple bundles)", () => {
     // ``etl`` exists in both bundles; the one under ``ml`` is the one revealed and selected.
     const selected = nodes().filter((item) => item.getAttribute("aria-selected") === "true");
 
-    expect(selected.map((item) => item.getAttribute("data-value"))).toEqual(["folder:ml:team_a/etl"]);
+    expect(selected.map((item) => item.dataset.value)).toEqual(["folder:ml:team_a/etl"]);
   });
 
   it("keeps a selected bundle collapsed when the folder parameter is empty", () => {

@@ -35,7 +35,7 @@ const buildLogContainer = (rows: Array<{ index: number; text: string }>): HTMLEl
   rows.forEach(({ index, text }) => {
     const row = document.createElement("div");
 
-    row.setAttribute("data-index", String(index));
+    row.dataset.index = String(index);
     row.textContent = text;
     container.append(row);
   });
@@ -106,7 +106,7 @@ describe("getSelectionRowRange", () => {
     const container = buildLogContainer([{ index: 0, text: "line 0" }]);
     const outside = document.createElement("div");
 
-    outside.setAttribute("data-index", "99");
+    outside.dataset.index = "99";
     outside.textContent = "not a log line";
     document.body.append(outside);
 
@@ -473,11 +473,11 @@ describe("extractSelectedLogText", () => {
     const buildRow = (index: number, messageText: string) => {
       const row = document.createElement("div");
 
-      row.setAttribute("data-index", String(index));
+      row.dataset.index = String(index);
 
       const lineNumberLink = document.createElement("a");
 
-      lineNumberLink.setAttribute("data-copy-exclude", "");
+      lineNumberLink.dataset.copyExclude = "";
       lineNumberLink.textContent = String(index);
 
       const message = document.createElement("span");
