@@ -31,7 +31,13 @@ import Time from "src/components/Time";
 import { useParamStore } from "src/queries/useParamStore";
 import { useUpdateHITLDetail } from "src/queries/useUpdateHITLDetail";
 import { DEFAULT_DATETIME_FORMAT } from "src/utils/datetimeUtils";
-import { getHITLParamsDict, getHITLFormData, getPreloadHITLFormData, isHITLPending } from "src/utils/hitl";
+import {
+  getHITLParamsDict,
+  getHITLFormData,
+  getPreloadHITLFormData,
+  isHighlightOption,
+  isHITLPending,
+} from "src/utils/hitl";
 
 type HITLResponseFormProps = {
   readonly hitlDetail: {
@@ -39,24 +45,6 @@ type HITLResponseFormProps = {
   } & Omit<HITLDetailHistory, "task_instance">;
   readonly namespace?: string;
   readonly onResponded?: () => void;
-};
-
-const isHighlightOption = (
-  option: string,
-  hitlDetail: HITLDetailHistory,
-  preloadedHITLOptions: Array<string>,
-) => {
-  // preload's priority is higher than default
-  const defaultOptions = preloadedHITLOptions.length > 0 ? preloadedHITLOptions : hitlDetail.defaults;
-
-  const isSelected = hitlDetail.chosen_options?.includes(option) && Boolean(hitlDetail.response_received);
-  const isDefault = defaultOptions?.includes(option) && !Boolean(hitlDetail.response_received);
-
-  // highlight if:
-  // 1. the option is selected and the response is received
-  // 2. the option is in default options and the response is not received
-  // 3. the option is not selected and the response is not received and there is no default options
-  return isSelected ?? isDefault ?? !Boolean(hitlDetail.defaults);
 };
 
 export const HITLResponseForm = ({ hitlDetail, namespace = "hitl", onResponded }: HITLResponseFormProps) => {
