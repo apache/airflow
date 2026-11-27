@@ -16,8 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import pendulum
+from airflow_client.client import ApiClient, Configuration, DagRunApi, DagRunState, TriggerDAGRunPostBody
 
+from airflow_e2e_tests.constants import DOCKER_COMPOSE_HOST_PORT
 from airflow_e2e_tests.e2e_test_utils.clients import AirflowClient
 
 
@@ -27,17 +29,29 @@ class TestBasicDagFunctionality:
     airflow_client = AirflowClient()
 
     def test_xcom_value(self):
-        resp = self.airflow_client.trigger_dag(
-            "example_xcom_test", json={"logical_date": datetime.now(UTC).isoformat()}
+        dag_id = "example_xcom_test"
+        self.airflow_client.un_pause_dag(dag_id)
+        config = Configuration(
+            host=f"http://{DOCKER_COMPOSE_HOST_PORT}", access_token=self.airflow_client.token
         )
-        self.airflow_client.wait_for_dag_run(
-            dag_id="example_xcom_test",
-            run_id=resp["dag_run_id"],
-        )
+        with ApiClient(config) as client:
+            runs = DagRunApi(client)
+            logical_date = pendulum.now("UTC")
+            run = runs.trigger_dag_run(dag_id, TriggerDAGRunPostBody(logical_date=logical_date))
+            run_id = run.dag_run_id
+
+            def get_state() -> str:
+                observed = runs.get_dag_run(dag_id, run_id, _request_timeout=15.0)
+                assert observed.logical_date == logical_date
+                return observed.state
+
+            state = self.airflow_client.wait_for_dag_run(dag_id, run_id, get_state=get_state)
+            assert state == DagRunState.SUCCESS, run_id
+
         xcom_value_resp = self.airflow_client.get_xcom_value(
-            dag_id="example_xcom_test",
+            dag_id=dag_id,
             task_id="bash_push",
             key="manually_pushed_value",
-            run_id=resp["dag_run_id"],
+            run_id=run_id,
         )
         assert xcom_value_resp["value"] == "manually_pushed_value", xcom_value_resp

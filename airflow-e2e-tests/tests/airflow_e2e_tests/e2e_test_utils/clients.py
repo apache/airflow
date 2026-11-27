@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import cached_property
 from http import HTTPStatus
@@ -173,10 +174,22 @@ class AirflowClient:
 
         return self._make_request(method="POST", endpoint=f"dags/{dag_id}/dagRuns", json=json)
 
-    def wait_for_dag_run(self, dag_id: str, run_id: str, timeout=300, check_interval=5):
+    def wait_for_dag_run(
+        self,
+        dag_id: str,
+        run_id: str,
+        timeout=300,
+        check_interval=5,
+        *,
+        get_state: Callable[[], str] | None = None,
+    ):
         start_time = time.time()
         while time.time() - start_time < timeout:
-            state = self.get_dag_run(dag_id=dag_id, run_id=run_id).get("state")
+            state = (
+                get_state()
+                if get_state is not None
+                else self.get_dag_run(dag_id=dag_id, run_id=run_id).get("state")
+            )
             if state in {"success", "failed"}:
                 return state
             time.sleep(check_interval)
