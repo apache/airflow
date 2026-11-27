@@ -22,6 +22,7 @@ import sys
 import types
 from contextlib import contextmanager
 from typing import Any
+from unittest import mock
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -461,3 +462,49 @@ class TestInitializeAirflowDb:
             f"Unable to re-initialize the SQLite test DB. Remove `{sqlite_db_file}` and rerun pytest."
         )
         assert isinstance(exc_info.value.__cause__, SQLAlchemyError)
+
+
+class TestCheckUvVersion:
+    @pytest.fixture
+    def pyproject(self, tmp_path, monkeypatch):
+        pyproject = tmp_path / "pyproject.toml"
+        monkeypatch.setattr(pytest_plugin, "AIRFLOW_PYPROJECT_TOML_FILE_PATH", pyproject)
+        return pyproject
+
+    @mock.patch.object(
+        pytest_plugin.subprocess,
+        "check_output",
+        autospec=True,
+        return_value="uv 0.13.4 (0123abc 2026-10-20 aarch64-apple-darwin)\n",
+    )
+    def test_required_uv_version_passes(self, mock_check_output, pyproject):
+        pyproject.write_text('[tool.uv]\nrequired-version = ">=0.13.4"\n')
+
+        pytest_plugin._check_uv_version()
+
+    @mock.patch.object(pytest_plugin.shutil, "which", autospec=True, return_value="/repo/.venv/bin/uv")
+    @mock.patch.object(
+        pytest_plugin.subprocess,
+        "check_output",
+        autospec=True,
+        return_value="uv 0.13.3 (0123abc 2026-10-01 aarch64-apple-darwin)\n",
+    )
+    def test_older_uv_exits_with_hint(self, mock_check_output, mock_which, pyproject):
+        pyproject.write_text('[tool.uv]\nrequired-version = ">=0.13.4"\n')
+
+        with pytest.raises(SystemExit) as exc_info:
+            pytest_plugin._check_uv_version()
+
+        assert str(exc_info.value) == (
+            'uv 0.13.3 at /repo/.venv/bin/uv does not match `[tool.uv] required-version = ">=0.13.4"` '
+            "in pyproject.toml, so the provider dependencies cannot be refreshed. Run `uv sync` to "
+            "update the uv in the virtualenv, or upgrade uv."
+        )
+
+    @mock.patch.object(pytest_plugin.subprocess, "check_output", autospec=True)
+    def test_missing_required_version_skips_check(self, mock_check_output, pyproject):
+        pyproject.write_text("[tool.uv]\n")
+
+        pytest_plugin._check_uv_version()
+
+        mock_check_output.assert_not_called()
