@@ -284,12 +284,23 @@ However, you can also look at other non-performance-related scheduler configurat
 
 - :ref:`config:scheduler__max_tis_per_query`
 
-  The batch size of queries in the scheduling main loop. This should not be greater than
-  ``core.parallelism``. If this is too high then SQL query performance may be impacted by
-  complexity of query predicate, and/or excessive locking.
+  The batch size of queries in the scheduling main loop. Each query selects at most this many
+  scheduled task instances, highest ``priority_weight`` first, and the loop moves those that can
+  run to queued, up to the same number. Values above ``core.parallelism`` do not make the batch
+  larger, because it is also capped by ``core.parallelism`` minus the executor slots already in
+  use. Set this to 0 to use the value of ``core.parallelism``.
 
-  Additionally, you may hit the maximum allowable query length for your db.
-  Set this to 0 to use the value of ``core.parallelism``.
+  Candidates blocked by pool, Dag run concurrency or task concurrency limits still take up
+  room in the batch. When that happens the scheduler repeats the query without the pools, Dag
+  runs and tasks it found blocked, but once it has found a task instance that can run it does
+  so only a limited number of times per loop. So if high-priority task instances are blocked
+  in many different pools, Dag runs or tasks, lower-priority ones that could run may stay in
+  the scheduled state for several loops. Raising this value lets each query look past more of
+  them.
+
+  If this is too high then SQL query performance may be impacted by complexity of query
+  predicate, and/or excessive locking. Additionally, you may hit the maximum allowable query
+  length for your db.
 
 - :ref:`config:scheduler__scheduler_idle_sleep_time`
 
