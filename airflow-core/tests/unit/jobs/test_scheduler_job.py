@@ -65,7 +65,7 @@ from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 from airflow.dag_processing.dagbag import DagBag, sync_bag_to_db
 from airflow.dag_processing.maintenance import cleanup_processor_metadata
-from airflow.exceptions import AirflowException, DeserializationError, TaskNotFound
+from airflow.exceptions import AirflowException, DagRunDiscardedError, DeserializationError, TaskNotFound
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -12080,6 +12080,82 @@ class TestSchedulerJob:
         job_runner._create_dag_runs([dm1], session)
         assert "Failed creating DagRun" in caplog.text
 
+    @patch("airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True)
+    def test_dag_run_discarded_by_deadline_alert_propagates(self, mock_create, session, dag_maker):
+        mock_create.side_effect = DagRunDiscardedError(
+            "discarded",
+            dag_id="testdag1",
+            run_id="scheduled__2016-01-01T00:00:00+00:00",
+            dag_version_id=uuid4(),
+            deadline_alert_id=uuid4(),
+        )
+        with dag_maker("testdag1", serialized=True):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        dm1 = dag_maker.dag_model
+        session.add(dm1)
+        session.flush()
+        next_dagrun = dm1.next_dagrun
+
+        job_runner = SchedulerJobRunner(job=Job())
+        with pytest.raises(DagRunDiscardedError):
+            job_runner._create_dag_runs([dm1], session)
+
+        assert dm1.next_dagrun == next_dagrun
+
+    @mock.patch("airflow._shared.observability.metrics.stats.incr", autospec=True)
+    @mock.patch.object(SchedulerJobRunner, "_start_queued_dagruns", autospec=True)
+    @mock.patch.object(SchedulerJobRunner, "_create_dagruns_for_dags", autospec=True)
+    def test_do_scheduling_ends_dag_run_creation_when_deadline_alert_discards_dag_run(
+        self, mock_create_dagruns, mock_start_queued, mock_stats_incr, session, caplog
+    ):
+        deadline_alert_id = uuid4()
+        mock_create_dagruns.side_effect = DagRunDiscardedError(
+            "discarded",
+            dag_id="stopped_dag",
+            run_id="scheduled__2016-01-01T00:00:00+00:00",
+            dag_version_id=uuid4(),
+            deadline_alert_id=deadline_alert_id,
+        )
+
+        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        job_runner._do_scheduling(session)
+
+        assert job_runner._dag_ids_stopped_by_deadline_alerts == {"stopped_dag"}
+        mock_stats_incr.assert_any_call(
+            "deadline_alerts.dag_run_creation_stopped", tags={"dag_id": "stopped_dag"}
+        )
+        assert {
+            "event": "A deadline alert broke the scheduler's session; no more Dag runs are "
+            "created for the Dag until the scheduler restarts",
+            "dag_id": "stopped_dag",
+            "run_id": "scheduled__2016-01-01T00:00:00+00:00",
+            "deadline_alert_id": deadline_alert_id,
+        } in caplog
+        mock_start_queued.assert_called_once()
+
+    @mock.patch.object(DagModel, "NUM_DAGS_PER_DAGRUN_QUERY", 1)
+    def test_dag_stopped_by_deadline_alerts_does_not_use_up_dag_run_creation_limit(self, session, dag_maker):
+        with dag_maker("stopped_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
+            EmptyOperator(task_id="task")
+        stopped_dag_model = dag_maker.dag_model
+        with dag_maker("other_dag", schedule="@daily", start_date=DEFAULT_DATE, session=session):
+            EmptyOperator(task_id="task")
+        other_dag_model = dag_maker.dag_model
+        # The failing Dag keeps the oldest create-after, so it would sort first into the batch.
+        stopped_dag_model.next_dagrun_create_after = DEFAULT_DATE
+        other_dag_model.next_dagrun_create_after = DEFAULT_DATE + timedelta(hours=1)
+        session.flush()
+
+        job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        job_runner._dag_ids_stopped_by_deadline_alerts.add("stopped_dag")
+        job_runner._create_dagruns_for_dags(mock.create_autospec(CommitProhibitorGuard), session)
+
+        created = session.scalars(
+            select(DagRun.dag_id).where(DagRun.dag_id.in_(["stopped_dag", "other_dag"]))
+        )
+        assert list(created) == ["other_dag"]
+
     def test_activate_referenced_assets_no_in_check_inside_query(self, session, testing_dag_bundle):
         dag_id1 = "test_asset_dag1"
         asset1_name = "asset1"
@@ -16004,6 +16080,38 @@ def test_partitioned_batch_asset_events(dag_maker: DagMaker, session: Session, b
     assert {apdr.created_dag_run_id for apdr in apdrs} == {run.id for run in dag_runs}
     assert [len(run.consumed_asset_events) for run in dag_runs] == [2 // expected_count] * expected_count
     assert len({event.id for run in dag_runs for event in run.consumed_asset_events}) == 2
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
+def test_partitioned_dag_run_creation_leaves_out_excluded_dags(dag_maker: DagMaker, session: Session):
+    asset = Asset(name="partitioned-stopped-asset")
+    dag_id = "partitioned-stopped-consumer"
+    with dag_maker(dag_id=dag_id, schedule=PartitionedAssetTimetable(assets=asset), session=session):
+        EmptyOperator(task_id="task")
+    session.commit()
+    apdr = _produce_and_register_asset_event(
+        dag_id="partitioned-stopped-producer",
+        asset=asset,
+        partition_key="key-1",
+        session=session,
+        dag_maker=dag_maker,
+    )
+
+    runner = SchedulerJobRunner(
+        job=Job(job_type=SchedulerJobRunner.job_type), executors=[MockExecutor(do_update=False)]
+    )
+    # Patched only here: producing the asset event above also goes through create_dagrun.
+    with patch(
+        "airflow.serialization.serialized_objects.SerializedDAG.create_dagrun", autospec=True
+    ) as mock_create:
+        assert (
+            runner._create_dagruns_for_partitioned_asset_dags(session=session, exclude_dag_ids={dag_id})
+            == set()
+        )
+
+    mock_create.assert_not_called()
+    assert apdr.created_dag_run_id is None
 
 
 @pytest.mark.need_serialized_dag

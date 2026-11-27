@@ -75,7 +75,13 @@ from airflow.callbacks.callback_requests import (
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleUsageTrackingManager
 from airflow.dag_processing.maintenance import cleanup_processor_metadata
-from airflow.exceptions import DagNotFound, ParamValidationError, TaskNotFound, UnknownExecutorException
+from airflow.exceptions import (
+    DagNotFound,
+    DagRunDiscardedError,
+    ParamValidationError,
+    TaskNotFound,
+    UnknownExecutorException,
+)
 from airflow.executors import workloads
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.executors.workloads.types import TaskInstanceUuid
@@ -566,6 +572,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Process-local and deliberately not de-duplicated across schedulers: in an HA deployment
         # each scheduler writes its own row, so a Dag gets one row per scheduler per episode.
         self._partition_cap_reported_dag_ids: set[str] = set()
+        # Dags whose deadline alerts broke the scheduler's session. A failing Dag keeps the
+        # oldest next_dagrun_create_after, so without skipping it every loop would end on it and no
+        # other Dag in its batch would get a run. Kept until the scheduler restarts: the cause is deadline
+        # reference code in a plugin, and fixing that needs a restart anyway. Per scheduler
+        # process, so in HA each scheduler hits the failing Dag once before skipping it.
+        self._dag_ids_stopped_by_deadline_alerts: set[str] = set()
         self._dag_id_to_team_name: dict[str, str | None] = {}
 
         self.executors: list[BaseExecutor] = executors if executors else ExecutorLoader.init_executors()
@@ -2877,7 +2889,23 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
             if self._scheduler_use_job_schedule:
-                self._create_dagruns_for_dags(guard, session)
+                try:
+                    self._create_dagruns_for_dags(guard, session)
+                except DagRunDiscardedError as e:
+                    # Rolling back below discards every Dag run created so far in this loop and releases the
+                    # DagModel row locks, so creating more could race another scheduler; stop here. The other
+                    # Dags' runs are created again next loop.
+                    self._dag_ids_stopped_by_deadline_alerts.add(e.dag_id)
+                    self.log.exception(
+                        "A deadline alert broke the scheduler's session; no more Dag runs are "
+                        "created for the Dag until the scheduler restarts",
+                        dag_id=e.dag_id,
+                        run_id=e.run_id,
+                        dag_version_id=e.dag_version_id,
+                        deadline_alert_id=e.deadline_alert_id,
+                    )
+                    stats.incr("deadline_alerts.dag_run_creation_stopped", tags={"dag_id": e.dag_id})
+                    session.rollback()
 
             self._start_queued_dagruns(session)
             guard.commit()
@@ -3105,7 +3133,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return None
         return anchors.pop()
 
-    def _create_dagruns_for_partitioned_asset_dags(self, session: Session) -> set[str]:
+    def _create_dagruns_for_partitioned_asset_dags(
+        self, session: Session, *, exclude_dag_ids: Collection[str] = ()
+    ) -> set[str]:
         """
         Create Dag runs for pending :class:`AssetPartitionDagRun` rows whose partition is satisfied.
 
@@ -3153,13 +3183,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # loses. The `id` tiebreaker on `order_by` keeps LIMIT deterministic when
         # two APDRs share a `created_at` under bulk asset-event ingestion.
         # SQLite is single-writer and silently drops `FOR UPDATE`, which is fine.
+        pending_apdrs_query = (
+            select(AssetPartitionDagRun)
+            .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
+            .where(*_build_pending_partitioned_apdr_filters())
+            .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
+            .limit(self._max_partition_dag_runs_per_loop)
+        )
+        if exclude_dag_ids:
+            pending_apdrs_query = pending_apdrs_query.where(
+                AssetPartitionDagRun.target_dag_id.not_in(exclude_dag_ids)
+            )
         pending_apdrs = session.scalars(
             with_row_locks(
-                select(AssetPartitionDagRun)
-                .join(DagModel, DagModel.dag_id == AssetPartitionDagRun.target_dag_id)
-                .where(*_build_pending_partitioned_apdr_filters())
-                .order_by(AssetPartitionDagRun.created_at, AssetPartitionDagRun.id)
-                .limit(self._max_partition_dag_runs_per_loop),
+                pending_apdrs_query,
                 of=AssetPartitionDagRun,
                 skip_locked=True,
                 key_share=False,
@@ -3347,9 +3384,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError."""
-        partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(session)
+        # Excluded in the queries rather than skipped afterwards, so they don't use up the per-loop limits.
+        excluded_dag_ids = self._dag_ids_stopped_by_deadline_alerts
+        partition_dag_ids: set[str] = self._create_dagruns_for_partitioned_asset_dags(
+            session, exclude_dag_ids=excluded_dag_ids
+        )
 
-        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(session)
+        query, triggered_date_by_dag = DagModel.dags_needing_dagruns(
+            session, exclude_dag_ids=excluded_dag_ids
+        )
         all_dags_needing_dag_runs = set(query.all())
         asset_triggered_dags = [d for d in all_dags_needing_dag_runs if d.dag_id in triggered_date_by_dag]
         non_asset_dags = {
@@ -3544,6 +3587,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         session=session,
                     )
 
+            except DagRunDiscardedError:
+                raise
             # Exceptions like ValueError, ParamValidationError, etc. are raised by
             # DagModel.create_dagrun() when dag is misconfigured. The scheduler should not
             # crash due to misconfigured dags. We should log any exception encountered

@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import functools
 import itertools
@@ -28,14 +29,18 @@ from typing import TYPE_CHECKING, Literal, TypedDict, cast, overload
 
 import attrs
 import structlog
-from sqlalchemy import func, or_, select, tuple_
+from sqlalchemy import event, func, or_, select, tuple_
+from sqlalchemy.exc import DBAPIError
+from sqlalchemy.pool import SingletonThreadPool, StaticPool
 
+from airflow import settings
 from airflow._shared.observability.metrics import stats
 from airflow._shared.timezones.timezone import coerce_datetime
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import (
     AirflowException,
     DagNotPartitionedError,
+    DagRunDiscardedError,
     DagVersionNotFound,
     DeserializationError,
     InvalidPartitionKeyError,
@@ -68,13 +73,14 @@ from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
     import datetime
-    from collections.abc import Collection, Iterable, Sequence
+    from collections.abc import Collection, Iterable, Iterator, Sequence
     from typing import Any, Literal
     from uuid import UUID
 
     from pendulum.tz.timezone import FixedTimezone, Timezone
     from pydantic import NonNegativeInt
-    from sqlalchemy.orm import Session
+    from sqlalchemy.engine import Connection, Engine
+    from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
     from typing_extensions import TypeIs
 
     from airflow.models.taskinstance import TaskInstance
@@ -90,6 +96,81 @@ _DAGRUN_REFERENCE_REQUIRED_COLUMNS = {
     SerializedReferenceModels.DagRunLogicalDateDeadline: "logical_date",
     SerializedReferenceModels.DagRunQueuedAtDeadline: "queued_at",
 }
+
+
+@attrs.define(frozen=True)
+class _DagRunSnapshot:
+    """The fields of ``DeadlineDagRunProtocol``, read off the pending Dag run."""
+
+    dag_id: str
+    logical_date: datetime.datetime | None
+    queued_at: datetime.datetime | None
+
+
+_READ_ONLY_TRANSACTION_STATEMENTS = {
+    "postgresql": "SET TRANSACTION READ ONLY",
+    "mysql": "SET TRANSACTION READ ONLY",
+}
+
+
+@contextlib.contextmanager
+def _create_sqlite_alert_session(engine: Engine, session_maker: sessionmaker[Session]) -> Iterator[Session]:
+    # query_only belongs to the connection, not the transaction. Detached from the pool, the connection
+    # is closed after the alerts instead of going back to the pool read-only. An alert that closes it
+    # itself makes the later alerts of the Dag run fail, and they are skipped.
+    with engine.connect() as connection:
+        connection.detach()
+        connection.exec_driver_sql("PRAGMA query_only = ON")
+        with session_maker(bind=connection) as alert_session:
+            yield alert_session
+
+
+# SQLSTATE in_failed_sql_transaction: PostgreSQL rejects every statement after one failed in the transaction.
+_IN_FAILED_SQL_TRANSACTION = "25P02"
+
+
+def _is_in_failed_sql_transaction(error: DBAPIError) -> bool:
+    """Whether ``error`` reports a PostgreSQL transaction aborted by an earlier failed statement."""
+    # psycopg2 names the code ``pgcode``, psycopg 3 ``sqlstate``.
+    return _IN_FAILED_SQL_TRANSACTION in (
+        getattr(error.orig, "pgcode", None),
+        getattr(error.orig, "sqlstate", None),
+    )
+
+
+@contextlib.contextmanager
+def _create_alert_session(*, session: Session) -> Iterator[Session]:
+    """
+    Yield the session deadline alerts are evaluated on, separate from the caller's ``session``.
+
+    A ``rollback()`` on the scheduler's session would discard the pending Dag run and every other Dag run
+    created in the same tick. This one is never committed and is read-only: a write or row lock would
+    otherwise wait on a lock the scheduler's own transaction holds, and the scheduler waits on the alert.
+    With a single-connection pool (in-memory SQLite) it is the caller's own ``session`` instead.
+    """
+    engine, session_maker = settings.engine, settings.NonScopedSession
+    if engine is None or session_maker is None:
+        raise RuntimeError("Session must be set before!")
+    if isinstance(engine.pool, (SingletonThreadPool, StaticPool)):
+        # Every session in the thread shares the caller's one connection, so a separate session would end
+        # the caller's transaction.
+        yield session
+        return
+    if engine.dialect.name == "sqlite":
+        with _create_sqlite_alert_session(engine, session_maker) as alert_session:
+            yield alert_session
+        return
+    with session_maker() as alert_session:
+        if read_only_statement := _READ_ONLY_TRANSACTION_STATEMENTS.get(engine.dialect.name):
+
+            def set_transaction_read_only(
+                session: Session, transaction: SessionTransaction, connection: Connection
+            ) -> None:
+                connection.exec_driver_sql(read_only_statement)
+
+            # Per transaction: a rollback() inside the alert starts a new one.
+            event.listen(alert_session, "after_begin", set_transaction_read_only)
+        yield alert_session
 
 
 # TODO (GH-52141): Share definition with SDK?
@@ -798,38 +879,92 @@ class SerializedDAG:
         run_id = orm_dagrun.run_id
         dagrun_id = orm_dagrun.id
         dagrun_dag_id = orm_dagrun.dag_id
+        dag_version_id = orm_dagrun.created_dag_version_id
         bundle_name = orm_dagrun.dag_model.bundle_name
+        dagrun_snapshot = _DagRunSnapshot(
+            dag_id=dagrun_dag_id,
+            logical_date=orm_dagrun.logical_date,
+            queued_at=orm_dagrun.queued_at,
+        )
         stored_alerts = [
             (alert.id, alert.name, alert.reference, alert.interval, alert.callback_def)
             for alert in deadline_alert_records
             if alert
         ]
 
-        for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
-            # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest or abort the DagRun.
-            try:
-                deserialized_deadline_alert = decode_deadline_alert(
-                    {
-                        DeadlineAlertFields.NAME: alert_name,
-                        DeadlineAlertFields.REFERENCE: alert_reference,
-                        DeadlineAlertFields.INTERVAL: alert_interval,
-                        DeadlineAlertFields.CALLBACK: alert_callback_def,
-                    }
-                )
-                interval = resolve_deadline_alert_interval(deserialized_deadline_alert, session=session)
+        def build_discarded_error(alert_id: UUID) -> DagRunDiscardedError:
+            return DagRunDiscardedError(
+                f"Dag run {run_id} of Dag {self.dag_id} was discarded by deadline alert {alert_id}: its "
+                "deadline reference rolled back, committed or broke the transaction the Dag run was created in",
+                dag_id=dagrun_dag_id,
+                run_id=run_id,
+                dag_version_id=dag_version_id,
+                deadline_alert_id=alert_id,
+            )
 
-                if isinstance(deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN):
-                    deadline_time = deserialized_deadline_alert.reference.evaluate_with(
-                        session=session,
-                        interval=interval,
-                        dagrun=orm_dagrun,
-                        dag_id=self.dag_id,
-                        run_id=run_id,
+        def is_dagrun_discarded() -> bool:
+            if not session.is_active:
+                # A failed flush left the caller's transaction to be rolled back, with the Dag run in it.
+                return True
+            # Checked on the row rather than on the session: a rollback by the database itself (e.g. a
+            # MySQL deadlock) leaves the Dag run in the session, while a commit and close() outside the
+            # scheduler's commit guard (e.g. ``dag.test``) detaches it but keeps its row.
+            try:
+                # Without autoflush, so a pending Deadline is not written against a row that may be gone.
+                with session.no_autoflush:
+                    return session.scalar(select(DagRun.id).where(DagRun.id == dagrun_id)) is None
+            except DBAPIError as error:
+                # A failed statement aborts the caller's PostgreSQL transaction. Any other error, such as
+                # a dropped connection, is not caused by the alert and propagates as before.
+                if _is_in_failed_sql_transaction(error):
+                    return True
+                raise
+
+        created_deadlines = 0
+
+        with contextlib.ExitStack() as exit_stack:
+            try:
+                alert_session = exit_stack.enter_context(_create_alert_session(session=session))
+            except Exception:
+                log.exception(
+                    "skipping deadline alerts because their session could not be opened",
+                    dag_id=self.dag_id,
+                    run_id=run_id,
+                )
+                stats.incr(
+                    "deadline_alerts.deadline_creation_failed", count=len(stored_alerts), tags=metrics_tags
+                )
+                return
+            for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:
+                new_deadline: Deadline | None = None
+                # Deadline creation is best-effort. Catch per alert so one bad alert cannot starve the rest
+                # or abort the Dag run.
+                try:
+                    deserialized_deadline_alert = decode_deadline_alert(
+                        {
+                            DeadlineAlertFields.NAME: alert_name,
+                            DeadlineAlertFields.REFERENCE: alert_reference,
+                            DeadlineAlertFields.INTERVAL: alert_interval,
+                            DeadlineAlertFields.CALLBACK: alert_callback_def,
+                        }
+                    )
+                    interval = resolve_deadline_alert_interval(
+                        deserialized_deadline_alert, session=alert_session
                     )
 
-                    if deadline_time is not None:
-                        session.add(
-                            Deadline(
+                    if isinstance(
+                        deserialized_deadline_alert.reference, SerializedReferenceModels.TYPES.DAGRUN
+                    ):
+                        deadline_time = deserialized_deadline_alert.reference.evaluate_with(
+                            session=alert_session,
+                            interval=interval,
+                            dagrun=dagrun_snapshot,
+                            dag_id=self.dag_id,
+                            run_id=run_id,
+                        )
+
+                        if deadline_time is not None:
+                            new_deadline = Deadline(
                                 deadline_time=deadline_time,
                                 callback=deserialized_deadline_alert.callback,
                                 dagrun_id=dagrun_id,
@@ -837,31 +972,53 @@ class SerializedDAG:
                                 dag_id=dagrun_dag_id,
                                 bundle_name=bundle_name,
                             )
-                        )
-                        stats.incr("deadline_alerts.deadline_created", tags=metrics_tags)
-                    elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
-                        type(deserialized_deadline_alert.reference)
-                    ):
-                        log.warning(
-                            "skipping deadline alert because the deadline reference evaluated to None",
-                            dag_id=self.dag_id,
-                            run_id=run_id,
-                            deadline_alert_id=alert_id,
-                            reference_type=deserialized_deadline_alert.reference.reference_name,
-                            required_dagrun_column=required_dagrun_column,
-                        )
-            except Exception as exc:
-                if isinstance(exc, RuntimeError) and PROHIBIT_COMMIT_ERROR_MESSAGE in str(exc):
-                    # A rejected commit means the scheduler's HA locking is already broken. Recording
-                    # that as a skipped alert would hide it, so let it escape instead.
-                    raise
-                log.exception(
-                    "skipping deadline alert because creating its deadline failed",
-                    dag_id=self.dag_id,
-                    run_id=run_id,
-                    deadline_alert_id=alert_id,
-                )
-                stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
+                        elif required_dagrun_column := _DAGRUN_REFERENCE_REQUIRED_COLUMNS.get(
+                            type(deserialized_deadline_alert.reference)
+                        ):
+                            log.warning(
+                                "skipping deadline alert because the deadline reference evaluated to None",
+                                dag_id=self.dag_id,
+                                run_id=run_id,
+                                deadline_alert_id=alert_id,
+                                reference_type=deserialized_deadline_alert.reference.reference_name,
+                                required_dagrun_column=required_dagrun_column,
+                            )
+                except Exception as exc:
+                    # On PostgreSQL a failed statement aborts the transaction, failing every later alert.
+                    if alert_session is not session:
+                        alert_session.rollback()
+                    # A commit the scheduler's guard rejected may leave the transaction intact, but the
+                    # reference misuses the scheduler's session just as a rollback does, and is handled the
+                    # same way rather than escaping into the scheduler loop.
+                    dagrun_discarded = (
+                        type(exc) is RuntimeError and str(exc) == PROHIBIT_COMMIT_ERROR_MESSAGE
+                    ) or is_dagrun_discarded()
+                    stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
+                    if dagrun_discarded:
+                        # Not logged here: the scheduler logs it once, with this traceback chained.
+                        raise build_discarded_error(alert_id) from exc
+                    log.exception(
+                        "skipping deadline alert because creating its deadline failed",
+                        dag_id=self.dag_id,
+                        run_id=run_id,
+                        deadline_alert_id=alert_id,
+                    )
+                    continue
+
+                # Alerts get their own session, but one that reaches for the scheduler's session
+                # (provide_session, settings.Session) can still roll it back, discarding the pending
+                # Dag run. Carrying on would add Deadlines that violate the dagrun_id foreign key, and
+                # returning normally would let the caller treat the missing run as created.
+                if is_dagrun_discarded():
+                    stats.incr("deadline_alerts.deadline_creation_failed", tags=metrics_tags)
+                    raise build_discarded_error(alert_id)
+                if new_deadline is not None:
+                    session.add(new_deadline)
+                    created_deadlines += 1
+
+        # Counted once every alert has run: a later alert can still discard the Dag run and its Deadlines.
+        if created_deadlines:
+            stats.incr("deadline_alerts.deadline_created", count=created_deadlines, tags=metrics_tags)
 
     @provide_session
     def set_task_instance_state(

@@ -596,7 +596,28 @@ followed by a more urgent escalation if the Dag is still running.
   of an ``AirflowPlugin``, so the plugins directory is the natural home for them.
 * **API Server Restart**: Restart the Airflow API Server after adding or modifying custom references.
 * **Dag run context**: Add a ``dagrun`` parameter to ``_evaluate_with()`` to use the Dag run being evaluated.
+  Only ``dag_id``, ``logical_date`` and ``queued_at`` are guaranteed to be available.
 * **Required Parameters** *(deprecated)*: ``required_kwargs`` declares which parameters your reference
   needs. It still works but is deprecated and will be removed in Airflow 4.0 — declare the keyword-only
   parameters your ``_evaluate_with()`` needs instead.
-* **Database Access**: Use the ``session`` parameter for Airflow database queries if needed.
+* **Database Access**: Use the ``session`` parameter for read-only Airflow database queries if needed.
+  When a Dag run is created, the session is separate from the scheduler's own, shared by the Dag run's
+  deadline alerts, and discarded once they are evaluated. It is read-only on PostgreSQL, MySQL and
+  SQLite, so writing through it, or on PostgreSQL and MySQL locking rows (``SELECT ... FOR UPDATE``),
+  raises an error and the alert is skipped. Do not do either: the scheduler holds locks on the Dag's rows
+  while it creates the Dag run, so a write or a row lock would wait for the scheduler, which in turn
+  waits for your reference. The session uses a second connection from the database connection pool, so
+  size the pool for it. With an in-memory SQLite database, which has a single connection, the session is
+  the scheduler's own and is not read-only.
+
+  Do not open another session either (for example with ``provide_session`` or ``create_session``),
+  because that returns the scheduler's session. Rolling it back, committing it (which the scheduler
+  rejects), a flush that fails on it, or on PostgreSQL any statement that fails on it discards the Dag run
+  being created, and the scheduler then stops creating Dag runs for that Dag until it restarts. Fix the
+  reference, then restart the scheduler.
+
+  When task instances are cleared, references anchored to the time the Dag run was queued are
+  re-evaluated on the session of the clearing request, with the full Dag run. That session is not isolated,
+  so the same rules apply: a ``commit()`` on it writes the clear's pending changes early, and a
+  ``rollback()`` discards the changes made so far while the rest of the clear is still applied, leaving
+  the clear half done.

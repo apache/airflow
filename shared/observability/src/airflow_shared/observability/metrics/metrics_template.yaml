@@ -440,6 +440,14 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "deadline_alerts.dag_run_creation_stopped"
+    description: "Number of times a scheduler stopped creating Dag runs for a Dag, until it restarts, because
+    a deadline alert rolled back, committed or broke its session. Counted once per Dag per scheduler process.
+    Metric with dag_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "deadline_alerts.deadline_missed"
     description: "Number of deadline alerts that fired because a Dag run missed its deadline"
     type: "counter"

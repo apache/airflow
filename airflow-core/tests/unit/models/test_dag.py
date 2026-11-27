@@ -3313,6 +3313,23 @@ class TestDagModel:
         session.rollback()
         session.close()
 
+    def test_dags_needing_dagruns_leaves_out_excluded_dags(self, session, testing_dag_bundle):
+        for dag_id in ("excluded_dag", "included_dag"):
+            session.add(
+                DagModel(
+                    dag_id=dag_id,
+                    bundle_name="testing",
+                    next_dagrun=DEFAULT_DATE,
+                    next_dagrun_create_after=DEFAULT_DATE,
+                    is_stale=False,
+                )
+            )
+        session.flush()
+
+        query, _ = DagModel.dags_needing_dagruns(session, exclude_dag_ids={"excluded_dag"})
+
+        assert [d.dag_id for d in query.all()] == ["included_dag"]
+
     def test_dags_needing_dagruns_doesnot_send_dagmodel_with_import_errors(self, session, testing_dag_bundle):
         """
         We check that has_import_error is false for dags

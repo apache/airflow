@@ -25,6 +25,8 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, NamedTuple
 
 if TYPE_CHECKING:
+    from uuid import UUID
+
     from airflow.models import DagRun
 
 # Re exporting AirflowConfigException from shared configuration
@@ -156,6 +158,25 @@ class InvalidPartitionKeyError(ValueError):
     1. empty or exceeds the maximum allowed length
     2. cannot be decoded to a partition_date by the timetable
     """
+
+
+class DagRunDiscardedError(RuntimeError):
+    """Raise when a deadline alert rolled back, committed or broke the transaction creating a Dag run."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        dag_id: str,
+        run_id: str,
+        dag_version_id: UUID | None,
+        deadline_alert_id: UUID,
+    ) -> None:
+        super().__init__(message)
+        self.dag_id = dag_id
+        self.run_id = run_id
+        self.dag_version_id = dag_version_id
+        self.deadline_alert_id = deadline_alert_id
 
 
 class DagRunAlreadyExists(AirflowBadRequest):
