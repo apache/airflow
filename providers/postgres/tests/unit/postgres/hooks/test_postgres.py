@@ -1297,6 +1297,7 @@ class TestPostgresHookPPG3(_BasePostgresHookRuntimeTests):
         mock_copy.__enter__ = mocker.Mock(return_value=mock_copy)
         mock_copy.__exit__ = mocker.Mock(return_value=None)
         mock_cursor.copy.return_value = mock_copy
+        mock_cursor.pgresult.status = psycopg.pq.ExecStatus.COPY_IN
 
         # Call the method under test
         self.db_hook.copy_expert(statement, filename)
@@ -1333,6 +1334,7 @@ class TestPostgresHookPPG3(_BasePostgresHookRuntimeTests):
         mock_copy.__exit__ = mocker.Mock(return_value=None)
         mock_copy.__iter__ = mocker.Mock(return_value=iter([b"db_data_1", b"db_data_2"]))
         mock_cursor.copy.return_value = mock_copy
+        mock_cursor.pgresult.status = psycopg.pq.ExecStatus.COPY_OUT
 
         # Call the method under test
         self.db_hook.copy_expert(statement, filename)
@@ -1349,6 +1351,31 @@ class TestPostgresHookPPG3(_BasePostgresHookRuntimeTests):
             ]
         )
         self.conn.commit.assert_called_once()
+
+    @pytest.mark.parametrize(
+        "statement",
+        ["COPY {table}\nFROM STDIN", "COPY {table}\tFROM STDIN", "COPY {table} FROM  STDIN"],
+        ids=["newline-before-from", "tab-before-from", "two-spaces-before-stdin"],
+    )
+    def test_copy_expert_from_stdin_keeps_input_file(self, statement, tmp_path):
+        hook = PostgresHook()
+        with hook.get_conn() as conn, conn.cursor() as cur:
+            cur.execute(f"CREATE TABLE {self.table} (c VARCHAR)")
+            conn.commit()
+        path = tmp_path / "testfile"
+        path.write_text("foo\nbar\n")
+
+        hook.copy_expert(statement.format(table=self.table), os.fspath(path))
+
+        assert path.read_text() == "foo\nbar\n"
+        assert hook.get_records(f"SELECT c FROM {self.table} ORDER BY c") == [("bar",), ("foo",)]
+
+    def test_copy_expert_to_stdout_with_from_stdin_in_statement(self, tmp_path):
+        path = tmp_path / "testfile"
+
+        PostgresHook().copy_expert("COPY (SELECT 'read from stdin') TO STDOUT", os.fspath(path))
+
+        assert path.read_text() == "read from stdin\n"
 
     @pytest.mark.usefixtures("reset_logging_config")
     def test_log_db_messages_by_db_proc(self, mocker):

@@ -49,6 +49,7 @@ except (ImportError, ModuleNotFoundError):
     USE_PSYCOPG3 = False
 
 if USE_PSYCOPG3:
+    from psycopg.pq import ExecStatus
     from psycopg.rows import dict_row, namedtuple_row
     from psycopg.types.json import register_default_adapters
 
@@ -402,26 +403,27 @@ class PostgresHook(DbApiHook):
         """
         self.log.info("Running copy expert: %s, filename: %s", sql, filename)
         if USE_PSYCOPG3:
-            if " from stdin" in sql.lower():
-                # Handle COPY FROM STDIN: read from the file and write to the database.
-                if not os.path.isfile(filename):
-                    with open(filename, "w"):
-                        pass  # Create an empty file to prevent errors.
+            with self.get_conn() as conn, conn.cursor() as cur:
+                with cur.copy(sql) as copy:
+                    # The file is the COPY source or its destination, and opening a source for
+                    # writing empties it. Take the direction from the server's reply rather than
+                    # from the SQL text, which can put any whitespace, comment or string literal
+                    # around "FROM STDIN".
+                    result = cur.pgresult
+                    if result is not None and result.status == ExecStatus.COPY_OUT:
+                        with open(filename, "wb") as file:
+                            for data in copy:
+                                file.write(data)
+                    else:
+                        if not os.path.isfile(filename):
+                            with open(filename, "w"):
+                                pass  # Create an empty file to prevent errors.
 
-                with open(filename, "rb") as file, self.get_conn() as conn, conn.cursor() as cur:
-                    with cur.copy(sql) as copy:
-                        while data := file.read(8192):
-                            copy.write(data)
-                    conn.commit()
-                    send_sql_hook_lineage(context=self, sql=sql, sql_parameters=(filename,), cur=cur)
-            else:
-                # Handle COPY TO STDOUT: read from the database and write to the file.
-                with open(filename, "wb") as file, self.get_conn() as conn, conn.cursor() as cur:
-                    with cur.copy(sql) as copy:
-                        for data in copy:
-                            file.write(data)
-                    conn.commit()
-                    send_sql_hook_lineage(context=self, sql=sql, sql_parameters=(filename,), cur=cur)
+                        with open(filename, "rb") as file:
+                            while data := file.read(8192):
+                                copy.write(data)
+                conn.commit()
+                send_sql_hook_lineage(context=self, sql=sql, sql_parameters=(filename,), cur=cur)
         else:
             if not os.path.isfile(filename):
                 with open(filename, "w"):
