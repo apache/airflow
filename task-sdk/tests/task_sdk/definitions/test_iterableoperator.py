@@ -1219,6 +1219,32 @@ class TestIterableOperator:
         assert materialized == [(1, None, None)]
         assert store.checkpoint(0)["status"] == "success"
 
+    @pytest.mark.parametrize(
+        "checkpoint",
+        [
+            pytest.param({"fingerprint": fingerprint_of({"arg1": 1})}, id="missing-status"),
+            pytest.param(
+                {"status": "not-a-state", "fingerprint": fingerprint_of({"arg1": 1})}, id="unknown-status"
+            ),
+        ],
+    )
+    def test_a_checkpoint_with_an_unreadable_status_is_run_again(self, checkpoint):
+        """A checkpoint whose status is missing or unknown is refused as one serde cannot restore: the indexed task runs again."""
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(
+                dag, ListOfDictsExpandInput([{"arg1": 1}]), task_id="checkpoint_status_refused"
+            )
+
+            with mock_context(task=iterable_op) as context:
+                context["ti"].try_number = 2
+                store = context["task_state_store"]
+                store.seed_checkpoint(0, checkpoint)
+
+                materialized = list(iterable_op.execute(context=context))
+
+        assert materialized == [(1, None, None)]
+        assert store.checkpoint(0)["status"] == "success"
+
     def test_a_failed_replay_fails_only_its_indexed_task_and_the_next_retry_replays_it(self):
         """
         Pushing a SUCCESS checkpoint's result again can fail: the indexed task fails this attempt, its
