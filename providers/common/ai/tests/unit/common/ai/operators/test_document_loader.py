@@ -19,6 +19,9 @@ from __future__ import annotations
 import io
 import json
 import logging
+import struct
+import zipfile
+import zlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -321,6 +324,51 @@ def _load_docx_text(raw: bytes) -> str:
     op = DocumentLoaderOperator(task_id="test", source_bytes=raw, file_type=".docx")
     (document,) = op.execute(context=MagicMock())
     return document["text"]
+
+
+def _rewrite_docx_parts(
+    raw: bytes, *, replace: dict[str, bytes] | None = None, add: dict[str, bytes] | None = None
+) -> bytes:
+    """Copy a DOCX zip, replacing the content of some parts and adding new ones."""
+    replace = replace or {}
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(raw)) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info in src.infolist():
+            dst.writestr(info.filename, replace.get(info.filename, src.read(info.filename)))
+        for name, data in (add or {}).items():
+            dst.writestr(name, data)
+    return out.getvalue()
+
+
+def _edit_docx_part(raw: bytes, name: str, old: bytes, new: bytes) -> bytes:
+    with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+        data = zf.read(name)
+    assert old in data
+    return _rewrite_docx_parts(raw, replace={name: data.replace(old, new, 1)})
+
+
+def _set_declared_size(raw: bytes, name: str, *, file_size: int, crc: int) -> bytes:
+    """Overwrite the uncompressed size and CRC that the central directory declares for one part."""
+    buf = bytearray(raw)
+    (pos,) = struct.unpack_from("<I", buf, len(buf) - 22 + 16)  # central directory offset in the end record
+    while buf[pos : pos + 4] == b"PK\x01\x02":
+        name_len, extra_len, comment_len = struct.unpack_from("<HHH", buf, pos + 28)
+        if buf[pos + 46 : pos + 46 + name_len] == name.encode():
+            struct.pack_into("<I", buf, pos + 16, crc)
+            struct.pack_into("<I", buf, pos + 24, file_size)
+            return bytes(buf)
+        pos += 46 + name_len + extra_len + comment_len
+    raise KeyError(name)
+
+
+_CONTENT_TYPES = "[Content_Types].xml"
+_RELS_DEFAULT = (
+    b'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+)
+_HEADER_OVERRIDE = (
+    b'<Override PartName="/word/media/a.png" '
+    b'ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>'
+)
 
 
 class TestPdfParser:
@@ -758,6 +806,77 @@ class TestDocxParser:
         _fill_docx_table(table.cell(0, 0).add_table(rows=2, cols=2), [["n1", "n2"], ["n3", "n4"]])
 
         assert _load_docx_text(_get_docx_bytes(doc)) == "| Outer n1 / n2; n3 / n4 | Right |"
+
+    # The python-docx template already hold about 820 KB of XML, so the limits sit above of it
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_MAX_XML_BYTES", 1_000_000)
+    @patch("airflow.providers.common.ai.operators.document_loader._DOCX_MAX_UNCOMPRESSED_BYTES", 2_000_000)
+    @pytest.mark.parametrize(
+        ("build", "match"),
+        [
+            pytest.param(
+                lambda raw: _edit_docx_part(
+                    raw, "word/document.xml", b"<w:body>", b"<w:body>" + b"<w:p/>" * 50_000
+                ),
+                "XML parts total",
+                id="xml-parts-over-limit-together",
+            ),
+            pytest.param(
+                lambda raw: _rewrite_docx_parts(
+                    _edit_docx_part(raw, _CONTENT_TYPES, b"</Types>", _HEADER_OVERRIDE + b"</Types>"),
+                    add={"word/media/a.png": b" " * 300_000},
+                ),
+                "XML parts total",
+                id="xml-content-type-under-image-name",
+            ),
+            pytest.param(
+                lambda raw: _rewrite_docx_parts(
+                    _edit_docx_part(raw, _CONTENT_TYPES, _RELS_DEFAULT, b""),
+                    add={"word/_rels/padding.xml.rels": b" " * 300_000},
+                ),
+                "XML parts total",
+                id="rels-part-without-content-type",
+            ),
+            pytest.param(
+                lambda raw: _edit_docx_part(raw, _CONTENT_TYPES, b"</Types>", b"</Types>" + b"x" * 1_100_000),
+                "XML parts total",
+                id="content-types-over-limit-not-parsed",
+            ),
+            pytest.param(
+                lambda raw: _rewrite_docx_parts(raw, add={"word/media/padding.bin": bytes(1_300_000)}),
+                "parts total",
+                id="all-parts-over-limit",
+            ),
+        ],
+    )
+    def test_docx_over_uncompressed_size_limit_raises(self, build, match):
+        raw = build(_get_docx_bytes(_create_docx()))
+
+        with pytest.raises(ValueError, match=match):
+            _load_docx_text(raw)
+
+    @pytest.mark.parametrize(
+        ("crc_bytes", "error", "match"),
+        [
+            pytest.param(0, zipfile.BadZipFile, "Bad CRC-32", id="crc-matches-declared-size"),
+            pytest.param(1, ValueError, "more data than its declared size", id="crc-matches-longer-data"),
+        ],
+    )
+    def test_docx_part_longer_than_declared_size_raises(self, crc_bytes, error, match):
+        doc = _create_docx()
+        doc.add_paragraph("Declared part")
+        raw = _get_docx_bytes(doc)
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            document_xml = zf.read("word/document.xml")
+        data = document_xml + bytes(1_000_000)
+        raw = _set_declared_size(
+            _rewrite_docx_parts(raw, replace={"word/document.xml": data}),
+            "word/document.xml",
+            file_size=len(document_xml),
+            crc=zlib.crc32(data[: len(document_xml) + crc_bytes]),
+        )
+
+        with pytest.raises(error, match=match):
+            _load_docx_text(raw)
 
 
 class TestFileDiscovery:

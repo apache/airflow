@@ -95,6 +95,14 @@ including any tables nested in it, would be longer than about 1,000,000
 characters. If a skipped table is nested inside a cell, only that table is left
 out.
 
+A ``.docx`` file is a zip archive, and its parts are checked before it is parsed.
+Loading fails with ``ValueError`` when its XML parts total more than 50 MB
+uncompressed, or all its parts more than 512 MB. Both limits are on the
+uncompressed size, which can be far larger or smaller than the ``.docx`` file
+itself; 50 MB of XML holds about 1.5 million characters in a file saved by Word.
+Loading also fails, with ``ValueError`` or ``zipfile.BadZipFile``, when a part
+holds more data than the zip archive declares for it.
+
 .. note::
 
    Only paragraphs and tables in the document body are read. Headers, footers,
