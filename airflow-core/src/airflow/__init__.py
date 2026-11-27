@@ -123,6 +123,10 @@ def __getattr__(name: str):
     return val
 
 
+def __dir__() -> list[str]:
+    return sorted({*globals(), *__lazy_imports})
+
+
 if not settings.LAZY_LOAD_PROVIDERS:
     from airflow.providers_manager import ProvidersManager
 

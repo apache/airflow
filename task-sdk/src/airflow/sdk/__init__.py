@@ -88,6 +88,7 @@ __all__ = [
     "RetryPolicy",
     "RetryRule",
     "RollupMapper",
+    "SecretCache",
     "SegmentWindow",
     "SkipMixin",
     "SyncCallback",
@@ -245,6 +246,7 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.variable import Variable
     from airflow.sdk.definitions.xcom_arg import XComArg
     from airflow.sdk.execution_time import macros
+    from airflow.sdk.execution_time.cache import SecretCache
     from airflow.sdk.execution_time.context import NEVER_EXPIRE
     from airflow.sdk.io.path import ObjectStoragePath
     from airflow.sdk.types import TaskInstance
@@ -377,3 +379,7 @@ def __getattr__(name: str):
     # Store for next time
     globals()[name] = val
     return val
+
+
+def __dir__() -> list[str]:
+    return sorted({*globals(), *__lazy_imports})
