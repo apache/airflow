@@ -344,7 +344,7 @@ def get_provider_info():
                         "default": "",
                     },
                     "task_publish_max_retries": {
-                        "description": "The Maximum number of retries for queuing the task to the kubernetes scheduler when\nfailing due to Kube API exceeded quota errors before giving up and marking task as failed.\n-1 for unlimited times.\n",
+                        "description": "The maximum number of times a task is requeued when creating its worker pod fails with a\ntransient Kubernetes API error, before giving up and marking the task as failed. Transient\nerrors are connection failures talking to the API server (for example a reset connection or\na timeout), 429 and 5xx responses, exceeded quota errors, and resource version conflicts.\nThe default of 0 fails the task on the first such error. -1 for unlimited times.\n",
                         "version_added": None,
                         "type": "integer",
                         "example": None,
