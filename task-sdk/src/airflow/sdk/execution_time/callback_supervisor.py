@@ -57,7 +57,7 @@ from airflow.sdk.execution_time.supervisor import (
     _ensure_client,
     _import_task_runner_before_fork,
     _make_process_nondumpable,
-    _task_process_uses_exec,
+    task_process_uses_exec,
 )
 
 if TYPE_CHECKING:
@@ -333,7 +333,7 @@ class CallbackSubprocess(WatchedSubprocess):
         **kwargs,
     ) -> Self:
         """Start an importable child and send callback inputs over the supervisor socket."""
-        use_exec = _task_process_uses_exec()
+        use_exec = task_process_uses_exec()
         if not use_exec:
             _import_task_runner_before_fork()
         proc = super().start(

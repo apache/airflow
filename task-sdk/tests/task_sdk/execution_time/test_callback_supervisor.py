@@ -578,7 +578,7 @@ class TestCallbackSubprocessStart:
             patch("airflow.sdk.execution_time.callback_supervisor.WatchedSubprocess.start") as mock_super,
             patch("airflow.sdk.execution_time.callback_supervisor.execute_callback") as mock_execute,
             patch(
-                "airflow.sdk.execution_time.callback_supervisor._task_process_uses_exec",
+                "airflow.sdk.execution_time.callback_supervisor.task_process_uses_exec",
                 return_value=False,
             ) as mock_uses_exec,
         ):
@@ -774,7 +774,7 @@ def test_callback_fresh_interpreter_end_to_end(captured_logs, monkeypatch):
     monkeypatch.setenv(
         "PYTHONPATH", os.pathsep.join(p for p in (tests_dir, os.environ.get("PYTHONPATH", "")) if p)
     )
-    monkeypatch.setattr(callback_supervisor, "_task_process_uses_exec", lambda: True)
+    monkeypatch.setattr(callback_supervisor, "task_process_uses_exec", lambda: True)
     monkeypatch.setattr(CallbackSubprocess, "_upload_logs", lambda self: None)
 
     proc = CallbackSubprocess.start(
