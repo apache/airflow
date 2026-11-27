@@ -262,3 +262,83 @@ in your private GitHub repo.
 
 You should take this a step further and set ``dags.gitSync.knownHosts``, so you are not susceptible to man-in-the-middle
 attacks. This process is documented in the :ref:`production guide <production-guide:knownhosts>`.
+
+Running a separate Dag processor per Dag bundle
+-----------------------------------------------
+
+Use ``dagProcessor.sets`` to run several Dag processors, for example one per Dag bundle,
+so each can have its own replicas, resources, node selectors or tolerations. Define all
+bundles once in ``dagProcessor.dagBundleConfigList`` and select the bundles a set parses with
+``bundleNames``. Each set inherits the ``dagProcessor`` settings and can override them, and
+creates its own Deployment (and PodDisruptionBudget when enabled) named
+``<release>-dag-processor-<set name>``. Set names must be unique, valid DNS-1123 labels and cannot be
+``default``; the chart fails to render otherwise.
+
+.. note::
+
+   When ``dagProcessor.sets`` is not empty, the default Dag processor is not created unless you set
+   ``dagProcessor.enableDefault: true`` explicitly. The default Dag processor parses **all** bundles
+   (unless ``bundleNames`` is set on it), so enabling it next to sets that select bundles makes those
+   bundles be parsed twice. Setting ``dagProcessor.enableDefault: false`` with no sets fails to render,
+   because no Dag processor would run; set ``dagProcessor.enabled: false`` instead.
+
+.. code-block:: yaml
+   :caption: values.yaml
+
+   dagProcessor:
+     dagBundleConfigList:
+       - name: bundle1
+         classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+         kwargs:
+           git_conn_id: "GITHUB__repo1"
+       - name: bundle2
+         classpath: "airflow.providers.git.bundles.git.GitDagBundle"
+         kwargs:
+           git_conn_id: "GITHUB__repo2"
+     sets:
+       - name: bundle1
+         bundleNames: ["bundle1"]
+         replicas: 3
+       - name: bundle2
+         bundleNames: ["bundle2"]
+
+The default ``dagProcessor.args`` passes the bundle selection as ``--bundle-name`` flags. Without
+``bundleNames`` a Dag processor parses all bundles. A set that does not set ``bundleNames``, or sets it to an
+empty list, inherits ``dagProcessor.bundleNames``. If you set custom ``command`` or ``args``, they are used
+as they are, so pass the flags yourself; the chart fails to render when ``bundleNames`` is set but
+``command`` and ``args`` do not contain a ``--bundle-name`` (or ``-B``) flag for each bundle.
+
+A set's values are merged over ``dagProcessor`` the same way as for ``workers.celery.sets``: most nested
+settings are merged, while lists and settings such as ``resources``, ``affinity`` or ``nodeSelector`` are
+replaced as a whole. ``strategy`` is also replaced as a whole, so a set can use ``strategy: {type: Recreate}``
+without inheriting ``rollingUpdate``.
+
+A bundle can be parsed by more than one Dag processor Deployment, for example while you move it from one set to
+another, or when the default Dag processor runs next to sets. It is then parsed by each of them, and
+``helm install`` and ``helm upgrade`` print a warning that names the bundle and the sets (``default`` for the
+default Dag processor). The warning is not shown by ``helm template``.
+
+A set that overrides ``serviceAccount`` gets that ServiceAccount created, and sets that use the same
+ServiceAccount name share one object, so their ``serviceAccount`` settings must match. With
+``rbac.createSCCRoleBinding`` the OpenShift SCC role binding includes the ServiceAccount of every Dag processor
+Deployment.
+
+A PodDisruptionBudget selects the Pods of a single Deployment. When the default Dag processor runs next to
+sets, its PodDisruptionBudget selects only its own Pods, so a set without a PodDisruptionBudget has none.
+
+Removing a Dag bundle
+^^^^^^^^^^^^^^^^^^^^^
+
+A Dag processor that parses only some bundles (``bundleNames`` is set) does not mark bundles that were removed
+from ``dagProcessor.dagBundleConfigList`` as inactive, because it cannot tell a removed bundle from one parsed
+by another Dag processor. When every Dag processor selects bundles, for example one set per bundle and no
+default Dag processor, the Dags of a removed bundle therefore stay active in the UI. After removing a bundle
+and its set, mark it inactive once with either of:
+
+* ``airflow dags reserialize --bundle-name <bundle>`` in the ``dag-processor`` container of a remaining set,
+  with a bundle that set parses. It first marks every bundle that is no longer configured as inactive,
+  then serializes the Dags of the given bundle again.
+* ``dagProcessor.enableDefault: true`` until the Dags of the removed bundle are no longer active, then back to
+  ``false``. The default Dag processor parses all bundles in the meantime.
+
+The scheduler then marks the Dags of the inactive bundle as stale, every ``scheduler.parsing_cleanup_interval``.

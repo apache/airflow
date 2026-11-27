@@ -150,3 +150,11 @@ https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#api-secr
 {{- if ne .Values.executor (tpl .Values.config.core.executor $) }}
    {{ fail "Please configure the executor with `executor`, not `config.core.executor`." }}
 {{- end }}
+
+{{- if .Values.dagProcessor.enabled }}
+{{- range $bundle, $dagProcessorNames := include "dagProcessor.bundleOverlaps" . | fromYaml }}
+
+WARNING:
+   Dag bundle {{ $bundle | quote }} is parsed by more than one Dag processor set ({{ join ", " $dagProcessorNames }}).
+{{- end }}
+{{- end }}

@@ -111,8 +111,16 @@ subjects:
     namespace: "{{ .Release.Namespace }}"
   {{- end }}
   {{- if .Values.dagProcessor.enabled }}
+    {{- $globals := deepCopy . }}
+    {{- $dagProcessorServiceAccounts := list }}
+    {{- range $dagProcessor := (include "dagProcessor.expandSets" . | fromYaml).dagProcessors }}
+      {{- $_ := set $globals.Values "dagProcessor" $dagProcessor }}
+      {{- $dagProcessorServiceAccounts = append $dagProcessorServiceAccounts (include "dagProcessor.serviceAccountName" $globals) }}
+    {{- end }}
+    {{- range $dagProcessorServiceAccounts | uniq }}
   - kind: ServiceAccount
-    name: {{ include "dagProcessor.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    name: {{ . }}
+    namespace: "{{ $.Release.Namespace }}"
+    {{- end }}
   {{- end }}
 {{- end }}
