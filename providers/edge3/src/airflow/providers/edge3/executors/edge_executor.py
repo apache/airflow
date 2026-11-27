@@ -26,7 +26,8 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
-from sqlalchemy import case, delete, literal, select
+from sqlalchemy import case, delete, exists, literal, select
+from sqlalchemy.exc import DBAPIError
 
 from airflow.executors import workloads
 from airflow.executors.base_executor import BaseExecutor
@@ -68,6 +69,9 @@ if TYPE_CHECKING:
     TaskTuple = tuple[TaskInstanceKey, CommandType, str | None, Any | None]
 
 
+# Session key for the job coordinates whose logs are removed after commit, once no job has them.
+_LOGS_RECHECK_KEY = "edge_logs_recheck"
+
 # _purge_jobs() reports on or deletes a job only while it is in one of these states.
 _PURGE_HANDLED_STATES = (
     TaskInstanceState.RUNNING,
@@ -77,6 +81,19 @@ _PURGE_HANDLED_STATES = (
     TaskInstanceState.RESTARTING,
     TaskInstanceState.UP_FOR_RETRY,
 )
+
+
+try:
+    from airflow.utils.sqlalchemy import is_deadlock_error
+except ImportError:  # missing from older supported Airflow versions
+
+    def is_deadlock_error(error: Exception) -> bool:
+        """Tell whether ``error`` is a database deadlock (Postgres 40P01, MySQL 1213)."""
+        orig = error.orig if isinstance(error, DBAPIError) else None
+        if orig is None:
+            return False
+        codes = (getattr(orig, "pgcode", None), getattr(orig, "sqlstate", None), *orig.args[:1])
+        return any(code in ("40P01", 1213) for code in codes)
 
 
 class EdgeExecutor(BaseExecutor):
@@ -415,16 +432,12 @@ class EdgeExecutor(BaseExecutor):
     def _delete_job(job: EdgeJobModel, session: Session) -> None:
         session.delete(job)
         session.flush()
-        session.execute(
-            delete(EdgeLogsModel)
-            .where(
-                EdgeLogsModel.dag_id == job.dag_id,
-                EdgeLogsModel.run_id == job.run_id,
-                EdgeLogsModel.task_id == job.task_id,
-                EdgeLogsModel.map_index == job.map_index,
-                EdgeLogsModel.try_number == job.try_number,
-                ~select(EdgeJobModel.dag_id)
-                .where(
+        # The sibling check is a separate plain SELECT: as a subquery of the DELETE it takes shared locks
+        # on edge_job rows, which collide with the rows another scheduler's purge has locked.
+        coordinates = (job.dag_id, job.run_id, job.task_id, job.map_index, job.try_number)
+        if session.scalar(
+            select(
+                exists().where(
                     EdgeJobModel.dag_id == job.dag_id,
                     EdgeJobModel.run_id == job.run_id,
                     EdgeJobModel.task_id == job.task_id,
@@ -432,20 +445,69 @@ class EdgeExecutor(BaseExecutor):
                     EdgeJobModel.try_number == job.try_number,
                     EdgeJobModel.task_instance_id != job.task_instance_id,
                 )
-                .exists(),
+            )
+        ):
+            # The sibling may be deleted by another scheduler whose delete this snapshot cannot see yet.
+            session.info.setdefault(_LOGS_RECHECK_KEY, set()).add(coordinates)
+            return
+        EdgeExecutor._delete_logs(coordinates, session)
+
+    @staticmethod
+    def _delete_logs(coordinates: tuple[str, str, str, int, int], session: Session) -> None:
+        dag_id, run_id, task_id, map_index, try_number = coordinates
+        session.execute(
+            delete(EdgeLogsModel)
+            .where(
+                EdgeLogsModel.dag_id == dag_id,
+                EdgeLogsModel.run_id == run_id,
+                EdgeLogsModel.task_id == task_id,
+                EdgeLogsModel.map_index == map_index,
+                EdgeLogsModel.try_number == try_number,
             )
             .execution_options(synchronize_session=False)
         )
+
+    @staticmethod
+    def _delete_unreferenced_logs(session: Session) -> None:
+        """Delete the logs of jobs that had a sibling when purged, once no job has their coordinates."""
+        pending = session.info.pop(_LOGS_RECHECK_KEY, set())
+        for coordinates in pending:
+            dag_id, run_id, task_id, map_index, try_number = coordinates
+            if not session.scalar(
+                select(
+                    exists().where(
+                        EdgeJobModel.dag_id == dag_id,
+                        EdgeJobModel.run_id == run_id,
+                        EdgeJobModel.task_id == task_id,
+                        EdgeJobModel.map_index == map_index,
+                        EdgeJobModel.try_number == try_number,
+                    )
+                )
+            ):
+                EdgeExecutor._delete_logs(coordinates, session)
+        if pending:
+            session.commit()
 
     @provide_session
     def sync(self, *, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
         with Stats.timer("edge_executor.sync.duration", tags=prune_dict({"team_name": self.team_name})):
-            orphaned = self._update_orphaned_jobs(session)
-            purged = self._purge_jobs(session)
-            liveness = self._check_worker_liveness(session)
-            if purged or liveness or orphaned:
-                session.commit()
+            try:
+                orphaned = self._update_orphaned_jobs(session)
+                purged = self._purge_jobs(session)
+                liveness = self._check_worker_liveness(session)
+                if purged or liveness or orphaned:
+                    session.commit()
+                    self._delete_unreferenced_logs(session)
+            except DBAPIError as e:
+                # Another scheduler can lock the same rows; the next heartbeat repeats the work.
+                if not is_deadlock_error(e):
+                    raise
+                session.rollback()
+                self.log.warning(
+                    "Deadlock while syncing edge jobs, retrying on the next heartbeat: %s", e.orig
+                )
+                self.log.debug("Deadlock details", exc_info=True)
 
     def end(self) -> None:
         """End the executor."""

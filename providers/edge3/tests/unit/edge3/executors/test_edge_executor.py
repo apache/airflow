@@ -27,6 +27,9 @@ from uuid import UUID, uuid4
 import pytest
 import time_machine
 from sqlalchemy import delete, event, select
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
+from sqlalchemy.sql.dml import Delete
 
 from airflow.executors.workloads import BundleInfo, ExecuteTask
 from airflow.jobs.job import Job
@@ -273,6 +276,33 @@ class TestEdgeExecutor:
             "edge_executor.sync.duration",
             tags=expected_tags,
         )
+
+    @pytest.mark.parametrize(
+        ("orig_args", "orig_attrs", "survives"),
+        [
+            pytest.param((1213, "Deadlock found when trying to get lock"), {}, True, id="mysql"),
+            pytest.param(("deadlock detected",), {"pgcode": "40P01"}, True, id="postgres"),
+            pytest.param((2013, "Lost connection to MySQL server"), {}, False, id="other-error"),
+        ],
+    )
+    @patch.object(EdgeExecutor, "_purge_jobs")
+    def test_sync_survives_only_deadlocks(self, mock_purge_jobs, orig_args, orig_attrs, survives):
+        """A deadlock while purging is rolled back and left for the next heartbeat; other errors raise."""
+        executor = EdgeExecutor()
+        orig = Exception(*orig_args)
+        for name, value in orig_attrs.items():
+            setattr(orig, name, value)
+        mock_purge_jobs.side_effect = OperationalError("DELETE FROM edge_logs", {}, orig)
+        session = MagicMock(spec=Session)
+
+        if survives:
+            executor.sync(session=session)
+            session.rollback.assert_called_once()
+        else:
+            with pytest.raises(OperationalError):
+                executor.sync(session=session)
+            session.rollback.assert_not_called()
+        session.commit.assert_not_called()
 
     @patch("airflow.providers.edge3.executors.edge_executor.EdgeExecutor.running_state")
     @patch("airflow.providers.edge3.executors.edge_executor.EdgeExecutor.success")
@@ -833,6 +863,99 @@ class TestEdgeExecutorMultiTeam:
             assert executor._purge_jobs(session)
             session.flush()
             assert session.scalars(select(EdgeJobModel)).all() == []
+            assert session.scalars(select(EdgeLogsModel)).all() == []
+
+    def test_deleting_job_keeps_edge_job_out_of_the_logs_delete(self):
+        """The edge_logs DELETE has no edge_job subquery: its shared locks deadlock concurrent purges."""
+        with create_session() as session:
+            session.execute(delete(EdgeLogsModel))
+            job = EdgeJobModel(
+                dag_id="dag",
+                task_id="task",
+                run_id="run",
+                map_index=-1,
+                try_number=1,
+                task_instance_id=str(UUID(int=1)),
+                state=TaskInstanceState.SUCCESS,
+                queue="default",
+                concurrency_slots=1,
+                command="mock",
+                last_update=timezone.utcnow() - timedelta(days=1),
+            )
+            session.add(job)
+            session.add(
+                EdgeLogsModel(
+                    dag_id="dag",
+                    task_id="task",
+                    run_id="run",
+                    map_index=-1,
+                    try_number=1,
+                    log_chunk_time=timezone.utcnow(),
+                    log_chunk_data="remove",
+                )
+            )
+            session.flush()
+            statements = []
+
+            def capture(execution):
+                statements.append(execution.statement)
+
+            event.listen(session, "do_orm_execute", capture)
+            try:
+                EdgeExecutor._delete_job(job, session)
+            finally:
+                event.remove(session, "do_orm_execute", capture)
+
+            logs_deletes = [
+                statement
+                for statement in statements
+                if isinstance(statement, Delete) and statement.table.name == EdgeLogsModel.__tablename__
+            ]
+            assert len(logs_deletes) == 1
+            assert EdgeJobModel.__tablename__ not in str(logs_deletes[0])
+            assert session.scalars(select(EdgeLogsModel)).all() == []
+            session.rollback()
+
+    def test_logs_of_job_with_sibling_are_deleted_after_the_sibling_is_gone(self):
+        """A sibling still visible when the job is purged defers the logs delete to a recheck."""
+        with create_session() as session:
+            session.execute(delete(EdgeLogsModel))
+            jobs = []
+            for identity in (UUID(int=1), UUID(int=2)):
+                job = EdgeJobModel(
+                    dag_id="dag",
+                    task_id="task",
+                    run_id="run",
+                    map_index=-1,
+                    try_number=1,
+                    task_instance_id=str(identity),
+                    state=TaskInstanceState.SUCCESS,
+                    queue="default",
+                    concurrency_slots=1,
+                    command="mock",
+                    last_update=timezone.utcnow() - timedelta(days=1),
+                )
+                session.add(job)
+                jobs.append(job)
+            session.add(
+                EdgeLogsModel(
+                    dag_id="dag",
+                    task_id="task",
+                    run_id="run",
+                    map_index=-1,
+                    try_number=1,
+                    log_chunk_time=timezone.utcnow(),
+                    log_chunk_data="remove",
+                )
+            )
+            session.flush()
+
+            EdgeExecutor._delete_job(jobs[0], session)
+            assert len(session.scalars(select(EdgeLogsModel)).all()) == 1
+
+            session.delete(jobs[1])
+            session.flush()
+            EdgeExecutor._delete_unreferenced_logs(session)
             assert session.scalars(select(EdgeLogsModel)).all() == []
 
 
