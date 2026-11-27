@@ -159,9 +159,13 @@ Where it differs from ``AgentSkillsToolset``:
   path without it is relative to the same directory.
 - The harness ignores the ``SKILL.md`` header fields that change behavior, such as ``model`` or
   ``allowed-tools``, and emits a warning for them on every run.
-- ``read_skill_resource`` reads any UTF-8 text file in the skill except the files the
-  ``exclude_resources`` patterns match. ``run_skill_script`` runs files in the skill's root or
-  its ``scripts`` directory.
+- ``read_skill_resource`` reads UTF-8 text files in the skill except the files the
+  ``exclude_resources`` patterns match. It returns text, except that ``.json``, ``.yaml`` and
+  ``.yml`` files are returned parsed (content that does not parse is returned as text), so the
+  model and the durable journal see the parsed value.
+- ``run_skill_script`` runs a file in the skill's root or its ``scripts`` directory if the
+  file has a ``.py``, ``.sh``, ``.bash`` or ``.zsh`` suffix or is executable. It refuses
+  ``SKILL.md`` and ``__init__.py``, and a script path that ``exclude_resources`` matches.
 - After the history is compacted, the model has to load a skill again before the tools accept it.
 
 Parameters
