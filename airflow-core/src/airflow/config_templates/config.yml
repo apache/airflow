@@ -554,6 +554,16 @@ core:
       type: integer
       example: ~
       default: "4096"
+    rendered_template_fields_sort_keys:
+      description: |
+        Whether to sort dictionary keys alphabetically when preparing rendered
+        template fields for storage and display. Set to False to preserve
+        dictionary insertion order recursively. This does not change Dag
+        serialization.
+      version_added: 3.5.0
+      type: boolean
+      example: ~
+      default: "True"
     execution_api_server_url:
       description: |
         The url of the execution api server. Default is ``{BASE_URL}/execution/``

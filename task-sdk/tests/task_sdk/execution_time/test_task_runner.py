@@ -2124,6 +2124,76 @@ def test_execution_timeout(create_runtime_ti, mock_supervisor_comms):
         _TaskRunner.run(ti, ti.get_template_context(), mock.MagicMock())
 
 
+@pytest.mark.parametrize("sort_keys", [True, False])
+def test_serialize_template_field_dictionary_order(sort_keys):
+    value = {
+        "z_first": "first",
+        "a_second": "second",
+        "m_nested": {
+            "z_first": 1,
+            "a_second": 2,
+            "m_third": 3,
+        },
+    }
+
+    result = task_runner._serialize_template_field(value, "payload", sort_keys=sort_keys)
+
+    expected_outer = ["z_first", "a_second", "m_nested"]
+    expected_inner = ["z_first", "a_second", "m_third"]
+
+    if sort_keys:
+        expected_outer = sorted(expected_outer)
+        expected_inner = sorted(expected_inner)
+
+    assert list(result) == expected_outer
+    assert list(result["m_nested"]) == expected_inner
+    assert result == value
+
+
+@pytest.mark.parametrize(
+    ("setting", "expected_keys"),
+    [
+        (None, ["a_second", "m_nested", "z_first"]),
+        ("True", ["a_second", "m_nested", "z_first"]),
+        ("False", ["z_first", "a_second", "m_nested"]),
+    ],
+)
+def test_serialize_rendered_fields_respects_key_sorting(monkeypatch, setting, expected_keys):
+    from types import SimpleNamespace
+
+    config_env = "AIRFLOW__CORE__RENDERED_TEMPLATE_FIELDS_SORT_KEYS"
+    if setting is None:
+        monkeypatch.delenv(config_env, raising=False)
+    else:
+        monkeypatch.setenv(config_env, setting)
+
+    payload = {
+        "z_first": "first",
+        "a_second": "second",
+        "m_nested": {
+            "z_first": 1,
+            "a_second": 2,
+            "m_third": 3,
+        },
+    }
+    task = SimpleNamespace(
+        template_fields=("payload",),
+        template_fields_renderers={"payload.m_nested": "json"},
+        payload=payload,
+    )
+
+    result = task_runner._serialize_rendered_fields(task)
+
+    assert list(result["payload"]) == expected_keys
+
+    expected_nested = (
+        ["z_first", "a_second", "m_third"] if setting == "False" else ["a_second", "m_third", "z_first"]
+    )
+    assert list(result["payload"]["m_nested"]) == expected_nested
+    assert list(result["payload.m_nested"]) == expected_nested
+    assert list(payload) == ["z_first", "a_second", "m_nested"]
+
+
 def test_basic_templated_dag(mocked_parse, make_ti_context, mock_supervisor_comms, spy_agency):
     """Test running a Dag with templated task."""
     from airflow.providers.standard.operators.bash import BashOperator

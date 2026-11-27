@@ -704,3 +704,38 @@ def test_serialize_template_field_masks_nested_sensitive_keys_on_truncation(monk
     assert "Truncated. You can change this behaviour" in result
     assert nested_value not in result
     assert "***" in result
+
+
+def test_serialize_template_field_preserves_dict_order_when_sorting_disabled():
+    value = {
+        "z_first": "first",
+        "a_second": "second",
+        "m_nested": {
+            "z_first": 1,
+            "a_second": 2,
+            "m_third": 3,
+        },
+    }
+
+    result = serialize_template_field(value, "payload", sort_keys=False)
+
+    assert list(result) == ["z_first", "a_second", "m_nested"]
+    assert list(result["m_nested"]) == ["z_first", "a_second", "m_third"]
+    assert result == value
+
+
+def test_serialize_template_field_sorts_dict_keys_by_default():
+    value = {
+        "z_first": "first",
+        "a_second": "second",
+        "m_nested": {
+            "z_first": 1,
+            "a_second": 2,
+            "m_third": 3,
+        },
+    }
+
+    result = serialize_template_field(value, "payload")
+
+    assert list(result) == ["a_second", "m_nested", "z_first"]
+    assert list(result["m_nested"]) == ["a_second", "m_third", "z_first"]
