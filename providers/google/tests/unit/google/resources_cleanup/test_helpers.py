@@ -245,6 +245,23 @@ async def test_run_command_async():
     with patch.object(
         helpers.asyncio, "create_subprocess_shell", AsyncMock(return_value=process)
     ) as mock_create:
-        await helpers.run_command_async("echo test")
+        return_code = await helpers.run_command_async("echo test")
 
     mock_create.assert_awaited_once()
+    assert return_code == 0
+
+
+@pytest.mark.anyio
+async def test_run_command_async_with_stderr():
+    process = AsyncMock()
+    process.returncode = 1
+    process.communicate.return_value = (b"", b"NOT_FOUND: resource does not exist")
+
+    with patch.object(
+        helpers.asyncio, "create_subprocess_shell", AsyncMock(return_value=process)
+    ) as mock_create:
+        return_code, stderr = await helpers.run_command_async_with_stderr("command")
+
+    mock_create.assert_awaited_once()
+    assert return_code == 1
+    assert stderr == "NOT_FOUND: resource does not exist"

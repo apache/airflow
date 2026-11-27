@@ -17,8 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import subprocess
+
 from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
-from airflow_google_provider_resource_cleanup.helpers import run_command_async
+from airflow_google_provider_resource_cleanup.helpers import run_command_async_with_stderr
 
 
 def __extract_params(resource: dict) -> tuple[str, str]:
@@ -38,23 +40,33 @@ async def __run_delete_cmd(asset_type: str, resource: dict, prefix: str):
     """
     name, region = __extract_params(resource)
     cmd = f"gcloud dataproc {asset_type} delete {name} --quiet --region={region}"
-    await run_command_async(cmd, log_prefix=prefix)
+    return_code, stderr = await run_command_async_with_stderr(cmd, log_prefix=prefix)
+    if not return_code:
+        return
+    if "NOT_FOUND" in stderr:
+        print(f"{prefix}Dataproc {asset_type} resource {name} no longer exists. Skipping.")
+        return False
+    raise subprocess.CalledProcessError(return_code, cmd)
 
 
 async def _delete_job(resource: dict, prefix: str):
-    await __run_delete_cmd("jobs", resource, prefix)
+    name, _ = __extract_params(resource)
+    if name.startswith("srvls-batch-"):
+        print(f"{prefix}Dataproc serverless batch job record {name} is managed by its batch. Skipping.")
+        return False
+    return await __run_delete_cmd("jobs", resource, prefix)
 
 
 async def _delete_batch(resource: dict, prefix: str):
-    await __run_delete_cmd("batches", resource, prefix)
+    return await __run_delete_cmd("batches", resource, prefix)
 
 
 async def _delete_cluster(resource: dict, prefix: str):
-    await __run_delete_cmd("clusters", resource, prefix)
+    return await __run_delete_cmd("clusters", resource, prefix)
 
 
 async def _delete_workflow_template(resource: dict, prefix: str):
-    await __run_delete_cmd("workflow-templates", resource, prefix)
+    return await __run_delete_cmd("workflow-templates", resource, prefix)
 
 
 class DataprocDeleteHandler(BaseDeleteHandler):
