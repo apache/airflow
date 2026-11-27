@@ -73,14 +73,20 @@ def get_backend_connect_kwargs(backend):
         engine.dispose()
 
 
-@requires_psycopg3
 @pytest.mark.usefixtures("restore_current_celery_app")
 @pytest.mark.parametrize(
     ("result_backend", "expected_driver"),
     [
-        pytest.param(None, "psycopg", id="derived-from-metadata"),
-        pytest.param("db+postgresql+psycopg://user:pass@host/db", "psycopg", id="explicit-psycopg"),
-        pytest.param("db+postgresql://user:pass@host/db", "psycopg", id="explicit-driverless"),
+        pytest.param(None, "psycopg", marks=requires_psycopg3, id="derived-from-metadata"),
+        pytest.param(
+            "db+postgresql+psycopg://user:pass@host/db",
+            "psycopg",
+            marks=requires_psycopg3,
+            id="explicit-psycopg",
+        ),
+        pytest.param(
+            "db+postgresql://user:pass@host/db", "psycopg", marks=requires_psycopg3, id="explicit-driverless"
+        ),
         pytest.param("db+postgresql+psycopg2://user:pass@host/db", "psycopg2", id="explicit-psycopg2"),
     ],
 )
@@ -144,7 +150,6 @@ def test_result_backend_preserves_explicit_prepare_threshold(prepare_threshold):
             assert connect_kwargs["connect_timeout"] == 7
 
 
-@requires_psycopg3
 @pytest.mark.usefixtures("restore_current_celery_app")
 @conf_vars(
     {
