@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import signal
 import socket
 import subprocess
 import threading
@@ -318,7 +319,14 @@ class SubCommand(threading.Thread):
     Thread that launches a process and then streams its output back to the main
     command. We use threads to avoid using select() and raw filehandles, and the
     complex logic that brings doing line buffering.
+
+    If the process exits before :meth:`stop` is called, it is reaped and started
+    again after an exponential backoff, which resets once a run lasts long enough.
     """
+
+    restart_backoff_initial = 1.0
+    restart_backoff_max = 60.0
+    stable_run_seconds = 60.0
 
     def __init__(self, parent, name: str, command: list[str], env: dict[str, str]):
         super().__init__()
@@ -327,22 +335,53 @@ class SubCommand(threading.Thread):
         self.command = command
         self.env = env
         self.process: subprocess.Popen[bytes] | None = None
+        self._stopping = threading.Event()
+        # Guards spawning against stop(), so no process is started after stop() returns.
+        self._lock = threading.Lock()
 
     def run(self):
-        """Run the actual process and captures it output to a queue."""
-        self.process = subprocess.Popen(
-            ["airflow", *self.command],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            env=self.env,
-        )
-        for line in self.process.stdout:
-            self.parent.output_queue.append((self.name, line))
+        """Run the process, capture its output to a queue, and restart it if it exits."""
+        backoff = self.restart_backoff_initial
+        while True:
+            with self._lock:
+                if self._stopping.is_set():
+                    return
+                self.process = subprocess.Popen(
+                    ["airflow", *self.command],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    env=self.env,
+                )
+            started = time.monotonic()
+            for line in self.process.stdout:
+                self.parent.output_queue.append((self.name, line))
+            returncode = self.process.wait()
+            if self._stopping.is_set():
+                return
+            if time.monotonic() - started >= self.stable_run_seconds:
+                backoff = self.restart_backoff_initial
+            self.parent.output_queue.append(
+                (self.name, f"{self._describe_exit(returncode)}, restarting in {backoff:g}s".encode())
+            )
+            if self._stopping.wait(backoff):
+                return
+            backoff = min(backoff * 2, self.restart_backoff_max)
+
+    @staticmethod
+    def _describe_exit(returncode: int) -> str:
+        if returncode < 0:
+            try:
+                return f"Killed by {signal.Signals(-returncode).name}"
+            except ValueError:
+                return f"Killed by signal {-returncode}"
+        return f"Exited with code {returncode}"
 
     def stop(self):
         """Call to stop this process (and thus this thread)."""
-        if self.process is not None:
-            self.process.terminate()
+        with self._lock:
+            self._stopping.set()
+            if self.process is not None:
+                self.process.terminate()
 
 
 # Alias for use in the CLI parser

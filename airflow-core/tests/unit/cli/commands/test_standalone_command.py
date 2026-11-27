@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from collections import deque
 from importlib import reload
 from unittest import mock
@@ -355,6 +356,7 @@ class TestStandaloneCommand:
             lambda *a, **k: fake_process,
         )
         cmd = SubCommand(parent, "scheduler", ["scheduler"], {})
+        fake_process.wait.side_effect = lambda: (cmd.stop(), 0)[1]
         cmd.run()
 
         assert parent.output_queue == deque(
@@ -363,6 +365,131 @@ class TestStandaloneCommand:
                 ("scheduler", b"line2\n"),
             ]
         )
+
+    @staticmethod
+    def _exiting_process(returncode: int) -> mock.Mock:
+        process = mock.Mock(spec=subprocess.Popen)
+        process.stdout = []
+        process.wait.return_value = returncode
+        return process
+
+    def test_subcommand_run_restarts_exited_process_with_backoff(self, monkeypatch):
+        parent = mock.Mock()
+        parent.output_queue = deque()
+        cmd = SubCommand(parent, "triggerer", ["triggerer"], {})
+        last = self._exiting_process(0)
+        last.wait.side_effect = lambda: (cmd.stop(), 0)[1]
+        processes = [self._exiting_process(1), self._exiting_process(-9), last]
+        popen = mock.Mock(side_effect=processes)
+        monkeypatch.setattr("airflow.cli.commands.standalone_command.subprocess.Popen", popen)
+        monkeypatch.setattr("airflow.cli.commands.standalone_command.time.monotonic", lambda: 0.0)
+        delays: list[float] = []
+        monkeypatch.setattr(cmd._stopping, "wait", lambda timeout: delays.append(timeout) or False)
+
+        cmd.run()
+
+        assert popen.call_count == 3
+        assert delays == [1.0, 2.0]
+        assert parent.output_queue == deque(
+            [
+                ("triggerer", b"Exited with code 1, restarting in 1s"),
+                ("triggerer", b"Killed by SIGKILL, restarting in 2s"),
+            ]
+        )
+        for process in processes:
+            process.wait.assert_called_once()
+
+    def test_subcommand_run_resets_backoff_after_a_stable_run(self, monkeypatch):
+        parent = mock.Mock()
+        parent.output_queue = deque()
+        cmd = SubCommand(parent, "scheduler", ["scheduler"], {})
+        last = self._exiting_process(0)
+        last.wait.side_effect = lambda: (cmd.stop(), 0)[1]
+        monkeypatch.setattr(
+            "airflow.cli.commands.standalone_command.subprocess.Popen",
+            mock.Mock(side_effect=[self._exiting_process(1), self._exiting_process(1), last]),
+        )
+        # (start, exit) per run: the first run is short, the second outlives stable_run_seconds.
+        clock = iter([0.0, 1.0, 10.0, 10.0 + SubCommand.stable_run_seconds, 100.0])
+        monkeypatch.setattr("airflow.cli.commands.standalone_command.time.monotonic", lambda: next(clock))
+        delays: list[float] = []
+        monkeypatch.setattr(cmd._stopping, "wait", lambda timeout: delays.append(timeout) or False)
+
+        cmd.run()
+
+        assert delays == [1.0, 1.0]
+
+    def test_subcommand_run_does_not_restart_after_stop_during_backoff(self, monkeypatch):
+        parent = mock.Mock()
+        parent.output_queue = deque()
+        popen = mock.Mock(return_value=self._exiting_process(1))
+        monkeypatch.setattr("airflow.cli.commands.standalone_command.subprocess.Popen", popen)
+        cmd = SubCommand(parent, "scheduler", ["scheduler"], {})
+        real_wait = cmd._stopping.wait
+
+        def stop_while_waiting(timeout: float) -> bool:
+            cmd.stop()
+            return real_wait(timeout)
+
+        monkeypatch.setattr(cmd._stopping, "wait", stop_while_waiting)
+
+        cmd.run()
+
+        popen.assert_called_once()
+
+    def test_subcommand_run_does_not_spawn_after_stop(self, monkeypatch):
+        popen = mock.Mock()
+        monkeypatch.setattr("airflow.cli.commands.standalone_command.subprocess.Popen", popen)
+        cmd = SubCommand(mock.Mock(), "scheduler", ["scheduler"], {})
+        cmd.stop()
+
+        cmd.run()
+
+        popen.assert_not_called()
+
+    def test_subcommand_reaps_and_restarts_a_real_process(self, monkeypatch):
+        """End to end with a real child: it is waited on (no zombie) and started again."""
+        real_popen = subprocess.Popen
+        spawned: list[subprocess.Popen[bytes]] = []
+
+        def popen(_args: list[str], **kwargs) -> subprocess.Popen[bytes]:
+            process = real_popen([sys.executable, "-c", "print('hi')"], **kwargs)
+            spawned.append(process)
+            return process
+
+        class StopOnSecondRun(deque):
+            def append(self, item: tuple[str, bytes]) -> None:
+                super().append(item)
+                if item[1].strip() == b"hi" and len(spawned) == 2:
+                    cmd.stop()
+
+        parent = mock.Mock()
+        parent.output_queue = StopOnSecondRun()
+        monkeypatch.setattr("airflow.cli.commands.standalone_command.subprocess.Popen", popen)
+        monkeypatch.setattr(SubCommand, "restart_backoff_initial", 0.01)
+        cmd = SubCommand(parent, "scheduler", ["scheduler"], {})
+
+        cmd.start()
+        cmd.join(timeout=30)
+
+        assert not cmd.is_alive()
+        assert len(spawned) == 2
+        # Both children were waited on; stop() may terminate the second one before it exits.
+        assert spawned[0].returncode == 0
+        assert spawned[1].returncode is not None
+        assert ("scheduler", b"Exited with code 0, restarting in 0.01s") in parent.output_queue
+
+    @pytest.mark.parametrize(
+        ("returncode", "expected"),
+        [
+            (0, "Exited with code 0"),
+            (3, "Exited with code 3"),
+            (-15, "Killed by SIGTERM"),
+            (-200, "Killed by signal 200"),
+        ],
+    )
+    def test_subcommand_describe_exit(self, returncode: int, expected: str):
+        assert SubCommand._describe_exit(returncode) == expected
 
     def test_subcommand_stop_calls_terminate(self, monkeypatch):
         parent = mock.Mock()
