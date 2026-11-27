@@ -52,6 +52,9 @@ to pick the one that fits your use case:
    * - Multi-turn reasoning with tools (DB queries, API calls, etc.)
      - :class:`~airflow.providers.common.ai.operators.agent.AgentOperator`
      - ``@task.agent``
+   * - Read scanned or complex PDFs with a vendor's OCR model, page by page as Markdown
+     - :class:`~airflow.providers.common.ai.operators.llm_ocr.LLMOCROperator`
+     - ``@task.llm_ocr``
    * - Parse files (PDF, DOCX, CSV, etc.) into document dicts for embedding
      - :class:`~airflow.providers.common.ai.operators.document_loader.DocumentLoaderOperator`
      - *(no decorator)*
@@ -134,4 +137,5 @@ Operator guides
     Natural language to SQL <llm_sql>
     Detect schema drift <llm_schema_compare>
     Batch processing <llm_batch>
+    OCR of documents <llm_ocr>
     Agents with tools <agent>
