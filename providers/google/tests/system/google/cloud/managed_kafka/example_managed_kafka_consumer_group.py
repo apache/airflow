@@ -38,6 +38,8 @@ import random
 from datetime import datetime
 from typing import Any
 
+from google.auth.transport.requests import AuthorizedSession
+
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
@@ -48,6 +50,7 @@ else:
 from airflow.models.dag import DAG
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
+from airflow.providers.google.cloud.hooks.managed_kafka import ManagedKafkaHook
 from airflow.providers.google.cloud.operators.managed_kafka import (
     ManagedKafkaCreateClusterOperator,
     ManagedKafkaCreateTopicOperator,
@@ -64,12 +67,12 @@ except ImportError:
     # Compatibility for Airflow < 3.1
     from airflow.utils.trigger_rule import TriggerRule  # type: ignore[no-redef,attr-defined]
 
-from system.google.gcp_api_client_helpers import create_airflow_connection
+from system.google.gcp_api_client_helpers import create_airflow_connection, delete_airflow_connection
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
-NETWORK = os.environ.get("GOOGLE_PROVIDER_NETWORK") if not IS_COMPOSER else "default"
+NETWORK = (os.environ.get("GOOGLE_PROVIDER_NETWORK") or "default") if not IS_COMPOSER else "default"
 DAG_ID = "managed_kafka_consumer_group_operations"
 LOCATION = "us-central1"
 
@@ -150,11 +153,20 @@ with DAG(
 
     @task
     def create_connection(connection_id: str):
+        hook = ManagedKafkaHook()
+        session = AuthorizedSession(hook.get_credentials())
+        response = session.get(
+            f"https://managedkafka.googleapis.com/v1/projects/{PROJECT_ID}/locations/{LOCATION}/clusters/{CLUSTER_ID}"
+        )
+        response.raise_for_status()
+        bootstrap_address = response.json().get("bootstrapAddress")
+        bootstrap_url = f"{bootstrap_address}:{PORT}" if bootstrap_address else BOOTSTRAP_URL
         conn_extra = {
-            "bootstrap.servers": BOOTSTRAP_URL,
+            "bootstrap.servers": bootstrap_url,
             "security.protocol": "SASL_SSL",
             "sasl.mechanisms": "OAUTHBEARER",
             "group.id": CONSUMER_GROUP_ID,
+            "auto.offset.reset": "earliest",
         }
         conn_extra_json = json.dumps(conn_extra)
         connection: dict[str, Any] = {"conn_type": "kafka", "extra": conn_extra_json}
@@ -196,7 +208,11 @@ with DAG(
         cluster_id=CLUSTER_ID,
         consumer_group_id=CONSUMER_GROUP_ID,
         consumer_group={
-            "topics": {},
+            "topics": {
+                f"projects/{PROJECT_ID}/locations/{LOCATION}/clusters/{CLUSTER_ID}/topics/{TOPIC_ID}": {
+                    "partitions": {0: {"offset": 0}},
+                },
+            },
         },
         update_mask={"paths": ["topics"]},
     )
@@ -240,6 +256,12 @@ with DAG(
     )
     # [END how_to_cloud_managed_kafka_list_consumer_group_operator]
 
+    @task(task_id="delete_connection", trigger_rule=TriggerRule.ALL_DONE)
+    def delete_connection(connection_id: str) -> None:
+        delete_airflow_connection(connection_id=connection_id, is_composer=IS_COMPOSER)
+
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
+
     (
         # TEST SETUP
         create_cluster
@@ -253,7 +275,7 @@ with DAG(
         >> list_consumer_groups
         >> delete_consumer_group
         # TEST TEARDOWN
-        >> delete_cluster
+        >> [delete_cluster, delete_connection_task]
     )
 
     # ### Everything below this line is not part of example ###
