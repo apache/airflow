@@ -233,7 +233,7 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance, dag: SerializedDAG, se
         raise ValueError("``task_instance`` must have ``dag_run`` set")
     tis = task_instance.dag_run.get_task_instances(state=State.unfinished, session=session)
     for ti in tis:
-        if ti.task_id == task_instance.task_id:
+        if ti.id == task_instance.id:
             continue
         if (task := dag.task_dict.get(ti.task_id)) is None:
             log.info("Task %s is no longer in the Dag; not stopping it", ti.task_id)
