@@ -31,7 +31,11 @@ from sqlalchemy.orm import Session, joinedload, load_only
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
 from airflow.api_fastapi.common.dagbag import DagBagDep
 from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
-from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs, is_filtered_existing_run
+from airflow.api_fastapi.common.db.dag_runs import (
+    attach_dag_versions_to_runs,
+    filter_runs_of_dag,
+    is_filtered_existing_run,
+)
 from airflow.api_fastapi.common.parameters import (
     QueryDagRunRunTypesFilter,
     QueryDagRunStateFilter,
@@ -178,7 +182,7 @@ def get_dag_structure(
         )
 
     # Retrieve, sort the previous Dag Runs
-    base_query = select(DagRun.id).where(DagRun.dag_id == dag_id)
+    base_query = select(DagRun.id)
     # This comparison is to fall back to Dag timetable when no order_by is provided
     if order_by.value == [order_by.get_primary_key_string()]:
         ordering = list(latest_dag.timetable.run_ordering)
@@ -187,7 +191,7 @@ def get_dag_structure(
             model=DagRun,
         ).set_value(ordering)
     dag_runs_select_filter, _ = paginated_select(
-        statement=base_query,
+        statement=filter_runs_of_dag(base_query, order_by, dag_id=dag_id),
         order_by=order_by,
         offset=offset,
         filters=[
@@ -342,24 +346,20 @@ def get_grid_runs(
         .correlate(DagRun)
         .label("has_note")
     )
-    base_query = (
-        select(DagRun, has_missed_deadline, has_note_subq)
-        .where(DagRun.dag_id == dag_id)
-        .options(
-            load_only(
-                DagRun.dag_id,
-                DagRun.run_id,
-                DagRun.queued_at,
-                DagRun.start_date,
-                DagRun.end_date,
-                DagRun.run_after,
-                DagRun.state,
-                DagRun.run_type,
-                DagRun.bundle_version,
-            ),
-            joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
-            joinedload(DagRun.created_dag_version).joinedload(DagVersion.dag_model),
-        )
+    base_query = select(DagRun, has_missed_deadline, has_note_subq).options(
+        load_only(
+            DagRun.dag_id,
+            DagRun.run_id,
+            DagRun.queued_at,
+            DagRun.start_date,
+            DagRun.end_date,
+            DagRun.run_after,
+            DagRun.state,
+            DagRun.run_type,
+            DagRun.bundle_version,
+        ),
+        joinedload(DagRun.created_dag_version).joinedload(DagVersion.bundle),
+        joinedload(DagRun.created_dag_version).joinedload(DagVersion.dag_model),
     )
 
     # This comparison is to fall back to Dag timetable when no order_by is provided
@@ -372,7 +372,7 @@ def get_grid_runs(
             model=DagRun,
         ).set_value(ordering)
     dag_runs_select_filter, _ = paginated_select(
-        statement=base_query,
+        statement=filter_runs_of_dag(base_query, order_by, dag_id=dag_id),
         order_by=order_by,
         offset=offset,
         filters=[
@@ -721,10 +721,7 @@ def get_loop_history(
 ) -> LoopHistoryResponse:
     """Show loop invocations from recent runs, oldest first."""
     runs = session.scalars(
-        select(DagRun)
-        .where(DagRun.dag_id == dag_id)
-        .order_by(DagRun.run_after.desc(), DagRun.id.desc())
-        .limit(limit)
+        DagRun.apply_dag_newest_first(select(DagRun), dag_id=dag_id).order_by(DagRun.id.desc()).limit(limit)
     ).all()
     inputs = load_loop_run_inputs(runs, group_id, session=session, dag_bag=dag_bag)
     history = []

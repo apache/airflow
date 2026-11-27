@@ -47,6 +47,7 @@ from airflow.api_fastapi.common.db.common import (
     bounded_total_entries,
     paginated_select,
 )
+from airflow.api_fastapi.common.db.dag_runs import filter_runs_of_dag
 from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.db.task_instances import eager_load_task_instance_for_validation
 from airflow.api_fastapi.common.parameters import (
@@ -725,7 +726,7 @@ def get_task_instances(
         query = query.where(TI.run_id == dag_run_id)
     if dag_id != "~":
         dag = get_dag_for_run_or_latest_version(dag_bag, dag_run, dag_id, session)
-        query = query.where(TI.dag_id == dag_id)
+        query = filter_runs_of_dag(query.where(TI.dag_id == dag_id), order_by, dag_id=dag_id)
         if dag:
             task_group_id.dag = dag
 

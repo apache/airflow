@@ -7017,3 +7017,11 @@ def test_task_instance_scheduling_decisions_skips_retry_not_yet_due(mock_deps_me
     assert decision.schedulable_tis == []
     mock_deps_met.assert_not_called()
     assert successor.retry_at == ti.end_date + datetime.timedelta(minutes=10)
+
+
+def test_apply_dag_newest_first_orders_by_dag_id_before_run_after():
+    statement = DagRun.apply_dag_newest_first(select(DagRun.id), dag_id="a_dag")
+
+    sql = str(statement.compile(compile_kwargs={"literal_binds": True}))
+    assert "WHERE dag_run.dag_id BETWEEN 'a_dag' AND 'a_dag'" in sql
+    assert "ORDER BY dag_run.dag_id DESC, dag_run.run_after DESC" in sql

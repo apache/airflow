@@ -49,12 +49,11 @@ def get_dag_run_stats(dag_id: str, dag_run_id: str, session: SessionDep) -> DagR
     durations = [
         d
         for d in session.scalars(
-            select(DagRun.duration.expression)  # type: ignore[attr-defined]
-            .where(
-                DagRun.dag_id == dag_id,
-                DagRun.state.in_([DagRunState.SUCCESS, DagRunState.FAILED]),
+            DagRun.apply_dag_newest_first(
+                select(DagRun.duration.expression),  # type: ignore[attr-defined]
+                dag_id=dag_id,
             )
-            .order_by(DagRun.run_after.desc())
+            .where(DagRun.state.in_([DagRunState.SUCCESS, DagRunState.FAILED]))
             .limit(100)
         )
         if d is not None
