@@ -676,3 +676,103 @@ class TestGKEStartJobTrigger:
             container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
             poll_interval=POLL_INTERVAL,
         )
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{GKE_TRIGGERS_PATH}.ProvidersManager")
+    @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.pod_manager", new_callable=mock.PropertyMock)
+    @mock.patch(f"{TRIGGER_GKE_JOB_PATH}.hook")
+    async def test_run_do_xcom_push_uses_retry_pod_with_running_phase_and_succeeded_container(
+        self, mock_hook, mock_pod_manager_prop, mock_providers_manager, job_trigger
+    ):
+        """When a job retries, the new pod is in Running phase with xcom sidecar; base container success should be recognized."""
+        mock_providers_manager.return_value.providers = {
+            "apache-airflow-providers-cncf-kubernetes": mock.MagicMock(
+                data={"package-name": "apache-airflow-providers-cncf-kubernetes"},
+                version="8.4.1",
+            )
+        }
+
+        failed_pod = mock.MagicMock()
+        failed_pod.metadata.name = "original-failed-pod"
+        failed_pod.status.phase = "Failed"
+
+        # Retried pod with phase "Running" and base container terminated with exit code 0
+        base_container_status = mock.MagicMock()
+        base_container_status.name = BASE_CONTAINER_NAME
+        base_container_status.state.terminated.exit_code = 0
+
+        sidecar_container_status = mock.MagicMock()
+        sidecar_container_status.name = PodDefaults.SIDECAR_CONTAINER_NAME
+        sidecar_container_status.state.terminated = None
+        sidecar_container_status.state.running = mock.MagicMock()
+
+        retry_pod = mock.MagicMock()
+        retry_pod.metadata.name = "retry-running-pod"
+        retry_pod.status.phase = "Running"
+        retry_pod.status.container_statuses = [base_container_status, sidecar_container_status]
+        retry_pod.status.init_container_statuses = []
+
+        mock_hook.list_pods = mock.AsyncMock(return_value=[failed_pod, retry_pod])
+        mock_hook.wait_until_container_complete = mock.AsyncMock()
+        mock_hook.wait_until_container_started = mock.AsyncMock()
+        mock_hook.wait_until_job_complete = mock.AsyncMock()
+
+        mock_job = mock.MagicMock()
+        mock_job.metadata.name = JOB_NAME
+        mock_job.metadata.namespace = NAMESPACE
+        mock_job.to_dict.return_value = {"job": "dict"}
+        mock_hook.wait_until_job_complete.return_value = mock_job
+        mock_hook.is_job_failed = mock.MagicMock(return_value=False)
+
+        mock_pod_manager = mock.MagicMock()
+        mock_pod_manager.extract_xcom.return_value = {"xcom": "result"}
+        mock_pod_manager_prop.return_value = mock_pod_manager
+
+        job_trigger.do_xcom_push = True
+        event = await job_trigger.run().asend(None)
+
+        mock_pod_manager.extract_xcom.assert_called_once_with(retry_pod)
+        assert event.payload["xcom_result"] == [{"xcom": "result"}]
+        mock_hook.wait_until_container_complete.assert_called_once_with(
+            name="retry-running-pod",
+            namespace=NAMESPACE,
+            container_name=BASE_CONTAINER_NAME,
+            poll_interval=POLL_INTERVAL,
+        )
+
+    def test_is_pod_succeeded(self, job_trigger):
+        """Test _is_pod_succeeded with various pod and container states."""
+        # None pod or no status
+        assert not job_trigger._is_pod_succeeded(None)
+
+        no_status_pod = mock.MagicMock()
+        no_status_pod.status = None
+        assert not job_trigger._is_pod_succeeded(no_status_pod)
+
+        # Failed pod is never considered succeeded
+        failed_pod = mock.MagicMock()
+        failed_pod.status.phase = "Failed"
+        assert not job_trigger._is_pod_succeeded(failed_pod)
+
+        # Succeeded pod phase
+        succeeded_pod = mock.MagicMock()
+        succeeded_pod.status.phase = "Succeeded"
+        assert job_trigger._is_pod_succeeded(succeeded_pod)
+
+        # Running pod with base container succeeded
+        running_pod = mock.MagicMock()
+        running_pod.status.phase = "Running"
+        base_container_status = mock.MagicMock()
+        base_container_status.name = BASE_CONTAINER_NAME
+        base_container_status.state.terminated.exit_code = 0
+        running_pod.status.container_statuses = [base_container_status]
+        running_pod.status.init_container_statuses = []
+        assert job_trigger._is_pod_succeeded(running_pod)
+
+        # Running pod with base container failed
+        base_container_status.state.terminated.exit_code = 1
+        assert not job_trigger._is_pod_succeeded(running_pod)
+
+        # Running pod with base container not yet terminated
+        base_container_status.state.terminated = None
+        assert not job_trigger._is_pod_succeeded(running_pod)
