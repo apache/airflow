@@ -17,6 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+# Must be imported before ``TracerProvider`` is created: its at-fork hook reinitialises the lock that the
+# provider's own at-fork hook needs, and at-fork hooks run in registration order.
+# See https://github.com/open-telemetry/opentelemetry-python/issues/5789
+import concurrent.futures.thread  # noqa: F401
 import logging
 import os
 from contextlib import contextmanager
