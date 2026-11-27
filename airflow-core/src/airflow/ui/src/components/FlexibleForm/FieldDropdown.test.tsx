@@ -250,4 +250,26 @@ describe("FieldDropdown", () => {
     expect(original).toBe(6);
     expect(typeof original).toBe("number");
   });
+
+  it("gives the dropdown an accessible name from the param name", () => {
+    mockParamsDict.test_param = {
+      schema: { enum: [1, 2], type: ["number"] },
+      value: null,
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("combobox", { name: "test_param" })).toBeDefined();
+  });
+
+  it("gives the dropdown the visible title as its accessible name", () => {
+    mockParamsDict.test_param = {
+      schema: { enum: [1, 2], title: "Test Parameter", type: ["number"] },
+      value: null,
+    };
+
+    render(<FieldDropdown name="test_param" onUpdate={vi.fn()} />, { wrapper: Wrapper });
+
+    expect(screen.getByRole("combobox", { name: "Test Parameter" })).toBeDefined();
+  });
 });

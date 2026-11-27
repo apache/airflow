@@ -75,6 +75,7 @@ export const FieldDropdown = ({ name, namespace = "default", onUpdate }: Flexibl
 
   return (
     <ReactSelect
+      aria-label={param.schema.title ?? name}
       id={`element_${name}`}
       isClearable
       isDisabled={disabled}
