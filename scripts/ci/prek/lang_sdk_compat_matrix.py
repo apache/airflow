@@ -135,11 +135,11 @@ SHARED_CAPABILITY_NAMES = {cap.name for cap in CAPABILITY_DIMENSIONS if cap.grou
 
 TIER_LEGEND = (
     "Tiers: MUST is required, SHOULD is expected, MAY is optional. "
-    "A tier marked † applies only when {gate} is supported."
+    "A tier marked {dagger} applies only when {gate} is supported."
 )
 LEGEND = (
     f"Marks: {SUPPORTED_MARK} supported · {UNSUPPORTED_MARK} not supported · "
-    f"{NA_MARK} not applicable. " + TIER_LEGEND.format(gate=f"`{DAG_DEFINITION_GATE}`")
+    f"{NA_MARK} not applicable. " + TIER_LEGEND.format(dagger="†", gate=f"`{DAG_DEFINITION_GATE}`")
 )
 
 

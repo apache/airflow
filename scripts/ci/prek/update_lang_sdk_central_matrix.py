@@ -107,7 +107,7 @@ def render_central_table(sdk_capabilities: Sequence[SdkCapabilities]) -> list[st
         f"*Marks:* ``{matrix.SUPPORTED_MARK}`` supported (with the SDK release that shipped it, when known) · "
         f"``{matrix.UNSUPPORTED_MARK}`` not supported · ``{matrix.NA_MARK}`` not applicable · "
         f"``{ABSENT_MARK}`` not published. "
-        + matrix.TIER_LEGEND.format(gate=f"``{matrix.DAG_DEFINITION_GATE}``")
+        + matrix.TIER_LEGEND.format(dagger="``†``", gate=f"``{matrix.DAG_DEFINITION_GATE}``")
         + "\n",
     ]
     lines += _render_table_header("Language SDK versions", sdk_capabilities, first_column="Version")
