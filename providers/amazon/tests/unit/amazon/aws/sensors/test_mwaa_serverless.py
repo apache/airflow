@@ -22,6 +22,8 @@ import pytest
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.sensors.mwaa_serverless import MwaaServerlessWorkflowRunSensor
+from airflow.providers.amazon.aws.triggers.mwaa_serverless import MwaaServerlessWorkflowRunCompletedTrigger
+from airflow.providers.common.compat.sdk import TaskDeferred
 
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
@@ -79,6 +81,54 @@ class TestMwaaServerlessWorkflowRunSensor:
         mock_conn.return_value = mock_client
 
         assert sensor.poke({}) is True
+
+    @mock.patch.object(AwsBaseHook, "conn", new_callable=mock.PropertyMock)
+    def test_poke_default_failure_states_exclude_success_states(self, mock_conn):
+        sensor = MwaaServerlessWorkflowRunSensor(
+            task_id="wait_for_run",
+            workflow_arn=WORKFLOW_ARN,
+            run_id=RUN_ID,
+            success_states={"SUCCESS", "STOPPED"},
+        )
+        mock_client = mock.MagicMock()
+        mock_client.get_workflow_run.return_value = {"RunDetail": {"RunState": "STOPPED", "ErrorMessage": ""}}
+        mock_conn.return_value = mock_client
+
+        assert sensor.failure_states == {"FAILED", "TIMEOUT"}
+        assert sensor.poke({}) is True
+
+    def test_execute_deferrable(self):
+        sensor = MwaaServerlessWorkflowRunSensor(
+            task_id="wait_for_run",
+            workflow_arn=WORKFLOW_ARN,
+            run_id=RUN_ID,
+            success_states={"SUCCESS", "STOPPED"},
+            failure_states={"FAILED"},
+            deferrable=True,
+            poke_interval=5,
+            max_retries=10,
+            aws_conn_id="my_conn",
+        )
+
+        with pytest.raises(TaskDeferred) as exc_info:
+            sensor.execute({})
+
+        assert exc_info.value.method_name == "execute_complete"
+        trigger = exc_info.value.trigger
+        assert isinstance(trigger, MwaaServerlessWorkflowRunCompletedTrigger)
+        assert trigger.waiter_args == {"WorkflowArn": WORKFLOW_ARN, "RunId": RUN_ID}
+        assert trigger.success_states == {"SUCCESS", "STOPPED"}
+        assert trigger.failure_states == {"FAILED"}
+        assert trigger.waiter_delay == 5
+        assert trigger.attempts == 10
+        assert trigger.aws_conn_id == "my_conn"
+
+    def test_execute_complete_success(self):
+        assert self.sensor.execute_complete({}, {"status": "success", "run_id": RUN_ID}) is None
+
+    def test_execute_complete_failure(self):
+        with pytest.raises(RuntimeError, match="Error while waiting for MWAA Serverless workflow run"):
+            self.sensor.execute_complete({}, {"status": "error", "message": "failed", "run_id": RUN_ID})
 
     def test_template_fields(self):
         validate_template_fields(self.sensor)
