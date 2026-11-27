@@ -230,22 +230,29 @@ class TestTaskStateStoreOperations:
         assert result == ErrorResponse(error=ErrorType.TASK_STORE_NOT_FOUND, detail={"key": "job_id"})
 
 
+@pytest.fixture
+def asset(session):
+    clear_db_assets()
+    asset = AssetModel(name="asset", uri="s3://bucket/asset", group="asset")
+    session.add(asset)
+    session.flush()
+    session.add(AssetActive.for_asset(asset))
+    session.commit()
+    yield asset
+    clear_db_assets()
+
+
+@pytest.mark.usefixtures("asset")
 class TestAssetStateStoreOperations:
     @pytest.fixture(autouse=True)
-    def asset(self, session):
+    def _store_entries(self, asset, session):
         session.execute(delete(AssetStateStoreModel))
-        session.execute(delete(AssetModel))
-        asset = AssetModel(name="asset", uri="s3://bucket/asset", group="asset")
-        session.add(asset)
-        session.flush()
-        session.add(AssetActive.for_asset(asset))
         session.add(AssetStateStoreModel(asset_id=asset.id, key="watermark", value=json.dumps("2026-04-29")))
         session.add(AssetStateStoreModel(asset_id=asset.id, key="stored_null", value=json.dumps(None)))
         session.commit()
-        yield asset
+        yield
         with create_session() as cleanup:
             cleanup.execute(delete(AssetStateStoreModel))
-            cleanup.execute(delete(AssetModel))
 
     @pytest.mark.parametrize("by", ["name", "uri"])
     def test_get(self, task_sdk_client, asset, by):
@@ -297,18 +304,8 @@ class TestDagRunOperations:
         assert result == OKResponse(ok=True)
 
 
+@pytest.mark.usefixtures("asset")
 class TestAssetOperations:
-    @pytest.fixture(autouse=True)
-    def asset(self, session):
-        clear_db_assets()
-        asset = AssetModel(name="asset", uri="s3://bucket/asset", group="asset")
-        session.add(asset)
-        session.flush()
-        session.add(AssetActive.for_asset(asset))
-        session.commit()
-        yield asset
-        clear_db_assets()
-
     @pytest.mark.parametrize("by", ["name", "uri"])
     def test_get(self, task_sdk_client, asset, by):
         result = task_sdk_client.assets.get(**{by: getattr(asset, by)})
