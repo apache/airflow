@@ -30,6 +30,7 @@ from kubernetes.utils import FailToCreateError
 from urllib3.exceptions import HTTPError
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry
 from airflow.providers.cncf.kubernetes.operators.job import KubernetesJobOperator
 from airflow.providers.cncf.kubernetes.triggers.kueue import (
     JOB_STATE_MESSAGES,
@@ -41,7 +42,11 @@ from airflow.providers.cncf.kubernetes.triggers.kueue import (
     get_succeeded_pod_xcoms,
     list_job_pods,
 )
-from airflow.providers.cncf.kubernetes.utils.pod_manager import XComRetrievalError
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    OnFinishAction,
+    OnKillAction,
+    XComRetrievalError,
+)
 from airflow.providers.cncf.kubernetes.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.common.compat.sdk import AirflowException
 
@@ -191,6 +196,9 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
                     in_cluster=self.in_cluster,
                     poll_interval=self.job_poll_interval,
                     do_xcom_push=self.do_xcom_push,
+                    on_kill_propagation_policy=self.on_kill_propagation_policy,
+                    termination_grace_period=self.termination_grace_period,
+                    on_kill_action=self.on_kill_action.value,
                 ),
                 method_name="execute_complete",
                 # Airflow 3 does not apply execution_timeout to the time spent deferred
@@ -217,6 +225,12 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
             time.sleep(self.job_poll_interval)
 
     def execute_complete(self, context: Context, event: dict, **kwargs):
+        try:
+            return self._finish_task(context, event, **kwargs)
+        finally:
+            self._apply_on_finish_action_to_job(event)
+
+    def _finish_task(self, context: Context, event: dict, **kwargs):
         if not isinstance(event.get("xcom_result"), dict):
             # Only KubernetesKueueJobTrigger gives "xcom_result" as a dict (by pod name): this event is from
             # KubernetesJobTrigger, for a task deferred before the provider upgrade
@@ -256,6 +270,36 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
             )
         return result
 
+    def process_pod_deletion(self, pod: k8s.V1Pod, *, reraise=True) -> bool:
+        """Never delete a pod of the Job: ``on_finish_action`` applies to the Job, which owns its pods."""
+        return False
+
+    def _apply_on_finish_action_to_job(self, event: dict) -> None:
+        """Delete or keep the finished Job depending ``on_finish_action``."""
+        delete = self.on_finish_action == OnFinishAction.DELETE_POD or (
+            self.on_finish_action == OnFinishAction.DELETE_SUCCEEDED_POD and event["status"] == "success"
+        )
+        if not delete:
+            return
+        self.log.info(
+            "Deleting the job '%s' (on_finish_action=%s)", event["name"], self.on_finish_action.value
+        )
+        try:
+            self._delete_finished_job(event["name"], event["namespace"])
+        except (HTTPError, ApiException) as e:
+            self.log.warning("Could not delete the job '%s': %s", event["name"], e)
+
+    @generic_api_retry
+    def _delete_finished_job(self, name: str, namespace: str) -> None:
+        try:
+            # Not on_kill_propagation_policy: "Orphan" would leave the pods of the finished Job behind
+            self.job_client.delete_namespaced_job(
+                name=name, namespace=namespace, propagation_policy="Background"
+            )
+        except ApiException as e:
+            if e.status != 404:
+                raise
+
     def resume_execution(self, next_method: str, next_kwargs: dict[str, Any] | None, context: Context):
         if next_method == "__fail__" and (next_kwargs or {}).get("error") in _DEFERRAL_TIMEOUT_ERRORS:
             self._delete_job_after_deferral_timeout(context)
@@ -263,7 +307,7 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
 
     def _delete_job_after_deferral_timeout(self, context: Context) -> None:
         """
-        Delete the Job when the deferral timed out, as ``on_kill`` does when the sync wait times out.
+        Apply ``on_kill`` to the Job when the deferral timed out, as Airflow does when the sync wait times out.
 
         ``on_kill`` is not called for a deferred task, and a Job that Kueue never admits would otherwise
         stay in its queue, and be run if Kueue admits it later.
@@ -274,13 +318,38 @@ class KubernetesStartKueueJobOperator(KubernetesJobOperator):
         namespace = ti.xcom_pull(task_ids=ti.task_id, key="job_namespace", map_indexes=ti.map_index)
         if not name:
             return
-        self.log.info("Deleting the job '%s' as the task timed out while waiting for it", name)
-        # on_kill deletes self.job, with on_kill_propagation_policy and termination_grace_period
+        self.log.info("The task timed out while waiting for the job '%s'", name)
+        # on_kill applies to self.job: on_kill_action, on_kill_propagation_policy, termination_grace_period
         self.job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=name, namespace=namespace))
         try:
             self.on_kill()
         except ApiException as e:
+            if e.status == 404:
+                self.log.info("The job '%s' was already deleted", name)
+            else:
+                self.log.warning("Could not delete the job '%s': %s", name, e)
+        except HTTPError as e:
             self.log.warning("Could not delete the job '%s': %s", name, e)
+
+    def on_kill(self) -> None:
+        """
+        Delete the Job, unless ``on_kill_action`` is ``keep_pod``.
+
+        A kept Job stays in its queue, and Kueue may still run it.
+        """
+        job_name = cast("k8s.V1ObjectMeta", self.job.metadata).name if self.job else None
+        if self.on_kill_action == OnKillAction.KEEP_POD:
+            self._killed = True
+            if job_name:
+                self.log.info(
+                    "Keeping the job '%s' since on_kill_action is set to %r",
+                    job_name,
+                    self.on_kill_action.value,
+                )
+            return
+        if job_name:
+            self.log.info("Deleting the job '%s'", job_name)
+        super().on_kill()
 
     def _write_logs(self, pod: k8s.V1Pod, follow: bool = False, since_time: DateTime | None = None) -> None:
         """Write the logs of the ``container_logs`` of a pod of the finished Job."""

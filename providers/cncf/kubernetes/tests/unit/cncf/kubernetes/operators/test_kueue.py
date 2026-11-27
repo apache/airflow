@@ -17,14 +17,17 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from datetime import datetime, timedelta
 from typing import cast
 from unittest import mock
 
 import pytest
+import tenacity
 from kubernetes.client import BatchV1Api, CoreV1Api, models as k8s
 from kubernetes.client.rest import ApiException
 from kubernetes.utils import FailToCreateError
+from urllib3.exceptions import ProtocolError
 
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance
@@ -35,7 +38,7 @@ from airflow.providers.cncf.kubernetes.operators.kueue import (
     KubernetesStartKueueJobOperator,
 )
 from airflow.providers.cncf.kubernetes.triggers.kueue import KubernetesKueueJobTrigger, build_job_event
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, XComRetrievalError
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnKillAction, PodManager, XComRetrievalError
 from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred
 
 from unit.cncf.kubernetes.triggers.test_kueue import (
@@ -224,6 +227,9 @@ class TestKubernetesStartKueueJobOperatorWait:
             mock.patch.object(
                 operator_class, "pod_manager", mock.create_autospec(PodManager, instance=True)
             ) as self.mock_pod_manager,
+            mock.patch.object(
+                operator_class, "job_client", mock.create_autospec(BatchV1Api, instance=True)
+            ) as self.mock_job_client,
             mock.patch.object(operator_class, "post_complete_action", autospec=True),
             mock.patch.object(
                 operator_class, "build_job_request_obj", autospec=True, return_value=build_job(True)
@@ -331,6 +337,91 @@ class TestKubernetesStartKueueJobOperatorWait:
         assert deferred.value.timeout == timedelta(minutes=5)
         self.mock_client.list_namespaced_pod.assert_not_called()
 
+    def test_execute_deferrable_hands_job_deletion_settings_of_on_kill_to_trigger(self):
+        with pytest.raises(TaskDeferred) as deferred:
+            self.build_operator(
+                deferrable=True,
+                on_kill_propagation_policy="Background",
+                termination_grace_period=30,
+                on_kill_action="keep_pod",
+            ).execute(self.build_context())
+
+        assert deferred.value.trigger.on_kill_propagation_policy == "Background"
+        assert deferred.value.trigger.termination_grace_period == 30
+        assert deferred.value.trigger.on_kill_action == OnKillAction.KEEP_POD
+
+    @pytest.mark.parametrize(
+        ("on_kill_action", "expect_deleted"),
+        [pytest.param("delete_pod", True, id="delete-pod"), pytest.param("keep_pod", False, id="keep-pod")],
+    )
+    def test_on_kill_applies_on_kill_action_to_the_job(self, on_kill_action, expect_deleted):
+        operator = self.build_operator(on_kill_action=on_kill_action)
+        operator.job = build_job(False)
+
+        operator.on_kill()
+
+        if expect_deleted:
+            self.mock_job_client.delete_namespaced_job.assert_called_once_with(
+                name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Foreground"
+            )
+        else:
+            self.mock_job_client.delete_namespaced_job.assert_not_called()
+
+    def test_process_pod_deletion_keeps_pods_of_the_job(self):
+        pod = build_pod("succeeded", base="terminated", phase="Succeeded")
+
+        assert self.build_operator(on_finish_action="delete_pod").process_pod_deletion(pod) is False
+        self.mock_pod_manager.delete_pod.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("on_finish_action", "condition", "expect_deleted"),
+        [
+            pytest.param("delete_pod", "Complete", True, id="delete-pod-complete"),
+            pytest.param("delete_pod", "Failed", True, id="delete-pod-failed"),
+            pytest.param("delete_succeeded_pod", "Complete", True, id="delete-succeeded-pod-complete"),
+            pytest.param("delete_succeeded_pod", "Failed", False, id="delete-succeeded-pod-failed"),
+            pytest.param("delete_active_pod", "Complete", False, id="delete-active-pod-complete"),
+            pytest.param("keep_pod", "Complete", False, id="keep-pod-complete"),
+        ],
+    )
+    def test_execute_complete_applies_on_finish_action_to_the_job(
+        self, on_finish_action, condition, expect_deleted
+    ):
+        self.set_pods([])
+        event = build_job_event(build_job(False, condition), {})
+
+        with pytest.raises(AirflowException) if condition == "Failed" else nullcontext():
+            self.build_operator(on_finish_action=on_finish_action).execute_complete(
+                self.build_context(), event
+            )
+
+        if expect_deleted:
+            self.mock_job_client.delete_namespaced_job.assert_called_once_with(
+                name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Background"
+            )
+        else:
+            self.mock_job_client.delete_namespaced_job.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "delete_error",
+        [ApiException(status=404), ApiException(status=403), ProtocolError("connection reset")],
+        ids=["already-deleted", "forbidden", "connection-error"],
+    )
+    @mock.patch.object(
+        KubernetesStartKueueJobOperator._delete_finished_job.retry, "wait", tenacity.wait_none()
+    )
+    def test_execute_complete_returns_result_when_job_cannot_be_deleted(self, delete_error):
+        self.set_pods([build_pod("succeeded", base="terminated", phase="Succeeded")])
+        self.mock_job_client.delete_namespaced_job.side_effect = delete_error
+        event = build_job_event(build_job(False, "Complete", succeeded=1), {"succeeded": '{"a": 1}'})
+
+        result = self.build_operator(do_xcom_push=True).execute_complete(self.build_context(), event)
+
+        assert result == {"a": 1}
+        self.mock_job_client.delete_namespaced_job.assert_called_with(
+            name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Background"
+        )
+
     @pytest.mark.parametrize(
         "delete_error", [None, ApiException(status=404)], ids=["job-deleted", "job-already-deleted"]
     )
@@ -361,6 +452,60 @@ class TestKubernetesStartKueueJobOperatorWait:
         mock_job_client.delete_namespaced_job.assert_called_once_with(
             name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Foreground"
         )
+
+    @pytest.mark.parametrize(
+        ("delete_errors", "expected_calls"),
+        [
+            ([ApiException(status=503), None], 2),
+            ([ProtocolError("connection reset"), None], 2),
+            ([ApiException(status=503), ApiException(status=404)], 2),
+            ([ApiException(status=403)], 1),
+        ],
+        ids=["retried-api-error", "retried-connection-error", "deleted-by-first-try", "not-retried"],
+    )
+    @mock.patch.object(KubernetesJobOperator._delete_job.retry, "wait", tenacity.wait_none())
+    @mock.patch.object(KubernetesJobOperator, "resume_execution", autospec=True)
+    @mock.patch.object(
+        KubernetesStartKueueJobOperator,
+        "job_client",
+        new_callable=lambda: mock.create_autospec(BatchV1Api, instance=True),
+    )
+    def test_resume_execution_retries_job_deletion_when_deferral_timed_out(
+        self, mock_job_client, mock_resume_execution, delete_errors, expected_calls
+    ):
+        mock_resume_execution.side_effect = AirflowException("Trigger timeout")
+        mock_job_client.delete_namespaced_job.side_effect = delete_errors
+        context = self.build_context()
+        context["ti"].xcom_pull.side_effect = lambda task_ids, key, map_indexes: {
+            "job_name": JOB_NAME,
+            "job_namespace": NAMESPACE,
+        }[key]
+
+        # The deferral timeout is raised, whatever happened to the Job
+        with pytest.raises(AirflowException, match="Trigger timeout"):
+            self.build_operator(deferrable=True).resume_execution(
+                "__fail__", {"error": "Trigger timeout"}, context
+            )
+        assert (
+            mock_job_client.delete_namespaced_job.call_args_list
+            == [mock.call(name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Foreground")]
+            * expected_calls
+        )
+
+    @mock.patch.object(KubernetesJobOperator, "resume_execution", autospec=True)
+    def test_resume_execution_keeps_job_when_deferral_timed_out_with_keep_pod(self, mock_resume_execution):
+        mock_resume_execution.side_effect = AirflowException("Trigger timeout")
+        context = self.build_context()
+        context["ti"].xcom_pull.side_effect = lambda task_ids, key, map_indexes: {
+            "job_name": JOB_NAME,
+            "job_namespace": NAMESPACE,
+        }[key]
+
+        with pytest.raises(AirflowException, match="Trigger timeout"):
+            self.build_operator(deferrable=True, on_kill_action="keep_pod").resume_execution(
+                "__fail__", {"error": "Trigger timeout"}, context
+            )
+        self.mock_job_client.delete_namespaced_job.assert_not_called()
 
     @mock.patch.object(KubernetesJobOperator, "resume_execution", autospec=True)
     @mock.patch.object(
@@ -418,6 +563,9 @@ class TestKubernetesStartKueueJobOperatorWait:
         assert operator.execute_complete(context, event) == mock_execute_complete.return_value
         mock_execute_complete.assert_called_once_with(operator, context, event)
         self.mock_client.list_namespaced_pod.assert_not_called()
+        self.mock_job_client.delete_namespaced_job.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, propagation_policy="Background"
+        )
 
     def test_execute_complete_returns_xcom_of_succeeded_pods_of_the_job(self):
         self.set_pods(

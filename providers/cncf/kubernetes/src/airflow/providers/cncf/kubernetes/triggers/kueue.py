@@ -26,6 +26,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
 from kubernetes.client.rest import ApiException
+from kubernetes_asyncio import client as async_client
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
     JOB_FINAL_STATUS_CONDITION_TYPES,
@@ -34,7 +35,7 @@ from airflow.providers.cncf.kubernetes.hooks.kubernetes import (
 )
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import generic_api_retry
 from airflow.providers.cncf.kubernetes.utils.container import container_is_running, container_is_terminated
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, XComRetrievalError
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnKillAction, PodManager, XComRetrievalError
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -216,6 +217,9 @@ class KubernetesKueueJobTrigger(BaseTrigger):
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
+    :param on_kill_propagation_policy: The propagation policy used to delete the Job in ``on_kill``.
+    :param termination_grace_period: The grace period, in seconds, used to delete the Job in ``on_kill``.
+    :param on_kill_action: What ``on_kill`` does with the Job: "delete_pod" deletes it, "keep_pod" keeps it.
     """
 
     def __init__(
@@ -229,6 +233,9 @@ class KubernetesKueueJobTrigger(BaseTrigger):
         config_file: str | None = None,
         in_cluster: bool | None = None,
         do_xcom_push: bool = False,
+        on_kill_propagation_policy: str = "Foreground",
+        termination_grace_period: int | None = None,
+        on_kill_action: str = "delete_pod",
     ):
         super().__init__()
         self.job_name = job_name
@@ -240,6 +247,11 @@ class KubernetesKueueJobTrigger(BaseTrigger):
         self.config_file = config_file
         self.in_cluster = in_cluster
         self.do_xcom_push = do_xcom_push
+        self.on_kill_propagation_policy = on_kill_propagation_policy
+        self.termination_grace_period = termination_grace_period
+        self.on_kill_action = OnKillAction(on_kill_action)
+        # The uid of the Job once run() read it, not serialized: see on_kill
+        self._job_uid: str | None = None
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize KubernetesKueueJobTrigger arguments and classpath."""
@@ -255,6 +267,9 @@ class KubernetesKueueJobTrigger(BaseTrigger):
                 "config_file": self.config_file,
                 "in_cluster": self.in_cluster,
                 "do_xcom_push": self.do_xcom_push,
+                "on_kill_propagation_policy": self.on_kill_propagation_policy,
+                "termination_grace_period": self.termination_grace_period,
+                "on_kill_action": self.on_kill_action.value,
             },
         )
 
@@ -264,6 +279,7 @@ class KubernetesKueueJobTrigger(BaseTrigger):
         xcom_results: dict[str, str] = {}
         while True:
             job = await self.hook.get_job_status(name=self.job_name, namespace=self.job_namespace)
+            self._job_uid = self._job_uid or job.metadata.uid
             if (new_state := get_job_state(job)) != state:
                 state = new_state
                 self.log.info("The job '%s' %s", self.job_name, JOB_STATE_MESSAGES[state])
@@ -301,6 +317,49 @@ class KubernetesKueueJobTrigger(BaseTrigger):
     @cached_property
     def pod_manager(self) -> PodManager:
         return PodManager(kube_client=self.sync_hook.core_v1_client)
+
+    async def on_kill(self) -> None:
+        """
+        Delete the Job when a user marks the deferred task failed or success, or clears it.
+
+        With ``on_kill_action="keep_pod"``, the Job is kept: it stays in its queue, and Kueue may still run it.
+        """
+        if self.on_kill_action == OnKillAction.KEEP_POD:
+            self.log.info(
+                "Keeping the job '%s' since on_kill_action is set to %r",
+                self.job_name,
+                self.on_kill_action.value,
+            )
+            return
+        self.log.info("Deleting the job '%s': the task was killed by a user", self.job_name)
+        await self._delete_job()
+
+    @generic_api_retry
+    async def _delete_job(self) -> None:
+        # Once the task is cleared, its next try may already have created another Job with the same name
+        # (random_name_suffix=False): the uid precondition keeps that one
+        preconditions = async_client.V1Preconditions(uid=self._job_uid) if self._job_uid else None
+        async with self.hook.get_conn() as connection:
+            try:
+                await async_client.BatchV1Api(connection).delete_namespaced_job(
+                    name=self.job_name,
+                    namespace=self.job_namespace,
+                    body=async_client.V1DeleteOptions(
+                        propagation_policy=self.on_kill_propagation_policy,
+                        grace_period_seconds=self.termination_grace_period,
+                        preconditions=preconditions,
+                    ),
+                )
+            except async_client.ApiException as e:
+                if e.status == 404:
+                    self.log.info("The job '%s' was already deleted", self.job_name)
+                elif e.status == 409:
+                    self.log.info(
+                        "Not deleting the job '%s': it was replaced by another job with the same name",
+                        self.job_name,
+                    )
+                else:
+                    raise
 
     async def cleanup(self) -> None:
         """Release the hook's cached API client when the trigger exits."""

@@ -25,7 +25,8 @@ from unittest.mock import patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, Configuration, models as k8s
+import tenacity
+from kubernetes.client import ApiClient, BatchV1Api, Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -1172,6 +1173,29 @@ class TestKubernetesJobOperator:
             namespace=JOB_NAMESPACE,
             propagation_policy=ON_KILL_PROPAGATION_POLICY,
             grace_period_seconds=mock_termination_grace_period,
+        )
+
+    @pytest.mark.non_db_test_override
+    @mock.patch.object(KubernetesJobOperator._delete_job.retry, "wait", tenacity.wait_none())
+    @patch(
+        JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"),
+        new_callable=lambda: mock.create_autospec(BatchV1Api, instance=True),
+    )
+    def test_on_kill_retries_job_deletion(self, mock_client):
+        mock_client.delete_namespaced_job.side_effect = [ApiException(status=503), None]
+
+        op = KubernetesJobOperator(task_id="test_task_id")
+        op.job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=JOB_NAMESPACE))
+        op.on_kill()
+
+        assert (
+            mock_client.delete_namespaced_job.call_args_list
+            == [
+                mock.call(
+                    name=JOB_NAME, namespace=JOB_NAMESPACE, propagation_policy=ON_KILL_PROPAGATION_POLICY
+                )
+            ]
+            * 2
         )
 
     @pytest.mark.non_db_test_override

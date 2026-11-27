@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 from contextlib import nullcontext
 from unittest import mock
@@ -24,6 +25,7 @@ import pytest
 import tenacity
 from kubernetes.client import CoreV1Api, models as k8s
 from kubernetes.client.rest import ApiException
+from kubernetes_asyncio import client as async_client
 
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.providers.cncf.kubernetes.triggers.kueue import (
@@ -53,17 +55,22 @@ TRIGGER_KWARGS = {
     "config_file": "/path/to/config",
     "in_cluster": False,
     "do_xcom_push": True,
+    "on_kill_propagation_policy": "Background",
+    "termination_grace_period": 30,
+    "on_kill_action": "delete_pod",
 }
 
 
-def build_job(suspend: bool, condition: str | None = None, succeeded: int | None = None) -> k8s.V1Job:
+def build_job(
+    suspend: bool, condition: str | None = None, succeeded: int | None = None, uid: str = JOB_UID
+) -> k8s.V1Job:
     conditions = (
         [k8s.V1JobCondition(type=condition, status="True", reason="BackoffLimitExceeded")]
         if condition
         else []
     )
     return k8s.V1Job(
-        metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=NAMESPACE, uid=JOB_UID),
+        metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=NAMESPACE, uid=uid),
         spec=k8s.V1JobSpec(
             suspend=suspend,
             template=k8s.V1PodTemplateSpec(),
@@ -297,6 +304,84 @@ class TestKubernetesKueueJobTrigger:
         assert events == [TriggerEvent(build_job_event(jobs[-1], expected_xcom_result))]
         mock_hook.get_job_status.assert_awaited_with(name=JOB_NAME, namespace=NAMESPACE)
         assert mock_collect.call_count == expected_collect_calls
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("jobs", "expected_preconditions"),
+        [
+            pytest.param([], None, id="job-not-read-yet"),
+            pytest.param(
+                [build_job(False, "Complete")], async_client.V1Preconditions(uid=JOB_UID), id="job-read"
+            ),
+            pytest.param(
+                [build_job(False), build_job(False, "Complete", uid="replacing-job-uid")],
+                async_client.V1Preconditions(uid=JOB_UID),
+                id="job-replaced-while-waiting",
+            ),
+        ],
+    )
+    @mock.patch(TRIGGER_PATH.format("async_client.BatchV1Api"), autospec=True)
+    @mock.patch(
+        TRIGGER_PATH.format("KubernetesKueueJobTrigger.hook"),
+        new_callable=lambda: mock.create_autospec(AsyncKubernetesHook, instance=True),
+    )
+    async def test_on_kill_deletes_the_job_it_waits_for(
+        self, mock_hook, mock_batch_api, jobs, expected_preconditions
+    ):
+        mock_hook.get_job_status.side_effect = jobs
+        deleted = asyncio.get_running_loop().create_future()
+        deleted.set_result(None)
+        mock_batch_api.return_value.delete_namespaced_job.return_value = deleted
+        trigger = KubernetesKueueJobTrigger(**{**TRIGGER_KWARGS, "do_xcom_push": False})
+        if jobs:
+            async for _ in trigger.run():
+                pass
+
+        await trigger.on_kill()
+
+        mock_batch_api.return_value.delete_namespaced_job.assert_called_once_with(
+            name=JOB_NAME,
+            namespace=NAMESPACE,
+            body=async_client.V1DeleteOptions(
+                propagation_policy="Background",
+                grace_period_seconds=30,
+                preconditions=expected_preconditions,
+            ),
+        )
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("status", "expectation"),
+        [
+            pytest.param(404, nullcontext(), id="already-deleted"),
+            pytest.param(409, nullcontext(), id="replaced-by-another-job"),
+            pytest.param(403, pytest.raises(async_client.ApiException), id="forbidden"),
+        ],
+    )
+    @mock.patch(TRIGGER_PATH.format("async_client.BatchV1Api"), autospec=True)
+    @mock.patch(
+        TRIGGER_PATH.format("KubernetesKueueJobTrigger.hook"),
+        new_callable=lambda: mock.create_autospec(AsyncKubernetesHook, instance=True),
+    )
+    async def test_on_kill_when_job_cannot_be_deleted(self, mock_hook, mock_batch_api, status, expectation):
+        mock_batch_api.return_value.delete_namespaced_job.side_effect = async_client.ApiException(
+            status=status
+        )
+
+        with expectation:
+            await KubernetesKueueJobTrigger(**TRIGGER_KWARGS).on_kill()
+        mock_batch_api.return_value.delete_namespaced_job.assert_called_once()
+
+    @pytest.mark.asyncio
+    @mock.patch(TRIGGER_PATH.format("async_client.BatchV1Api"), autospec=True)
+    @mock.patch(
+        TRIGGER_PATH.format("KubernetesKueueJobTrigger.hook"),
+        new_callable=lambda: mock.create_autospec(AsyncKubernetesHook, instance=True),
+    )
+    async def test_on_kill_keeps_the_job_with_keep_pod(self, mock_hook, mock_batch_api):
+        await KubernetesKueueJobTrigger(**{**TRIGGER_KWARGS, "on_kill_action": "keep_pod"}).on_kill()
+
+        mock_batch_api.return_value.delete_namespaced_job.assert_not_called()
 
     @pytest.mark.asyncio
     @mock.patch(TRIGGER_PATH.format("AsyncKubernetesHook.close"), autospec=True)
