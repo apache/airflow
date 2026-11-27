@@ -191,6 +191,11 @@ metadata:
                 "http://release-name-api-server:8080/airflow/execution/",
             ),
             (
+                "https://{{ .Release.Name }}.example.org/airflow",
+                None,
+                "http://release-name-api-server:8080/airflow/execution/",
+            ),
+            (
                 "http://example.com/airflow",
                 "http://service:9090/execution/",
                 "http://service:9090/execution/",
