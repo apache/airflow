@@ -1441,10 +1441,9 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-        job.result.assert_called_once_with(
-            retry=DEFAULT_RETRY,
-            timeout=None,
-        )
+        job.result.assert_called_once()
+        assert job.result.call_args.kwargs["retry"] == DEFAULT_RETRY
+        assert job.result.call_args.kwargs["timeout"] is not None
 
         assert result == real_job_id
 
@@ -2583,6 +2582,25 @@ class TestBigQueryInsertJobOperatorDurable:
         hook.get_job.assert_called_once_with(
             project_id=TEST_GCP_PROJECT_ID, location=TEST_DATASET_LOCATION, job_id="stored-job-id"
         )
+
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_waits_in_bounded_slices_when_result_timeout_is_unset(self, mock_hook):
+        job = MagicMock(
+            spec=QueryJob,
+            state="DONE",
+            job_id="generated-job-id",
+            error_result=None,
+            location=TEST_DATASET_LOCATION,
+        )
+        job.result.side_effect = [TimeoutError(), TimeoutError(), None]
+        mock_hook.return_value.generate_job_id.return_value = "generated-job-id"
+        mock_hook.return_value.insert_job.return_value = job
+
+        result = self._make_operator(durable=False).execute(self._context())
+
+        assert job.result.call_count == 3
+        assert all(call.kwargs["timeout"] is not None for call in job.result.call_args_list)
+        assert result == "generated-job-id"
 
     @staticmethod
     def _context(task_store=None):
