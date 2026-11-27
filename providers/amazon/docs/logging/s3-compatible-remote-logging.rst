@@ -47,7 +47,7 @@ Every S3-compatible service issues an access key id and a secret access key. Map
 AWS connection fields as follows.
 
 ============================  =================================  =============================================
-S3-compatible value           Standardized env var               AWS connection field
+S3-compatible value           Env var used on this page          AWS connection field
 ============================  =================================  =============================================
 Access key id                 ``S3_ACCESS_KEY_ID``               ``login`` (AWS access key id)
 Secret access key             ``S3_SECRET_ACCESS_KEY``           ``password`` (AWS secret access key)
@@ -149,8 +149,8 @@ Step 3: Verify
 - Confirm the objects appear under ``s3://<S3_BUCKET_NAME>/logs/`` in your provider's console
   or with any S3 client (for example ``aws s3 ls s3://<S3_BUCKET_NAME>/logs/ --endpoint-url
   "$S3_ENDPOINT"``).
-- Open the task log in the Airflow UI. The log is served from the remote store; a banner notes
-  that the log was read from the remote location.
+- Open the task log in the Airflow UI. The collapsed "Log message source details" group at the
+  top of the log lists the ``s3://...`` objects it was read from.
 
 Reusing the connection for Dag data
 -----------------------------------
