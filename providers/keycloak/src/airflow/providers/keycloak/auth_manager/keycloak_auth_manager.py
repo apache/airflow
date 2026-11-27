@@ -31,7 +31,7 @@ import requests
 from fastapi import FastAPI
 from jwt import InvalidTokenError
 from keycloak import KeycloakOpenID
-from keycloak.exceptions import KeycloakPostError
+from keycloak.exceptions import KeycloakError, KeycloakPostError
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
@@ -76,6 +76,7 @@ from airflow.providers.keycloak.auth_manager.constants import (
 from airflow.providers.keycloak.auth_manager.exceptions import (
     KeycloakAuthorizationRequestError,
     KeycloakUnexpectedResponseError,
+    is_keycloak_outage,
 )
 from airflow.providers.keycloak.auth_manager.resources import KeycloakResource
 from airflow.providers.keycloak.auth_manager.user import KeycloakAuthManagerUser
@@ -499,12 +500,20 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
         return get_keycloak_cli_commands()
 
     @staticmethod
-    def get_keycloak_client(client_id: str | None = None, client_secret: str | None = None) -> KeycloakOpenID:
+    def get_keycloak_client(
+        client_id: str | None = None,
+        client_secret: str | None = None,
+        *,
+        timeout: int | None = None,
+        max_retries: int | None = None,
+    ) -> KeycloakOpenID:
         """
         Get a KeycloakOpenID client instance.
 
         :param client_id: Optional client ID to override config. If provided, client_secret must also be provided.
         :param client_secret: Optional client secret to override config. If provided, client_id must also be provided.
+        :param timeout: Optional request timeout in seconds. Defaults to the python-keycloak default.
+        :param max_retries: Optional number of retries per request. Defaults to the python-keycloak default.
         """
         if (client_id is None) != (client_secret is None):
             raise ValueError(
@@ -517,13 +526,34 @@ class KeycloakAuthManager(BaseAuthManager[KeycloakAuthManagerUser]):
 
         realm = conf.get(CONF_SECTION_NAME, CONF_REALM_KEY)
         server_url = conf.get(CONF_SECTION_NAME, CONF_SERVER_URL_KEY)
+        connection_kwargs: dict[str, Any] = {}
+        if timeout is not None:
+            connection_kwargs["timeout"] = timeout
+        if max_retries is not None:
+            connection_kwargs["max_retries"] = max_retries
 
         return KeycloakOpenID(
             server_url=server_url,
             client_id=client_id,
             client_secret_key=client_secret,
             realm_name=realm,
+            **connection_kwargs,
         )
+
+    @staticmethod
+    def _end_keycloak_session(refresh_token: str) -> None:
+        # python-keycloak retries POST by default, which would multiply the timeout.
+        client = KeycloakAuthManager.get_keycloak_client(timeout=5, max_retries=0)
+        try:
+            client.logout(refresh_token)
+        except KeycloakError as e:
+            # A 400 invalid_grant is the normal answer when the Keycloak session already expired.
+            log.log(
+                logging.WARNING if is_keycloak_outage(e) else logging.DEBUG,
+                "Could not end the Keycloak session on logout (%s, response code %s)",
+                type(e).__name__,
+                e.response_code,
+            )
 
     def _is_authorized(
         self,
