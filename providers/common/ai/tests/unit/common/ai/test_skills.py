@@ -518,23 +518,40 @@ class TestAirflowSkillsCleanup:
             toolset.tool_plain(tool)
         return Agent(model, capabilities=[capability], toolsets=[toolset])
 
+    @staticmethod
+    def hold_run_capabilities(monkeypatch) -> list[Any]:
+        """Keep every per-run capability alive, so only the end of the run can have removed its clone."""
+        held: list[Any] = []
+        original = AirflowSkills.for_run
+
+        async def for_run(self, ctx):
+            run = await original(self, ctx)
+            held.append(run)
+            return run
+
+        monkeypatch.setattr(AirflowSkills, "for_run", for_run)
+        return held
+
     @mock.patch("airflow.providers.common.ai.skills._clone_git", autospec=True)
     @pytest.mark.asyncio
-    async def test_a_successful_run_removes_the_clone(self, mock_clone, tmp_path):
+    async def test_a_successful_run_removes_the_clone(self, mock_clone, tmp_path, monkeypatch):
         mock_clone.side_effect, clones = make_clone(tmp_path, "alpha")
+        held = self.hold_run_capabilities(monkeypatch)
         capability = AirflowSkills([GIT_SOURCE])
         agent = Agent(model_calling(("load_capability", {"id": "alpha"})), capabilities=[capability])
 
         await agent.run("go")
 
+        assert held
         assert len(clones) == 1
         assert not clones[0].exists()
         assert capability._runs == {}
 
     @mock.patch("airflow.providers.common.ai.skills._clone_git", autospec=True)
     @pytest.mark.asyncio
-    async def test_a_failed_run_removes_the_clone(self, mock_clone, tmp_path):
+    async def test_a_failed_run_removes_the_clone(self, mock_clone, tmp_path, monkeypatch):
         mock_clone.side_effect, clones = make_clone(tmp_path, "alpha")
+        held = self.hold_run_capabilities(monkeypatch)
 
         def model_fn(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
             raise RuntimeError("worker died")
@@ -544,6 +561,7 @@ class TestAirflowSkillsCleanup:
         with pytest.raises(RuntimeError, match="worker died"):
             await agent.run("go")
 
+        assert held
         assert not clones[0].exists()
 
     @mock.patch("airflow.providers.common.ai.skills._clone_git", autospec=True)
@@ -579,6 +597,16 @@ class TestAirflowSkillsCleanup:
             await agent.run("go")
 
         assert not clones[0].exists()
+        assert capability._runs == {}
+
+    @pytest.mark.asyncio
+    async def test_a_missing_local_source_fails_the_run_and_registers_nothing(self, tmp_path):
+        capability = AirflowSkills([tmp_path / "missing"])
+        agent = Agent(model_calling(), capabilities=[capability])
+
+        with pytest.raises(ValueError, match="library directory does not exist"):
+            await agent.run("go")
+
         assert capability._runs == {}
 
     @pytest.mark.asyncio

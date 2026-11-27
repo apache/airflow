@@ -247,6 +247,19 @@ class TestReadSkillResource:
         assert exact == "x" * 10
 
     @pytest.mark.asyncio
+    async def test_a_directory_pattern_covers_files_nested_below_it(self, skill_dir):
+        (skill_dir / "secrets" / "a").mkdir(parents=True)
+        (skill_dir / "secrets" / "a" / "b.txt").write_text("hidden")
+
+        with pytest.raises(ModelRetry, match="excluded"):
+            await call(
+                make_toolset(skill_dir, exclude_resources=["secrets/*"]),
+                "read_skill_resource",
+                skill_name="demo",
+                resource="secrets/a/b.txt",
+            )
+
+    @pytest.mark.asyncio
     async def test_a_symlink_inside_the_skill_is_followed(self, skill_dir):
         (skill_dir / "references" / "real.md").write_text("real")
         (skill_dir / "references" / "alias.md").symlink_to(skill_dir / "references" / "real.md")
@@ -389,6 +402,17 @@ class TestRunSkillScript:
 
     @pytest.mark.skipif(sys.platform == "win32", reason="needs a POSIX shell")
     @pytest.mark.asyncio
+    async def test_a_shebang_wins_over_the_suffix(self, skill_dir):
+        self.write_script(skill_dir, "scripts/odd.py", "#!/bin/sh\necho from-sh\n")
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/odd.py"
+        )
+
+        assert output == "from-sh"
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs a POSIX shell")
+    @pytest.mark.asyncio
     async def test_a_shell_script_without_a_shebang_runs_under_sh(self, skill_dir):
         self.write_script(skill_dir, "scripts/hi.sh", 'echo hi "$1"\n')
 
@@ -488,6 +512,46 @@ class TestRunSkillScript:
         )
 
         assert output == "x" * 10 + "\n[output truncated at 10 bytes and the script was killed]"
+
+    @pytest.mark.asyncio
+    async def test_output_of_exactly_the_cap_is_not_truncated(self, skill_dir, monkeypatch):
+        monkeypatch.setattr(skill_files, "_MAX_SCRIPT_OUTPUT_BYTES", 10)
+        self.write_script(skill_dir, "scripts/exact.py", "import sys\nsys.stdout.write('x' * 10)\n")
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/exact.py"
+        )
+
+        assert output == "x" * 10
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_cancelling_the_call_kills_the_running_script(self, skill_dir):
+        started = skill_dir / "started"
+        survived = skill_dir / "survived"
+        self.write_script(
+            skill_dir,
+            "scripts/slow.py",
+            "import pathlib, time\n"
+            f"pathlib.Path({str(started)!r}).write_text('x')\n"
+            "time.sleep(1.5)\n"
+            f"pathlib.Path({str(survived)!r}).write_text('x')\n",
+        )
+        task = asyncio.create_task(
+            call(make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/slow.py")
+        )
+        for _ in range(100):
+            if started.exists():
+                break
+            await asyncio.sleep(0.05)
+        assert started.exists()
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        await asyncio.sleep(2.5)
+
+        assert not survived.exists()
 
     @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
     @pytest.mark.asyncio
@@ -598,6 +662,18 @@ class TestRunSkillScript:
         )
 
         assert output == "set"
+
+
+class TestKillProcess:
+    @mock.patch.object(skill_files.os, "killpg", autospec=True, side_effect=ProcessLookupError)
+    def test_it_kills_the_process_itself_when_its_group_is_gone(self, mock_killpg):
+        process = mock.create_autospec(asyncio.subprocess.Process, instance=True)
+        process.pid = 4242
+
+        skill_files._kill_process(process)
+
+        mock_killpg.assert_called_once()
+        process.kill.assert_called_once_with()
 
 
 class TestReapProcess:
