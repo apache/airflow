@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -136,19 +136,25 @@ class GenericTransfer(BaseOperator):
         """Format the paginated SQL statement using the current format."""
         return self.paginated_sql_statement_clause.format(self.sql, self.page_size, offset)
 
-    def render_template_fields(
+    def _do_render_template_fields(
         self,
+        parent: Any,
+        template_fields: Iterable[str],
         context: Context,
-        jinja_env: jinja2.Environment | None = None,
+        jinja_env: jinja2.Environment,
+        seen_oids: set[int],
     ) -> None:
-        super().render_template_fields(context=context, jinja_env=jinja_env)
+        super()._do_render_template_fields(parent, template_fields, context, jinja_env, seen_oids)
 
-        # Make sure string are converted to integers
-        if isinstance(self.page_size, str):
-            self.page_size = int(self.page_size)
-        commit_every = self.insert_args.get("commit_every")
-        if isinstance(commit_every, str):
-            self.insert_args["commit_every"] = int(commit_every)
+        # Hooked here rather than in render_template_fields because a mapped task never calls
+        # that one -- MappedOperator renders through _do_render_template_fields on the unmapped task.
+        if parent is self:
+            # Make sure string are converted to integers
+            if isinstance(self.page_size, str):
+                self.page_size = int(self.page_size)
+            commit_every = self.insert_args.get("commit_every")
+            if isinstance(commit_every, str):
+                self.insert_args["commit_every"] = int(commit_every)
 
     def _insert_rows(self, rows: list[Any], context: Context):
         if self._rows_processor:
