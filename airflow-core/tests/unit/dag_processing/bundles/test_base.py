@@ -218,6 +218,40 @@ class TestBundleVersionLock:
         assert b.lock_file_path is None
         assert b.lock_file is None
 
+    @patch("airflow.dag_processing.bundles.base.get_bundle_tracking_file")
+    def test_update_version_file_writes_parseable_timestamp(self, mock_get_tracking_file, tmp_path):
+        tracking_file = tmp_path / "v1"
+        mock_get_tracking_file.return_value = tracking_file
+        lock = BundleVersionLock(
+            bundle_name="abc",
+            bundle_version="v1",
+        )
+        lock._update_version_file()
+        assert lock.lock_file_path == tracking_file
+        assert tracking_file.exists()
+        assert BundleUsageTrackingManager()._parse_dt(tracking_file.read_text()) is not None
+
+    @patch("airflow.dag_processing.bundles.base.get_bundle_tracking_file")
+    def test_update_version_file_keeps_held_flock_effective(self, mock_get_tracking_file, tmp_path):
+        """Rewriting the tracking file must not replace it: flock locks the open file, not its name."""
+        tracking_file = tmp_path / "v1"
+        mock_get_tracking_file.return_value = tracking_file
+        lock = BundleVersionLock(
+            bundle_name="abc",
+            bundle_version="v1",
+        )
+        with lock:
+            inode_before = tracking_file.stat().st_ino
+            # A second task acquiring the same version rewrites the tracking file.
+            BundleVersionLock(
+                bundle_name="abc",
+                bundle_version="v1",
+            )._update_version_file()
+            assert tracking_file.stat().st_ino == inode_before
+            with open(tracking_file, "a") as f:
+                with pytest.raises(BlockingIOError):
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
     def test_log_exc_formats_message_correctly(self):
         """Test that _log_exc correctly formats the log message with all parameters."""
         from airflow.dag_processing.bundles.base import log as bundle_log
@@ -256,6 +290,19 @@ class FakeBundle(BaseDagBundle):
 
 
 class TestBundleUsageTrackingManager:
+    @pytest.mark.parametrize("val", ["", "not-a-date"])
+    def test_parse_dt_returns_none_for_invalid_values(self, val):
+        assert BundleUsageTrackingManager()._parse_dt(val) is None
+
+    @patch("airflow.dag_processing.bundles.base.get_bundle_tracking_dir")
+    def test_find_all_tracking_files_skips_empty_file(self, mock_get_dir, tmp_path):
+        mock_get_dir.return_value = tmp_path
+        (tmp_path / "empty-version").write_text("")
+        (tmp_path / "old-version").write_text("2020-01-01T00:00:00+00:00")
+        found = BundleUsageTrackingManager()._find_all_tracking_files(bundle_name="abc")
+        assert found is not None
+        assert [info.version for info in found] == ["old-version"]
+
     @pytest.mark.parametrize(
         ("threshold_hours", "min_versions", "when_hours", "expected_remaining"),
         [

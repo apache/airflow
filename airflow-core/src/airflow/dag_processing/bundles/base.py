@@ -33,7 +33,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pendulum
-from pendulum.parsing import ParserError
 
 from airflow.configuration import conf
 
@@ -100,7 +99,7 @@ class BundleUsageTrackingManager:
         try:
             dt = pendulum.parse(val)
             return dt if isinstance(dt, pendulum.DateTime) else None
-        except ParserError:
+        except ValueError:  # pendulum 3.1 raises a plain ValueError, not ParserError, for ""
             return None
 
     @staticmethod
@@ -501,11 +500,13 @@ class BundleVersionLock:
             assert self.lock_file_path
         self.lock_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with tempfile.TemporaryDirectory() as td:
-            temp_file = Path(td, self.lock_file_path)
-            now = pendulum.now(tz=pendulum.UTC)
-            temp_file.write_text(now.isoformat())
-            os.replace(temp_file, self.lock_file_path)
+        fd = os.open(self.lock_file_path, os.O_RDWR | os.O_CREAT, 0o644)
+        try:
+            # Overwrite in place: replacing the file would leave held flocks on an unlinked inode.
+            # UTC isoformat with microseconds is always 32 bytes, so no stale bytes are left behind.
+            os.pwrite(fd, pendulum.now(tz=pendulum.UTC).isoformat(timespec="microseconds").encode(), 0)
+        finally:
+            os.close(fd)
 
     def acquire(self):
         if not self.version:
