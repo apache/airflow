@@ -16,10 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import shutil
+import time
 from contextlib import nullcontext
 from copy import copy
 from unittest import mock
@@ -40,6 +42,7 @@ from airflow.models.dagrun import DagRun
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
+from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.sdk import timezone
 from airflow.sdk.definitions.context import Context
 from airflow.utils.types import DagRunType
@@ -95,6 +98,21 @@ def create_context(task) -> Context:
         ti=task_instance,
         task_instance=task_instance,
     )
+
+
+def _execute_through_deferral(operator: KubernetesPodOperator, context: Context):
+    """Run ``operator`` as a worker and triggerer would: defer, run the trigger to its event, resume."""
+    try:
+        return operator.execute(context)
+    except TaskDeferred as deferred:
+        event = asyncio.run(_get_first_trigger_event(deferred.trigger))
+        return getattr(operator, deferred.method_name)(context=context, event=event.payload)
+
+
+async def _get_first_trigger_event(trigger):
+    async for event in trigger.run():
+        return event
+    raise AssertionError("Trigger finished without emitting an event")
 
 
 @pytest.fixture(scope="session")
@@ -1151,6 +1169,80 @@ class TestKubernetesPodOperatorSystem:
         k.on_kill()
         with pytest.raises(ApiException, match=r'pods \\"test.[a-z0-9]+\\" not found'):
             client.read_namespaced_pod(name=name, namespace=namespace)
+
+    @pytest.mark.parametrize(
+        ("deferrable", "on_finish_action", "base_exit_code"),
+        [
+            pytest.param(False, OnFinishAction.DELETE_POD, 0, id="sync"),
+            pytest.param(True, OnFinishAction.DELETE_POD, 0, id="deferrable"),
+            pytest.param(False, OnFinishAction.KEEP_POD, 0, id="sync-keep-pod"),
+            pytest.param(False, OnFinishAction.DELETE_POD, 1, id="sync-base-failed"),
+            pytest.param(True, OnFinishAction.DELETE_POD, 1, id="deferrable-base-failed"),
+        ],
+    )
+    def test_base_container_exit_with_running_sidecar(
+        self, test_label, deferrable, on_finish_action, base_exit_code
+    ):
+        """
+        A sidecar that never exits keeps the pod Running after the base container exits. The task
+        must still finish, with the base container's outcome, instead of hanging until the class
+        ``execution_timeout`` fails it.
+        """
+        pod_spec = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(
+                labels={"test_label": test_label}, namespace="default", name="sidecar-pod"
+            ),
+            spec=k8s.V1PodSpec(
+                containers=[
+                    k8s.V1Container(
+                        name="base",
+                        image="ubuntu:24.04",
+                        command=["bash", "-cx"],
+                        args=[f"sleep 5; exit {base_exit_code}"],
+                    ),
+                    k8s.V1Container(name="sidecar", image="ubuntu:24.04", command=["sleep", "infinity"]),
+                ],
+                restart_policy="Never",
+            ),
+        )
+        k = KubernetesPodOperator(
+            task_id=str(uuid4()),
+            in_cluster=False,
+            labels=self.labels,
+            full_pod_spec=pod_spec,
+            do_xcom_push=False,
+            deferrable=deferrable,
+            on_finish_action=on_finish_action,
+            termination_grace_period=0,
+        )
+        context = create_context(k)
+
+        expectation = (
+            pytest.raises(AirflowException, match="returned a failure") if base_exit_code else nullcontext()
+        )
+        started = time.monotonic()
+        with expectation:
+            _execute_through_deferral(k, context)
+        elapsed = time.monotonic() - started
+        # The base container exits after about 5s. Without the duration check, a hang that the class
+        # ``execution_timeout`` interrupts still passes the failed-base case, because cleanup then
+        # raises the same "returned a failure" error that case expects.
+        assert elapsed < 90, f"Operator took {elapsed:.0f}s to finish after the base container exited"
+
+        client = KubernetesHook(conn_id=None, in_cluster=False).core_v1_client
+        remote_pods = client.list_namespaced_pod(
+            namespace="default", field_selector=f"metadata.name={k.pod.metadata.name}"
+        ).items
+        remote_pod = remote_pods[0] if remote_pods else None
+
+        if on_finish_action == OnFinishAction.KEEP_POD:
+            assert remote_pod is not None
+            assert remote_pod.metadata.deletion_timestamp is None
+            assert remote_pod.status.phase == "Running"
+            sidecar = next(s for s in remote_pod.status.container_statuses if s.name == "sidecar")
+            assert sidecar.state.running is not None
+        else:
+            assert remote_pod is None or remote_pod.metadata.deletion_timestamp is not None
 
     def test_reattach_failing_pod_once(self):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
