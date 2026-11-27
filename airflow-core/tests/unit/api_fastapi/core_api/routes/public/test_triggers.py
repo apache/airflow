@@ -400,6 +400,136 @@ class TestGetTriggers:
         assert response.status_code == 200
         assert sorted(_name(t) for t in response.json()["triggers"]) == expected
 
+    @pytest.mark.parametrize("order_by", ["id", "-id", "created_date", "-created_date"])
+    def test_pagination_counts_multi_watcher_trigger_once(self, test_client, session, triggers, order_by):
+        _watcher(session, "second_failing", triggers["failing"])
+        session.commit()
+
+        response = test_client.get("/triggers", params={"order_by": order_by})
+        assert response.status_code == 200
+        expected_ids = [trigger["id"] for trigger in response.json()["triggers"]]
+        assert response.json()["total_entries"] == 5
+        assert len(expected_ids) == len(set(expected_ids)) == 5
+
+        paged_ids = []
+        for offset in range(5):
+            page = test_client.get(
+                "/triggers",
+                params={"order_by": order_by, "limit": 1, "offset": offset},
+            )
+            assert page.status_code == 200
+            assert page.json()["total_entries"] == 5
+            assert len(page.json()["triggers"]) == 1
+            paged_ids.append(page.json()["triggers"][0]["id"])
+
+        assert paged_ids == expected_ids
+
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    def test_pagination_excludes_unauthorized_triggers(self, mock_dag_ids, test_client, session, triggers):
+        _watcher(session, "second_failing", triggers["failing"])
+        session.commit()
+
+        mock_dag_ids.return_value = {"dag_sensor"}
+
+        response = test_client.get("/triggers", params={"order_by": "id"})
+        assert response.status_code == 200
+
+        visible_ids = [item["id"] for item in response.json()["triggers"]]
+        assert triggers["sensor"].id in visible_ids
+        assert triggers["queued"].id not in visible_ids
+        assert len(visible_ids) == len(set(visible_ids))
+        assert response.json()["total_entries"] == len(visible_ids)
+
+        paged_ids = []
+        for offset in range(len(visible_ids)):
+            page = test_client.get(
+                "/triggers",
+                params={"order_by": "id", "limit": 1, "offset": offset},
+            )
+            assert page.status_code == 200
+            assert page.json()["total_entries"] == len(visible_ids)
+            assert len(page.json()["triggers"]) == 1
+            paged_ids.append(page.json()["triggers"][0]["id"])
+
+        assert paged_ids == visible_ids
+
+        last_page = test_client.get(
+            "/triggers",
+            params={"order_by": "id", "limit": 1, "offset": len(visible_ids)},
+        )
+        assert last_page.status_code == 200
+        assert last_page.json()["triggers"] == []
+        assert last_page.json()["total_entries"] == len(visible_ids)
+
+    @pytest.mark.parametrize(
+        ("authorized_dags", "authorized_assets", "visible_names"),
+        [
+            pytest.param(
+                {"dag_sensor"},
+                set(),
+                {"sensor", "callback"},
+                id="hide-task-and-watcher",
+            ),
+            pytest.param(
+                set(),
+                {"failing_asset"},
+                {"failing"},
+                id="hide-task-and-callback",
+            ),
+            pytest.param(
+                {"dag_sensor"},
+                {"failing_asset"},
+                {"sensor", "callback", "failing"},
+                id="mixed-visible-categories",
+            ),
+        ],
+    )
+    @mock.patch(f"{SIMPLE_AUTH}.get_authorized_assets", autospec=True)
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    def test_pagination_skips_hidden_task_callback_and_watcher_triggers(
+        self,
+        mock_dag_ids,
+        mock_assets,
+        test_client,
+        triggers,
+        authorized_dags,
+        authorized_assets,
+        visible_names,
+    ):
+        mock_dag_ids.return_value = authorized_dags
+        mock_assets.return_value = {triggers[name].id for name in authorized_assets}
+
+        expected_ids = {
+            triggers[name].trigger.id if name == "callback" else triggers[name].id for name in visible_names
+        }
+
+        for order_by in ("id", "-id", "created_date", "-created_date"):
+            response = test_client.get("/triggers", params={"order_by": order_by})
+            assert response.status_code == 200
+            body = response.json()
+            ids = [item["id"] for item in body["triggers"]]
+
+            assert set(ids) == expected_ids
+            assert len(ids) == len(expected_ids)
+            assert body["total_entries"] == len(expected_ids)
+
+            paged_ids = []
+            for offset in range(len(expected_ids) + 1):
+                page = test_client.get(
+                    "/triggers",
+                    params={"order_by": order_by, "limit": 1, "offset": offset},
+                )
+                assert page.status_code == 200
+                assert page.json()["total_entries"] == len(expected_ids)
+                page_ids = [item["id"] for item in page.json()["triggers"]]
+                if offset < len(expected_ids):
+                    assert len(page_ids) == 1
+                else:
+                    assert page_ids == []
+                paged_ids.extend(page_ids)
+
+            assert paged_ids == ids
+
     def test_filter_by_asset(self, test_client, triggers):
         response = test_client.get("/triggers", params={"asset_id": triggers["pending_asset"].id})
 
@@ -759,6 +889,26 @@ class TestGetTriggers:
     ):
         assert unauthorized_test_client.get("/triggers").status_code == 403
         assert unauthorized_test_client.get(f"/triggers/{triggers['sensor'].id}").status_code == 403
+
+    @mock.patch(f"{BASE_AUTH}.get_authorized_dag_ids", autospec=True)
+    def test_large_authorized_dag_set_does_not_exceed_sql_parameter_limit(
+        self, mock_dag_ids, test_client, triggers
+    ):
+        authorized_dags = {f"synthetic_dag_{index}" for index in range(70_000)}
+        authorized_dags.add("dag_sensor")
+        mock_dag_ids.return_value = authorized_dags
+
+        response = test_client.get("/triggers")
+        assert response.status_code == 200
+        trigger_ids = {item["id"] for item in response.json()["triggers"]}
+        assert str(triggers["sensor"].id) in {str(value) for value in trigger_ids}
+        assert str(triggers["queued"].id) not in {str(value) for value in trigger_ids}
+
+        response = test_client.get(f"/triggers/{triggers['sensor'].id}")
+        assert response.status_code == 200
+
+        response = test_client.get(f"/triggers/{triggers['queued'].id}")
+        assert response.status_code == 404
 
 
 class TestGetTrigger:

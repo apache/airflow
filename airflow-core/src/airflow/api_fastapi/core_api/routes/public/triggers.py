@@ -17,13 +17,15 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from itertools import groupby
+from operator import itemgetter
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import contains_eager, defer, selectinload
 
-from airflow.api_fastapi.common.db.common import SessionDep, paginated_select
+from airflow.api_fastapi.common.db.common import SessionDep, apply_filters_to_select
 from airflow.api_fastapi.common.parameters.base import QueryLimit, QueryOffset
 from airflow.api_fastapi.common.parameters.sort import SortParam
 from airflow.api_fastapi.common.parameters.trigger import (
@@ -249,24 +251,71 @@ def get_triggers(
     if asset_id.value is not None and asset_id.value not in readable_triggers_filter.asset_ids:
         # Which triggers watch an asset is the asset's to show.
         return TriggerCollectionResponse(triggers=[], total_entries=0)
-    triggers_select, total_entries = paginated_select(
-        statement=_build_triggers_select(),
-        filters=[
-            kind,
-            trigger_status,
-            triggerer_hostname,
-            dag_id,
-            asset_id,
-            scheduled_dag_id,
-            teams,
-            readable_triggers_filter,
-        ],
-        order_by=order_by,
-        offset=offset,
-        limit=limit,
-        session=session,
+    filters = [
+        kind,
+        trigger_status,
+        triggerer_hostname,
+        dag_id,
+        asset_id,
+        scheduled_dag_id,
+        teams,
+    ]
+
+    candidates = apply_filters_to_select(
+        statement=select(
+            Trigger.id,
+            Trigger.dag_id,
+            Trigger.used_by_ref,
+            AssetWatcherModel.asset_id,
+        )
+        .outerjoin(Trigger.triggerer_job)
+        .outerjoin(AssetWatcherModel, AssetWatcherModel.trigger_id == Trigger.id)
+        .where(Trigger.still_used_expression()),
+        filters=filters,
     )
-    triggers = session.scalars(triggers_select).unique().all()
+    candidates = order_by.to_orm(candidates)
+    candidates = candidates.order_by(Trigger.id)
+
+    candidate_rows = session.execute(candidates)
+
+    visible_ids = []
+    total_entries = 0
+    page_offset = offset.value or 0
+    page_limit = limit.value
+
+    for candidate_id, group in groupby(candidate_rows, key=itemgetter(0)):
+        rows = iter(group)
+        _, candidate_dag_id, used_by_ref, first_asset_id = next(rows)
+
+        watched_asset_ids = set()
+        if first_asset_id is not None:
+            watched_asset_ids.add(first_asset_id)
+
+        watched_asset_ids.update(asset_id for _, _, _, asset_id in rows if asset_id is not None)
+
+        if not readable_triggers_filter.allows(
+            dag_id=candidate_dag_id,
+            used_by_ref=used_by_ref,
+            watched_asset_ids=watched_asset_ids,
+        ):
+            continue
+
+        if total_entries >= page_offset and (page_limit is None or len(visible_ids) < page_limit):
+            visible_ids.append(candidate_id)
+
+        total_entries += 1
+
+    if visible_ids:
+        triggers_by_id = {
+            trigger.id: trigger
+            for trigger in session.scalars(_build_triggers_select().where(Trigger.id.in_(visible_ids)))
+            .unique()
+            .all()
+        }
+        triggers = [triggers_by_id[trigger_id] for trigger_id in visible_ids if trigger_id in triggers_by_id]
+    else:
+        triggers = []
+
     callback_dag_run_ids = _get_callback_dag_run_ids(triggers, session=session)
     public_map_indexes = _get_public_map_indexes(triggers, session=session)
     scheduled_dag_ids = _get_scheduled_dag_ids(
@@ -303,9 +352,20 @@ def get_trigger(
     session: SessionDep,
 ) -> TriggerDetailResponse:
     """Get a trigger, who it runs for, and how it is doing."""
-    trigger = session.scalars(
-        readable_triggers_filter.to_orm(_build_triggers_select()).where(Trigger.id == trigger_id).limit(1)
-    ).one_or_none()
+    trigger = (
+        session.scalars(_build_triggers_select().where(Trigger.id == trigger_id).limit(1))
+        .unique()
+        .one_or_none()
+    )
+
+    if trigger is not None:
+        watched_asset_ids = {watcher.asset_id for watcher in trigger.asset_watchers}
+        if not readable_triggers_filter.allows(
+            dag_id=trigger.dag_id,
+            used_by_ref=trigger.used_by_ref,
+            watched_asset_ids=watched_asset_ids,
+        ):
+            trigger = None
     response = (
         None
         if trigger is None

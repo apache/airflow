@@ -27,7 +27,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt, TypeAdapter, ValidationError
-from sqlalchemy import and_, false, or_, select
+from sqlalchemy import false, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -71,7 +71,7 @@ from airflow.api_fastapi.core_api.datamodels.pools import PoolBody
 from airflow.api_fastapi.core_api.datamodels.variables import VariableBody
 from airflow.configuration import conf
 from airflow.models import Connection, Pool, Variable
-from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DagModel, DagRun, DagTag
 from airflow.models.dag_version import DagVersion
@@ -81,7 +81,6 @@ from airflow.models.errors import ParseImportError
 from airflow.models.log import Log
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team, dag_bundle_team_association_table
-from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
 
 if TYPE_CHECKING:
@@ -1208,12 +1207,7 @@ ReadableAssetEventsByAssetFilterDep = Annotated[
 ]
 
 
-def _select_triggers_watching(asset_ids: set[int]) -> Select:
-    # Uncorrelated, as in Trigger.still_used_expression.
-    return select(AssetWatcherModel.trigger_id).where(AssetWatcherModel.asset_id.in_(asset_ids))
-
-
-class PermittedTriggerFilter(OrmClause[None]):
+class PermittedTriggerFilter:
     """
     Keep the triggers used by something the caller can see, each kind gated like the routes that show it.
 
@@ -1236,23 +1230,14 @@ class PermittedTriggerFilter(OrmClause[None]):
         self.asset_ids = asset_ids
         self.can_read_what_uses_triggers = can_read_what_uses_triggers
 
-    def to_orm(self, select: Select) -> Select:
-        # The kind by what the row records it is used by, as Trigger.kind_expression decides it, but without
-        # its CASE: compared in each branch, Postgres evaluates the CASE and its watcher subquery once per
-        # branch and row.
-        ti_id = Trigger.used_by_ref["ti_id"].as_string()
-        callback_id = Trigger.used_by_ref["callback_id"].as_string()
-        return select.where(
-            or_(
-                and_(ti_id.is_not(None), Trigger.dag_id.in_(self.task_dag_ids)),
-                and_(ti_id.is_(None), callback_id.is_not(None), Trigger.dag_id.in_(self.callback_dag_ids)),
-                and_(
-                    ti_id.is_(None),
-                    callback_id.is_(None),
-                    Trigger.id.in_(_select_triggers_watching(self.asset_ids)),
-                ),
-            )
-        )
+    def allows(self, *, dag_id: str | None, used_by_ref: dict | None, watched_asset_ids: set[int]) -> bool:
+        """Check trigger ownership permissions without expanding SQL IN lists."""
+        used_by_ref = used_by_ref or {}
+        if used_by_ref.get("ti_id") is not None:
+            return dag_id in self.task_dag_ids
+        if used_by_ref.get("callback_id") is not None:
+            return dag_id in self.callback_dag_ids
+        return bool(watched_asset_ids & self.asset_ids)
 
 
 def readable_triggers_filter(user: GetUserDep, auth_manager: AuthManagerDep) -> PermittedTriggerFilter:
