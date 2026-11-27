@@ -697,6 +697,29 @@ def test_sync_perm_for_dag_creates_permissions_on_resources(security_manager):
     assert security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id) is not None
 
 
+@pytest.mark.parametrize(
+    ("missing_permissions", "expected_query_count"),
+    [
+        pytest.param(set(), 1, id="all-exist"),
+        pytest.param({(permissions.ACTION_CAN_EDIT, "DAG:TEST_DAG_RESYNC")}, 7, id="one-missing"),
+    ],
+)
+def test_sync_perm_for_dag_only_creates_missing_permissions(
+    security_manager, missing_permissions, expected_query_count
+):
+    test_dag_id = "TEST_DAG_RESYNC"
+    security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
+    for action_name, resource_name in missing_permissions:
+        security_manager.delete_permission(action_name, resource_name)
+        assert security_manager.get_permission(action_name, resource_name) is None
+
+    with assert_queries_count(expected_query_count):
+        security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
+
+    for action_name, resource_name in missing_permissions:
+        assert security_manager.get_permission(action_name, resource_name) is not None
+
+
 def test_sync_perm_for_dag_creates_permissions_for_specified_roles(app, security_manager):
     test_dag_id = "TEST_DAG"
     test_role = "limited-role"
