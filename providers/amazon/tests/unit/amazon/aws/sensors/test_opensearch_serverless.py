@@ -122,6 +122,17 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
 
+    @mock.patch.object(OpenSearchServerlessHook, "conn")
+    def test_poke_waits_for_updating_collection(self, mock_conn):
+        mock_conn.batch_get_collection.return_value = {"collectionDetails": [{"status": "UPDATING"}]}
+        assert self.sensor.poke({}) is False
+
+    @mock.patch.object(OpenSearchServerlessHook, "conn")
+    def test_poke_fails_on_update_failed(self, mock_conn):
+        mock_conn.batch_get_collection.return_value = {"collectionDetails": [{"status": "UPDATE_FAILED"}]}
+        with pytest.raises(AirflowException, match=self.sensor.FAILURE_MESSAGE):
+            self.sensor.poke({})
+
     def test_execute_defers_to_execute_complete(self):
         sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, deferrable=True)
 

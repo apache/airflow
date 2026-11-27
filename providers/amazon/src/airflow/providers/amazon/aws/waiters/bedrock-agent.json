@@ -35,6 +35,18 @@
           "argument": "knowledgeBase.status",
           "expected": "FAILED",
           "state": "failure"
+        },
+        {
+          "matcher": "path",
+          "argument": "knowledgeBase.status",
+          "expected": "DELETE_UNSUCCESSFUL",
+          "state": "failure"
+        },
+        {
+          "matcher": "path",
+          "argument": "knowledgeBase.status",
+          "expected": "UPDATE_UNSUCCESSFUL",
+          "state": "failure"
         }
       ]
     },
@@ -65,6 +77,18 @@
           "matcher": "path",
           "argument": "ingestionJob.status",
           "expected": "FAILED",
+          "state": "failure"
+        },
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "STOPPING",
+          "state": "failure"
+        },
+        {
+          "matcher": "path",
+          "argument": "ingestionJob.status",
+          "expected": "STOPPED",
           "state": "failure"
         }
       ]

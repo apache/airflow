@@ -115,7 +115,7 @@ class ComprehendStartPiiEntitiesDetectionJobCompletedSensor(ComprehendBaseSensor
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    INTERMEDIATE_STATES: tuple[str, ...] = ("IN_PROGRESS",)
+    INTERMEDIATE_STATES: tuple[str, ...] = ("SUBMITTED", "IN_PROGRESS")
     FAILURE_STATES: tuple[str, ...] = ("FAILED", "STOP_REQUESTED", "STOPPED")
     SUCCESS_STATES: tuple[str, ...] = ("COMPLETED",)
     FAILURE_MESSAGE = "Comprehend start pii entities detection job sensor failed."

@@ -77,6 +77,13 @@ class TestComprehendStartPiiEntitiesDetectionJobCompletedSensor:
         }
         assert self.sensor.poke({}) is False
 
+    @mock.patch.object(ComprehendHook, "conn")
+    def test_poke_waits_for_submitted_job(self, mock_conn):
+        mock_conn.describe_pii_entities_detection_job.return_value = {
+            "PiiEntitiesDetectionJobProperties": {"JobStatus": "SUBMITTED"}
+        }
+        assert self.sensor.poke({}) is False
+
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(ComprehendHook, "conn")
     def test_poke_failure_states(self, mock_conn, state):
