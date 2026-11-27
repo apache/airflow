@@ -453,6 +453,35 @@ class TestDag:
         with pytest.raises(ValueError, match="Wrong link format"):
             dag.validate()
 
+        # Owner names and links up to the 500-character column limit are accepted
+        boundary_owner = "o" * 500
+        boundary_link = "https://example.com/" + "p" * 480
+        dag = DAG(
+            "dag",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            owner_links={boundary_owner: boundary_link},
+        )
+        assert dag.owner_links[boundary_owner] == boundary_link
+
+        # Longer owner names are rejected at authoring time with the offending name named
+        with pytest.raises(ValueError, match="maximum length of an owner name is 500 characters"):
+            DAG(
+                "dag",
+                schedule=None,
+                start_date=DEFAULT_DATE,
+                owner_links={"o" * 600: "https://example.com"},
+            )
+
+        # Longer owner links are rejected at authoring time with the offending link named
+        with pytest.raises(ValueError, match="maximum length of an owner link is 500 characters"):
+            DAG(
+                "dag",
+                schedule=None,
+                start_date=DEFAULT_DATE,
+                owner_links={"team": "https://example.com/" + "p" * 600},
+            )
+
     def test_continuous_schedule_linmits_max_active_runs(self):
         from airflow.sdk.definitions.timetables.simple import ContinuousTimetable
 
