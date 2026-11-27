@@ -130,14 +130,22 @@ class TestDatabricksPartitionSensor:
         "airflow.providers.databricks.sensors.databricks_partition.DatabricksPartitionSensor"
         "._check_table_partitions"
     )
-    def test_fail_poke(self, _check_table_partitions):
-        partitions = "test"
-        self.partition_sensor.partitions = partitions
-        _check_table_partitions.return_value = False
-        with pytest.raises(
-            AirflowException, match=rf"Specified partition\(s\): {partitions} were not found."
-        ):
-            self.partition_sensor.poke(context={})
+    @pytest.mark.parametrize("partition_result", [[], None, False])
+    def test_poke_returns_false_when_partition_not_found(self, _check_table_partitions, partition_result):
+        _check_table_partitions.return_value = partition_result
+        assert self.partition_sensor.poke(context={}) is False
+
+    @patch(
+        "airflow.providers.databricks.sensors.databricks_partition.DatabricksPartitionSensor"
+        "._check_table_partitions"
+    )
+    def test_poke_keeps_waiting_until_partition_arrives(self, _check_table_partitions):
+        _check_table_partitions.side_effect = [[], [], [[1]]]
+
+        for expected in (False, False, True):
+            assert self.partition_sensor.poke(context={}) is expected
+
+        assert _check_table_partitions.call_count == 3
 
     def _make_sensor(self, **kwargs):
         return DatabricksPartitionSensor(
