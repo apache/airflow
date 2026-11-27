@@ -24,6 +24,7 @@ import {
   CLEAR_PREVENT_RUNNING_TASK_KEY,
   CLEAR_RUN_DEFAULT_OPTIONS_KEY,
   CLEAR_TASK_INSTANCE_DEFAULT_OPTIONS_KEY,
+  DEFAULT_DAG_VIEW_KEY,
   DEFAULT_GRAPH_DIRECTION_KEY,
   DEFAULT_LANDING_PAGE_KEY,
   DEFAULT_MATCH_ANYWHERE_KEY,
@@ -36,6 +37,7 @@ import {
   useClearPreventRunningTaskDefault,
   useClearRunDefaultOptions,
   useClearTaskInstanceDefaultOptions,
+  useDefaultDagView,
   useDefaultGraphDirection,
   useDefaultLandingPage,
   useDefaultMatchAnywhere,
@@ -245,5 +247,32 @@ describe("useMarkTaskInstanceDefaultOptions", () => {
     expect(JSON.parse(localStorage.getItem(MARK_TASK_INSTANCE_DEFAULT_OPTIONS_KEY) ?? "[]")).toEqual([
       "downstream",
     ]);
+  });
+});
+
+describe("useDefaultDagView", () => {
+  it("defaults to grid when nothing is stored", () => {
+    const { result } = renderHook(() => useDefaultDagView());
+
+    expect(result.current[0]).toBe("grid");
+  });
+
+  it("reads an existing stored view", () => {
+    localStorage.setItem(DEFAULT_DAG_VIEW_KEY, JSON.stringify("graph"));
+
+    const { result } = renderHook(() => useDefaultDagView());
+
+    expect(result.current[0]).toBe("graph");
+  });
+
+  it("persists a new view to localStorage", () => {
+    const { result } = renderHook(() => useDefaultDagView());
+
+    act(() => {
+      result.current[1]("gantt");
+    });
+
+    expect(result.current[0]).toBe("gantt");
+    expect(JSON.parse(localStorage.getItem(DEFAULT_DAG_VIEW_KEY) ?? '""')).toBe("gantt");
   });
 });

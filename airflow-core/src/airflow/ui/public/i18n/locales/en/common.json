@@ -308,6 +308,18 @@
       },
       "title": "Clearing"
     },
+    "dagView": {
+      "defaultView": {
+        "helper": "View shown by default when you open a Dag.",
+        "label": "Default Dag view",
+        "options": {
+          "gantt": "Gantt",
+          "graph": "Graph",
+          "grid": "Grid"
+        }
+      },
+      "title": "Dag View"
+    },
     "dagsList": {
       "recentTasks": {
         "helper": "Show the recent task states of each Dag on the Dags list. Turn off to skip loading them, which can help on deployments with many Dags.",
