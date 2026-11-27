@@ -107,20 +107,20 @@ To find the rendered text:
 
 **Correct** — no space next to Chinese:
 
-```json
+```jsonc
 "標記$t(task_one)為失敗"      // renders "標記任務為失敗"
 ```
 
 **Correct** — space only next to English or a number:
 
-```json
+```jsonc
 "標記 $t(dagRun_one)為失敗"   // renders "標記 Dag 執行為失敗"
 "逾期 {{duration}}完成"       // renders "逾期 34.4 秒完成"
 ```
 
 **Correct** — keep the space when the code can pass English or Chinese:
 
-```json
+```jsonc
 "清除 {{type}}"               // renders "清除 Dag 執行" or "清除 任務實例"
 ```
 
@@ -128,7 +128,7 @@ To find the rendered text:
 
 **Incorrect** — space between Chinese characters:
 
-```json
+```jsonc
 "標記 $t(task_one) 為失敗"    // renders "標記 任務 為失敗"
 "逾期 {{duration}} 完成"      // renders "逾期 34.4 秒 完成"
 ```
