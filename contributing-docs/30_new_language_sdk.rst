@@ -499,7 +499,8 @@ in its own language they are *not applicable* (``n/a``) rather than unsupported.
 ``timetable`` (MAY †)
     A Dag definition can be scheduled by any of Airflow's built-in timetable classes (those in
     ``airflow.timetables``), not only by a cron expression or preset passed as the schedule, and
-    the SDK provides a way to define a custom timetable.
+    can reference a custom timetable from an Airflow plugin. A timetable runs in the scheduler,
+    so a Language SDK never defines one.
 
 ``task-args`` (MUST †)
     Task-level arguments (retries, pool, queue, and so on) can be set on a task of a Dag definition.
