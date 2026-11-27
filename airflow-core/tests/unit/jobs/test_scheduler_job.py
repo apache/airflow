@@ -18051,6 +18051,43 @@ def test_partition_dag_eligibility_is_checked_on_every_loop_between_full_reads(
 
 @pytest.mark.need_serialized_dag
 @pytest.mark.usefixtures("clear_asset_partition_rows")
+@pytest.mark.parametrize("state", [DagSchedulingState.PAUSED, DagSchedulingState.DRAINING])
+def test_partition_dag_paused_after_the_eligibility_read_keeps_its_runs_pending(
+    dag_maker: DagMaker, session: Session, state: DagSchedulingState
+):
+    """
+    A Dag paused or draining after the eligibility read does not fire.
+
+    The locking statement checks eligibility again, as the claim did before the rotation.
+    """
+    [apdr] = _make_n_satisfied_apdrs(
+        consumer_dag_id="late-pause-consumer",
+        asset=Asset(name="late-pause-asset"),
+        partition_keys=["k1"],
+        session=session,
+        dag_maker=dag_maker,
+    )
+    dag_model = session.get(DagModel, "late-pause-consumer")
+    assert dag_model is not None
+    runner = _make_runner()
+    pick = _PartitionRing.pick
+
+    def pick_then_change_state(ring: _PartitionRing, *args, **kwargs) -> list[int]:
+        candidates = pick(ring, *args, **kwargs)
+        dag_model.set_scheduling_state(state)
+        session.flush()
+        return candidates
+
+    with mock.patch.object(_PartitionRing, "pick", pick_then_change_state):
+        runner._create_dagruns_for_partitioned_asset_dags(session=session)
+
+    assert session.scalars(select(DagRun.id).where(DagRun.dag_id == "late-pause-consumer")).all() == []
+    session.refresh(apdr)
+    assert apdr.created_dag_run_id is None
+
+
+@pytest.mark.need_serialized_dag
+@pytest.mark.usefixtures("clear_asset_partition_rows")
 @pytest.mark.parametrize("outcome", ["fired", "stale"])
 def test_partition_apdr_fired_or_deleted_is_not_claimed_again_before_the_next_full_read(
     dag_maker: DagMaker, session: Session, outcome: str
@@ -18832,11 +18869,21 @@ def test_partition_claim_locks_only_the_claimed_rows_on_backend(dag_maker: DagMa
                 )
             )
         )
+        dag_lockable = peer.scalars(
+            with_row_locks(
+                select(DagModel.dag_id).where(DagModel.dag_id == "lock-footprint-consumer"),
+                of=DagModel,
+                skip_locked=True,
+                session=peer,
+            )
+        ).all()
         peer.rollback()
         scheduler_session.rollback()
 
     assert len(claimed) == 4
     assert lockable == set(ids) - claimed
+    # The eligibility check in the locking statement does not lock the Dag row.
+    assert dag_lockable == ["lock-footprint-consumer"]
 
 
 @pytest.mark.backend("postgres", "mysql")

@@ -3219,6 +3219,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     select(AssetPartitionDagRun).where(
                         AssetPartitionDagRun.id.in_(chunk),
                         AssetPartitionDagRun.created_dag_run_id.is_(None),
+                        # Checked again in the locking statement, as on main: a Dag paused, draining or
+                        # stale since the eligibility read keeps its runs pending.
+                        select(DagModel.dag_id)
+                        .where(
+                            DagModel.dag_id == AssetPartitionDagRun.target_dag_id,
+                            *_build_partition_eligible_dag_filters(),
+                        )
+                        .exists(),
                     ),
                     of=AssetPartitionDagRun,
                     skip_locked=True,
