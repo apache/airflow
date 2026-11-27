@@ -102,7 +102,7 @@ Decide the space by the **rendered text** next to a placeholder, not by the plac
 
 To find the rendered text:
 
-- `$t(key)` renders another transition key in the locale files, so its value is fixed. `$t(common:mapIndex)` is `mapIndex` in `common.json`; a key without a prefix is usually in the same file.
+- `$t(key)` renders another translation key in the locale files, so its value is fixed. `$t(common:mapIndex)` is `mapIndex` in `common.json`; a key without a prefix is usually in the same file.
 - `{{variable}}` is filled in by the UI code. Check the value at every call site (see step 2 of the [Translation Workflow](#translation-workflow)). Some call sites set a `defaultValue`, which shows as is, often in English, when no translation is found.
 
 **Correct** — no space next to Chinese:
@@ -124,8 +124,7 @@ To find the rendered text:
 "清除 {{type}}"               // renders "清除 Dag 執行" or "清除 任務實例"
 ```
 
-> **Note:** This leaves an extra space in "清除 任務實例", but removing it
-> would render "清除Dag 執行". Keep the space as a trade-off.
+> **Note:** This leaves an extra space in "清除 任務實例", but removing it would render "清除Dag 執行". Keep the space as a trade-off.
 
 **Incorrect** — space between Chinese characters:
 
