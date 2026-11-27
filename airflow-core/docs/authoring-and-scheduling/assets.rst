@@ -1143,10 +1143,18 @@ which period the window enumerates relative to its anchor.
         ),
     )
 
-Direction applies to rollup windows too — ``RollupMapper`` uses the same window
-classes, so ``DayWindow(direction=Window.Direction.BACKWARD)`` holds a downstream
-run until the twenty-four hours *preceding* midnight of the downstream key have
-all arrived.
+.. Update this note once RollupMapper routing honors window direction;
+   tracked at https://github.com/apache/airflow/issues/77669
+
+.. note::
+
+    Only :class:`~airflow.sdk.FanOutMapper` honors ``direction``. Use the default
+    ``Window.Direction.FORWARD`` with :class:`~airflow.sdk.RollupMapper`. A rollup
+    sends each upstream event to the downstream partition its ``upstream_mapper``
+    returns: the period that contains the key. A ``BACKWARD`` window expects
+    mostly keys from the period before, so those events are counted for the wrong
+    downstream Dag run. With the default ``WaitForAll()`` wait policy, that Dag run
+    never fires.
 
 Custom partition mappers, windows, and timetables in plugins
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
