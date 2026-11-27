@@ -644,9 +644,15 @@ class DAG:
             raise ValueError("start_date is required when catchup=True")
 
     @tags.validator
-    def _validate_tags(self, _, tags: Collection[str]):
-        if tags and any(len(tag) > TAG_MAX_LEN for tag in tags):
-            raise ValueError(f"tag cannot be longer than {TAG_MAX_LEN} characters")
+    def _validate_tags(self, _, tags: Collection[str]) -> None:
+        for tag in tags or ():
+            if len(tag) > TAG_MAX_LEN:
+                # Offending tags are always longer than the limit, so the preview is always truncated.
+                preview = f"{tag[:30]}..."
+                raise ValueError(
+                    f"DAG tag {preview!r} is {len(tag)} characters long; "
+                    f"the maximum length of a single DAG tag is {TAG_MAX_LEN} characters"
+                )
 
     @allowed_run_types.validator
     def _validate_allowed_run_types(self, _, allowed_run_types):
