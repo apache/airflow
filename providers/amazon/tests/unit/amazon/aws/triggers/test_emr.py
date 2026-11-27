@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -39,6 +40,9 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrStepSensorTrigger,
     EmrTerminateJobFlowTrigger,
 )
+from airflow.utils.state import TaskInstanceState
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 
 class TestEmrAddStepsTrigger:
@@ -437,6 +441,24 @@ class TestEmrServerlessStartJobTrigger:
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.emr.EmrServerlessStartJobTrigger"
         assert kwargs["cancel_on_kill"] is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="The task state is read through the task SDK")
+    @pytest.mark.parametrize(
+        ("map_index", "state_key"), [(-1, "test_task"), (3, "test_task_3")], ids=["unmapped", "mapped"]
+    )
+    @mock.patch("airflow.sdk.execution_time.task_runner.RuntimeTaskInstance.get_task_states", autospec=True)
+    async def test_get_task_state_uses_map_index_key(self, mock_get_task_states, map_index, state_key):
+        """The execution API keys a mapped task instance as ``<task_id>_<map_index>``."""
+        trigger = EmrServerlessStartJobTrigger(
+            application_id="test_app", job_id="test_job", waiter_delay=30, waiter_max_attempts=60
+        )
+        trigger.task_instance = SimpleNamespace(
+            dag_id="test_dag", task_id="test_task", run_id="test_run", map_index=map_index
+        )
+        mock_get_task_states.return_value = {"test_run": {state_key: TaskInstanceState.DEFERRED}}
+
+        assert await trigger.get_task_state() == TaskInstanceState.DEFERRED
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.triggers.emr.async_wait")
