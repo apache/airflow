@@ -17,9 +17,14 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.core_api.routes.public.dag_warning import PER_DAG_WARNING_TYPES
+from airflow.api_fastapi.core_api.security import REDACTED_FILE_CONTENT
 from airflow.models.dag import DagModel
 from airflow.models.dagwarning import DagWarning
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -138,3 +143,78 @@ class TestGetDagWarnings:
         assert response_json["total_entries"] == 1
         assert response_json["dag_warnings"][0]["warning_type"] == "yaml:schema_violation"
         assert response_json["dag_warnings"][0]["message"] == "importer message"
+
+
+class TestGetDagWarningsOfMultiDagFile:
+    FILE_LEVEL_MESSAGE = "Line 12, Col 4\nCode: BashOperator(task_id='colocated_task')"
+
+    @pytest.fixture(autouse=True)
+    def colocate_dags(self, session):
+        """Put DAG1 and DAG2 in one file and DAG3 in a file of its own."""
+        session.get(DagModel, DAG1_ID).relative_fileloc = "multi_dag_file.py"
+        session.get(DagModel, DAG2_ID).relative_fileloc = "multi_dag_file.py"
+        session.get(DagModel, DAG3_ID).relative_fileloc = "single_dag_file.py"
+        session.commit()
+
+    @pytest.mark.parametrize("warning_type", ["runtime varying value", "yaml:schema_violation"])
+    @pytest.mark.parametrize(
+        ("readable_dag_ids", "expected_messages"),
+        [
+            pytest.param({DAG1_ID}, {DAG1_ID: REDACTED_FILE_CONTENT}, id="colocated-dag-unreadable"),
+            pytest.param(
+                {DAG1_ID, DAG3_ID},
+                {DAG1_ID: REDACTED_FILE_CONTENT, DAG3_ID: FILE_LEVEL_MESSAGE},
+                id="only-file-with-unreadable-dag-redacted",
+            ),
+            pytest.param(
+                {DAG1_ID, DAG2_ID},
+                {DAG1_ID: FILE_LEVEL_MESSAGE, DAG2_ID: FILE_LEVEL_MESSAGE},
+                id="all-dags-in-file-readable",
+            ),
+        ],
+    )
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_file_level_message_is_redacted_unless_caller_can_read_all_dags_in_file(
+        self,
+        mock_get_authorized_dag_ids,
+        test_client,
+        session,
+        readable_dag_ids,
+        expected_messages,
+        warning_type,
+    ):
+        mock_get_authorized_dag_ids.return_value = readable_dag_ids
+        for dag_id in (DAG1_ID, DAG2_ID, DAG3_ID):
+            session.add(DagWarning(dag_id, warning_type, self.FILE_LEVEL_MESSAGE))
+        session.commit()
+
+        with assert_queries_count(4):
+            response = test_client.get("/dagWarnings", params={"warning_type": warning_type})
+
+        assert response.status_code == 200
+        response_json = response.json()
+        assert response_json["total_entries"] == len(expected_messages)
+        assert {w["dag_id"]: w["message"] for w in response_json["dag_warnings"]} == expected_messages
+        session.expire_all()
+        assert set(
+            session.scalars(select(DagWarning.message).where(DagWarning.warning_type == warning_type))
+        ) == {self.FILE_LEVEL_MESSAGE}
+
+    @pytest.mark.parametrize("warning_type", sorted(PER_DAG_WARNING_TYPES))
+    @mock.patch("airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids")
+    def test_per_dag_message_is_returned_when_caller_cannot_read_all_dags_in_file(
+        self, mock_get_authorized_dag_ids, test_client, session, warning_type
+    ):
+        mock_get_authorized_dag_ids.return_value = {DAG1_ID}
+        clear_db_dag_warnings()
+        session.add(DagWarning(DAG1_ID, warning_type, DAG1_MESSAGE))
+        session.add(DagWarning(DAG2_ID, warning_type, DAG2_MESSAGE))
+        session.commit()
+
+        with assert_queries_count(3):
+            response = test_client.get("/dagWarnings", params={"warning_type": warning_type})
+
+        assert response.status_code == 200
+        assert [(w["dag_id"], w["message"]) for w in response.json()["dag_warnings"]] == [
+            (DAG1_ID, DAG1_MESSAGE)
+        ]

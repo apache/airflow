@@ -261,6 +261,13 @@ the redacted placeholder when a later-added co-located Dag is not in the
 caller's readable set, even though the requested historical source predates
 that addition.
 
+Dag warnings computed for a whole source file rather than for a single Dag (the
+``runtime varying value`` warning, which quotes the flagged calls, and warnings
+reported by Dag importers) are stored on every Dag the file defines. The Dag
+warnings endpoint (``GET /api/v2/dagWarnings``) applies the same rule to them:
+if the file also defines Dags the caller is not authorized to read, it returns
+the redacted placeholder as the warning message.
+
 Deployments that rely on per-Dag read scoping for source isolation should
 either keep one Dag per source file, or restrict ``DagAccessEntity.CODE`` to
 roles that are trusted to read every Dag that has ever co-existed in any
