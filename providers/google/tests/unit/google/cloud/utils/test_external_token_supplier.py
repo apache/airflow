@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest.mock import ANY
+from urllib.parse import parse_qs
 
 import pytest
 import requests_mock
@@ -31,6 +32,7 @@ MOCK_URL2 = "http://mock-idp/token2"
 MOCK_URL3 = "http://mock-idp/token3"
 MOCK_URL4 = "http://mock-idp/token4"
 MOCK_URL5 = "http://mock-idp/token5"
+MOCK_URL6 = "http://mock-idp/token6"
 CLIENT_ID = "test-client-id"
 CLIENT_ID2 = "test-client-id2"
 CLIENT_ID3 = "test-client-id3"
@@ -183,3 +185,34 @@ class TestClientCredentialsGrantFlowTokenSupplier:
 
         with pytest.raises(RefreshError):
             token_supplier.get_subject_token(ANY, ANY)
+
+    def test_extra_params_are_sent_in_the_token_request(self):
+        token_supplier = ClientCredentialsGrantFlowTokenSupplier(
+            oidc_issuer_url=MOCK_URL6,
+            client_id=CLIENT_ID,
+            client_secret=CLIENT_SECRET,
+            audience="api://airflow",
+            scope="openid",
+        )
+
+        with requests_mock.Mocker() as m:
+            m.post(MOCK_URL6, json={"access_token": "mock-token", "expires_in": 3600})
+            token_supplier.get_subject_token(ANY, ANY)
+
+        assert parse_qs(m.last_request.text) == {
+            "grant_type": ["client_credentials"],
+            "client_id": [CLIENT_ID],
+            "client_secret": [CLIENT_SECRET],
+            "audience": ["api://airflow"],
+            "scope": ["openid"],
+        }
+
+    def test_extra_params_cannot_replace_grant_type(self):
+        # client_id and client_secret are named arguments, so only grant_type can arrive as an extra parameter
+        with pytest.raises(ValueError, match="cannot replace grant_type"):
+            ClientCredentialsGrantFlowTokenSupplier(
+                oidc_issuer_url=MOCK_URL6,
+                client_id=CLIENT_ID,
+                client_secret=CLIENT_SECRET,
+                grant_type="password",
+            )

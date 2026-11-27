@@ -36,6 +36,7 @@ from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.external_token_supplier import (
+    RESERVED_TOKEN_REQUEST_FIELDS,
     ClientCredentialsGrantFlowTokenSupplier,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -399,12 +400,24 @@ class _CredentialProvider(LoggingMixin):
                 "Credential Configuration File is needed to use authentication by External Identity Provider."
             )
 
+        extra_params = self.idp_extra_params_dict or {}
+        # ``oidc_issuer_url`` is not a token request field, but it is the supplier's other named
+        # argument, so an extra parameter with that name would collide with it as well.
+        if reserved := sorted(
+            (RESERVED_TOKEN_REQUEST_FIELDS | {"oidc_issuer_url"}).intersection(extra_params)
+        ):
+            raise ValueError(
+                f"IdP extra request parameters cannot set {', '.join(reserved)}: the IdP token issue URL, "
+                "the client ID and the client secret have their own connection fields, and the grant type "
+                "is always client_credentials."
+            )
+
         info = _get_info_from_credential_configuration_file(self.credential_config_file)
         info["subject_token_supplier"] = ClientCredentialsGrantFlowTokenSupplier(
             oidc_issuer_url=self.idp_issuer_url,
             client_id=self.client_id,
             client_secret=self.client_secret,
-            **(self.idp_extra_params_dict or {}),
+            **extra_params,
         )
 
         scopes = list(self.scopes) if self.scopes else None
