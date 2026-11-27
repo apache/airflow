@@ -19,6 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import json
+import os
+import time
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -29,6 +32,7 @@ from airflow import macros
 from airflow.models.dag import DAG
 from airflow.providers.standard.sensors.date_time import DateTimeSensor, DateTimeSensorAsync
 from airflow.providers.standard.triggers.temporal import DateTimeTrigger
+from airflow.serialization.serialized_objects import BaseSerialization
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS, timezone
 
@@ -185,19 +189,35 @@ class TestDateTimeSensor:
                 "2020-01-01T00:00:00+00:00"
             )
 
-    def test_async_start_from_trigger_localizes_naive_datetime(self):
-        """DateTimeSensorAsync never pokes, so _moment must still localize a naive datetime."""
-        op = DateTimeSensorAsync(
-            task_id="async_naive",
-            target_time=datetime.datetime(2020, 1, 1),
-            start_from_trigger=True,
-            dag=self.dag,
-        )
+    @pytest.mark.skipif(not hasattr(time, "tzset"), reason="Requires process timezone support")
+    @pytest.mark.parametrize("process_timezone", ["Asia/Seoul", "America/New_York"])
+    @pytest.mark.parametrize(
+        ("target_time", "expected"),
+        [
+            (datetime.datetime(2030, 1, 1, 9), pendulum.datetime(2030, 1, 1, 9, tz="UTC")),
+            ("2030-01-01T09:00:00", pendulum.datetime(2030, 1, 1, 9, tz="UTC")),
+            (
+                datetime.datetime(2030, 1, 1, 9, tzinfo=datetime.timezone(datetime.timedelta(hours=-2))),
+                pendulum.datetime(2030, 1, 1, 11, tz="UTC"),
+            ),
+        ],
+        ids=["naive-datetime", "naive-string", "aware-datetime"],
+    )
+    def test_start_from_trigger_preserves_deadline_after_serialization(
+        self, process_timezone, target_time, expected
+    ):
+        try:
+            with patch.dict(os.environ, {"TZ": process_timezone}):
+                time.tzset()
+                op = DateTimeSensorAsync(
+                    task_id="async_serialized", target_time=target_time, start_from_trigger=True
+                )
+                encoded = BaseSerialization.serialize(op.start_trigger_args.trigger_kwargs)
+                decoded = BaseSerialization.deserialize(json.loads(json.dumps(encoded)))
+        finally:
+            time.tzset()
 
-        if AIRFLOW_V_3_3_PLUS:
-            assert op.start_trigger_args.trigger_kwargs["target_time"] == datetime.datetime(2020, 1, 1, 0, 0)
-        else:
-            assert op.start_trigger_args.trigger_kwargs["moment"] == pendulum.datetime(2020, 1, 1, tz="UTC")
+        assert DateTimeTrigger(**decoded).moment == expected
 
     @pytest.mark.skipif(AIRFLOW_V_3_3_PLUS, reason="Test only for AF < 3.3")
     def test_async_start_from_trigger_skips_templated_target_time(self):
