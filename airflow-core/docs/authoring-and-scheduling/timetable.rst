@@ -333,16 +333,11 @@ Airflow has two sets of timetables for cron and delta schedules:
 In Airflow 3, a bare cron string such as ``@daily`` in ``schedule=`` resolves to
 CronTriggerTimetable_ by default (``[scheduler] create_cron_data_intervals`` is
 ``False``). A bare ``timedelta`` resolves to DeltaTriggerTimetable_ by default
-(``[scheduler] create_delta_data_intervals`` is also ``False``). Pass an explicit
-data-interval timetable class, or set ``create_cron_data_intervals`` to ``True``,
-to get contiguous windows instead.
-
-.. note::
-
-    ``[scheduler] create_delta_data_intervals`` is intended to control timedelta
-    schedules independently, but is not currently consulted. Those schedules
-    follow ``create_cron_data_intervals`` as well, so setting only
-    ``create_delta_data_intervals=True`` still yields DeltaTriggerTimetable_.
+(``[scheduler] create_delta_data_intervals`` is also ``False``). To get
+contiguous windows instead, pass an explicit data-interval timetable class, or
+set ``create_cron_data_intervals`` (for cron strings) or
+``create_delta_data_intervals`` (for ``timedelta`` and ``relativedelta``) to
+``True``.
 
 - A trigger timetable (CronTriggerTimetable_ or DeltaTriggerTimetable_) represents
   each run as a point in time: by default ``data_interval_start`` and
@@ -456,16 +451,18 @@ dagruns will skip one scheduled run, because the next run is advanced one
 period to avoid colliding with the previous run's ``logical_date``. The
 reverse direction (data interval -> trigger) does not skip a run.
 
-This transition can happen without editing a Dag, in two ways:
+This transition can happen without editing a Dag, in three ways:
 
 - Flipping ``[scheduler] create_cron_data_intervals`` changes how every Dag
   with a bare cron string in ``schedule=`` resolves its timetable.
+- Flipping ``[scheduler] create_delta_data_intervals`` changes how every Dag
+  with a ``timedelta`` or ``relativedelta`` in ``schedule=`` resolves its timetable.
 - Crossing a version boundary where the default differs. Airflow 3 defaults
   to ``False``; Airflow 2.x defaults to ``True``.
 
-To keep ``logical_date`` semantics stable across either change, decide which
-timetable you want and pin it before the change: set the flag explicitly to
-the same value on both sides, or convert affected Dags to use an explicit
+To keep ``logical_date`` semantics stable across any of these changes, decide
+which timetable you want and pin it before the change: set the flag explicitly
+to the same value on both sides, or convert affected Dags to use an explicit
 timetable instance in ``schedule=`` so the flag no longer applies.
 
 
