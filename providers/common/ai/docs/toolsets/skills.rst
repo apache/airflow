@@ -236,9 +236,9 @@ load did not catch.
 A clone that fails raises ``RuntimeError`` instead, and the task retries as often as its
 ``retries`` allows. That includes a mistyped ``repo_url`` and a ``conn_id`` for which no connection
 exists, because every error while cloning is reported as a failed clone. So is a ``branch`` that is
-a commit SHA, because ``git clone --branch`` accepts only a branch or tag name, so do not set one. A local source that does not
-exist is not retried, even when it is only missing for a moment, for example while a volume is still
-mounting.
+a commit SHA, because ``git clone --branch`` accepts only a branch or tag name, so do not set one.
+A local source that does not exist is not retried, even when it is only missing for a moment, for
+example while a volume is still mounting.
 
 Trust model
 ~~~~~~~~~~~
