@@ -40,6 +40,10 @@ def acked(err, msg):
         )
 
 
+class KafkaMessageDeliveryError(AirflowException):
+    """Raised when one or more messages could not be delivered to Kafka."""
+
+
 class ProduceToTopicOperator(BaseOperator):
     """
     An operator that produces messages to a Kafka topic.
@@ -58,7 +62,16 @@ class ProduceToTopicOperator(BaseOperator):
     :param synchronous: If writes to kafka should be fully synchronous, defaults to True
     :param poll_timeout: How long of a delay should be applied when calling poll after production to kafka,
         defaults to 0
-    :raises AirflowException: _description_
+    :param raise_on_delivery_failure: Kafka reports delivery outcomes asynchronously through the
+        delivery callback, so a message that is rejected by the broker (e.g. too large, unknown
+        topic, insufficient permissions) does not make the task fail by default - the error is only
+        passed to the delivery callback. Set to True to fail the task with an ``AirflowException``
+        when at least one message could not be delivered. Because the task fails after the batch has
+        already been partially produced, a retry re-produces the whole batch, so messages that were
+        delivered successfully the first time will be produced again. Defaults to False to keep
+        backwards compatibility.
+    :raises AirflowException: If ``raise_on_delivery_failure`` is True and at least one message
+        could not be delivered.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -82,6 +95,7 @@ class ProduceToTopicOperator(BaseOperator):
         delivery_callback: str | None = None,
         synchronous: bool = True,
         poll_timeout: float = 0,
+        raise_on_delivery_failure: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -99,6 +113,7 @@ class ProduceToTopicOperator(BaseOperator):
         self.delivery_callback = dc
         self.synchronous = synchronous
         self.poll_timeout = poll_timeout
+        self.raise_on_delivery_failure = raise_on_delivery_failure
 
     def execute(self, context) -> None:
         if not (self.topic and self.producer_function):
@@ -124,11 +139,28 @@ class ProduceToTopicOperator(BaseOperator):
             **self.producer_function_kwargs,
         )
 
+        # Delivery outcomes are reported asynchronously via the delivery callback, so collect the
+        # failures reported by the broker (e.g. message too large, unknown topic, ACL denied) to be
+        # able to fail the task once all outstanding deliveries have been resolved. Only collect when
+        # raise_on_delivery_failure is set, since that is the only path that consumes them.
+        delivery_errors: list[Any] = []
+
+        def on_delivery(err, msg):
+            if err is not None and self.raise_on_delivery_failure:
+                delivery_errors.append(err)
+            self.delivery_callback(err, msg)
+
         # For each returned k/v in the callable : publish and flush if needed.
         for k, v in producer_callable():
-            producer.produce(self.topic, key=k, value=v, on_delivery=self.delivery_callback)
+            producer.produce(self.topic, key=k, value=v, on_delivery=on_delivery)
             producer.poll(self.poll_timeout)
             if self.synchronous:
                 producer.flush()
 
         producer.flush()
+
+        if self.raise_on_delivery_failure and delivery_errors:
+            raise KafkaMessageDeliveryError(
+                f"Failed to deliver {len(delivery_errors)} message(s) to topic {self.topic!r}. "
+                f"First error: {delivery_errors[0]}"
+            )
