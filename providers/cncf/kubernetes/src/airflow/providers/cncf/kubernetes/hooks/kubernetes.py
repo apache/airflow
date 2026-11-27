@@ -136,6 +136,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     :param in_cluster: Set to ``True`` if running from within a kubernetes cluster.
     :param disable_verify_ssl: Set to ``True`` if SSL verification should be disabled.
     :param disable_tcp_keepalive: Set to ``True`` if you want to disable keepalive logic.
+    :param ssl_ca_cert: Path to a custom CA bundle to use for TLS verification of the
+        Kubernetes API server. When set, it overrides any CA from the kubeconfig.
     """
 
     conn_name_attr = "kubernetes_conn_id"
@@ -162,6 +164,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
+            "ssl_ca_cert": StringField(lazy_gettext("SSL CA certificate"), widget=BS3TextFieldWidget()),
             "xcom_sidecar_container_image": StringField(
                 lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
             ),
@@ -192,6 +195,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         in_cluster: bool | None = None,
         disable_verify_ssl: bool | None = None,
         disable_tcp_keepalive: bool | None = None,
+        ssl_ca_cert: str | None = None,
     ) -> None:
         super().__init__()
         self.conn_id = conn_id or kubernetes_conn_id
@@ -202,6 +206,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         self.in_cluster = in_cluster
         self.disable_verify_ssl = disable_verify_ssl
         self.disable_tcp_keepalive = disable_tcp_keepalive
+        self.ssl_ca_cert = ssl_ca_cert
         self._is_in_cluster: bool | None = None
 
     @staticmethod
@@ -275,6 +280,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         disable_tcp_keepalive = self._coalesce_param(
             self.disable_tcp_keepalive, _get_bool(self._get_field("disable_tcp_keepalive"))
         )
+        ssl_ca_cert = self._coalesce_param(self.ssl_ca_cert, self._get_field("ssl_ca_cert"))
 
         if disable_verify_ssl is True:
             _disable_verify_ssl()
@@ -288,6 +294,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
                 enable_tcp_keepalive=enable_tcp_keepalive,
+                ssl_ca_cert=ssl_ca_cert,
             )
 
         if kubeconfig_path is not None:
@@ -302,6 +309,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
                 enable_tcp_keepalive=enable_tcp_keepalive,
+                ssl_ca_cert=ssl_ca_cert,
             )
 
         if kubeconfig is not None:
@@ -321,6 +329,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
                 enable_tcp_keepalive=enable_tcp_keepalive,
+                ssl_ca_cert=ssl_ca_cert,
             )
 
         if self.config_dict:
@@ -335,12 +344,14 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 configuration=self.client_configuration,
                 disable_verify_ssl=disable_verify_ssl is True,
                 enable_tcp_keepalive=enable_tcp_keepalive,
+                ssl_ca_cert=ssl_ca_cert,
             )
 
         return self._get_default_client(
             cluster_context=cluster_context,
             disable_verify_ssl=disable_verify_ssl,
             enable_tcp_keepalive=enable_tcp_keepalive,
+            ssl_ca_cert=ssl_ca_cert,
         )
 
     def _get_default_client(
@@ -349,6 +360,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         cluster_context: str | None = None,
         disable_verify_ssl: bool | None = None,
         enable_tcp_keepalive: bool = False,
+        ssl_ca_cert: str | None = None,
     ) -> client.ApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
@@ -368,6 +380,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             configuration=self.client_configuration,
             disable_verify_ssl=disable_verify_ssl is True,
             enable_tcp_keepalive=enable_tcp_keepalive,
+            ssl_ca_cert=ssl_ca_cert,
         )
 
     @property

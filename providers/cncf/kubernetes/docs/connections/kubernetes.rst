@@ -67,6 +67,11 @@ Disable TCP keepalive
   TCP keepalive is a feature (enabled by default) that tries to keep long-running connections
   alive. Set this parameter to True to disable this feature.
 
+SSL CA certificate
+  Path to a custom CA bundle used for TLS verification of the Kubernetes API server.
+  When set, it overrides any CA from the kubeconfig. Useful for clusters with an
+  internal intermediate CA.
+
 Xcom sidecar image
   Define the ``image`` used by the ``PodDefaults.SIDECAR_CONTAINER`` (defaults to ``"alpine"``) to allow private
   repositories, as well as custom image overrides.
