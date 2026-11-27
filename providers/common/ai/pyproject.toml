@@ -218,7 +218,7 @@ dev = [
     "anthropic>=1.15.0,<2",
     "google-genai>=2.30.0",
     # The code-mode extra, so the tests that run a real CodeMode under durable execution run.
-    "pydantic-ai-harness[codemode,skills]>=0.35.0",
+    "pydantic-ai-harness[codemode,skills]>=0.66.0",
     "boat-sdk>=1.9.3",
     "islo>=0.3.19",
     "opensandbox>=1.1.0",

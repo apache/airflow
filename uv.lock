@@ -5116,7 +5116,7 @@ dev = [
     { name = "opensandbox", specifier = ">=1.1.0" },
     { name = "openshell", specifier = ">=0.1.2,<0.2" },
     { name = "protobuf", specifier = ">=6.31.1" },
-    { name = "pydantic-ai-harness", extras = ["codemode", "skills"], specifier = ">=0.35.0" },
+    { name = "pydantic-ai-harness", extras = ["codemode", "skills"], specifier = ">=0.66.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0,<2" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.46.0" },
     { name = "python-docx", specifier = ">=1.1.2" },

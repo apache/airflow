@@ -71,5 +71,7 @@ building a wrapper here.
 - Operators: `src/airflow/providers/common/ai/operators/`
 - Decorators: `src/airflow/providers/common/ai/decorators/`
 - Toolsets: `src/airflow/providers/common/ai/toolsets/`
+- Capabilities: `src/airflow/providers/common/ai/skills.py` (`AirflowSkills`, `GitSkills`); its file tools are in
+  `src/airflow/providers/common/ai/utils/skill_files.py`
 - Tests: `tests/unit/common/ai/`
 - Docs: `docs/`
