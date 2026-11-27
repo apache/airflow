@@ -281,7 +281,7 @@ class TestTaskInstanceOperations:
 
 class TestDagRunOperations:
     @pytest.fixture(autouse=True)
-    def dag(self, dag_maker, session):
+    def _create_dag(self, dag_maker, session):
         with dag_maker(dag_id="target", session=session, serialized=True):
             EmptyOperator(task_id="task")
         session.commit()
