@@ -30,6 +30,7 @@ import dataclasses
 import fnmatch
 import json
 import os
+import re
 import shlex
 import shutil
 import signal
@@ -56,6 +57,8 @@ _SCRIPT_TIMEOUT_SECONDS = 30.0
 # How long to wait for the pipe to close after the script was killed; a process that left its group can hold it open.
 _REAP_TIMEOUT_SECONDS = 2.0
 _MAX_SCRIPT_OUTPUT_BYTES = 50_000
+_MAX_RESOURCE_BYTES = 1_000_000
+_ARGUMENT_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 _SCRIPT_PARENTS = frozenset({".", "scripts"})
 _SCRIPT_SUFFIXES = frozenset({".py", ".sh", ".bash", ".zsh"})
 _IGNORED_SCRIPT_NAMES = frozenset({"__init__.py", "SKILL.md"})
@@ -112,6 +115,17 @@ def _resolve_skill_file(skill_dir: Path, relative: str, patterns: Sequence[str])
     return resolved
 
 
+def _read_resource_text(path: Path, resource: str) -> str:
+    with path.open("rb") as handle:
+        data = handle.read(_MAX_RESOURCE_BYTES + 1)
+    if len(data) > _MAX_RESOURCE_BYTES:
+        raise ModelRetry(f"{resource!r} is larger than {_MAX_RESOURCE_BYTES} bytes and cannot be read.")
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ModelRetry(f"{resource!r} is not UTF-8 text.") from None
+
+
 def _parse_resource(path: Path, text: str) -> Any:
     suffix = path.suffix.lower()
     if suffix == ".json":
@@ -165,6 +179,10 @@ def _build_script_command(script: Path) -> list[str]:
 def _build_script_args(args: Mapping[str, Any] | None) -> list[str]:
     argv: list[str] = []
     for key, value in (args or {}).items():
+        if not _ARGUMENT_NAME.fullmatch(key):
+            raise ModelRetry(
+                "Argument names must start with a letter and contain only letters, digits, '-' and '_'."
+            )
         if isinstance(value, bool):
             if value:
                 argv.append(f"--{key}")
@@ -223,10 +241,7 @@ class _SkillFilesToolset(FunctionToolset[Any]):
                 names the skill directory itself.
         """
         path = _resolve_skill_file(self._get_skill_dir(ctx, skill_name), resource, self._exclude_patterns)
-        try:
-            text = await asyncio.to_thread(path.read_text, encoding="utf-8")
-        except UnicodeDecodeError:
-            raise ModelRetry(f"{resource!r} is not UTF-8 text.") from None
+        text = await asyncio.to_thread(_read_resource_text, path, resource)
         return _parse_resource(path, text)
 
     async def run_skill_script(
@@ -245,6 +260,7 @@ class _SkillFilesToolset(FunctionToolset[Any]):
                 A leading ${SKILL_DIR}/ names the skill directory itself.
             args: Named arguments passed as command-line flags: {"week": 42} becomes --week 42, true
                 becomes a bare flag, and a list repeats the flag for each item.
+                A name starts with a letter and contains only letters, digits, - and _.
         """
         skill_dir = self._get_skill_dir(ctx, skill_name)
         path = _resolve_skill_file(skill_dir, script, self._exclude_patterns)

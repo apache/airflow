@@ -234,6 +234,19 @@ class TestReadSkillResource:
             )
 
     @pytest.mark.asyncio
+    async def test_a_resource_over_the_size_cap_is_refused(self, skill_dir, monkeypatch):
+        monkeypatch.setattr(skill_files, "_MAX_RESOURCE_BYTES", 10)
+        (skill_dir / "references" / "exact.md").write_text("x" * 10)
+        (skill_dir / "references" / "big.md").write_text("x" * 11)
+        toolset = make_toolset(skill_dir)
+
+        exact = await call(toolset, "read_skill_resource", skill_name="demo", resource="references/exact.md")
+        with pytest.raises(ModelRetry, match="larger than 10 bytes"):
+            await call(toolset, "read_skill_resource", skill_name="demo", resource="references/big.md")
+
+        assert exact == "x" * 10
+
+    @pytest.mark.asyncio
     async def test_a_symlink_inside_the_skill_is_followed(self, skill_dir):
         (skill_dir / "references" / "real.md").write_text("real")
         (skill_dir / "references" / "alias.md").symlink_to(skill_dir / "references" / "real.md")
@@ -312,7 +325,6 @@ class TestRunSkillScript:
         "args",
         [
             pytest.param({"a": "b\0"}, id="value"),
-            pytest.param({"a\0": "b"}, id="key"),
             pytest.param({"a": ["b", "c\0"]}, id="list-item"),
         ],
     )
@@ -327,6 +339,31 @@ class TestRunSkillScript:
                 skill_name="demo",
                 script="scripts/echo.py",
                 args=args,
+            )
+
+    @pytest.mark.parametrize(
+        "key",
+        [
+            pytest.param("", id="empty"),
+            pytest.param("-x", id="leading-dash"),
+            pytest.param("--rm", id="double-dash"),
+            pytest.param("a=b", id="equals"),
+            pytest.param("a b", id="space"),
+            pytest.param("a\0", id="nul"),
+            pytest.param("a\n", id="trailing-newline"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_argument_names_that_are_not_flag_names_are_refused(self, skill_dir, key):
+        self.write_script(skill_dir, "scripts/echo.py", "print('ran')\n")
+
+        with pytest.raises(ModelRetry, match="Argument names must start with a letter"):
+            await call(
+                make_toolset(skill_dir),
+                "run_skill_script",
+                skill_name="demo",
+                script="scripts/echo.py",
+                args={key: 1},
             )
 
     @pytest.mark.asyncio
