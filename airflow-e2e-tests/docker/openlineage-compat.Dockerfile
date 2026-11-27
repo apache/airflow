@@ -25,4 +25,7 @@ ARG AIRFLOW_BASE_IMAGE
 FROM ${AIRFLOW_BASE_IMAGE}
 
 COPY --chown=airflow:0 provider_dist/ /tmp/provider_dist/
-RUN pip install --no-cache-dir --upgrade /tmp/provider_dist/*.whl
+# The base image may already have a provider of the same version as the wheels, which pip would keep, so the
+# wheels are reinstalled once their dependencies are in place.
+RUN pip install --no-cache-dir --upgrade /tmp/provider_dist/*.whl \
+    && pip install --no-cache-dir --force-reinstall --no-deps /tmp/provider_dist/*.whl
