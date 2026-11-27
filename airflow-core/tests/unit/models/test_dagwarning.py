@@ -53,3 +53,9 @@ class TestGetWarningTypeValue:
 
     def test_dag_warning_stores_importer_type(self):
         assert DagWarning("dag_1", "yaml:schema_violation", "message").warning_type == "yaml:schema_violation"
+
+
+@pytest.mark.parametrize("member", DagWarningType)
+def test_enum_str_is_value(member):
+    # DB drivers may bind str-Enum members through str(); mysqlclient 2.3.1 does.
+    assert str(member) == member.value

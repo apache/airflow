@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated
 
 from pydantic import StringConstraints, TypeAdapter
@@ -72,7 +72,7 @@ class DagWarning(Base):
         return hash((self.dag_id, self.warning_type))
 
 
-class DagWarningType(str, Enum):
+class DagWarningType(StrEnum):
     """
     Enum for DAG warning types.
 

@@ -19,7 +19,7 @@ from __future__ import annotations
 import datetime
 import logging
 from collections.abc import Iterable
-from enum import Enum
+from enum import StrEnum
 from functools import singledispatch
 from traceback import format_exception
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -84,7 +84,7 @@ class RecordedFailure(NamedTuple):
     error: str
 
 
-class TriggerKind(str, Enum):
+class TriggerKind(StrEnum):
     """What a trigger runs for, worked out from what it is used by rather than stored."""
 
     TASK = "task"
@@ -92,7 +92,7 @@ class TriggerKind(str, Enum):
     ASSET_WATCHER = "asset_watcher"
 
 
-class TriggerStatus(str, Enum):
+class TriggerStatus(StrEnum):
     """How a trigger is doing, worked out the same way for every kind from its row and its triggerer's heartbeat."""
 
     # pending: not picked up yet. running: on a live triggerer and not failed since it last recovered.
@@ -114,7 +114,7 @@ def get_triggerer_alive_clauses(health_check_threshold: float) -> tuple[ColumnEl
     )
 
 
-class TriggerFailureReason(str, Enum):
+class TriggerFailureReason(StrEnum):
     """
     Reasons for trigger failures.
 
