@@ -118,6 +118,17 @@ Changelog
   and how many durable journal steps the attempt replayed and recorded.
 
 .. note::
+  **Significant change: durable journal failures**
+
+  On Airflow < 3.3, a durable journal that cannot be read or is corrupt now
+  fails the task attempt instead of treating the journal as absent and running
+  completed LLM calls or tool operations again. Before upgrading, S3 roles for
+  durable ObjectStorage journals must grant ``s3:ListBucket`` on the bucket, in
+  addition to permissions to read, write and delete journal objects. A storage
+  read failure follows the task's retry policy; a corrupt journal is not retried
+  and must be repaired or deleted before the task is run again.
+
+.. note::
   ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,
   ``@task.llm_file_analysis`` and ``@task.llm_schema_compare`` now render only the prompt returned
   by the decorated function inside ``execute()``. Their other template fields (``system_prompt``,

@@ -87,6 +87,8 @@ The following integrations are available.
 +---------------+-------------------------------------------------------+
 | pinot         | Integration required for Apache Pinot hooks.          |
 +---------------+-------------------------------------------------------+
+| polaris       | Integration required for Apache Polaris tests.        |
++---------------+-------------------------------------------------------+
 | qdrant        | Integration required for Qdrant tests.                |
 +---------------+-------------------------------------------------------+
 | redis         | * Integration required for Redis tests.               |

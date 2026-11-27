@@ -329,12 +329,9 @@ export type Type18 = "DagRunResult";
 export type Type19 = "DagRunStateResult";
 export type State2 = "deferred";
 export type Classpath = string;
-export type TriggerKwargs =
-  | {
-      [k: string]: JsonValue | null;
-    }
-  | string
-  | null;
+export type TriggerKwargs = {
+  [k: string]: JsonValue | null;
+} | null;
 export type TriggerTimeout = string | null;
 export type Queue1 = string | null;
 export type NextMethod2 = string;

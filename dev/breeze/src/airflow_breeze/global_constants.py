@@ -120,6 +120,7 @@ TESTABLE_PROVIDERS_INTEGRATIONS = [
     "mongo",
     "mssql",
     "pinot",
+    "polaris",
     "qdrant",
     "redis",
     "trino",
@@ -152,6 +153,7 @@ TESTABLE_PROVIDERS_INTEGRATION_OWNERS = {
     "mongo": "mongo",
     "mssql": "microsoft.mssql",
     "pinot": "apache.pinot",
+    "polaris": "apache.polaris",
     "qdrant": "qdrant",
     "redis": "redis",
     "trino": "trino",
@@ -926,13 +928,13 @@ PROVIDERS_COMPATIBILITY_TESTS_MATRIX: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.11",
         "airflow-version": "2.11.1",
-        "remove-providers": "anthropic common.messaging common.dataquality edge3 fab git huggingface keycloak informatica modal opensearch",
+        "remove-providers": "anthropic apache.polaris common.messaging common.dataquality edge3 fab git huggingface keycloak informatica modal opensearch",
         "run-unit-tests": "true",
     },
     {
         "python-version": "3.11",
         "airflow-version": "3.0.6",
-        "remove-providers": "",
+        "remove-providers": "apache.polaris",
         "run-unit-tests": "true",
     },
     {

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import datetime
 import logging
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from functools import singledispatch
 from traceback import format_exception
@@ -249,9 +249,8 @@ class Trigger(Base):
         from airflow.crypto import get_fernet
         from airflow.sdk.serde import deserialize
 
-        # We weren't able to encrypt the kwargs in all migration paths,
-        # so we need to handle the case where they are not encrypted.
-        # Triggers aren't long lasting, so we can skip encrypting them now.
+        # Plaintext JSON comes from running without a fernet key, the offline 2.9 migration,
+        # or task deferrals in older Airflow 3 releases.
         if encrypted_kwargs.startswith("{"):
             decrypted_kwargs = json.loads(encrypted_kwargs)
         else:
@@ -274,7 +273,11 @@ class Trigger(Base):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
         from airflow.crypto import get_fernet
 
-        self.encrypted_kwargs = get_fernet().rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
+        fernet = get_fernet()
+        if self.encrypted_kwargs.startswith("{"):
+            self.encrypted_kwargs = fernet.encrypt(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
+        else:
+            self.encrypted_kwargs = fernet.rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
 
     @classmethod
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
@@ -288,6 +291,7 @@ class Trigger(Base):
         classpath: str,
         serialized_kwargs: dict[str, Any],
         queue: str | None = None,
+        team_name: str | None = None,
         *,
         dag_id: str | None = None,
         used_by_ref: dict[str, Any] | None = None,
@@ -295,10 +299,17 @@ class Trigger(Base):
         """
         Create a trigger row from kwargs that are already in their serde-encoded form.
 
-        The kwargs are stored exactly as given and decoded by the triggerer when it creates
-        the trigger, the same as kwargs stored by :meth:`from_object`.
+        The kwargs are encrypted without being re-serialized and decoded by the triggerer when it
+        creates the trigger, the same as kwargs stored by :meth:`from_object`.
         """
-        trigger = cls(classpath=classpath, kwargs={}, queue=queue, dag_id=dag_id, used_by_ref=used_by_ref)
+        trigger = cls(
+            classpath=classpath,
+            kwargs={},
+            queue=queue,
+            team_name=team_name,
+            dag_id=dag_id,
+            used_by_ref=used_by_ref,
+        )
         trigger.encrypted_kwargs = cls._encrypt_serialized_kwargs(serialized_kwargs)
         return trigger
 
@@ -374,12 +385,22 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_event(cls, trigger_id, event: TriggerEvent, *, session: Session = NEW_SESSION) -> None:
+    def submit_event(
+        cls,
+        trigger_id,
+        event: TriggerEvent,
+        *,
+        session: Session = NEW_SESSION,
+        callback_sink: list[Callable[[], None]] | None = None,
+    ) -> None:
         """
         Fire an event.
 
         Resume all tasks that were in deferred state.
         Send an event to all assets associated to the trigger.
+
+        :param callback_sink: If specified, asset listener callbacks are added into the
+            list instead of executed inline, so the caller can run them after commit.
         """
         # Resume deferred tasks
         for task_instance in session.scalars(
@@ -404,6 +425,7 @@ class Trigger(Base):
                 extra={"from_trigger": True, "payload": event.payload},
                 partition_key=event.partition_key if isinstance(event, AssetTriggerEvent) else None,
                 session=session,
+                callback_sink=callback_sink,
             )
         if trigger.callback:
             trigger.callback.handle_event(event, session)

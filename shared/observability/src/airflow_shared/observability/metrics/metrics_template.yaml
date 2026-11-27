@@ -293,7 +293,7 @@ metrics:
 
   - name: "scheduler.critical_section_busy"
     description: "Count of times a scheduler process tried to get a lock on the critical
-    section (needed to send tasks to the executor) and found it locked by another process."
+    section (needed to move tasks to the queued state) and found it locked by another process."
     type: "counter"
     legacy_name: "-"
     name_variables: []

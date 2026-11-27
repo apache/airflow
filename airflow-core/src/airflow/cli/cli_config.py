@@ -2391,10 +2391,10 @@ core_commands: list[CLICommand] = [
     ActionCommand(
         name="rotate-fernet-key",
         func=lazy_load_command("airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key"),
-        help="Rotate encrypted connection credentials and variables",
+        help="Rotate encrypted connection credentials, variables and trigger kwargs",
         description=(
-            "Rotate all encrypted connection credentials and variables; see "
-            "https://airflow.apache.org/docs/apache-airflow/stable/howto/secure-connections.html"
+            "Rotate all encrypted connection credentials, variables and trigger kwargs; see "
+            "https://airflow.apache.org/docs/apache-airflow/stable/security/secrets/fernet.html"
             "#rotating-encryption-keys"
         ),
         args=(),

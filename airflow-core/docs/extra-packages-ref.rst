@@ -222,6 +222,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-pinot        | ``pip install 'apache-airflow[apache-pinot]'``      | All Pinot related hooks                        |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache-polaris      | ``pip install 'apache-airflow[apache-polaris]'``    | Polaris hooks and operators                    |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-spark        | ``pip install 'apache-airflow[apache-spark]'``      | All Spark related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache-tinkerpop    | ``pip install apache-airflow[apache-tinkerpop]``    | Apache-tinkerpop hooks and operators           |

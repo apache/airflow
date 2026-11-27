@@ -16,8 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
-import os
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -28,93 +26,12 @@ from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
 from airflow.providers.common.sql.datafusion.object_storage_provider import (
     AzureObjectStorageProvider,
-    GCSObjectStorageProvider,
     LocalObjectStorageProvider,
     get_object_storage_provider,
 )
 
 
-class TestGCSObjectStorageProvider:
-    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud")
-    def test_gcs_provider_success_with_key_path(self, mock_gcs, tmp_path):
-        key_path = tmp_path / "key.json"
-        key_path.write_text("{}")
-        provider = GCSObjectStorageProvider()
-        connection_config = ConnectionConfig(
-            conn_id="google_cloud_default",
-            credentials={"key_path": str(key_path)},
-        )
-
-        store = provider.create_object_store("gs://demo-data/path", connection_config)
-
-        mock_gcs.assert_called_once_with(bucket_name="demo-data", service_account_path=str(key_path))
-        assert store == mock_gcs.return_value
-        assert provider.get_storage_type == StorageType.GCS
-        assert provider.get_scheme() == "gs://"
-
-    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud")
-    def test_gcs_provider_success_with_keyfile_dict(self, mock_gcs):
-        provider = GCSObjectStorageProvider()
-        keyfile_dict = {"type": "service_account", "private_key": "fake"}
-        connection_config = ConnectionConfig(
-            conn_id="google_cloud_default",
-            credentials={"keyfile_dict": keyfile_dict},
-        )
-
-        provider.create_object_store("gs://demo-data/path", connection_config)
-
-        mock_gcs.assert_called_once()
-        temp_path = mock_gcs.call_args.kwargs["service_account_path"]
-        assert not os.path.exists(temp_path), "temp key file should be deleted after use"
-
-    @patch("airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud")
-    def test_gcs_provider_writes_keyfile_dict_content_before_cleanup(self, mock_gcs):
-        written_content = {}
-
-        def _capture_path(*, bucket_name, service_account_path):
-            with open(service_account_path) as f:
-                written_content["data"] = json.load(f)
-
-        mock_gcs.side_effect = _capture_path
-        provider = GCSObjectStorageProvider()
-        keyfile_dict = {"type": "service_account", "private_key": "fake"}
-        connection_config = ConnectionConfig(
-            conn_id="google_cloud_default",
-            credentials={"keyfile_dict": keyfile_dict},
-        )
-
-        provider.create_object_store("gs://demo-data/path", connection_config)
-
-        assert written_content["data"] == keyfile_dict
-
-    def test_gcs_provider_failure(self):
-        provider = GCSObjectStorageProvider()
-        connection_config = ConnectionConfig(conn_id="google_cloud_default")
-
-        with patch(
-            "airflow.providers.common.sql.datafusion.object_storage_provider.GoogleCloud",
-            side_effect=Exception("Error"),
-        ):
-            with pytest.raises(ObjectStoreCreationException, match="Failed to create GCS object store"):
-                provider.create_object_store("gs://demo-data/path", connection_config)
-
-    def test_gcs_provider_missing_key_file_raises_clear_error(self):
-        """Uses the real GoogleCloud binding, not a mock, since it's the one that panics."""
-        provider = GCSObjectStorageProvider()
-        connection_config = ConnectionConfig(
-            conn_id="google_cloud_default",
-            credentials={"key_path": "/nonexistent/key.json"},
-        )
-
-        with pytest.raises(ObjectStoreCreationException, match="Failed to create GCS object store"):
-            provider.create_object_store("gs://demo-data/path", connection_config)
-
-    def test_gcs_provider_requires_connection_config(self):
-        provider = GCSObjectStorageProvider()
-
-        with pytest.raises(ValueError, match="connection_config must be provided for gcs"):
-            provider.create_object_store("gs://demo-data/path")
-
+class TestAzureObjectStorageProvider:
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.MicrosoftAzure")
     def test_azure_provider_success(self, mock_azure):
         provider = AzureObjectStorageProvider()
@@ -333,11 +250,6 @@ class TestGetObjectStorageProvider:
         provider = get_object_storage_provider(StorageType.LOCAL)
         assert isinstance(provider, LocalObjectStorageProvider)
 
-    def test_returns_gcs_provider_directly(self):
-        """GCS is still implemented in common-sql, so it resolves without the registry."""
-        provider = get_object_storage_provider(StorageType.GCS)
-        assert isinstance(provider, GCSObjectStorageProvider)
-
     def test_returns_azure_provider_directly(self):
         """Azure is still implemented in common-sql, so it resolves without the registry."""
         provider = get_object_storage_provider(StorageType.AZURE)
@@ -347,23 +259,34 @@ class TestGetObjectStorageProvider:
         with pytest.raises(ValueError, match="'bogus' is not a valid StorageType"):
             get_object_storage_provider("bogus")
 
+    @pytest.mark.parametrize(
+        ("storage_type", "provider_class_name"),
+        [
+            (
+                StorageType.S3,
+                "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+            ),
+            (
+                StorageType.GCS,
+                "airflow.providers.google.cloud.datafusion.object_storage.GCSObjectStorageProvider",
+            ),
+        ],
+    )
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.import_string", autospec=True)
     @patch("airflow.providers_manager.ProvidersManager", autospec=True)
-    def test_resolves_s3_via_registry(self, mock_pm_cls, mock_import_string):
+    def test_resolves_provider_owned_storage_via_registry(
+        self, mock_pm_cls, mock_import_string, storage_type, provider_class_name
+    ):
         mock_provider_cls = MagicMock()
         mock_import_string.return_value = mock_provider_cls
 
         mock_pm_cls.return_value.object_storage_providers = {
-            "s3": MagicMock(
-                provider_class_name="airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
-            ),
+            storage_type.value: MagicMock(provider_class_name=provider_class_name),
         }
 
-        provider = get_object_storage_provider(StorageType.S3)
+        provider = get_object_storage_provider(storage_type)
 
-        mock_import_string.assert_called_once_with(
-            "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider"
-        )
+        mock_import_string.assert_called_once_with(provider_class_name)
         assert provider == mock_provider_cls.return_value
 
     @patch("airflow.providers.common.sql.datafusion.object_storage_provider.import_string", autospec=True)
@@ -389,12 +312,19 @@ class TestGetObjectStorageProvider:
         with pytest.raises(ValueError, match="No ObjectStorageProvider registered.*Install or upgrade"):
             get_object_storage_provider(StorageType.S3)
 
-    def test_error_message_includes_install_hint_for_s3(self):
+    @pytest.mark.parametrize(
+        ("storage_type", "hint"),
+        [
+            (StorageType.S3, r"apache-airflow-providers-amazon\[datafusion\]"),
+            (StorageType.GCS, r"apache-airflow-providers-google\[datafusion\]"),
+        ],
+    )
+    def test_error_message_includes_install_hint(self, storage_type, hint):
         with patch("airflow.providers_manager.ProvidersManager", autospec=True) as mock_pm_cls:
             mock_pm_cls.return_value.object_storage_providers = {}
 
-            with pytest.raises(ValueError, match="apache-airflow-providers-amazon"):
-                get_object_storage_provider(StorageType.S3)
+            with pytest.raises(ValueError, match=hint):
+                get_object_storage_provider(storage_type)
 
     def test_legacy_core_resolves_s3_via_amazon_direct_import(self):
         """On an older core without the registry property, S3 resolves via a direct amazon import."""
@@ -420,7 +350,31 @@ class TestGetObjectStorageProvider:
                 with pytest.raises(ValueError, match="apache-airflow-providers-amazon"):
                     get_object_storage_provider(StorageType.S3)
 
-    def test_no_amazon_imports_at_module_level(self):
+    def test_legacy_core_resolves_gcs_via_google_direct_import(self):
+        """On an older core without the registry property, GCS resolves via a direct google import."""
+        pytest.importorskip("airflow.providers.google")
+        from airflow.providers.google.cloud.datafusion.object_storage import GCSObjectStorageProvider
+
+        with patch("airflow.providers_manager.ProvidersManager") as mock_pm_cls:
+            mock_pm_cls.return_value = MagicMock(spec=[])
+
+            provider = get_object_storage_provider(StorageType.GCS)
+
+        assert isinstance(provider, GCSObjectStorageProvider)
+
+    def test_legacy_core_gcs_without_google_raises_install_hint(self):
+        """On an older core without the registry and google missing, raise the hinted ValueError."""
+        with patch("airflow.providers_manager.ProvidersManager") as mock_pm_cls:
+            mock_pm_cls.return_value = MagicMock(spec=[])
+
+            with patch.dict(
+                sys.modules,
+                {"airflow.providers.google.cloud.datafusion.object_storage": None},
+            ):
+                with pytest.raises(ValueError, match="apache-airflow-providers-google"):
+                    get_object_storage_provider(StorageType.GCS)
+
+    def test_no_provider_imports_at_module_level(self):
         """Verify common-sql no longer statically imports amazon provider code at the top level."""
         import airflow.providers.common.sql.datafusion.object_storage_provider as mod
 
@@ -429,9 +383,9 @@ class TestGetObjectStorageProvider:
             for name, obj in vars(mod).items()
             if not name.startswith("_")
             and hasattr(obj, "__module__")
-            and "amazon" in getattr(obj, "__module__", "")
+            and any(p in getattr(obj, "__module__", "") for p in ("amazon", "google"))
         ]
-        assert top_level_names == [], f"Amazon symbols found at module level: {top_level_names}"
+        assert top_level_names == [], f"Provider symbols found at module level: {top_level_names}"
 
 
 class TestS3DeprecationShim:
@@ -497,3 +451,44 @@ class TestS3DeprecationShim:
 
         with pytest.raises(AttributeError, match="has no attribute"):
             _ = mod.NonExistentClass
+
+
+class TestGCSDeprecationShim:
+    def test_old_import_path_warns_and_returns_same_class(self):
+        """Importing GCSObjectStorageProvider from the old path still works, warns, and re-exports the class."""
+        pytest.importorskip("airflow.providers.google")
+        import airflow.providers.common.sql.datafusion.object_storage_provider as mod
+
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Import it from airflow.providers.google.cloud.datafusion.object_storage",
+        ):
+            old_cls = mod.GCSObjectStorageProvider
+
+        from airflow.providers.google.cloud.datafusion.object_storage import GCSObjectStorageProvider
+
+        assert old_cls is GCSObjectStorageProvider
+
+    def test_old_import_path_honours_explicit_credentials(self, tmp_path):
+        """The shim preserves the pre-relocation contract: explicit credentials reach GoogleCloud."""
+        pytest.importorskip("airflow.providers.google")
+        import airflow.providers.common.sql.datafusion.object_storage_provider as mod
+
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="Import it from airflow.providers.google.cloud.datafusion.object_storage",
+        ):
+            cls = mod.GCSObjectStorageProvider
+
+        key_path = tmp_path / "key.json"
+        key_path.write_text("{}")
+        config = ConnectionConfig(conn_id="google_cloud_default", credentials={"key_path": str(key_path)})
+        # Patched inline rather than via decorator: the target module only exists when google is
+        # installed, and a decorator would resolve it before importorskip can skip the test.
+        with patch(
+            "airflow.providers.google.cloud.datafusion.object_storage.GoogleCloud", autospec=True
+        ) as mock_gcs:
+            store = cls().create_object_store("gs://demo-data/path", connection_config=config)
+
+        mock_gcs.assert_called_once_with(bucket_name="demo-data", service_account_path=str(key_path))
+        assert store == mock_gcs.return_value

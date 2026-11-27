@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import json
 import logging
 import re
@@ -49,6 +50,7 @@ from airflow.providers.common.ai.durable.member_stamp import (
     get_member_model_id,
 )
 from airflow.providers.common.ai.get_provider_info import get_provider_info
+from airflow.providers.common.ai.hooks.lmstudio import LMStudioBackend
 from airflow.providers.common.ai.hooks.pydantic_ai import (
     ModelReadinessBackend,
     PydanticAIAzureHook,
@@ -2042,6 +2044,28 @@ class TestPydanticAIHookEnsureModelReady:
         factory.assert_called_once_with(model_name="llama3", base_url=None)
         stub.load.assert_called_once()
         mock_ollama_cls.assert_not_called()
+
+    def test_backend_factory_can_return_an_lmstudio_backend(self):
+        requests: list[httpx2.Request] = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            requests.append(request)
+            if request.method == "GET":
+                return httpx2.Response(200, json={"models": [{"key": "qwen3", "loaded_instances": []}]})
+            return httpx2.Response(200, json={"status": "loaded"})
+
+        hook, conn = self._build_hook(model_id="openai:qwen3", host="http://lmstudio:1234/v1")
+
+        with patch.object(hook, "get_connection", return_value=conn):
+            hook.ensure_model_ready(
+                backend_factory=functools.partial(LMStudioBackend, transport=httpx2.MockTransport(handler))
+            )
+
+        assert [(r.method, r.url.path) for r in requests] == [
+            ("GET", "/api/v1/models"),
+            ("POST", "/api/v1/models/load"),
+        ]
+        assert json.loads(requests[1].content) == {"model": "qwen3"}
 
     @pytest.mark.parametrize(
         "extra",

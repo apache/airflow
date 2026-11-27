@@ -68,7 +68,8 @@ class ModelReadinessBackendFactory(Protocol):
     Builds the :class:`ModelReadinessBackend` for :meth:`PydanticAIHook.ensure_model_ready`.
 
     Called with the ``model_name`` without its provider prefix and the connection host as
-    ``base_url`` (``None`` when the connection has no host). ``OllamaBackend`` is one.
+    ``base_url`` (``None`` when the connection has no host). ``OllamaBackend`` and
+    ``LMStudioBackend`` are ready-made ones.
     See :ref:`self_hosted_models_readiness_backend`.
     """
 
@@ -660,7 +661,7 @@ class PydanticAIHook(BaseHook):
                 f"ensure_model_ready has no built-in readiness backend for '{model_name}' on "
                 f"connection '{self.llm_conn_id}'; only Ollama is built in. Pass backend_factory= a "
                 "callable taking model_name= and base_url= that returns an object with load(); "
-                "OllamaBackend is available for a model that Ollama serves."
+                "OllamaBackend and LMStudioBackend are available for models that Ollama and LM Studio serve."
             )
         conn, _ = self._get_conn_and_extra()
         base_url = conn.host or None
@@ -681,7 +682,8 @@ class PydanticAIHook(BaseHook):
         Opt-in, blocks the worker slot, and loads only this hook's own connection. Details and
         limits: :ref:`self_hosted_models_ensure_model_ready`.
 
-        :param timeout: Seconds to wait for the load request, passed to the backend as is.
+        :param timeout: Seconds to wait for the load request, passed to the backend as is. A backend
+            may spend it over several requests.
         :param backend_factory: Callable that takes the keyword arguments ``model_name`` (the
             resolved name without its provider prefix) and ``base_url`` (the connection host, or
             ``None``) and returns an object with ``load()`` (see ModelReadinessBackend). When
@@ -689,7 +691,9 @@ class PydanticAIHook(BaseHook):
             raises ``ValueError``. See :ref:`self_hosted_models_readiness_backend`.
         :raises ValueError: If *timeout* is not a positive finite number or no model is configured;
             also from the default ``OllamaBackend`` when neither the connection host nor the
-            ``OLLAMA_BASE_URL`` environment variable is set.
+            ``OLLAMA_BASE_URL`` environment variable is set, and from ``LMStudioBackend`` when the
+            connection has no host, the model list has an unexpected shape, or no listed model has a
+            ``key`` equal to the model name.
         :raises NotImplementedError: If *backend_factory* is not given and the model's provider
             prefix has no built-in backend (only ``ollama`` has one).
         :raises TimeoutError: If a request times out.

@@ -1067,10 +1067,27 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
              is a set() of action names (e.g., `{'DAG Runs': {'can_create'}, 'DAGs': {'can_read'}}`)
         :return:
         """
-        for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
-            dag_resource_name = permissions.resource_name(dag_id, resource_name)
-            for dag_action_name in resource_values["actions"]:
-                self.create_permission(dag_action_name, dag_resource_name)
+        expected = {
+            (action_name, permissions.resource_name(dag_id, resource_type))
+            for resource_type, resource_values in self.RESOURCE_DETAILS_MAP.items()
+            for action_name in resource_values["actions"]
+        }
+        existing = set(
+            self.session.execute(
+                select(self.action_model.name, self.resource_model.name)
+                .select_from(self.permission_model)
+                .join(self.permission_model.action)
+                .join(self.permission_model.resource)
+                .where(
+                    # Filtering on action names too lets SQLite use the UNIQUE (permission_id, view_menu_id)
+                    # index; with resource names alone it scans the whole ab_permission_view table.
+                    self.action_model.name.in_({action_name for action_name, _ in expected}),
+                    self.resource_model.name.in_({resource_name for _, resource_name in expected}),
+                )
+            ).all()
+        )
+        for action_name, resource_name in expected - existing:
+            self.create_permission(action_name, resource_name)
 
         if access_control is not None:
             self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_id)

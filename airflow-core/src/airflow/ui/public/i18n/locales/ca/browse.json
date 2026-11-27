@@ -28,6 +28,7 @@
         "lastParsed": "Darrera anàlisi",
         "parseDuration": "Durada de l'anàlisi"
       },
+      "importErrorForbidden": "No teniu permís per a llegir aquest error d'importació.",
       "importErrorGone": "Aquest error d'importació ja no consta al registre. Probablement s'ha resolt amb una nova anàlisi.",
       "neverParsed": "Mai",
       "parsedFile_one": "Fitxer analitzat",
@@ -59,6 +60,48 @@
     },
     "title": "Terminis"
   },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "Dags afectats",
+      "failures": "Fallades",
+      "kind": "Tipus",
+      "lastError": "Darrer error",
+      "lastEvent": "Darrer esdeveniment",
+      "status": "Estat",
+      "triggerer": "Triggerer",
+      "usedBy": "Utilitzat per"
+    },
+    "detail": {
+      "firstFailedAt": "Falla des de",
+      "lastFailedAt": "Darrera fallada",
+      "noReadableScheduledDags": "No teniu permís per a veure'n cap",
+      "scheduledDags": "Dags programats"
+    },
+    "filters": {
+      "triggererHostname": "Hostname del Triggerer"
+    },
+    "forbidden": {
+      "description": "Els triggers es mostren a qui té permís per a veure allò per a què s'executen: les instàncies de tasca o les execucions d'un Dag, o un Asset que vigilen. No teniu accés a cap d'aquests elements.",
+      "title": "No hi ha cap trigger per mostrar"
+    },
+    "kind": {
+      "asset_watcher": "Observador d'Asset",
+      "callback": "Callback",
+      "task": "Tasca"
+    },
+    "notFound": {
+      "backToList": "Tornar als triggers",
+      "description": "Els triggers s'eliminen quan s'activen o quan acaba allò per a què s'executen. Probablement aquest trigger ja ha acabat.",
+      "title": "Aquest trigger ja no existeix"
+    },
+    "status": {
+      "failing": "Amb errors",
+      "orphaned": "Orfe"
+    },
+    "statusHint": {
+      "orphaned": "El seu Triggerer s'ha aturat. El trigger està pendent que un altre Triggerer se'n faci càrrec."
+    }
+  },
   "xcom": {
     "add": {
       "error": "No s'ha pogut afegir l'XCom",
@@ -70,6 +113,7 @@
     "columns": {
       "dag": "Dag",
       "key": "Clau",
+      "timestamp": "Marca de temps",
       "value": "Valor"
     },
     "delete": {

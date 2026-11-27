@@ -1556,9 +1556,6 @@
               "type": "object"
             },
             {
-              "type": "string"
-            },
-            {
               "type": "null"
             }
           ],

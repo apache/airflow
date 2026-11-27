@@ -92,6 +92,14 @@ asset.
 For how to use the trigger, refer to the documentation of the
 :ref:`Messaging Trigger <howto/trigger:MessageQueueTrigger>`
 
+.. note::
+
+    ``KafkaMessageQueueTrigger`` and ``AwaitMessageTrigger``, which it wraps, create a new Kafka consumer every
+    time the trigger runs and close it after the first matching message. So an asset watcher gets a new consumer
+    and a consumer group rebalance for every event.
+    On Airflow 3.3 or later you can use :ref:`KafkaSharedStreamTrigger <howto/triggers:KafkaSharedStreamTrigger>`
+    instead, it keeps one consumer open for all triggers with the same ``topics`` and ``kafka_config_id``.
+
 .. _howto/triggers:KafkaApplyFunction:
 
 The ``apply_function``

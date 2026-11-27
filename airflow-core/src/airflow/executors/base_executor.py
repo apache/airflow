@@ -440,6 +440,16 @@ class BaseExecutor(LoggingMixin):
         return workload.key
 
     def queue_workload(self, workload: ExecutorWorkload, session: Session) -> None:
+        """
+        Buffer ``workload`` until the next ``heartbeat`` sends it.
+
+        Do not send the workload and do not commit ``session``: writes to ``session`` are committed or rolled
+        back by the scheduler with the batch. When building the rest of a batch of task instances fails, the
+        scheduler rolls ``session`` back, resets its task instances to SCHEDULED and removes their workloads
+        from ``executor_queues``. Other in-memory state kept for the workload, such as a key added to
+        ``running``, must stay correct when that happens, for example by being reconciled with the database
+        on the next ``sync``.
+        """
         if workload.type not in self.supported_workload_types:
             raise NotImplementedError(
                 f"{type(self).__name__} does not support {workload.type.value} workloads. "
