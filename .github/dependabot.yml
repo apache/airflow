@@ -133,7 +133,7 @@ updates:
       eslint:
         patterns:
           - "eslint*"
-          - "@eslint/*"
+          - "@stylistic/eslint-plugin"
       oxc:
         patterns:
           - "oxfmt"
