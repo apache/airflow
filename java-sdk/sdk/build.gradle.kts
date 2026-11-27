@@ -49,7 +49,7 @@ dependencies {
     compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.5")
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.22")
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.23")
     implementation("com.fasterxml.jackson.core:jackson-core:2.22.4")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.22.4")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.22.4")
@@ -57,7 +57,7 @@ dependencies {
     implementation("com.xenomachina:kotlin-argparser:2.0.7")
     implementation("io.ktor:ktor-network:3.6.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.13.0")
     implementation("org.msgpack:msgpack-core:0.9.12")
     implementation("org.msgpack:jackson-dataformat-msgpack:0.9.12")
 

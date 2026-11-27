@@ -35,7 +35,7 @@ dependencies {
 
     // Spark 3.5.x uses Scala 2.13; keep the runtime on the latest compatible patch.
     implementation("org.scala-lang:scala-library:2.13.18")
-    implementation("org.apache.spark:spark-sql_2.13:3.5.9")
+    implementation("org.apache.spark:spark-sql_2.13:3.5.10")
 
     // Align Spark and airflow-sdk-log4j2 on one Log4j version so the
     // AirflowAppender's api/core agree.
