@@ -213,6 +213,20 @@ still selects at least one runnable task instance queued behind blocked ones.
 :meta private:
 """
 
+CANDIDATE_BATCHES = 4
+"""
+How many batches of ranked candidates the selection query keeps before joining full rows and locking them.
+
+One batch is selected and the others are spares: the caller locks rows with ``SKIP LOCKED``, so
+candidates that other transactions hold locked are skipped and replaced from the spares. A Dag run takes at
+most half of the candidates: one whose rows are all locked leaves spares for the others, and up to a batch of
+locked rows at the top of a Dag run is still replaced from that Dag run. Must be at least 2, or that cap would
+be smaller than a batch and change selections without locked rows. A larger value joins and sorts more full
+rows on every selection.
+
+:meta private:
+"""
+
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
     """
@@ -1401,6 +1415,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         don't re-appear in the candidate set.  Row-number windowing enforces
         ``max_active_tasks`` per DagRun.  The returned query is ready to be wrapped
         with ``with_row_locks`` and executed by the caller; no session is required here.
+        It keeps at most ``CANDIDATE_BATCHES * max_tis`` candidates, so with the caller's ``SKIP LOCKED``
+        it can return fewer than ``max_tis`` rows while other transactions hold candidates locked.
 
         This behaves the same as calling ``concurrency_map.load()`` followed by
         ``_get_current_dr_task_concurrency``, with the difference that the subquery
@@ -1410,7 +1426,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         dr_task_concurrency_subquery = _get_current_dr_task_concurrency(states=EXECUTION_STATES)
 
         query = (
-            select(TI)
+            select(TI.id)
             .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
             .join(TI.dag_run)
             .where(DR.state == DagRunState.RUNNING)
@@ -1427,7 +1443,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .where(func.coalesce(dr_task_concurrency_subquery.c.task_per_dr_count, 0) < DM.max_active_tasks)
-            .order_by(-TI.priority_weight, DR.logical_date, TI.region_index)
         )
 
         # Starvation filters should be applied before computing the row_num based on the
@@ -1470,20 +1485,44 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         ).subquery()
 
-        # Select only rows where row_number <= max_active_tasks.
-        return (
-            select(TI)
-            .select_from(ranked_query)
-            .join(
-                TI,
-                TI.id == ranked_query.c.id,
+        # Select only rows where row_number <= max_active_tasks. Keep only ids and ordering columns, and
+        # only CANDIDATE_BATCHES batches of them, before joining back to task_instance: ranking full rows
+        # would sort the full row of every waiting task instance.
+        candidates_query = (
+            select(
+                ranked_query.c.id,
+                ranked_query.c.priority_weight_for_ordering,
+                ranked_query.c.logical_date_for_ordering,
+                ranked_query.c.region_index_for_ordering,
             )
-            .where(ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks)
-            # Add the order_by columns from the ranked query for sqlite.
+            .where(
+                ranked_query.c.row_num <= ranked_query.c.dr_max_active_tasks,
+                # A Dag run has at most max_tis rows in the result, so this per-Dag-run cap only matters
+                # when candidates are locked (see CANDIDATE_BATCHES).
+                ranked_query.c.row_num <= max_tis * CANDIDATE_BATCHES // 2,
+            )
             .order_by(
                 -ranked_query.c.priority_weight_for_ordering,
                 ranked_query.c.logical_date_for_ordering,
                 ranked_query.c.region_index_for_ordering,
+            )
+            .limit(max_tis * CANDIDATE_BATCHES)
+            .subquery("candidates")
+        )
+
+        return (
+            # A join rather than TI.id.in_(candidates): MySQL rejects LIMIT in IN subqueries (error 1235).
+            select(TI)
+            .select_from(candidates_query)
+            .join(
+                TI,
+                TI.id == candidates_query.c.id,
+            )
+            # Add the order_by columns from the candidates subquery for sqlite.
+            .order_by(
+                -candidates_query.c.priority_weight_for_ordering,
+                candidates_query.c.logical_date_for_ordering,
+                candidates_query.c.region_index_for_ordering,
             )
             .options(selectinload(TI.dag_model))
             # Eager-load the run's pinned DagVersion (dag_run.created_dag_version): TIs become
