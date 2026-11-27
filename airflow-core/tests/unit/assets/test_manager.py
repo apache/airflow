@@ -49,11 +49,13 @@ from airflow.models.asset import (
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
 from airflow.partition_mappers.window import WeekWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import PartitionedAtRuntime
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.utils.session import create_session
@@ -879,6 +881,79 @@ class TestAssetManager:
                 select(AssetPartitionDagRun.target_dag_id).order_by(AssetPartitionDagRun.id)
             ).all() == ["a-consumer", "z-consumer"]
         finally:
+            _clear_partition_db()
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("consumer_dag_ids", "expected"),
+        [
+            pytest.param(
+                ["fanout-consumer"],
+                [("fanout-consumer", "k-1"), ("fanout-consumer", "k-2"), ("fanout-consumer", "k-3")],
+                id="single-consumer",
+            ),
+            pytest.param(
+                ["z-fanout-consumer", "a-fanout-consumer"],
+                [
+                    ("a-fanout-consumer", "k-1"),
+                    ("a-fanout-consumer", "k-2"),
+                    ("a-fanout-consumer", "k-3"),
+                    ("z-fanout-consumer", "k-1"),
+                    ("z-fanout-consumer", "k-2"),
+                    ("z-fanout-consumer", "k-3"),
+                ],
+                id="multiple-consumers",
+            ),
+        ],
+    )
+    @mock.patch.object(IdentityMapper, "to_downstream", autospec=True, return_value=["k-3", "k-2", "k-1"])
+    def test_partition_fanout_creates_apdrs_in_key_order(
+        self, mock_to_downstream, session, dag_maker, consumer_dag_ids, expected
+    ):
+        _clear_partition_db()
+        try:
+            asset = Asset(name="fanout-order-asset")
+            for dag_id in consumer_dag_ids:
+                with dag_maker(
+                    dag_id=dag_id,
+                    schedule=PartitionedAssetTimetable(assets=asset, batch_asset_events=True),
+                    session=session,
+                ):
+                    EmptyOperator(task_id="consume")
+            with dag_maker(
+                dag_id="fanout-producer", schedule=PartitionedAtRuntime(), session=session
+            ) as producer:
+                EmptyOperator(task_id="emit", outlets=[asset])
+            dag_run = dag_maker.create_dagrun(partition_key="source-key", session=session)
+            [ti] = dag_run.get_task_instances(session=session)
+
+            TaskInstance.register_asset_changes_in_db(
+                ti=ti,
+                task_outlets=[outlet.asprofile() for outlet in producer.get_task("emit").outlets],
+                outlet_events=[],
+                session=session,
+            )
+            session.flush()
+
+            assert (
+                session.execute(
+                    select(
+                        AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.pending_partition_key
+                    ).order_by(AssetPartitionDagRun.id)
+                ).all()
+                == expected
+            )
+            assert (
+                session.execute(
+                    select(
+                        PartitionedAssetKeyLog.target_dag_id, PartitionedAssetKeyLog.target_partition_key
+                    ).order_by(PartitionedAssetKeyLog.id)
+                ).all()
+                == expected
+            )
+            assert mock_to_downstream.call_count == len(consumer_dag_ids)
+        finally:
+            session.rollback()
             _clear_partition_db()
 
     def test_assigning_created_dag_run_id_clears_pending_partition_key(self):
