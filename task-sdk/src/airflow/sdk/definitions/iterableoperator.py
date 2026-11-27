@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import itertools
 import os
 import threading
 import time
@@ -43,6 +44,7 @@ from airflow.sdk.bases.operator import BaseOperator, event_loop
 from airflow.sdk.bases.skipmixin import SkipMixin
 from airflow.sdk.bases.xcom import XComIterable, build_own_coordinate
 from airflow.sdk.definitions._internal.fingerprint import InputFingerprint
+from airflow.sdk.definitions._internal.mixins import ResolveMixin
 from airflow.sdk.definitions.param import process_params
 from airflow.sdk.definitions.retry_policy import RetryAction, RetryDecision
 from airflow.sdk.definitions.xcom_arg import XComArg
@@ -913,6 +915,38 @@ class IndexedTaskOutcomes:
         return chosen
 
 
+def _rendered_in_place(value: Any) -> bool:
+    """
+    Whether rendering may change ``value`` itself: whether it holds an object with template fields.
+
+    Rendering builds new strings, lists and dicts for plain data and resolves an XComArg into a new
+    value, leaving them as they are; only an object with ``template_fields`` of its own is rendered
+    by setting its attributes.
+    """
+    if isinstance(value, ResolveMixin):
+        return False
+    if isinstance(value, (list, tuple, set)):
+        return any(_rendered_in_place(item) for item in value)
+    if isinstance(value, dict):
+        return any(_rendered_in_place(item) for item in value.values())
+    return hasattr(value, "template_fields")
+
+
+def _iter_resolvables(value: Any) -> Iterator[ResolveMixin]:
+    """Yield the XComArgs in ``value``, where rendering finds them: in containers and template fields."""
+    if isinstance(value, ResolveMixin):
+        yield value
+    elif isinstance(value, (list, tuple, set)):
+        for item in value:
+            yield from _iter_resolvables(item)
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _iter_resolvables(item)
+    else:
+        for field in getattr(value, "template_fields", ()):
+            yield from _iter_resolvables(getattr(value, field, None))
+
+
 class IndexedTaskUnmapper:
     """
     Build the indexed task of each index of one run: unmapped, with its params, rendered and fingerprinted.
@@ -937,6 +971,23 @@ class IndexedTaskUnmapper:
         self._mapped_operator = mapped_operator
         self._context = context
         self._jinja_env = operator.get_template_env(dag=operator.dag)
+        # The template fields the partial kwargs set to an object rendering may change in place.
+        self._partial_template_fields = [
+            field
+            for field in mapped_operator.template_fields
+            if _rendered_in_place(mapped_operator.partial_kwargs.get(field))
+        ]
+        # Kept as they are when those are copied: rendering resolves an XComArg among them into a new
+        # value without changing it, and it references its upstream operator, through it the Dag.
+        dag = operator.dag
+        kept = itertools.chain(
+            (dag, *dag.tasks, mapped_operator, operator),
+            *(
+                _iter_resolvables(mapped_operator.partial_kwargs[field])
+                for field in self._partial_template_fields
+            ),
+        )
+        self._kept_by_copy = {id(value): value for value in kept}
         # One per run, as it keeps what is the same for every index of the run.
         self._input_fingerprint = InputFingerprint(
             operator.partial_kwargs, stop_requested=stop_requested, log=operator.log
@@ -950,6 +1001,7 @@ class IndexedTaskUnmapper:
         """Build the indexed task of ``index`` from its ``mapped_kwargs``, rendered and fingerprinted."""
         context = self._context
         unmapped_task = self._mapped_operator.unmap(mapped_kwargs)
+        self._copy_partial_template_fields(unmapped_task, mapped_kwargs)
         self.do_xcom_push = unmapped_task.do_xcom_push
         # Make sure deferred operators will always raise a DeferredTask exception when executed
         unmapped_task.start_from_trigger = False
@@ -979,6 +1031,25 @@ class IndexedTaskUnmapper:
         # Taken once rendered, so the partial kwargs an upstream provides are in it with their value.
         indexed_ti.input_fingerprint = self._input_fingerprint.of(mapped_kwargs, unmapped_task)
         return indexed_ti
+
+    def _copy_partial_template_fields(self, task: BaseOperator, mapped_kwargs: Mapping[str, Any]) -> None:
+        """
+        Give ``task`` its own copy of the objects the partial kwargs put in its template fields.
+
+        Rendering changes an object with template fields of its own in place, and the partial kwargs
+        are shared by every index of the run, rendered at the same time from several threads: a
+        mapped task instance unmaps in its own process instead. The index's own values, from
+        ``mapped_kwargs``, are its already and kept as they are.
+        """
+        if not self._partial_template_fields:
+            return
+        memo = dict(self._kept_by_copy)
+        for value in mapped_kwargs.values():
+            memo[id(value)] = value
+            if isinstance(value, Mapping):  # a @task's op_kwargs
+                memo.update((id(item), item) for item in value.values())
+        for field in self._partial_template_fields:
+            setattr(task, field, copy.deepcopy(getattr(task, field), memo))
 
 
 class IndexedTaskLifecycle:

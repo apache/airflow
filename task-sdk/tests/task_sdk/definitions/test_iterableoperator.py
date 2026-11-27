@@ -3793,6 +3793,26 @@ class TestIndexedTaskUnmapper:
                 task = run_of(iterable_op, context).unmapper.unmap(0, {"arg1": "{{ 7*7 }}"})
         assert task.task.arg1 == expected
 
+    def test_an_object_rendered_in_place_from_the_partial_kwargs_is_each_indexs_own(self):
+        """Every index renders its own copy of a templated object from .partial(), as a mapped task instance does."""
+
+        class TemplatedEnv:
+            template_fields = ("value",)
+
+            def __init__(self, value):
+                self.value = value
+
+        shared = TemplatedEnv("{{ task.arg1 }}")
+        with DAG("test_dag") as dag:
+            iterable_op = create_iterable_operator(dag, DictOfListsExpandInput({"arg1": ["eu", "us"]}))
+            iterable_op._operator.partial_kwargs["arg2"] = [shared]
+            with mock_context(task=iterable_op) as context:
+                unmapper = run_of(iterable_op, context).unmapper
+                tasks = [unmapper.unmap(index, {"arg1": arg1}) for index, arg1 in enumerate(["eu", "us"])]
+
+        assert [task.task.arg2[0].value for task in tasks] == ["eu", "us"]
+        assert shared.value == "{{ task.arg1 }}"
+
 
 class TestIndexedTaskOutcomes:
     """What the indexed tasks ended with, turned into the task's own outcome and its callbacks."""
