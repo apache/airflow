@@ -31,7 +31,6 @@ import sys
 import typing
 from argparse import Namespace
 from collections.abc import Callable, Iterable
-from enum import Enum
 from functools import cached_property, partial
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -289,6 +288,25 @@ def is_iso_date_type(val: str | datetime.date) -> datetime.date:
         return datetime.date.fromisoformat(val)
     except ValueError as e:
         raise argparse.ArgumentTypeError(f"Invalid ISO-8601 date: {val!r}") from e
+
+
+def build_output_records(response: dict[str, Any], *, excluded_keys: frozenset[str]) -> list[dict]:
+    """
+    Build the rows printed for an API response.
+
+    When dropping excluded keys leaves a single key holding a list, such as
+    ``{"dags": [...], "total_entries": 2}``, its items become the rows; plain values such as
+    Dag tags get one row each. Any other response is printed as a single record with nested
+    values left untouched.
+    """
+    record = {key: value for key, value in response.items() if key not in excluded_keys}
+    if len(record) == 1:
+        key, value = next(iter(record.items()))
+        if isinstance(value, list):
+            if is_data_sequence(value):
+                return list(value)
+            return [{key: item} for item in value]
+    return [record]
 
 
 def _load_help_texts_yaml() -> dict[str, dict[str, str]]:
@@ -643,9 +661,7 @@ class CommandFactory:
             # Excluding bulk operation. Out of scope for CLI. Should use implemented commands.
             "bulk",
         ]
-        self.excluded_output_keys = [
-            "total_entries",
-        ]
+        self.excluded_output_keys = frozenset({"total_entries"})
         # Lookup for building nested subcommands. Each entry is the shared method suffix
         # (hyphenated into the subcommand name).
         # e.g. list_state_store -> "taskinstances state-store list".
@@ -1077,40 +1093,10 @@ class CommandFactory:
                     return {"operation": api_operation_name, "status": "success"}
                 return obj
 
-            def check_operation_and_collect_list_of_dict(dict_obj: dict, top_level: bool = False) -> list:
-                """Check if the object is a nested dictionary and collect list of dictionaries."""
-
-                def is_dict_nested(obj: dict) -> bool:
-                    """Check if the object is a nested dictionary."""
-                    return any(isinstance(i, dict) or isinstance(i, list) for i in obj.values())
-
-                if is_dict_nested(dict_obj):
-                    iteration_dict = dict_obj.copy()
-                    for key, value in iteration_dict.items():
-                        if key in self.excluded_output_keys:
-                            del dict_obj[key]
-                            continue
-                        if isinstance(value, Enum):
-                            dict_obj[key] = value.value
-                        if isinstance(value, list):
-                            dict_obj[key] = value
-                        if isinstance(value, dict):
-                            dict_obj[key] = check_operation_and_collect_list_of_dict(value)
-
-                # If dict_obj only have single key return value instead of list
-                # This can happen since we are excluding some keys from user such as total_entries from list operations
-                if len(dict_obj) == 1:
-                    key, value = next(iter(dict_obj.items()))
-                    # Printed rows must be records, so plain values such as Dag tags get one row each.
-                    if top_level and isinstance(value, list) and not is_data_sequence(value):
-                        return [{key: item} for item in value]
-                    return value
-                # If not nested, return the object as a list which the result should be already a dict
-                return [dict_obj]
-
             AirflowConsole().print_as(
-                data=check_operation_and_collect_list_of_dict(
-                    dict_obj=convert_to_dict(method_output, api_operation["name"]), top_level=True
+                data=build_output_records(
+                    convert_to_dict(method_output, api_operation["name"]),
+                    excluded_keys=self.excluded_output_keys,
                 ),
                 output=args.output,
             )

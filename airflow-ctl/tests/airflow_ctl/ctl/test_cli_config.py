@@ -60,6 +60,7 @@ from airflowctl.ctl.cli_config import (
     CommandFactory,
     GroupCommand,
     add_auth_token_to_all_commands,
+    build_output_records,
     is_iso_date_type,
     is_iso_datetime_type,
     json_dict_type,
@@ -234,6 +235,27 @@ def test_args_delete():
             },
         ),
     ]
+
+
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        pytest.param({"status": "ok"}, [{"status": "ok"}], id="single-scalar-field"),
+        pytest.param({"config": {"a": 1, "b": 2}}, [{"config": {"a": 1, "b": 2}}], id="single-dict-field"),
+        pytest.param(
+            {"dag_id": "d", "conf": {"foo": "bar"}},
+            [{"dag_id": "d", "conf": {"foo": "bar"}}],
+            id="nested-single-key-dict",
+        ),
+        pytest.param(
+            {"dag_id": "d", "params": {"a": 1, "b": {"c": 2}}},
+            [{"dag_id": "d", "params": {"a": 1, "b": {"c": 2}}}],
+            id="nested-multi-key-dict",
+        ),
+    ],
+)
+def test_build_output_records_keeps_single_record_shape(response, expected):
+    assert build_output_records(response, excluded_keys=frozenset({"total_entries"})) == expected
 
 
 class TestCommandFactory:
@@ -1648,7 +1670,7 @@ class TestCliConfigMethods:
 
         rows = json.loads(capsys.readouterr().out)
         assert [row["dag_run_id"] for row in rows] == ["manual_run"]
-        assert rows[0]["conf"] == ["a", "b"]
+        assert rows[0]["conf"] == {"ids": ["a", "b"]}
 
     @pytest.mark.parametrize(
         ("extra_argv", "expected_body"),
