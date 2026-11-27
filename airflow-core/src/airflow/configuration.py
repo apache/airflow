@@ -40,7 +40,11 @@ from airflow._shared.configuration.parser import (
     configure_parser_from_configuration_description,
 )
 from airflow._shared.module_loading import import_string
-from airflow.exceptions import AirflowConfigException, RemovedInAirflow4Warning
+from airflow.exceptions import (
+    AirflowConfigException,
+    AirflowProviderDeprecationWarning,
+    RemovedInAirflow4Warning,
+)
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH
 from airflow.task.weight_rule import WeightRule
 from airflow.utils import yaml
@@ -51,10 +55,17 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-# show Airflow's deprecation warnings
-if not sys.warnoptions:
+
+def _show_airflow_deprecation_warnings() -> None:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
+    # A provider deprecation is attributed to the code using the deprecated feature, usually a Dag file,
+    # which the ``module`` filters above do not match.
+    warnings.filterwarnings(action="default", category=AirflowProviderDeprecationWarning)
+
+
+if not sys.warnoptions:
+    _show_airflow_deprecation_warnings()
 
 ConfigType = str | int | float | bool
 ConfigOptionsDictType = dict[str, ConfigType]
