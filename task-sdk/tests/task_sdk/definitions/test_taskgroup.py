@@ -728,7 +728,9 @@ def test_task_group_edge_modifier_chain():
 
     assert start.downstream_task_ids == {t1.node_id, t2.node_id}
     assert t3.upstream_task_ids == {t1.node_id, t2.node_id}
-    assert tg.upstream_task_ids == set()
+    # The label records the group itself as upstream, exactly like the unlabeled
+    # `chain(start, tg, t3)` does, instead of being flattened onto the leaves.
+    assert tg.upstream_task_ids == {start.node_id}
     assert tg.downstream_task_ids == {t3.node_id}
     # Check that we can perform a topological_sort
     dag.topological_sort()
