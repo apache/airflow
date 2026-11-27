@@ -20,13 +20,13 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from typing import Annotated
+from typing import Annotated, cast
 from unittest import mock
 
 import pytest
 from fastapi import Depends, FastAPI, HTTPException
-from sqlalchemy import Column, MetaData, String, Table, create_engine, select
-from sqlalchemy.orm import aliased
+from sqlalchemy import Column, Float, MetaData, String, Table, create_engine, select
+from sqlalchemy.orm import InstrumentedAttribute, aliased
 
 from airflow.api_fastapi.common.parameters import (
     FilterParam,
@@ -39,7 +39,7 @@ from airflow.api_fastapi.common.parameters import (
 )
 from airflow.api_fastapi.common.parameters.asset import _AssetDependencyFilter, _ConsumingAssetFilter
 from airflow.api_fastapi.common.parameters.dag import _OwnersFilter
-from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter
+from airflow.api_fastapi.common.parameters.range import NullableDatetimeRangeFilter, Range
 from airflow.api_fastapi.common.parameters.search import (
     _escape_like_pattern,
     _PrefixPatternParam,
@@ -663,6 +663,44 @@ class TestDatetimeRangeFilterFactory:
         rf = _make_datetime_filter("start_date", upper_bound_lte=bound)
         sql = _compile(rf.to_orm(select(TaskInstance)))
         assert "coalesce" not in sql
+
+
+class TestRangeFilter:
+    """RangeFilter must apply bounds that are falsy but not None, such as 0."""
+
+    @staticmethod
+    def _filter_values(bounds: dict) -> list:
+        metadata = MetaData()
+        table = Table("range_values", metadata, Column("value", Float))
+        engine = create_engine("sqlite://")
+        metadata.create_all(engine)
+        values = {
+            "lower_bound_gte": None,
+            "lower_bound_gt": None,
+            "upper_bound_lte": None,
+            "upper_bound_lt": None,
+        }
+        values.update(bounds)
+        range_value: Range[float] = Range(**values)
+        # Cast to InstrumentedAttribute for type compatibility
+        param = RangeFilter(range_value, cast("InstrumentedAttribute", table.c.value))
+        statement = param.to_orm(select(table.c.value).order_by(table.c.value))
+        with engine.connect() as conn:
+            conn.execute(table.insert(), [{"value": value} for value in (-1, 0, 5)])
+            return list(conn.execute(statement).scalars().all())
+
+    @pytest.mark.parametrize(
+        ("bounds", "expected"),
+        [
+            ({"lower_bound_gte": 0}, [0, 5]),
+            ({"lower_bound_gt": 0}, [5]),
+            ({"upper_bound_lte": 0}, [-1, 0]),
+            ({"upper_bound_lt": 0}, [-1]),
+            ({"lower_bound_gte": 0.0, "upper_bound_lte": 0.0}, [0]),
+        ],
+    )
+    def test_zero_bound_is_applied(self, bounds, expected):
+        assert self._filter_values(bounds) == expected
 
 
 class TestRegexParamFactory:
