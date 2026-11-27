@@ -38,7 +38,6 @@ from airflow.models.callback import (
     DagProcessorCallback,
     ExecutorCallback,
     TriggererCallback,
-    UndecodableCallbackError,
 )
 from airflow.sdk import serde
 from airflow.sdk.definitions.callback import AsyncCallback, SyncCallback
@@ -567,26 +566,6 @@ class TestExecutorCallback:
         assert session.get(Callback, UUID(callback_id_str)) is not None
 
 
-def _add_unexpected_dag_run_field(data):
-    dag_run = {
-        "dag_id": "dag",
-        "run_id": "run",
-        "logical_date": None,
-        "data_interval_start": None,
-        "data_interval_end": None,
-        "run_after": "2026-01-01T00:00:00Z",
-        "start_date": None,
-        "end_date": None,
-        "run_type": "manual",
-        "state": "running",
-        "consumed_asset_events": [],
-        "partition_key": None,
-        "stored_key": "stored-value",
-    }
-    req_data = {**json.loads(data["req_data"]), "context_from_server": {"dag_run": dag_run}}
-    return {**data, "req_data": json.dumps(req_data)}
-
-
 class TestDagProcessorCallback:
     def test_polymorphic_serde(self, session):
         callback_request = DagCallbackRequest(
@@ -607,62 +586,6 @@ class TestDagProcessorCallback:
         assert retrieved.bundle_name == "testing"
         assert retrieved.priority_weight == 11
         assert retrieved.state is None
-
-    @pytest.mark.parametrize(("bundle_version", "is_version_pinned"), [(None, False), ("v1", True)])
-    def test_stores_whether_the_request_is_version_pinned(self, session, bundle_version, is_version_pinned):
-        callback_request = DagCallbackRequest(
-            dag_id="dag", bundle_name="testing", bundle_version=bundle_version, filepath="a.py", run_id="run"
-        )
-        callback = DagProcessorCallback(priority_weight=1, callback=callback_request)
-        session.add(callback)
-        session.commit()
-
-        stored = session.scalar(select(Callback.is_version_pinned).where(Callback.id == callback.id))
-        assert stored is is_version_pinned
-
-    @pytest.mark.parametrize(
-        ("corrupt", "reason"),
-        [
-            pytest.param(lambda data: [], "^Stored data is a list, not an object$", id="array"),
-            pytest.param(json.dumps, "^Stored data is a str, not an object$", id="text"),
-            pytest.param(
-                lambda data: {**data, "req_class": None}, "^Unsupported request class$", id="no-class"
-            ),
-            pytest.param(
-                lambda data: {**data, "req_class": "BaseCallbackRequest"},
-                "^Unsupported request class$",
-                id="abstract-class",
-            ),
-            pytest.param(
-                lambda data: {**data, "req_class": "EmailNotificationRequest"},
-                "^Invalid EmailNotificationRequest data at context_from_server, ti, type$",
-                id="legacy-email-class",
-            ),
-            pytest.param(
-                lambda data: {
-                    **data,
-                    "req_data": '{"filepath": "a.py", "is_failure_callback": "stored-value"}',
-                },
-                "^Invalid DagCallbackRequest data at bundle_name, bundle_version, dag_id, "
-                "is_failure_callback, run_id$",
-                id="invalid-data",
-            ),
-            pytest.param(
-                _add_unexpected_dag_run_field,
-                "^Invalid DagCallbackRequest data at context_from_server.dag_run.<unexpected field>$",
-                id="unexpected-field",
-            ),
-        ],
-    )
-    def test_undecodable_request_is_reported_without_stored_values(self, corrupt, reason):
-        callback_request = DagCallbackRequest(
-            dag_id="dag", bundle_name="testing", bundle_version=None, filepath="a.py", run_id="run"
-        )
-        callback = DagProcessorCallback(priority_weight=1, callback=callback_request)
-        callback.data = corrupt(callback.data)
-
-        with pytest.raises(UndecodableCallbackError, match=reason):
-            callback.get_callback_request()
 
 
 class TestAcceptsContext:

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
@@ -47,13 +46,11 @@ from airflow.api_fastapi.execution_api.routes.dag_parsing import DagParsingRoute
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.api_fastapi.execution_api.versions import bundle
 from airflow.callbacks.callback_requests import (
-    CALLBACK_REQUEST_CLASSES,
     DagCallbackRequest,
     DagRunContext,
     EmailRequest,
     TaskCallbackRequest,
 )
-from airflow.dag_processing.claims import UNDECODABLE_CALLBACK_RETRY_INTERVAL
 from airflow.dag_processing.collection import (
     DagModelOperation,
     reject_unpublishable_dags,
@@ -74,10 +71,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.team import Team
 from airflow.sdk import DAG, Asset
-from airflow.sdk.api.datamodels._generated import (
-    ProcessorWorkClaimBody as SDKProcessorWorkClaimBody,
-    ProcessorWorkItem as SDKProcessorWorkItem,
-)
+from airflow.sdk.api.datamodels._generated import ProcessorWorkItem as SDKProcessorWorkItem
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.utils.db_cleanup import run_cleanup
 from airflow.utils.session import create_session
@@ -1870,115 +1864,6 @@ def test_requested_work_claim_respects_limit_and_active_bundle(
     )
 
 
-def test_upgraded_processor_delivers_work_queued_by_an_older_writer(client, session, job):
-    request = DagCallbackRequest(
-        filepath="queued.py", bundle_name="bundle", bundle_version="v1", dag_id="queued", run_id="run"
-    )
-    callback = DagProcessorCallback(priority_weight=1, callback=request)
-    callback_id = uuid7()
-    # The older scheduler's INSERT predates the pin column.
-    session.execute(
-        DagProcessorCallback.__table__.insert().values(
-            id=callback_id,
-            type=callback.type,
-            fetch_method=callback.fetch_method,
-            data=callback.data,
-            bundle_name=callback.bundle_name,
-            priority_weight=callback.priority_weight,
-        )
-    )
-    priority = DagPriorityParsingRequest(bundle_name="bundle", relative_fileloc="queued.py")
-    session.add(priority)
-    session.commit()
-    assert session.get(DagProcessorCallback, callback_id).is_version_pinned is None
-
-    for kind, work_id in (("callbacks", callback_id), ("priority", priority.id)):
-        base = f"/execution/jobs/{job.id}/requested-work/{kind}"
-        claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
-        if kind == "callbacks":
-            claim["pinned_only_bundle_names"] = ["bundle"]
-        response = client.post(f"{base}/claim", json=claim)
-        assert response.status_code == 200, response.json()
-        [claimed] = response.json()
-        assert claimed["id"] == str(work_id)
-        if kind == "callbacks":
-            assert claimed["callback"]["bundle_version"] == "v1"
-        assert client.post(f"{base}/{work_id}/ack", json={"claim_id": claim["claim_id"]}).status_code == 204
-    session.expire_all()
-    assert session.scalar(select(DagProcessorCallback.id)) is None
-    assert session.scalar(select(DagPriorityParsingRequest.id)) is None
-    assert session.get(DagBundleModel, "bundle").active
-
-
-def test_pinned_only_callback_claim_filters_before_limit_and_replays_owned_rows(
-    client, exec_app, session, job
-):
-    async def authenticate(request: Request):
-        return DagProcessorToken(
-            id=SESSION_ID,
-            claims=DagProcessorClaims(exp=1, job_id=job.id, dag_bundles=frozenset({"bundle", "other"})),
-        )
-
-    exec_app.dependency_overrides[require_auth] = authenticate
-
-    def callback(bundle_name, version, priority):
-        return DagProcessorCallback(
-            priority_weight=priority,
-            callback=DagCallbackRequest(
-                filepath="a.py", bundle_name=bundle_name, bundle_version=version, dag_id="dag", run_id="run"
-            ),
-        )
-
-    live, pinned, healthy = (
-        callback("bundle", None, 10),
-        callback("bundle", "v1", 3),
-        callback("other", None, 1),
-    )
-    job.bundle_names = ["bundle", "other"]
-    session.add_all([live, pinned, healthy])
-    session.commit()
-    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
-    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": job.bundle_names, "limit": 2}
-    restricted = {**claim, "pinned_only_bundle_names": ["bundle"]}
-
-    first = client.post(url, json=restricted)
-    assert first.status_code == 200, first.json()
-    assert [item["id"] for item in first.json()] == [str(pinned.id), str(healthy.id)]
-    session.refresh(live)
-    assert live.processor_job_id is None
-    assert client.post(url, json=restricted).json() == first.json()
-    assert client.post(url, json=claim).status_code == 409
-
-    unrestricted = {**claim, "claim_id": str(uuid7()), "claim_sequence": 2}
-    second = client.post(url, json=unrestricted)
-    assert second.status_code == 200, second.json()
-    assert [item["id"] for item in second.json()] == [str(live.id)]
-    sdk_body = SDKProcessorWorkClaimBody.model_validate(unrestricted).model_dump(mode="json")
-    assert client.post(url, json=sdk_body).json() == second.json()
-    assert client.post(url, json={**unrestricted, "pinned_only_bundle_names": []}).json() == second.json()
-    # An old server hashed precisely these four fields when the original response was lost.
-    receipt = session.get(DagProcessorWorkClaim, (job.id, "callbacks"))
-    assert (
-        receipt.payload_hash == hashlib.sha256(json.dumps(unrestricted, sort_keys=True).encode()).hexdigest()
-    )
-
-
-@pytest.mark.parametrize(
-    ("kind", "restriction"), [("callbacks", ["not-requested"]), ("priority", ["bundle"])]
-)
-def test_claim_rejects_invalid_pinned_only_filter(client, job, kind, restriction):
-    response = client.post(
-        f"/execution/jobs/{job.id}/requested-work/{kind}/claim",
-        json={
-            "claim_id": str(uuid7()),
-            "claim_sequence": 1,
-            "bundle_names": ["bundle"],
-            "pinned_only_bundle_names": restriction,
-        },
-    )
-    assert response.status_code == 422
-
-
 @pytest.mark.parametrize("callback_class", [DagCallbackRequest, TaskCallbackRequest, EmailRequest])
 def test_callback_claim_returns_typed_request(client, session, job, callback_class):
     ti = TaskInstance(
@@ -2035,116 +1920,6 @@ def test_callback_claim_returns_typed_request(client, session, job, callback_cla
     assert client.post(url, json=claim).json() == response.json()
 
 
-@pytest.mark.parametrize(
-    "corruption",
-    [
-        pytest.param({"req_data": "{}"}, id="invalid-data"),
-        pytest.param({"req_class": "BaseCallbackRequest"}, id="abstract-class"),
-    ],
-)
-def test_undecodable_callback_is_released_and_retried_after_a_cooldown(
-    client, session, job, time_machine, corruption
-):
-    request = DagCallbackRequest(
-        filepath="a.py", bundle_name="bundle", bundle_version=None, dag_id="dag", run_id="run"
-    )
-    healthy = DagProcessorCallback(priority_weight=1, callback=request)
-    broken = DagProcessorCallback(priority_weight=2, callback=request)
-    stored = broken.data
-    broken.data = {**stored, **corruption}
-    session.add_all([healthy, broken])
-    session.commit()
-    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
-    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
-
-    first = client.post(url, json=claim)
-
-    assert first.status_code == 200, first.json()
-    assert first.json() == []
-    session.refresh(broken)
-    assert (broken.processor_job_id, broken.processor_claim_id) == (None, None)
-    assert broken.decode_retry_after == timezone.utcnow() + UNDECODABLE_CALLBACK_RETRY_INTERVAL
-    assert client.post(url, json=claim).json() == []
-    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
-    second = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 3})
-    assert [item["id"] for item in second.json()] == [str(healthy.id)]
-
-    # After the cooldown, a server that can decode the row delivers it to the same live Job.
-    broken.data = stored
-    session.add(DagProcessorCallback(priority_weight=100, callback=request))
-    session.commit()
-    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
-    third = client.post(url, json={**claim, "claim_id": str(uuid7()), "claim_sequence": 5})
-    assert third.status_code == 200, third.json()
-    assert [(item["id"], item["callback"]) for item in third.json()] == [
-        (str(broken.id), request.model_dump(mode="json"))
-    ]
-
-
-def test_failed_retry_yields_its_slot_to_fresh_work_after_clock_rollback(
-    client, session, job, create_requested_work, time_machine
-):
-    healthy = create_requested_work("callbacks", priority=2)
-    broken = create_requested_work("callbacks", priority=3)
-    broken.data = {"req_class": "FutureCallback"}
-    healthy.created_at = broken.created_at = timezone.utcnow() + timedelta(hours=1)
-    session.commit()
-    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
-    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
-    assert client.post(url, json=claim).json() == []
-    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
-    recovered = create_requested_work("callbacks", priority=1)
-    recovered.decode_retry_after = timezone.utcnow()
-    session.commit()
-    next_claim = {**claim, "claim_sequence": 2, "claim_id": str(uuid7()), "limit": 2}
-    delivered = client.post(url, json=next_claim).json()
-    assert [item["id"] for item in delivered] == [str(healthy.id), str(recovered.id)]
-    assert client.post(url, json=next_claim).json() == delivered
-
-
-def test_incompatible_replay_preserves_live_callback_owner(
-    client, session, job, create_requested_work, time_machine
-):
-    row = create_requested_work("callbacks")
-    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"], "limit": 1}
-    url = f"/execution/jobs/{job.id}/requested-work/callbacks/claim"
-    delivered = client.post(url, json=claim).json()
-    assert [item["id"] for item in delivered] == [str(row.id)]
-    original = row.data
-    row.data = {**original, "req_class": "FutureCallback"}
-    session.commit()
-    retry = client.post(url, json=claim)
-    assert retry.status_code == 503
-    session.refresh(row)
-    assert (row.processor_job_id, str(row.processor_claim_id)) == (job.id, claim["claim_id"])
-    assert row.decode_retry_after is None
-    row.data = original
-    session.commit()
-    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
-    assert client.post(url, json=claim).json() == delivered
-
-
-def test_defer_callback_preserves_row_and_fences_late_retries(
-    client, session, job, create_requested_work, time_machine
-):
-    row = create_requested_work("callbacks")
-    base = f"/execution/jobs/{job.id}/requested-work/callbacks"
-    claim = {"claim_id": str(uuid7()), "claim_sequence": 1, "bundle_names": ["bundle"]}
-    assert client.post(f"{base}/claim", json=claim).json()[0]["id"] == str(row.id)
-    url = f"{base}/{row.id}/defer"
-    body = {"claim_id": claim["claim_id"]}
-    assert client.post(url, json=body).status_code == 204
-    session.refresh(row)
-    assert (row.processor_job_id, row.processor_claim_id) == (None, None)
-    assert client.post(f"{base}/claim", json=claim).json() == []
-    time_machine.shift(UNDECODABLE_CALLBACK_RETRY_INTERVAL)
-    replacement = {**claim, "claim_id": str(uuid7()), "claim_sequence": 2}
-    assert client.post(f"{base}/claim", json=replacement).json()[0]["id"] == str(row.id)
-    assert client.post(url, json=body).status_code == 409
-    session.refresh(row)
-    assert str(row.processor_claim_id) == replacement["claim_id"]
-
-
 def test_callback_claim_openapi_exposes_nested_request_models(client):
     response = client.get(f"/execution/openapi.json?version={bundle.version_values[0]}")
     assert response.status_code == 200
@@ -2153,8 +1928,7 @@ def test_callback_claim_openapi_exposes_nested_request_models(client):
     callback_schema = next(variant for variant in variants if "discriminator" in variant)
     assert callback_schema["discriminator"]["propertyName"] == "type"
     mapping = callback_schema["discriminator"]["mapping"]
-    assert set(mapping) == {cls.__name__ for cls in CALLBACK_REQUEST_CLASSES.values()}
-    assert CALLBACK_REQUEST_CLASSES["EmailNotificationRequest"] is EmailRequest
+    assert set(mapping) == {"DagCallbackRequest", "TaskCallbackRequest", "EmailRequest"}
     assert {variant["$ref"] for variant in callback_schema["oneOf"]} == set(mapping.values())
     task_callback = schemas[mapping["TaskCallbackRequest"].rsplit("/", 1)[1]]
     task_instance = schemas[task_callback["properties"]["ti"]["$ref"].rsplit("/", 1)[1]]

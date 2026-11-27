@@ -107,8 +107,8 @@ class DagRunContext(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def _sanitize_consumed_asset_events(cls, values: object) -> object:
-        if not isinstance(values, Mapping) or (dag_run := values.get("dag_run")) is None:
+    def _sanitize_consumed_asset_events(cls, values: Mapping[str, Any]) -> Mapping[str, Any]:
+        if (dag_run := values.get("dag_run")) is None:
             return values
 
         # DagRunContext may receive non-ORM dag_run objects (e.g. datamodels).
@@ -181,11 +181,3 @@ CallbackRequest = Annotated[
 
 # Backwards compatibility alias
 EmailNotificationRequest = EmailRequest
-
-CALLBACK_REQUEST_CLASSES: dict[str, type[DagCallbackRequest | TaskCallbackRequest | EmailRequest]] = {
-    "DagCallbackRequest": DagCallbackRequest,
-    "TaskCallbackRequest": TaskCallbackRequest,
-    "EmailRequest": EmailRequest,
-    "EmailNotificationRequest": EmailRequest,
-}
-"""The request classes a stored callback may name, including the email request's name before its rename."""

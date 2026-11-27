@@ -23,7 +23,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 from uuid import UUID
 
-import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Request, Security, status
 from sqlalchemy import delete, or_, select
@@ -52,12 +51,7 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
 )
 from airflow.configuration import conf
-from airflow.dag_processing.claims import (
-    defer_callback,
-    fetch_callback_batch,
-    get_available_work_filter,
-    prepare_callback_source_filter,
-)
+from airflow.dag_processing.claims import get_available_work_filter
 from airflow.dag_processing.collection import (
     DagBundleOwnershipError,
     DagPublicationValidationError,
@@ -69,7 +63,7 @@ from airflow.dag_processing.collection import (
 )
 from airflow.jobs.job import Job
 from airflow.models.asset import remove_references_to_deleted_dags
-from airflow.models.callback import DagProcessorCallback, UndecodableCallbackError
+from airflow.models.callback import DagProcessorCallback
 from airflow.models.dag import DagModel
 from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.dag_processor_work_claim import DagProcessorWorkClaim
@@ -131,8 +125,6 @@ class DagParsingRoute(ExecutionAPIRoute):
 
         return handle_bounded_request
 
-
-log = structlog.get_logger(__name__)
 
 router = VersionedAPIRouter(route_class=DagParsingRoute)
 
@@ -456,21 +448,13 @@ def publish_inventory(
 WorkT = TypeVar("WorkT", DagProcessorCallback, DagPriorityParsingRequest)
 
 
-def _require_granted_bundle(name: str | None, granted_bundles: frozenset[str]) -> str:
-    if name is None or name not in granted_bundles:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
-    return name
-
-
 class _RequestedWork(Protocol[WorkT]):
     model: type[WorkT]
     kind: Literal["callbacks", "priority"]
 
-    def fetch_payloads(
-        self, query: Select[WorkT], *, limit: int | None, granted_bundles: frozenset[str], session: Session
-    ) -> list[tuple[WorkT, str, CallbackRequest | None]]:
-        """Select fresh work up to the limit, or replay every row already owned by this claim."""
-        ...
+    def build_query(self, *, replaying: bool) -> Select[WorkT]: ...
+
+    def get_payload(self, work: WorkT) -> tuple[str, CallbackRequest | None]: ...
 
     def parse_key(self, work_id: str) -> UUID | str: ...
 
@@ -479,29 +463,15 @@ class _CallbackWork:
     model = DagProcessorCallback
     kind: Literal["callbacks", "priority"] = "callbacks"
 
-    def fetch_payloads(
-        self,
-        query: Select[DagProcessorCallback],
-        *,
-        limit: int | None,
-        granted_bundles: frozenset[str],
-        session: Session,
-    ) -> list[tuple[DagProcessorCallback, str, CallbackRequest | None]]:
-        if limit is not None:
-            batch = fetch_callback_batch(query.where(self.model.state.is_(None)), limit, session=session)
-        else:
-            rows = session.scalars(query.order_by(self.model.priority_weight.desc(), self.model.id))
-            try:
-                batch = []
-                for row in rows:
-                    _require_granted_bundle(row.bundle_name, granted_bundles)
-                    batch.append((row, row.get_callback_request()))
-            except UndecodableCallbackError as error:
-                # Another server may already have delivered this claim to the live Job.
-                raise HTTPException(
-                    status.HTTP_503_SERVICE_UNAVAILABLE, detail={"reason": "callback_decode_unavailable"}
-                ) from error
-        return [(row, request.filepath, request) for row, request in batch]
+    def build_query(self, *, replaying: bool) -> Select[DagProcessorCallback]:
+        query = select(self.model).order_by(self.model.priority_weight.desc(), self.model.id)
+        if not replaying:
+            query = query.where(self.model.state.is_(None))
+        return query
+
+    def get_payload(self, work: DagProcessorCallback) -> tuple[str, CallbackRequest]:
+        request = work.get_callback_request()
+        return request.filepath, request
 
     def parse_key(self, work_id: str) -> UUID:
         try:
@@ -516,18 +486,11 @@ class _PriorityWork:
     model = DagPriorityParsingRequest
     kind: Literal["callbacks", "priority"] = "priority"
 
-    def fetch_payloads(
-        self,
-        query: Select[DagPriorityParsingRequest],
-        *,
-        limit: int | None,
-        granted_bundles: frozenset[str],
-        session: Session,
-    ) -> list[tuple[DagPriorityParsingRequest, str, CallbackRequest | None]]:
-        query = query.order_by(self.model.id)
-        if limit is not None:
-            query = with_row_locks(query.limit(limit), session=session, skip_locked=True)
-        return [(row, row.relative_fileloc, None) for row in session.scalars(query)]
+    def build_query(self, *, replaying: bool) -> Select[DagPriorityParsingRequest]:
+        return select(self.model).order_by(self.model.id)
+
+    def get_payload(self, work: DagPriorityParsingRequest) -> tuple[str, None]:
+        return work.relative_fileloc, None
 
     def parse_key(self, work_id: str) -> str:
         return work_id
@@ -536,12 +499,7 @@ class _PriorityWork:
 @router.post(
     "/{job_id}/requested-work/{kind}/claim",
     responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_403_FORBIDDEN,
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-        ]
+        [status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND, status.HTTP_409_CONFLICT]
     ),
     dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
 )
@@ -559,10 +517,6 @@ def claim_work(
     _validate_job(job_id, token, session=session)
     if kind == "callbacks":
         return _claim_work(_CallbackWork(), job_id, body, token.claims.dag_bundles, session=session)
-    if body.pinned_only_bundle_names:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="pinned_only_bundle_names applies only to callbacks"
-        )
     return _claim_work(_PriorityWork(), job_id, body, token.claims.dag_bundles, session=session)
 
 
@@ -578,7 +532,7 @@ def _claim_work(
     receipt = session.get(DagProcessorWorkClaim, (job_id, source.kind))
     payload_hash = _compute_payload_hash(body, exclude={"replay_only"})
     replaying = receipt is not None and body.claim_sequence <= receipt.claim_sequence
-    query = select(model)
+    query = source.build_query(replaying=replaying)
     if receipt is not None and replaying:
         if body.claim_sequence < receipt.claim_sequence:
             return []
@@ -597,30 +551,27 @@ def _claim_work(
             return []
         ready = select(DagBundleModel.name).where(DagBundleModel.active.is_(True))
         query = query.where(
-            prepare_callback_source_filter(
-                body.bundle_names,
-                body.pinned_only_bundle_names or (),
-                limit=body.limit,
-                session=session,
-            )
-            if source.kind == "callbacks"
-            else model.bundle_name.in_(body.bundle_names),
+            model.bundle_name.in_(body.bundle_names),
             model.bundle_name.in_(ready),
             get_available_work_filter(model.processor_job_id),
         )
-    result = []
-    for work, path, callback in source.fetch_payloads(
-        query, limit=None if replaying else body.limit, granted_bundles=granted_bundles, session=session
-    ):
-        bundle_name = _require_granted_bundle(work.bundle_name, granted_bundles)
-        if not replaying:
+    if not replaying:
+        query = with_row_locks(query.limit(body.limit), session=session, skip_locked=True)
+    replay = session.scalars(query).all()
+    if not replaying:
+        for work in replay:
             work.processor_job_id = job_id
             work.processor_claim_id = body.claim_id
+    result = []
+    for work in replay:
+        if work.bundle_name is None or work.bundle_name not in granted_bundles:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
+        path, callback = source.get_payload(work)
         result.append(
             ProcessorWorkItem(
                 id=str(work.id),
                 claim_id=body.claim_id,
-                bundle_name=bundle_name,
+                bundle_name=work.bundle_name,
                 relative_fileloc=path,
                 callback=callback,
             )
@@ -652,50 +603,13 @@ def acknowledge_work(
 ) -> None:
     """Reject acknowledgments that could consume a replacement owner's claim."""
     _validate_job(job_id, token, session=session)
-    work: DagProcessorCallback | DagPriorityParsingRequest | None
     if kind == "callbacks":
-        work = _get_claimed_work(
-            _CallbackWork(), job_id, work_id, body, token.claims.dag_bundles, session=session
-        )
+        _acknowledge_work(_CallbackWork(), job_id, work_id, body, token.claims.dag_bundles, session=session)
     else:
-        work = _get_claimed_work(
-            _PriorityWork(), job_id, work_id, body, token.claims.dag_bundles, session=session
-        )
-    if work is not None:
-        session.delete(work)
+        _acknowledge_work(_PriorityWork(), job_id, work_id, body, token.claims.dag_bundles, session=session)
 
 
-@router.post(
-    "/{job_id}/requested-work/callbacks/{work_id}/defer",
-    responses=create_openapi_http_exception_doc(
-        [
-            status.HTTP_403_FORBIDDEN,
-            status.HTTP_404_NOT_FOUND,
-            status.HTTP_409_CONFLICT,
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-        ]
-    ),
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Security(require_auth, scopes=["token:dag_processor"])],
-)
-def defer_claimed_callback(
-    job_id: int,
-    work_id: str,
-    body: ProcessorWorkAckBody,
-    *,
-    session: SessionDep,
-    token: DagProcessorToken = CurrentDagProcessorToken,
-) -> None:
-    """Release an unreadable callback for another processor to retry after the cooldown."""
-    _validate_job(job_id, token, session=session)
-    work = _get_claimed_work(
-        _CallbackWork(), job_id, work_id, body, token.claims.dag_bundles, session=session
-    )
-    if work is not None:
-        defer_callback(work)
-
-
-def _get_claimed_work(
+def _acknowledge_work(
     source: _RequestedWork[WorkT],
     job_id: int,
     work_id: str,
@@ -703,15 +617,17 @@ def _get_claimed_work(
     granted_bundles: frozenset[str],
     *,
     session: Session,
-) -> WorkT | None:
+) -> None:
     key = source.parse_key(work_id)
     work = session.scalar(
         select(source.model).where(source.model.id == key).with_for_update(),
     )
     if work is None:
-        return None
+        return
     if work.bundle_name not in granted_bundles:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
     if (work.processor_job_id, work.processor_claim_id) != (job_id, body.claim_id):
         raise HTTPException(status.HTTP_409_CONFLICT, detail={"reason": "claim_replaced"})
-    return work
+    # Callback runners log individual failures without failing the child process;
+    # an acknowledgment confirms delivery, not successful execution of user code.
+    session.delete(work)

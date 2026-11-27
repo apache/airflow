@@ -557,17 +557,6 @@ class ProcessorWorkAckBody(BaseModel):
     claim_id: Annotated[UUID, Field(title="Claim Id")]
 
 
-class PinnedOnlyBundleNames(RootModel[list[str]]):
-    root: Annotated[
-        list[str],
-        Field(
-            description="Claim only version-pinned callbacks in these bundles.",
-            max_length=1000,
-            title="Pinned Only Bundle Names",
-        ),
-    ]
-
-
 class ProcessorWorkClaimBody(BaseModel):
     """
     A bounded claim whose sequence increases per Job and work kind.
@@ -589,13 +578,6 @@ class ProcessorWorkClaimBody(BaseModel):
             title="Replay Only",
         ),
     ] = False
-    pinned_only_bundle_names: Annotated[
-        PinnedOnlyBundleNames | None,
-        Field(
-            description="Claim only version-pinned callbacks in these bundles.",
-            title="Pinned Only Bundle Names",
-        ),
-    ] = None
 
 
 class TIAwaitingInputStatePayload(BaseModel):

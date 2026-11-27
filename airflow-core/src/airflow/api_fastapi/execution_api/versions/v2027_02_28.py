@@ -37,7 +37,6 @@ class AddDagProcessorJobEndpoints(VersionChange):
     """
     Add Dag processor lifecycle, inventory, shared-source publication, and requested-work endpoints.
 
-    A callback claim can request only version-pinned callbacks from selected bundles.
     A processor finishing a finite run can replay an unanswered claim without acquiring new work.
     """
 
@@ -53,7 +52,6 @@ class AddDagProcessorJobEndpoints(VersionChange):
         endpoint("/jobs/{job_id}/bundles/{bundle_name:path}/inventory", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/requested-work/{kind}/claim", ["POST"]).didnt_exist,
         endpoint("/jobs/{job_id}/requested-work/{kind}/{work_id}/ack", ["POST"]).didnt_exist,
-        endpoint("/jobs/{job_id}/requested-work/callbacks/{work_id}/defer", ["POST"]).didnt_exist,
     )
 
 
