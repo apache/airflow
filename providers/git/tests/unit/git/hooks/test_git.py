@@ -20,19 +20,21 @@ from __future__ import annotations
 import base64
 import contextlib
 import http.server
+import ipaddress
 import os
 import pathlib
 import shlex
 import socketserver
+import ssl
 import subprocess
 import tempfile
 import threading
 import warnings
-from datetime import UTC
+from datetime import UTC, datetime
 from unittest import mock
 
 import pytest
-from git import Repo
+from git import Git, Repo
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
@@ -91,6 +93,71 @@ def recording_git_server():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         yield server.server_address[1], received
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+@contextlib.contextmanager
+def recording_public_https_git_server(tmp_path: pathlib.Path, accepted_auth: str):
+    """Serve a public endpoint over HTTPS and reject unrecognized credentials.
+
+    Yields the port, the received headers, and the certificate git needs to trust the server.
+    """
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from cryptography.x509.oid import NameOID
+
+    received: list[str | None] = []
+
+    class Public(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            header = self.headers.get("Authorization")
+            received.append(header)
+            if header is None or header == accepted_auth:
+                self.send_response(200)
+            else:
+                self.send_response(401)
+                self.send_header("WWW-Authenticate", 'Basic realm="test"')
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "127.0.0.1")])
+    cert = (
+        x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(1)
+        .not_valid_before(datetime(2000, 1, 1, tzinfo=UTC))
+        .not_valid_after(datetime(2100, 1, 1, tzinfo=UTC))
+        .add_extension(
+            x509.SubjectAlternativeName([x509.IPAddress(ipaddress.ip_address("127.0.0.1"))]), critical=False
+        )
+        .sign(key, hashes.SHA256())
+    )
+    cert_file = tmp_path / "cert.pem"
+    key_file = tmp_path / "key.pem"
+    cert_file.write_bytes(cert.public_bytes(serialization.Encoding.PEM))
+    key_file.write_bytes(
+        key.private_bytes(
+            serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()
+        )
+    )
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    context.load_cert_chain(cert_file, key_file)
+
+    server = socketserver.TCPServer(("127.0.0.1", 0), Public)
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        yield server.server_address[1], received, cert_file
     finally:
         server.shutdown()
         server.server_close()
@@ -780,6 +847,102 @@ class TestGitHook:
         with hook.configure_hook_env():
             assert "GIT_CONFIG_COUNT" not in hook.env
             assert "AIRFLOW_GIT_TOKEN" not in hook.env
+
+    @pytest.mark.parametrize(
+        ("url", "extra", "enabled"),
+        [
+            pytest.param(AIRFLOW_HTTPS_URL, {}, False, id="default"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": False}, False, id="disabled"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": "false"}, False, id="string-false"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": "True"}, True, id="string-true"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": " true "}, True, id="string-padded"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": ""}, False, id="empty"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": None}, False, id="null"),
+            pytest.param(AIRFLOW_HTTPS_URL, {"proactive_auth": True}, True, id="https"),
+            pytest.param(AIRFLOW_HTTP_URL, {"proactive_auth": True}, False, id="plain-http"),
+        ],
+    )
+    def test_proactive_auth_config(self, url, extra, enabled, create_connection_without_db, monkeypatch):
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "1")
+        monkeypatch.setenv("GIT_CONFIG_KEY_0", "http.proactiveAuth")
+        monkeypatch.setenv("GIT_CONFIG_VALUE_0", "none")
+        create_connection_without_db(
+            Connection(
+                conn_id="git_proactive_auth", host=url, password=ACCESS_TOKEN, conn_type="git", extra=extra
+            )
+        )
+        hook = GitHook(git_conn_id="git_proactive_auth")
+
+        with hook.configure_hook_env():
+            assert hook.env["GIT_CONFIG_COUNT"] == ("4" if enabled else "3")
+            assert os.environ["GIT_CONFIG_VALUE_0"] == "none"
+            assert hook.env.get("GIT_CONFIG_KEY_3") == (f"http.{url}.proactiveAuth" if enabled else None)
+            assert hook.env.get("GIT_CONFIG_VALUE_3") == ("basic" if enabled else None)
+
+        assert os.environ["GIT_CONFIG_COUNT"] == "1"
+        assert "GIT_CONFIG_KEY_3" not in hook.env
+
+    @pytest.mark.parametrize("value", ["yes", 1], ids=["word", "int"])
+    def test_proactive_auth_invalid_value(self, value, create_connection_without_db):
+        create_connection_without_db(
+            Connection(
+                conn_id="git_proactive_auth_invalid",
+                host=AIRFLOW_HTTPS_URL,
+                password=ACCESS_TOKEN,
+                conn_type="git",
+                extra={"proactive_auth": value},
+            )
+        )
+        with pytest.raises(ValueError, match="Invalid proactive_auth value"):
+            GitHook(git_conn_id="git_proactive_auth_invalid")
+
+    @pytest.mark.parametrize(
+        ("extra", "token"),
+        [
+            pytest.param({}, "revoked-token", id="default-with-revoked-token"),
+            pytest.param({"proactive_auth": True}, ACCESS_TOKEN, id="opt-in-with-valid-token"),
+            pytest.param({"proactive_auth": True}, "revoked-token", id="opt-in-with-revoked-token"),
+        ],
+    )
+    def test_first_request_to_a_public_repository(
+        self, extra, token, create_connection_without_db, tmp_path, monkeypatch
+    ):
+        sends_token = bool(extra) and Git().version_info >= (2, 46)
+
+        monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+        monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+        monkeypatch.delenv("GIT_CONFIG_PARAMETERS", raising=False)
+        monkeypatch.setenv("GIT_CONFIG_COUNT", "0")
+        monkeypatch.delenv("GIT_SSL_NO_VERIFY", raising=False)
+        valid_auth = "Basic " + base64.b64encode(f"token_user:{ACCESS_TOKEN}".encode()).decode()
+        with recording_public_https_git_server(tmp_path, valid_auth) as (port, received, cert_file):
+            url = f"https://127.0.0.1:{port}/repo.git"
+            create_connection_without_db(
+                Connection(
+                    conn_id="git_public_repo",
+                    host=url,
+                    login="token_user",
+                    password=token,
+                    conn_type="git",
+                    extra=extra,
+                )
+            )
+            hook = GitHook(git_conn_id="git_public_repo")
+
+            with hook.configure_hook_env():
+                result = subprocess.run(
+                    [Git.GIT_PYTHON_GIT_EXECUTABLE, "ls-remote", url],
+                    cwd=tmp_path,
+                    timeout=10,
+                    check=False,
+                    capture_output=True,
+                    env={**os.environ, **hook.env, "GIT_SSL_CAINFO": str(cert_file), "no_proxy": "127.0.0.1"},
+                )
+
+        encoded = base64.b64encode(f"token_user:{token}".encode()).decode()
+        assert received
+        assert received[0] == (f"Basic {encoded}" if sends_token else None)
+        assert (result.returncode == 0) == (not sends_token or token == ACCESS_TOKEN), result.stderr
 
     def test_passphrase_askpass_script_is_executable(self, create_connection_without_db):
         """ssh must be able to exec the helper: it has to be closed before it runs (ETXTBSY on Linux)."""
