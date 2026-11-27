@@ -29,7 +29,12 @@ Connection ids are rendered like any other template field, so a user can pass
 accepts — directly or through a parent ``__init__`` — in the ``template_fields`` that Python
 resolves for it. Because ``template_fields`` is a plain class attribute, a subclass that
 redefines it without spreading the parent's fields silently drops the parent's connection ids,
-which is why the whole inheritance chain is resolved instead of the class body alone.
+which is why the whole inheritance chain is resolved instead of the class body alone. That chain
+reaches outside ``providers``: a ``@task`` decorator class is declared as
+``(DecoratedOperator, SomeOperator)``, and ``DecoratedOperator`` in the Task SDK defines a
+``template_fields`` of its own that wins the MRO and hides ``SomeOperator``'s. The Task SDK sources
+are indexed alongside the providers so that base resolves, otherwise it is skipped as unknown and
+the class is wrongly credited with ``SomeOperator``'s fields.
 
 An argument is not required to be templated when templating it cannot work: it is read in
 ``__init__`` (the value is still the raw Jinja string there, see ``validate_operators_init``),
@@ -44,8 +49,10 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from common_prek_utils import AIRFLOW_PROVIDERS_ROOT_PATH, console
+from common_prek_utils import AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_TASK_SDK_SOURCES_PATH, console
 from validate_operators_init import _collect_sanctioned_uses, _resolve_base_name
+
+INDEX_ROOTS = [AIRFLOW_PROVIDERS_ROOT_PATH, AIRFLOW_TASK_SDK_SOURCES_PATH]
 
 CONN_ID_SUFFIX = "conn_id"
 OPERATOR_SUFFIXES = ("Operator", "Sensor", "Notifier")
@@ -252,4 +259,4 @@ def main(files: list[str], roots: list[Path]) -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:], [AIRFLOW_PROVIDERS_ROOT_PATH]))
+    sys.exit(main(sys.argv[1:], INDEX_ROOTS))
