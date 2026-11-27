@@ -191,6 +191,7 @@ body:
         - opensearch
         - opsgenie
         - oracle
+        - oraclecloud
         - pagerduty
         - papermill
         - pgvector
