@@ -87,3 +87,32 @@ class XComOperatorLink(LoggingMixin):
             parsed_value = result.value
 
         return str(stringify_xcom(parsed_value))
+
+
+@attrs.define()
+class StaticOperatorLink(LoggingMixin):
+    """
+    Operator link whose URL is a constant carried in the serialized Dag.
+
+    Used while deserializing operators whose link class declares
+    ``static_url``: the URL is stored in the serialized Dag and returned
+    directly, without reading anything from XComs. This way static links also
+    render for task instances that never pushed a link to XComs, e.g. failed
+    or still-running tasks.
+    """
+
+    name: str
+    static_url: str
+
+    def get_link(
+        self, operator: Operator, *, ti_key: TaskInstanceKey, region_id: UUID = SENTINEL_REGION_ID
+    ) -> str:
+        """
+        Return the constant URL stored at serialization time.
+
+        :param operator: The Airflow operator object this link is associated to.
+        :param ti_key: TaskInstance ID to return link for (ignored).
+        :param region_id: Region owning the selected execution's link data (ignored).
+        :return: the static link to the external system
+        """
+        return self.static_url

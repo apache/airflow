@@ -83,7 +83,7 @@ const OUT_PATH = join(ROOT, "src/generated/dag-schema-fields.ts");
  * and `airflow-core/tests/unit/serialization/test_ts_sdk_serialization_version.py`
  * fails until it is.
  */
-export const SERIALIZATION_VERSION = 3;
+export const SERIALIZATION_VERSION = 4;
 
 /**
  * Scalar "operator" keys deliberately kept off `TaskSpec`, each with the
