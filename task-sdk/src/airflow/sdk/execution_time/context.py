@@ -278,6 +278,7 @@ def _get_connection(conn_id: str) -> Connection:
     # Iterate over configured backends (which may include SupervisorCommsSecretsBackend
     # in worker contexts or MetastoreBackend in API server contexts)
     backends = ensure_secrets_backend_loaded()
+    backend_error: AirflowRuntimeError | None = None
     for secrets_backend in backends:
         try:
             conn = call_secrets_backend_method(
@@ -290,7 +291,10 @@ def _get_connection(conn_id: str) -> Connection:
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
             raise
-        except Exception:
+        except Exception as error:
+            if isinstance(error, AirflowRuntimeError):
+                # The Execution API failed to answer, which says nothing about whether the secret exists.
+                backend_error = error
             log.debug(
                 "Unable to retrieve connection from secrets backend (%s). "
                 "Checking subsequent secrets backend.",
@@ -298,8 +302,9 @@ def _get_connection(conn_id: str) -> Connection:
                 exc_info=True,
             )
 
+    if backend_error is not None:
+        raise backend_error
     # If no backend found the connection, raise an error
-
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
@@ -329,6 +334,7 @@ async def _async_get_connection(conn_id: str) -> Connection:
 
     # Try secrets backends
     backends = ensure_secrets_backend_loaded()
+    backend_error: AirflowRuntimeError | None = None
     for secrets_backend in backends:
         try:
             # Use async method if available, otherwise wrap sync method
@@ -360,7 +366,10 @@ async def _async_get_connection(conn_id: str) -> Connection:
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
             raise
-        except Exception:
+        except Exception as error:
+            if isinstance(error, AirflowRuntimeError):
+                # The Execution API failed to answer, which says nothing about whether the secret exists.
+                backend_error = error
             # If one backend fails, try the next one
             log.debug(
                 "Unable to retrieve connection from secrets backend (%s). "
@@ -369,8 +378,9 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 exc_info=True,
             )
 
+    if backend_error is not None:
+        raise backend_error
     # If no backend found the connection, raise an error
-
     raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
 
 
@@ -421,6 +431,7 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
         pass  # Continue to check backends
 
     backends = ensure_secrets_backend_loaded()
+    backend_error: AirflowRuntimeError | None = None
 
     # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
@@ -435,15 +446,19 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
             raise
-        except Exception:
+        except Exception as error:
+            if isinstance(error, AirflowRuntimeError):
+                # The Execution API failed to answer, which says nothing about whether the secret exists.
+                backend_error = error
             log.exception(
                 "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
             )
 
-    # If no backend found the variable, raise a not found error (mirrors _get_connection)
-    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    if backend_error is not None:
+        raise backend_error
 
+    # If no backend found the variable, raise a not found error (mirrors _get_connection)
     raise AirflowRuntimeError(
         ErrorResponse(error=ErrorType.VARIABLE_NOT_FOUND, detail={"message": f"Variable {key} not found"})
     )
@@ -462,6 +477,7 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
         pass  # Continue to check backends
 
     backends = ensure_secrets_backend_loaded()
+    backend_error: AirflowRuntimeError | None = None
 
     # Iterate over backends if not in cache (or expired)
     for secrets_backend in backends:
@@ -485,15 +501,19 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
         except AirflowSecretsBackendAccessDenied:
             # Authoritative deny — must NOT fall through to a less-restrictive backend.
             raise
-        except Exception:
+        except Exception as error:
+            if isinstance(error, AirflowRuntimeError):
+                # The Execution API failed to answer, which says nothing about whether the secret exists.
+                backend_error = error
             log.exception(
                 "Unable to retrieve variable from secrets backend (%s). Checking subsequent secrets backend.",
                 type(secrets_backend).__name__,
             )
 
-    # If no backend found the variable, raise a not found error (mirrors _get_connection)
-    from airflow.sdk.exceptions import AirflowRuntimeError, ErrorType
+    if backend_error is not None:
+        raise backend_error
 
+    # If no backend found the variable, raise a not found error (mirrors _get_connection)
     raise AirflowRuntimeError(
         ErrorResponse(
             error=ErrorType.VARIABLE_NOT_FOUND,

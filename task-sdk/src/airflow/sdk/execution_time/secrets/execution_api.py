@@ -21,10 +21,30 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.sdk.bases.secrets_backend import BaseSecretsBackend
-from airflow.sdk.exceptions import AirflowSecretsBackendAccessDenied
+from airflow.sdk.exceptions import AirflowRuntimeError, AirflowSecretsBackendAccessDenied, ErrorType
 
 if TYPE_CHECKING:
+    from pydantic import BaseModel
+
     from airflow.sdk import Connection
+    from airflow.sdk.api.client import ServerResponseError
+    from airflow.sdk.execution_time.comms import GetConnection, GetVariable
+
+
+def _api_server_error(error: ServerResponseError) -> AirflowRuntimeError:
+    """Report an Execution API failure raised in-process (``dag.test()``) like the subprocess supervisor does."""
+    from airflow.sdk.execution_time.comms import ErrorResponse
+
+    return AirflowRuntimeError(
+        ErrorResponse(
+            error=ErrorType.API_SERVER_ERROR,
+            detail={
+                "status_code": error.response.status_code,
+                "message": str(error),
+                "detail": error.detail,
+            },
+        )
+    )
 
 
 class ExecutionAPISecretsBackend(BaseSecretsBackend):
@@ -52,11 +72,9 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         fall through to a less-restrictive backend (e.g. EnvironmentVariablesBackend
         which performs no authorization checks). The Execution API explicitly
         denied this request — we must not silently route around that decision.
-        Other ErrorResponse types (NOT_FOUND, transient API_SERVER_ERROR,
-        GENERIC_ERROR) keep the existing fallthrough behaviour so the
+        A NOT_FOUND response keeps the existing fallthrough behaviour so the
         not-found-here path remains usable.
         """
-        from airflow.sdk.exceptions import ErrorType
         from airflow.sdk.execution_time.comms import ErrorResponse
 
         if isinstance(msg, ErrorResponse) and msg.error == ErrorType.PERMISSION_DENIED:
@@ -64,6 +82,26 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
                 f"Access denied for {resource} {key!r} by Execution API; refusing to fall back "
                 "to a less-restrictive secrets backend."
             )
+
+    @staticmethod
+    def _send(request: GetConnection | GetVariable) -> BaseModel | None:
+        from airflow.sdk.api.client import ServerResponseError
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            return SUPERVISOR_COMMS.send(request)
+        except ServerResponseError as error:
+            raise _api_server_error(error) from error
+
+    @staticmethod
+    async def _asend(request: GetConnection | GetVariable) -> BaseModel | None:
+        from airflow.sdk.api.client import ServerResponseError
+        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
+
+        try:
+            return await SUPERVISOR_COMMS.asend(request)
+        except ServerResponseError as error:
+            raise _api_server_error(error) from error
 
     def get_connection(self, conn_id: str, team_name: str | None = None) -> Connection | None:
         """
@@ -76,29 +114,22 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :raises AirflowSecretsBackendAccessDenied: when the Execution API explicitly denies access
             (401/403). Subclasses ``PermissionError``. The secrets-backend dispatcher must not fall
             through to an unauthenticated backend in that case.
+        :raises AirflowRuntimeError: when the Execution API fails to answer for any other reason.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        try:
-            msg = SUPERVISOR_COMMS.send(GetConnection(conn_id=conn_id))
+        msg = self._send(GetConnection(conn_id=conn_id))
 
-            self._raise_if_authz_denied(msg, resource="connection", key=conn_id)
+        self._raise_if_authz_denied(msg, resource="connection", key=conn_id)
 
-            if isinstance(msg, ErrorResponse):
-                # Connection not found or transient error — allow fallback.
-                return None
-
-            # Convert ExecutionAPI response to SDK Connection
-            return _process_connection_result_conn(msg)
-        except AirflowSecretsBackendAccessDenied:
-            # Re-raise so the dispatcher does NOT fall through.
-            raise
-        except Exception:
-            # If SUPERVISOR_COMMS fails for any non-authz reason, return None
-            # to allow fallback to other backends.
+        if isinstance(msg, ErrorResponse) and msg.error == ErrorType.CONNECTION_NOT_FOUND:
+            # Connection not found — allow fallback.
             return None
+
+        # Convert ExecutionAPI response to SDK Connection. Any other error raises AirflowRuntimeError,
+        # so the dispatcher can tell "the API failed" apart from "the connection does not exist".
+        return _process_connection_result_conn(msg)
 
     def get_variable(self, key: str, team_name: str | None = None) -> str | None:
         """
@@ -111,29 +142,25 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :raises AirflowSecretsBackendAccessDenied: when the Execution API explicitly denies access
             (401/403). Subclasses ``PermissionError``. The secrets-backend dispatcher must not fall
             through to an unauthenticated backend in that case.
+        :raises AirflowRuntimeError: when the Execution API fails to answer for any other reason.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        try:
-            msg = SUPERVISOR_COMMS.send(GetVariable(key=key))
+        msg = self._send(GetVariable(key=key))
 
-            self._raise_if_authz_denied(msg, resource="variable", key=key)
+        self._raise_if_authz_denied(msg, resource="variable", key=key)
 
-            if isinstance(msg, ErrorResponse):
-                # Variable not found or transient error — allow fallback.
+        if isinstance(msg, ErrorResponse):
+            if msg.error == ErrorType.VARIABLE_NOT_FOUND:
+                # Variable not found — allow fallback.
                 return None
+            # The API failed to answer, which says nothing about whether the variable exists.
+            raise AirflowRuntimeError(msg)
 
-            # Extract value from VariableResult
-            if isinstance(msg, VariableResult):
-                return msg.value
-            return None
-        except AirflowSecretsBackendAccessDenied:
-            raise
-        except Exception:
-            # If SUPERVISOR_COMMS fails for any non-authz reason, return None
-            # to allow fallback to other backends.
-            return None
+        # Extract value from VariableResult
+        if isinstance(msg, VariableResult):
+            return msg.value  # Already a string | None
+        return None
 
     async def aget_connection(self, conn_id: str) -> Connection | None:
         """
@@ -145,25 +172,18 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetConnection
         from airflow.sdk.execution_time.context import _process_connection_result_conn
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        try:
-            msg = await SUPERVISOR_COMMS.asend(GetConnection(conn_id=conn_id))
+        msg = await self._asend(GetConnection(conn_id=conn_id))
 
-            self._raise_if_authz_denied(msg, resource="connection", key=conn_id)
+        self._raise_if_authz_denied(msg, resource="connection", key=conn_id)
 
-            if isinstance(msg, ErrorResponse):
-                # Connection not found or transient error — allow fallback.
-                return None
-
-            # Convert ExecutionAPI response to SDK Connection
-            return _process_connection_result_conn(msg)
-        except AirflowSecretsBackendAccessDenied:
-            raise
-        except Exception:
-            # If SUPERVISOR_COMMS fails for any non-authz reason, return None
-            # to allow fallback to other backends.
+        if isinstance(msg, ErrorResponse) and msg.error == ErrorType.CONNECTION_NOT_FOUND:
+            # Connection not found — allow fallback.
             return None
+
+        # Convert ExecutionAPI response to SDK Connection. Any other error raises AirflowRuntimeError,
+        # so the dispatcher can tell "the API failed" apart from "the connection does not exist".
+        return _process_connection_result_conn(msg)
 
     async def aget_variable(self, key: str) -> str | None:
         """
@@ -174,24 +194,19 @@ class ExecutionAPISecretsBackend(BaseSecretsBackend):
         :raises AirflowSecretsBackendAccessDenied: see :meth:`get_variable`.
         """
         from airflow.sdk.execution_time.comms import ErrorResponse, GetVariable, VariableResult
-        from airflow.sdk.execution_time.task_runner import SUPERVISOR_COMMS
 
-        try:
-            msg = await SUPERVISOR_COMMS.asend(GetVariable(key=key))
+        msg = await self._asend(GetVariable(key=key))
 
-            self._raise_if_authz_denied(msg, resource="variable", key=key)
+        self._raise_if_authz_denied(msg, resource="variable", key=key)
 
-            if isinstance(msg, ErrorResponse):
-                # Variable not found or transient error — allow fallback.
+        if isinstance(msg, ErrorResponse):
+            if msg.error == ErrorType.VARIABLE_NOT_FOUND:
+                # Variable not found — allow fallback.
                 return None
+            # The API failed to answer, which says nothing about whether the variable exists.
+            raise AirflowRuntimeError(msg)
 
-            # Extract value from VariableResult
-            if isinstance(msg, VariableResult):
-                return msg.value
-            return None
-        except AirflowSecretsBackendAccessDenied:
-            raise
-        except Exception:
-            # If SUPERVISOR_COMMS fails for any non-authz reason, return None
-            # to allow fallback to other backends.
-            return None
+        # Extract value from VariableResult
+        if isinstance(msg, VariableResult):
+            return msg.value  # Already a string | None
+        return None
