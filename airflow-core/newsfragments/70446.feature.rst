@@ -1,0 +1,1 @@
+Add ``airflow dags stability`` to detect unstable serialized Dags across repeated parses.
