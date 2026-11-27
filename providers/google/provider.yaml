@@ -1221,6 +1221,10 @@ connection-types:
         label: "Quota Project ID"
         schema:
           type: ["string", "null"]
+      universe_domain:
+        label: "Universe Domain"
+        schema:
+          type: ["string", "null"]
   - hook-class-name: airflow.providers.google.cloud.hooks.spanner.SpannerHook
     connection-type: gcpspanner
   - hook-class-name: airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
@@ -1304,6 +1308,10 @@ connection-types:
         label: "Quota Project ID"
         schema:
           type: ["string", "null"]
+      universe_domain:
+        label: "Universe Domain"
+        schema:
+          type: ["string", "null"]
       use_legacy_sql:
         label: "Use Legacy SQL"
         schema:
@@ -1348,14 +1356,14 @@ connection-types:
         schema:
           type:
             - boolean
-            - 'null'
+            - "null"
           default: false
       error_if_exists:
         label: Raise an exception if the database already exists
         schema:
           type:
             - boolean
-            - 'null'
+            - "null"
           default: false
   - hook-class-name: airflow.providers.google.ads.hooks.ads.GoogleAdsHook
     hook-name: "Google Ads"

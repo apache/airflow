@@ -288,6 +288,7 @@ class GoogleBaseHook(BaseHook):
                 lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
             ),
             "quota_project_id": StringField(lazy_gettext("Quota Project ID"), widget=BS3TextFieldWidget()),
+            "universe_domain": StringField(lazy_gettext("Universe Domain"), widget=BS3TextFieldWidget()),
         }
 
     @classmethod
@@ -431,12 +432,16 @@ class GoogleBaseHook(BaseHook):
                 "and can contain only lowercase letters, digits, and hyphens."
             )
 
-    @staticmethod
-    def is_default_universe() -> bool:
-        global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", None)
-        if global_universe_domain in ("googleapis.com", "", None):
-            return True
-        return False
+    def get_universe_domain(self) -> str | None:
+        """
+        Return the universe domain configured for this connection.
+
+        Connection extras take precedence over the environment variable.
+        """
+        return self._get_field("universe_domain") or os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN") or None
+
+    def is_default_universe(self) -> bool:
+        return self.get_universe_domain() in ("googleapis.com", None)
 
     @staticmethod
     def get_high_value_cookie_domain() -> str:
@@ -448,7 +453,7 @@ class GoogleBaseHook(BaseHook):
         api_endpoint_override: str | None = None,
     ) -> ClientOptions:
         """Return the ClientOptions object for Google API."""
-        global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN", None)
+        universe_domain = self.get_universe_domain()
 
         if api_endpoint_override:
             if self.is_default_universe():
@@ -458,9 +463,10 @@ class GoogleBaseHook(BaseHook):
             self.log.info(
                 "Ignoring api_endpoint_override because the universe domain is not Google default universe."
             )
-        if global_universe_domain:
+
+        if universe_domain:
             return ClientOptions(
-                universe_domain=global_universe_domain,
+                universe_domain=universe_domain,
             )
 
         return ClientOptions()

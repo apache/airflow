@@ -19,7 +19,6 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
@@ -76,11 +75,11 @@ class BigtableHook(GoogleBaseHook):
                 self.log.info(
                     "Ignoring api_endpoint_override because the universe domain is not Google default universe."
                 )
-            global_universe_domain = os.getenv("GOOGLE_CLOUD_UNIVERSE_DOMAIN")
+            universe_domain = self.get_universe_domain()
             # google.cloud.bigtable.Client builds the admin channel from api_endpoint only and ignores
             # universe_domain, so the base hook's ClientOptions(universe_domain=...) would still reach
             # bigtableadmin.googleapis.com.
-            return ClientOptions(api_endpoint=f"bigtableadmin.{global_universe_domain}")
+            return ClientOptions(api_endpoint=f"bigtableadmin.{universe_domain}")
         return super().get_client_options(api_endpoint_override=api_endpoint_override)
 
     def _get_client(self, project_id: str) -> Client:
