@@ -20,7 +20,8 @@ import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+import { AppWrapper } from "src/utils/AppWrapper";
+import { preloadAppRoutes } from "src/utils/preloadAppRoutes";
 
 beforeAll(() => preloadAppRoutes(["/dag_runs"]));
 

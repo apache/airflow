@@ -28,7 +28,7 @@ import { TimezoneProvider } from "src/context/timezone";
 import { alsoWatching, triggers } from "src/mocks/handlers/triggers";
 import { server } from "src/mocks/server";
 import { routerConfig } from "src/router";
-import { preloadAppRoutes } from "src/utils/AppWrapper";
+import { preloadAppRoutes } from "src/utils/preloadAppRoutes";
 
 beforeAll(() => preloadAppRoutes(["/triggers"]));
 

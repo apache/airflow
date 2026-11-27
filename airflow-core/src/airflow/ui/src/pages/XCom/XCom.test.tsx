@@ -23,7 +23,8 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as ColorMode from "src/context/colorMode";
 import { server } from "src/mocks/server";
-import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
+import { AppWrapper } from "src/utils/AppWrapper";
+import { preloadAppRoutes } from "src/utils/preloadAppRoutes";
 
 const TI_XCOM_PATH = "/dags/log_grouping/runs/manual__2025-02-18T12:19/tasks/log_source/xcom";
 

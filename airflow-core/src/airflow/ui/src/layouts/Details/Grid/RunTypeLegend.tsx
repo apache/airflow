@@ -20,22 +20,11 @@ import { Box, Flex, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { LuInfo } from "react-icons/lu";
 
-import type { DAGRunResponse } from "openapi/requests/types.gen";
-
 import { Tooltip } from "src/system-components";
 
 import { RunTypeIcon } from "src/components/RunTypeIcon";
 
-// Every run type the API can return needs a row here, otherwise the grid shows an icon the
-// legend does not explain. RunTypeLegend.test.tsx holds this list to the generated enum.
-export const RUN_TYPE_LEGEND_ORDER: Array<DAGRunResponse["run_type"]> = [
-  "scheduled",
-  "manual",
-  "operator_triggered",
-  "backfill",
-  "asset_triggered",
-  "asset_materialization",
-];
+import { RUN_TYPE_LEGEND_ORDER } from "./runTypeLegendOrder";
 
 export const RunTypeLegend = () => {
   const { t: translate } = useTranslation(["dag", "common"]);

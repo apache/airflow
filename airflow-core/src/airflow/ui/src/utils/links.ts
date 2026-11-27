@@ -270,6 +270,12 @@ const mergeSearch = (
   return merged.toString() === "" ? "" : `?${merged}`;
 };
 
+const matchesRoute = (candidate: string) => {
+  const matched = matchRoutes(routerConfig, candidate, uiBasePath || "/");
+
+  return matched !== null && matched.at(-1)?.route.path !== "*";
+};
+
 /**
  * Resolve `url` to a path this app's router owns, or `undefined` if it is not one.
  *
@@ -329,26 +335,20 @@ export const getInternalRouteTo = (
     return undefined;
   }
 
-  const matches = (candidate: string) => {
-    const matched = matchRoutes(routerConfig, candidate, uiBasePath || "/");
-
-    return matched !== null && matched.at(-1)?.route.path !== "*";
-  };
-
   // A root-absolute href is written without knowing the deployment's base path, so try it under
   // the base path before giving up. Otherwise `/dags/x/runs` on a `/airflow` deployment would
   // open `host/dags/x/runs` in a new tab -- a blank page, not the Dag it names.
   let absolute = parsed.pathname;
 
-  if (!matches(absolute) && uiBasePath !== "" && !absolute.startsWith(`${uiBasePath}/`)) {
+  if (!matchesRoute(absolute) && uiBasePath !== "" && !absolute.startsWith(`${uiBasePath}/`)) {
     const underBase = `${uiBasePath}${absolute}`;
 
-    if (matches(underBase)) {
+    if (matchesRoute(underBase)) {
       absolute = underBase;
     }
   }
 
-  if (!matches(absolute)) {
+  if (!matchesRoute(absolute)) {
     return undefined;
   }
 
