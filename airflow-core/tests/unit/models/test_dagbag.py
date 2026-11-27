@@ -19,17 +19,20 @@ from __future__ import annotations
 import math
 import re
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import MagicMock, patch
 
 import pytest
 import time_machine
 from cachetools import LRUCache, TTLCache
+from sqlalchemy.orm import Session
 
 from airflow.models.dag import DagModel
 from airflow.models.dag_version import DagVersion
-from airflow.models.dagbag import CachedDBDagBag, DBDagBag, _CacheEntry
+from airflow.models.dagbag import BatchSerializedDagResolver, CachedDBDagBag, DBDagBag, _CacheEntry
 from airflow.models.dagbundle import DagBundleModel
+from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import DAG
@@ -556,3 +559,98 @@ class TestDBDagBagCache:
         dag_bag._read_dag(mock_serdag)
 
         mock_stats.gauge.assert_called_with(f"{STUB_PREFIX}.cache_size", 1, rate=0.1)
+
+
+def _make_dag_run_mock(mocker, *, dag_id="test_dag", bundle_version=None, created_dag_version_id=None):
+    dag_run = mocker.Mock(spec=DagRun)
+    dag_run.dag_id = dag_id
+    dag_run.bundle_version = bundle_version
+    dag_run.created_dag_version_id = created_dag_version_id
+    return dag_run
+
+
+class TestBatchSerializedDagResolver:
+    def test_memoizes_latest_version_and_serialized_dag(self, mocker):
+        """Lookups of one Dag share one latest-version lookup, one fetch and one deserialization."""
+        latest_version = uuid.uuid4()
+        get_latest_version = mocker.patch.object(
+            DagVersion,
+            "get_latest_version",
+            autospec=True,
+            return_value=mocker.Mock(spec=DagVersion, id=latest_version),
+        )
+        dag_bag = DBDagBag()
+        serialized_dag_model = mocker.Mock(spec=SerializedDagModel)
+        deserialize_dag = mocker.PropertyMock(return_value=mocker.Mock(spec=SerializedDAG))
+        type(serialized_dag_model).dag = deserialize_dag
+        get_serialized_dag_model = mocker.patch.object(
+            dag_bag, "get_serialized_dag_model", autospec=True, return_value=serialized_dag_model
+        )
+        resolver = BatchSerializedDagResolver(dag_bag)
+        session = mocker.Mock(spec=Session)
+
+        results = [
+            resolver.resolve(_make_dag_run_mock(mocker), fallback_version_id=uuid.uuid4(), session=session)
+            for _ in range(3)
+        ]
+
+        assert all(result == (serialized_dag_model, deserialize_dag.return_value) for result in results)
+        get_latest_version.assert_called_once_with(dag_id="test_dag", session=session)
+        get_serialized_dag_model.assert_called_once_with(version_id=latest_version, session=session)
+        deserialize_dag.assert_called_once_with()
+
+    def test_falls_back_to_ti_version(self, mocker):
+        """A run resolving to a version with no serialized Dag falls back to the TI's own version."""
+        run_version = uuid.uuid4()
+        ti_version = uuid.uuid4()
+        dag_bag = DBDagBag()
+        serialized_dag_model = mocker.Mock(spec=SerializedDagModel)
+        get_serialized_dag_model = mocker.patch.object(
+            dag_bag,
+            "get_serialized_dag_model",
+            autospec=True,
+            side_effect=lambda version_id, session: (
+                serialized_dag_model if version_id == ti_version else None
+            ),
+        )
+        resolver = BatchSerializedDagResolver(dag_bag)
+
+        dag_run = _make_dag_run_mock(mocker, bundle_version="v1", created_dag_version_id=run_version)
+        resolved = resolver.resolve(
+            dag_run, fallback_version_id=ti_version, session=mocker.Mock(spec=Session)
+        )
+
+        assert resolved == (serialized_dag_model, serialized_dag_model.dag)
+        assert [call.kwargs["version_id"] for call in get_serialized_dag_model.call_args_list] == [
+            run_version,
+            ti_version,
+        ]
+
+    def test_looks_up_latest_version_once_per_dag(self, mocker):
+        """Runs of different Dags in one batch each get their own latest-version snapshot, taken once."""
+        latest_versions = {"dag_a": uuid.uuid4(), "dag_b": uuid.uuid4()}
+        get_latest_version = mocker.patch.object(
+            DagVersion,
+            "get_latest_version",
+            autospec=True,
+            side_effect=lambda dag_id, session: mocker.Mock(spec=DagVersion, id=latest_versions[dag_id]),
+        )
+        dag_bag = DBDagBag()
+        mocker.patch.object(
+            dag_bag,
+            "get_serialized_dag_model",
+            autospec=True,
+            return_value=mocker.Mock(spec=SerializedDagModel),
+        )
+        resolver = BatchSerializedDagResolver(dag_bag)
+        session = mocker.Mock(spec=Session)
+
+        for dag_id in ["dag_a", "dag_a", "dag_b", "dag_a"]:
+            resolver.resolve(
+                _make_dag_run_mock(mocker, dag_id=dag_id),
+                fallback_version_id=uuid.uuid4(),
+                session=session,
+            )
+
+        assert get_latest_version.call_count == 2
+        assert {call.kwargs["dag_id"] for call in get_latest_version.call_args_list} == {"dag_a", "dag_b"}
