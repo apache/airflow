@@ -81,6 +81,30 @@ TEST_NOTIFICATION_CHANNEL_2 = {
 }
 
 
+@pytest.mark.parametrize(
+    ("getter", "client_class"),
+    [
+        ("_get_policy_client", "AlertPolicyServiceClient"),
+        ("_get_channel_client", "NotificationChannelServiceClient"),
+    ],
+)
+def test_clients_use_connection_credentials(getter, client_class, monkeypatch):
+    monkeypatch.setenv("AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT", "google-cloud-platform://")
+    hook = cloud_monitoring.CloudMonitoringHook()
+    with (
+        mock.patch.object(hook, "get_credentials", autospec=True) as credentials,
+        mock.patch.object(hook, "get_client_options", autospec=True) as options,
+        mock.patch.object(cloud_monitoring.monitoring_v3, client_class, autospec=True) as client,
+    ):
+        getattr(hook, getter)()
+
+    client.assert_called_once_with(
+        credentials=credentials.return_value,
+        client_info=cloud_monitoring.CLIENT_INFO,
+        client_options=options.return_value,
+    )
+
+
 @pytest.mark.db_test
 class TestCloudMonitoringHookMethods:
     @mock.patch(

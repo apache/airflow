@@ -30,6 +30,7 @@ from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 from google.protobuf.field_mask_pb2 import FieldMask
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -56,14 +57,18 @@ class CloudMonitoringHook(GoogleBaseHook):
     def _get_policy_client(self):
         if not self._policy_client:
             self._policy_client = monitoring_v3.AlertPolicyServiceClient(
-                client_options=self.get_client_options()
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
             )
         return self._policy_client
 
     def _get_channel_client(self):
         if not self._channel_client:
             self._channel_client = monitoring_v3.NotificationChannelServiceClient(
-                client_options=self.get_client_options()
+                credentials=self.get_credentials(),
+                client_info=CLIENT_INFO,
+                client_options=self.get_client_options(),
             )
         return self._channel_client
 
