@@ -41,10 +41,10 @@ _MIGRATION_PATH = (
     / "airflow"
     / "migrations"
     / "versions"
-    / "0158_3_5_0_add_dagrun_id_to_callback.py"
+    / "0159_3_5_0_add_dagrun_id_to_callback.py"
 )
 
-_spec = importlib.util.spec_from_file_location("migration_0158", _MIGRATION_PATH)
+_spec = importlib.util.spec_from_file_location("migration_0159", _MIGRATION_PATH)
 assert _spec is not None
 _migration = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
@@ -52,9 +52,9 @@ _spec.loader.exec_module(_migration)
 
 REVISION = _migration.revision
 PREVIOUS_REVISION = _migration.down_revision
-_DATABASE_CALLBACK_ID = uuid.UUID("00000000-0000-0000-0000-000000001580")
-_DATABASE_DAG_ID = "test_0158_callback_dagrun_id"
-_DATABASE_RUN_ID = "test_0158_callback_dagrun_id_run"
+_DATABASE_CALLBACK_ID = uuid.UUID("00000000-0000-0000-0000-000000001590")
+_DATABASE_DAG_ID = "test_0159_callback_dagrun_id"
+_DATABASE_RUN_ID = "test_0159_callback_dagrun_id_run"
 
 
 def _make_engine():
