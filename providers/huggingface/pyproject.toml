@@ -59,7 +59,7 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
   "apache-airflow>=3.0,<4",
-  "apache-airflow-providers-common-compat>=1.8.0",
+  "apache-airflow-providers-common-compat>=1.23.0",
   "datasets>=5.0.0",
   # constraints-3.0.6 pins dill==0.3.1.1, so without these floors uv falls back to the
   # source-only multiprocess==0.70.9, whose build hangs. multiprocess 0.70.16 needs dill>=0.3.8.
