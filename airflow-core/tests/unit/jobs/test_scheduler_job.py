@@ -14858,6 +14858,54 @@ def test_create_dagruns_asset_gated_dequeues_already_consumed_events(
 
 @pytest.mark.usefixtures("disable_load_example")
 @pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    ("event_flags", "expected"),
+    [
+        pytest.param([False, False], False, id="all-normal"),
+        pytest.param([False, True], True, id="one-marked"),
+    ],
+)
+def test_create_dagruns_asset_gated_classifies_backfill_derived(
+    session: Session, dag_maker, event_flags, expected
+):
+    asset = Asset(uri="test://asset-gated-derived", name="asset-gated-derived")
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    with dag_maker(
+        dag_id="asset-gated-derived",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    events = [
+        AssetEvent(asset_id=asset_id, timestamp=logical_date, backfill_derived=flag) for flag in event_flags
+    ]
+    session.add_all(events)
+    session.flush()
+    session.add_all(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        for event in events
+    )
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+    session.flush()
+
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one()
+    assert len(dag_run.consumed_asset_events) == len(events)
+    assert dag_run.backfill_derived is expected
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
 @mock.patch("airflow.jobs.scheduler_job_runner._associate_asset_events_with_dag_run", autospec=True)
 def test_create_dagruns_asset_gated_event_queued_during_association_waits_for_next_run(
     mock_associate_asset_events, session: Session, dag_maker
