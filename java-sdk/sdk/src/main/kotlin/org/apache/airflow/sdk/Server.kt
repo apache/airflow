@@ -20,9 +20,6 @@
 package org.apache.airflow.sdk
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.xenomachina.argparser.ArgParser
-import com.xenomachina.argparser.MissingValueException
-import com.xenomachina.argparser.default
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.network.sockets.aSocket
@@ -46,8 +43,6 @@ import org.apache.airflow.sdk.execution.parseDags
 import org.apache.airflow.sdk.execution.runTask
 import java.io.File
 import java.time.Duration
-import kotlin.text.substringAfterLast
-import kotlin.text.substringBeforeLast
 
 /**
  * Writes the queued log lines before the JVM exits, then waits up to [timeout] for the socket to close.
@@ -64,25 +59,63 @@ internal fun sendQueuedLogs(
   if (written) runBlocking { withTimeoutOrNull(timeout.toMillis()) { closed.join() } }
 }
 
-private class Args(
-  parser: ArgParser,
+private data class Args(
+  val comm: InetSocketAddress?,
+  val logs: InetSocketAddress?,
+  val describeSources: File?,
 ) {
-  private fun parseAddress(address: String): InetSocketAddress =
-    InetSocketAddress(
-      address.substringBeforeLast(':'),
-      address.substringAfterLast(':').toInt(),
-    )
+  companion object {
+    fun parse(args: Array<String>): Args {
+      val values = mutableMapOf<String, String>()
+      val supported = setOf("--comm", "--logs", "--describe-sources")
+      var index = 0
 
-  val comm by parser
-    .storing("--comm", help = "Address (host:port) to communicate with parent") { parseAddress(this) }
-    .default(null)
-  val logs by parser
-    .storing("--logs", help = "Address (host:port) to send Airflow logs to") { parseAddress(this) }
-    .default(null)
-  val describeSources by parser
-    .storing("--describe-sources", help = "File to write each Dag's declaring class to, instead of serving") {
-      File(this)
-    }.default(null)
+      while (index < args.size) {
+        val argument = args[index]
+        if (argument == "--" && index == args.lastIndex) break
+        val option = argument.substringBefore('=')
+        require(option in supported) { "Unknown argument: $argument" }
+
+        val value =
+          if ('=' in argument) {
+            argument.substringAfter('=')
+          } else {
+            require(
+              index + 1 < args.size &&
+                (option == "--describe-sources" || !args[index + 1].startsWith("--")),
+            ) {
+              "Missing value for $option"
+            }
+            args[++index]
+          }
+
+        require(option == "--describe-sources" || value.isNotEmpty()) {
+          "Missing value for $option"
+        }
+        values[option] = value
+        index++
+      }
+
+      fun address(option: String): InetSocketAddress? =
+        values[option]?.let { value ->
+          val separator = value.lastIndexOf(':')
+          require(separator >= 0 && separator < value.lastIndex) {
+            "Invalid address for $option: $value"
+          }
+          val port = value.substring(separator + 1).toIntOrNull()
+          require(port != null && port in 0..65535) {
+            "Invalid port for $option: $value"
+          }
+          InetSocketAddress(value.substring(0, separator), port)
+        }
+
+      return Args(
+        comm = address("--comm"),
+        logs = address("--logs"),
+        describeSources = values["--describe-sources"]?.let(::File),
+      )
+    }
+  }
 }
 
 /**
@@ -172,11 +205,11 @@ sealed class Server {
      */
     @JvmStatic
     fun create(args: Array<String>): Server {
-      val args = ArgParser(args).parseInto(::Args)
+      val args = Args.parse(args)
       args.describeSources?.let { return SourceDescriber(it) }
       return CoordinatorServer(
-        args.comm ?: throw MissingValueException("--comm"),
-        args.logs ?: throw MissingValueException("--logs"),
+        args.comm ?: throw IllegalArgumentException("Missing required argument: --comm"),
+        args.logs ?: throw IllegalArgumentException("Missing required argument: --logs"),
       )
     }
   }
