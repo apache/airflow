@@ -142,6 +142,8 @@ class BeamDataflowMixin(metaclass=ABCMeta):
                 pipeline_options["impersonateServiceAccount"] = self.dataflow_config.impersonation_chain
         pipeline_options["project"] = self.dataflow_config.project_id
         pipeline_options["region"] = self.dataflow_config.location
+        if self.dataflow_config.max_num_workers is not None:
+            pipeline_options["maxNumWorkers"] = self.dataflow_config.max_num_workers
         pipeline_options.setdefault("labels", {}).update(
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
         )
