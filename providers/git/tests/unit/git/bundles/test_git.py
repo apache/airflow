@@ -165,6 +165,36 @@ class TestGitDagBundle:
     def test_supports_versioning(self):
         assert GitDagBundle.supports_versioning is True
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "git@github.com:org/repo.git",
+            "ssh://git@github.com:22/org/repo.git",
+            "https://github.com/org/repo.git",
+            "https://user:token@GitHub.com/org/repo/",
+            "https://user:token@GitHub.com/Org/Repo.git",
+        ],
+    )
+    def test_source_key_same_for_ssh_and_https(self, url):
+        key = GitDagBundle.source_key(repo_url=url, tracking_ref="main", subdir="/dags/")
+        assert key == ("git", "github.com/org/repo", "main", "dags")
+
+    @pytest.mark.parametrize(
+        "other",
+        [
+            {"repo_url": "https://github.com/org/other.git"},
+            {"tracking_ref": "dev"},
+            {"subdir": "x"},
+        ],
+    )
+    def test_source_key_differs_for_other_repo_ref_or_subdir(self, other):
+        base = {"repo_url": "git@github.com:org/repo.git", "tracking_ref": "main", "subdir": "dags"}
+        assert GitDagBundle.source_key(**base) != GitDagBundle.source_key(**{**base, **other})
+
+    @pytest.mark.parametrize("repo_url", [None, "", "/srv/repos/dags", "C:\\repos\\dags"])
+    def test_source_key_unknown_without_a_remote_url(self, repo_url):
+        assert GitDagBundle.source_key(repo_url=repo_url, tracking_ref="main") is None
+
     def test_uses_dag_bundle_root_storage_path(self):
         bundle = GitDagBundle(name="test", tracking_ref=GIT_DEFAULT_BRANCH)
         base = get_bundle_storage_root_path()

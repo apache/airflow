@@ -120,6 +120,68 @@ def test_parse_bundle_config(value, expected):
         assert names == expected
 
 
+def test_manager_warns_about_bundles_sharing_a_source(tmp_path, caplog):
+    bundle_config = [
+        {
+            "name": "bundle-0",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(tmp_path)},
+        },
+        {
+            "name": "bundle-1",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(tmp_path)},
+        },
+    ]
+    _load_bundle_config_snapshot.cache_clear()
+    try:
+        with conf_vars(
+            {
+                ("core", "load_examples"): "False",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with caplog.at_level("WARNING"):
+                DagBundlesManager()
+        assert any(
+            record.levelname == "WARNING" and "read the same source" in record.message
+            for record in caplog.records
+        )
+    finally:
+        _load_bundle_config_snapshot.cache_clear()
+
+
+def test_manager_does_not_warn_about_bundles_with_different_sources(tmp_path, caplog):
+    bundle_config = [
+        {
+            "name": "bundle-0",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(tmp_path / "a")},
+        },
+        {
+            "name": "bundle-1",
+            "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+            "kwargs": {"path": str(tmp_path / "b")},
+        },
+    ]
+    _load_bundle_config_snapshot.cache_clear()
+    try:
+        with conf_vars(
+            {
+                ("core", "load_examples"): "False",
+                ("dag_processor", "dag_bundle_config_list"): json.dumps(bundle_config),
+            }
+        ):
+            with caplog.at_level("WARNING"):
+                DagBundlesManager()
+        assert not any(
+            record.levelname == "WARNING" and "read the same source" in record.message
+            for record in caplog.records
+        )
+    finally:
+        _load_bundle_config_snapshot.cache_clear()
+
+
 class BasicBundle(BaseDagBundle):
     def refresh(self):
         pass

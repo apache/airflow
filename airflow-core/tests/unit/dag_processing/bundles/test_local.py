@@ -43,3 +43,8 @@ class TestLocalDagBundle:
         bundle = LocalDagBundle(name="test", path="/hello")
 
         assert bundle.get_current_version() is None
+
+    def test_source_key_same_for_equivalent_paths(self, tmp_path):
+        key = LocalDagBundle.source_key(path=str(tmp_path))
+        assert key == LocalDagBundle.source_key(path=f"{tmp_path}/")
+        assert key != LocalDagBundle.source_key(path=str(tmp_path / "other"))

@@ -38,6 +38,8 @@ from pendulum.parsing import ParserError
 from airflow.configuration import conf
 
 if TYPE_CHECKING:
+    from collections.abc import Hashable
+
     from pendulum import DateTime
 
     from airflow.typing_compat import Self
@@ -314,6 +316,16 @@ class BaseDagBundle(ABC):
     """Set by ``super().initialize()``; overrides must call it last."""
 
     _locked: bool = False
+
+    @classmethod
+    def source_key(cls, **kwargs: Any) -> Hashable | None:
+        """
+        Say where a bundle created with these kwargs reads its files from.
+
+        Bundles that return the same key read the same files. Return ``None`` when the
+        source cannot be worked out from the kwargs alone, which is the default.
+        """
+        return None
 
     def __init__(
         self,
