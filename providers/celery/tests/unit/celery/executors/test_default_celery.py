@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import ssl
+from importlib.util import find_spec
 from unittest import mock
 
 import pytest
@@ -87,7 +88,12 @@ def get_backend_connect_kwargs(backend):
         pytest.param(
             "db+postgresql://user:pass@host/db", "psycopg", marks=requires_psycopg3, id="explicit-driverless"
         ),
-        pytest.param("db+postgresql+psycopg2://user:pass@host/db", "psycopg2", id="explicit-psycopg2"),
+        pytest.param(
+            "db+postgresql+psycopg2://user:pass@host/db",
+            "psycopg2",
+            marks=pytest.mark.skipif(find_spec("psycopg2") is None, reason="Psycopg 2 is not installed"),
+            id="explicit-psycopg2",
+        ),
     ],
 )
 @pytest.mark.parametrize(
