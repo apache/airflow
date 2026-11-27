@@ -20,6 +20,8 @@ from __future__ import annotations
 import datetime
 import importlib.util
 import inspect
+import logging
+from contextlib import nullcontext
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -28,7 +30,7 @@ import pytest
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.common.compat.sdk import AirflowException, timezone
+from airflow.providers.common.compat.sdk import AirflowException, AirflowTaskTimeout, timezone
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.operators.sql import (
@@ -50,6 +52,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.common_sql import mock_db_hook
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs, clear_db_xcom
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
@@ -208,6 +211,156 @@ class TestSQLExecuteQueryOperator:
 
         assert descriptions == ("id", "name")
         assert result == [(1, "Alice"), (2, "Bob")]
+
+    def test_cancel_on_kill_set_by_a_subclass_before_init_is_kept(self):
+        class PresetOperator(SQLExecuteQueryOperator):
+            # What ``SnowflakeSqlApiOperator`` does since apache-airflow-providers-snowflake 6.17.0
+            def __init__(self, *, cancel_on_kill: bool = True, **kwargs):
+                self.cancel_on_kill = cancel_on_kill
+                super().__init__(**kwargs)
+
+        operator = PresetOperator(task_id="test_task", sql="SELECT 1", cancel_on_kill=False)
+
+        assert operator.cancel_on_kill is False
+
+    @staticmethod
+    def _kill_during_run(operator: SQLExecuteQueryOperator, hook: MagicMock) -> None:
+        """Make ``hook.run`` call ``on_kill``, as the ``SIGTERM`` handler does while a statement runs."""
+        hook.run.side_effect = lambda *args, **kwargs: operator.on_kill()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
+    def test_on_kill_cancels_running_query(self, mock_get_hook):
+        hook = mock.create_autospec(DbApiHook, instance=True)
+        mock_get_hook.return_value = hook
+        operator = self._construct_operator("SELECT pg_sleep(600);", do_xcom_push=False)
+        self._kill_during_run(operator, hook)
+
+        operator.execute(context={})
+
+        hook.cancel_query.assert_called_once_with()
+
+    def test_on_kill_cancels_through_the_hook_returned_by_get_db_hook(self):
+        hook = mock.create_autospec(DbApiHook, instance=True)
+
+        class OwnHookOperator(SQLExecuteQueryOperator):
+            # Like ``DuckDBExecuteQueryOperator``, which does not go through ``BaseSQLOperator._hook``
+            def get_db_hook(self):
+                return hook
+
+        operator = OwnHookOperator(task_id="test_task", sql="SELECT pg_sleep(600);", do_xcom_push=False)
+        self._kill_during_run(operator, hook)
+
+        operator.execute(context={})
+
+        hook.cancel_query.assert_called_once_with()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
+    def test_on_kill_does_not_create_a_hook(self, mock_get_hook):
+        operator = self._construct_operator("SELECT pg_sleep(600);")
+
+        operator.on_kill()
+
+        mock_get_hook.assert_not_called()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
+    def test_on_kill_does_nothing_when_cancel_on_kill_is_disabled(self, mock_get_hook):
+        hook = mock.create_autospec(DbApiHook, instance=True)
+        mock_get_hook.return_value = hook
+        operator = self._construct_operator("SELECT pg_sleep(600);", cancel_on_kill=False, do_xcom_push=False)
+        self._kill_during_run(operator, hook)
+
+        operator.execute(context={})
+
+        hook.cancel_query.assert_not_called()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
+    def test_on_kill_does_not_raise_when_cancelling_fails(self, mock_get_hook, caplog):
+        hook = mock.create_autospec(DbApiHook, instance=True)
+        hook.cancel_query.side_effect = RuntimeError("connection is closed")
+        mock_get_hook.return_value = hook
+        operator = self._construct_operator("SELECT pg_sleep(600);", do_xcom_push=False)
+        self._kill_during_run(operator, hook)
+
+        with caplog.at_level(logging.ERROR):
+            operator.execute(context={})
+
+        hook.cancel_query.assert_called_once_with()
+        assert "Failed to cancel the running SQL statement" in caplog.text
+
+    @pytest.mark.parametrize("cancel_on_kill", [True, False])
+    @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
+    def test_on_kill_during_execute_reaches_the_running_statement(self, mock_get_hook, cancel_on_kill):
+        hook = mock_db_hook(DbApiHook)
+        cursor = MagicMock(spec=["execute", "fetchall", "close", "description", "rowcount", "cancel"])
+        cursor.fetchall.return_value = []
+        hook.get_conn().cursor.return_value = cursor
+        mock_get_hook.return_value = hook
+        operator = self._construct_operator("SELECT pg_sleep(600);", cancel_on_kill=cancel_on_kill)
+        # The task is killed while the statement is running: Airflow calls ``on_kill`` from the
+        # ``SIGTERM`` handler while ``cursor.execute`` is still blocked in the driver. The driver then
+        # returns normally, like ``trino`` does after ``Cursor.cancel()``.
+        cursor.execute.side_effect = lambda *args, **kwargs: operator.on_kill()
+
+        with pytest.raises(RuntimeError) if cancel_on_kill else nullcontext():
+            operator.execute(context={})
+
+        assert cursor.cancel.call_count == (1 if cancel_on_kill else 0)
+
+    @pytest.mark.parametrize("cancel_on_kill", [True, False])
+    @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
+    def test_execution_timeout_cancels_the_running_statement(self, mock_get_hook, cancel_on_kill):
+        hook = mock_db_hook(DbApiHook)
+        cursor = MagicMock(spec=["execute", "fetchall", "close", "description", "rowcount", "cancel"])
+        cursor.execute.side_effect = AirflowTaskTimeout()
+        hook.get_conn().cursor.return_value = cursor
+        mock_get_hook.return_value = hook
+        # The hook leaves it off by default, ``execute`` turns it on from ``cancel_on_kill``
+        assert hook.cancel_on_interrupt is False
+        operator = self._construct_operator("SELECT pg_sleep(600);", cancel_on_kill=cancel_on_kill)
+
+        # ``on_kill`` is only called after ``AirflowTaskTimeout`` left ``execute``
+        with pytest.raises(AirflowTaskTimeout):
+            operator.execute(context={})
+
+        assert cursor.cancel.call_count == (1 if cancel_on_kill else 0)
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
+    def test_kill_while_the_hook_is_created_keeps_the_statement_from_starting(self, mock_get_hook):
+        hook = mock_db_hook(DbApiHook)
+        cursor = MagicMock(spec=["execute", "fetchall", "close", "description", "rowcount", "cancel"])
+        hook.get_conn().cursor.return_value = cursor
+        operator = self._construct_operator("SELECT pg_sleep(600);")
+
+        def kill_while_looking_up_the_connection(*args, **kwargs):
+            operator.on_kill()
+            return hook
+
+        mock_get_hook.side_effect = kill_while_looking_up_the_connection
+
+        with pytest.raises(RuntimeError, match="before the SQL statement started"):
+            operator.execute(context={})
+
+        cursor.execute.assert_not_called()
+
+    @mock.patch.object(SQLExecuteQueryOperator, "get_hook")
+    def test_on_kill_after_execution_timeout_does_not_stop_the_next_run(self, mock_get_hook):
+        hook = mock_db_hook(DbApiHook)
+        cursor = MagicMock(spec=["execute", "fetchall", "close", "description", "rowcount", "cancel"])
+        cursor.execute.side_effect = AirflowTaskTimeout()
+        cursor.fetchall.return_value = []
+        hook.get_conn().cursor.return_value = cursor
+        mock_get_hook.return_value = hook
+        operator = self._construct_operator("SELECT pg_sleep(600);")
+        with pytest.raises(AirflowTaskTimeout):
+            operator.execute(context={})
+        # The task runner calls ``on_kill`` once ``AirflowTaskTimeout`` has left ``execute``
+        operator.on_kill()
+        cursor.execute.side_effect = None
+
+        # The same operator object runs again, e.g. in ``dag.test()``
+        operator.execute(context={})
+
+        assert cursor.execute.call_count == 2
 
     @skip_if_force_lowest_dependencies_marker
     def test_sql_operator_extra_dejson_fields_to_hook_params(self):
