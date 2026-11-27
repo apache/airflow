@@ -932,7 +932,7 @@ example_aip_progress_tracker()
 
 
 # ===========================================================================
-# DAG 2: Agent-based AIP tracker (AgentOperator + AirflowSkills)
+# Dag 2: Agent-based AIP tracker (AgentOperator + AirflowSkills)
 #
 # Same use case, different architecture.  Instead of a 12-task deterministic
 # pipeline, a single AgentOperator with the aip-tracker skill loaded via

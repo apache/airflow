@@ -232,7 +232,7 @@ def write_skill(
     return skill
 
 
-def model_calling(
+def build_calling_model(
     *calls: tuple[str, dict[str, Any]], answer: str = "done", seen: list[AgentInfo] | None = None
 ):
     """A model that makes each call in turn, one per response, then answers."""
@@ -249,7 +249,7 @@ def model_calling(
     return FunctionModel(model_fn)
 
 
-def tool_returns(result) -> dict[str, Any]:
+def get_tool_returns(result) -> dict[str, Any]:
     return {
         part.tool_name: part.content
         for message in result.all_messages()
@@ -258,7 +258,7 @@ def tool_returns(result) -> dict[str, Any]:
     }
 
 
-def retried_returns(result) -> list[str]:
+def get_retried_returns(result) -> list[str]:
     return [
         str(part.content)
         for message in result.all_messages()
@@ -338,7 +338,7 @@ class TestAirflowSkillsConstruction:
     @pytest.mark.asyncio
     async def test_a_missing_harness_is_reported(self, tmp_path):
         write_skill(tmp_path, "alpha")
-        agent = Agent(model_calling(), capabilities=[AirflowSkills([tmp_path])])
+        agent = Agent(build_calling_model(), capabilities=[AirflowSkills([tmp_path])])
 
         with mock.patch.dict(sys.modules, {"pydantic_ai_harness.skills": None}):
             with pytest.raises(
@@ -361,7 +361,7 @@ class TestAirflowSkillsRun:
         write_skill(tmp_path, "beta", description="the beta skill")
         seen: list[AgentInfo] = []
         agent = Agent(
-            model_calling(
+            build_calling_model(
                 ("load_capability", {"id": "alpha"}),
                 ("read_skill_resource", {"skill_name": "alpha", "resource": "${SKILL_DIR}/references/a.md"}),
                 ("run_skill_script", {"skill_name": "alpha", "script": "scripts/hello.py", "args": {"n": 1}}),
@@ -372,8 +372,8 @@ class TestAirflowSkillsRun:
 
         result = await agent.run("go")
 
-        assert tool_returns(result)["read_skill_resource"] == "alpha notes"
-        assert tool_returns(result)["run_skill_script"] == "hello --n 1"
+        assert get_tool_returns(result)["read_skill_resource"] == "alpha notes"
+        assert get_tool_returns(result)["run_skill_script"] == "hello --n 1"
         instructions = seen[0].instructions or ""
         assert "- alpha: the alpha skill" in instructions
         assert "- beta: the beta skill" in instructions
@@ -383,7 +383,7 @@ class TestAirflowSkillsRun:
         write_skill(tmp_path, "alpha", files={"references/a.md": "alpha notes"})
         call = {"skill_name": "alpha", "resource": "references/a.md"}
         agent = Agent(
-            model_calling(
+            build_calling_model(
                 ("read_skill_resource", call),
                 ("load_capability", {"id": "alpha"}),
                 ("read_skill_resource", call),
@@ -393,8 +393,8 @@ class TestAirflowSkillsRun:
 
         result = await agent.run("go")
 
-        assert "load_capability" in retried_returns(result)[0]
-        assert tool_returns(result)["read_skill_resource"] == "alpha notes"
+        assert "load_capability" in get_retried_returns(result)[0]
+        assert get_tool_returns(result)["read_skill_resource"] == "alpha notes"
 
     @pytest.mark.parametrize(
         ("options", "expected"),
@@ -409,7 +409,7 @@ class TestAirflowSkillsRun:
     async def test_the_model_sees_only_the_enabled_tools(self, tmp_path, options, expected):
         write_skill(tmp_path, "alpha")
         seen: list[AgentInfo] = []
-        agent = Agent(model_calling(seen=seen), capabilities=[AirflowSkills([tmp_path], **options)])
+        agent = Agent(build_calling_model(seen=seen), capabilities=[AirflowSkills([tmp_path], **options)])
 
         await agent.run("go")
 
@@ -427,7 +427,7 @@ class TestAirflowSkillsRun:
         write_skill(tmp_path, "alpha")
         write_skill(tmp_path, "beta")
         seen: list[AgentInfo] = []
-        agent = Agent(model_calling(seen=seen), capabilities=[AirflowSkills([tmp_path], **selection)])
+        agent = Agent(build_calling_model(seen=seen), capabilities=[AirflowSkills([tmp_path], **selection)])
 
         await agent.run("go")
 
@@ -443,7 +443,7 @@ class TestAirflowSkillsRun:
         for label in ("first", "second"):
             write_skill(tmp_path / label, "dup", description=label, files={"references/which.txt": label})
         agent = Agent(
-            model_calling(
+            build_calling_model(
                 ("load_capability", {"id": "dup"}),
                 ("read_skill_resource", {"skill_name": "dup", "resource": "references/which.txt"}),
             ),
@@ -453,14 +453,14 @@ class TestAirflowSkillsRun:
         with pytest.warns(UserWarning, match="dup"):
             result = await agent.run("go")
 
-        assert tool_returns(result)["read_skill_resource"] == "second"
+        assert get_tool_returns(result)["read_skill_resource"] == "second"
 
     @pytest.mark.asyncio
     async def test_resolves_relative_local_sources_against_the_working_directory(self, tmp_path, monkeypatch):
         write_skill(tmp_path / "skills", "alpha")
         monkeypatch.chdir(tmp_path)
         seen: list[AgentInfo] = []
-        agent = Agent(model_calling(seen=seen), capabilities=[AirflowSkills(["skills"])])
+        agent = Agent(build_calling_model(seen=seen), capabilities=[AirflowSkills(["skills"])])
 
         await agent.run("go")
 
@@ -471,7 +471,7 @@ class TestAirflowSkillsRun:
     async def test_a_tool_result_is_masked(self, tmp_path, registered_secret):
         write_skill(tmp_path, "alpha", files={"references/creds.txt": f"password={registered_secret}"})
         agent = Agent(
-            model_calling(
+            build_calling_model(
                 ("load_capability", {"id": "alpha"}),
                 ("read_skill_resource", {"skill_name": "alpha", "resource": "references/creds.txt"}),
             ),
@@ -480,7 +480,7 @@ class TestAirflowSkillsRun:
 
         result = await agent.run("go")
 
-        assert tool_returns(result)["read_skill_resource"] == "password=***"
+        assert get_tool_returns(result)["read_skill_resource"] == "password=***"
 
     @mock.patch("airflow.providers.common.ai.skills._clone_git", autospec=True)
     @pytest.mark.asyncio
@@ -500,7 +500,7 @@ class TestAirflowSkillsRun:
 
         def build() -> Agent[None, str]:
             return Agent(
-                model_calling(
+                build_calling_model(
                     ("load_capability", {"id": "alpha"}),
                     ("wait_for_the_other_run", {}),
                     ("read_skill_resource", {"skill_name": "alpha", "resource": "references/which.txt"}),
@@ -511,7 +511,10 @@ class TestAirflowSkillsRun:
 
         first, second = await asyncio.gather(build().run("go"), build().run("go"))
 
-        assert {tool_returns(first)["read_skill_resource"], tool_returns(second)["read_skill_resource"]} == {
+        assert {
+            get_tool_returns(first)["read_skill_resource"],
+            get_tool_returns(second)["read_skill_resource"],
+        } == {
             "x-0",
             "x-1",
         }
@@ -547,7 +550,7 @@ class TestAirflowSkillsCleanup:
         mock_clone.side_effect, clones = make_clone(tmp_path, "alpha")
         held = self.hold_run_capabilities(monkeypatch)
         capability = AirflowSkills([GIT_SOURCE])
-        agent = Agent(model_calling(("load_capability", {"id": "alpha"})), capabilities=[capability])
+        agent = Agent(build_calling_model(("load_capability", {"id": "alpha"})), capabilities=[capability])
 
         await agent.run("go")
 
@@ -584,7 +587,7 @@ class TestAirflowSkillsCleanup:
             await asyncio.sleep(60)
             return "unreachable"
 
-        agent = self.build_agent(model_calling(("hang", {})), AirflowSkills([GIT_SOURCE]), hang)
+        agent = self.build_agent(build_calling_model(("hang", {})), AirflowSkills([GIT_SOURCE]), hang)
         task = asyncio.create_task(agent.run("go"))
         await asyncio.wait_for(started.wait(), timeout=10)
         assert clones[0].exists()
@@ -600,7 +603,7 @@ class TestAirflowSkillsCleanup:
     async def test_a_harness_failure_while_the_run_starts_removes_the_clone(self, mock_clone, tmp_path):
         mock_clone.side_effect, clones = make_clone(tmp_path, "alpha")
         capability = AirflowSkills([GIT_SOURCE], exclude=["no-such-skill"])
-        agent = Agent(model_calling(), capabilities=[capability])
+        agent = Agent(build_calling_model(), capabilities=[capability])
 
         with pytest.raises(SkillsConfigurationError, match="no-such-skill"):
             await agent.run("go")
@@ -611,7 +614,7 @@ class TestAirflowSkillsCleanup:
     @pytest.mark.asyncio
     async def test_a_missing_local_source_fails_the_run_and_registers_nothing(self, tmp_path):
         capability = AirflowSkills([tmp_path / "missing"])
-        agent = Agent(model_calling(), capabilities=[capability])
+        agent = Agent(build_calling_model(), capabilities=[capability])
 
         with pytest.raises(SkillsConfigurationError, match="AirflowSkills could not load its skills"):
             await agent.run("go")
@@ -622,7 +625,7 @@ class TestAirflowSkillsCleanup:
     @pytest.mark.asyncio
     async def test_a_failed_clone_is_left_for_airflow_to_retry(self, mock_clone):
         mock_clone.side_effect = RuntimeError("Failed to clone")
-        agent = Agent(model_calling(), capabilities=[AirflowSkills([GIT_SOURCE])])
+        agent = Agent(build_calling_model(), capabilities=[AirflowSkills([GIT_SOURCE])])
 
         with pytest.raises(RuntimeError, match="Failed to clone") as excinfo:
             await agent.run("go")
@@ -632,7 +635,7 @@ class TestAirflowSkillsCleanup:
     @pytest.mark.asyncio
     async def test_an_invalid_git_source_fails_without_a_retry(self):
         capability = AirflowSkills([GitSkills(repo_url="https://u:p@host/r")])
-        agent = Agent(model_calling(), capabilities=[capability])
+        agent = Agent(build_calling_model(), capabilities=[capability])
 
         with pytest.raises(SkillsConfigurationError, match="must not embed a username or password"):
             await agent.run("go")
