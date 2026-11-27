@@ -1285,3 +1285,12 @@ Usage:
           path: namespace
   {{- end }}
 {{- end -}}
+
+{{/*
+ Compute a ConfigMap or Secret checksum from its data only, for the checksum/* pod annotations.
+ The full manifest carries labels, which may change on every chart deployment and
+ would restart every Airflow component on upgrade even when no configuration changes.
+ */}}
+{{- define "airflow.configMapOrSecretContentHash" -}}
+{{ pick (include (print .ctx.Template.BasePath .name) .ctx | fromYaml) "data" "stringData" | toYaml | sha256sum }}
+{{- end -}}
