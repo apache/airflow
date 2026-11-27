@@ -18,13 +18,14 @@
  */
 import type { ComponentProps, ReactNode } from "react";
 
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { ReactFlowProvider } from "@xyflow/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
+import { useTaskInstanceExtraLinks } from "src/hooks/useTaskInstanceExtraLinks";
 import { BaseWrapper, Wrapper } from "src/utils/Wrapper";
 
 import { TaskNode } from "./TaskNode";
@@ -33,6 +34,9 @@ import type { CustomNodeProps } from "./reactflowUtils";
 
 vi.mock("src/context/groups", () => ({
   useGroups: vi.fn(() => ({ toggleGroupId: vi.fn() })),
+}));
+vi.mock("src/hooks/useTaskInstanceExtraLinks", () => ({
+  useTaskInstanceExtraLinks: vi.fn(() => []),
 }));
 
 const TestWrapper = ({ children }: { readonly children: ReactNode }) => (
@@ -90,6 +94,10 @@ describe("TaskNode operator colors", () => {
 });
 
 describe("TaskNode links", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("links to the task overview when the run has no task instance", () => {
     render(
       <ReactFlowProvider>
@@ -124,6 +132,66 @@ describe("TaskNode links", () => {
       "href",
       "/dags/test_dag/tasks/missing_task",
     );
+  });
+
+  it("fetches extra links when the task tooltip opens", async () => {
+    vi.useFakeTimers();
+    vi.mocked(useTaskInstanceExtraLinks).mockReturnValue([
+      { name: "Triggered DAG", url: "https://example.com/run" },
+    ]);
+    render(
+      <ReactFlowProvider>
+        <TaskNode
+          {...({
+            data: {
+              height: 80,
+              label: "example_task",
+              taskInstance: {
+                dag_version_number: 1,
+                latest_region_id: "region",
+                latest_region_index: 2,
+                state: "success",
+              } as LightGridTaskInstanceSummary,
+              type: "task",
+              width: 200,
+            },
+            id: "example_task",
+          } as unknown as ComponentProps<typeof TaskNode>)}
+        />
+      </ReactFlowProvider>,
+      {
+        wrapper: ({ children }: { readonly children: ReactNode }) => (
+          <BaseWrapper>
+            <MemoryRouter initialEntries={["/dags/test_dag/runs/test_run?try_number=2"]}>
+              <Routes>
+                <Route element={children} path="/dags/:dagId/runs/:runId" />
+              </Routes>
+            </MemoryRouter>
+          </BaseWrapper>
+        ),
+      },
+    );
+
+    const link = screen.getByRole("link", { name: "example_task" });
+
+    expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).toMatchObject({ enabled: false });
+    const trigger = link.closest('[data-part="trigger"]') ?? link;
+
+    await act(async () => {
+      fireEvent.focus(trigger);
+      fireEvent.pointerEnter(trigger, { pointerType: "mouse" });
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).toMatchObject({
+      dagId: "test_dag",
+      dagRunId: "test_run",
+      enabled: true,
+      regionId: "region",
+      regionIndex: 2,
+      taskId: "example_task",
+    });
+    expect(vi.mocked(useTaskInstanceExtraLinks).mock.lastCall?.[0]).not.toHaveProperty("tryNumber");
   });
 });
 

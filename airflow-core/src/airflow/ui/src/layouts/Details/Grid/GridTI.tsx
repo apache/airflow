@@ -16,17 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { MouseEvent } from "react";
+import { type MouseEvent, useState } from "react";
 
 import { Badge, Box, Flex } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 
 import type { LightGridTaskInstanceSummary } from "openapi/requests/types.gen";
 
+import { AltClickExtraLinks } from "src/components/AltClickExtraLinks";
 import { StateIcon } from "src/components/StateIcon";
 import TaskInstanceTooltip from "src/components/TaskInstanceTooltip";
 
 import { useColorMode } from "src/context/colorMode";
+import { useTaskInstanceExtraLinks } from "src/hooks/useTaskInstanceExtraLinks";
 import { setExecutionCoordinates, stripExecutionParams } from "src/utils/executionParams";
 import { buildTaskInstanceUrl } from "src/utils/links";
 import { sortStateEntries } from "src/utils/stateUtils";
@@ -68,10 +71,27 @@ export const GridTI = ({
   const { groupId: selectedGroupId, runId: selectedRunId, taskId: selectedTaskId } = useParams();
   const { colorMode = "light" } = useColorMode();
   const location = useLocation();
+  const { t: translate } = useTranslation("components");
 
   const [searchParams] = useSearchParams();
+  const [isTooltipOpen, setIsTooltipOpen] = useState(false);
 
   const hasTaskInstance = instance.dag_version_number !== null && instance.dag_version_number !== undefined;
+
+  const links = useTaskInstanceExtraLinks({
+    dagId,
+    dagRunId: runId,
+    enabled: isTooltipOpen && hasTaskInstance,
+    regionId: instance.latest_region_id,
+    regionIndex: instance.latest_region_index,
+    taskId,
+  });
+  const hint =
+    links.length === 0
+      ? undefined
+      : links.length === 1
+        ? translate("altClickExtraLink", { name: links[0]?.name ?? "" })
+        : translate("altClickExtraLinks");
   const taskUrl = hasTaskInstance
     ? buildTaskInstanceUrl({
         currentPathname: location.pathname,
@@ -118,7 +138,9 @@ export const GridTI = ({
       width="18px"
     >
       <TaskInstanceTooltip
+        hint={hint}
         loopMaxIterations={loopMaxIterations}
+        onOpenChange={({ open }) => setIsTooltipOpen(open)}
         openDelay={500}
         positioning={{ placement: "bottom" }}
         runId={runId}
@@ -136,37 +158,43 @@ export const GridTI = ({
           pr={stackPadding}
           transition="outline-color 0.2s"
         >
-          <Link
-            data-testid={`grid-${runId}-${taskId}`}
-            id={`grid-${runId}-${taskId}`}
-            onClick={onClick}
+          <AltClickExtraLinks
+            links={links}
+            navigateTo={{ pathname: taskUrl, search: redirectionSearch }}
             replace
-            to={{
-              pathname: taskUrl,
-              search: redirectionSearch,
-            }}
           >
-            <Badge
-              alignItems="center"
-              borderRadius={4}
-              colorPalette={frontCardState}
-              data-selected={isSelectedTaskInstance || undefined}
-              data-testid="task-state-badge"
-              display="flex"
-              height={badgeSize}
-              justifyContent="center"
-              minH={0}
-              p={0}
-              style={{
-                background: hasNote ? NOTE_GRADIENT : undefined,
-                boxShadow: backCardState === undefined ? undefined : buildBackCardShadow(backCardState),
+            <Link
+              data-testid={`grid-${runId}-${taskId}`}
+              id={`grid-${runId}-${taskId}`}
+              onClick={onClick}
+              replace
+              to={{
+                pathname: taskUrl,
+                search: redirectionSearch,
               }}
-              variant="solid"
-              width={badgeSize}
             >
-              <StateIcon size={10} state={instance.state} />
-            </Badge>
-          </Link>
+              <Badge
+                alignItems="center"
+                borderRadius={4}
+                colorPalette={frontCardState}
+                data-selected={isSelectedTaskInstance || undefined}
+                data-testid="task-state-badge"
+                display="flex"
+                height={badgeSize}
+                justifyContent="center"
+                minH={0}
+                p={0}
+                style={{
+                  background: hasNote ? NOTE_GRADIENT : undefined,
+                  boxShadow: backCardState === undefined ? undefined : buildBackCardShadow(backCardState),
+                }}
+                variant="solid"
+                width={badgeSize}
+              >
+                <StateIcon size={10} state={instance.state} />
+              </Badge>
+            </Link>
+          </AltClickExtraLinks>
         </Box>
       </TaskInstanceTooltip>
     </Flex>
