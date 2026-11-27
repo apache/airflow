@@ -215,9 +215,9 @@ Parameters
 
 An agent can have only one ``AirflowSkills``; put every source in it. Its tools belong to a toolset
 with the id ``airflow_skills``. With ``durable=True``, another toolset with that id, or a second
-``AirflowSkills``, fails when the Dag loads. An ``AirflowSkills`` nested inside another capability,
-or built by a capability function, is not seen then and fails when the run starts. Without
-``durable``, a second ``AirflowSkills`` fails when the run starts.
+``AirflowSkills``, fails when the Dag loads. A second ``AirflowSkills`` that the Dag load does not
+catch fails when the run starts: one on an agent that is not ``durable``, or nested inside another
+capability, or built by a capability function.
 
 With ``durable=True``, a script that has run is replayed from the journal on a retry instead of
 running again.
@@ -231,10 +231,12 @@ without retrying, because every attempt would fail the same way. That covers a m
 ``pydantic-ai-harness`` or GitPython, a local source that does not exist, an ``include`` or
 ``exclude`` naming a skill no source holds, a ``GitSkills`` whose ``repo_url`` embeds a username or
 password, uses ``http://`` together with ``conn_id``, or whose ``path`` is absolute or leaves the
-repository, and a second ``AirflowSkills`` on an agent that is not ``durable``.
+repository or does not exist in the cloned repository, and a second ``AirflowSkills`` that the Dag
+load did not catch.
 A clone that fails raises ``RuntimeError`` instead, and the task retries as often as its
 ``retries`` allows. That includes a mistyped ``repo_url`` and a ``conn_id`` for which no connection
-exists, because every error while cloning is reported as a failed clone. A local source that does not
+exists, because every error while cloning is reported as a failed clone. So is a ``branch`` that is
+a commit SHA, because ``git clone --branch`` accepts only a branch or tag name, so do not set one. A local source that does not
 exist is not retried, even when it is only missing for a moment, for example while a volume is still
 mounting.
 
