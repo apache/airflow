@@ -526,6 +526,23 @@ class TestRunSkillScript:
         assert output == "Script 'slow.py' timed out after 0.5 seconds and was killed."
         assert not marker.exists()
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs process groups")
+    @pytest.mark.asyncio
+    async def test_a_timeout_keeps_the_output_printed_before_it(self, skill_dir, monkeypatch):
+        """A background child keeps the pipe open after the script exits, so the read ends only at the timeout."""
+        monkeypatch.setattr(skill_files, "_SCRIPT_TIMEOUT_SECONDS", 0.5)
+        self.write_script(
+            skill_dir,
+            "scripts/spawn.py",
+            "import subprocess\nprint('started', flush=True)\nsubprocess.Popen(['sleep', '30'])\n",
+        )
+
+        output = await call(
+            make_toolset(skill_dir), "run_skill_script", skill_name="demo", script="scripts/spawn.py"
+        )
+
+        assert output == "started\nScript 'spawn.py' timed out after 0.5 seconds and was killed."
+
     @pytest.mark.parametrize(
         ("script", "message"),
         [

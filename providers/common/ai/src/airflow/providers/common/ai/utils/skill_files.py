@@ -287,15 +287,18 @@ async def _run_script(script: Path, cwd: Path, argv: list[str]) -> str:
         )
     except OSError as exc:
         raise ModelRetry(f"Failed to start {script.name!r}: {exc}") from None
+    output = bytearray()
     try:
-        output, truncated = await asyncio.wait_for(_collect_output(process), timeout=_SCRIPT_TIMEOUT_SECONDS)
+        truncated = await asyncio.wait_for(_collect_output(process, output), timeout=_SCRIPT_TIMEOUT_SECONDS)
     except TimeoutError:
         await _reap_process(process)
-        return f"Script {script.name!r} timed out after {_SCRIPT_TIMEOUT_SECONDS:g} seconds and was killed."
+        note = f"Script {script.name!r} timed out after {_SCRIPT_TIMEOUT_SECONDS:g} seconds and was killed."
+        partial = output.decode("utf-8", errors="replace").strip()
+        return f"{partial}\n{note}" if partial else note
     except BaseException:
         _kill_process(process)
         raise
-    text = output.decode("utf-8", errors="replace").strip()
+    text = output[:_MAX_SCRIPT_OUTPUT_BYTES].decode("utf-8", errors="replace").strip()
     if truncated:
         text = f"{text}\n[output truncated at {_MAX_SCRIPT_OUTPUT_BYTES} bytes and the script was killed]"
     elif process.returncode:
@@ -322,10 +325,14 @@ async def _reap_process(process: asyncio.subprocess.Process) -> None:
         await asyncio.wait_for(finish(), timeout=_REAP_TIMEOUT_SECONDS)
 
 
-async def _collect_output(process: asyncio.subprocess.Process) -> tuple[bytes, bool]:
-    """Read the script's output up to the cap; a script that prints more is killed."""
+async def _collect_output(process: asyncio.subprocess.Process, data: bytearray) -> bool:
+    """
+    Read the script's output into *data* up to the cap; a script that prints more is killed.
+
+    *data* is filled as the output arrives, so the caller still has what was read when the read is
+    cancelled by the timeout. Return whether the output was cut off at the cap.
+    """
     stream = process.stdout
-    data = bytearray()
     while len(data) <= _MAX_SCRIPT_OUTPUT_BYTES and stream is not None:
         chunk = await stream.read(_MAX_SCRIPT_OUTPUT_BYTES + 1 - len(data))
         if not chunk:
@@ -336,7 +343,7 @@ async def _collect_output(process: asyncio.subprocess.Process) -> tuple[bytes, b
         await _reap_process(process)
     else:
         await process.wait()
-    return bytes(data[:_MAX_SCRIPT_OUTPUT_BYTES]), truncated
+    return truncated
 
 
 def build_skill_files_toolset(

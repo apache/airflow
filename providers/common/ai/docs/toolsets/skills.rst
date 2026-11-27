@@ -184,6 +184,8 @@ Parameters
   the worker with a 30 second timeout; ``None`` registers no script tool. Default ``"worker"``.
   A script that prints more than 50,000 bytes is killed, and the model gets the first 50,000 bytes
   followed by a note that the output was cut off.
+  A script that runs past the timeout is killed, and the model gets the output it had printed so
+  followed by a note that it timed out.
   Running scripts in a sandbox is not supported yet, and any other value raises ``ValueError``.
 - ``max_retries``: How many times the model may correct failed calls to one of the two tools.
   Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
