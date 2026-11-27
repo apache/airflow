@@ -63,6 +63,7 @@ def import_all_models():
     import airflow.models.asset_state_store
     import airflow.models.backfill
     import airflow.models.connection_test
+    import airflow.models.dag_bundle_manifest
     import airflow.models.dag_favorite
     import airflow.models.dag_processor_publication_receipt
     import airflow.models.dag_processor_work_claim

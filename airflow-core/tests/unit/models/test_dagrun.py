@@ -61,6 +61,7 @@ from airflow.api_fastapi.execution_api.datamodels.taskinstance import TaskInstan
 from airflow.callbacks.callback_requests import DagCallbackRequest, DagRunContext
 from airflow.dag_processing.dagbag import DagBag
 from airflow.models.dag import DagModel, infer_automated_data_interval
+from airflow.models.dag_bundle_manifest import DagBundleManifest
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagrun import (
@@ -5664,6 +5665,23 @@ class TestDagRunHandleDagCallback:
         assert callback is not None
         assert callback.context_from_server is not None
         assert callback.context_from_server.last_ti is None
+
+    def test_produce_dag_callback_ships_the_stored_bundle_manifest(self, dag_maker, session):
+        """A pinned run's callback carries the manifest stored for its exact bundle version."""
+        with dag_maker("test_dag", session=session) as dag:
+            BashOperator(task_id="test_task", bash_command="echo 1")
+        dr = dag_maker.create_dagrun()
+        dr.bundle_version = "abc123"
+        dr.created_dag_version.bundle_version = "overwritten"
+        session.add(
+            DagBundleManifest(bundle_name="dag_maker", bundle_version="abc123", manifest={"stored": True})
+        )
+        session.flush()
+
+        callback = dr.produce_dag_callback(dag=dag, success=False, reason="task_failure", session=session)
+
+        assert callback is not None
+        assert callback.version_data == {"stored": True}
 
     def test_execute_dag_callbacks_without_dag_version(self, dag_maker, session):
         """The execute=True path must also carry a TI with dag_version_id=None into the context."""

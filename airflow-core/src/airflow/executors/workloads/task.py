@@ -105,6 +105,7 @@ class ExecuteTask(BaseDagBundleWorkload):
         bundle_info: BundleInfo | None = None,
         sentry_integration: str = "",
         log_context: TaskLogContext | None = None,
+        bundle_manifests: dict[tuple[str, str], dict] | None = None,
     ) -> ExecuteTask:
         """Create an ExecuteTask workload from a TaskInstance ORM model."""
         from airflow.utils.log.task_log_address import prepare_task_log_contexts, render_task_log_filename
@@ -126,7 +127,11 @@ class ExecuteTask(BaseDagBundleWorkload):
                 # not the TI's dag_version. A mid-run DAG re-parse can bump the TI's dag_version
                 # to a newer version while the run stays pinned; sourcing from created_dag_version
                 # keeps the shipped hash and manifest consistent so versioned bundles stay reproducible.
-                version_data=_resolve_version_data(ti.dag_run.created_dag_version, ti.dag_run.bundle_version),
+                version_data=_resolve_version_data(
+                    ti.dag_run.created_dag_version,
+                    ti.dag_run.bundle_version,
+                    bundle_manifests=bundle_manifests,
+                ),
             )
         fname = render_task_log_filename(ti, ti.try_number, context=log_context)
 

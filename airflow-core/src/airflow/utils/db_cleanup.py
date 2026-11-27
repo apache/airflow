@@ -254,6 +254,31 @@ config_list: list[_TableConfig] = [
             )
         ],
     ),
+    # Keep a manifest while any Dag run, Dag version or release reference still names its version,
+    # whatever the bundle name (versions are content hashes). The is_not(None) filters keep a NULL from
+    # emptying NOT IN.
+    _TableConfig(
+        table_name="dag_bundle_manifest",
+        recency_column_name="created_at",
+        extra_columns=["bundle_version"],
+        extra_filters=[
+            column("bundle_version").not_in(
+                select(column("bundle_version"))
+                .select_from(table("dag_run"))
+                .where(column("bundle_version").is_not(None))
+            ),
+            column("bundle_version").not_in(
+                select(column("bundle_version"))
+                .select_from(table("dag_version"))
+                .where(column("bundle_version").is_not(None))
+            ),
+            column("bundle_version").not_in(
+                select(column("version"))
+                .select_from(table("dag_bundle_manifest_ref"))
+                .where(column("version").is_not(None))
+            ),
+        ],
+    ),
     _TableConfig(table_name="import_error", recency_column_name="timestamp"),
     _TableConfig(table_name="log", recency_column_name="dttm", dag_id_column_name="dag_id"),
     _TableConfig(

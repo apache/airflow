@@ -20,6 +20,7 @@ from __future__ import annotations
 import dataclasses
 from pathlib import PurePosixPath
 from typing import get_args
+from unittest.mock import Mock
 from uuid import UUID, uuid4
 
 import jwt
@@ -43,6 +44,7 @@ from airflow.executors.workloads.types import (
 )
 from airflow.models.callback import CallbackKey, ExecutorCallback
 from airflow.models.connection_test import ConnectionTestKey, ConnectionTestRequest, ConnectionTestState
+from airflow.models.dag_bundle_manifest import DagBundleManifest
 from airflow.models.dynamic_region import DynamicRegion
 from airflow.models.taskinstance import TaskInstance as TaskInstanceModel
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -458,6 +460,7 @@ class TestExecuteTaskMakeVersionData:
         ti.dag_version.version_data = ti_dag_version_data
 
         if has_created_dag_version:
+            ti.dag_run.created_dag_version.bundle_name = None
             ti.dag_run.created_dag_version.bundle_version = bundle_version
             ti.dag_run.created_dag_version.version_data = version_data
         else:
@@ -513,6 +516,16 @@ class TestExecuteTaskMakeVersionData:
         assert workload.bundle_info.version_data == run_manifest
         assert workload.bundle_info.version_data != bumped_manifest
 
+    def test_prefetched_bundle_manifest_wins(self):
+        """A manifest prefetched for the run's exact bundle version replaces the DagVersion's."""
+        stored_manifest = {"schema_version": 1, "stored": True}
+        ti = self._make_mock_ti(bundle_version="abc123", version_data={"schema_version": 1})
+        ti.dag_run.created_dag_version.bundle_name = "test-bundle"
+
+        workload = ExecuteTask.make(ti, bundle_manifests={("test-bundle", "abc123"): stored_manifest})
+
+        assert workload.bundle_info.version_data == stored_manifest
+
 
 class TestExecuteCallbackMakeVersionData:
     """Tests for ExecuteCallback.make() threading version_data through BundleInfo."""
@@ -534,6 +547,7 @@ class TestExecuteCallbackMakeVersionData:
         dag_run.dag_model.bundle_name = "test-bundle"
         dag_run.dag_model.relative_fileloc = "dags/test_dag.py"
         if has_created_dag_version:
+            dag_run.created_dag_version.bundle_name = None
             dag_run.created_dag_version.bundle_version = bundle_version
             dag_run.created_dag_version.version_data = version_data
         else:
@@ -571,3 +585,29 @@ class TestExecuteCallbackMakeVersionData:
 
         assert workload.bundle_info.version == "abc123"
         assert workload.bundle_info.version_data is None
+
+
+@pytest.mark.db_test
+def test_execute_callback_make_ships_the_stored_bundle_manifest(dag_maker, session):
+    """A pinned run's callback gets its stored manifest even if its DagVersion was overwritten."""
+    with dag_maker("callback_stored_manifest", session=session):
+        EmptyOperator(task_id="task")
+    dag_run = dag_maker.create_dagrun(session=session)
+    dag_run.bundle_version = "abc123"
+    dag_run.created_dag_version.bundle_version = "overwritten"
+    dag_run.created_dag_version.version_data = {"on_version": True}
+    session.add(
+        DagBundleManifest(
+            bundle_name=dag_run.created_dag_version.bundle_name,
+            bundle_version="abc123",
+            manifest={"stored": True},
+        )
+    )
+    session.flush()
+    callback = Mock(id=uuid4(), fetch_method=CallbackFetchMethod.IMPORT_PATH, data={"path": "mod.callback"})
+
+    workload = ExecuteCallback.make(callback=callback, dag_run=dag_run)
+
+    assert workload.bundle_info.version == "abc123"
+    assert workload.bundle_info.version_data == {"stored": True}
+    session.rollback()

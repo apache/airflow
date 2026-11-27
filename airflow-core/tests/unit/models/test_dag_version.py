@@ -29,7 +29,8 @@ from sqlalchemy import delete, func, select, update
 from airflow._shared.timezones import timezone
 from airflow.exceptions import DagVersionNotFound
 from airflow.models.dag import DagModel
-from airflow.models.dag_version import DagVersion
+from airflow.models.dag_bundle_manifest import DagBundleManifest
+from airflow.models.dag_version import DagVersion, _resolve_ti_callback_bundle_info, _resolve_version_data
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
 from airflow.models.deadline_alert import DeadlineAlert as DeadlineAlertModel
@@ -274,19 +275,19 @@ class TestResolveVersionData:
         ("dag_version", "bundle_version", "expected"),
         [
             pytest.param(
-                mock.Mock(bundle_version="abc123", version_data={"schema_version": 1}),
+                mock.Mock(bundle_name=None, bundle_version="abc123", version_data={"schema_version": 1}),
                 "abc123",
                 {"schema_version": 1},
                 id="pinned-with-data",
             ),
             pytest.param(
-                mock.Mock(bundle_version="def456", version_data={"schema_version": 1}),
+                mock.Mock(bundle_name=None, bundle_version="def456", version_data={"schema_version": 1}),
                 "abc123",
                 None,
                 id="pinned-to-overwritten-bundle-version",
             ),
             pytest.param(
-                mock.Mock(version_data={"schema_version": 1}),
+                mock.Mock(bundle_name=None, version_data={"schema_version": 1}),
                 None,
                 None,
                 id="unpinned-suppresses-present-data",
@@ -296,9 +297,88 @@ class TestResolveVersionData:
         ],
     )
     def test_resolve_version_data(self, dag_version, bundle_version, expected):
-        from airflow.models.dag_version import _resolve_version_data
-
         assert _resolve_version_data(dag_version, bundle_version) == expected
+
+    @pytest.mark.parametrize(
+        ("dag_version_bundle_version", "bundle_manifests", "expected"),
+        [
+            pytest.param("abc123", {("bundle", "abc123"): {"stored": True}}, {"stored": True}, id="stored"),
+            pytest.param(
+                "def456",
+                {("bundle", "abc123"): {"stored": True}},
+                {"stored": True},
+                id="stored-survives-overwritten-dag-version",
+            ),
+            pytest.param(
+                "abc123", {("bundle", "other"): {"stored": True}}, {"on_version": True}, id="absent"
+            ),
+            pytest.param("def456", {}, None, id="absent-and-overwritten"),
+        ],
+    )
+    def test_prefetched_bundle_manifests(self, dag_version_bundle_version, bundle_manifests, expected):
+        dag_version = DagVersion(
+            dag_id="prefetched",
+            bundle_name="bundle",
+            bundle_version=dag_version_bundle_version,
+            version_data={"on_version": True},
+        )
+
+        assert _resolve_version_data(dag_version, "abc123", bundle_manifests=bundle_manifests) == expected
+
+    def test_detached_dag_version_without_prefetch_uses_its_own_version_data(self):
+        dag_version = DagVersion(
+            dag_id="detached",
+            bundle_name="bundle",
+            bundle_version="abc123",
+            version_data={"on_version": True},
+        )
+
+        assert _resolve_version_data(dag_version, "abc123") == {"on_version": True}
+
+    @pytest.mark.parametrize(
+        ("run_bundle_version", "dag_version_bundle_version", "expected"),
+        [
+            pytest.param("abc123", "abc123", {"stored": True}, id="pinned"),
+            pytest.param("abc123", "overwritten", {"stored": True}, id="pinned-to-overwritten-dag-version"),
+            pytest.param("other", "other", {"on_version": True}, id="no-stored-manifest"),
+            pytest.param(None, "abc123", None, id="unpinned"),
+        ],
+    )
+    def test_looks_up_the_stored_manifest_through_the_dag_versions_session(
+        self, dag_maker, session, run_bundle_version, dag_version_bundle_version, expected
+    ):
+        with dag_maker("stored_manifest_lookup", session=session):
+            EmptyOperator(task_id="task")
+        dag_version = dag_maker.create_dagrun(session=session).created_dag_version
+        dag_version.bundle_version = dag_version_bundle_version
+        dag_version.version_data = {"on_version": True}
+        session.add(
+            DagBundleManifest(
+                bundle_name=dag_version.bundle_name, bundle_version="abc123", manifest={"stored": True}
+            )
+        )
+        session.flush()
+
+        assert _resolve_version_data(dag_version, run_bundle_version) == expected
+        session.rollback()
+
+    def test_ti_callback_bundle_info_uses_the_stored_manifest(self, dag_maker, session):
+
+        with dag_maker("callback_bundle_info", session=session):
+            EmptyOperator(task_id="task")
+        dag_run = dag_maker.create_dagrun(session=session)
+        dag_run.bundle_version = "abc123"
+        session.add(
+            DagBundleManifest(bundle_name="dag_maker", bundle_version="abc123", manifest={"stored": True})
+        )
+        session.flush()
+
+        assert _resolve_ti_callback_bundle_info(dag_run.get_task_instance("task", session=session)) == (
+            "dag_maker",
+            "abc123",
+            {"stored": True},
+        )
+        session.rollback()
 
 
 class TestDagVersionGetDiff:
