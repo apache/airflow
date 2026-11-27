@@ -92,6 +92,10 @@ response to that execution.
 
 It supports configurable execution parameters such as warehouse selection, catalog, schema, and parameterized queries.
 The operator can either synchronously poll for query completion or run in a deferrable mode for improved efficiency.
+When polling synchronously, the Sensor checks the statement every ``poke_interval`` seconds (``polling_period_seconds``
+only applies with ``deferrable=True``) and cancels the statement if it does not finish within ``timeout``. With
+``deferrable=False`` and ``wait_for_termination=True``, ``mode="reschedule"`` is only supported with ``statement_id``:
+with ``statement``, each reschedule would submit the statement again, so the Sensor raises an error instead.
 
 The only required parameters for using the Sensor are:
 

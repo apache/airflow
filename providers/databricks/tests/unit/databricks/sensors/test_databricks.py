@@ -23,7 +23,14 @@ import pytest
 from tenacity import stop_after_attempt, wait_incrementing
 
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.sdk import AirflowException, TaskDeferred, timezone
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    BaseSensorOperator,
+    TaskDeferred,
+    timezone,
+)
 from airflow.providers.databricks.hooks.databricks import SQLStatementState
 from airflow.providers.databricks.sensors.databricks import DatabricksSQLStatementsSensor
 from airflow.providers.databricks.triggers.databricks import DatabricksSQLStatementExecutionTrigger
@@ -161,10 +168,7 @@ class TestDatabricksSQLStatementsSensor:
 
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_exec_success(self, db_mock_class):
-        """
-        Test the execute function for non-deferrable execution. This same exact behavior is expected when the
-        statement itself fails, so no test_exec_failure_statement is implemented.
-        """
+        """Test the execute function for non-deferrable execution."""
         expected_json = {
             "statement": STATEMENT,
             "warehouse_id": WAREHOUSE_ID,
@@ -177,6 +181,7 @@ class TestDatabricksSQLStatementsSensor:
         op = DatabricksSQLStatementsSensor(task_id=TASK_ID, statement=STATEMENT, warehouse_id=WAREHOUSE_ID)
         db_mock = db_mock_class.return_value
         db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("SUCCEEDED")
 
         op.execute(None)  # No context is being passed in
 
@@ -192,6 +197,126 @@ class TestDatabricksSQLStatementsSensor:
         # post_sql_statement method is called once
         db_mock.post_sql_statement.assert_called_once_with(expected_json)
         assert op.statement_id == STATEMENT_ID
+
+    @pytest.mark.parametrize("final_state", ["FAILED", "CANCELED"])
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_exec_waits_for_statement_and_fails_with_it(self, db_mock_class, final_state):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID, statement=STATEMENT, warehouse_id=WAREHOUSE_ID, poke_interval=0
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.side_effect = [
+            SQLStatementState("PENDING"),
+            SQLStatementState("RUNNING"),
+            SQLStatementState(final_state, error_message="Table not found"),
+        ]
+
+        with pytest.raises(AirflowException, match=f"{STATEMENT_ID} failed with error: Table not found"):
+            op.execute(None)
+
+        assert db_mock.get_sql_statement_state.call_args_list == [mock.call(STATEMENT_ID)] * 3
+
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_exec_waits_for_running_statement_to_succeed(self, db_mock_class):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID, statement=STATEMENT, warehouse_id=WAREHOUSE_ID, poke_interval=0
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.side_effect = [
+            SQLStatementState("RUNNING"),
+            SQLStatementState("SUCCEEDED"),
+        ]
+
+        op.execute(None)
+
+        assert db_mock.get_sql_statement_state.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("soft_fail", "expected"), [(False, AirflowSensorTimeout), (True, AirflowSkipException)]
+    )
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_exec_timeout_cancels_running_statement(self, db_mock_class, soft_fail, expected):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            statement=STATEMENT,
+            warehouse_id=WAREHOUSE_ID,
+            poke_interval=0,
+            timeout=0,
+            soft_fail=soft_fail,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("RUNNING")
+
+        with pytest.raises(expected):
+            op.execute(None)
+
+        db_mock.cancel_sql_statement.assert_called_once_with(STATEMENT_ID)
+
+    @mock.patch.object(BaseSensorOperator, "execute", autospec=True, side_effect=AirflowSkipException)
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_exec_skip_does_not_cancel_finished_statement(self, db_mock_class, base_execute):
+        op = DatabricksSQLStatementsSensor(task_id=TASK_ID, statement=STATEMENT, warehouse_id=WAREHOUSE_ID)
+        db_mock = db_mock_class.return_value
+        db_mock.post_sql_statement.return_value = STATEMENT_ID
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("FAILED")
+
+        with pytest.raises(AirflowSkipException):
+            op.execute(None)
+
+        db_mock.cancel_sql_statement.assert_not_called()
+
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_reschedule_mode_with_statement_is_rejected(self, db_mock_class):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID, statement=STATEMENT, warehouse_id=WAREHOUSE_ID, mode="reschedule"
+        )
+
+        with pytest.raises(ValueError, match="would submit the statement again on every reschedule"):
+            op.execute(None)
+
+        db_mock_class.return_value.post_sql_statement.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("deferrable", "wait_for_termination", "expected"),
+        [(True, True, TaskDeferred), (False, False, None)],
+        ids=["deferrable", "no-wait"],
+    )
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_reschedule_mode_with_statement_is_allowed_when_not_polling(
+        self, db_mock_class, deferrable, wait_for_termination, expected
+    ):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID,
+            statement=STATEMENT,
+            warehouse_id=WAREHOUSE_ID,
+            mode="reschedule",
+            deferrable=deferrable,
+            wait_for_termination=wait_for_termination,
+        )
+        self._configure_running_deferrable_hook(db_mock_class.return_value)
+
+        if expected is None:
+            op.execute(None)
+        else:
+            with pytest.raises(expected):
+                op.execute(None)
+
+        db_mock_class.return_value.post_sql_statement.assert_called_once()
+
+    @mock.patch.object(BaseSensorOperator, "execute", autospec=True)
+    @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
+    def test_reschedule_mode_with_statement_id_polls(self, db_mock_class, base_execute):
+        op = DatabricksSQLStatementsSensor(
+            task_id=TASK_ID, statement_id=STATEMENT_ID, warehouse_id=WAREHOUSE_ID, mode="reschedule"
+        )
+
+        op.execute(None)
+
+        base_execute.assert_called_once_with(op, None)
+        db_mock_class.return_value.post_sql_statement.assert_not_called()
 
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_on_kill(self, db_mock_class):
@@ -346,6 +471,7 @@ class TestDatabricksSQLStatementsSensor:
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_execute_passes_query_tags_to_post_sql_statement(self, db_mock_class):
         db_mock = db_mock_class.return_value
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("SUCCEEDED")
         db_mock.post_sql_statement.return_value = STATEMENT_ID
 
         sensor = DatabricksSQLStatementsSensor(
@@ -363,6 +489,7 @@ class TestDatabricksSQLStatementsSensor:
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_execute_omits_query_tags_when_none(self, db_mock_class):
         db_mock = db_mock_class.return_value
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("SUCCEEDED")
         db_mock.post_sql_statement.return_value = STATEMENT_ID
 
         sensor = DatabricksSQLStatementsSensor(
@@ -379,6 +506,7 @@ class TestDatabricksSQLStatementsSensor:
     @mock.patch("airflow.providers.databricks.sensors.databricks.DatabricksHook")
     def test_execute_includes_airflow_query_tags(self, db_mock_class):
         db_mock = db_mock_class.return_value
+        db_mock.get_sql_statement_state.return_value = SQLStatementState("SUCCEEDED")
         db_mock.post_sql_statement.return_value = STATEMENT_ID
 
         sensor = DatabricksSQLStatementsSensor(
