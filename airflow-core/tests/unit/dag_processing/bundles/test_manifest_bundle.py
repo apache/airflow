@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import json
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
+import time_machine
 
 from airflow.dag_processing.bundles.artifact_store import (
     ArtifactStore,
@@ -33,15 +34,19 @@ from airflow.dag_processing.bundles.artifact_store import (
     BundleManifestNotFoundError,
     PublishedSnapshot,
 )
+from airflow.dag_processing.bundles.base import BundleNotReadyError
 from airflow.dag_processing.bundles.manifest import (
     MANIFEST_FILE_NAME,
     BundleManifestError,
+    BundleManifestSourceChangedError,
     build_bundle_version_manifest,
     collect_bundle_source_snapshot,
     serialize_bundle_version_manifest,
     validate_bundle_relative_path,
 )
 from airflow.dag_processing.bundles.manifest_bundle import (
+    AUTO_PUBLISH_STATE_SCHEMA_VERSION,
+    BundleManifestRef,
     BundleManifestReferenceChangedError,
     BundlePublishResult,
     ManifestDagBundleBase,
@@ -61,21 +66,23 @@ DAG_FILE = "dags/example.py"
 
 @dataclass
 class _VersionedBucket:
-    """What a versioned object store holds: object versions, snapshot manifests and the reference."""
+    """What a versioned object store holds: object versions, snapshot manifests and the two documents."""
 
     objects: dict[str, dict[str, bytes]] = field(default_factory=dict)
     manifests: dict[str, bytes] = field(default_factory=dict)
     ref: bytes | None = None
     ref_generation: int = 0
+    state: bytes | None = None
+    state_generation: int = 0
 
 
 class _InMemoryArtifactStore(ArtifactStore):
     """
     Store with no published root that fetches files by object version id.
 
-    Its guard is not a lock: entering it resets the compare-and-swap baseline, so ``write_ref``
-    is conditioned on the reference read inside the guard, or on the current one when there
-    was no such read.
+    Its guard is not a lock: entering it resets the compare-and-swap baselines, so ``write_ref``
+    and ``write_state`` are conditioned on the document read inside the guard, or on the current
+    one when there was no such read.
     """
 
     backend_type = "memory"
@@ -84,10 +91,15 @@ class _InMemoryArtifactStore(ArtifactStore):
         self.bundle_name = bundle_name
         self._bucket = bucket
         self._ref_baseline: int | None = None
+        self._state_baseline: int | None = None
 
     @property
     def ref_locator(self) -> str:
         return f"memory://{self.bundle_name}/latest.json"
+
+    @property
+    def state_locator(self) -> str:
+        return f"memory://{self.bundle_name}/auto-publish.json"
 
     def snapshot_locator(self, version: str) -> str:
         return f"memory://{self.bundle_name}/versions/{version}"
@@ -107,9 +119,27 @@ class _InMemoryArtifactStore(ArtifactStore):
         self._bucket.ref = content
         self._bucket.ref_generation += 1
 
+    def read_state(self) -> dict[str, Any]:
+        # Set even when there is no state, so the next write requires it to stay absent.
+        self._state_baseline = self._bucket.state_generation
+        if self._bucket.state is None:
+            raise BundleManifestNotFoundError(
+                f"Bundle '{self.bundle_name}' has no automatic-publication state"
+            )
+        return json.loads(self._bucket.state)
+
+    def write_state(self, payload: dict[str, Any]) -> None:
+        content = serialize_bundle_version_manifest(payload)
+        baseline = self._bucket.state_generation if self._state_baseline is None else self._state_baseline
+        if self._bucket.state_generation != baseline and self._bucket.state != content:
+            raise ArtifactStoreConflictError(f"Another publisher updated {self.state_locator}")
+        self._bucket.state = content
+        self._bucket.state_generation += 1
+
     @contextmanager
-    def publication_guard(self):
+    def publication_guard(self, *, wait: bool = True):
         self._ref_baseline = None
+        self._state_baseline = None
         yield
 
     def prepare_publish_areas(self) -> None:
@@ -160,6 +190,31 @@ class _MemoryManifestDagBundle(ManifestDagBundleBase):
 
     def confirm_publish_source(self, prepared: PreparedPublishSource) -> None:
         pass
+
+
+class _AutoPublishingMemoryManifestDagBundle(_MemoryManifestDagBundle):
+    """Publishes its local ``source`` automatically, recording one object version id per file."""
+
+    def __init__(self, *, source: Path, **kwargs) -> None:
+        self.source = source
+        super().__init__(**kwargs)
+
+    @property
+    def has_publish_source(self) -> bool:
+        return True
+
+    @property
+    def publish_source_description(self) -> str:
+        return str(self.source)
+
+    def prepare_publish_source(self) -> PreparedPublishSource:
+        return PreparedPublishSource(
+            root=self.source,
+            source_snapshot=collect_bundle_source_snapshot(self.source),
+            file_version_ids={DAG_FILE: "object-version-auto"},
+            source_type="memory-test",
+            source_identity=f"sha256:{self.source.name}",
+        )
 
 
 def _write_source(root: Path, content: str = "print('dag')") -> Path:
@@ -279,6 +334,21 @@ class TestStoreWithoutPublishedRoot:
         assert isinstance(raised.value.__cause__, ArtifactStoreConflictError)
         assert json.loads(bucket.ref) == rival_results[0].ref_payload
 
+    def test_automatic_publication_records_object_version_ids(self, tmp_path):
+        bucket = _VersionedBucket()
+        bundle = _AutoPublishingMemoryManifestDagBundle(
+            name=BUNDLE_NAME,
+            bucket=bucket,
+            source=_write_source(tmp_path / "source"),
+            source_stability_seconds=0,
+        )
+
+        bundle.initialize()
+
+        committed = json.loads(bucket.manifests[bundle.get_current_version().version])
+        assert [file_info["version_id"] for file_info in committed["files"]] == ["object-version-auto"]
+        assert (bundle.path / DAG_FILE).read_text() == "print('dag')"
+
 
 class TestFilesystemStoreRepublish:
     def test_existing_snapshot_is_checked_against_its_version_not_the_new_manifest(self, tmp_path):
@@ -296,3 +366,223 @@ class TestFilesystemStoreRepublish:
             (published_root / "versions" / BUNDLE_NAME / first.version / MANIFEST_FILE_NAME).read_text()
         )
         assert [file_info["version_id"] for file_info in committed["files"]] == ["object-version-1"]
+
+
+class TestAutomaticPublicationConflicts:
+    """A store without a lock reports a lost race as a conflict; the publisher must reconcile it."""
+
+    def test_publisher_follows_a_release_that_won_the_reference_race(self, tmp_path, caplog):
+        bucket = _VersionedBucket()
+        _publish(
+            _MemoryManifestDagBundle(name=BUNDLE_NAME, bucket=bucket),
+            _write_source(tmp_path / "released"),
+            "object-version-1",
+        )
+        bundle = _AutoPublishingMemoryManifestDagBundle(
+            name=BUNDLE_NAME,
+            bucket=bucket,
+            source=_write_source(tmp_path / "source", "print('next')"),
+            source_stability_seconds=0,
+        )
+        rival = _MemoryManifestDagBundle(name=BUNDLE_NAME, bucket=bucket)
+        rival_source = _write_source(tmp_path / "rival-source", "print('rival')")
+        rival_results: list[BundlePublishResult] = []
+        publish_snapshot = bundle._store.publish_snapshot
+
+        def publish_rival_first(**kwargs):
+            rival_results.append(_publish(rival, rival_source, "object-version-2"))
+            return publish_snapshot(**kwargs)
+
+        with mock.patch.object(
+            bundle._store, "publish_snapshot", autospec=True, side_effect=publish_rival_first
+        ):
+            bundle.refresh()
+
+        assert json.loads(bucket.ref) == rival_results[0].ref_payload
+        assert bundle.get_current_version().version == rival_results[0].version
+        assert (bundle.path / DAG_FILE).read_text() == "print('rival')"
+        assert {
+            "event": "Another publisher updated the release concurrently; following its release. "
+            f"bundle={BUNDLE_NAME}",
+            "log_level": "info",
+        } in caplog
+
+    @pytest.mark.parametrize(
+        ("winner_overrides", "expected_error", "match"),
+        [
+            pytest.param({}, None, None, id="same-observation"),
+            pytest.param(
+                {"source_identity": "sha256:other"},
+                BundleManifestError,
+                "do not use the same memory-test source",
+                id="other-source",
+            ),
+            pytest.param(
+                {"source_signature": "sha256:newer"},
+                BundleManifestSourceChangedError,
+                "candidate changed",
+                id="other-signature",
+            ),
+        ],
+    )
+    def test_candidate_race_lost_to_another_replica(self, tmp_path, winner_overrides, expected_error, match):
+        bucket = _VersionedBucket()
+        bundle = _AutoPublishingMemoryManifestDagBundle(
+            name=BUNDLE_NAME,
+            bucket=bucket,
+            source=_write_source(tmp_path / "source"),
+            source_stability_seconds=30,
+        )
+        prepared = bundle.prepare_publish_source()
+
+        def build_state(**overrides) -> dict[str, Any]:
+            return {
+                "schema_version": AUTO_PUBLISH_STATE_SCHEMA_VERSION,
+                "bundle_name": BUNDLE_NAME,
+                "source_type": prepared.source_type,
+                "source_identity": prepared.source_identity,
+                "source_signature": prepared.source_snapshot.signature,
+                "first_observed_at": 90,
+                **overrides,
+            }
+
+        def write_state(payload: dict[str, Any]) -> None:
+            bucket.state = serialize_bundle_version_manifest(payload)
+            bucket.state_generation += 1
+
+        write_state(build_state(source_signature="sha256:earlier", first_observed_at=10))
+        winner = build_state(**winner_overrides)
+
+        # Confirming the source falls between the guard's state read and the candidate write.
+        with (
+            mock.patch.object(
+                bundle,
+                "confirm_publish_source",
+                autospec=True,
+                side_effect=lambda prepared: write_state(winner),
+            ),
+            time_machine.travel(100, tick=False),
+        ):
+            if expected_error is None:
+                assert bundle._get_auto_publish_candidate_readiness(prepared) == (False, 20)
+            else:
+                with pytest.raises(expected_error, match=match):
+                    bundle._get_auto_publish_candidate_readiness(prepared)
+
+        assert json.loads(bucket.state) == winner
+
+    def test_store_that_misreports_a_reference_conflict_is_reported(self, tmp_path):
+        bucket = _VersionedBucket()
+        _publish(
+            _MemoryManifestDagBundle(name=BUNDLE_NAME, bucket=bucket),
+            _write_source(tmp_path / "released"),
+            "object-version-1",
+        )
+        bundle = _AutoPublishingMemoryManifestDagBundle(
+            name=BUNDLE_NAME,
+            bucket=bucket,
+            source=_write_source(tmp_path / "source", "print('next')"),
+            source_stability_seconds=0,
+        )
+
+        with (
+            mock.patch.object(
+                bundle._store,
+                "write_ref",
+                autospec=True,
+                side_effect=ArtifactStoreConflictError("lost the race"),
+            ),
+            pytest.raises(BundleManifestError, match="release reference .* is unchanged; the store's"),
+        ):
+            bundle._publish_from_source_if_ready(bundle._read_current_manifest_ref_or_none())
+
+    def test_store_that_misreports_a_state_conflict_is_reported(self, tmp_path):
+        bundle = _AutoPublishingMemoryManifestDagBundle(
+            name=BUNDLE_NAME,
+            bucket=_VersionedBucket(),
+            source=_write_source(tmp_path / "source"),
+            source_stability_seconds=30,
+        )
+
+        with (
+            mock.patch.object(
+                bundle._store,
+                "write_state",
+                autospec=True,
+                side_effect=ArtifactStoreConflictError("lost the race"),
+            ),
+            pytest.raises(
+                BundleManifestError, match="automatic-publication state .* is unchanged; the store's"
+            ),
+        ):
+            bundle._get_auto_publish_candidate_readiness(bundle.prepare_publish_source())
+
+    def test_first_publication_whose_winning_release_vanished_reports_not_ready(self, tmp_path):
+        bucket = _VersionedBucket()
+        bundle = _AutoPublishingMemoryManifestDagBundle(
+            name=BUNDLE_NAME,
+            bucket=bucket,
+            source=_write_source(tmp_path / "source"),
+            source_stability_seconds=30,
+        )
+        prepared = bundle.prepare_publish_source()
+        # A candidate that has been stable for long enough, so that publication goes ahead.
+        bucket.state = serialize_bundle_version_manifest(
+            {
+                "schema_version": AUTO_PUBLISH_STATE_SCHEMA_VERSION,
+                "bundle_name": BUNDLE_NAME,
+                "source_type": prepared.source_type,
+                "source_identity": prepared.source_identity,
+                "source_signature": prepared.source_snapshot.signature,
+                "first_observed_at": 0,
+            }
+        )
+        winner = BundleManifestRef(version="sha256-" + "0" * 64, ref_payload={}, manifest_sha256="0")
+
+        with (
+            mock.patch.object(
+                bundle._store, "write_ref", autospec=True, side_effect=ArtifactStoreConflictError("lost")
+            ),
+            # Read by refresh, inside the guard before the write, after the conflict, and again
+            # by the handler that follows the winner, which is gone by then.
+            mock.patch.object(
+                bundle,
+                "_read_current_manifest_ref_or_none",
+                autospec=True,
+                side_effect=[None, None, winner, None],
+            ),
+            pytest.raises(
+                BundleNotReadyError, match="updated the release reference .* concurrently"
+            ) as raised,
+        ):
+            bundle.initialize()
+
+        assert raised.value.retry_after == 0
+        assert isinstance(raised.value.__cause__, ArtifactStoreConflictError)
+
+
+class TestAutomaticPublicationSource:
+    @pytest.mark.parametrize("missing", ["source_type", "source_identity"])
+    def test_publish_source_must_name_its_type_and_identity(self, tmp_path, missing):
+        bundle = _AutoPublishingMemoryManifestDagBundle(
+            name=BUNDLE_NAME,
+            bucket=_VersionedBucket(),
+            source=_write_source(tmp_path / "source"),
+            source_stability_seconds=0,
+        )
+        prepared = replace(bundle.prepare_publish_source(), **{missing: ""})
+
+        with (
+            mock.patch.object(bundle, "prepare_publish_source", autospec=True, return_value=prepared),
+            pytest.raises(BundleManifestError, match="without a source_type and source_identity"),
+        ):
+            bundle.initialize()
+
+        assert bundle.bucket.state is None
+
+    def test_bundle_without_publish_source_has_none_to_prepare(self):
+        bundle = _MemoryManifestDagBundle(name=BUNDLE_NAME, bucket=_VersionedBucket())
+
+        assert bundle.has_publish_source is False
+        with pytest.raises(NotImplementedError, match="has no source for automatic publication"):
+            bundle.prepare_publish_source()
