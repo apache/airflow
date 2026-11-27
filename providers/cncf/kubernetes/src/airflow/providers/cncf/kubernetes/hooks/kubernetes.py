@@ -1033,18 +1033,23 @@ class AsyncKubernetesHook(KubernetesHook):
                     self._client_cacheable = True
 
             return
-        self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
 
-        await async_config.load_kube_config(
-            client_configuration=self.client_configuration,
-            context=cluster_context,
-        )
-
-        if self._is_exec_auth is None:
-            self._is_exec_auth = await self._default_kubeconfig_uses_exec_auth(cluster_context)
-
-        if not self._is_exec_auth:
+        try:
+            async_config.load_incluster_config(client_configuration=self.client_configuration)
+            self._is_in_cluster = True
             self._client_cacheable = True
+        except async_config.ConfigException:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
+            await async_config.load_kube_config(
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
+
+            if self._is_exec_auth is None:
+                self._is_exec_auth = await self._default_kubeconfig_uses_exec_auth(cluster_context)
+
+            if not self._is_exec_auth:
+                self._client_cacheable = True
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:

@@ -42,7 +42,7 @@ from kubernetes.client import (
 )
 from kubernetes.client.rest import ApiException, RESTResponse
 from kubernetes.config import ConfigException
-from kubernetes_asyncio import client as async_client
+from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3 import HTTPResponse
 
 from airflow.models import Connection
@@ -1276,6 +1276,7 @@ class TestAsyncKubernetesHook:
             clear_test_connections()
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("in_cluster_fails", [True, False], ids=["outside-a-pod", "in-a-pod"])
     @mock.patch(INCLUSTER_CONFIG_LOADER)
     @mock.patch(KUBE_CONFIG_MERGER)
     async def test_load_config_with_default_client(
@@ -1283,7 +1284,11 @@ class TestAsyncKubernetesHook:
         kube_config_merger,
         incluster_config,
         kube_config_loader,
+        in_cluster_fails,
     ):
+        """Without configuration, try the in-cluster configuration first, then the default kubeconfig file."""
+        if in_cluster_fails:
+            incluster_config.return_value.load_and_set.side_effect = async_config.ConfigException("any")
         hook = AsyncKubernetesHook(
             conn_id=None,
             in_cluster=False,
@@ -1292,9 +1297,15 @@ class TestAsyncKubernetesHook:
         )
         kube_client = await hook._load_config()
 
-        assert not incluster_config.called
-        kube_config_loader.assert_called_once()
-        kube_config_merger.assert_called_once()
+        incluster_config.assert_called_once()
+        if in_cluster_fails:
+            kube_config_loader.assert_called_once()
+            kube_config_merger.assert_called_once()
+        else:
+            kube_config_loader.assert_not_called()
+            kube_config_merger.assert_not_called()
+            assert hook._client_cacheable is True
+        assert hook._is_in_cluster is not in_cluster_fails
         # It should return None in case when default client is used
         assert kube_client is None
 
