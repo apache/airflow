@@ -102,7 +102,55 @@ to check the current state of the job:
   waiting.
 * If the job already completed successfully, the mixin calls ``get_job_result`` and returns
   immediately without resubmitting.
-* If the job is in a terminal failure state, the mixin falls through and submits a fresh job.
+* If the job is in a terminal failure state and ``resume_on_retry`` is set, the mixin calls
+  ``resume_failed_job``. If that returns an identifier, the mixin polls it instead of starting over.
+  Otherwise it submits a fresh job.
+
+Resuming a failed job
+---------------------
+
+.. versionadded:: 3.5.0
+
+Some external systems can rerun a failed job from where it stopped, for example by repairing a
+Databricks run or calling ``redrive_execution`` on a Step Functions execution. To use that on retry,
+override the optional ``resume_failed_job`` method:
+
+``resume_failed_job(external_id, status, context)``
+    Ask the external system to resume the failed job. Return the identifier to poll, which can be the
+    same one or a new one. Return ``None`` to submit a fresh job instead. The default returns ``None``.
+
+If ``resume_failed_job`` raises, the engine may still have accepted the request, for example when
+the reply times out. Submitting a fresh job then would leave two jobs running. So the mixin reads
+the stored job's status again, up to ``resume_status_checks`` times (3 by default), waiting
+``resume_status_check_interval`` seconds (10 by default) between reads:
+
+- If the job is running or has succeeded, the mixin watches it instead of submitting a new one.
+- If the job still looks failed after every read, the mixin submits a fresh job.
+- If the status cannot be read, the try fails with the original error, and the next retry checks
+  again.
+
+This check only finds a job resumed under the stored identifier. An engine that resumes under a new
+identifier must handle a lost reply in ``resume_failed_job`` itself.
+
+``resume_on_retry`` turns this on or off per task. It defaults to ``True``. Set it to ``False`` to
+always submit a fresh job when a retry finds the stored job failed:
+
+.. code-block:: python
+
+    run_spark = MyBatchOperator(
+        task_id="run_spark",
+        resume_on_retry=False,
+    )
+
+Clearing a task discards its stored identifier by default, so a cleared task starts a fresh job. If
+the clear keeps task state, the next try treats the stored job like a retry does.
+
+How ``durable`` and ``resume_on_retry`` combine when a retry finds the stored job failed:
+
+* ``durable=True, resume_on_retry=True`` (the default): the mixin resumes the failed job.
+* ``durable=True, resume_on_retry=False``: the mixin submits a fresh job.
+* ``durable=False``: no identifier is stored, so there is nothing to resume. Every try submits a
+  fresh job, whatever ``resume_on_retry`` is set to.
 
 .. note::
 
@@ -123,8 +171,8 @@ to check the current state of the job:
 Durable execution banner
 ------------------------
 
-When a retry reconnects to a running job, or uses the result of a job that already finished, the
-task logs page shows a banner saying so. The mixin records what each try did under the
+When a retry reconnects to a running job, uses the result of a job that already finished, or resumes
+a failed job with ``resume_failed_job``, the task logs page shows a banner saying so. The mixin records what each try did under the
 ``__airflow_durable__`` task state store key, and the banner reads it. A deferrable operator that
 reconnects shows the banner without a job status, because the outcome is known only after the
 Triggerer fires and nothing records it there. Deployments that set ``[workers] state_store_backend``
@@ -179,12 +227,17 @@ Deferrable operators
 --------------------
 
 A deferrable operator can't use ``execute_resumable``, because the Triggerer does the polling.
-Call these two methods before ``defer()`` instead:
+Call these methods before ``defer()`` instead:
 
 * ``get_resume_decision(context)`` checks the stored job and returns a
-  :class:`~airflow.sdk.ResumeDecision`. Its ``action`` is ``"submit"``, ``"reconnect"`` or
-  ``"already_succeeded"``. It never submits or polls. It records a reconnect or an already
-  succeeded job for the :ref:`durable execution banner <sdk-resumable-job-mixin-banner>`.
+  :class:`~airflow.sdk.ResumeDecision`. Its ``action`` is ``"submit"``, ``"reconnect"``,
+  ``"already_succeeded"`` or ``"resume"``. It never submits, resumes or polls. On ``"resume"``,
+  ``external_id`` is the failed job and ``status`` is its raw status from ``get_job_status``.
+  ``status`` is ``None`` for every other action. It records a reconnect
+  or an already succeeded job for the :ref:`durable execution banner <sdk-resumable-job-mixin-banner>`.
+* ``resume_stored_job(context, decision)`` resumes the failed job on a ``"resume"`` decision and
+  returns the id to wait on, or ``None`` when you should submit a new job. It records the resume for
+  the banner.
 * ``persist_job_id(context, job_id)`` saves a new job's id so a retry can find it.
 
 .. code-block:: python
@@ -194,9 +247,12 @@ Call these two methods before ``defer()`` instead:
         if decision.action == "already_succeeded":
             return self.get_job_result(decision.external_id, context)
 
+        job_id = None
         if decision.action == "reconnect":
             job_id = decision.external_id
-        else:
+        elif decision.action == "resume":
+            job_id = self.resume_stored_job(context, decision)
+        if job_id is None:
             job_id = self.submit_job(context)
             self.persist_job_id(context, job_id)
 

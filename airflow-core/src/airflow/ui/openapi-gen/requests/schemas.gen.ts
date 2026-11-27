@@ -13370,7 +13370,7 @@ export const $DurableTryResponse = {
         },
         decision: {
             type: 'string',
-            enum: ['submitted', 'resubmitted', 'reconnected', 'already_succeeded'],
+            enum: ['submitted', 'resubmitted', 'reconnected', 'already_succeeded', 'resumed'],
             title: 'Decision'
         },
         external_id: {

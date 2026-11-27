@@ -25,6 +25,7 @@ import hashlib
 import json as json_utils
 import re
 import time
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from functools import cached_property
@@ -63,7 +64,7 @@ from airflow.providers.databricks.utils.databricks import (
 )
 from airflow.providers.databricks.utils.mixins import DatabricksSQLStatementsMixin
 from airflow.providers.databricks.utils.query_tags import build_query_tags, dict_to_query_tag_list
-from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS
+from airflow.providers.databricks.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_5_PLUS
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -97,6 +98,10 @@ ACTIVE_RUN_LIFE_CYCLE_STATES = (
     "BLOCKED",
     "WAITING_FOR_RETRY",
 )
+# Databricks repairs failed or canceled runs. A SKIPPED run, or one that never started for another
+# reason (e.g. MAXIMUM_CONCURRENT_RUNS_REACHED), has nothing to repair, so it gets a fresh run.
+REPAIRABLE_RUN_LIFE_CYCLE_STATES = ("TERMINATED", "INTERNAL_ERROR")
+REPAIRABLE_RUN_RESULT_STATES = ("FAILED", "TIMEDOUT", "CANCELED")
 
 
 def fetch_run_status(
@@ -146,6 +151,14 @@ def is_run_active(status: str) -> bool:
 def is_run_succeeded(status: str) -> bool:
     """Whether an encoded status means the run finished successfully."""
     return status == "TERMINATED:SUCCESS"
+
+
+def is_run_repairable(status: str) -> bool:
+    """Whether an encoded status means the run failed, timed out or was canceled, so it can be repaired."""
+    life_cycle_state, _, result_state = status.partition(":")
+    return (
+        life_cycle_state in REPAIRABLE_RUN_LIFE_CYCLE_STATES and result_state in REPAIRABLE_RUN_RESULT_STATES
+    )
 
 
 # jobs/runs/get answers 400 INVALID_PARAMETER_VALUE for a run it no longer knows about, never 404.
@@ -1340,6 +1353,10 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         before polling begins so that a worker crash and retry reconnects to the existing run
         instead of triggering a duplicate run of the same job. Set to ``False`` to always trigger a
         fresh run on retry. Requires Airflow 3.3+; on earlier versions it is silently ignored.
+    :param resume_on_retry: When ``True`` (the default), a retry that finds the stored run failed, timed
+        out or canceled repairs it instead of triggering a new run. Set to ``False`` to trigger a new run
+        instead. Unlike ``repair_run``, this acts between tries, not within one. Requires Airflow 3.5+.
+        Only applies when ``deferrable=False``.
     :param forward_dag_params: Whether to forward Dag-level params as ``job_parameters``
         when no ``job_parameters`` are specified. (default: ``True``)
 
@@ -1410,6 +1427,7 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         cancel_previous_runs: bool = False,
         forward_dag_params: bool = True,
         durable: bool | None = None,
+        resume_on_retry: bool | None = None,
         **kwargs,
     ) -> None:
         """Create a new ``DatabricksRunNowOperator``."""
@@ -1418,6 +1436,15 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         if durable is not None:
             kwargs["durable"] = durable
         super().__init__(**kwargs)
+        # Set, not forwarded: the mixin only accepts resume_on_retry from Airflow 3.5.
+        if resume_on_retry is not None:
+            if resume_on_retry and not AIRFLOW_V_3_5_PLUS:
+                warnings.warn(
+                    "`resume_on_retry` has no effect on Airflow versions below 3.5.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+            self.resume_on_retry = resume_on_retry
         self.json = json
         self.job_id = job_id
         self.job_name = job_name
@@ -1581,6 +1608,28 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
 
     def is_job_succeeded(self, status: str) -> bool:
         return is_run_succeeded(status)
+
+    def resume_failed_job(self, external_id: JsonValue, status: str, context: Context) -> JsonValue | None:
+        # cancel_previous_runs keeps only the newest run going; reviving this one would break that.
+        if not is_run_repairable(status) or self.cancel_previous_runs:
+            return None
+        run_id = cast("int", external_id)
+        self._merged_json = self._build_run_now_payload(context)
+        if self.databricks_repair_reason_new_settings:
+            run_state = self._hook.get_run_state(run_id)
+            if not is_repair_reason_match_exist(self, run_state):
+                return None
+            update_job_for_repair(self, self._hook, self._merged_json["job_id"], run_state)
+        repair_json: dict[str, Any] = {"run_id": run_id, "rerun_all_failed_tasks": True}
+        latest_repair_id = self._hook.get_latest_repair_id(run_id)
+        if latest_repair_id is not None:
+            repair_json["latest_repair_id"] = latest_repair_id
+        if "job_parameters" in self._merged_json:
+            repair_json["job_parameters"] = self._merged_json["job_parameters"]
+        # set this before repairing so on_kill can cancel the run while a lost reply is re-checked.
+        self.run_id = run_id
+        self._hook.repair_run(repair_json)
+        return run_id
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         # submit_job and the stored external id are always Databricks run ids (int).

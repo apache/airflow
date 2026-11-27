@@ -74,6 +74,22 @@ metrics:
     legacy_name: "-"
     name_variables: []
 
+  - name: "resumable_job.resumed"
+    description: "Number of times a ResumableJobMixin operator found a stored run ID
+    whose job had failed and resumed it instead of submitting a fresh job.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
+  - name: "resumable_job.resume_reply_lost"
+    description: "Number of times a ResumableJobMixin operator's resume raised, but a status
+    check showed the job had resumed anyway, so it watched that job instead of submitting a fresh one.
+    Metric with operator, dag_id and task_id tagging."
+    type: "counter"
+    legacy_name: "-"
+    name_variables: []
+
   - name: "resumable_job.reconnect_attempt"
     description: "Number of times a ResumableJobMixin operator found a stored run ID
     on retry and attempted to reconnect. Metric with operator, dag_id and task_id tagging."

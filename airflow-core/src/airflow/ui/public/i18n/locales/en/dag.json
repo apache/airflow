@@ -116,7 +116,10 @@
         "reconnected": "Avoided running a second copy of a ~{{duration}} job.",
         "reconnectedFailed": "Waited on the existing job instead of starting a second copy, but it failed.",
         "reconnectedNoDuration": "Used the existing job instead of starting a second copy.",
-        "reconnectedRunning": "Waiting on the running job instead of starting it again."
+        "reconnectedRunning": "Waiting on the running job instead of starting it again.",
+        "resumed": "Reran only the failed parts of the job instead of starting it over.",
+        "resumedFailed": "Reran only the failed parts of the job, but it failed again.",
+        "resumedRunning": "Rerunning only the failed parts of the job instead of starting it over."
       },
       "job": {
         "id": "Job ID: {{id}}",
@@ -125,7 +128,8 @@
       },
       "title": {
         "already_succeeded": "Used result of already finished job",
-        "reconnected": "Reconnected to existing job"
+        "reconnected": "Reconnected to existing job",
+        "resumed": "Resumed failed job"
       }
     },
     "error": "ERROR",

@@ -102,6 +102,16 @@ class TestGetDurableExecution:
             ],
         }
 
+    def test_skips_only_the_tries_it_cannot_read(self, test_client):
+        resumed = {**RECORD["tries"][1], "try_number": 3, "decision": "resumed", "saved_seconds": None}
+        unknown = {**RECORD["tries"][1], "try_number": 4, "decision": "from_a_newer_task_sdk"}
+        self._store("__airflow_durable__", {"tries": [resumed, unknown]})
+
+        response = test_client.get(URL)
+
+        assert response.status_code == 200
+        assert [(t["try_number"], t["decision"]) for t in response.json()["tries"]] == [(3, "resumed")]
+
     def test_returns_empty_when_task_not_durable(self, test_client):
         self._store("job_id", "job-1")
 

@@ -69,7 +69,9 @@ export const DurableBanner = ({
   const entry = (record?.tries ?? []).find(
     (attempt) =>
       attempt.try_number === tryNumber &&
-      (attempt.decision === "reconnected" || attempt.decision === "already_succeeded"),
+      (attempt.decision === "reconnected" ||
+        attempt.decision === "already_succeeded" ||
+        attempt.decision === "resumed"),
   );
 
   if (entry === undefined) {
@@ -96,6 +98,14 @@ export const DurableBanner = ({
           : translate("logs.durable.detail.reconnected", { duration: renderDuration(Math.round(seconds)) });
     } else {
       detail = translate("logs.durable.detail.reconnectedRunning");
+    }
+  }
+
+  if (entry.decision === "resumed") {
+    if (status === "failed") {
+      detail = translate("logs.durable.detail.resumedFailed");
+    } else if (status === "running") {
+      detail = translate("logs.durable.detail.resumedRunning");
     }
   }
 

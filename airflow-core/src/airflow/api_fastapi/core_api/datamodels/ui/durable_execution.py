@@ -29,7 +29,7 @@ class DurableTryResponse(BaseModel):
     """What one try did with the external job."""
 
     try_number: int | None
-    decision: Literal["submitted", "resubmitted", "reconnected", "already_succeeded"]
+    decision: Literal["submitted", "resubmitted", "reconnected", "already_succeeded", "resumed"]
     external_id: JsonValue
     status: TaskInstanceState | None
     submitted_at: datetime | None = None
