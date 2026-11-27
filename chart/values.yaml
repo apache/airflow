@@ -626,6 +626,17 @@ workers:
     # Max number of old Airflow Celery workers ReplicaSets to retain
     revisionHistoryLimit: ~
 
+    # Image for the Airflow Celery worker container. Unset fields fall back to `images.airflow` and then
+    # to the `defaultAirflow*` values, except the digest: neither `images.airflow.digest` nor
+    # `defaultAirflowDigest` is used once `repository`, `tag` or `digest` is set here. The other
+    # containers in the worker pod keep their usual images.
+    image:
+      repository: ~
+      tag: ~
+      # Specifying digest takes precedence over tag.
+      digest: ~
+      pullPolicy: ~
+
     # Command to use when running Airflow Celery workers (templated)
     command: ~
 

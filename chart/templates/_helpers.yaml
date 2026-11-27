@@ -423,39 +423,32 @@ A backend set in a way the chart cannot see counts as unset, which only leaves t
   {{- end }}
 {{- end }}
 
+{{- define "image_reference" -}}
+  {{- if .digest -}}
+    {{- printf "%s@%s" .repository .digest -}}
+  {{- else -}}
+    {{- printf "%s:%s" .repository .tag -}}
+  {{- end -}}
+{{- end -}}
+
 {{/* This helper will change when customers deploy a new image */}}
 {{- define "airflow_image" -}}
   {{- $repository := .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
   {{- $tag := .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
   {{- $digest := .Values.images.airflow.digest | default .Values.defaultAirflowDigest -}}
-  {{- if $digest }}
-    {{- printf "%s@%s" $repository $digest -}}
-  {{- else }}
-    {{- printf "%s:%s" $repository $tag -}}
-  {{- end }}
+  {{- include "image_reference" (dict "repository" $repository "tag" $tag "digest" $digest) -}}
 {{- end }}
 
 {{- define "pod_template_image" -}}
   {{- $repository := .Values.images.pod_template.repository | default .Values.defaultAirflowRepository -}}
   {{- $tag := .Values.images.pod_template.tag | default .Values.defaultAirflowTag -}}
   {{- $digest := .Values.images.pod_template.digest | default .Values.defaultAirflowDigest -}}
-  {{- if $digest }}
-    {{- printf "%s@%s" $repository $digest -}}
-  {{- else }}
-    {{- printf "%s:%s" $repository $tag -}}
-  {{- end }}
+  {{- include "image_reference" (dict "repository" $repository "tag" $tag "digest" $digest) -}}
 {{- end }}
 
 {{/* This helper is used for airflow containers that do not need the users code */}}
 {{ define "default_airflow_image" -}}
-  {{- $repository := .Values.defaultAirflowRepository -}}
-  {{- $tag := .Values.defaultAirflowTag -}}
-  {{- $digest := .Values.defaultAirflowDigest -}}
-  {{- if $digest }}
-    {{- printf "%s@%s" $repository $digest -}}
-  {{- else }}
-    {{- printf "%s:%s" $repository $tag -}}
-  {{- end }}
+  {{- include "image_reference" (dict "repository" .Values.defaultAirflowRepository "tag" .Values.defaultAirflowTag "digest" .Values.defaultAirflowDigest) -}}
 {{- end }}
 
 {{ define "airflow_image_for_migrations" -}}
@@ -465,6 +458,18 @@ A backend set in a way the chart cannot see counts as unset, which only leaves t
     {{- template "airflow_image" . }}
   {{- end }}
 {{- end }}
+
+{{/* A global digest pins the base build, so neither images.airflow.digest nor defaultAirflowDigest is inherited once the repository, tag or digest is overridden. */}}
+{{- define "airflow_worker_image" -}}
+  {{- $image := .Values.workers.celery.image -}}
+  {{- if or $image.repository $image.tag $image.digest -}}
+    {{- $repository := $image.repository | default .Values.images.airflow.repository | default .Values.defaultAirflowRepository -}}
+    {{- $tag := $image.tag | default .Values.images.airflow.tag | default .Values.defaultAirflowTag -}}
+    {{- include "image_reference" (dict "repository" $repository "tag" $tag "digest" $image.digest) -}}
+  {{- else -}}
+    {{- template "airflow_image" . -}}
+  {{- end -}}
+{{- end -}}
 
 {{- define "flower_image" -}}
   {{- printf "%s:%s" (.Values.images.flower.repository | default .Values.defaultAirflowRepository) (.Values.images.flower.tag | default .Values.defaultAirflowTag) }}
@@ -1208,7 +1213,7 @@ Usage:
   {{- $overwriteMap := index . 1 -}}
   {{- $outputMap := dict -}}
 
-  {{- $fullOverwrite := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" "containerLifecycleHooks" "config" "advanced" "behavior" "resources" "nodeSelector" "affinity" "labels" -}}
+  {{- $fullOverwrite := list "annotations" "podAnnotations" "persistentVolumeClaimRetentionPolicy" "pod" "container" "securityContext" "containerLifecycleHooks" "config" "advanced" "behavior" "resources" "nodeSelector" "affinity" "labels" "image" -}}
 
   {{- range $key, $val := $inputMap -}}
     {{/* Below if holds logic for full overwrite map logic */}}
