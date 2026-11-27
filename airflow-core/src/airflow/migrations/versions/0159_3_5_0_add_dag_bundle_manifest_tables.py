@@ -20,7 +20,7 @@
 Add tables for Dag bundle manifests stored in the metadata database.
 
 Revision ID: 0541ebdbf0e7
-Revises: c64b10719069
+Revises: feb8b1e719ee
 Create Date: 2026-11-16 22:35:31.000000
 """
 
@@ -33,7 +33,7 @@ from airflow.models.base import StringID
 from airflow.utils.sqlalchemy import UtcDateTime
 
 revision = "0541ebdbf0e7"
-down_revision = "c64b10719069"
+down_revision = "feb8b1e719ee"
 branch_labels = None
 depends_on = None
 airflow_version = "3.5.0"

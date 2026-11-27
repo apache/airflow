@@ -1576,7 +1576,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .options(
                 joinedload(TI.dag_run)
                 .selectinload(DagRun.created_dag_version)
-                .load_only(DagVersion.version_data, DagVersion.bundle_version, , DagVersion.bundle_name)
+                .load_only(DagVersion.version_data, DagVersion.bundle_version, DagVersion.bundle_name)
             )
             .limit(max_tis)
         )
