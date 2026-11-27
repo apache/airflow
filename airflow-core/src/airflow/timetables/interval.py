@@ -61,6 +61,10 @@ class _DataIntervalTimetable(Timetable):
         """
         raise NotImplementedError()
 
+    def _align_last_end(self, end: DateTime) -> DateTime:
+        """Align the end of the previous data interval onto the schedule."""
+        return self._align_to_prev(end)
+
     def _align_to_prev(self, current: DateTime) -> DateTime:
         """
         Align given time to the previous scheduled time.
@@ -102,7 +106,7 @@ class _DataIntervalTimetable(Timetable):
             start = earliest
         else:  # There's a previous run.
             # Alignment is needed when DAG has new schedule interval.
-            align_last_data_interval_end = self._align_to_prev(last_automated_data_interval.end)
+            align_last_data_interval_end = self._align_last_end(last_automated_data_interval.end)
             if earliest is not None:
                 # Catchup is False or DAG has new start date in the future.
                 # Make sure we get the later one.
@@ -143,16 +147,36 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
     when determining the next/previous time.
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+
+    Optional ``seed``/``max_jitter`` jitter (see ``CronMixin``) shifts every cron boundary by a
+    fixed per-Dag offset. Because the boundaries define the data interval, the whole window moves
+    by that offset: it keeps its length and consecutive runs stay contiguous, but it no longer
+    starts exactly on the cron time (e.g. 00:35 to 00:35 instead of 00:00 to 00:00). Keep
+    ``max_jitter`` small relative to the schedule period.
     """
+
+    def _align_last_end(self, end: DateTime) -> DateTime:
+        return self._apply(self._tick_of(end))
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        return cls(data["expression"], parse_timezone(data["timezone"]))
+        return cls(
+            data["expression"],
+            parse_timezone(data["timezone"]),
+            seed=data.get("seed", ""),
+            max_jitter=datetime.timedelta(seconds=data.get("max_jitter", 0)),
+        )
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.encoders import encode_timezone
 
-        return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
+        data: dict[str, Any] = {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
+
+        if self._max_jitter:
+            data["seed"] = self._seed
+            data["max_jitter"] = self._max_jitter.total_seconds()
+
+        return data
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
         """

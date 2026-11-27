@@ -16,10 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
+
 import pytest
 
 from airflow.sdk.definitions.timetables._cron import CronMixin
 from airflow.sdk.definitions.timetables.interval import CronDataIntervalTimetable
+from airflow.sdk.definitions.timetables.trigger import CronTriggerTimetable
 from airflow.sdk.exceptions import AirflowTimetableInvalid
 
 SAMPLE_TZ = "UTC"
@@ -62,3 +65,22 @@ def test_cron_data_interval_timetable_quarterly_preset():
     timetable = CronDataIntervalTimetable(expression="@quarterly", timezone=SAMPLE_TZ)
     assert timetable.expression == "0 0 1 */3 *"
     timetable.validate()
+
+
+def test_jitter_defaults_are_a_no_op():
+    timetable = CronTriggerTimetable("0 0 * * *", timezone="UTC")
+    assert timetable.seed == ""
+    assert timetable.max_jitter == datetime.timedelta(0)
+
+
+@pytest.mark.parametrize("timetable_cls", [CronTriggerTimetable, CronDataIntervalTimetable])
+def test_empty_seed_with_jitter_is_rejected(timetable_cls):
+    with pytest.raises(ValueError, match="seed"):
+        timetable_cls("0 0 * * *", timezone="UTC", seed="", max_jitter=datetime.timedelta(hours=1))
+    timetable_cls("0 0 * * *", timezone="UTC", seed="", max_jitter=datetime.timedelta(0))
+
+
+@pytest.mark.parametrize("timetable_cls", [CronTriggerTimetable, CronDataIntervalTimetable])
+def test_negative_max_jitter_is_rejected(timetable_cls):
+    with pytest.raises(ValueError, match="negative"):
+        timetable_cls("0 0 * * *", timezone="UTC", seed="my_dag", max_jitter=datetime.timedelta(hours=-1))
