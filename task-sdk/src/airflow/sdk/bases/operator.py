@@ -954,6 +954,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     template_ext: Sequence[str] = ()
 
     template_fields_renderers: ClassVar[dict[str, str]] = {}
+    template_fields_sort_keys: ClassVar[bool] = True
 
     # Names of constructor fields whose values may contain Pydantic model classes
     # this operator can emit to XCom (e.g. ``("output_type",)``). The worker
