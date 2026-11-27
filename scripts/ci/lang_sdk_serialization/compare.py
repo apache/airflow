@@ -213,8 +213,8 @@ def compare_fields(
     Compare two serialized objects key by key.
 
     A key either side leaves out is fine when the value the other side writes equals the schema
-    default. Python may omit a value matching its ``client_defaults`` table, and native SDKs now preserve
-    explicitly set task values even when they equal the schema default.
+    default: Python omits a value matching its ``client_defaults`` table, and an SDK writes every
+    field the author set, including one that happens to equal the default.
     """
     problems = []
     for key in sorted((python.keys() | sdk.keys()) - not_compared):

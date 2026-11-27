@@ -230,9 +230,11 @@ var taskSpecRules = specRules{
 // from the defaults of Python's TaskGroup instead.
 var taskGroupSpecRules = specRules{fields: taskGroupSpecFields}
 
-// writeSpecFields writes into data each field of spec that rules does not skip.
-// A field is unset when it holds its zero value. A pointer field is unset only when nil,
-// so it can explicitly set the zero value of its type, such as false or 0.
+// writeSpecFields writes into data each field of spec that rules does not skip. It leaves out only
+// the fields that are unset: Airflow fills an unset config-backed field from its own config, so a
+// value the author set has to be written even when it equals the schema default. A field is unset
+// when it holds its zero value. A pointer field is unset only when nil, so it can explicitly set
+// the zero value of its type, such as false or 0.
 func writeSpecFields(data map[string]any, spec any, rules specRules) {
 	value := reflect.ValueOf(spec)
 	for i := range value.NumField() {
@@ -301,6 +303,8 @@ func encodeSpecValue(value reflect.Value, set bool) (any, bool) {
 	panic(fmt.Sprintf("airflow: the serializer cannot write a spec field of type %s", value.Type()))
 }
 
+// encodeTime returns t as Python's serializer writes a datetime: the seconds since the Unix epoch,
+// to the microsecond. A Python datetime holds nothing finer than a microsecond.
 func encodeTime(t time.Time) float64 { return float64(t.UnixMicro()) / 1e6 }
 
 // pythonStr returns t as Python's str(datetime) writes it in UTC, such as

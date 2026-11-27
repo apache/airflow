@@ -2178,15 +2178,16 @@ class DagSerialization(BaseSerialization):
         ):
             if key not in dag:
                 dag[key] = get(section, option)
-        task_defaults = OperatorSerialization.generate_client_defaults().copy()
-        if (execution_timeout := conf.gettimedelta("core", "default_task_execution_timeout")) is None:
-            task_defaults.pop("execution_timeout", None)
-        else:
-            task_defaults["execution_timeout"] = execution_timeout.total_seconds()
+        # Native runtimes cannot read Airflow's task defaults, so supply the table a Python Dag
+        # carries. generate_client_defaults() already drops every value equal to its schema
+        # default, which leaves exactly the config-backed fields. A default the payload already
+        # carries wins.
+        client_defaults = serialized_obj.setdefault("client_defaults", {})
+        client_defaults["tasks"] = {
+            **OperatorSerialization.generate_client_defaults(),
+            **client_defaults.get("tasks", {}),
+        }
 
-        client_defaults = serialized_obj.setdefault("client_defaults", {}).setdefault("tasks", {})
-        for key, value in task_defaults.items():
-            client_defaults.setdefault(key, value)
     @classmethod
     def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> SerializedDAG:
         """

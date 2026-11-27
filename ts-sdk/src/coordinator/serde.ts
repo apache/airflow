@@ -451,7 +451,9 @@ function simpleTimetable(type: string): SerializedValue {
 }
 
 /**
- * Write the fields a spec set onto `data`.
+ * Write every field a spec set onto `data`. A field left unset stays out so
+ * Airflow can fill the config-backed ones from its own config; a value the
+ * author set is written even when it equals the schema default.
  */
 function applySchemaFields(
   data: Record<string, SerializedValue>,
