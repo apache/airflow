@@ -1500,6 +1500,118 @@ def test_handler_failure_counts_the_failure_once(create_runtime_ti, mock_supervi
     assert counted.count("operator_failures") == 1
 
 
+def test_handler_failure_logs_warning_while_a_retry_remains(create_runtime_ti, mock_supervisor_comms):
+    """
+    A retryable handler failure is logged as a warning, like the main failure paths.
+
+    ``serde_serialize`` raising ``TypeError`` is the canonical retryable handler
+    failure: it is not one of the terminal classifications, so with retries
+    remaining the outcome is ``UP_FOR_RETRY`` and the failure log must match the
+    severity the main ``except`` blocks use for a non-final try.
+    """
+
+    class _FailingTrigger(DateTimeTrigger):
+        def serialize(self):
+            raise TypeError("trigger cannot be serialized")
+
+    class _DeferWithFailingTrigger(BaseOperator):
+        def execute(self, context):
+            raise TaskDeferred(
+                trigger=_FailingTrigger(moment=timezone.datetime(2024, 11, 22)),
+                method_name="next",
+            )
+
+    task = _DeferWithFailingTrigger(task_id="defer_retryable_handler_failure")
+    ti = create_runtime_ti(
+        dag_id="test_handler_failure_retryable",
+        run_id="test_run",
+        task=task,
+        should_retry=True,
+    )
+
+    log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+
+    state, msg, error = run(ti, ti.get_template_context(), log)
+
+    assert state == TaskInstanceState.UP_FOR_RETRY
+    assert isinstance(error, TypeError)
+    # The traceback travels via sys.exc_info() from run()'s handler, so only assert
+    # an exc_info was attached, not its exact value.
+    log.warning.assert_called_once_with("Task failed with exception, will retry", exc_info=mock.ANY)
+    # The error-level failure log is reserved for the final attempt.
+    assert mock.call("Task failed with exception") not in log.exception.mock_calls
+
+
+def test_handler_failure_logs_error_on_final_try(create_runtime_ti, mock_supervisor_comms):
+    """A retryable handler failure on the final try still logs as an error."""
+
+    class _FailingTrigger(DateTimeTrigger):
+        def serialize(self):
+            raise TypeError("trigger cannot be serialized")
+
+    class _DeferWithFailingTrigger(BaseOperator):
+        def execute(self, context):
+            raise TaskDeferred(
+                trigger=_FailingTrigger(moment=timezone.datetime(2024, 11, 22)),
+                method_name="next",
+            )
+
+    task = _DeferWithFailingTrigger(task_id="defer_final_try_handler_failure")
+    ti = create_runtime_ti(
+        dag_id="test_handler_failure_final_try",
+        run_id="test_run",
+        task=task,
+        should_retry=False,
+    )
+
+    log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+
+    state, msg, error = run(ti, ti.get_template_context(), log)
+
+    assert state == TaskInstanceState.FAILED
+    log.exception.assert_any_call("Task failed with exception")
+    log.warning.assert_not_called()
+
+
+def test_handler_failure_logs_error_for_terminal_exception_despite_retries(
+    create_runtime_ti, mock_supervisor_comms
+):
+    """
+    A terminal handler exception keeps its error-level log even when retries remain.
+
+    ``AirflowFailException`` bypasses the retry decision, so it must not be
+    downgraded to a warning by the retry predicate.
+    """
+
+    class _FailingTrigger(DateTimeTrigger):
+        def serialize(self):
+            raise AirflowFailException("trigger cannot be serialized, do not retry")
+
+    class _DeferWithFailingTrigger(BaseOperator):
+        def execute(self, context):
+            raise TaskDeferred(
+                trigger=_FailingTrigger(moment=timezone.datetime(2024, 11, 22)),
+                method_name="next",
+            )
+
+    task = _DeferWithFailingTrigger(task_id="defer_terminal_handler_failure")
+    ti = create_runtime_ti(
+        dag_id="test_handler_failure_terminal",
+        run_id="test_run",
+        task=task,
+        should_retry=True,
+    )
+
+    log = mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+
+    state, msg, error = run(ti, ti.get_template_context(), log)
+
+    assert state == TaskInstanceState.FAILED
+    assert isinstance(error, AirflowFailException)
+    log.exception.assert_any_call("Task failed with exception")
+    log.warning.assert_not_called()
+
+
 def test_retry_policy_fail_persists_reason(create_runtime_ti, mock_supervisor_comms):
     class _AlwaysFails(BaseOperator):
         def execute(self, context):

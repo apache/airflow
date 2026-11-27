@@ -2067,10 +2067,21 @@ def _handle_handler_failure(
     The handler chain's own classifications are preserved rather than routing everything
     through the retry-count check, so an exception that means "do not retry" still means
     that when it surfaces from a handler.
+
+    Like the main failure paths, a handler failure is logged as a warning while a retry
+    remains and as an error on the final attempt. The terminal classifications take
+    precedence over the retry decision, so they always log as errors.
     """
-    log.exception("Task failed with exception")
     if isinstance(exception, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)):
+        log.exception("Task failed with exception")
         return _terminal_failure(ti), TaskInstanceState.FAILED, exception
+    if _will_be_retried(ti, exception, context):
+        # Not lexically inside an except block here, so pass the in-flight exception
+        # explicitly: at runtime this only runs while run() is handling the handler
+        # exception, which is what the warning must show.
+        log.warning("Task failed with exception, will retry", exc_info=sys.exc_info())
+    else:
+        log.exception("Task failed with exception")
     try:
         msg, state = _handle_current_task_failed(ti, exception, log, context)
     except Exception:
