@@ -23,7 +23,7 @@ import heapq
 import io
 import logging
 import os
-from collections.abc import Generator, Iterator
+from collections.abc import Callable, Generator, Iterator
 from contextlib import suppress
 from datetime import datetime
 from enum import Enum
@@ -393,6 +393,86 @@ def _get_compatible_log_stream(
     )
 
 
+def _read_remote_logs_at_path(
+    relative_path: str,
+    ti: TaskInstance | None = None,
+    metadata: LogMetadata | None = None,
+) -> LogResponse | StreamingLogResponse:
+    """Read remote logs for a relative path, optionally scoped to a TaskInstance."""
+    from airflow.logging_config import get_remote_task_log
+
+    remote_io = get_remote_task_log()
+    if remote_io is None:
+        raise NotImplementedError
+
+    if stream_method := getattr(remote_io, "stream", None):
+        sources, logs = stream_method(relative_path, ti)
+        return sources, logs or []
+
+    sources, logs = remote_io.read(relative_path, ti)
+    return sources, logs or []
+
+
+def _read_local_logs_at_path(
+    base_log_folder: str,
+    worker_log_path: Path,
+) -> StreamingLogResponse:
+    """Read local log files matching ``worker_log_path`` inside ``base_log_folder`` safely."""
+    sources: LogSourceInfo = []
+    log_streams: list[RawLogStream] = []
+    resolved_base = os.path.realpath(base_log_folder)
+    paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
+    if not paths:
+        return sources, log_streams
+
+    for path in paths:
+        resolved_path = os.path.realpath(path)
+        try:
+            if os.path.commonpath([resolved_base, resolved_path]) != resolved_base:
+                continue
+        except ValueError:
+            continue
+
+        try:
+            log_stream = _stream_lines_by_chunk(open(resolved_path, encoding="utf-8"))
+        except OSError:
+            continue
+        sources.append(os.fspath(path))
+        log_streams.append(log_stream)
+    return sources, log_streams
+
+
+def _read_storage_logs(
+    *,
+    read_remote: Callable[[], LogResponse | StreamingLogResponse],
+    read_local: Callable[[], StreamingLogResponse],
+    check_local_when_remote_exists: bool = False,
+    suppress_remote_errors: tuple[type[BaseException], ...] = (NotImplementedError,),
+) -> tuple[LogSourceInfo, list[RawLogStream], list[RawLogStream]]:
+    """Read logs from remote storage first, falling back to local storage."""
+    sources: LogSourceInfo = []
+    remote_logs: list[RawLogStream] = []
+    local_logs: list[RawLogStream] = []
+
+    with suppress(*suppress_remote_errors):
+        remote_sources, logs = read_remote()
+        if not logs:
+            remote_logs = []
+        elif isinstance(logs, list) and isinstance(logs[0], str):
+            remote_logs = [_get_compatible_log_stream(logs)]
+        elif isinstance(logs, list) and _is_logs_stream_like(logs[0]):
+            remote_logs = cast("list[RawLogStream]", logs)
+        else:
+            raise TypeError("Logs should be either a list of strings or a generator of log lines.")
+        sources.extend(remote_sources)
+
+    if not remote_logs or check_local_when_remote_exists:
+        local_sources, local_logs = read_local()
+        sources.extend(local_sources)
+
+    return sources, remote_logs, local_logs
+
+
 class FileTaskHandler(logging.Handler):
     """
     FileTaskHandler is a python log handler that handles and reads task instance logs.
@@ -561,29 +641,14 @@ class FileTaskHandler(logging.Handler):
         # is needed to get correct log path.
         worker_log_rel_path = self._render_filename(ti, try_number)
         sources: LogSourceInfo = []
-        source_list: list[str] = []
-        remote_logs: list[RawLogStream] = []
-        local_logs: list[RawLogStream] = []
         executor_logs: list[RawLogStream] = []
         served_logs: list[RawLogStream] = []
-        with suppress(NotImplementedError):
-            sources, logs = self._read_remote_logs(ti, try_number, metadata)
-            if not logs:
-                remote_logs = []
-            elif isinstance(logs, list) and isinstance(logs[0], str):
-                # If the logs are in legacy format, convert them to a generator of log lines
-                remote_logs = [
-                    # We don't need to use the log_pos here, as we are using the metadata to track the position
-                    _get_compatible_log_stream(logs)
-                ]
-            elif isinstance(logs, list) and _is_logs_stream_like(logs[0]):
-                # If the logs are already in a stream-like format, we can use them directly
-                remote_logs = cast("list[RawLogStream]", logs)
-            else:
-                # If the logs are in a different format, raise an error
-                raise TypeError("Logs should be either a list of strings or a generator of log lines.")
-            # Extend LogSourceInfo
-            source_list.extend(sources)
+        worker_log_full_path = Path(self.local_base, worker_log_rel_path)
+        source_list, remote_logs, local_logs = _read_storage_logs(
+            read_remote=lambda: self._read_remote_logs(ti, try_number, metadata),
+            read_local=lambda: self._read_from_local(worker_log_full_path),
+            check_local_when_remote_exists=ti.state in State.unfinished,
+        )
 
         has_executor_log = False
         if ti.state == TaskInstanceState.RUNNING:
@@ -600,12 +665,6 @@ class FileTaskHandler(logging.Handler):
             if sources:
                 source_list.extend(sources)
                 has_executor_log = True
-
-        if not (remote_logs and ti.state not in State.unfinished):
-            # when finished, if we have remote logs, no need to check local
-            worker_log_full_path = Path(self.local_base, worker_log_rel_path)
-            sources, local_logs = self._read_from_local(worker_log_full_path)
-            source_list.extend(sources)
         if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_executor_log:
             sources, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             source_list.extend(sources)
@@ -832,39 +891,7 @@ class FileTaskHandler(logging.Handler):
         self,
         worker_log_path: Path,
     ) -> StreamingLogResponse:
-        sources: LogSourceInfo = []
-        log_streams: list[RawLogStream] = []
-        # The glob below can match symlinks as well as regular files, so
-        # resolve each hit and only open the ones that stay inside the base
-        # log folder. Canonicalising ``self.local_base`` once up front makes
-        # the containment check compare two already-resolved paths.
-        base_log_folder = os.path.realpath(self.local_base)
-        paths = sorted(worker_log_path.parent.glob(worker_log_path.name + "*"))
-        if not paths:
-            return sources, log_streams
-
-        for path in paths:
-            resolved_path = os.path.realpath(path)
-            try:
-                if os.path.commonpath([base_log_folder, resolved_path]) != base_log_folder:
-                    continue
-            except ValueError:
-                # ``os.path.commonpath`` raises ``ValueError`` when the two
-                # paths have nothing in common (e.g. different drives on
-                # Windows); treat that as "not contained" and skip the file.
-                continue
-
-            # Open the resolved path so the file we read is the same one we
-            # just validated above. Append to ``sources`` only after a
-            # successful ``open`` so ``sources`` and ``log_streams`` stay
-            # aligned.
-            try:
-                log_stream = _stream_lines_by_chunk(open(resolved_path, encoding="utf-8"))
-            except OSError:
-                continue
-            sources.append(os.fspath(path))
-            log_streams.append(log_stream)
-        return sources, log_streams
+        return _read_local_logs_at_path(self.local_base, worker_log_path)
 
     def _read_from_logs_server(
         self,
@@ -943,25 +970,5 @@ class FileTaskHandler(logging.Handler):
           such as, "reading from x file".
         * Each element in the logs list should be the content of one file.
         """
-        remote_io = None
-        try:
-            from airflow.logging_config import get_remote_task_log
-
-            remote_io = get_remote_task_log()
-        except Exception:
-            pass
-
-        if remote_io is None:
-            # Import not found, or explicitly set to None
-            raise NotImplementedError
-
-        # This living here is not really a good plan, but it just about works for now.
-        # Ideally we move all the read+combine logic in to TaskLogReader and out of the task handler.
         path = self._render_filename(ti, try_number)
-        if stream_method := getattr(remote_io, "stream", None):
-            # Use .stream interface if provider's RemoteIO supports it
-            sources, logs = stream_method(path, ti)
-            return sources, logs or []
-        # Fallback to .read interface
-        sources, logs = remote_io.read(path, ti)
-        return sources, logs or []
+        return _read_remote_logs_at_path(path, ti, metadata)

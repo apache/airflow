@@ -16,25 +16,23 @@
 # under the License.
 """Reader for logs not tied to a TaskInstance, looked up by their path relative to the log folder."""
 
+"""Reader for logs not tied to a TaskInstance, looked up by their path relative to the log folder."""
+
 from __future__ import annotations
 
 import os
 import re
 from collections.abc import Generator
-from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import (
-    FileTaskHandler,
     StructuredLogMessage,
-    _get_compatible_log_stream,
     _interleave_logs,
+    _read_local_logs_at_path,
+    _read_remote_logs_at_path,
+    _read_storage_logs,
 )
-
-if TYPE_CHECKING:
-    from airflow._shared.logging.remote import LogSourceInfo, RawLogStream, StreamingLogResponse
 
 _SAFE_PATH_COMPONENT = re.compile(r"[A-Za-z0-9._:+\-~@]+")
 
@@ -53,15 +51,14 @@ def read_logs_at_path(relative_path: str) -> Generator[StructuredLogMessage, Non
     The path is relative to the log folder. Callers build it and must validate any user-supplied
     parts with ``validate_log_path_component``. Deadline callbacks are the current user.
     """
-    sources: LogSourceInfo = []
-    log_streams: list[RawLogStream] = []
-
-    with suppress(Exception):
-        sources, log_streams = _read_remote_logs(relative_path)
-
-    if not log_streams:
-        local_sources, log_streams = _read_local_logs(relative_path)
-        sources = [*sources, *local_sources]
+    base_log_folder = os.path.realpath(conf.get("logging", "base_log_folder"))
+    sources, remote_logs, local_logs = _read_storage_logs(
+        read_remote=lambda: _read_remote_logs_at_path(relative_path),
+        read_local=lambda: _read_local_logs_at_path(base_log_folder, Path(base_log_folder, relative_path)),
+        check_local_when_remote_exists=False,
+        suppress_remote_errors=(Exception,),
+    )
+    log_streams = [*remote_logs, *local_logs]
 
     if not log_streams:
         yield StructuredLogMessage(event="No logs found.")
@@ -70,29 +67,3 @@ def read_logs_at_path(relative_path: str) -> Generator[StructuredLogMessage, Non
     yield StructuredLogMessage(event="::group::Log message source details", sources=sources)  # type: ignore[call-arg]
     yield StructuredLogMessage(event="::endgroup::")
     yield from _interleave_logs(*log_streams)
-
-
-def _read_remote_logs(relative_path: str) -> StreamingLogResponse:
-    from airflow.logging_config import get_remote_task_log
-
-    remote_io = get_remote_task_log()
-    if remote_io is None:
-        return [], []
-
-    # Prefer .stream(), which yields the remote log lazily, over .read(), which loads it all into memory.
-    # These logs have no TaskInstance, so ti is None.
-    if stream_method := getattr(remote_io, "stream", None):
-        sources, logs = stream_method(relative_path, None)
-        return sources, logs or []
-
-    sources, logs = remote_io.read(relative_path, None)
-    if not logs:
-        return sources, []
-
-    return sources, [_get_compatible_log_stream(logs)]
-
-
-def _read_local_logs(relative_path: str) -> StreamingLogResponse:
-    """Read with the task handler's symlink-safe local reader."""
-    base_log_folder = os.path.realpath(conf.get("logging", "base_log_folder"))
-    return FileTaskHandler(base_log_folder)._read_from_local(Path(base_log_folder, relative_path))

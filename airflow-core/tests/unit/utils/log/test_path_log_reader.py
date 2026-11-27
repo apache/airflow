@@ -68,7 +68,7 @@ class TestReadLogsAtPath:
             yield '{"event": "remote line"}\n'
 
         with patch(
-            "airflow.utils.log.path_log_reader._read_remote_logs",
+            "airflow.utils.log.path_log_reader._read_remote_logs_at_path",
             return_value=(["s3://bucket/log"], [one_stream()]),
         ):
             msgs = list(read_logs_at_path(PATH))
