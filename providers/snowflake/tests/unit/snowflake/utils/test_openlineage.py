@@ -39,9 +39,9 @@ from airflow.providers.snowflake.utils.openlineage import (
 from airflow.utils.state import TaskInstanceState
 
 FROZEN_NOW = timezone.datetime(2025, 1, 1, 12, 0, 0)
-_EXPECTED_RANGE_START = (FROZEN_NOW - datetime.timedelta(minutes=5)).isoformat()
+_EXPECTED_RANGE_START = int((FROZEN_NOW - datetime.timedelta(minutes=5)).timestamp())
 _EXPECTED_TIME_FILTER = (
-    f"end_time_range_start=>to_timestamp_tz('{_EXPECTED_RANGE_START}'), result_limit=>10000"
+    f"END_TIME_RANGE_START => TO_TIMESTAMP_LTZ({_EXPECTED_RANGE_START}), RESULT_LIMIT => 10000"
 )
 
 
@@ -250,7 +250,7 @@ def test_get_queries_details_from_snowflake_single_query(mock_run_single_query):
     details = _get_queries_details_from_snowflake(hook, query_ids)
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         "WHERE QUERY_ID = 'ABC';"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
@@ -279,7 +279,7 @@ def test_get_queries_details_from_snowflake_single_query_api_hook(mock_run_singl
 
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         "WHERE QUERY_ID = 'ABC';"
     )
     expected_details = {
@@ -293,6 +293,33 @@ def test_get_queries_details_from_snowflake_single_query_api_hook(mock_run_singl
     }
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
     assert details == {"ABC": expected_details}
+
+
+@pytest.mark.parametrize(
+    ("hook_class", "run_query_function"),
+    [
+        (SnowflakeHook, "_run_single_query_with_hook"),
+        (SnowflakeSqlApiHook, "_run_single_query_with_api_hook"),
+    ],
+)
+def test_get_queries_details_from_snowflake_with_task_start_time(hook_class, run_query_function):
+    hook = hook_class(snowflake_conn_id="test_conn")
+    task_start_time = datetime.datetime(2025, 6, 18, 11, 12, 51, 326000, tzinfo=datetime.UTC)
+
+    with mock.patch(
+        f"airflow.providers.snowflake.utils.openlineage.{run_query_function}", return_value=[]
+    ) as mock_run_query:
+        details = _get_queries_details_from_snowflake(hook, ["ABC", "DEF"], task_start_time=task_start_time)
+
+    # 5 minutes before the task start, as epoch seconds
+    expected_query = (
+        "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
+        "FROM table(snowflake.information_schema.query_history_by_user("
+        "END_TIME_RANGE_START => TO_TIMESTAMP_LTZ(1750244871), RESULT_LIMIT => 10000)) "
+        "WHERE QUERY_ID IN ('ABC', 'DEF');"
+    )
+    mock_run_query.assert_called_once_with(hook=hook, sql=expected_query)
+    assert details == {}
 
 
 @time_machine.travel(FROZEN_NOW, tick=False)
@@ -327,7 +354,7 @@ def test_get_queries_details_from_snowflake_multiple_queries(mock_run_single_que
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
@@ -366,7 +393,7 @@ def test_get_queries_details_from_snowflake_multiple_queries_api_hook(mock_run_s
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     expected_details = [
@@ -405,7 +432,7 @@ def test_get_queries_details_from_snowflake_no_data_found(mock_run_single_query)
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
@@ -424,7 +451,7 @@ def test_get_queries_details_from_snowflake_no_data_found_api_hook(mock_run_sing
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
@@ -443,7 +470,7 @@ def test_get_queries_details_from_snowflake_error(mock_run_single_query):
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query.assert_called_once_with(hook=hook, sql=expected_query)
@@ -462,7 +489,7 @@ def test_get_queries_details_from_snowflake_error_api_hook(mock_run_single_query
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
@@ -485,7 +512,7 @@ def test_get_queries_details_from_snowflake_error_api_hook_process_data(
     expected_query_condition = f"IN {tuple(query_ids)}"
     expected_query = (
         "SELECT QUERY_ID, EXECUTION_STATUS, START_TIME, END_TIME, QUERY_TEXT, ERROR_CODE, ERROR_MESSAGE "
-        f"FROM table(snowflake.information_schema.query_history({_EXPECTED_TIME_FILTER})) "
+        f"FROM table(snowflake.information_schema.query_history_by_user({_EXPECTED_TIME_FILTER})) "
         f"WHERE QUERY_ID {expected_query_condition};"
     )
     mock_run_single_query_api.assert_called_once_with(hook=hook, sql=expected_query)
@@ -505,6 +532,7 @@ def test_emit_openlineage_events_for_snowflake_queries_with_extra_metadata(
         dag_id="dag_id",
         task_id="task_id",
         state=TaskInstanceState.FAILED,  # This will be query default state if no metadata found
+        start_date=timezone.datetime(2025, 1, 1),
     )
 
     fake_metadata = {
@@ -531,15 +559,17 @@ def test_emit_openlineage_events_for_snowflake_queries_with_extra_metadata(
     default_database = "MY_DB"
     default_schema = "MY_SCHEMA"
 
+    fake_hook = mock.MagicMock()
+
     with mock.patch(
         "airflow.providers.snowflake.utils.openlineage._get_queries_details_from_snowflake",
         return_value=fake_metadata,
-    ):
+    ) as mock_get_queries_details:
         emit_openlineage_events_for_snowflake_queries(
             query_ids=query_ids,
             query_source_namespace="snowflake_ns",
             task_instance=mock_ti,
-            hook=mock.MagicMock(),
+            hook=fake_hook,
             query_for_extra_metadata=True,
             default_database=default_database,
             default_schema=default_schema,
@@ -547,6 +577,9 @@ def test_emit_openlineage_events_for_snowflake_queries_with_extra_metadata(
             additional_job_facets=additional_job_facets,
         )
 
+    mock_get_queries_details.assert_called_once_with(
+        fake_hook, query_ids, task_start_time=timezone.datetime(2025, 1, 1)
+    )
     assert query_ids == original_query_ids  # Verify that the input query_ids list is unchanged.
 
     expected_calls = [
