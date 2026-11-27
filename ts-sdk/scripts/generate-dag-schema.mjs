@@ -192,6 +192,7 @@ export const UNEXPRESSIBLE_DAG_FIELDS = {
   deadline: "an anyOf; Dag-run deadlines, which the SDK does not model yet",
   default_args: "a dict of arbitrary shape",
   access_control: "a dict of arbitrary shape",
+  user_defined_macros: "a dict of arbitrary shape",
   task_group: "an anyOf holding the group tree, which the Dag builds from its wiring",
   edge_info: "an object holding the edges, which the Dag builds from its wiring",
   dag_dependencies: "an object the serializer derives from the Dag's tasks",
