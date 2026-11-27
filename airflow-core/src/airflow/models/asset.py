@@ -25,6 +25,7 @@ from uuid import UUID
 import sqlalchemy as sa
 from sqlalchemy import (
     JSON,
+    Boolean,
     Column,
     ForeignKey,
     ForeignKeyConstraint,
@@ -863,6 +864,8 @@ class AssetEvent(Base):
     :param source_map_index: the map_index of the TI which updated the asset
     :param timestamp: the time the event was logged
     :param partition_key: the key for the partition associated with event, if applicable
+    :param backfill_derived: whether the event comes from an opted-in backfill run or a run derived from one
+    :param origin_backfill_id: the backfill that started the chain of runs, if known (audit only)
 
     We use relationships instead of foreign keys so that asset events are not deleted even
     if the foreign key object is.
@@ -878,6 +881,12 @@ class AssetEvent(Base):
     source_map_index: Mapped[int | None] = mapped_column(Integer, nullable=True, server_default="-1")
     timestamp: Mapped[datetime] = mapped_column(UtcDateTime, default=timezone.utcnow, nullable=False)
     partition_key: Mapped[str | None] = mapped_column(StringID(), nullable=True)
+    backfill_derived: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=sa.false()
+    )
+    """Stored on the event so that the marker survives cleanup of the source run."""
+    origin_backfill_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    """The backfill that started the chain of runs. For audit only, deliberately not a foreign key."""
 
     __tablename__ = "asset_event"
     __table_args__ = (

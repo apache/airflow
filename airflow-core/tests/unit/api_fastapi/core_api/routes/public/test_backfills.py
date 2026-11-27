@@ -164,6 +164,7 @@ class TestListBackfills(TestBackfillEndpoint):
                     "from_date": to_iso(from_date),
                     "id": b.id,
                     "is_paused": False,
+                    "propagate_priority": False,
                     "reprocess_behavior": "none",
                     "max_active_runs": 10,
                     "to_date": to_iso(to_date),
@@ -193,6 +194,7 @@ class TestGetBackfill(TestBackfillEndpoint):
             "from_date": to_iso(from_date),
             "id": backfill.id,
             "is_paused": False,
+            "propagate_priority": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
@@ -455,12 +457,44 @@ class TestCreateBackfill(TestBackfillEndpoint):
             "from_date": from_date_iso,
             "id": mock.ANY,
             "is_paused": False,
+            "propagate_priority": False,
             "reprocess_behavior": repro_exp,
             "max_active_runs": 5,
             "to_date": to_date_iso,
             "updated_at": mock.ANY,
         }
         check_last_log(session, dag_id="TEST_DAG_1", event="create_backfill", logical_date=None)
+
+    @pytest.mark.parametrize(
+        ("request_value", "expected"),
+        [
+            pytest.param(None, False, id="omitted-defaults-to-false"),
+            pytest.param(False, False, id="explicit-false"),
+            pytest.param(True, True, id="explicit-true"),
+        ],
+    )
+    def test_create_backfill_propagate_priority(
+        self, request_value, expected, session, dag_maker, test_client
+    ):
+        with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *"):
+            EmptyOperator(task_id="mytask")
+        session.commit()
+        data = {
+            "dag_id": "TEST_DAG_1",
+            "from_date": to_iso(pendulum.parse("2024-01-01")),
+            "to_date": to_iso(pendulum.parse("2024-01-02")),
+        }
+        if request_value is not None:
+            data["propagate_priority"] = request_value
+
+        response = test_client.post(url="/backfills", json=data)
+
+        assert response.status_code == 200
+        assert response.json()["propagate_priority"] is expected
+        assert (
+            session.scalar(select(Backfill.propagate_priority).where(Backfill.id == response.json()["id"]))
+            is expected
+        )
 
     @pytest.mark.parametrize(
         ("drain_dag", "expected_state"),
@@ -1464,6 +1498,7 @@ class TestCreateBackfillPartitioned(TestBackfillEndpoint):
                 "from_date": "2026-02-18T00:00:00Z",
                 "id": mock.ANY,
                 "is_paused": False,
+                "propagate_priority": False,
                 "reprocess_behavior": "none",
                 "max_active_runs": 5,
                 "to_date": "2026-02-20T00:00:00Z",
@@ -1623,6 +1658,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
             "from_date": to_iso(from_date),
             "id": backfill.id,
             "is_paused": True,
+            "propagate_priority": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
@@ -1708,6 +1744,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "from_date": to_iso(from_date),
             "id": backfill.id,
             "is_paused": True,
+            "propagate_priority": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_iso(to_date),
@@ -1788,6 +1825,7 @@ class TestUnpauseBackfill(TestBackfillEndpoint):
             "from_date": to_iso(from_date),
             "id": backfill.id,
             "is_paused": False,
+            "propagate_priority": False,
             "reprocess_behavior": "none",
             "max_active_runs": 10,
             "to_date": to_iso(to_date),

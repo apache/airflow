@@ -7017,3 +7017,53 @@ def test_task_instance_scheduling_decisions_skips_retry_not_yet_due(mock_deps_me
     assert decision.schedulable_tis == []
     mock_deps_met.assert_not_called()
     assert successor.retry_at == ti.end_date + datetime.timedelta(minutes=10)
+
+
+@pytest.mark.db_test
+def test_get_queued_dag_runs_orders_backfill_derived_runs_last(dag_maker, session):
+    with dag_maker("derived_order_dag", schedule=None, session=session):
+        EmptyOperator(task_id="t")
+    now = timezone.utcnow()
+    for run_id, derived, run_after in [
+        ("derived_old", True, now - datetime.timedelta(hours=3)),
+        ("normal_new", False, now - datetime.timedelta(hours=1)),
+        ("derived_older", True, now - datetime.timedelta(hours=4)),
+        ("normal_old", False, now - datetime.timedelta(hours=2)),
+    ]:
+        dr = dag_maker.create_dagrun(
+            run_id=run_id,
+            logical_date=None,
+            run_type=DagRunType.ASSET_TRIGGERED,
+            state=DagRunState.QUEUED,
+            run_after=run_after,
+            triggered_by=DagRunTriggeredByType.ASSET,
+        )
+        dr.backfill_derived = derived
+    session.commit()
+
+    runs = DagRun.get_queued_dag_runs_to_set_running(session).all()
+
+    assert [r.run_id for r in runs] == ["normal_old", "normal_new", "derived_older", "derived_old"]
+
+
+@pytest.mark.db_test
+def test_active_runs_of_dags_excludes_backfill_derived_runs(dag_maker, session):
+    with dag_maker("derived_count_dag", schedule=None, session=session):
+        EmptyOperator(task_id="t")
+    for run_id, derived in [("normal", False), ("derived", True)]:
+        dr = dag_maker.create_dagrun(
+            run_id=run_id,
+            logical_date=None,
+            run_type=DagRunType.ASSET_TRIGGERED,
+            state=DagRunState.QUEUED,
+            triggered_by=DagRunTriggeredByType.ASSET,
+        )
+        dr.backfill_derived = derived
+    session.commit()
+
+    assert DagRun.active_runs_of_dags(
+        dag_ids=["derived_count_dag"], exclude_backfill=True, session=session
+    ) == {"derived_count_dag": 1}
+    assert DagRun.active_runs_of_dags(
+        dag_ids=["derived_count_dag"], exclude_backfill=False, session=session
+    ) == {"derived_count_dag": 2}

@@ -72,6 +72,7 @@ const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProp
       dag_id: dag.dag_id,
       from_date: "",
       max_active_runs: 1,
+      propagate_priority: false,
       reprocess_behavior: "none",
       run_backwards: false,
       run_on_latest_version: resolvedRunOnLatest,
@@ -263,6 +264,16 @@ const RunBackfillForm = ({ dag, disabled = false, onClose }: RunBackfillFormProp
           render={({ field }) => (
             <Checkbox checked={field.value ?? undefined} colorPalette="brand" onChange={field.onChange}>
               {translate("dags:runAndTaskActions.options.runOnLatestVersion")}
+            </Checkbox>
+          )}
+        />
+        <Spacer />
+        <Controller
+          control={control}
+          name="propagate_priority"
+          render={({ field }) => (
+            <Checkbox checked={field.value} onChange={field.onChange}>
+              {translate("backfill.propagatePriority")}
             </Checkbox>
           )}
         />

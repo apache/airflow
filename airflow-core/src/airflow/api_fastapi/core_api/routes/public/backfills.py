@@ -329,6 +329,7 @@ def create_backfill(
             reprocess_behavior=backfill_request.reprocess_behavior,
             run_on_latest_version=resolved_run_on_latest,
             drain_dag=backfill_request.drain_dag,
+            propagate_priority=backfill_request.propagate_priority,
         )
         return BackfillResponse.model_validate(backfill_obj)
     except OperationalError as e:

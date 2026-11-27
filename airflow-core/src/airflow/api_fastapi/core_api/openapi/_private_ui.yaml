@@ -3624,6 +3624,9 @@ components:
         max_active_runs:
           type: integer
           title: Max Active Runs
+        propagate_priority:
+          type: boolean
+          title: Propagate Priority
         created_at:
           type: string
           format: date-time
@@ -3651,6 +3654,7 @@ components:
       - is_paused
       - reprocess_behavior
       - max_active_runs
+      - propagate_priority
       - created_at
       - completed_at
       - updated_at

@@ -293,6 +293,10 @@ export type BackfillPostBody = {
     reprocess_behavior?: ReprocessBehavior;
     max_active_runs?: number;
     /**
+     * Give the asset-triggered Dag runs downstream of this backfill, at any depth, the same low scheduling priority as backfill runs. Runs that are already running are not preempted.
+     */
+    propagate_priority?: boolean;
+    /**
      * Run on the latest bundle version of the Dag for each backfilled run. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``True`` (the historical default for backfills).
      */
     run_on_latest_version?: boolean | null;
@@ -316,6 +320,7 @@ export type BackfillResponse = {
     is_paused: boolean;
     reprocess_behavior: ReprocessBehavior;
     max_active_runs: number;
+    propagate_priority: boolean;
     created_at: string;
     completed_at: string | null;
     updated_at: string;

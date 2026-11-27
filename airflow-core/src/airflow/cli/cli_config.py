@@ -415,6 +415,14 @@ ARG_MAX_ACTIVE_RUNS = Arg(
     type=positive_int(allow_zero=False),
     help="Max active runs for this backfill.",
 )
+ARG_BACKFILL_PROPAGATE_PRIORITY = Arg(
+    ("--propagate-priority",),
+    help=(
+        "Give the asset-triggered Dag runs downstream of this backfill the same low scheduling "
+        "priority as backfill runs. Running Dag runs are not preempted."
+    ),
+    action="store_true",
+)
 ARG_BACKFILL_DRY_RUN = Arg(
     ("--dry-run",),
     help="Perform a dry run",
@@ -1242,6 +1250,7 @@ BACKFILL_COMMANDS = (
             ARG_MAX_ACTIVE_RUNS,
             ARG_BACKFILL_REPROCESS_BEHAVIOR,
             ARG_BACKFILL_RUN_ON_LATEST_VERSION,
+            ARG_BACKFILL_PROPAGATE_PRIORITY,
             ARG_BACKFILL_DRY_RUN,
         ),
     ),

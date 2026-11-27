@@ -13482,6 +13482,13 @@ components:
           minimum: 1.0
           title: Max Active Runs
           default: 10
+        propagate_priority:
+          type: boolean
+          title: Propagate Priority
+          description: Give the asset-triggered Dag runs downstream of this backfill,
+            at any depth, the same low scheduling priority as backfill runs. Runs
+            that are already running are not preempted.
+          default: false
         run_on_latest_version:
           anyOf:
           - type: boolean
@@ -13540,6 +13547,9 @@ components:
         max_active_runs:
           type: integer
           title: Max Active Runs
+        propagate_priority:
+          type: boolean
+          title: Propagate Priority
         created_at:
           type: string
           format: date-time
@@ -13567,6 +13577,7 @@ components:
       - is_paused
       - reprocess_behavior
       - max_active_runs
+      - propagate_priority
       - created_at
       - completed_at
       - updated_at

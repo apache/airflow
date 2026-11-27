@@ -8270,7 +8270,7 @@ class TestSchedulerJob:
         asset_event_ids = {event.id for event in asset_events}
         assert dag_run.consumed_asset_events == []
 
-        with assert_queries_count(1, session=session):
+        with assert_queries_count(2, session=session):  # the INSERT and the backfill-derived check
             consumed = _associate_asset_events_with_dag_run(
                 dag_run=dag_run,
                 asset_event_ids_select=select(AssetEvent.id.label("event_id")).where(
@@ -8479,6 +8479,62 @@ class TestSchedulerJob:
         )
 
         assert created_run.creating_job_id == scheduler_job.id
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("event_flags", "expected"),
+        [
+            pytest.param([False, False], False, id="all-normal"),
+            pytest.param([True, False], True, id="marked-first"),
+            pytest.param([False, True], True, id="marked-last"),
+            pytest.param([True, True], True, id="all-marked"),
+        ],
+    )
+    @conf_vars({("scheduler", "batch_asset_events"): "True"})
+    def test_create_dag_runs_assets_classifies_backfill_derived(
+        self, session, dag_maker, event_flags, expected
+    ):
+        asset = Asset(uri="test://derived", name="derived_asset", group="test_group")
+        with dag_maker(dag_id="derived-producer", start_date=timezone.utcnow(), session=session):
+            BashOperator(task_id="task", bash_command="echo 1", outlets=[asset])
+        dag_maker.create_dagrun(run_id="producer_run")
+        asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+
+        with dag_maker(dag_id="derived-consumer", schedule=[asset]):
+            pass
+        consumer = dag_maker.dag
+        base = session.scalar(
+            select(DagScheduleAssetReference.created_at).where(
+                DagScheduleAssetReference.dag_id == consumer.dag_id
+            )
+        )
+        events = [
+            AssetEvent(
+                asset_id=asset_id,
+                source_task_id="task",
+                source_dag_id="derived-producer",
+                source_run_id="producer_run",
+                source_map_index=-1,
+                timestamp=base + timedelta(seconds=i + 1),
+                backfill_derived=flag,
+            )
+            for i, flag in enumerate(event_flags)
+        ]
+        session.add_all(events)
+        session.flush()
+        session.add_all(
+            AssetDagRunQueue(asset_id=asset_id, target_dag_id=consumer.dag_id, asset_event_id=e.id)
+            for e in events
+        )
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job(), executors=[self.null_exec])
+        with create_session() as session:
+            self.job_runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+
+        created_run = session.scalars(select(DagRun).where(DagRun.dag_id == consumer.dag_id)).one()
+        assert created_run.backfill_derived is expected
+        assert created_run.backfill_id is None
 
     @mock.patch.object(SchedulerJobRunner, "_get_current_dag", autospec=True)
     def test_create_dag_runs_asset_triggered_uses_behavior_flag(self, mock_get_current_dag):
@@ -14798,6 +14854,54 @@ def test_create_dagruns_asset_gated_dequeues_already_consumed_events(
     assert serdag is not None
     assert runner._collect_gated_asset_events(dag=serdag, session=session) is None
     assert set(session.scalars(query)) == {event.id for event in events[1:]}
+
+
+@pytest.mark.usefixtures("disable_load_example")
+@pytest.mark.need_serialized_dag
+@pytest.mark.parametrize(
+    ("event_flags", "expected"),
+    [
+        pytest.param([False, False], False, id="all-normal"),
+        pytest.param([False, True], True, id="one-marked"),
+    ],
+)
+def test_create_dagruns_asset_gated_classifies_backfill_derived(
+    session: Session, dag_maker, event_flags, expected
+):
+    asset = Asset(uri="test://asset-gated-derived", name="asset-gated-derived")
+    logical_date = pendulum.datetime(2026, 3, 29, 17, tz="UTC")
+    with dag_maker(
+        dag_id="asset-gated-derived",
+        schedule=AssetAndTimeSchedule(
+            timetable=CronTriggerTimetable("* * * * *", timezone="UTC"),
+            assets=[asset],
+        ),
+        session=session,
+    ):
+        EmptyOperator(task_id="dummy_task")
+    dag_model = dag_maker.dag_model
+    asset_id = session.scalar(select(AssetModel.id).where(AssetModel.uri == asset.uri))
+    events = [
+        AssetEvent(asset_id=asset_id, timestamp=logical_date, backfill_derived=flag) for flag in event_flags
+    ]
+    session.add_all(events)
+    session.flush()
+    session.add_all(
+        AssetDagRunQueue(asset_id=asset_id, target_dag_id=dag_model.dag_id, asset_event_id=event.id)
+        for event in events
+    )
+    dag_model.next_dagrun = logical_date
+    dag_model.next_dagrun_data_interval = (logical_date, logical_date)
+    dag_model.next_dagrun_create_after = logical_date
+    session.flush()
+
+    runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor()])
+    runner._create_dagruns_for_dags(cast("CommitProhibitorGuard", session), session)
+    session.flush()
+
+    dag_run = session.scalars(select(DagRun).where(DagRun.dag_id == dag_model.dag_id)).one()
+    assert len(dag_run.consumed_asset_events) == len(events)
+    assert dag_run.backfill_derived is expected
 
 
 @pytest.mark.usefixtures("disable_load_example")

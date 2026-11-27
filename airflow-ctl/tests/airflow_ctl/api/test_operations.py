@@ -770,6 +770,7 @@ class TestBackfillOperations:
         is_paused=False,
         reprocess_behavior=ReprocessBehavior.COMPLETED,
         max_active_runs=1,
+        propagate_priority=False,
         created_at=datetime.datetime(2024, 12, 31, 23, 59, 59),
         completed_at=datetime.datetime(2025, 1, 1, 0, 0, 0),
         updated_at=datetime.datetime(2025, 1, 1, 0, 0, 0),

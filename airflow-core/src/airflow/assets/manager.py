@@ -22,7 +22,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import structlog
-from sqlalchemy import exc, insert, or_, select
+from sqlalchemy import exc, func, insert, or_, select
 from sqlalchemy.orm import joinedload
 
 from airflow._shared.observability.metrics import stats
@@ -41,6 +41,7 @@ from airflow.models.asset import (
     PartitionedAssetKeyLog,
     TaskOutletAssetReference,
     asset_alias_asset_event_association_table,
+    association_table,
     insert_asset_dag_run_queue_rows,
 )
 from airflow.models.log import Log
@@ -228,6 +229,33 @@ class AssetManager(LoggingMixin):
 
         return filtered
 
+    @staticmethod
+    def _get_source_run_provenance(
+        task_instance: TaskInstance, *, session: Session
+    ) -> tuple[bool, int | None]:
+        """Return whether events from the task's run are backfill-derived, and the originating backfill."""
+        from airflow.models.backfill import Backfill
+        from airflow.models.dagrun import DagRun
+
+        row = session.execute(
+            select(DagRun.id, DagRun.backfill_derived, Backfill.id, Backfill.propagate_priority)
+            .outerjoin(Backfill, Backfill.id == DagRun.backfill_id)
+            .where(DagRun.dag_id == task_instance.dag_id, DagRun.run_id == task_instance.run_id)
+        ).one_or_none()
+        if row is None:
+            return False, None
+        dag_run_id, run_is_derived, backfill_id, propagate_priority = row
+        if backfill_id is not None and propagate_priority:
+            return True, backfill_id
+        if not run_is_derived:
+            return False, None
+        origin_backfill_id = session.scalar(
+            select(func.min(AssetEvent.origin_backfill_id))
+            .join(association_table, association_table.c.event_id == AssetEvent.id)
+            .where(association_table.c.dag_run_id == dag_run_id, AssetEvent.backfill_derived.is_(True))
+        )
+        return True, origin_backfill_id
+
     @classmethod
     def register_asset_change(
         cls,
@@ -303,6 +331,10 @@ class AssetManager(LoggingMixin):
             # TaskInstance imports the asset manager.
             from airflow.models.task_coordinates import get_public_map_index
 
+            backfill_derived, origin_backfill_id = cls._get_source_run_provenance(
+                task_instance, session=session
+            )
+            event_kwargs.update(backfill_derived=backfill_derived, origin_backfill_id=origin_backfill_id)
             source_map_index = get_public_map_index(task_instance, session=session)
             event_kwargs.update(
                 source_task_id=task_instance.task_id,
