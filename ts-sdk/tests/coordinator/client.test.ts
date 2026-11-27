@@ -42,6 +42,11 @@ const FAKE_CTX: TaskContext = {
   tryNumber: 1,
   mapIndex: -1,
   conf: {},
+  logicalDate: null,
+  dataIntervalStart: null,
+  dataIntervalEnd: null,
+  runAfter: new Date("2026-01-01T00:00:00Z"),
+  runType: "manual",
   signal: new AbortController().signal,
 };
 
