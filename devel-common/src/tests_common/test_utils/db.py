@@ -24,7 +24,7 @@ import os
 from tempfile import gettempdir
 from typing import TYPE_CHECKING
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, exists, select
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowOptionalProviderFeatureException
@@ -536,6 +536,13 @@ def clear_db_revoked_tokens():
         from airflow.models.revoked_token import RevokedToken
 
         session.execute(delete(RevokedToken))
+
+
+def is_token_revoked(jti: str) -> bool:
+    from airflow.models.revoked_token import RevokedToken
+
+    with create_session() as session:
+        return bool(session.scalar(select(exists().where(RevokedToken.jti == jti))))
 
 
 @_retry_db

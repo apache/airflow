@@ -26,10 +26,9 @@ from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
 from airflow.api_fastapi.common.types import CliLoginMethods
-from airflow.models.revoked_token import RevokedToken
 
 from tests_common.test_utils.config import conf_vars
-from tests_common.test_utils.db import clear_db_revoked_tokens
+from tests_common.test_utils.db import clear_db_revoked_tokens, is_token_revoked
 
 AUTH_MANAGER_LOGIN_URL = "http://some_login_url"
 AUTH_MANAGER_LOGOUT_URL = "http://some_logout_url"
@@ -230,7 +229,7 @@ class TestLogoutTokenRevocation:
 
     @pytest.fixture
     def logout_client(self, logout_app):
-        """A test client without the is_revoked mock so revocation tests hit the real DB."""
+        """A test client without the is_revoked_async mock so revocation tests hit the real DB."""
         with TestClient(logout_app, base_url="http://testserver/api/v2") as client:
             yield client
 
@@ -258,7 +257,7 @@ class TestLogoutTokenRevocation:
             response = logout_client.get("/auth/logout", follow_redirects=False)
 
         assert response.status_code == 307
-        assert RevokedToken.is_revoked("test-jti-123") is True
+        assert is_token_revoked("test-jti-123") is True
 
     def test_logout_without_cookie_does_not_revoke(self, logout_client):
         """Test that logout without a cookie does not attempt to revoke."""
@@ -267,7 +266,7 @@ class TestLogoutTokenRevocation:
             response = logout_client.get("/auth/logout", follow_redirects=False)
 
         assert response.status_code == 307
-        assert RevokedToken.is_revoked("nonexistent-jti") is False
+        assert is_token_revoked("nonexistent-jti") is False
 
     @staticmethod
     def _mint(auth_manager, jti: str) -> str:
@@ -306,7 +305,7 @@ class TestLogoutTokenRevocation:
             )
 
         assert response.status_code == 307
-        assert RevokedToken.is_revoked("test-jti-bearer") is True
+        assert is_token_revoked("test-jti-bearer") is True
 
     def test_logout_revokes_every_credential_presented(self, logout_client):
         """Both a bearer and a cookie presented together must both be revoked.
@@ -327,8 +326,8 @@ class TestLogoutTokenRevocation:
             )
 
         assert response.status_code == 307
-        assert RevokedToken.is_revoked("test-jti-both-bearer") is True
-        assert RevokedToken.is_revoked("test-jti-both-cookie") is True
+        assert is_token_revoked("test-jti-both-bearer") is True
+        assert is_token_revoked("test-jti-both-cookie") is True
 
     def test_logout_revokes_both_even_when_a_trusted_user_is_cached(self, logout_app):
         """The trusted-middleware shortcut must not change what logout revokes.
@@ -361,8 +360,8 @@ class TestLogoutTokenRevocation:
             )
 
         assert response.status_code == 307
-        assert RevokedToken.is_revoked("test-jti-trusted-bearer") is True
-        assert RevokedToken.is_revoked("test-jti-trusted-cookie") is True
+        assert is_token_revoked("test-jti-trusted-bearer") is True
+        assert is_token_revoked("test-jti-trusted-cookie") is True
 
     def test_logout_revokes_a_bearer_token_before_an_external_redirect(self, logout_client):
         """The bearer must be revoked even when the auth manager redirects away."""
@@ -377,7 +376,7 @@ class TestLogoutTokenRevocation:
             )
 
         assert response.status_code == 307
-        assert RevokedToken.is_revoked("test-jti-bearer-redirect") is True
+        assert is_token_revoked("test-jti-bearer-redirect") is True
 
     def test_logout_revokes_token_when_logout_url_redirects(self, logout_client):
         """Token must be revoked before the redirect when get_url_logout returns a URL."""
@@ -401,7 +400,7 @@ class TestLogoutTokenRevocation:
 
         assert response.status_code == 307
         assert response.headers["location"] == "http://external/logout"
-        assert RevokedToken.is_revoked("test-jti-redirect-456") is True
+        assert is_token_revoked("test-jti-redirect-456") is True
 
     def test_logout_clears_cookie_when_logout_url_redirects(self, logout_client):
         """The local session cookie is cleared on the external-logout redirect too, not only revoked."""
