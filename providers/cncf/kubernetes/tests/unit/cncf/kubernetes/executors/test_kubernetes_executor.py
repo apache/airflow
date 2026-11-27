@@ -16,13 +16,16 @@
 # under the License.
 from __future__ import annotations
 
+import copy
 import logging
 import random
 import re
 import string
 import time
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from queue import Queue
+from typing import Any
 from unittest import mock
 from uuid import uuid4
 
@@ -35,7 +38,7 @@ from kubernetes.dynamic.resource import ResourceInstance
 from sqlalchemy import inspect
 from sqlalchemy.orm import Session
 from urllib3 import HTTPConnectionPool, HTTPResponse
-from urllib3.exceptions import MaxRetryError, ProtocolError
+from urllib3.exceptions import MaxRetryError, ProtocolError, ReadTimeoutError
 
 from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
@@ -3892,6 +3895,48 @@ class TestKubernetesJobWatcher:
                 self.watcher.run()
 
             mock_underscore_run.assert_called_once_with(mock.ANY, "0", mock.ANY, mock.ANY)
+
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.time.sleep")
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils._get_executor_kube_client"
+    )
+    def test_read_timeout_resumes_watch_from_last_change(
+        self, mock_get_kube_client: mock.MagicMock, mock_sleep: mock.MagicMock
+    ) -> None:
+        self.pod.status.phase = "Running"
+
+        def timed_out_watch() -> Iterator[dict[str, Any]]:
+            # A watch from "0" opens with ADDED events that carry each pod's own, older version.
+            for event_type, resource_version in (("ADDED", "300"), ("MODIFIED", "500"), ("ADDED", "600")):
+                pod = copy.deepcopy(self.pod)
+                pod.metadata.resource_version = resource_version
+                yield {"type": event_type, "object": pod}
+            raise ReadTimeoutError(pool=None, url=None, message="Read timed out.")
+
+        with mock.patch.object(
+            KubernetesJobWatcher, "_pod_events", side_effect=[timed_out_watch(), SystemError("sentinel")]
+        ) as mock_pod_events:
+            with pytest.raises(SystemError, match="sentinel"):
+                self.watcher.run()
+
+        assert mock_pod_events.call_args_list[1].kwargs["query_kwargs"]["resource_version"] == "500"
+
+    @mock.patch(
+        "airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils._get_executor_kube_client"
+    )
+    def test_expired_resource_version_restarts_watch_from_current_state(
+        self, mock_get_kube_client: mock.MagicMock
+    ) -> None:
+        self.watcher.resource_version = "500"
+        expired = ApiException(status=410, reason="Expired: too old resource version: 500 (900)")
+
+        with mock.patch.object(
+            KubernetesJobWatcher, "_pod_events", side_effect=[expired, SystemError("sentinel")]
+        ) as mock_pod_events:
+            with pytest.raises(SystemError, match="sentinel"):
+                self.watcher.run()
+
+        assert mock_pod_events.call_args_list[1].kwargs["query_kwargs"]["resource_version"] == "0"
 
     @pytest.mark.parametrize(
         ("state_reasons", "expected_result"),

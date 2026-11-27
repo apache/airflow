@@ -126,7 +126,14 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             except ReadTimeoutError:
                 self.log.info("Kubernetes watch timed out waiting for events. Restarting watch.")
                 time.sleep(1)
-            except Exception:
+            except Exception as e:
+                if isinstance(e, ApiException) and str(e.status) == "410":
+                    self.log.info(
+                        "Kubernetes resource version %s is too old. Restarting watch from the current state.",
+                        self.resource_version,
+                    )
+                    self.resource_version = "0"
+                    continue
                 self.log.exception("Unknown error in KubernetesJobWatcher. Failing")
                 self.resource_version = "0"
                 ResourceVersion().resource_version[self.namespace] = "0"
@@ -216,6 +223,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 event=event,
             )
             last_resource_version = task.metadata.resource_version
+            # Stored now so a read timeout resumes from here. A watch from "0" opens with an
+            # ADDED event per existing pod carrying that pod's own, possibly expired, version.
+            if event["type"] != "ADDED":
+                self.resource_version = last_resource_version
 
         return last_resource_version
 
