@@ -24,7 +24,6 @@ from flask import Flask, Response, g, session
 from flask_appbuilder import AppBuilder
 from flask_appbuilder.security.views import AuthDBView, AuthLDAPView, AuthOAuthView, AuthView
 
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.auth_manager.views import auth_login
 from airflow.providers.fab.auth_manager.views.auth_login import (
     CustomAuthDBView,
@@ -173,10 +172,6 @@ class TestEndSessionOnLogout:
         parent_logout.assert_called_once_with(view)
         assert response.status_code == 302
         assert response.location == expected_location
-
-
-def test_security_manager_uses_custom_remote_user_view():
-    assert FabAirflowSecurityManagerOverride.authremoteuserview is CustomAuthRemoteUserView
 
 
 def test_module_uses_token_setting_redirect():

@@ -106,9 +106,8 @@ class TestLogin:
 
             assert get("/login/").cookies.get(COOKIE_NAME_JWT_TOKEN)
 
-            response = get("/logout")
-            while response.is_redirect and response.headers["location"].startswith("/auth/logout"):
-                response = get(response.headers["location"].removeprefix("/auth"))
+            flask_logout_url = get("/logout").headers["location"]
+            response = get(flask_logout_url.removeprefix("/auth"))
 
             assert response.is_redirect
             assert response.headers["location"].endswith("/login/")
