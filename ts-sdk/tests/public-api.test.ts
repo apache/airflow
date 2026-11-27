@@ -23,6 +23,7 @@ import type {
   ArgNameMap,
   ConnectionResult,
   DagSpec,
+  DeleteXComOpts,
   GetXComOpts,
   JsonValue,
   Node,
@@ -428,6 +429,13 @@ describe("public API", () => {
       taskId?: string | null;
       mapIndex?: number | null;
     }>();
+    expectTypeOf<DeleteXComOpts>().toEqualTypeOf<{
+      key?: string;
+      dagId?: string | null;
+      runId?: string | null;
+      taskId?: string | null;
+      mapIndex?: number | null;
+    }>();
     expectTypeOf<ConnectionResult>().toEqualTypeOf<{
       id: string;
       type: string;
@@ -446,6 +454,9 @@ describe("public API", () => {
     >();
     expectTypeOf<TaskClient["getXCom"]>().toEqualTypeOf<
       <T = unknown>(opts: GetXComOpts) => Promise<T | null>
+    >();
+    expectTypeOf<TaskClient["deleteXCom"]>().toEqualTypeOf<
+      (opts: DeleteXComOpts) => Promise<void>
     >();
     expectTypeOf<TaskClient["setVariable"]>().toEqualTypeOf<
       (key: string, value: string, description?: string | null) => Promise<void>

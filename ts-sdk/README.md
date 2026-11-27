@@ -115,7 +115,7 @@ Do not edit the table by hand. Update the manifest and run the `update-ts-sdk-re
 | state: `removed` | MAY | ✓ | 3.4.0 | 1.0.0 |  |
 | **Task runtime** |  |  |  |  |  |
 | capability: `task-logging` | MUST | ✓ | 3.4.0 | 1.0.0 | structured records over the log socket |
-| capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getXCom / setXCom |
+| capability: `xcom-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getXCom / setXCom / deleteXCom (SDK 1.1.0+) |
 | capability: `custom-xcom-backend` | MAY | ✓ | 3.5.0 | 1.0.0 | the supervisor runs the configured [core] xcom_backend |
 | capability: `connection-read` | MUST | ✓ | 3.4.0 | 1.0.0 | getConnection |
 | capability: `variable-read-write` | MUST | ✓ | 3.4.0 | 1.0.0 | getVariable / setVariable / deleteVariable |

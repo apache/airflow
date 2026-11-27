@@ -48,6 +48,7 @@ export type {
 export type { TaskClient, TaskStateStore } from "./sdk/client.js";
 export type {
   ConnectionResult,
+  DeleteXComOpts,
   GetXComOpts,
   JsonValue,
   SetXComOpts,

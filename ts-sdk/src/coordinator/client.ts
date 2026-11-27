@@ -23,6 +23,7 @@ import type { TaskContext } from "../sdk/task.js";
 import type { TaskClient, TaskStateStore } from "../sdk/client.js";
 import type {
   ConnectionResult,
+  DeleteXComOpts,
   GetXComOpts,
   JsonValue,
   SetXComOpts,
@@ -36,6 +37,7 @@ import type {
   DeleteVariable,
   GetXCom,
   SetXCom,
+  DeleteXCom,
   GetConnection,
   SkipDownstreamTasks,
   TriggerDagRun,
@@ -61,9 +63,7 @@ type AbsentRowPolicy = "throw" | { codes: readonly string[]; apiServer404: boole
 /** The key a task's return value is stored under, as Python `@task` does. */
 export const XCOM_RETURN_KEY = "return_value";
 
-type XComTargetOpts = Pick<SetXComOpts, "key" | "dagId" | "runId" | "taskId" | "mapIndex">;
-
-function resolveXComTarget(opts: XComTargetOpts, ctx: TaskContext) {
+function resolveXComTarget(opts: DeleteXComOpts, ctx: TaskContext) {
   // The supervisor never replies to a frame with a wrongly typed field, so the
   // task would hang instead of failing fast.
   const key = opts.key ?? XCOM_RETURN_KEY;
@@ -82,6 +82,17 @@ function resolveXComTarget(opts: XComTargetOpts, ctx: TaskContext) {
     task_id: opts.taskId ?? ctx.taskId,
     run_id: opts.runId ?? ctx.runId,
   };
+}
+
+function resolveXComWriteTarget(opts: DeleteXComOpts, ctx: TaskContext) {
+  const target = resolveXComTarget(opts, ctx);
+  // A map index only names a row of the task that owns it, so another task or
+  // run does not inherit it. `mapIndex` is nullable: an explicit null stays null.
+  const targetsSelf =
+    target.dag_id === ctx.dagId && target.task_id === ctx.taskId && target.run_id === ctx.runId;
+  const mapIndex =
+    opts.mapIndex === undefined ? (targetsSelf ? ctx.mapIndex : null) : opts.mapIndex;
+  return { ...target, map_index: mapIndex === null || mapIndex < 0 ? null : mapIndex };
 }
 
 function fromWireConnection(body: WireConnectionResult): ConnectionResult {
@@ -398,20 +409,17 @@ export function createCoordinatorClient(
     },
 
     async setXCom(opts: SetXComOpts): Promise<void> {
-      const target = resolveXComTarget(opts, ctx);
-      // A map index only names a row of the task that owns it, so another task or
-      // run does not inherit it. `mapIndex` is nullable: an explicit null stays null.
-      const targetsSelf =
-        target.dag_id === ctx.dagId && target.task_id === ctx.taskId && target.run_id === ctx.runId;
-      const mapIndex =
-        opts.mapIndex === undefined ? (targetsSelf ? ctx.mapIndex : null) : opts.mapIndex;
       const msg: SetXCom = {
         type: "SetXCom",
-        ...target,
+        ...resolveXComWriteTarget(opts, ctx),
         value: opts.value,
-        map_index: mapIndex === null || mapIndex < 0 ? null : mapIndex,
       };
       await rpc("SetXCom", null, msg, () => undefined, "throw");
+    },
+
+    async deleteXCom(opts: DeleteXComOpts): Promise<void> {
+      const msg: DeleteXCom = { type: "DeleteXCom", ...resolveXComWriteTarget(opts, ctx) };
+      await rpc("DeleteXCom", null, msg, () => undefined, "throw");
     },
 
     // ---- Control flow ----
