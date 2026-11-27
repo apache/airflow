@@ -27,7 +27,10 @@ from pathlib import Path
 from re import Pattern
 from typing import NamedTuple, Protocol
 
-from pathspec.patterns import GitWildMatchPattern
+try:
+    from pathspec.patterns.gitignore.spec import GitIgnoreSpecPattern
+except ImportError:  # pathspec < 1.0
+    from pathspec.patterns import GitWildMatchPattern as GitIgnoreSpecPattern
 
 log = logging.getLogger(__name__)
 
@@ -77,7 +80,7 @@ class _RegexpIgnoreRule(NamedTuple):
 class _GlobIgnoreRule(NamedTuple):
     """Typed namedtuple with utility functions for glob ignore rules."""
 
-    wild_match_pattern: GitWildMatchPattern
+    wild_match_pattern: GitIgnoreSpecPattern
     relative_to: Path | None = None
     dir_only: bool = False
 
@@ -103,7 +106,7 @@ class _GlobIgnoreRule(NamedTuple):
         raw_pattern = pattern.lstrip("!")
         dir_only = raw_pattern.rstrip() != raw_pattern.rstrip().rstrip("/")
 
-        ignore_pattern = GitWildMatchPattern(pattern)
+        ignore_pattern = GitIgnoreSpecPattern(pattern)
         return _GlobIgnoreRule(wild_match_pattern=ignore_pattern, relative_to=relative_to, dir_only=dir_only)
 
     @staticmethod

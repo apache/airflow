@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from pathlib import Path
 
 import pytest
@@ -213,3 +214,14 @@ class TestFindPathFromDirectory:
                 detected.add(p.relative_to(dags_root).as_posix())
 
         assert detected == {"abc/def/xyz/xyz_dag.py"}
+
+    def test_glob_ignore_does_not_emit_deprecation_warning(self, tmp_path):
+        (tmp_path / "keep.py").write_text("")
+        (tmp_path / "skip.py").write_text("")
+        (tmp_path / ".airflowignore").write_text("skip.py\n")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            detected = {Path(p).name for p in find_path_from_directory(tmp_path, ".airflowignore", "glob")}
+
+        assert detected == {"keep.py"}
