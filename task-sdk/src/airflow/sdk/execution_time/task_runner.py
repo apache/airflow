@@ -1800,9 +1800,9 @@ def _run_task_and_map_outcome(
         error = e
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
-        log.exception("Task failed with exception")
-        log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
+        _log_task_failure(log, state)
+        log.info("::group::Post Execute")
         error = e
     except AirflowTaskTerminated as e:
         # External state updates are already handled with `ti_heartbeat` and will be
@@ -1825,9 +1825,9 @@ def _run_task_and_map_outcome(
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except BaseException as e:
-        log.exception("Task failed with exception")
-        log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
+        _log_task_failure(log, state)
+        log.info("::group::Post Execute")
         error = e
 
     return state, msg, error
@@ -2047,6 +2047,14 @@ def _terminal_failure(ti: RuntimeTaskInstance) -> TaskState:
         end_date=ti.end_date,
         rendered_map_index=ti.rendered_map_index,
     )
+
+
+def _log_task_failure(log: Logger, state: TaskInstanceState) -> None:
+    """Log a task failure as a warning while a retry remains, else as an error."""
+    if state in (TaskInstanceState.UP_FOR_RETRY, TaskInstanceState.UP_FOR_RESCHEDULE):
+        log.warning("Task failed with exception", exc_info=True)
+    else:
+        log.exception("Task failed with exception")
 
 
 def _handle_current_task_failed(
