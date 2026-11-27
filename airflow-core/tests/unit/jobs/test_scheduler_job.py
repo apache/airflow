@@ -13954,9 +13954,13 @@ def test_create_dagruns_asset_gated_event_queued_during_association_waits_for_ne
     first_event = AssetEvent(asset_id=asset_id, timestamp=logical_date)
     session.add(first_event)
     session.flush()
-    # The second event reuses an ID the database already assigned, so later INSERTs that rely on
-    # automatic ID assignment cannot collide with it. The placeholder is deleted only after the
-    # other asset's event is inserted, so its ID cannot be assigned to that event.
+    # The second event (queued while the run is being created) needs an ID above this Dag's first
+    # event and below the other asset's event inserted next, so a cap taken from the highest event
+    # ID overall would wrongly include it. Automatic ID assignment cannot produce that ID, so the
+    # second event is inserted later with the ID of a placeholder created now. That ID is lower than
+    # the highest assigned ID, so inserting it explicitly does not change the next automatic ID on
+    # SQLite, Postgres or MySQL. The placeholder is deleted only after the other asset's event is
+    # inserted, so databases that reuse the highest freed ID (SQLite) cannot hand it to that event.
     placeholder_event = AssetEvent(asset_id=asset_id, timestamp=logical_date)
     session.add(placeholder_event)
     session.flush()
