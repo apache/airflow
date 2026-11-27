@@ -43,6 +43,7 @@ bind core interfaces and apply to every language SDK, not just the Java SDK.
 - [ADR-0015](0015-per-dag-source-in-bundle-artifact.md): per-Dag source in the bundle artifact — de-duplicated by path, with an entrypoint fallback.
 - [ADR-0016](0016-mapped-tasks-across-lang-sdks.md): mapped tasks across Lang SDKs — expansion stays in the scheduler, SDKs emit an expand input and consume one element.
 - [ADR-0017](0017-task-loops-across-lang-sdks.md): task loops across Lang SDKs — iteration creation stays in core, SDKs emit a loop group and run the gate's callable.
+- [ADR-0018](0018-task-execution-context-across-lang-sdks.md): task execution context across Lang SDKs — one read-only `ti` with a nested `dagRun`, every value stored once.
 
 Decisions specific to a single SDK stay next to that SDK — for example, the Go SDK's bundle-format
 decisions live in [`go-sdk/adr/`](../../../go-sdk/adr). Java-SDK-only interface-design decisions —
