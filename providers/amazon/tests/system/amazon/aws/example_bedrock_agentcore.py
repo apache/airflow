@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3DeleteBucketOperator,
 )
+from airflow.providers.amazon.aws.sensors.bedrock import BedrockAgentRuntimeReadySensor
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -128,8 +129,16 @@ with DAG(
         },
         role_arn=test_context[ROLE_ARN_KEY],
         network_configuration={"networkMode": "PUBLIC"},
+        wait_for_completion=False,
     )
     # [END howto_operator_bedrock_create_agent_runtime]
+
+    # [START howto_sensor_bedrock_agent_runtime_ready]
+    await_agent_runtime = BedrockAgentRuntimeReadySensor(
+        task_id="await_agent_runtime",
+        agent_runtime_id="{{ task_instance.xcom_pull('create_agent_runtime').split('/')[-1] }}",
+    )
+    # [END howto_sensor_bedrock_agent_runtime_ready]
 
     # [START howto_operator_bedrock_invoke_agent_runtime]
     invoke_agent_runtime = BedrockInvokeAgentRuntimeOperator(
@@ -162,6 +171,7 @@ with DAG(
         upload_code_task,
         # TEST BODY
         create_agent_runtime,
+        await_agent_runtime,
         invoke_agent_runtime,
         # TEST TEARDOWN
         delete_agent_runtime,
