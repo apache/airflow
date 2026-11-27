@@ -72,7 +72,7 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import ExecuteTask, WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
-from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, run_job
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState, run_job
 from airflow.jobs.scheduler_job_runner import (
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
@@ -5639,6 +5639,119 @@ class TestSchedulerJob:
         # DagRun.conf should be set to {} on adoption when it was None
         session.refresh(dr)
         assert dr.conf == {}
+
+    @pytest.mark.parametrize("adopt", [False, True], ids=["reset", "adopt"])
+    def test_adopt_or_reset_orphaned_tasks_queries_do_not_grow_with_orphans(self, dag_maker, session, adopt):
+        class AdoptingExecutor(MockExecutor):
+            def try_adopt_task_instances(self, tis):
+                # Columns that adoption code of remote executors reads, besides the routing and the
+                # adoption bookkeeping of the scheduler.
+                self.adopted = tis
+                self.read = [(ti.queue, ti.queued_by_job_id) for ti in tis]
+                return []
+
+        query_counts = []
+        for num_runs, num_tasks in ((1, 1), (5, 3)):
+            with dag_maker(f"test_orphans_{adopt}_{num_runs}", session=session):
+                for i in range(num_tasks):
+                    EmptyOperator(task_id=f"task_{i}")
+            old_job = Job()
+            session.add(old_job)
+            session.flush()
+            dag_run = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
+            dag_runs = [dag_run]
+            for _ in range(num_runs - 1):
+                dag_run = dag_maker.create_dagrun_after(dag_run, run_type=DagRunType.MANUAL)
+                dag_runs.append(dag_run)
+            orphans = [ti for dag_run in dag_runs for ti in dag_run.get_task_instances(session=session)]
+            for ti in orphans:
+                ti.state = State.RUNNING
+                ti.queued_by_job_id = old_job.id
+            session.commit()
+            # Load the orphans the way the scheduler does, not from the identity map.
+            session.expunge_all()
+            # Running, so the next iteration does not treat the task instances it adopted as orphans.
+            new_job = Job(state=JobState.RUNNING)
+            session.add(new_job)
+            session.flush()
+            executor = AdoptingExecutor() if adopt else MockExecutor()
+            self.job_runner = SchedulerJobRunner(job=new_job, executors=[executor])
+
+            # Counted on the engine, so statements flushed by the session count too.
+            with count_queries() as result:
+                num_reset = self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
+            if adopt:
+                # Left to the executors that read them, as before.
+                assert all(
+                    {"executor_config", "next_method", "next_kwargs"} <= inspect(ti).unloaded
+                    for ti in executor.adopted
+                )
+            session.commit()
+
+            query_counts.append(sum(result.values()))
+            current = [ti for dag_run in dag_runs for ti in dag_run.get_task_instances(session=session)]
+            assert len(current) == num_runs * num_tasks
+            if adopt:
+                assert num_reset == 0
+                assert {(ti.state, ti.queued_by_job_id) for ti in current} == {(State.RUNNING, new_job.id)}
+            else:
+                assert num_reset == num_runs * num_tasks
+                assert {(ti.state, ti.try_number) for ti in current} == {(None, 1)}
+
+        assert query_counts[0] == query_counts[1]
+
+    @time_machine.travel("2026-11-16 12:00:00+00:00", tick=False)
+    @mock.patch("airflow.jobs.scheduler_job_runner._ADOPTED_TI_UPDATE_CHUNK_SIZE", 2)
+    def test_adopt_or_reset_orphaned_tasks_records_adoption_per_batch(self, dag_maker, session):
+        with dag_maker("test_adopt_or_reset_orphaned_tasks_records_adoption_per_batch", session=session):
+            for i in range(5):
+                EmptyOperator(task_id=f"task_{i}")
+        old_job = Job()
+        session.add(old_job)
+        session.flush()
+        dag_run = dag_maker.create_dagrun(run_type=DagRunType.MANUAL)
+        heartbeat = timezone.utcnow() - datetime.timedelta(minutes=1)
+        for ti in dag_run.get_task_instances(session=session):
+            ti.state = State.RUNNING
+            ti.queued_by_job_id = old_job.id
+            # Two task instances without a heartbeat, as queued ones or ones from Airflow 2.
+            ti.last_heartbeat_at = None if ti.task_id in ("task_0", "task_1") else heartbeat
+        session.commit()
+        new_job = Job(state=JobState.RUNNING)
+        session.add(new_job)
+        session.flush()
+
+        class AdoptingExecutor(MockExecutor):
+            def try_adopt_task_instances(self, tis):
+                return []
+
+        self.job_runner = SchedulerJobRunner(job=new_job, executors=[AdoptingExecutor()])
+        updates = []
+
+        def capture_task_instance_updates(conn, cursor, statement, parameters, context, executemany):
+            if statement.startswith("UPDATE task_instance"):
+                updates.append(executemany)
+
+        engine = session.get_bind()
+        sa_event.listen(engine, "before_cursor_execute", capture_task_instance_updates)
+        try:
+            assert self.job_runner.adopt_or_reset_orphaned_tasks(session=session) == 0
+        finally:
+            sa_event.remove(engine, "before_cursor_execute", capture_task_instance_updates)
+
+        # One statement for each batch of 2, none per row.
+        assert updates == [False, False, False]
+        now = timezone.utcnow()
+        expected = {f"task_{i}": (new_job.id, now if i < 2 else heartbeat, now) for i in range(5)}
+
+        def get_adoption(tis):
+            return {ti.task_id: (ti.queued_by_job_id, ti.last_heartbeat_at, ti.updated_at) for ti in tis}
+
+        adopted = dag_run.get_task_instances(session=session)
+        assert get_adoption(adopted) == expected
+        assert not any(session.is_modified(ti) for ti in adopted)
+        session.expire_all()
+        assert get_adoption(dag_run.get_task_instances(session=session)) == expected
 
     def test_purge_without_heartbeat_skips_when_missing_dag_version(self, dag_maker, session, caplog):
         with dag_maker("test_purge_without_heartbeat_skips_when_missing_dag_version", session=session):
