@@ -2501,6 +2501,23 @@ class TestAgentOperatorDurable:
             op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
         assert isinstance(excinfo.value, AirflowFailException)
 
+    def test_a_second_airflow_skills_fails_the_task_without_a_retry(self, tmp_path):
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            enable_tool_logging=False,
+            capabilities=[AirflowSkills([tmp_path]), AirflowSkills([tmp_path])],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("done")])), **kw
+        )
+
+        with pytest.raises(SkillsConfigurationError, match="only one AirflowSkills") as excinfo:
+            op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
+        assert isinstance(excinfo.value, AirflowFailException)
+
     def test_retry_keeps_the_first_attempts_run_id_and_conversation_id(self):
         """Capabilities that key their state on the run id must see the same one on a replay."""
         storage = MemoryStorage()

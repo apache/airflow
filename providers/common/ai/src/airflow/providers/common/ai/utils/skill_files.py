@@ -317,6 +317,7 @@ async def _run_script(script: Path, cwd: Path, argv: list[str], env: Mapping[str
         timed_out = process.returncode is None
     except BaseException:
         _kill_process(process)
+        _close_output_pipe(process)
         raise
     # Still ``None`` when the script is running, which is when the reap below kills it.
     exit_code = process.returncode

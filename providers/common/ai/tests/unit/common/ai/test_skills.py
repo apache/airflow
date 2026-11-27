@@ -643,6 +643,13 @@ class TestAirflowSkillsCleanup:
         assert not clones[0].exists()
         assert capability._runs == {}
 
+    def test_a_second_airflow_skills_fails_the_agent_without_a_retry(self, tmp_path):
+        """pydantic-ai combines same-type capabilities while the agent is built, and does not wrap the error."""
+        with pytest.raises(SkillsConfigurationError, match="only one AirflowSkills") as excinfo:
+            Agent(build_calling_model(), capabilities=[AirflowSkills([tmp_path]), AirflowSkills([tmp_path])])
+
+        assert isinstance(excinfo.value, AirflowFailException)
+
     @pytest.mark.asyncio
     async def test_a_missing_local_source_fails_the_run_and_registers_nothing(self, tmp_path):
         capability = AirflowSkills([tmp_path / "missing"])
