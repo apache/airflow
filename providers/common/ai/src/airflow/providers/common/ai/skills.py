@@ -382,15 +382,15 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         state = SkillRunState(skill_dirs={})
         try:
             directories = _list_absolute_directories(locations)
-            selection = (
-                {"include": self._include} if self._include is not None else {"exclude": self._exclude}
-            )
-            skills = skills_class(
-                directories,
-                duplicate_names="keep_first",
-                workspace=workspace_class(Path.cwd()),
-                **selection,
-            )
+            workspace = workspace_class(Path.cwd())
+            if self._include is not None:
+                skills = skills_class(
+                    directories, include=self._include, duplicate_names="keep_first", workspace=workspace
+                )
+            else:
+                skills = skills_class(
+                    directories, exclude=self._exclude, duplicate_names="keep_first", workspace=workspace
+                )
             catalog = await skills.load()
             state.skill_dirs = {skill.name: Path(skill.directory) for skill in catalog.skills}
             offered = await skills.for_run(ctx)
