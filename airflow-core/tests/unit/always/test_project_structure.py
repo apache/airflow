@@ -72,7 +72,6 @@ class TestProjectStructure:
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_exceptions.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_python_kubernetes_script.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
-            "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",
             "providers/fab/tests/unit/fab/migrations/test_env.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_appbuilder.py",
             "providers/fab/tests/unit/fab/www/extensions/test_init_jinja_globals.py",
