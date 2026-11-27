@@ -2734,14 +2734,15 @@ def test_run_reconcile_rereads_workflow_state_while_awaiting_push(client, tmp_pa
 
 
 @pytest.mark.parametrize(
-    ("state", "deletes"),
+    ("state", "deletes", "head_sha"),
     [
-        pytest.param(ForkState.AWAITING_PUSH, True, id="gated"),
-        pytest.param(ForkState.GATE_BYPASSED, False, id="gate-bypassed"),
+        pytest.param(ForkState.AWAITING_PUSH, True, "sha-old", id="older-commit"),
+        pytest.param(ForkState.AWAITING_PUSH, False, "sha1", id="preserve-current-head"),
+        pytest.param(ForkState.GATE_BYPASSED, False, "sha-old", id="gate-bypassed"),
     ],
 )
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.classify", autospec=True)
-def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state, deletes):
+def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state, deletes, head_sha):
     mock_classify.return_value = Plan(state=state)
     client.graphql.side_effect = [
         _search_result(),
@@ -2753,7 +2754,10 @@ def test_run_reconcile_deletes_gated_runs(mock_classify, client, tmp_path, state
         _search_result(),
     ]
     client.rest_get_pages.side_effect = lambda path: [
-        {"total_count": 1, "workflow_runs": [_run(7, minutes=1)] if "event=pull_request&" in path else []}
+        {
+            "total_count": 1,
+            "workflow_runs": [_run(7, minutes=1, sha=head_sha)] if "event=pull_request&" in path else [],
+        }
     ]
 
     def rest_get(path, paginate=False, items_key=None):
@@ -5507,6 +5511,52 @@ def test_monitor_interval_is_the_monitor_workflow_cadence():
     crons = [entry["cron"] for entry in workflow[True]["schedule"]]
 
     assert crons == [f"*/{MONITOR_INTERVAL // timedelta(minutes=1)} * * * *"]
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_apply_plan_reruns_before_removing_fork_ci_label(client, fails):
+    pr = _pr(is_draft=False, labels=("fork ci required", "use project ci"))
+    plan = Plan(state=ForkState.RELEASED, remove_labels=["fork ci required"])
+    calls = []
+
+    def rerun(number, run_id):
+        calls.append(("rerun", number, run_id))
+        if fails:
+            raise GitHubError("rerun rejected")
+
+    client.rerun_run.side_effect = rerun
+    client.remove_label.side_effect = lambda number, label: calls.append(("remove", number, label))
+    if fails:
+        with pytest.raises(GitHubError, match="rerun rejected"):
+            apply_plan(client, pr, plan, rerun_run_id=77)
+        client.remove_label.assert_not_called()
+    else:
+        apply_plan(client, pr, plan, rerun_run_id=77)
+        assert calls == [("rerun", 42, 77), ("remove", 42, "fork ci required")]
+
+
+@pytest.mark.parametrize(
+    ("run_attempt", "should_rerun"),
+    [
+        pytest.param(1, True, id="never-rerun"),
+        pytest.param(2, False, id="already-rerun"),
+    ],
+)
+def test_find_latest_gated_run_uses_head_commit_beyond_tamper_window(client, run_attempt, should_rerun):
+    run = _run(77, sha="abc123", age_hours=48, minutes=1, run_attempt=run_attempt)
+    finder = _finder(client, [], jobs=GATED_JOBS, compare_files=("README.md",))
+    original_rest_get = client.rest_get.side_effect
+
+    def rest_get(path, paginate=False, items_key=None):
+        if "/actions/workflows/ci-amd.yml/runs?" in path:
+            return {"workflow_runs": [run]}
+        return original_rest_get(path, paginate=paginate, items_key=items_key)
+
+    client.rest_get.side_effect = rest_get
+    result = finder.find_latest_gated_run(_pr())
+    assert (result is not None) is should_rerun
+    if result is not None:
+        assert result.id == 77
 
 
 @mock.patch("airflow_breeze.utils.fork_ci_reconcile.JobStatusReporter", autospec=True)

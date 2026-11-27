@@ -304,6 +304,11 @@ def test_decide(event: GateEvent, config_overrides: dict, expected: Decision):
     assert decide(event, _config(**config_overrides)) == expected
 
 
+def test_project_ci_label_does_not_trigger_amd_workflow():
+    workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml").read_text())
+    assert "labeled" not in workflow[True]["pull_request"]["types"]
+
+
 def test_canonical_branch_filters_match_pull_request_release_branches():
     workflow = yaml.safe_load((AIRFLOW_ROOT_PATH / ".github" / "workflows" / "ci-amd.yml").read_text())
     # PyYAML parses the bare `on:` key as boolean True.
