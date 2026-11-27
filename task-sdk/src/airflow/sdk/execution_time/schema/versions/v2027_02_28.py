@@ -38,7 +38,7 @@ from cadwyn import (
 
 from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
 from airflow.sdk.exceptions import ErrorType
-from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
+from airflow.sdk.execution_time.comms import ErrorResponse, GetXCom, PutVariable
 
 
 class AddExecutionTimeoutToSupervisorTIRunContext(VersionChange):
@@ -107,3 +107,19 @@ class AddXComBackendErrorType(VersionChange):
         """Report the failure as a generic one to a runtime whose version has no type for it."""
         if response.body.get("error") == ErrorType.XCOM_BACKEND_ERROR.value:
             response.body["error"] = ErrorType.GENERIC_ERROR.value
+
+
+class AddRegionToGetXCom(VersionChange):
+    """
+    Add ``region_id`` and ``region_index`` to ``GetXCom``, naming the producer's region and pass.
+
+    The supervisor-schema mirror of the execution API's ``AddRegionToXComFilterParams``: an iterated
+    task's result reads its items from the pass that pushed them, whoever reads it.
+    """
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXCom).field("region_id").didnt_exist,
+        schema(GetXCom).field("region_index").didnt_exist,
+    )

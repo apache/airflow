@@ -133,6 +133,20 @@ def test_loop_selectors_follow_supervisor_version(model, extra, field):
     assert migrator.downgrade(message, "2026-10-30").model_dump()[field] is True
 
 
+def test_xcom_region_follows_supervisor_version():
+    message = GetXCom(
+        dag_id="dag", run_id="run", task_id="task", key="key", region_id=UUID(int=1), region_index=3
+    )
+    migrator = get_schema_version_migrator()
+
+    released = migrator.downgrade(message, "2026-10-30").model_dump()
+    assert "region_id" not in released
+    assert "region_index" not in released
+    current = migrator.downgrade(message, "2027-02-28").model_dump()
+    assert current["region_id"] == UUID(int=1)
+    assert current["region_index"] == 3
+
+
 def test_put_variable_null_from_older_runtime_is_stored_as_none_string():
     body = {"type": "PutVariable", "key": "key", "value": None, "description": None}
 
