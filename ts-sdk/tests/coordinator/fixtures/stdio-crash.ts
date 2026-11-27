@@ -17,10 +17,15 @@
  * under the License.
  */
 
-// Fills stdout and stderr past any socket buffer, then fails with an uncaught error.
-import { blockOnStdio } from "../../../src/coordinator/runtime.js";
+// Serves a bundle, then fails with an uncaught error after filling stdout and stderr past any
+// socket buffer.
+import { Bundle, Dag } from "../../../src/index.js";
 
-blockOnStdio();
-process.stdout.write("o".repeat(1 << 20) + "\n");
-process.stderr.write("e".repeat(1 << 20) + "\n");
-throw new Error("final failure");
+const dag = new Dag("stdio_crash");
+dag.task("t", async () => undefined)();
+setTimeout(() => {
+  process.stdout.write("o".repeat(1 << 20) + "\n");
+  process.stderr.write("e".repeat(1 << 20) + "\n");
+  throw new Error("final failure");
+}, 100);
+await new Bundle(dag).serve();

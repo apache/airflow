@@ -18,15 +18,29 @@
  */
 
 import { spawn } from "node:child_process";
+import { createServer, type AddressInfo, type Server } from "node:net";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 const CRASH_FIXTURE = fileURLToPath(new URL("fixtures/stdio-crash.ts", import.meta.url));
 
-describe("blockOnStdio", () => {
-  it("keeps all output of a process that fails with more queued than a socket holds", async () => {
+describe("bundle.serve()", () => {
+  const servers: Server[] = [];
+  afterEach(() => {
+    for (const server of servers.splice(0)) server.close();
+  });
+
+  async function listen(): Promise<string> {
+    const server = createServer((socket) => socket.resume());
+    servers.push(server);
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    return `127.0.0.1:${(server.address() as AddressInfo).port}`;
+  }
+
+  it("keeps all output of a task process that fails with more queued than a socket holds", async () => {
+    const args = [`--comm=${await listen()}`, `--logs=${await listen()}`];
     // spawn gives the child a socketpair for each stream, like the supervisor does.
-    const child = spawn(process.execPath, ["--import", "tsx", CRASH_FIXTURE]);
+    const child = spawn(process.execPath, ["--import", "tsx", CRASH_FIXTURE, ...args]);
     const stdout: Buffer[] = [];
     const stderr: Buffer[] = [];
     child.stdout.on("data", (chunk: Buffer) => stdout.push(chunk));
