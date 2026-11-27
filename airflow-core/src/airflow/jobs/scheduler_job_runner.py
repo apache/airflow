@@ -3558,6 +3558,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         Create one Dag run consuming every consumable asset event, without loading the events.
 
+        This is the set-based equivalent of the default ``Timetable.group_asset_events`` with
+        ``batch_asset_events``: one run at the latest event timestamp consuming all events.
+        It is only used when the timetable does not override that method (see
+        ``_has_default_asset_event_grouping``), so keep the two in sync.
+
         Returns whether a run was created.
         """
         cte = (
