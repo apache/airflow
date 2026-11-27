@@ -614,3 +614,127 @@ def test_legacy_python_version_fails_on_a_server_error_instead_of_picking_an_old
     with mock.patch.object(uiv.requests, "head", autospec=True, return_value=response):
         with pytest.raises(uiv.requests.HTTPError):
             uiv.get_latest_released_python_version("3.13", FTP_LISTING)
+
+
+def _npm_registry_document(now):
+    from datetime import timedelta
+
+    def iso(days_ago: float) -> str:
+        return (now - timedelta(days=days_ago)).isoformat().replace("+00:00", "Z")
+
+    return {
+        "dist-tags": {"latest": "1.10.0"},
+        "versions": {"1.2.0": {}, "1.9.0": {}, "1.10.0": {}, "2.0.0-beta.1": {}},
+        "time": {"1.2.0": iso(30), "1.9.0": iso(10), "1.10.0": iso(1), "2.0.0-beta.1": iso(20)},
+    }
+
+
+@pytest.mark.parametrize(
+    ("should_upgrade", "expected"),
+    [
+        pytest.param(True, "1.9.0", id="newest-stable-outside-cooldown"),
+        pytest.param(False, "", id="disabled"),
+    ],
+)
+def test_get_latest_npm_version(monkeypatch, should_upgrade, expected):
+    from datetime import datetime
+
+    from ci.prek import upgrade_important_versions as uiv
+
+    response = mock.MagicMock(spec=uiv.requests.Response)
+    response.json.return_value = _npm_registry_document(datetime.now(UTC))
+    get = mock.create_autospec(uiv.requests.get, return_value=response)
+    monkeypatch.setattr(uiv.requests, "get", get)
+
+    assert uiv.get_latest_npm_version("@scope/pkg", should_upgrade) == expected
+    if should_upgrade:
+        assert get.call_args.args[0] == "https://registry.npmjs.org/@scope/pkg"
+
+
+def test_get_latest_npm_version_falls_back_to_latest_tag_inside_cooldown(monkeypatch):
+    from datetime import datetime
+
+    from ci.prek import upgrade_important_versions as uiv
+
+    document = _npm_registry_document(datetime.now(UTC))
+    document["versions"] = {"1.10.0": {}}
+    response = mock.MagicMock(spec=uiv.requests.Response)
+    response.json.return_value = document
+    monkeypatch.setattr(uiv.requests, "get", mock.create_autospec(uiv.requests.get, return_value=response))
+
+    assert uiv.get_latest_npm_version("pkg", should_upgrade=True) == "1.10.0"
+
+
+@pytest.mark.parametrize(
+    ("pinned", "expected"),
+    [
+        pytest.param("1.10.0", "1.10.0", id="newer-pin-inside-cooldown-is-kept"),
+        pytest.param("1.2.0", "1.9.0", id="older-pin-is-upgraded"),
+    ],
+)
+def test_get_latest_npm_version_never_downgrades_the_pin(monkeypatch, tmp_path, pinned, expected):
+    from datetime import datetime
+
+    from ci.prek import upgrade_important_versions as uiv
+
+    response = mock.MagicMock(spec=uiv.requests.Response)
+    response.json.return_value = _npm_registry_document(datetime.now(UTC))
+    monkeypatch.setattr(uiv.requests, "get", mock.create_autospec(uiv.requests.get, return_value=response))
+    config = tmp_path / ".pre-commit-config.yaml"
+    config.write_text(f"additional_dependencies: ['@scope/pkg@{pinned}']\n")
+
+    assert uiv.get_latest_npm_version("@scope/pkg", should_upgrade=True, pinned_in=config) == expected
+
+
+@pytest.mark.parametrize(
+    "path_parts",
+    [
+        pytest.param((".pre-commit-config.yaml",), id="prek-config"),
+        pytest.param(("dev", "skill-evals", "eval.py"), id="eval-harness"),
+    ],
+)
+def test_skill_eval_node_pins_are_upgraded(monkeypatch, path_parts):
+    from ci.prek import upgrade_important_versions as uiv
+
+    monkeypatch.setattr(uiv, "UPGRADE_PROMPTFOO", True)
+    monkeypatch.setattr(uiv, "UPGRADE_CLAUDE_AGENT_SDK", True)
+    monkeypatch.setattr(uiv, "UPGRADE_CODEX_SDK", True)
+    monkeypatch.setattr(uiv, "UPGRADE_PYTHON", False)
+    path = uiv.AIRFLOW_ROOT_PATH.joinpath(*path_parts)
+    files_to_update = dict(uiv.FILES_TO_UPDATE)
+    assert path in files_to_update
+
+    new_content = uiv.update_file_with_versions(
+        path.read_text(),
+        files_to_update[path],
+        {"promptfoo": "9.9.9", "claude_agent_sdk": "8.8.8", "codex_sdk": "7.7.7"},
+        latest_python_versions={},
+    )
+
+    if path.name == "eval.py":
+        assert 'PROMPTFOO_VERSION = "9.9.9"' in new_content
+    else:
+        assert "'promptfoo@9.9.9'" in new_content
+        assert "'@anthropic-ai/claude-agent-sdk@8.8.8'" in new_content
+        assert "'@openai/codex-sdk@7.7.7'" in new_content
+        assert "promptfoo@0." not in new_content
+
+
+@pytest.mark.parametrize(
+    ("new_pins", "expected"),
+    [
+        pytest.param("'promptfoo@1.0.0', '@anthropic-ai/claude-agent-sdk@2.0.0'", False, id="unchanged"),
+        pytest.param("'promptfoo@1.1.0', '@anthropic-ai/claude-agent-sdk@2.0.0'", True, id="bumped"),
+    ],
+)
+def test_report_skill_eval_pin_changes(tmp_path, new_pins, expected):
+    from ci.prek import upgrade_important_versions as uiv
+
+    config = tmp_path / ".pre-commit-config.yaml"
+    config.write_text(
+        "additional_dependencies: ['promptfoo@1.0.0', '@anthropic-ai/claude-agent-sdk@2.0.0']\n"
+    )
+    before = uiv.get_skill_eval_pins(config)
+    config.write_text(f"additional_dependencies: [{new_pins}]\n")
+
+    assert uiv.report_skill_eval_pin_changes(before, config) is expected

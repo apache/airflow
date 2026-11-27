@@ -47,7 +47,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-PROMPTFOO_VERSION = "0.121.17"
+PROMPTFOO_VERSION = "0.126.0"
 SDK_PACKAGES = {
     "claude": "@anthropic-ai/claude-agent-sdk",
     "codex": "@openai/codex-sdk",

@@ -96,6 +96,7 @@ FILES_TO_UPDATE: list[tuple[Path, bool]] = [
     (AIRFLOW_ROOT_PATH / "devel-common" / "pyproject.toml", True),
     (AIRFLOW_ROOT_PATH / "dev" / "breeze" / "pyproject.toml", False),
     (AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml", False),
+    (AIRFLOW_ROOT_PATH / "dev" / "skill-evals" / "eval.py", False),
     (AIRFLOW_CORE_ROOT_PATH / "pyproject.toml", False),
     (AIRFLOW_CORE_ROOT_PATH / "docs" / "best-practices.rst", False),
     (AIRFLOW_ROOT_PATH / "dev" / "provider_db_inventory.py", False),
@@ -311,6 +312,50 @@ def get_latest_pypi_version(package_name: str, should_upgrade: bool) -> str:
             break
     if not latest_version:
         latest_version = data["info"]["version"]
+    if VERBOSE:
+        console.print(f"[bright_blue]Latest version for {package_name}: {latest_version}")
+    return latest_version
+
+
+def get_latest_npm_version(
+    package_name: str,
+    should_upgrade: bool,
+    pinned_in: Path = AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml",
+) -> str:
+    """Return the newest stable npm release of a package that is older than the cooldown window.
+
+    Never returns a version older than the one already pinned in ``pinned_in``: a pin set by
+    hand to a release still inside the cooldown must not be downgraded by the next run.
+    """
+    if not should_upgrade:
+        return ""
+    if VERBOSE:
+        console.print(f"[bright_blue]Fetching latest version for {package_name} from npm")
+    response = requests.get(
+        f"https://registry.npmjs.org/{package_name}", headers={"User-Agent": "Python requests"}
+    )
+    response.raise_for_status()
+    data = response.json()
+    publish_times: dict[str, str] = data.get("time", {})
+    cutoff = datetime.now(UTC) - timedelta(days=COOLDOWN_DAYS)
+    # npm marks pre-releases with a "-" suffix (1.2.0-beta.1).
+    stable = sorted(
+        ((Version(v), v) for v in data.get("versions", {}) if "-" not in v),
+        reverse=True,
+    )
+    latest_version = ""
+    for _, version in stable:
+        published = publish_times.get(version)
+        if published and datetime.fromisoformat(published.replace("Z", "+00:00")) <= cutoff:
+            latest_version = version
+            break
+    if not latest_version:
+        latest_version = data["dist-tags"]["latest"]
+    pinned = re.findall(rf"{re.escape(package_name)}@([0-9.]+)", pinned_in.read_text())
+    if pinned:
+        highest_pinned = max(pinned, key=Version)
+        if Version(highest_pinned) > Version(latest_version):
+            latest_version = highest_pinned
     if VERBOSE:
         console.print(f"[bright_blue]Latest version for {package_name}: {latest_version}")
     return latest_version
@@ -965,6 +1010,9 @@ UPGRADE_MYPY: bool = get_env_bool("UPGRADE_MYPY")
 UPGRADE_PROTOC: bool = get_env_bool("UPGRADE_PROTOC")
 UPGRADE_OPENAPI_GENERATOR: bool = get_env_bool("UPGRADE_OPENAPI_GENERATOR")
 UPGRADE_SPHINX_AIRFLOW_THEME: bool = get_env_bool("UPGRADE_SPHINX_AIRFLOW_THEME")
+UPGRADE_PROMPTFOO: bool = get_env_bool("UPGRADE_PROMPTFOO")
+UPGRADE_CLAUDE_AGENT_SDK: bool = get_env_bool("UPGRADE_CLAUDE_AGENT_SDK")
+UPGRADE_CODEX_SDK: bool = get_env_bool("UPGRADE_CODEX_SDK")
 LATEST_PACKAGE_MANAGERS: bool = (
     os.environ.get("LATEST_PACKAGE_MANAGERS", "false").lower() == "true"
     or os.environ.get("UPGRADE_LATEST_PACKAGE_MANAGERS", "false").lower() == "true"
@@ -1100,6 +1148,17 @@ SIMPLE_VERSION_PATTERNS: dict[str, list[tuple[str, str]]] = {
             "sphinx-airflow-theme@https://airflow.apache.org/sphinx-airflow-theme/sphinx_airflow_theme-{version}-py3-none-any.whl",
         ),
     ],
+    # Skill-eval prek hooks (node additional_dependencies) and the harness's exact-version check.
+    "promptfoo": [
+        (r"(promptfoo@)([0-9.]+)", "promptfoo@{version}"),
+        (r"(PROMPTFOO_VERSION = )(\"[0-9.]+\")", 'PROMPTFOO_VERSION = "{version}"'),
+    ],
+    "claude_agent_sdk": [
+        (r"(@anthropic-ai/claude-agent-sdk@)([0-9.]+)", "@anthropic-ai/claude-agent-sdk@{version}"),
+    ],
+    "codex_sdk": [
+        (r"(@openai/codex-sdk@)([0-9.]+)", "@openai/codex-sdk@{version}"),
+    ],
 }
 
 
@@ -1137,6 +1196,11 @@ def fetch_all_package_versions() -> dict[str, str]:
         "sphinx_airflow_theme": get_latest_sphinx_airflow_theme_version()
         if UPGRADE_SPHINX_AIRFLOW_THEME
         else "",
+        "promptfoo": get_latest_npm_version("promptfoo", UPGRADE_PROMPTFOO),
+        "claude_agent_sdk": get_latest_npm_version(
+            "@anthropic-ai/claude-agent-sdk", UPGRADE_CLAUDE_AGENT_SDK
+        ),
+        "codex_sdk": get_latest_npm_version("@openai/codex-sdk", UPGRADE_CODEX_SDK),
     }
 
 
@@ -1442,6 +1506,29 @@ def is_within_cooldown(cooldown_days: int) -> bool:
         return False
 
 
+SKILL_EVAL_PIN_PATTERN = re.compile(r"(?:promptfoo|@anthropic-ai/claude-agent-sdk|@openai/codex-sdk)@[0-9.]+")
+
+
+def get_skill_eval_pins(path: Path = AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml") -> set[str]:
+    return set(SKILL_EVAL_PIN_PATTERN.findall(path.read_text()))
+
+
+def report_skill_eval_pin_changes(
+    before: set[str], path: Path = AIRFLOW_ROOT_PATH / ".pre-commit-config.yaml"
+) -> bool:
+    """Remind to run the skill eval when its tools moved: it never runs in CI, so nothing else will."""
+    after = get_skill_eval_pins(path)
+    if after == before:
+        return False
+    console.print(
+        "[bright_yellow]Skill-eval tool versions changed "
+        f"({', '.join(sorted(after - before))}). The skill eval does not run in CI, so run "
+        "`prek run run-skill-eval --hook-stage manual --all-files` (and `run-skill-eval-codex`) "
+        "soon to confirm its results did not shift."
+    )
+    return True
+
+
 def main() -> None:
     """Main entry point for the version upgrade script."""
     global _github_token
@@ -1460,7 +1547,9 @@ def main() -> None:
 
     legacy_python_versions = fetch_legacy_python_versions()
 
+    skill_eval_pins = get_skill_eval_pins()
     changed = process_all_files(versions, latest_python_versions, python_image_digests)
+    report_skill_eval_pin_changes(skill_eval_pins)
     if python_image_digests:
         changed = write_pins_file(PYTHON_IMAGE_DIGESTS_PATH, python_image_digests) or changed
         if OS_DEPS_IMAGE_DIGESTS_PATH.exists():
