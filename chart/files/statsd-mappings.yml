@@ -115,6 +115,7 @@ mappings:
 
   - match: airflow.ti.running.*.*.*
     name: "airflow_ti_running"
+    ttl: 5m
     labels:
       queue: "$1"
       dag_id: "$2"
@@ -122,6 +123,7 @@ mappings:
 
   - match: airflow.ti.queued.*.*.*
     name: "airflow_ti_queued"
+    ttl: 5m
     labels:
       queue: "$1"
       dag_id: "$2"
@@ -129,6 +131,7 @@ mappings:
 
   - match: airflow.ti.scheduled.*.*.*
     name: "airflow_ti_scheduled"
+    ttl: 5m
     labels:
       queue: "$1"
       dag_id: "$2"
@@ -136,6 +139,7 @@ mappings:
 
   - match: airflow.ti.deferred.*.*.*
     name: "airflow_ti_deferred"
+    ttl: 5m
     labels:
       queue: "$1"
       dag_id: "$2"

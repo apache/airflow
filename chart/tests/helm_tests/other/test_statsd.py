@@ -285,6 +285,29 @@ class TestStatsd:
         assert "airflow_dagrun_dependency_check" in names
         assert "airflow_pool_starving_tasks" in names
 
+    @pytest.mark.parametrize("default_ttl", ["0s", "10m"])
+    def test_statsd_state_gauge_mappings_expire(self, default_ttl):
+        docs = render_chart(
+            values={"statsd": {"cache": {"ttl": default_ttl}}},
+            show_only=["templates/configmaps/statsd-configmap.yaml"],
+        )
+        config = yaml.safe_load(docs[0]["data"]["mappings.yml"])
+        mappings = config["mappings"]
+        expected = [
+            {
+                "match": f"airflow.ti.{state}.*.*.*",
+                "name": f"airflow_ti_{state}",
+                "ttl": "5m",
+                "labels": {"queue": "$1", "dag_id": "$2", "task_id": "$3"},
+            }
+            for state in ("running", "queued", "scheduled", "deferred")
+        ]
+
+        assert [mapping for mapping in mappings if "ttl" in mapping] == expected
+        for mapping in expected:
+            assert sum(candidate["match"] == mapping["match"] for candidate in mappings) == 1
+        assert config["defaults"]["ttl"] == default_ttl
+
     def test_statsd_configmap_when_exist_extra_mappings(self):
         extra_mapping = {
             "match": "airflow.pool.queued_slots.*",
