@@ -438,6 +438,7 @@ class TestSuggestPartitionKeyForDag:
         )
 
         assert result == expected
+        timetable.suggest_partition_key.assert_called_once_with(NOW)
         assert mock_session.mock_calls == []
         can_read_runs.assert_not_called()
 
@@ -460,6 +461,7 @@ class TestSuggestPartitionKeyForDag:
 
         assert result is None
         assert {"event": "Failed to compute suggested partition key", "dag_id": "failing-cron-dag"} in caplog
+        timetable.suggest_partition_key.assert_called_once_with(NOW)
         assert mock_session.mock_calls == []
         can_read_runs.assert_not_called()
 
