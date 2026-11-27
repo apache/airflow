@@ -90,6 +90,7 @@ from airflow.sdk.coordinators._subprocess import SubprocessCoordinator
 from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions._internal.types import NOTSET, SET_DURING_EXECUTION, is_arg_set
 from airflow.sdk.definitions.asset import Asset, AssetAlias, AssetUniqueKey, AssetUriRef, Dataset, Model
+from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME
 from airflow.sdk.definitions.param import DagParam
 from airflow.sdk.definitions.retry_policy import (
     ExceptionRetryPolicy,
@@ -222,6 +223,14 @@ from tests_common.test_utils.xcom_backends import SerializeValueOnlyXCom
 if TYPE_CHECKING:
     from kgb import SpyAgency
 import time_machine
+
+
+@pytest.fixture(autouse=True)
+def _isolated_bundle_name_env():
+    # startup() deliberately leaves the parsing context bundle_name set, so undo it per test.
+    with mock.patch.dict(os.environ):
+        os.environ.pop(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, None)
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -954,10 +963,10 @@ def test_parse_module_in_bundle_root(tmp_path: Path, make_ti_context):
 
 
 @pytest.mark.parametrize(
-    ("use_startup", "expected_dag_id", "expected_task_id"),
+    ("use_startup", "expected_dag_id", "expected_task_id", "expected_bundle_name"),
     [
-        pytest.param(True, "expected_dag", "my_task", id="startup"),
-        pytest.param(False, None, None, id="parse"),
+        pytest.param(True, "expected_dag", "my_task", "my-bundle", id="startup"),
+        pytest.param(False, None, None, None, id="parse"),
     ],
 )
 @mock.patch("airflow.sdk.execution_time.task_runner.get_listener_manager")
@@ -970,6 +979,7 @@ def test_bundle_initialize_parsing_context(
     use_startup,
     expected_dag_id,
     expected_task_id,
+    expected_bundle_name,
     make_ti_context,
     tmp_path: Path,
     monkeypatch,
@@ -988,6 +998,7 @@ def test_bundle_initialize_parsing_context(
         ctx = get_parsing_context()
         captured["dag_id"] = ctx.dag_id
         captured["task_id"] = ctx.task_id
+        captured["bundle_name"] = ctx.bundle_name
 
     mock_bundle.initialize.side_effect = capture_parsing_context
     mock_manager = mock_manager_cls.return_value
@@ -1022,7 +1033,13 @@ def test_bundle_initialize_parsing_context(
     else:
         parse(what, mock.Mock())
 
-    assert captured == {"dag_id": expected_dag_id, "task_id": expected_task_id}
+    assert captured == {
+        "dag_id": expected_dag_id,
+        "task_id": expected_task_id,
+        "bundle_name": expected_bundle_name,
+    }
+    # Like dag_id/task_id, bundle_name stays set after startup so it is visible during task execution.
+    assert os.environ.get(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME) == expected_bundle_name
     mock_bundle.initialize.assert_called_once()
 
 

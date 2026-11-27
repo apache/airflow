@@ -78,6 +78,7 @@ from airflow.sdk import DAG, BaseOperator, task_group
 from airflow.sdk.api.client import Client
 from airflow.sdk.api.datamodels._generated import ConnectionResponse, DagRunState, VariableResponse
 from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.sdk.definitions.context import _AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME
 from airflow.sdk.execution_time import comms, supervisor
 from airflow.sdk.execution_time.comms import (
     GetConnection,
@@ -142,6 +143,14 @@ def inprocess_client():
     client = Client(base_url=None, token="", dry_run=True, transport=api.transport)
     client.base_url = "http://in-process.invalid/"
     return client
+
+
+@pytest.fixture(autouse=True)
+def _isolated_bundle_name_env():
+    # The parsing context deliberately leaves bundle_name set after parsing, so undo it per test.
+    with patch.dict(os.environ):
+        os.environ.pop(_AIRFLOW_PARSING_CONTEXT_BUNDLE_NAME, None)
+        yield
 
 
 @pytest.mark.usefixtures("disable_load_example")
@@ -852,6 +861,23 @@ def test_parse_file_task_group_cycle_warning(tmp_path):
     assert [(warning["dag_id"], warning["warning_type"]) for warning in result.warnings] == [
         ("cyclic", "task group cycle")
     ]
+
+
+def test_parse_file_sets_bundle_name_in_parsing_context(tmp_path):
+    """The bundle_name should be set when the DAG is parsed."""
+    dag_file = tmp_path / "bundle_name_dag.py"
+    dag_file.write_text(
+        "from airflow.sdk import DAG, get_parsing_context\n"
+        "\n"
+        "dag = DAG(f'from_{get_parsing_context().bundle_name}', schedule=None)\n"
+    )
+
+    result = _parse_file(
+        DagFileParseRequest(file=str(dag_file), bundle_path=tmp_path, bundle_name="my-bundle"),
+        log=structlog.get_logger(),
+    )
+
+    assert [dag.dag_id for dag in result.serialized_dags] == ["from_my-bundle"]
 
 
 def test_callback_processing_does_not_update_timestamps():

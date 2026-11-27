@@ -1347,7 +1347,9 @@ def startup(msg: StartupDetails) -> tuple[RuntimeTaskInstance, Context, Logger]:
 
     set_current_team_name(msg.ti_context.dag_run.team_name)
 
-    with _airflow_parsing_context_manager(dag_id=msg.ti.dag_id, task_id=msg.ti.task_id):
+    with _airflow_parsing_context_manager(
+        dag_id=msg.ti.dag_id, task_id=msg.ti.task_id, bundle_name=msg.bundle_info.name
+    ):
         ti = parse(msg, log)
     log.debug("Dag file parsed", file=msg.dag_rel_path)
 

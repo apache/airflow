@@ -43,6 +43,7 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BundleVersionLock
 from airflow.dag_processing.dagbag import BundleDagBag, DagBag, LangSDKSerializedDAG
 from airflow.models.dag import DagModel
+from airflow.sdk.definitions._internal.dag_parsing_context import _airflow_parsing_context_manager  # noqa: SDK001
 from airflow.sdk.exceptions import TaskNotFound
 from airflow.sdk.execution_time import supervisor
 from airflow.sdk.execution_time.comms import (
@@ -249,12 +250,13 @@ def _parse_file(msg: DagFileParseRequest, log: FilteringBoundLogger) -> DagFileP
             import_errors=stability_check_error_dict,
         )
 
-    bag = BundleDagBag(
-        dag_folder=msg.file,
-        bundle_path=msg.bundle_path,
-        bundle_name=msg.bundle_name,
-        load_op_links=False,
-    )
+    with _airflow_parsing_context_manager(bundle_name=msg.bundle_name):
+        bag = BundleDagBag(
+            dag_folder=msg.file,
+            bundle_path=msg.bundle_path,
+            bundle_name=msg.bundle_name,
+            load_op_links=False,
+        )
 
     if msg.callback_requests:
         # If the request is for callback, we shouldn't serialize the Dags
