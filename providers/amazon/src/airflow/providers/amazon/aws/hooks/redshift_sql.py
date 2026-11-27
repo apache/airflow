@@ -31,6 +31,7 @@ except ImportError:
     URL = create_engine = make_url = None  # type: ignore[assignment,misc]
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.redshift_data import _VISIBLE_TABLE_FILTER
 from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -239,10 +240,14 @@ class RedshiftSQLHook(DbApiHook):
         Get the table's primary key.
 
         :param table: Name of the target table
-        :param schema: Name of the target schema, public by default
+        :param schema: Name of the target schema, public by default. If ``None``, the
+            table is looked up in the schemas of the session's ``search_path`` where it is visible,
+            as an unqualified table name would be.
         :return: Primary key columns list
         """
-        sql = """
+        schema_filter = "kcu.table_schema = %s" if schema else _VISIBLE_TABLE_FILTER
+        parameters = (schema, table) if schema else (table,)
+        sql = f"""
             select kcu.column_name
             from information_schema.table_constraints tco
                     join information_schema.key_column_usage kcu
@@ -250,10 +255,10 @@ class RedshiftSQLHook(DbApiHook):
                             and kcu.constraint_schema = tco.constraint_schema
                             and kcu.constraint_name = tco.constraint_name
             where tco.constraint_type = 'PRIMARY KEY'
-            and kcu.table_schema = %s
+            and {schema_filter}
             and kcu.table_name = %s
         """
-        pk_columns = [row[0] for row in self.get_records(sql, (schema, table))]
+        pk_columns = [row[0] for row in self.get_records(sql, parameters)]
         return pk_columns or None
 
     @tenacity.retry(

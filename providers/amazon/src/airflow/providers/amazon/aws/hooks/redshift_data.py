@@ -40,6 +40,16 @@ ABORTED_STATE = "ABORTED"
 FAILURE_STATES = {FAILED_STATE, ABORTED_STATE}
 RUNNING_STATES = {"PICKED", "STARTED", "SUBMITTED"}
 
+# Matches the tables an unqualified name resolves to through the session's search_path.
+_VISIBLE_TABLE_FILTER = """exists (
+                select 1
+                from pg_catalog.pg_class c
+                    join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+                where n.nspname = kcu.table_schema
+                and c.relname = kcu.table_name
+                and pg_catalog.pg_table_is_visible(c.oid)
+            )"""
+
 
 @dataclass
 class QueryExecutionOutput:
@@ -227,7 +237,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :param table: Name of the target table
         :param database: the name of the database
-        :param schema: Name of the target schema, public by default
+        :param schema: Name of the target schema, public by default. If ``None``, the
+            table is looked up in the schemas of the session's ``search_path`` where it is visible,
+            as an unqualified table name would be.
         :param cluster_identifier: unique identifier of a cluster
         :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
             `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
@@ -241,6 +253,11 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         :return: Primary key columns list
         """
+        # The Data API rejects a parameter whose value is None, so an unset schema is expressed in the SQL.
+        schema_filter = "kcu.table_schema = :schema" if schema else _VISIBLE_TABLE_FILTER
+        parameters = [{"name": "table", "value": table}]
+        if schema:
+            parameters.insert(0, {"name": "schema", "value": schema})
         sql = f"""
             select kcu.column_name
             from information_schema.table_constraints tco
@@ -249,8 +266,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
                             and kcu.constraint_schema = tco.constraint_schema
                             and kcu.constraint_name = tco.constraint_name
             where tco.constraint_type = 'PRIMARY KEY'
-            and kcu.table_schema = {schema}
-            and kcu.table_name = {table}
+            and {schema_filter}
+            and kcu.table_name = :table
         """
         stmt_id = self.execute_query(
             sql=sql,
@@ -258,6 +275,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             cluster_identifier=cluster_identifier,
             workgroup_name=workgroup_name,
             db_user=db_user,
+            parameters=parameters,
             secret_arn=secret_arn,
             statement_name=statement_name,
             with_event=with_event,
