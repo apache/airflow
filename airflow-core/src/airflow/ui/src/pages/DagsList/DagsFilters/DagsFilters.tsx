@@ -30,6 +30,7 @@ export const DagsFilters = () => {
     SearchParamsKeys.RUN_STATE,
     SearchParamsKeys.NEEDS_REVIEW,
     SearchParamsKeys.TAGS,
+    SearchParamsKeys.EXCLUDE_TAGS,
     SearchParamsKeys.OWNERS,
     SearchParamsKeys.TIMETABLE_TYPE,
     SearchParamsKeys.FAVORITE,

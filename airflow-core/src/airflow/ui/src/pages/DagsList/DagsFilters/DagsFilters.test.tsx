@@ -173,6 +173,39 @@ describe("Paused filter with hide_paused_dags_by_default enabled", () => {
     await waitFor(() => expect(screen.queryByText("tutorial_taskflow_api_success")).not.toBeInTheDocument());
   });
 
+  it("sends excluded tags from the url with the dags request and shows them as a pill", async () => {
+    const urls: Array<URL> = [];
+    const onRequest = ({ request }: { request: Request }) => {
+      urls.push(new URL(request.url));
+    };
+
+    server.events.on("request:start", onRequest);
+    try {
+      render(<AppWrapper initialEntries={["/dags?exclude_tags=example&exclude_tags=nightly"]} />);
+
+      await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    } finally {
+      server.events.removeListener("request:start", onRequest);
+    }
+
+    const dagsRequests = urls.filter((url) => url.pathname === "/ui/dags");
+
+    expect(dagsRequests.length).toBeGreaterThan(0);
+    expect(
+      dagsRequests.every((url) => url.searchParams.getAll("exclude_tags").join(",") === "example,nightly"),
+    ).toBe(true);
+    expect(await screen.findByTestId("exclude_tags-pill")).toBeInTheDocument();
+  });
+
+  it("offers excluding tags from the add filter menu", async () => {
+    render(<AppWrapper initialEntries={["/dags"]} />);
+
+    await waitFor(() => expect(screen.getByText("tutorial_taskflow_api_success")).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId("add-filter-button"));
+
+    expect(await screen.findByTestId("add-filter-exclude_tags")).toBeInTheDocument();
+  });
+
   it("filters dags by a timetable type picked from the menu", async () => {
     render(<AppWrapper initialEntries={["/dags"]} />);
 

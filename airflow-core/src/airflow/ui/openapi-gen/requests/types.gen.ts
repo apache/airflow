@@ -4663,11 +4663,11 @@ export type GetDagsData = {
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
-     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     * Case-insensitive substring match (SQL `ILIKE`). A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive, index-friendly prefix match. A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     /**
@@ -4688,6 +4688,10 @@ export type GetDagsData = {
     dagRunStartDateLte?: string | null;
     dagRunState?: Array<(string)>;
     excludeStale?: boolean;
+    /**
+     * Exclude Dags having any of these tags.
+     */
+    excludeTags?: Array<(string)>;
     /**
      * Filter Dags with asset-based scheduling
      */
@@ -4727,6 +4731,10 @@ export type PatchDagsData = {
      */
     dagIdPrefixPattern?: string | null;
     excludeStale?: boolean;
+    /**
+     * Exclude Dags having any of these tags.
+     */
+    excludeTags?: Array<(string)>;
     limit?: number;
     offset?: number;
     owners?: Array<(string)>;
@@ -4810,11 +4818,11 @@ export type GetDagsUiData = {
     bundleName?: string | null;
     bundleVersion?: string | null;
     /**
-     * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
+     * Case-insensitive substring match (SQL `ILIKE`). A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). Slower than `dag_display_name_prefix_pattern` on large tables — see "Filtering with pattern parameters".
      */
     dagDisplayNamePattern?: string | null;
     /**
-     * Case-sensitive, index-friendly prefix match. See "Filtering with pattern parameters".
+     * Case-sensitive, index-friendly prefix match. A term prefixed with `-` excludes the values it matches (e.g. `etl|-test`). See "Filtering with pattern parameters".
      */
     dagDisplayNamePrefixPattern?: string | null;
     /**
@@ -4836,6 +4844,10 @@ export type GetDagsUiData = {
      */
     dagRunStateWithinHours?: number | null;
     excludeStale?: boolean;
+    /**
+     * Exclude Dags having any of these tags.
+     */
+    excludeTags?: Array<(string)>;
     /**
      * Filter Dags with asset-based scheduling
      */

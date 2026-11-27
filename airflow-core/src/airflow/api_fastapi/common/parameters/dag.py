@@ -101,6 +101,7 @@ class _TagFilterModel(BaseModel):
 
     tags: list[str]
     tags_match_mode: Literal["any", "all"] | None
+    exclude_tags: list[str] = []
 
 
 class _TagsFilter(BaseParam[_TagFilterModel]):
@@ -110,7 +111,13 @@ class _TagsFilter(BaseParam[_TagFilterModel]):
         if self.skip_none is False:
             raise ValueError(f"Cannot set 'skip_none' to False on a {type(self)}")
 
-        if not self.value or not self.value.tags:
+        if not self.value:
+            return select
+
+        if self.value.exclude_tags:
+            select = select.where(~DagModel.tags.any(DagTag.name.in_(self.value.exclude_tags)))
+
+        if not self.value.tags:
             return select
 
         conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value.tags]
@@ -122,8 +129,13 @@ class _TagsFilter(BaseParam[_TagFilterModel]):
         cls,
         tags: list[str] = Query(default_factory=list),
         tags_match_mode: Literal["any", "all"] | None = None,
+        exclude_tags: list[str] = Query(
+            default_factory=list, description="Exclude Dags having any of these tags."
+        ),
     ) -> _TagsFilter:
-        return cls().set_value(_TagFilterModel(tags=tags, tags_match_mode=tags_match_mode))
+        return cls().set_value(
+            _TagFilterModel(tags=tags, tags_match_mode=tags_match_mode, exclude_tags=exclude_tags)
+        )
 
 
 class _OwnersFilter(BaseParam[list[str]]):
@@ -366,12 +378,17 @@ QueryDagIdPrefixPatternSearch = Annotated[
 ]
 
 QueryDagDisplayNamePatternSearch = Annotated[
-    _SearchParam, Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern"))
+    _SearchParam,
+    Depends(search_param_factory(DagModel.dag_display_name, "dag_display_name_pattern", minus_as_not=True)),
 ]
 
 QueryDagDisplayNamePrefixPatternSearch = Annotated[
     _PrefixSearchParam,
-    Depends(prefix_search_param_factory(DagModel.dag_display_name, "dag_display_name_prefix_pattern")),
+    Depends(
+        prefix_search_param_factory(
+            DagModel.dag_display_name, "dag_display_name_prefix_pattern", minus_as_not=True
+        )
+    ),
 ]
 
 QueryTimetableTypePrefixPatternSearch = Annotated[

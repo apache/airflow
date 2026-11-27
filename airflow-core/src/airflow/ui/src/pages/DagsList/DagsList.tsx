@@ -68,6 +68,7 @@ const {
   DAG_FOLDER,
   DAG_RUN_STATE,
   DAG_RUN_STATE_WITHIN_HOURS,
+  EXCLUDE_TAGS,
   FAVORITE,
   HAS_IMPORT_ERRORS,
   LAST_DAG_RUN_STATE,
@@ -175,6 +176,7 @@ export const DagsList = () => {
   const withinHours =
     Number.isFinite(withinHoursParam) && withinHoursParam > 0 ? withinHoursParam : undefined;
   const selectedTags = searchParams.getAll(TAGS);
+  const excludedTags = searchParams.getAll(EXCLUDE_TAGS);
   const selectedMatchMode = searchParams.get(TAGS_MATCH_MODE) === "all" ? "all" : "any";
   const pendingReviews = searchParams.get(NEEDS_REVIEW);
   const owners = searchParams.getAll(OWNERS).filter((value) => value !== "");
@@ -264,6 +266,7 @@ export const DagsList = () => {
     dagRunState,
     dagRunStateWithinHours: Boolean(dagRunState) ? withinHours : undefined,
     excludeStale: hasImportErrors !== true,
+    excludeTags: excludedTags,
     hasImportErrors,
     isFavorite,
     lastDagRunState,

@@ -151,7 +151,9 @@ def create_app(apps: str = "all") -> FastAPI:
         "are literal and trailing non-alphanumeric characters are stripped so the range scan stays "
         "index-compatible under locale-aware collations "
         "(e.g. ``test_`` matches values starting with ``test``, and ``s3://`` matches ``s3``). In both, "
-        "``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches everything. Regular expressions are not "
+        "``|`` means OR (e.g. ``dag1|dag2``) and ``~`` matches everything. Where a parameter's description "
+        "says so, a term prefixed with ``-`` excludes the values it matches (e.g. ``etl|-test``). "
+        "Regular expressions are not "
         "supported by these parameters; regex-capable endpoints expose a separate parameter.",
         lifespan=lifespan,
         root_path=API_ROOT_PATH.removesuffix("/"),

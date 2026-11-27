@@ -30,6 +30,7 @@ export const useDags = ({
   dagRunState,
   dagRunStateWithinHours,
   excludeStale = true,
+  excludeTags,
   hasImportErrors,
   isFavorite,
   lastDagRunState,
@@ -54,6 +55,7 @@ export const useDags = ({
   dagRunState?: DagRunState;
   dagRunStateWithinHours?: number;
   excludeStale?: boolean;
+  excludeTags?: Array<string>;
   hasImportErrors?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
@@ -82,6 +84,7 @@ export const useDags = ({
       dagRunState,
       dagRunStateWithinHours,
       excludeStale,
+      excludeTags,
       hasImportErrors,
       hasPendingActions: pendingHitl,
       isFavorite,
