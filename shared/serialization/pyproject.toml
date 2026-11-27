@@ -17,7 +17,7 @@
 
 [project]
 name = "apache-airflow-shared-serialization"
-description = "Shared serialization constants for Airflow distributions"
+description = "Shared serialization utilities for Airflow distributions"
 version = "0.0"
 classifiers = [
     "Private :: Do Not Upload",
@@ -28,6 +28,7 @@ dependencies = []
 [dependency-groups]
 dev = [
     "apache-airflow-devel-common",
+    "apache-airflow-shared-module-loading",
 ]
 mypy = [
     "apache-airflow-devel-common[mypy]",
