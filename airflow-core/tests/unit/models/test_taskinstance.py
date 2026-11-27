@@ -76,6 +76,7 @@ from airflow.models.taskinstance import (
     clear_loop_task_instances,
     clear_task_instances,
     find_relevant_relatives,
+    has_start_from_trigger,
 )
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
@@ -123,6 +124,7 @@ from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
 from airflow.timetables.simple import PartitionedAtRuntime
+from airflow.triggers.base import StartTriggerArgs
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -3171,6 +3173,7 @@ class TestTaskInstance:
             "operator": "some_custom_operator",
             "custom_operator_name": "some_custom_operator",
             "is_stub": False,
+            "start_from_trigger_pending": True,
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "scheduled_dttm": run_date + datetime.timedelta(hours=1),
             "rendered_map_index": None,
@@ -3926,6 +3929,7 @@ def test_defer_task(create_task_instance):
             trigger_kwargs={"key": "value"},
         ),
     )
+    ti.start_from_trigger_pending = True
     assert ti.defer_task(session=session)
 
     # Check that session.add was called with a Trigger
@@ -3936,12 +3940,13 @@ def test_defer_task(create_task_instance):
     assert trigger_row.kwargs == {"key": "value"}
     assert (trigger_row.dag_id, trigger_row.used_by_ref) == ("test_defer_task", {"ti_id": str(ti.id)})
 
-    # Check that session.flush was called
-    session.flush.assert_called_once()
+    # The trigger is inserted at the next flush, with those of the other TIs the scheduler defers.
+    session.flush.assert_not_called()
 
     # Check that TaskInstance state was updated
     assert ti.state == TaskInstanceState.DEFERRED
-    assert ti.trigger_id == trigger_row.id
+    assert ti.start_from_trigger_pending is None
+    assert ti.trigger is trigger_row
     assert ti.next_method == "next_method"
     assert ti.next_kwargs == {}
 
@@ -4001,17 +4006,43 @@ def test_defer_task_with_trigger_timeout(create_task_instance):
     assert session.add.call_count == 1
     trigger_row = session.add.call_args[0][0]
     assert isinstance(trigger_row, Trigger)
-    session.flush.assert_called_once()
 
     # TaskInstance fields
     assert ti.state == TaskInstanceState.DEFERRED
-    assert ti.trigger_id == trigger_row.id
+    assert ti.trigger is trigger_row
     assert ti.next_method == "next_method"
     assert ti.next_kwargs == {}
 
     # Check trigger_timeout is set correctly (within a small tolerance)
     expected_timeout = now + timeout
     assert abs((ti.trigger_timeout - expected_timeout).total_seconds()) < 5
+
+
+@mock.patch(
+    "airflow.models.trigger.Trigger.encrypt_kwargs", autospec=True, side_effect=ValueError("Cannot encrypt")
+)
+def test_defer_task_leaves_the_ti_unchanged_when_the_trigger_cannot_be_created(
+    mock_encrypt_kwargs, create_task_instance
+):
+    session = mock.Mock(spec=["add", "flush"])
+    ti = create_task_instance(
+        dag_id="test_defer_task_trigger_error",
+        task_id="test_defer_task_trigger_error_op",
+        start_from_trigger=True,
+        start_trigger_args=StartTriggerArgs(
+            trigger_cls="trigger_cls",
+            next_method="next_method",
+            trigger_kwargs={"key": "value"},
+            timeout=datetime.timedelta(hours=1),
+        ),
+    )
+    ti.state = TaskInstanceState.SCHEDULED
+
+    with pytest.raises(ValueError, match="Cannot encrypt"):
+        ti.defer_task(session=session)
+
+    assert (ti.state, ti.trigger_timeout, ti.next_method) == (TaskInstanceState.SCHEDULED, None, None)
+    session.add.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -4075,6 +4106,7 @@ def _defer_ti_in_testing_bundle(create_task_instance, session, *, with_team):
     session.flush()
 
     ti.defer_task(session=session)
+    session.flush()
     return ti
 
 
@@ -5602,6 +5634,36 @@ def test_insert_mapping_carries_is_stub(dag_maker, session, is_stub):
     )
 
     assert mapping["is_stub"] is is_stub
+
+
+@pytest.mark.parametrize(
+    ("start_from_trigger", "start_trigger_args", "expected"),
+    [
+        pytest.param(
+            True,
+            StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger", next_method="execute_complete"
+            ),
+            True,
+            id="started-from-trigger",
+        ),
+        pytest.param(True, None, False, id="without-start-trigger-args"),
+        pytest.param(
+            False,
+            StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger", next_method="execute_complete"
+            ),
+            False,
+            id="start-from-trigger-disabled",
+        ),
+    ],
+)
+def test_has_start_from_trigger(start_from_trigger, start_trigger_args, expected):
+    ser_task = create_scheduler_operator(EmptyOperator(task_id="empty"))
+    ser_task.start_from_trigger = start_from_trigger
+    ser_task.start_trigger_args = start_trigger_args
+
+    assert has_start_from_trigger(ser_task) is expected
 
 
 @pytest.mark.db_test

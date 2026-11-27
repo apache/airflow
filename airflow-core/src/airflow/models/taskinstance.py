@@ -125,6 +125,7 @@ from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCOM_RETURN_KEY, LazyXComPrimitivesSelectSequence, LazyXComSelectSequence
+from airflow.serialization.definitions.notset import NOTSET, ArgNotSet
 from airflow.serialization.enums import stringify_encoding_keys
 from airflow.settings import task_instance_mutation_hook
 from airflow.task.priority_strategy import validate_and_load_priority_weight_strategy
@@ -1097,6 +1098,11 @@ def _resolve_stored_index(map_index: int | None, region_index: int | None) -> in
     return map_index if map_index is not None else -1
 
 
+def has_start_from_trigger(task: Operator) -> bool:
+    """Return whether the scheduler defers ``task`` to the triggerer at start, instead of queuing it."""
+    return task.start_from_trigger is True and task.start_trigger_args is not None
+
+
 def uuid7() -> UUID:
     """Generate a new UUID7."""
     return uuid6.uuid7()
@@ -1250,6 +1256,11 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     # to a new Dag version without being refreshed from its task keeps the value it was created with,
     # which fails closed: a task that has become a stub loses its arg_bindings rather than running wrong.
     is_stub: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # True while the TI waits for the scheduler to defer it to the triggerer at start, null otherwise, so the
+    # scheduler finds these TIs without loading the serialized Dag. schedule_tis sets it from the task, and
+    # deferring the TI clears it: few rows have it set, which keeps the planner's estimate right for the
+    # ti_start_from_trigger_pending partial index.
+    start_from_trigger_pending: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     queued_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     scheduled_dttm: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
     queued_by_job_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -1323,6 +1334,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             state,
             postgresql_where=working_set.is_(True),
             sqlite_where=working_set.is_(True),
+        ),
+        # Only the TIs that wait to start from the triggerer are indexed on PostgreSQL and SQLite, so the
+        # scheduler finds them without scanning every SCHEDULED TI, and other TIs pay no index write. The
+        # predicate must stay "= true", the way the scheduler filters, for the planner to match it.
+        Index(
+            "ti_start_from_trigger_pending",
+            start_from_trigger_pending,
+            postgresql_where=start_from_trigger_pending == true(),
+            sqlite_where=start_from_trigger_pending == true(),
         ),
         PrimaryKeyConstraint("id", name="task_instance_pkey"),
         UniqueConstraint(
@@ -2904,10 +2924,16 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
     #       the side effect is the changes done to the task instance aren't picked up by the scheduler and
     #       thus the task instance isn't processed until the scheduler is restarted.
     @provide_session
-    def defer_task(self, *, session: Session = NEW_SESSION) -> bool:
+    def defer_task(
+        self, *, team_name: str | None | ArgNotSet = NOTSET, session: Session = NEW_SESSION
+    ) -> bool:
         """
         Mark the task as deferred and sets up the trigger that is needed to resume it when TaskDeferred is raised.
 
+        The trigger is inserted at the next flush, so that the scheduler inserts the triggers of all the TIs
+        it defers together.
+
+        :param team_name: the team of the Dag, looked up when not given and multi-team is enabled.
         :meta: private
         """
         from airflow.models.trigger import Trigger
@@ -2916,60 +2942,52 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             assert self.start_date
             assert isinstance(self.task, Operator)
 
-        if start_trigger_args := self.start_trigger_args:
-            trigger_kwargs = start_trigger_args.trigger_kwargs or {}
-            timeout = start_trigger_args.timeout
+        if not (start_trigger_args := self.start_trigger_args):
+            return False
 
-            # Calculate timeout too if it was passed
-            if timeout is not None:
-                self.trigger_timeout = timezone.utcnow() + timeout
-            else:
-                self.trigger_timeout = None
-
-            team_name: str | None = None
+        if isinstance(team_name, ArgNotSet):
+            team_name = None
             if conf.getboolean("core", "multi_team"):
                 from airflow.models.dag import DagModel
 
                 team_name = DagModel.get_team_name(self.dag_id, session=session)
 
-            trigger_row = Trigger(
-                classpath=start_trigger_args.trigger_cls,
-                kwargs=trigger_kwargs,
-                team_name=team_name,
-                dag_id=self.dag_id,
-                used_by_ref={"ti_id": str(self.id)},
-            )
+        trigger_row = Trigger(
+            classpath=start_trigger_args.trigger_cls,
+            kwargs=start_trigger_args.trigger_kwargs or {},
+            team_name=team_name,
+            dag_id=self.dag_id,
+            used_by_ref={"ti_id": str(self.id)},
+        )
+        next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
 
-            # First, make the trigger entry
-            session.add(trigger_row)
-            session.flush()
+        # Nothing below raises: the scheduler fails a TI that cannot be deferred without rolling back a
+        # savepoint, so a raise must leave the TI untouched.
+        session.add(trigger_row)
+        # Keep an eye on the logic in `check_and_change_state_before_execution()`
+        # depending on self.next_method semantics
+        self.state = TaskInstanceState.DEFERRED
+        self.start_from_trigger_pending = None
+        self.trigger = trigger_row
+        self.next_method = start_trigger_args.next_method
+        self.next_kwargs = next_kwargs
+        self.start_date = timezone.utcnow()
+        self.trigger_timeout = None
+        if start_trigger_args.timeout is not None:
+            self.trigger_timeout = self.start_date + start_trigger_args.timeout
 
-            # Then, update ourselves so it matches the deferral request
-            # Keep an eye on the logic in `check_and_change_state_before_execution()`
-            # depending on self.next_method semantics
-            self.state = TaskInstanceState.DEFERRED
-            # A start_from_trigger retry skips schedule_tis' UPDATE, so clear here too.
-            self.retry_reason = None
-            self.retry_delay_override = None
-            self.retry_at = None
-            self.trigger_id = trigger_row.id
-            self.next_method = start_trigger_args.next_method
-            self.next_kwargs = stringify_encoding_keys(start_trigger_args.next_kwargs or {})
-            self.start_date = timezone.utcnow()
-
-            # If an execution_timeout is set, set the timeout to the minimum of
-            # it and the trigger timeout
-            if execution_timeout := self.task.execution_timeout:
-                if self.trigger_timeout:
-                    self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
-                else:
-                    self.trigger_timeout = self.start_date + execution_timeout
-            if self.try_number == 0:
-                self.try_number = 1
-            if self.test_mode:
-                _add_log(event=self.state, task_instance=self, session=session)
-            return True
-        return False
+        # If an execution_timeout is set, set the timeout to the minimum of
+        # it and the trigger timeout
+        if execution_timeout := self.task.execution_timeout:
+            if self.trigger_timeout:
+                self.trigger_timeout = min(self.start_date + execution_timeout, self.trigger_timeout)
+            else:
+                self.trigger_timeout = self.start_date + execution_timeout
+        if self.try_number == 0:
+            self.try_number = 1
+        if self.test_mode:
+            _add_log(event=self.state, task_instance=self, session=session)
+        return True
 
     @classmethod
     def fetch_handle_failure_context(

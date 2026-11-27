@@ -49,6 +49,7 @@ from sqlalchemy import (
     or_,
     select,
     text,
+    true,
     tuple_,
     update,
 )
@@ -121,7 +122,7 @@ from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, has_start_from_trigger
 from airflow.models.team import JobTeam, Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
@@ -226,6 +227,21 @@ rows on every selection.
 
 :meta private:
 """
+
+_START_FROM_TRIGGER_FILTERS = (TI.start_from_trigger_pending == true(), TI.next_method.is_(None))
+"""
+Filters for the SCHEDULED TIs with ``start_from_trigger`` that the scheduler defers instead of queuing.
+
+A TI with ``next_method`` set was resumed by its trigger and runs its next method on an executor.
+``_is_start_from_trigger`` is the same check on a loaded TI. The first filter matches the
+``ti_start_from_trigger_pending`` partial index.
+
+:meta private:
+"""
+
+
+def _is_start_from_trigger(task_instance: TI) -> bool:
+    return bool(task_instance.start_from_trigger_pending) and task_instance.next_method is None
 
 
 def _eager_load_dag_run_for_validation() -> tuple[LoaderOption, LoaderOption]:
@@ -980,6 +996,91 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             self.log.info("\n\t".join(map(repr, callstack)))
             self.log.info("-" * 80)
 
+    def _has_start_from_trigger_tis(self, *, session: Session) -> bool:
+        """
+        Return whether a SCHEDULED TI with ``start_from_trigger`` waits to be deferred to the triggerer.
+
+        Without this check, those TIs would get stuck behind regular TIs whenever the executors are full or
+        nearly full. It can't see pool or concurrency limits, which are only read under the lock, so the
+        critical section may run for a TI that turns out to be blocked. The
+        ``ti_start_from_trigger_pending`` partial index keeps the check cheap.
+        """
+        query = (
+            select(TI.id)
+            .join(TI.dag_run)
+            .join(TI.dag_model)
+            .where(
+                TI.state == TaskInstanceState.SCHEDULED,
+                *_START_FROM_TRIGGER_FILTERS,
+                DR.state == DagRunState.RUNNING,
+                ~DM.is_paused,
+            )
+            .limit(1)
+        )
+        return session.scalar(query) is not None
+
+    def _defer_start_from_trigger_tis(self, task_instances: Collection[TI], *, session: Session) -> int:
+        """
+        Defer the selected TIs with ``start_from_trigger`` to the triggerer.
+
+        Their triggers are inserted together at the next flush. A TI that cannot be deferred is failed:
+        left SCHEDULED, it would be selected again and hold its pool slot in every loop.
+
+        :return: Number of TIs deferred.
+
+        :meta private:
+        """
+        if not task_instances:
+            return 0
+        num_deferred = 0
+        serialized_dags: dict[tuple[str, str], SerializedDAG | None] = {}
+        team_names = (
+            self._get_team_names_for_dag_ids({ti.dag_id for ti in task_instances}, session)
+            if self._multi_team
+            else {}
+        )
+        for task_instance in task_instances:
+            dag_run_key = (task_instance.dag_id, task_instance.run_id)
+            try:
+                if dag_run_key not in serialized_dags:
+                    serialized_dags[dag_run_key] = self.scheduler_dag_bag.get_dag_for_run(
+                        dag_run=task_instance.dag_run, session=session
+                    )
+                serialized_dag = serialized_dags[dag_run_key]
+                if not serialized_dag or not serialized_dag.has_task(task_instance.task_id):
+                    self.log.error("Cannot find the task of %s to defer it to the triggerer", task_instance)
+                    self._fail_ti_not_deferred(
+                        task_instance,
+                        "Cannot find the task to defer it to the triggerer",
+                        session=session,
+                    )
+                    continue
+                task = serialized_dag.get_task(task_instance.task_id)
+                if not has_start_from_trigger(task):
+                    # The run moved to a Dag version where the task no longer starts from the triggerer.
+                    task_instance.start_from_trigger_pending = None
+                    continue
+                task_instance.task = task
+                task_instance.defer_task(
+                    team_name=team_names.get(task_instance.dag_id, NOTSET), session=session
+                )
+                num_deferred += 1
+            except DBAPIError:
+                raise
+            except Exception as e:
+                self.log.exception("Failed to defer %s to the triggerer", task_instance)
+                self._fail_ti_not_deferred(
+                    task_instance, f"Failed to defer to the triggerer: {e}", session=session
+                )
+        return num_deferred
+
+    @staticmethod
+    def _fail_ti_not_deferred(task_instance: TI, reason: str, *, session: Session) -> None:
+        task_instance.state = TaskInstanceState.FAILED
+        task_instance.start_from_trigger_pending = None
+        task_instance.end_date = timezone.utcnow()
+        session.add(Log(event="failed to defer", extra=reason, task_instance=task_instance))
+
     def _task_concurrency_allows_execution(
         self,
         *,
@@ -1113,30 +1214,37 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         starved_pools = {pool_name for pool_name, stats in pools.items() if stats["open"] <= 0}
         return pools, effective_max_tis, starved_pools
 
-    def _select_task_instances_to_queue(
+    def _select_task_instances_to_queue_or_defer(
         self,
         max_tis: int,
         pools: dict[str, PoolStats],
         starved_pools: set[str],
         *,
+        max_start_from_trigger_tis: int = 0,
         session: Session,
-    ) -> list[TI]:
+    ) -> tuple[list[TI], int]:
         """
         Select SCHEDULED TIs that can run given pool and concurrency constraints, and mark them QUEUED.
+
+        The selected TIs with ``start_from_trigger`` are deferred to the triggerer instead. They take pool
+        and concurrency slots like the others, but no executor slot, so once the query for all TIs is done,
+        a query limited to them selects up to ``max_start_from_trigger_tis`` more.
 
         ``pools`` and ``starved_pools`` must come from a prior ``_acquire_pool_capacity`` call (or an
         equivalent pre-built dict in tests).  The pool stats are updated in-place as slots are
         virtually allocated to each selected TI.
 
-        :param max_tis: Upper bound on TIs to select this cycle.
+        :param max_tis: Upper bound on TIs to select with the query for all TIs, queued or deferred.
+        :param max_start_from_trigger_tis: Upper bound on TIs with ``start_from_trigger`` to select after it.
         :param pools: Current pool utilisation as returned by ``Pool.slots_stats``.
         :param starved_pools: Pools that are already at capacity; TIs in these pools are skipped.
         :param session: SQLAlchemy session (must remain open until the caller commits).
-        :return: TIs that were moved to QUEUED state.
+        :return: TIs that were moved to QUEUED state, and the number of TIs deferred to the triggerer.
         """
         from airflow.models.pool import Pool
 
         executable_tis: list[TI] = []
+        start_from_trigger_tis: list[TI] = []
 
         pool_to_team_name: dict[str, str | None] = {}
         if self._multi_team:
@@ -1164,6 +1272,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         pool_num_starving_tasks: dict[str, int] = Counter()
         num_refill_queries = 0
 
+        # Each phase is a query with its refills: the one for all TIs, then the one limited to TIs with
+        # start_from_trigger, when max_start_from_trigger_tis allows more of them.
+        only_start_from_trigger = max_tis <= 0
+        phase_max_tis = max_start_from_trigger_tis if only_start_from_trigger else max_tis
+        num_selected_before_phase = 0
+
         for loop_count in itertools.count(start=1):
             num_starved_pools = len(starved_pools)
             num_starved_dag_runs = len(starved_dag_runs)
@@ -1175,8 +1289,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 starved_dag_runs,
                 starved_tasks,
                 starved_tasks_task_dagrun_concurrency,
-                max_tis,
-                excluded_ti_ids=[ti.id for ti in executable_tis],
+                phase_max_tis,
+                excluded_ti_ids=[ti.id for ti in itertools.chain(executable_tis, start_from_trigger_tis)],
+                only_start_from_trigger=only_start_from_trigger,
             )
 
             timer = stats.timer("scheduler.critical_section_query_duration")
@@ -1218,14 +1333,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if not task_instances_to_examine:
                 self.log.debug("No tasks to consider for execution.")
-                break
-
-            # Put one task instance on each line
-            task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
-            self.log.info("%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str)
+            else:
+                # Put one task instance on each line
+                task_instance_str = "\n".join(f"\t{x!r}" for x in task_instances_to_examine)
+                self.log.info(
+                    "%s tasks up for execution:\n%s", len(task_instances_to_examine), task_instance_str
+                )
 
             dag_id_to_team_name: dict[str, str | None] = {}
-            if self._multi_team:
+            if self._multi_team and task_instances_to_examine:
                 # Batch query to resolve team names for all DAG IDs to optimize performance
                 # Instead of individual queries in _try_to_load_executor(), resolve all team names upfront
                 unique_dag_ids = {ti.dag_id for ti in task_instances_to_examine}
@@ -1353,40 +1469,48 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 ):
                     continue
 
-                if executor_obj := self._try_to_load_executor(
-                    task_instance, session, team_name=dag_id_to_team_name.get(task_instance.dag_id, NOTSET)
-                ):
-                    if TYPE_CHECKING:
-                        # All executors should have a name if they are initted from the executor_loader.
-                        # But we need to check for None to make mypy happy.
-                        assert executor_obj.name
+                if _is_start_from_trigger(task_instance):
+                    start_from_trigger_tis.append(task_instance)
+                else:
+                    if executor_obj := self._try_to_load_executor(
+                        task_instance,
+                        session,
+                        team_name=dag_id_to_team_name.get(task_instance.dag_id, NOTSET),
+                    ):
+                        if TYPE_CHECKING:
+                            # All executors should have a name if they are initted from the executor_loader.
+                            # But we need to check for None to make mypy happy.
+                            assert executor_obj.name
 
-                    if executor_slots_available[executor_obj.name] <= 0:
-                        self.log.debug(
-                            "Not scheduling %s since its executor %s does not currently have any more "
-                            "available slots",
-                            task_instance.task_id,
-                            executor_obj.name,
-                        )
+                        if executor_slots_available[executor_obj.name] <= 0:
+                            self.log.debug(
+                                "Not scheduling %s since its executor %s does not currently have any more "
+                                "available slots",
+                                task_instance.task_id,
+                                executor_obj.name,
+                            )
+                            starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                            continue
+                        executor_slots_available[executor_obj.name] -= 1
+                    else:
+                        # This is a defensive guard for if we happen to have a task who's executor cannot be
+                        # found. The check in the dag parser should make this not realistically possible but
+                        # the loader can fail if some direct DB modification has happened or another as yet
+                        # unknown edge case. _try_to_load_executor will log an error message explaining the
+                        # executor cannot be found.
                         starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                         continue
-                    executor_slots_available[executor_obj.name] -= 1
-                else:
-                    # This is a defensive guard for if we happen to have a task who's executor cannot be
-                    # found. The check in the dag parser should make this not realistically possible but the
-                    # loader can fail if some direct DB modification has happened or another as yet unknown
-                    # edge case. _try_to_load_executor will log an error message explaining the executor
-                    # cannot be found.
-                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
-                    continue
 
-                executable_tis.append(task_instance)
+                    executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
                 concurrency_map.add_selected_task_instance(task_instance)
 
                 pool_stats["open"] = open_slots
 
-                if len(executable_tis) >= max_tis:
+                num_selected_in_phase = (
+                    len(executable_tis) + len(start_from_trigger_tis) - num_selected_before_phase
+                )
+                if num_selected_in_phase >= phase_max_tis:
                     break
 
             # Check this to avoid accidental infinite loops
@@ -1397,26 +1521,38 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 or len(starved_tasks_task_dagrun_concurrency) > num_starved_tasks_task_dagrun_concurrency
             )
 
-            if len(executable_tis) >= max_tis or not found_new_filters:
-                break
+            num_selected_in_phase = (
+                len(executable_tis) + len(start_from_trigger_tis) - num_selected_before_phase
+            )
+            phase_done = num_selected_in_phase >= phase_max_tis or not found_new_filters
 
-            if executable_tis:
+            if not phase_done and num_selected_in_phase:
                 if num_refill_queries >= MAX_TI_REFILL_QUERIES_PER_LOOP:
                     self.log.debug(
                         "Selected %s of %s task instances; reached the limit of %s refill queries.",
-                        len(executable_tis),
-                        max_tis,
+                        num_selected_in_phase,
+                        phase_max_tis,
                         MAX_TI_REFILL_QUERIES_PER_LOOP,
                     )
                     stats.incr("scheduler.critical_section_refill_limit_reached")
+                    phase_done = True
+                else:
+                    num_refill_queries += 1
+
+            if phase_done:
+                if only_start_from_trigger or max_start_from_trigger_tis <= 0:
                     break
-                num_refill_queries += 1
+                only_start_from_trigger = True
+                phase_max_tis = max_start_from_trigger_tis
+                num_selected_before_phase = len(executable_tis) + len(start_from_trigger_tis)
+                num_refill_queries = 0
+                continue
 
             self.log.info(
                 "Selected %s of %s task instances after iteration %s; "
                 "retrying after excluding known blocked candidates.",
-                len(executable_tis),
-                max_tis,
+                num_selected_in_phase,
+                phase_max_tis,
                 loop_count,
             )
 
@@ -1434,7 +1570,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.gauge("scheduler.tasks.starving", num_starving_tasks_total)
         stats.gauge("scheduler.tasks.executable", len(executable_tis))
 
-        return self._mark_task_instances_queued(executable_tis, session=session)
+        num_deferred_tis = self._defer_start_from_trigger_tis(start_from_trigger_tis, session=session)
+
+        return self._mark_task_instances_queued(executable_tis, session=session), num_deferred_tis
 
     def _build_schedulable_tis_query(
         self,
@@ -1445,9 +1583,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         max_tis: int,
         *,
         excluded_ti_ids: Collection[UUID] = (),
+        only_start_from_trigger: bool = False,
     ) -> Select[TI]:
         """
         Build a query that fetches SCHEDULED TIs eligible for execution this cycle.
+
+        With ``only_start_from_trigger``, it only fetches the TIs with ``start_from_trigger`` to defer to the
+        triggerer.
 
         Applies current starvation exclusions so that saturated pools, Dag runs, or tasks
         don't re-appear in the candidate set.  Row-number windowing enforces
@@ -1462,9 +1604,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """
         dr_task_concurrency_subquery = _select_current_dr_task_concurrency().subquery()
 
+        mysql_index = "ti_start_from_trigger_pending" if only_start_from_trigger else "ti_state"
         query = (
             select(TI.id)
-            .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+            .with_hint(TI, f"USE INDEX ({mysql_index})", dialect_name="mysql")
             .join(TI.dag_run)
             .where(DR.state == DagRunState.RUNNING)
             .join(TI.dag_model)
@@ -1502,6 +1645,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if excluded_ti_ids:
             # Selected TIs stay SCHEDULED in the database until the selection loop marks them QUEUED.
             query = query.where(TI.id.not_in(excluded_ti_ids))
+
+        if only_start_from_trigger:
+            query = query.where(*_START_FROM_TRIGGER_FILTERS)
 
         # Create a subquery with row numbers partitioned by dag_id and run_id.
         # Different dags can have the same run_id but
@@ -1764,7 +1910,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             num_enqueued += 1
         return num_enqueued
 
-    def _critical_section_queue_task_instances(self, *, session: Session) -> list[TI]:
+    def _critical_section_queue_task_instances(
+        self, *, session: Session, has_start_from_trigger_tis: bool | None = None
+    ) -> tuple[list[TI], int]:
         """
         Pick TaskInstances to run and mark them QUEUED.
 
@@ -1785,7 +1933,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         instance, which with an asymmetric signing key costs up to a few milliseconds each.
 
         :param session:
-        :return: The task instances moved to QUEUED.
+        :param has_start_from_trigger_tis: Whether a TI with ``start_from_trigger`` waits to be deferred to
+            the triggerer, when the caller already checked it; checked here when needed otherwise.
+        :return: The task instances moved to QUEUED, and the number of task instances deferred to the
+            triggerer.
         """
         # The user can either request a certain number of tis to schedule per main scheduler loop (default
         # is non-zero). If that value has been set to zero, that means use the value of core.parallelism (or
@@ -1795,18 +1946,34 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # we need to make sure in the scheduler now that we don't schedule more than core.parallelism totally
         # across all executors.
         num_occupied_slots = sum([executor.slots_occupied for executor in self.executors])
-        if self.job.max_tis_per_query == 0:
-            max_tis = self._parallelism - num_occupied_slots
-        else:
-            max_tis = min(self.job.max_tis_per_query, self._parallelism - num_occupied_slots)
-        if max_tis <= 0:
+        max_tis_per_loop = self.job.max_tis_per_query or self._parallelism
+        max_tis = max(0, min(max_tis_per_loop, self._parallelism - num_occupied_slots))
+        if sum(executor.slots_available for executor in self.executors) <= 0:
+            max_tis = 0
+        # TIs with start_from_trigger take no executor slot. When executor slots limit the selection, a query
+        # limited to them selects past those slots, only if such TIs exist.
+        max_start_from_trigger_tis = 0
+        if max_tis < max_tis_per_loop:
+            if has_start_from_trigger_tis is None:
+                has_start_from_trigger_tis = self._has_start_from_trigger_tis(session=session)
+            if has_start_from_trigger_tis:
+                max_start_from_trigger_tis = max_tis_per_loop - max_tis
+        if max_tis + max_start_from_trigger_tis <= 0:
             self.log.debug("max_tis query size is less than or equal to zero. No query will be performed!")
-            return []
+            return [], 0
 
-        pools, max_tis, starved_pools = self._acquire_pool_capacity(max_tis, session=session)
-        if max_tis == 0:
-            return []
-        return self._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        pools, max_tis_in_pools, starved_pools = self._acquire_pool_capacity(
+            max_tis + max_start_from_trigger_tis, session=session
+        )
+        if max_tis_in_pools == 0:
+            return [], 0
+        return self._select_task_instances_to_queue_or_defer(
+            min(max_tis, max_tis_in_pools),
+            pools,
+            starved_pools,
+            max_start_from_trigger_tis=min(max_start_from_trigger_tis, max_tis_in_pools),
+            session=session,
+        )
 
     def _enqueue_workloads(self, queued_tis: list[TI], *, session: Session) -> int:
         """
@@ -2872,7 +3039,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
           See docs of _critical_section_queue_task_instances for more.
 
-        :return: Number of TIs enqueued in this iteration
+        :return: Number of TIs enqueued or deferred to the triggerer in this iteration
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
@@ -2920,7 +3087,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # Attempt to schedule even if some executors are full but not all.
             total_free_executor_slots = sum([executor.slots_available for executor in self.executors])
             queued_tis: list[TI] = []
-            if total_free_executor_slots <= 0:
+            num_deferred_tis = 0
+            # TIs with start_from_trigger need no executor slot, so they still need the critical section.
+            has_start_from_trigger_tis = (
+                self._has_start_from_trigger_tis(session=session) if total_free_executor_slots <= 0 else None
+            )
+            if total_free_executor_slots <= 0 and not has_start_from_trigger_tis:
                 # We know we can't do anything here, so don't even try!
                 self.log.debug("All executors are full, skipping critical section")
             else:
@@ -2929,7 +3101,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     timer.start()
 
                     # Find any TIs in state SCHEDULED, try to QUEUE them
-                    queued_tis = self._critical_section_queue_task_instances(session=session)
+                    queued_tis, num_deferred_tis = self._critical_section_queue_task_instances(
+                        session=session, has_start_from_trigger_tis=has_start_from_trigger_tis
+                    )
 
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down
@@ -2948,9 +3122,11 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             guard.commit()
 
             if queued_tis:
-                return self._enqueue_workloads_or_reset(queued_tis, guard=guard, session=session)
+                return num_deferred_tis + self._enqueue_workloads_or_reset(
+                    queued_tis, guard=guard, session=session
+                )
 
-        return 0
+        return num_deferred_tis
 
     def _warn_unreachable_asset_partition(
         self,

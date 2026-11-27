@@ -25,7 +25,7 @@ import re
 import threading
 import time
 from collections import Counter, deque
-from collections.abc import Callable, Generator, Iterator
+from collections.abc import Callable, Generator, Iterable, Iterator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta
@@ -116,7 +116,7 @@ from airflow.models.log import Log, resolve_team_name
 from airflow.models.pool import Pool, PoolStats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import TaskCoordinateResolver
-from airflow.models.taskinstance import TaskInstance, clear_task_instances
+from airflow.models.taskinstance import TaskInstance, clear_task_instances, has_start_from_trigger
 from airflow.models.team import Team
 from airflow.models.trigger import Trigger
 from airflow.partition_mappers.base import (
@@ -173,7 +173,7 @@ from airflow.timetables.simple import (
     PartitionedAssetTimetable as CorePartitionedAssetTimetable,
     PartitionedAtRuntime,
 )
-from airflow.triggers.base import AssetTriggerEvent, TriggerEvent
+from airflow.triggers.base import AssetTriggerEvent, StartTriggerArgs, TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.task_log_address import prepare_task_log_contexts
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -394,6 +394,25 @@ def _clean_db():
     clear_db_triggers()
 
 
+def make_start_from_trigger_task(task_id: str, **kwargs) -> MockOperator:
+    task = MockOperator(task_id=task_id, **kwargs)
+    task.start_from_trigger = True
+    task.start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.triggers.testing.SuccessTrigger",
+        next_method="execute_complete",
+    )
+    return task
+
+
+def mark_scheduled(dag_run: DagRun, task_instances: Iterable[TaskInstance] | None = None) -> None:
+    """Mark TIs SCHEDULED like ``DagRun.schedule_tis``, which flags those that start from the triggerer."""
+    dag = dag_run.dag
+    assert dag is not None
+    for ti in dag_run.task_instances if task_instances is None else task_instances:
+        ti.state = TaskInstanceState.SCHEDULED
+        ti.start_from_trigger_pending = has_start_from_trigger(dag.get_task(ti.task_id)) or None
+
+
 def make_pool_stats(
     pool: str = "default_pool",
     total: int | float = 128,
@@ -436,7 +455,7 @@ def _is_waiting_for_lock(waiter_id: int, blocker_id: int) -> bool:
 
 def _queue_and_enqueue(runner: SchedulerJobRunner, session: Session) -> int:
     """Queue task instances and enqueue their workloads in one transaction, without the commit in between."""
-    queued_tis = runner._critical_section_queue_task_instances(session=session)
+    queued_tis, _ = runner._critical_section_queue_task_instances(session=session)
     runner._enqueue_workloads(queued_tis, session=session)
     return len(queued_tis)
 
@@ -2356,7 +2375,7 @@ class TestSchedulerJob:
         session.merge(ti_non_backfill)
         session.flush()
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(), set(), session=session
         )
         assert len(queued_tis) == 2
@@ -2369,7 +2388,7 @@ class TestSchedulerJob:
         ``ExecuteTask.make()`` reads ``ti.dag_run.created_dag_version.version_data`` to ship the
         run's pinned bundle manifest. ``dag_run`` is eager-joined and ``created_dag_version`` is a
         single batched ``selectin``, so the number of queries in
-        ``_select_task_instances_to_queue`` must be independent of how many task instances are
+        ``_select_task_instances_to_queue_or_defer`` must be independent of how many task instances are
         in the batch. If a future change lazy-loads ``dag_run``/``created_dag_version`` per TI, the
         count would scale with the task count and this test fails.
         """
@@ -2386,7 +2405,7 @@ class TestSchedulerJob:
                 ti.state = State.SCHEDULED
             session.flush()
             with count_queries(session=session) as result:
-                runner._select_task_instances_to_queue(64, make_pool_stats(), set(), session=session)
+                runner._select_task_instances_to_queue_or_defer(64, make_pool_stats(), set(), session=session)
             session.rollback()
             return sum(result.values())
 
@@ -2420,7 +2439,7 @@ class TestSchedulerJob:
             return query
 
         with mock.patch("airflow.jobs.scheduler_job_runner.with_row_locks", side_effect=capture_locked_query):
-            queued_tis = self.job_runner._select_task_instances_to_queue(
+            queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats(), set(), session=session
             )
 
@@ -2460,7 +2479,9 @@ class TestSchedulerJob:
         session.flush()
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
-        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            max_tis, pools, starved_pools, session=session
+        )
         session.flush()
         assert len(res) == 3
         res_keys = []
@@ -2470,6 +2491,444 @@ class TestSchedulerJob:
         assert tis[2].key in res_keys
         assert tis[3].key in res_keys
         session.rollback()
+
+    @pytest.mark.parametrize(
+        ("include_deferred", "expected_states_after_second_pass"),
+        [
+            pytest.param(
+                True,
+                [TaskInstanceState.DEFERRED, TaskInstanceState.SCHEDULED],
+                id="deferred-task-keeps-the-slot",
+            ),
+            pytest.param(
+                False,
+                [TaskInstanceState.DEFERRED, TaskInstanceState.DEFERRED],
+                id="deferral-releases-the-slot",
+            ),
+        ],
+    )
+    def test_find_executable_task_instances_pool_defers_start_from_trigger(
+        self, dag_maker, session, include_deferred, expected_states_after_second_pass
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_pool", session=session):
+            for task_id in ("task_1", "task_2"):
+                make_start_from_trigger_task(task_id, pool="a")
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        dr = dag_maker.create_dagrun()
+        mark_scheduled(dr)
+        session.add(Pool(pool="a", slots=1, description="", include_deferred=include_deferred))
+        session.flush()
+
+        # The first pass defers one task with the only slot; the second shows whether that task still holds it.
+        states_after_each_pass = []
+        for _ in range(2):
+            pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+            queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+                max_tis, pools, starved_pools, session=session
+            )
+            session.flush()
+            assert queued_tis == []
+            states_after_each_pass.append(sorted(ti.state for ti in dr.get_task_instances(session=session)))
+
+        assert states_after_each_pass == [
+            [TaskInstanceState.DEFERRED, TaskInstanceState.SCHEDULED],
+            expected_states_after_second_pass,
+        ]
+
+    def test_find_executable_task_instances_queues_start_from_trigger_resumed_by_trigger(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_resumed", session=session):
+            make_start_from_trigger_task("task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        mark_scheduled(dr, [ti])
+        ti.next_method = "execute_complete"
+        session.flush()
+
+        pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            max_tis, pools, starved_pools, session=session
+        )
+
+        assert [queued_ti.key for queued_ti in queued_tis] == [ti.key]
+
+    def test_select_task_instances_to_queue_or_defer_defers_start_from_trigger_within_max_active_tis_per_dag(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_max_active_tis_per_dag", session=session):
+            make_start_from_trigger_task("task", max_active_tis_per_dag=1)
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr1 = dag_maker.create_dagrun()
+        dr2 = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
+        for dr in (dr1, dr2):
+            mark_scheduled(dr, [dr.get_task_instance("task", session=session)])
+        session.flush()
+
+        self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
+        session.flush()
+        session.expire_all()
+
+        states = sorted(ti.state for dr in (dr1, dr2) for ti in dr.get_task_instances(session=session))
+        assert states == [TaskInstanceState.DEFERRED, TaskInstanceState.SCHEDULED]
+
+    def test_select_task_instances_to_queue_or_defer_defers_start_from_trigger_within_max_active_tis_per_dagrun(
+        self, dag_maker, session
+    ):
+        class StartFromTriggerOperator(MockOperator):
+            start_from_trigger = True
+            start_trigger_args = StartTriggerArgs(
+                trigger_cls="airflow.triggers.testing.SuccessTrigger",
+                next_method="execute_complete",
+            )
+
+        with dag_maker(dag_id="test_start_from_trigger_max_active_tis_per_dagrun", session=session):
+            StartFromTriggerOperator.partial(task_id="task", max_active_tis_per_dagrun=1).expand(arg1=[1, 2])
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        mark_scheduled(dr, dr.get_task_instances(session=session))
+        session.flush()
+
+        self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
+        session.flush()
+        session.expire_all()
+
+        assert sorted(ti.state for ti in dr.get_task_instances(session=session)) == [
+            TaskInstanceState.DEFERRED,
+            TaskInstanceState.SCHEDULED,
+        ]
+
+    @pytest.mark.parametrize(
+        ("max_tis", "max_start_from_trigger_tis", "expected_queries", "expected_queued", "expected_deferred"),
+        [
+            pytest.param(1, 1, [(1, False), (1, True)], ["queued"], ["deferred"], id="past-executor-slots"),
+            pytest.param(1, 0, [(1, False)], ["queued"], [], id="no-start-from-trigger-budget"),
+            pytest.param(0, 1, [(1, True)], [], ["deferred"], id="executors-full"),
+        ],
+    )
+    @mock.patch.object(
+        SchedulerJobRunner,
+        "_build_schedulable_tis_query",
+        autospec=True,
+        side_effect=SchedulerJobRunner._build_schedulable_tis_query,
+    )
+    def test_select_task_instances_to_queue_or_defer_selects_start_from_trigger_with_its_own_query(
+        self,
+        mock_build_schedulable_tis_query,
+        dag_maker,
+        session,
+        max_tis,
+        max_start_from_trigger_tis,
+        expected_queries,
+        expected_queued,
+        expected_deferred,
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_own_query", session=session):
+            for task_id, priority_weight in (("queued", 4), ("no_slot_1", 3), ("no_slot_2", 2)):
+                EmptyOperator(task_id=task_id, priority_weight=priority_weight)
+            make_start_from_trigger_task("deferred", priority_weight=1)
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        mark_scheduled(dr)
+        session.flush()
+
+        queued_tis, num_deferred_tis = self.job_runner._select_task_instances_to_queue_or_defer(
+            max_tis,
+            make_pool_stats(),
+            set(),
+            max_start_from_trigger_tis=max_start_from_trigger_tis,
+            session=session,
+        )
+        session.flush()
+        session.expire_all()
+
+        # The query for all TIs only fetches as many TIs as there are executor slots, whatever waits to be
+        # deferred; the one limited to TIs with start_from_trigger finds the TI to defer behind the others.
+        assert [
+            (call.args[5], call.kwargs["only_start_from_trigger"])
+            for call in mock_build_schedulable_tis_query.call_args_list
+        ] == expected_queries
+        assert ([ti.task_id for ti in queued_tis], num_deferred_tis) == (
+            expected_queued,
+            len(expected_deferred),
+        )
+        states = {ti.task_id: ti.state for ti in dr.get_task_instances(session=session)}
+        assert {task_id for task_id, state in states.items() if state == TaskInstanceState.DEFERRED} == set(
+            expected_deferred
+        )
+        assert states["no_slot_1"] == states["no_slot_2"] == TaskInstanceState.SCHEDULED
+
+    @conf_vars({("scheduler", "use_job_schedule"): "False"})
+    def test_do_scheduling_defers_start_from_trigger_when_executors_are_full(
+        self, dag_maker, mock_executor, session
+    ):
+        with dag_maker(dag_id="test_start_from_trigger_executors_full", session=session):
+            EmptyOperator(task_id="queued")
+            make_start_from_trigger_task("deferred")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        run_id = dr.run_id
+        mark_scheduled(dr)
+        session.flush()
+        for executor in self.job_runner.executors:
+            executor.slots_available = 0
+            executor.slots_occupied = self.job_runner._parallelism
+
+        assert self.job_runner._do_scheduling(session) == 1
+
+        states = session.execute(
+            select(TaskInstance.task_id, TaskInstance.state).where(
+                TaskInstance.dag_id == "test_start_from_trigger_executors_full", TaskInstance.run_id == run_id
+            )
+        ).all()
+        assert dict(states) == {"queued": TaskInstanceState.SCHEDULED, "deferred": TaskInstanceState.DEFERRED}
+
+    @pytest.mark.parametrize(
+        ("free_executor_slots", "has_start_from_trigger_tis", "expected_selection"),
+        [
+            pytest.param(0, False, None, id="executors-full"),
+            pytest.param(2, False, (2, 0), id="executors-nearly-full"),
+            pytest.param(0, True, (0, 16), id="executors-full-start-from-trigger-waiting"),
+            pytest.param(2, True, (2, 14), id="executors-nearly-full-start-from-trigger-waiting"),
+            pytest.param(32, True, (16, 0), id="executors-not-limiting"),
+        ],
+    )
+    @mock.patch.object(
+        SchedulerJobRunner, "_select_task_instances_to_queue_or_defer", autospec=True, return_value=([], 0)
+    )
+    @mock.patch.object(
+        SchedulerJobRunner, "_acquire_pool_capacity", autospec=True, return_value=({}, 16, set())
+    )
+    @mock.patch.object(SchedulerJobRunner, "_has_start_from_trigger_tis", autospec=True)
+    def test_critical_section_splits_the_selection_between_executor_slots_and_start_from_trigger(
+        self,
+        mock_has_start_from_trigger_tis,
+        mock_acquire_pool_capacity,
+        mock_select_task_instances_to_queue_or_defer,
+        mock_executor,
+        session,
+        free_executor_slots,
+        has_start_from_trigger_tis,
+        expected_selection,
+    ):
+        mock_has_start_from_trigger_tis.return_value = has_start_from_trigger_tis
+        scheduler_job = Job()
+        scheduler_job.max_tis_per_query = 16
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+        mock_executor.slots_occupied = self.job_runner._parallelism - free_executor_slots
+
+        assert self.job_runner._critical_section_queue_task_instances(session=session) == ([], 0)
+
+        # Executor slots don't limit the selection, so whether TIs with start_from_trigger wait doesn't matter.
+        assert mock_has_start_from_trigger_tis.called is (free_executor_slots < 16)
+        if expected_selection is None:
+            mock_acquire_pool_capacity.assert_not_called()
+            mock_select_task_instances_to_queue_or_defer.assert_not_called()
+        else:
+            max_tis, max_start_from_trigger_tis = expected_selection
+            mock_acquire_pool_capacity.assert_called_once_with(
+                self.job_runner, max_tis + max_start_from_trigger_tis, session=session
+            )
+            mock_select_task_instances_to_queue_or_defer.assert_called_once_with(
+                self.job_runner,
+                max_tis,
+                {},
+                set(),
+                max_start_from_trigger_tis=max_start_from_trigger_tis,
+                session=session,
+            )
+
+    @pytest.mark.parametrize(
+        ("next_method", "is_paused", "dag_run_state", "expected"),
+        [
+            pytest.param(None, False, DagRunState.RUNNING, True, id="waits-for-deferral"),
+            pytest.param("execute_complete", False, DagRunState.RUNNING, False, id="resumed-by-trigger"),
+            pytest.param(None, True, DagRunState.RUNNING, False, id="paused-dag"),
+            pytest.param(None, False, DagRunState.QUEUED, False, id="dag-run-not-running"),
+        ],
+    )
+    def test_has_start_from_trigger_tis(
+        self, dag_maker, session, next_method, is_paused, dag_run_state, expected
+    ):
+        with dag_maker(dag_id="test_has_start_from_trigger_tis", session=session):
+            EmptyOperator(task_id="queued")
+            make_start_from_trigger_task("deferred")
+        dr = dag_maker.create_dagrun(state=dag_run_state)
+        mark_scheduled(dr)
+        ti = dr.get_task_instance("deferred", session=session)
+        ti.next_method = next_method
+        ti.dag_model.is_paused = is_paused
+        session.flush()
+
+        assert SchedulerJobRunner(job=Job())._has_start_from_trigger_tis(session=session) is expected
+
+    def test_defer_start_from_trigger_tis_inserts_the_triggers_at_the_next_flush(self, dag_maker, session):
+        with dag_maker(dag_id="test_defer_start_from_trigger_tis_batch", session=session):
+            make_start_from_trigger_task("task_1")
+            make_start_from_trigger_task("task_2")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        mark_scheduled(dr, tis)
+        session.flush()
+
+        assert self.job_runner._defer_start_from_trigger_tis(tis, session=session) == 2
+
+        assert [ti.trigger_id for ti in tis] == [None, None]
+        session.flush()
+        assert [(ti.state, ti.start_from_trigger_pending) for ti in tis] == [
+            (TaskInstanceState.DEFERRED, None)
+        ] * 2
+        assert None not in {ti.trigger_id for ti in tis}
+
+    @mock.patch.object(TaskInstance, "defer_task", autospec=True)
+    def test_defer_start_from_trigger_tis_fails_a_ti_that_cannot_be_deferred(
+        self, mock_defer_task, dag_maker, session
+    ):
+        def defer_task(ti, *, team_name, session):
+            if ti.task_id == "broken":
+                raise RuntimeError("Cannot create the trigger")
+            ti.state = TaskInstanceState.DEFERRED
+            return True
+
+        mock_defer_task.side_effect = defer_task
+        with dag_maker(dag_id="test_defer_start_from_trigger_tis_failure", session=session):
+            make_start_from_trigger_task("broken")
+            make_start_from_trigger_task("deferred")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        tis = sorted(dr.task_instances, key=lambda ti: ti.task_id)
+        mark_scheduled(dr, tis)
+        session.flush()
+
+        assert self.job_runner._defer_start_from_trigger_tis(tis, session=session) == 1
+        session.flush()
+        session.expire_all()
+
+        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+        assert {task_id: ti.state for task_id, ti in tis.items()} == {
+            "broken": TaskInstanceState.FAILED,
+            "deferred": TaskInstanceState.DEFERRED,
+        }
+        assert (tis["broken"].start_from_trigger_pending, tis["broken"].end_date is not None) == (None, True)
+        logs = session.scalars(select(Log).where(Log.event == "failed to defer")).all()
+        assert [(log.task_id, log.extra) for log in logs] == [
+            ("broken", "Failed to defer to the triggerer: Cannot create the trigger")
+        ]
+
+    @mock.patch.object(
+        TaskInstance,
+        "defer_task",
+        autospec=True,
+        side_effect=OperationalError("any_statement", "any_params", Exception("any_orig")),
+    )
+    def test_defer_start_from_trigger_tis_raises_db_errors(self, mock_defer_task, dag_maker, session):
+        with dag_maker(dag_id="test_defer_start_from_trigger_tis_db_error", session=session):
+            make_start_from_trigger_task("task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        with pytest.raises(OperationalError):
+            self.job_runner._defer_start_from_trigger_tis([ti], session=session)
+
+    def test_defer_start_from_trigger_tis_leaves_a_task_no_longer_started_from_trigger_to_queue(
+        self, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_defer_start_from_trigger_tis_changed_task", session=session):
+            EmptyOperator(task_id="task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        # The TI was created from a Dag version where the task started from the triggerer.
+        ti.start_from_trigger_pending = True
+        session.flush()
+
+        self.job_runner._defer_start_from_trigger_tis([ti], session=session)
+        session.flush()
+        session.expire_all()
+
+        ti = dr.get_task_instance("task", session=session)
+        assert (ti.state, ti.start_from_trigger_pending, ti.trigger_id) == (
+            TaskInstanceState.SCHEDULED,
+            None,
+            None,
+        )
+
+    @mock.patch.object(CachedDBDagBag, "get_dag_for_run", autospec=True, return_value=None)
+    def test_defer_start_from_trigger_tis_fails_the_ti_when_its_dag_is_not_found(
+        self, mock_get_dag_for_run, dag_maker, session
+    ):
+        with dag_maker(dag_id="test_defer_start_from_trigger_tis_dag_not_found", session=session):
+            make_start_from_trigger_task("task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        mark_scheduled(dr, [ti])
+        session.flush()
+
+        self.job_runner._defer_start_from_trigger_tis([ti], session=session)
+        session.flush()
+        session.expire_all()
+
+        ti = dr.get_task_instance("task", session=session)
+        assert (ti.state, ti.start_from_trigger_pending, ti.trigger_id) == (
+            TaskInstanceState.FAILED,
+            None,
+            None,
+        )
+        logs = session.scalars(select(Log).where(Log.event == "failed to defer")).all()
+        assert [(log.task_id, log.extra) for log in logs] == [
+            ("task", "Cannot find the task to defer it to the triggerer")
+        ]
+
+    @pytest.mark.parametrize(
+        ("cached_team_names", "expected_team_name", "expect_team_lookup"),
+        [
+            pytest.param({"test_defer_start_from_trigger_tis_team": "team_a"}, "team_a", False, id="cached"),
+            pytest.param({}, "team_b", True, id="cache-lookup-failed"),
+        ],
+    )
+    @conf_vars({("core", "multi_team"): "true"})
+    @mock.patch.object(DagModel, "get_team_name", autospec=True, return_value="team_b")
+    @mock.patch.object(SchedulerJobRunner, "_get_team_names_for_dag_ids", autospec=True)
+    def test_defer_start_from_trigger_tis_uses_the_cached_team_name(
+        self,
+        mock_get_team_names_for_dag_ids,
+        mock_get_team_name,
+        dag_maker,
+        session,
+        cached_team_names,
+        expected_team_name,
+        expect_team_lookup,
+    ):
+        mock_get_team_names_for_dag_ids.return_value = cached_team_names
+        clear_db_teams()
+        session.add_all([Team(name="team_a"), Team(name="team_b")])
+        with dag_maker(dag_id="test_defer_start_from_trigger_tis_team", session=session):
+            make_start_from_trigger_task("task")
+        self.job_runner = SchedulerJobRunner(job=Job())
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance("task", session=session)
+        ti.state = TaskInstanceState.SCHEDULED
+        session.flush()
+
+        self.job_runner._defer_start_from_trigger_tis([ti], session=session)
+        session.flush()
+
+        assert ti.state == TaskInstanceState.DEFERRED
+        assert session.get(Trigger, ti.trigger_id).team_name == expected_team_name
+        assert mock_get_team_name.called is expect_team_lookup
 
     @conf_vars({("core", "multi_team"): "true"})
     def test_find_executable_task_instances_pool_team_enforcement(self, dag_maker, session):
@@ -2525,7 +2984,9 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
-        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            max_tis, pools, starved_pools, session=session
+        )
         queued_keys = {ti.key for ti in res}
 
         # team_a task using its own pool: allowed
@@ -2567,7 +3028,9 @@ class TestSchedulerJob:
             ti.state = State.SCHEDULED
             session.merge(ti)
         session.flush()
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         session.flush()
         assert total_executed_ti == len(res)
 
@@ -2600,7 +3063,9 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            1, make_pool_stats(), set(), session=session
+        )
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -2629,7 +3094,9 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            1, make_pool_stats(), set(), session=session
+        )
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -2665,7 +3132,9 @@ class TestSchedulerJob:
 
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
 
         assert len(res) == 5
         res_ti_keys = [res_ti.key for res_ti in res]
@@ -2727,7 +3196,9 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
 
         # All tasks should be queued since they have valid executor mappings
         assert len(res) == 5
@@ -2854,7 +3325,7 @@ class TestSchedulerJob:
             pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
                 self.job_runner.executor.slots_available, session=session
             )
-            queued_tis = self.job_runner._select_task_instances_to_queue(
+            queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 max_tis, pools, starved_pools, session=session
             )
             count += len(queued_tis)
@@ -2915,7 +3386,7 @@ class TestSchedulerJob:
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
             self.job_runner.executor.slots_available, session=session
         )
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             max_tis, pools, starved_pools, session=session
         )
 
@@ -2968,7 +3439,7 @@ class TestSchedulerJob:
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(
             self.job_runner.executor.slots_available, session=session
         )
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             max_tis, pools, starved_pools, session=session
         )
 
@@ -3025,7 +3496,9 @@ class TestSchedulerJob:
         session.flush()
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
-        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            max_tis, pools, starved_pools, session=session
+        )
 
         assert len(res) == 2
         assert ti3.key == res[0].key
@@ -3056,7 +3529,9 @@ class TestSchedulerJob:
             session.merge(ti)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            1, make_pool_stats(), set(), session=session
+        )
         session.flush()
         assert [ti.key for ti in res] == [tis[1].key]
         session.rollback()
@@ -3084,7 +3559,7 @@ class TestSchedulerJob:
         session.flush()
 
         # Two tasks w/o pool up for execution and our default pool size is 1
-        res = self.job_runner._select_task_instances_to_queue(
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(total=1), set(), session=session
         )
         assert len(res) == 1
@@ -3093,7 +3568,7 @@ class TestSchedulerJob:
         session.flush()
 
         # One task w/o pool up for execution and one task running
-        res = self.job_runner._select_task_instances_to_queue(
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(total=1, running=1), set(), session=session
         )
         assert len(res) == 0
@@ -3124,7 +3599,9 @@ class TestSchedulerJob:
             ti.state = State.SCHEDULED
             session.merge(ti)
         session.flush()
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         session.flush()
         assert len(res) == 0
         tis = dr.get_task_instances(session=session)
@@ -3147,7 +3624,9 @@ class TestSchedulerJob:
         session.merge(ti)
         session.commit()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         session.flush()
         assert len(res) == 0
         session.rollback()
@@ -3175,7 +3654,9 @@ class TestSchedulerJob:
         session.commit()
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
-        res = self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            max_tis, pools, starved_pools, session=session
+        )
         session.flush()
         assert len(res) == 1
         session.rollback()
@@ -3201,7 +3682,7 @@ class TestSchedulerJob:
         session.commit()
         cannot_run_ti_id = next(t for t in dr.task_instances if t.task_id == "cannot_run").id
         with caplog.at_level(logging.WARNING):
-            self.job_runner._select_task_instances_to_queue(
+            self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats("some_pool", total=2), set(), session=session
             )
             assert (
@@ -3242,12 +3723,10 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
         session = settings.Session()
 
-        assert (
-            len(
-                self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
-            )
-            == 0
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
         )
+        assert len(queued_tis) == 0
         session.rollback()
 
     def test_tis_for_queued_dagruns_are_not_run(self, dag_maker):
@@ -3271,7 +3750,9 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.merge(ti2)
         session.flush()
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
 
         assert len(res) == 1
         assert ti2.key == res[0].key
@@ -3333,7 +3814,7 @@ class TestSchedulerJob:
 
         session.flush()
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(), set(), session=session
         )
         queued_runs = Counter([x.run_id for x in queued_tis])
@@ -3345,7 +3826,7 @@ class TestSchedulerJob:
         session.scalars(select(TaskInstance)).all()
 
         # now we still have max tis running so no more will be queued
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(), set(), session=session
         )
         assert queued_tis == []
@@ -3380,7 +3861,7 @@ class TestSchedulerJob:
 
         with mock.patch("airflow.executors.executor_loader.ExecutorLoader.load_executor") as loader_mock:
             loader_mock.side_effect = executor.get_mock_loader_side_effect()
-            res = self.job_runner._select_task_instances_to_queue(
+            res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats(), set(), session=session
             )
 
@@ -3395,7 +3876,7 @@ class TestSchedulerJob:
             session.merge(ti1_2)
             session.flush()
 
-            res = self.job_runner._select_task_instances_to_queue(
+            res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats(), set(), session=session
             )
 
@@ -3408,7 +3889,7 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._select_task_instances_to_queue(
+            res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats(), set(), session=session
             )
 
@@ -3422,7 +3903,7 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._select_task_instances_to_queue(
+            res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats(), set(), session=session
             )
 
@@ -3436,7 +3917,7 @@ class TestSchedulerJob:
             session.merge(ti1_3)
             session.flush()
 
-            res = self.job_runner._select_task_instances_to_queue(
+            res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats(), set(), session=session
             )
 
@@ -3474,7 +3955,9 @@ class TestSchedulerJob:
         session.merge(ti2)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         # ti2 should be blocked because ti1 is deferred and counts as active
         assert len(res) == 0
         session.rollback()
@@ -3517,7 +4000,9 @@ class TestSchedulerJob:
         session.flush()
 
         # 1 running + 1 deferred = 2, which equals the limit
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 0
         session.rollback()
 
@@ -3557,7 +4042,9 @@ class TestSchedulerJob:
         session.flush()
 
         # 1 deferred -> room for 1 more (limit is 2)
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 1
         session.rollback()
 
@@ -3596,7 +4083,9 @@ class TestSchedulerJob:
         session.merge(ti_b1)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         queued_task_ids = [ti.task_id for ti in res]
         # task_b should be queued, task_a should be blocked
         assert "task_b" in queued_task_ids
@@ -3629,7 +4118,9 @@ class TestSchedulerJob:
         session.merge(ti2)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 0
 
         # Step 2: ti1 completes -> ti2 should be unblocked
@@ -3637,7 +4128,9 @@ class TestSchedulerJob:
         session.merge(ti1)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 1
         assert res[0].key == ti2.key
         session.rollback()
@@ -3670,7 +4163,9 @@ class TestSchedulerJob:
         session.merge(ti_a1)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         queued_task_ids = [(ti.task_id, ti.map_index) for ti in res]
         # ti_a1 should be blocked, task_b may be queued
         assert ("task_a", 1) not in queued_task_ids
@@ -3834,7 +4329,9 @@ class TestSchedulerJob:
         session.merge(t3)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
         # Deferred doesn't count toward max_active_tasks=2, so both scheduled can run
         assert len(res) == 2
         session.rollback()
@@ -3865,7 +4362,9 @@ class TestSchedulerJob:
 
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(100, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            100, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 0
 
         session.rollback()
@@ -3892,7 +4391,7 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._select_task_instances_to_queue(
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(total=1), set(), session=session
         )
         assert len(res) == 1
@@ -3931,7 +4430,9 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            1, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 1
         assert res[0].key == ti2.key
 
@@ -3960,7 +4461,9 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            1, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 1
         assert res[0].key == ti1b.key
 
@@ -4006,7 +4509,7 @@ class TestSchedulerJob:
             caplog.at_level("ERROR", logger="airflow.jobs.scheduler_job_runner"),
             patch.object(self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_bad_dag),
         ):
-            result = self.job_runner._select_task_instances_to_queue(
+            result, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 1, make_pool_stats(), set(), session=session
             )
 
@@ -4055,7 +4558,7 @@ class TestSchedulerJob:
                 self.job_runner.scheduler_dag_bag, "get_dag_for_run", side_effect=fail_for_older_run
             ),
         ):
-            result = self.job_runner._select_task_instances_to_queue(
+            result, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 1, make_pool_stats(), set(), session=session
             )
 
@@ -4091,7 +4594,9 @@ class TestSchedulerJob:
             side_effect=DBAPIError("select 1", None, Exception("connection lost")),
         ):
             with pytest.raises(DBAPIError):
-                self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+                self.job_runner._select_task_instances_to_queue_or_defer(
+                    1, make_pool_stats(), set(), session=session
+                )
 
         session.rollback()
 
@@ -4135,7 +4640,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=Job())
         self.job_runner.executor.slots_available = executor_slots
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             3, make_pool_stats(), set(), session=session
         )
 
@@ -4149,7 +4654,7 @@ class TestSchedulerJob:
         mock_get_backend.return_value = mock_stats
         self.job_runner = SchedulerJobRunner(job=Job())
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             3, make_pool_stats(), set(), session=session
         )
 
@@ -4176,7 +4681,7 @@ class TestSchedulerJob:
         runnable_ti.state = State.SCHEDULED
         session.flush()
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             1, make_pool_stats(), set(), session=session
         )
 
@@ -4204,7 +4709,7 @@ class TestSchedulerJob:
         runnable_ti.state = State.SCHEDULED
         session.flush()
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(), set(), session=session
         )
 
@@ -4243,9 +4748,10 @@ class TestSchedulerJob:
             max_tis = int(pools["default_pool"]["open"])
             if not max_tis:
                 break
-            queued_tis.extend(
-                self.job_runner._select_task_instances_to_queue(max_tis, pools, set(), session=session)
+            queued_tis_per_pass, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+                max_tis, pools, set(), session=session
             )
+            queued_tis.extend(queued_tis_per_pass)
 
         assert [ti.key for ti in queued_tis] == expected_keys
 
@@ -4290,7 +4796,7 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=Job())
 
         with caplog.at_level(logging.DEBUG, logger="airflow.jobs.scheduler_job_runner"):
-            queued_tis = self.job_runner._select_task_instances_to_queue(
+            queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats(), set(), session=session
             )
 
@@ -4330,7 +4836,7 @@ class TestSchedulerJob:
                     select(TaskInstance).where(TaskInstance.id.in_(ti_ids.values()))
                 ).all()
                 assert {ti.id for ti in tis_in_session if ti in selector} == set(ti_ids.values())
-                queued_tis = runner._select_task_instances_to_queue(
+                queued_tis, _ = runner._select_task_instances_to_queue_or_defer(
                     32, make_pool_stats(), set(), session=selector
                 )
                 selector.rollback()
@@ -4503,7 +5009,9 @@ class TestSchedulerJob:
 
         # Schedule ti with higher priority,
         # because it's running in a different DAG run with 0 active tis
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            1, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 1
         assert res[0].key == ti2a.key
 
@@ -4536,7 +5044,9 @@ class TestSchedulerJob:
 
         # Schedule ti with lower priority,
         # because the one with higher priority is limited by a concurrency limit
-        res = self.job_runner._select_task_instances_to_queue(1, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            1, make_pool_stats(), set(), session=session
+        )
         assert len(res) == 1
         assert res[0].key == ti1b.key
 
@@ -4573,7 +5083,7 @@ class TestSchedulerJob:
         ti2.state = State.RUNNING
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             1,
             {
                 **make_pool_stats(total=0),
@@ -4608,7 +5118,7 @@ class TestSchedulerJob:
         set_default_pool_slots(1)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(total=1), set(), session=session
         )
         assert len(res) == 0
@@ -4626,7 +5136,7 @@ class TestSchedulerJob:
         set_default_pool_slots(2)
         session.flush()
 
-        res = self.job_runner._select_task_instances_to_queue(
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(total=2), set(), session=session
         )
         assert len(res) == 1
@@ -4775,7 +5285,7 @@ class TestSchedulerJob:
         ti_pre_assign.executor = pre_assigning_exec.name.module_path
         session.flush()
 
-        returned_tis = self.job_runner._select_task_instances_to_queue(
+        returned_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(), set(), session=session
         )
         returned_tis.sort(key=lambda ti: ti.task_id)
@@ -5298,7 +5808,7 @@ class TestSchedulerJob:
         session.add(job)
         session.commit()
         self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
-        queued_tis = self.job_runner._critical_section_queue_task_instances(session=session)
+        queued_tis, _ = self.job_runner._critical_section_queue_task_instances(session=session)
         session.commit()
         guard = mock.create_autospec(CommitProhibitorGuard, instance=True)
 
@@ -5326,7 +5836,7 @@ class TestSchedulerJob:
         session.add(job)
         session.commit()
         self.job_runner = SchedulerJobRunner(job=job, executors=[self.null_exec])
-        queued_tis = self.job_runner._critical_section_queue_task_instances(session=session)
+        queued_tis, _ = self.job_runner._critical_section_queue_task_instances(session=session)
         session.commit()
         mysql = get_dialect_name(session) == "mysql"
 
@@ -6982,7 +7492,9 @@ class TestSchedulerJob:
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
         # Try to find executable task instances - should not find any for the removed task
-        res = self.job_runner._select_task_instances_to_queue(32, make_pool_stats(), set(), session=session)
+        res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
+            32, make_pool_stats(), set(), session=session
+        )
 
         # Should be empty because the task no longer exists in the DAG
         assert res == []
@@ -7241,7 +7753,7 @@ class TestSchedulerJob:
         self.job_runner._schedule_dag_run(dr, session)
         session.flush()
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
-        task_instances_list = self.job_runner._select_task_instances_to_queue(
+        task_instances_list, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             max_tis, pools, starved_pools, session=session
         )
 
@@ -7287,7 +7799,7 @@ class TestSchedulerJob:
             self.job_runner._schedule_dag_run(dr, session)
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
-        task_instances_list = self.job_runner._select_task_instances_to_queue(
+        task_instances_list, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             max_tis, pools, starved_pools, session=session
         )
 
@@ -7355,9 +7867,11 @@ class TestSchedulerJob:
             self.job_runner._schedule_dag_run(dr, session)
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(2, session=session)
-        self.job_runner._select_task_instances_to_queue(max_tis, pools, starved_pools, session=session)
+        self.job_runner._select_task_instances_to_queue_or_defer(
+            max_tis, pools, starved_pools, session=session
+        )
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(2, session=session)
-        task_instances_list2 = self.job_runner._select_task_instances_to_queue(
+        task_instances_list2, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             max_tis, pools, starved_pools, session=session
         )
 
@@ -7416,7 +7930,7 @@ class TestSchedulerJob:
         session.flush()
 
         pools, max_tis, starved_pools = self.job_runner._acquire_pool_capacity(32, session=session)
-        task_instances_list = self.job_runner._select_task_instances_to_queue(
+        task_instances_list, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             max_tis, pools, starved_pools, session=session
         )
 
@@ -14153,7 +14667,7 @@ class TestSchedulerJob:
         with mock.patch.object(self.job_runner, "_get_team_names_for_dag_ids") as mock_batch:
             mock_batch.return_value = {"dag_a": "team_a", "dag_b": "team_b"}
 
-            res = self.job_runner._select_task_instances_to_queue(
+            res, _ = self.job_runner._select_task_instances_to_queue_or_defer(
                 32, make_pool_stats(), set(), session=session
             )
 
@@ -14259,7 +14773,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job)
 
-        queued_tis = self.job_runner._select_task_instances_to_queue(
+        queued_tis, _ = self.job_runner._select_task_instances_to_queue_or_defer(
             32, make_pool_stats(), set(), session=session
         )
 
