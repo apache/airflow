@@ -33,6 +33,9 @@ its running batch instead (:ref:`llm-batch-reattach`). To resume a Strands Agent
 retry, see :ref:`howto/frameworks:strands-durable`; for an OpenAI Agents SDK agent, see
 :ref:`howto/frameworks:openai-agents-durable`.
 
+.. meta::
+    :description: Set durable=True on an agent task so that a retry replays the model and tool calls that already finished instead of running and paying for them again.
+
 Turn it on
 ----------
 
