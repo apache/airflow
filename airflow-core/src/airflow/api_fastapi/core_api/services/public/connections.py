@@ -23,7 +23,7 @@ from fastapi import HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from airflow._shared.secrets_masker import merge
+from airflow._shared.secrets_masker import UnsafeMaskedSecretMergeError, merge
 from airflow.api_fastapi.core_api.datamodels.common import (
     BulkActionNotOnExistence,
     BulkActionOnExistence,
@@ -66,7 +66,13 @@ def update_orm_from_pydantic(
         if pydantic_conn.password is None:
             orm_conn.set_password(pydantic_conn.password)
         else:
-            merged_password = merge(pydantic_conn.password, orm_conn.password, "password")
+            try:
+                merged_password = merge(pydantic_conn.password, orm_conn.password, "password")
+            except UnsafeMaskedSecretMergeError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot safely restore masked secrets after list elements change",
+                ) from exc
             orm_conn.set_password(merged_password)
     if (not update_mask and "extra" in pydantic_conn.model_fields_set) or (
         update_mask and "extra" in update_mask
@@ -84,6 +90,11 @@ def update_orm_from_pydantic(
         except json.JSONDecodeError:
             # We can't merge fields in an unstructured `extra`
             orm_conn.set_extra(pydantic_conn.extra)
+        except UnsafeMaskedSecretMergeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot safely restore masked secrets after list elements change",
+            ) from exc
 
 
 class BulkConnectionService(BulkService[ConnectionBody]):

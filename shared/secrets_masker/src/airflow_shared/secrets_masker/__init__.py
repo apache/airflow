@@ -22,6 +22,7 @@ from .secrets_masker import (
     Redacted,
     RedactedIO,
     SecretsMasker,
+    UnsafeMaskedSecretMergeError,
     _is_v1_env_var,
     _secrets_masker,
     mask_secret,
@@ -33,6 +34,7 @@ from .secrets_masker import (
 
 __all__ = [
     "SecretsMasker",
+    "UnsafeMaskedSecretMergeError",
     "mask_secret",
     "redact",
     "reset_secrets_masker",
