@@ -122,7 +122,7 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     """
     Merge parameters into an existing context.
 
-    Like ``dict.update()`` , this take the same parameters, and updates
+    Like ``dict.update()``, this takes the same parameters, and updates
     ``context`` in-place.
 
     This is implemented as a free function because the ``Context`` type is
@@ -131,9 +131,6 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
 
     :meta private:
     """
-    if not context:
-        context = Context()
-
     context.update(*args, **kwargs)
 
 
