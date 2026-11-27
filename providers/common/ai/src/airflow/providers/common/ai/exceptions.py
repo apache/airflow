@@ -119,8 +119,9 @@ class SkillsConfigurationError(AirflowFailException):
     Raised when ``AirflowSkills`` cannot load its skills because of how it is configured.
 
     The harness or GitPython is not installed, a local source does not exist, ``include`` or
-    ``exclude`` names a skill no source holds, a ``GitSkills`` URL or path is not valid, or an
-    agent has a second ``AirflowSkills``.
+    ``exclude`` names a skill no source holds, a ``GitSkills`` embeds credentials in its URL, uses
+    ``http://`` with ``conn_id`` or has a path outside the repository, or an agent has a second
+    ``AirflowSkills``.
     Every attempt would fail the same way, so the task fails without retrying. A failed
     clone is not one of these: it raises ``RuntimeError`` and is retried as usual.
     """

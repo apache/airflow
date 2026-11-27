@@ -106,7 +106,8 @@ class GitSkills:
         Skill bundles can contain scripts an agent may run on the worker. Because
         the repository is fetched at run time, anyone who can modify it can
         introduce code that runs in your environment, outside DAG review. Point
-        ``repo_url`` at a trusted repository and set ``branch`` to a tag, because a branch name moves.
+        ``repo_url`` at a trusted repository and set ``branch`` to a tag, which moves less often than a
+        branch but can still be moved by anyone who can push to the repository; a commit SHA cannot be pinned.
     """
 
     repo_url: str
@@ -326,7 +327,10 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
     :param inherit_env: Names of worker environment variables a script receives besides ``PATH``, ``HOME``,
         ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. The values are read on the worker
         when the script runs and are not stored in the Dag; a name the worker has not set is skipped, and
-        its name is logged as a warning when the run starts.
+        its name is logged as a warning when the run starts. The ones a script most often needs are ``TZ``,
+        ``TMPDIR``, ``HTTP_PROXY``, ``HTTPS_PROXY``, ``NO_PROXY``, ``SSL_CERT_FILE``, ``REQUESTS_CA_BUNDLE``,
+        ``PYTHONPATH`` and ``VIRTUAL_ENV``. What a script prints goes to the model and, with ``durable=True``,
+        to the journal, so a variable named here leaves the worker if the script prints it.
     :param max_retries: Correction attempts the model gets per tool call. Defaults to the agent's.
     """
 

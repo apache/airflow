@@ -81,8 +81,9 @@ need strict isolation.
     the ``run_skill_script`` tool. For a remote source, anyone who can modify the
     repository can introduce code that executes on your worker, outside Dag
     review and versioning. Point ``GitSkills`` at a trusted repository, set
-    ``branch`` to a tag, because a branch name moves, and treat skill contents as code that runs in
-    your environment.
+    ``branch`` to a tag, which moves less often than a branch but can still be moved by anyone who can
+    push to the repository (``GitSkills`` cannot pin a commit SHA), and treat skill contents as code
+    that runs in your environment.
 
 .. _agent-skills-restricted:
 
@@ -168,7 +169,9 @@ Where it differs from ``AgentSkillsToolset``:
   file has a ``.py``, ``.sh``, ``.bash`` or ``.zsh`` suffix or is executable. It refuses
   ``SKILL.md`` and ``__init__.py``, and a script path that ``exclude_resources`` matches.
   An argument name must start with a letter and contain only letters, digits, ``-`` and ``_``;
-  the tool refuses any other name. A script that starts with a shebang runs under the interpreter it
+  the tool refuses any other name. A value is passed as the next command-line argument, so a value
+  that starts with ``-`` reaches the script as it is, and a script that parses its own arguments has to
+  validate every value. A script that starts with a shebang runs under the interpreter it
   names, and if the worker does not have that interpreter the tool refuses the script with an error
   that says so, even for a ``.py`` file. A ``.py`` file without a shebang runs under the worker's own
   Python.
@@ -200,7 +203,13 @@ Parameters
   ``HOME``, ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. A name is looked up on the
   worker when the script runs, so no value is stored in the Dag file or its serialized form. A name
   the worker has not set is skipped, and its name, never a value, is logged as a warning when the run
-  starts. Default: none.
+  starts. The variables a script most often needs are ``TZ`` for local time, ``TMPDIR`` for a
+  temporary directory the worker has moved, ``HTTP_PROXY``, ``HTTPS_PROXY`` and ``NO_PROXY`` behind a
+  proxy, ``SSL_CERT_FILE`` and ``REQUESTS_CA_BUNDLE`` for a private certificate authority, and
+  ``PYTHONPATH`` or ``VIRTUAL_ENV`` for a Python environment the script expects.
+  Whatever a script prints is returned to the model, which is sent to the LLM provider, and with
+  ``durable=True`` it is stored in the journal as well. A variable named in ``inherit_env`` leaves the
+  worker if the script prints it. Default: none.
 - ``max_retries``: How many times the model may correct failed calls to one of the two tools.
   Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
@@ -220,10 +229,14 @@ A configuration that cannot load its skills raises
 :class:`~airflow.providers.common.ai.exceptions.SkillsConfigurationError`, and the task fails
 without retrying, because every attempt would fail the same way. That covers a missing
 ``pydantic-ai-harness`` or GitPython, a local source that does not exist, an ``include`` or
-``exclude`` naming a skill no source holds, a ``GitSkills`` URL or path that is not valid, and a second
-``AirflowSkills`` on an agent that is not ``durable``.
+``exclude`` naming a skill no source holds, a ``GitSkills`` whose ``repo_url`` embeds a username or
+password, uses ``http://`` together with ``conn_id``, or whose ``path`` is absolute or leaves the
+repository, and a second ``AirflowSkills`` on an agent that is not ``durable``.
 A clone that fails raises ``RuntimeError`` instead, and the task retries as often as its
-``retries`` allows.
+``retries`` allows. That includes a mistyped ``repo_url`` and a ``conn_id`` for which no connection
+exists, because every error while cloning is reported as a failed clone. A local source that does not
+exist is not retried, even when it is only missing for a moment, for example while a volume is still
+mounting.
 
 Trust model
 ~~~~~~~~~~~
@@ -231,11 +244,19 @@ Trust model
 - The model chooses which script runs and with what arguments. Treat a script's arguments as
   untrusted input, the way an HTTP handler treats a request.
 - With ``GitSkills``, scripts can change outside Dag review. Point ``repo_url`` at a trusted
-  repository and set ``branch`` to a tag, because a branch name moves.
-- A script runs with the worker's own permissions, the same as any task code on that worker, but
-  receives only ``PATH``, ``HOME``, ``LANG``, ``LC_ALL``, ``LC_CTYPE`` and the variables
-  ``inherit_env`` names. It cannot read the worker's ``AIRFLOW_CONN_*`` variables from its
-  environment, though it can still read any file the worker's user can.
+  repository and set ``branch`` to a tag, which moves less often than a branch. A tag can still be
+  moved by anyone who can push to the repository, and ``GitSkills`` cannot pin a commit SHA,
+  because ``branch`` is handed to ``git clone --branch``.
+- A script runs as the worker's own user with that user's permissions, the same as any task code on
+  that worker. It receives only ``PATH``, ``HOME``, ``LANG``, ``LC_ALL``, ``LC_CTYPE`` and the
+  variables ``inherit_env`` names, so a script that does not go looking does not see the worker's
+  ``AIRFLOW_CONN_*`` variables. This limits the environment the script is handed; it is not a
+  sandbox. The script can still read any file that user can read, and on Linux the processes of one
+  user can by default read each other's ``/proc/<pid>/environ``, which holds the worker process's
+  environment, unless the operating system is configured to prevent it.
+- Do not run skills you do not trust on a worker that holds secrets. This is Airflow's security model:
+  code that a Dag author trusts runs on the worker with the worker's permissions (see
+  :doc:`apache-airflow:security/security_model`).
 
 Version requirements
 ~~~~~~~~~~~~~~~~~~~~
@@ -279,7 +300,9 @@ needs, will then leave the ``skills`` extra. New code should use ``AirflowSkills
      - The same parameters
    * - A script inherits the worker's whole environment
      - A script receives only ``PATH``, ``HOME``, ``LANG``, ``LC_ALL`` and ``LC_CTYPE``. Name any other
-       variable it needs in ``inherit_env``.
+       variable it needs in ``inherit_env``. A migrated script that relied on one, such as ``HTTP_PROXY``,
+       ``SSL_CERT_FILE``, ``TMPDIR`` or ``TZ``, does not fail at start: it finds the variable unset, so
+       a request that needs the proxy or certificate setting fails, and the time zone is the system's.
    * - A skill nested more than one level below a source
      - Not found, and no warning or error says so. Check your layout: each skill directory must sit
        directly in a source directory.
