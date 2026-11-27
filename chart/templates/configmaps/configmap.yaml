@@ -43,7 +43,7 @@ data:
   {{- $basePath := "" -}}
   {{- if not (hasKey $config.core "execution_api_server_url") -}}
     {{-  if and $config.api $config.api.base_url -}}
-      {{- with urlParse $config.api.base_url }}{{ $basePath = (trimSuffix "/" .path) }}{{ end }}
+      {{- with urlParse (tpl ($config.api.base_url | toString) $Global) }}{{ $basePath = (trimSuffix "/" .path) }}{{ end }}
     {{- end -}}
     {{- $_ := set $config.core "execution_api_server_url" (printf "http://%s-api-server:%d%s/execution/" (include "airflow.fullname" .) (int .Values.ports.apiServer) $basePath)  -}}
   {{- end -}}
