@@ -503,6 +503,11 @@ ARG_SHUT_DOWN_LOGGING = Arg(
 ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
 ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
 ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
+ARG_KEEP_TASK_STATE = Arg(
+    ("--keep-task-state",),
+    help="Keep the task state store entries of cleared tasks so they resume from them",
+    action="store_true",
+)
 ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
 ARG_DAG_REGEX = Arg(
     ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
@@ -550,7 +555,7 @@ ARG_DB_DRY_RUN = Arg(
 )
 ARG_DB_SKIP_ARCHIVE = Arg(
     ("--skip-archive",),
-    help="Don't preserve purged records in an archive table.",
+    help="Delete purged records directly without creating an archive table.",
     action="store_true",
 )
 ARG_DB_EXPORT_FORMAT = Arg(
@@ -767,7 +772,7 @@ ARG_API_SERVER_WORKERS = Arg(
 )
 ARG_API_SERVER_WORKER_TIMEOUT = Arg(
     ("-t", "--worker-timeout"),
-    default=120,
+    default=conf.get("api", "worker_timeout"),
     type=int,
     help="The timeout for waiting on API server workers",
 )
@@ -1270,6 +1275,7 @@ DAGS_COMMANDS = (
             ARG_PARTITION_DATE_END,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_KEEP_TASK_STATE,
             ARG_YES,
             ARG_VERBOSE,
         ),
@@ -1517,6 +1523,7 @@ TASKS_COMMANDS = (
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_KEEP_TASK_STATE,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
         ),
@@ -2384,10 +2391,10 @@ core_commands: list[CLICommand] = [
     ActionCommand(
         name="rotate-fernet-key",
         func=lazy_load_command("airflow.cli.commands.rotate_fernet_key_command.rotate_fernet_key"),
-        help="Rotate encrypted connection credentials and variables",
+        help="Rotate encrypted connection credentials, variables and trigger kwargs",
         description=(
-            "Rotate all encrypted connection credentials and variables; see "
-            "https://airflow.apache.org/docs/apache-airflow/stable/howto/secure-connections.html"
+            "Rotate all encrypted connection credentials, variables and trigger kwargs; see "
+            "https://airflow.apache.org/docs/apache-airflow/stable/security/secrets/fernet.html"
             "#rotating-encryption-keys"
         ),
         args=(),

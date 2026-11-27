@@ -24,7 +24,7 @@ import tempfile
 from collections.abc import AsyncGenerator
 from functools import cached_property, wraps
 from time import sleep
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import aiofiles
 import requests
@@ -63,7 +63,8 @@ if TYPE_CHECKING:
 
     from aiohttp import ClientResponse
     from kubernetes.client import V1JobList
-    from kubernetes.client.models import CoreV1Event, CoreV1EventList, V1Job, V1Pod
+    from kubernetes.client.models import V1Job, V1Pod
+    from pydantic import BaseModel
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
 
@@ -76,7 +77,7 @@ JOB_STATUS_CONDITION_TYPES = JOB_FINAL_STATUS_CONDITION_TYPES | {"Suspended"}
 
 # Hoisted out of the ``except`` clause in watch_pod_events: mypy rejects star-unpacking a tuple
 # of exception types inside an except expression.
-WATCH_RETRYABLE_ERRORS: tuple[type[BaseException], ...] = (
+WATCH_RETRYABLE_ERRORS: tuple[type[Exception], ...] = (
     async_client.exceptions.ApiException,
     *TRANSIENT_CONNECTION_ERRORS,
 )
@@ -139,10 +140,10 @@ class PodOperatorHookProtocol(Protocol):
     def get_xcom_sidecar_container_image(self) -> str | None:
         """Return the xcom sidecar image that defined in the connection."""
 
-    def get_xcom_sidecar_container_resources(self) -> str | None:
+    def get_xcom_sidecar_container_resources(self) -> dict | None:
         """Return the xcom sidecar resources that defined in the connection."""
 
-    def get_xcom_sidecar_container_security_context(self) -> str | None:
+    def get_xcom_sidecar_container_security_context(self) -> dict | None:
         """Return the xcom sidecar security context that defined in the connection."""
 
 
@@ -302,8 +303,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options kube_config_path, "
-                "kube_config, in_cluster, config_dict are mutually exclusive. "
+                "Invalid connection configuration. Options config_file/kube_config_path, "
+                "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
 
@@ -625,7 +626,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Deployment namespace
         """
         return self.apps_v1_client.read_namespaced_deployment_status(
-            name=name, namespace=namespace, pretty=True, **kwargs
+            name=name, namespace=namespace, pretty="true", **kwargs
         )
 
     @generic_api_retry
@@ -643,9 +644,10 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         json_job = json.dumps(sanitized_job, indent=2)
 
         self.log.debug("Job Creation Request: \n%s", json_job)
+        metadata = cast("client.V1ObjectMeta", job.metadata)
         try:
             resp = self.batch_v1_client.create_namespaced_job(
-                body=sanitized_job, namespace=job.metadata.namespace, **kwargs
+                body=sanitized_job, namespace=cast("str", metadata.namespace), **kwargs
             )
             self.log.debug("Job Creation Response: %s", resp)
         except Exception as e:
@@ -664,20 +666,21 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty=True)
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty="true")
 
     @generic_api_retry
     def get_job_status(self, job_name: str, namespace: str) -> V1Job:
         """
         Get job with status of specified name and namespace.
 
+        Reads the Job object rather than the ``jobs/status`` subresource: both return the same ``status``,
+        but RBAC checks subresources separately, so this only needs ``get`` on ``jobs``.
+
         :param job_name: Name of Job to fetch.
         :param namespace: Namespace of the Job.
         :return: Job object
         """
-        return self.batch_v1_client.read_namespaced_job_status(
-            name=job_name, namespace=namespace, pretty=True
-        )
+        return self.batch_v1_client.read_namespaced_job(name=job_name, namespace=namespace, pretty="true")
 
     def wait_until_job_complete(self, job_name: str, namespace: str, job_poll_interval: float = 10) -> V1Job:
         """
@@ -703,7 +706,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
         :return: V1JobList object
         """
-        return self.batch_v1_client.list_job_for_all_namespaces(pretty=True)
+        return self.batch_v1_client.list_job_for_all_namespaces(pretty="true")
 
     @generic_api_retry
     def list_jobs_from_namespace(self, namespace: str) -> V1JobList:
@@ -713,9 +716,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param namespace: Namespace of the Job.
         :return: V1JobList object
         """
-        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty=True)
+        return self.batch_v1_client.list_namespaced_job(namespace=namespace, pretty="true")
 
-    def is_job_complete(self, job: V1Job) -> bool:
+    def is_job_complete(self, job: V1Job | async_client.V1Job) -> bool:
         """
         Check whether the given job is complete (with success or fail).
 
@@ -729,7 +732,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                     s = "s" if len(final_condition_types) > 1 else ""
                     self.log.info(
                         "The job '%s' state%s: %s",
-                        job.metadata.name,
+                        job.metadata.name if job.metadata else None,
                         s,
                         ", ".join(f"{c.type} at {c.last_transition_time}" for c in final_condition_types),
                     )
@@ -737,7 +740,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return False
 
     @staticmethod
-    def is_job_failed(job: V1Job) -> str | bool:
+    def is_job_failed(job: V1Job | async_client.V1Job) -> str | bool | None:
         """
         Check whether the given job is failed.
 
@@ -750,7 +753,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return False
 
     @staticmethod
-    def is_job_successful(job: V1Job) -> str | bool:
+    def is_job_successful(job: V1Job | async_client.V1Job) -> str | bool:
         """
         Check whether the given job is completed successfully..
 
@@ -762,7 +765,9 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return False
 
     @generic_api_retry
-    def patch_namespaced_job(self, job_name: str, namespace: str, body: object) -> V1Job:
+    def patch_namespaced_job(
+        self, job_name: str, namespace: str, body: dict[str, Any] | list[dict[str, Any]] | BaseModel
+    ) -> V1Job:
         """
         Update the specified Job.
 
@@ -867,7 +872,13 @@ def _split_log_bytes(raw_bytes: bytes) -> list[str]:
 
 
 class AsyncKubernetesHook(KubernetesHook):
-    """Hook to use Kubernetes SDK asynchronously."""
+    """
+    Hook to use Kubernetes SDK asynchronously.
+
+    Non-exec authentication reuses an API client across calls. Call ``await hook.close()``
+    when finished to release its connection pool and SSL context. Pod and job triggers
+    do this in their cleanup methods.
+    """
 
     def __init__(
         self,
@@ -882,12 +893,13 @@ class AsyncKubernetesHook(KubernetesHook):
         self.config_dict = config_dict
         self._extras: dict | None = connection_extras
         self._event_polling_fallback = False
-        self._config_loaded = False
+        self._client_cacheable = False
         # Override the parent's sync-typed client_configuration with the async type.
-        self.client_configuration: async_client.Configuration | None = client_configuration
+        self.client_configuration: async_client.Configuration | None = client_configuration  # type: ignore[assignment]
         # Cached result of exec-auth detection. None means not yet detected.
         # This is to optimise and not calling _uses_exec_auth repeatedly on every _load_config() call.
         self._is_exec_auth: bool | None = None
+        self._cached_kube_client: async_client.ApiClient | None = None
 
     def _uses_exec_auth(self, kubeconfig_data: dict, context: str | None = None) -> bool:
         """
@@ -959,19 +971,15 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         Load Kubernetes configuration.
 
-        For static auth (token, certificate), configuration is loaded once per hook instance
-        and cached. For exec-based auth (EKS, GKE), the config is reloaded on every call so
-        that short-lived tokens are always refreshed.
+        Reload credentials on every access while retaining the client for non-exec auth.
+        Exec-based auth continues to use a new client for each access.
         """
         if self.client_configuration is None:
             self.client_configuration = async_client.Configuration()
 
-        if self._config_loaded:
-            return
-
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
-        kubeconfig_path = await self._get_field("kube_config_path")
+        kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))
         kubeconfig = await self._get_field("kube_config")
 
         num_selected_configuration = sum(
@@ -980,7 +988,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if num_selected_configuration > 1:
             raise AirflowException(
-                "Invalid connection configuration. Options kube_config_path, "
+                "Invalid connection configuration. Options config_file/kube_config_path, "
                 "kube_config, in_cluster, and config_dict are mutually exclusive. "
                 "You can only use one option at a time."
             )
@@ -989,7 +997,7 @@ class AsyncKubernetesHook(KubernetesHook):
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("within a pod"))
             async_config.load_incluster_config(client_configuration=self.client_configuration)
             self._is_in_cluster = True
-            self._config_loaded = True
+            self._client_cacheable = True
             return
 
         self._is_in_cluster = False
@@ -1006,7 +1014,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 self._is_exec_auth = self._uses_exec_auth(self.config_dict, context=cluster_context)
 
             if not self._is_exec_auth:
-                self._config_loaded = True
+                self._client_cacheable = True
 
             return
         if kubeconfig_path is not None:
@@ -1024,7 +1032,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 )
 
             if not self._is_exec_auth:
-                self._config_loaded = True
+                self._client_cacheable = True
 
             return
         if kubeconfig is not None:
@@ -1061,7 +1069,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     )
 
                 if not self._is_exec_auth:
-                    self._config_loaded = True
+                    self._client_cacheable = True
 
             return
         self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("default configuration file"))
@@ -1075,7 +1083,7 @@ class AsyncKubernetesHook(KubernetesHook):
             self._is_exec_auth = await self._default_kubeconfig_uses_exec_auth(cluster_context)
 
         if not self._is_exec_auth:
-            self._config_loaded = True
+            self._client_cacheable = True
 
     async def get_conn_extras(self) -> dict:
         if self._extras is None:
@@ -1105,18 +1113,31 @@ class AsyncKubernetesHook(KubernetesHook):
         return extras.get(prefixed_name)
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
-        kube_client = None
+    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:  # type: ignore[override]
+        await self._load_config()
+        if self._client_cacheable:
+            # Reuse one client per hook: each construction runs ssl.create_default_context()
+            # on the event loop and opens a new connection pool. Owners release it via
+            # close(); triggers do so in cleanup().
+            if self._cached_kube_client is None:
+                self._cached_kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
+            yield self._cached_kube_client
+            return
+        # Exec-based auth is not cacheable: build and close a client per call.
+        kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
         try:
-            await self._load_config()
-            kube_client = _TimeoutAsyncK8sApiClient(configuration=self.client_configuration)
             yield kube_client
         finally:
-            if kube_client is not None:
-                await kube_client.close()
+            await kube_client.close()
+
+    async def close(self) -> None:
+        """Release the cached API client, if any. Safe to call multiple times."""
+        cached, self._cached_kube_client = self._cached_kube_client, None
+        if cached is not None:
+            await cached.close()
 
     @generic_api_retry
-    async def get_pod(self, name: str, namespace: str) -> V1Pod:
+    async def get_pod(self, name: str, namespace: str) -> async_client.V1Pod:
         """
         Get pod's object.
 
@@ -1126,7 +1147,7 @@ class AsyncKubernetesHook(KubernetesHook):
         async with self.get_conn() as connection:
             try:
                 v1_api = async_client.CoreV1Api(connection)
-                pod: V1Pod = await v1_api.read_namespaced_pod(
+                pod: async_client.V1Pod = await v1_api.read_namespaced_pod(
                     name=name,
                     namespace=namespace,
                 )
@@ -1153,7 +1174,7 @@ class AsyncKubernetesHook(KubernetesHook):
                 await v1_api.delete_namespaced_pod(
                     name=name,
                     namespace=namespace,
-                    body=client.V1DeleteOptions(grace_period_seconds=grace_period_seconds),
+                    body=async_client.V1DeleteOptions(grace_period_seconds=grace_period_seconds),
                 )
             except async_client.ApiException as e:
                 # If the pod is already deleted
@@ -1209,7 +1230,7 @@ class AsyncKubernetesHook(KubernetesHook):
     @generic_api_retry
     async def get_pod_events(
         self, name: str, namespace: str, resource_version: str | None = None
-    ) -> CoreV1EventList:
+    ) -> async_client.CoreV1EventList:
         """
         Get pod events.
 
@@ -1228,7 +1249,7 @@ class AsyncKubernetesHook(KubernetesHook):
                     kwargs["resource_version"] = resource_version
                     kwargs["resource_version_match"] = "NotOlderThan"
 
-                events: CoreV1EventList = await v1_api.list_namespaced_event(**kwargs)
+                events: async_client.CoreV1EventList = await v1_api.list_namespaced_event(**kwargs)
                 return events
             except async_client.ApiException as e:
                 if e.status == 403:
@@ -1241,7 +1262,7 @@ class AsyncKubernetesHook(KubernetesHook):
         namespace: str,
         resource_version: str | None = None,
         timeout_seconds: int = 30,
-    ) -> AsyncGenerator[CoreV1Event]:
+    ) -> AsyncGenerator[async_client.CoreV1Event]:
         """
         Watch Kubernetes events for a pod.
 
@@ -1384,7 +1405,7 @@ class AsyncKubernetesHook(KubernetesHook):
         namespace: str,
         resource_version: str | None = None,
         interval: int = 30,
-    ) -> AsyncGenerator[CoreV1Event]:
+    ) -> AsyncGenerator[async_client.CoreV1Event]:
         """
         Fallback method to poll pod event at regular intervals.
 
@@ -1395,28 +1416,32 @@ class AsyncKubernetesHook(KubernetesHook):
         :param resource_version: Only return events not older than this resource version
         :param interval: Polling interval in seconds
         """
-        events: CoreV1EventList = await self.get_pod_events(name, namespace, resource_version)
+        events: async_client.CoreV1EventList = await self.get_pod_events(name, namespace, resource_version)
         for event in events.items:
             yield event
         await asyncio.sleep(interval)
 
     @generic_api_retry
-    async def get_job_status(self, name: str, namespace: str) -> V1Job:
+    async def get_job_status(self, name: str, namespace: str) -> async_client.V1Job:
         """
         Get job's status object.
+
+        Reads the Job object, see :meth:`KubernetesHook.get_job_status`.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.
         """
         async with self.get_conn() as connection:
             v1_api = async_client.BatchV1Api(connection)
-            job: V1Job = await v1_api.read_namespaced_job_status(
+            job: async_client.V1Job = await v1_api.read_namespaced_job(
                 name=name,
                 namespace=namespace,
             )
         return job
 
-    async def wait_until_job_complete(self, name: str, namespace: str, poll_interval: float = 10) -> V1Job:
+    async def wait_until_job_complete(  # type: ignore[override]
+        self, name: str, namespace: str, poll_interval: float = 10
+    ) -> async_client.V1Job:
         """
         Block job of specified name and namespace until it is complete or failed.
 
@@ -1427,7 +1452,7 @@ class AsyncKubernetesHook(KubernetesHook):
         """
         while True:
             self.log.info("Requesting status for the job '%s' ", name)
-            job: V1Job = await self.get_job_status(name=name, namespace=namespace)
+            job: async_client.V1Job = await self.get_job_status(name=name, namespace=namespace)
             if self.is_job_complete(job=job):
                 return job
             self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", name, poll_interval)

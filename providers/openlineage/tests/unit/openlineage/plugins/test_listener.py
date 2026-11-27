@@ -2289,7 +2289,7 @@ class TestOpenLineageListenerAirflow3:
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
         adapter.fail_task(**expected_args)
-        assert mock_emit.assert_called_once
+        mock_emit.assert_called_once()
 
     @pytest.mark.parametrize(
         ("team_name", "expected_tags"),
@@ -2543,7 +2543,7 @@ class TestOpenLineageListenerAirflow3:
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
         adapter.complete_task(**expected_args)
-        assert mock_emit.assert_called_once
+        mock_emit.assert_called_once()
 
     @mock.patch(
         "airflow.providers.openlineage.plugins.listener.OpenLineageListener._execute", new=regular_call
@@ -3023,7 +3023,7 @@ class TestOpenLineageListenerAirflow3:
         expected_args["run_id"] = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
         adapter = OpenLineageAdapter()
         adapter.complete_task(**expected_args)
-        assert mock_emit.assert_called_once
+        mock_emit.assert_called_once()
 
     @pytest.mark.parametrize(
         ("max_workers", "expected"),

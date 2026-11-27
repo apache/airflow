@@ -99,6 +99,9 @@ list or `announce@apache.org` to see the announcement of the security issue - in
 and the severity of the issue once the issue is fixed and release is public. Note that the
 `announce@apache.org` mailing list is moderated, and it might take a few hours for the announcement to
 appear there, so `users@airflow.apache.org` is the best place to monitor for the announcement.
+Once published, the vulnerability is also listed on the
+[Airflow security page](https://airflow.apache.org/security/), together with all other
+published vulnerabilities of Apache Airflow, its providers and the Task SDK.
 
 Security issues in Airflow are handled by the Airflow Security Team. Details about the Airflow Security
 Team and how members of it are chosen can be found in the
@@ -115,6 +118,10 @@ Airflow community is not responsible for releasing and announcing security vulne
 is handled entirely by the 3rd-parties that release their own providers.
 
 ## Where do I find more information about Airflow Security ?
+
+All published vulnerabilities of Apache Airflow, its providers and the Task SDK are listed on the
+[Airflow security page](https://airflow.apache.org/security/), where you can also see which of them
+affect the version you run.
 
 If you wish to know more about the ASF security process,
 the [ASF Security team's page](https://www.apache.org/security/) describes

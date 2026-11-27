@@ -247,6 +247,8 @@ def test_lost_registration_and_completion_responses_over_http(api_url, provision
             request=DagParseTokenBody(attempt_id=uuid7(), bundle_name="bundle-a", relative_fileloc="dag.py")
         )
         with processor.use_parse(context):
+            with pytest.raises(httpx2.ReadError):
+                processor.variables.get("parse-token-key")
             assert processor.variables.get("parse-token-key").value == "value"
             with pytest.raises(httpx2.HTTPStatusError) as error:
                 processor.post(f"jobs/{job_id}/heartbeat")

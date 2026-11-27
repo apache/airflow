@@ -17,6 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError
+from unittest import mock
+
+import pytest
+
 
 def test_decorators_plugin_import():
     """Test that decorators plugin can be imported."""
@@ -50,3 +55,40 @@ def test_outputs_plugin_entrypoint():
     # The plugin function should return a plugin class when called with a version string
     plugin_class = plugin("1.0")
     assert plugin_class is not None
+
+
+@pytest.mark.parametrize(
+    ("installed", "always_true", "always_false"),
+    [
+        pytest.param("2.0.57", [], ["SQLALCHEMY_2_1"], id="2.0"),
+        pytest.param("2.1.8", ["SQLALCHEMY_2_1"], [], id="2.1"),
+        pytest.param("2.2.0b1", ["SQLALCHEMY_2_1"], [], id="2.2-prerelease"),
+    ],
+)
+@mock.patch("airflow_mypy.plugins.sqlalchemy_version.version", autospec=True)
+def test_sqlalchemy_version_plugin_sets_constant(mock_version, installed, always_true, always_false):
+    from mypy.options import Options
+
+    from airflow_mypy.plugins.sqlalchemy_version import plugin
+
+    mock_version.return_value = installed
+    options = Options()
+    plugin("1.0")(options)
+    assert options.always_true == always_true
+    assert options.always_false == always_false
+
+
+@mock.patch(
+    "airflow_mypy.plugins.sqlalchemy_version.version",
+    autospec=True,
+    side_effect=PackageNotFoundError("sqlalchemy"),
+)
+def test_sqlalchemy_version_plugin_without_sqlalchemy(mock_version):
+    from mypy.options import Options
+
+    from airflow_mypy.plugins.sqlalchemy_version import plugin
+
+    options = Options()
+    plugin("1.0")(options)
+    assert options.always_true == []
+    assert options.always_false == []

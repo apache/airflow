@@ -36,9 +36,11 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from airflow._shared.secrets_masker import DEFAULT_SENSITIVE_FIELDS, SecretsMasker
 from airflow.providers_manager import (
     DialectInfo,
     LazyDictWithCache,
+    ObjectStorageProviderInfo,
     PluginInfo,
     ProviderInfo,
     ProvidersManager,
@@ -269,6 +271,37 @@ class TestProviderManager:
             # widgets loaded from YAML metadata only
             assert len(connections_form_widgets) == yaml_widgets
 
+    def test_sensitive_connection_fields_are_redactable(self):
+        """
+        Every connection field a provider declares as sensitive must be in the redaction allowlist.
+
+        Providers already state which fields are secret; this asserts the allowlist never drifts
+        apart from them.
+        """
+        # Check the shipped defaults rather than the process-wide masker, whose
+        # sensitive_variables_fields is only populated once settings have been configured.
+        masker = SecretsMasker()
+        masker.sensitive_variables_fields = list(DEFAULT_SENSITIVE_FIELDS)
+
+        # "config" is too generic a field name for the allowlist. apprise's "config" is masked in
+        # API responses because its provider declares it sensitive, but it is not masked in task logs.
+        allowed_unredacted = {("config", "apache-airflow-providers-apprise")}
+
+        provider_manager = ProvidersManager()
+        missing = sorted(
+            {
+                (widget.field_name, widget.package_name)
+                for widget in provider_manager._connection_form_widgets_from_metadata.values()
+                if widget.is_sensitive and not masker.should_hide_value_for_key(widget.field_name)
+            }
+            - allowed_unredacted
+        )
+        assert not missing, (
+            "These connection fields are declared sensitive by their provider but are not "
+            "redacted. Add each name to DEFAULT_SENSITIVE_FIELD_NAMES in "
+            f"shared/secrets_masker: {missing}"
+        )
+
     def test_field_behaviours(self, yaml_ui_metadata_counts):
         _, yaml_behaviours = yaml_ui_metadata_counts
         provider_manager = ProvidersManager()
@@ -350,6 +383,81 @@ class TestProviderManager:
         dialect_class_names = list(provider_manager.dialects)
         assert len(dialect_class_names) == 4
         assert dialect_class_names == ["default", "db2", "mssql", "postgresql"]
+
+    def test_object_storage_providers(self):
+        provider_manager = ProvidersManager()
+        storage_types = sorted(provider_manager.object_storage_providers)
+        assert "s3" in storage_types
+        info = provider_manager.object_storage_providers["s3"]
+        assert (
+            info.provider_class_name
+            == "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider"
+        )
+        assert info.provider_name == "apache-airflow-providers-amazon"
+
+    def test_discover_object_storage_providers(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.amazon"] = ProviderInfo(
+            version="1.0.0",
+            data={
+                "object-storage-providers": [
+                    {
+                        "storage-type": "s3",
+                        "provider-class-name": "airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+                    }
+                ]
+            },
+        )
+        providers_manager._discover_hooks()
+        assert len(providers_manager._object_storage_provider_dict) == 1
+        assert providers_manager._object_storage_provider_dict["s3"] == ObjectStorageProviderInfo(
+            name="s3",
+            provider_class_name="airflow.providers.amazon.aws.datafusion.object_storage.S3ObjectStorageProvider",
+            provider_name="airflow.providers.amazon",
+        )
+
+    def test_discover_object_storage_providers_empty(self):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.example"] = ProviderInfo(
+            version="1.0.0",
+            data={},
+        )
+        providers_manager._discover_hooks()
+        assert len(providers_manager._object_storage_provider_dict) == 0
+
+    def test_discover_object_storage_providers_duplicate_logs_warning(self, caplog):
+        providers_manager = ProvidersManager()
+        providers_manager._provider_dict = LazyDictWithCache()
+        providers_manager._provider_dict["airflow.providers.first"] = ProviderInfo(
+            version="1.0.0",
+            data={
+                "object-storage-providers": [
+                    {
+                        "storage-type": "s3",
+                        "provider-class-name": "first.S3Provider",
+                    }
+                ]
+            },
+        )
+        providers_manager._provider_dict["airflow.providers.second"] = ProviderInfo(
+            version="1.0.0",
+            data={
+                "object-storage-providers": [
+                    {
+                        "storage-type": "s3",
+                        "provider-class-name": "second.S3Provider",
+                    }
+                ]
+            },
+        )
+        with caplog.at_level(logging.WARNING):
+            providers_manager._discover_hooks()
+        assert "already registered" in caplog.text
+        assert (
+            providers_manager._object_storage_provider_dict["s3"].provider_class_name == "second.S3Provider"
+        )
 
 
 class TestWithoutCheckProviderManager:

@@ -59,6 +59,7 @@ services:
       - ../../../providers/apache/livy/tests:/opt/airflow/providers/apache/livy/tests
       - ../../../providers/apache/pig/tests:/opt/airflow/providers/apache/pig/tests
       - ../../../providers/apache/pinot/tests:/opt/airflow/providers/apache/pinot/tests
+      - ../../../providers/apache/polaris/tests:/opt/airflow/providers/apache/polaris/tests
       - ../../../providers/apache/spark/tests:/opt/airflow/providers/apache/spark/tests
       - ../../../providers/apache/tinkerpop/tests:/opt/airflow/providers/apache/tinkerpop/tests
       - ../../../providers/apprise/tests:/opt/airflow/providers/apprise/tests
@@ -95,6 +96,7 @@ services:
       - ../../../providers/grpc/tests:/opt/airflow/providers/grpc/tests
       - ../../../providers/hashicorp/tests:/opt/airflow/providers/hashicorp/tests
       - ../../../providers/http/tests:/opt/airflow/providers/http/tests
+      - ../../../providers/huggingface/tests:/opt/airflow/providers/huggingface/tests
       - ../../../providers/ibm/db2/tests:/opt/airflow/providers/ibm/db2/tests
       - ../../../providers/ibm/mq/tests:/opt/airflow/providers/ibm/mq/tests
       - ../../../providers/imap/tests:/opt/airflow/providers/imap/tests

@@ -27,7 +27,7 @@ from unittest import mock
 import pytest
 from sqlalchemy import event, exc, func, insert, select
 from sqlalchemy.dialects import mysql, postgresql, sqlite
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from airflow import settings
 from airflow._shared.observability.metrics.base_stats_logger import StatsLogger
@@ -44,15 +44,18 @@ from airflow.models.asset import (
     DagScheduleAssetReference,
     DagScheduleAssetUriReference,
     PartitionedAssetKeyLog,
+    alias_association_table,
 )
 from airflow.models.dag import DagModel
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.log import Log
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import Team
 from airflow.partition_mappers.identity import IdentityMapper
 from airflow.partition_mappers.temporal import FanOutMapper, StartOfWeekMapper
 from airflow.partition_mappers.window import WeekWindow
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import PartitionedAtRuntime
 from airflow.sdk.definitions.asset import Asset
 from airflow.sdk.definitions.timetables.assets import PartitionedAssetTimetable
 from airflow.utils.session import create_session
@@ -187,6 +190,74 @@ class TestAssetManager:
             == 1
         )
         assert session.scalar(select(func.count()).select_from(AssetDagRunQueue)) == 2
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_alias_association_tolerates_concurrent_link(self, session):
+        """Another writer links the same alias to the asset after we read its aliases."""
+        session.add(AssetModel(uri="test://race/", name="race_asset", group="asset"))
+        session.commit()
+
+        def _load(s):
+            return s.scalar(
+                select(AssetModel)
+                .where(AssetModel.name == "race_asset")
+                .options(joinedload(AssetModel.aliases))
+            )
+
+        stale = _load(session)
+        assert stale.aliases == []
+
+        if TYPE_CHECKING:
+            assert settings.Session
+            assert settings.Session.session_factory
+        other = settings.Session.session_factory()
+        try:
+            AssetManager._add_asset_alias_association(["race_alias"], _load(other), session=other)
+            other.commit()
+        finally:
+            other.close()
+
+        AssetManager._add_asset_alias_association(["race_alias"], stale, session=session)
+        session.flush()
+
+        assert [a.name for a in stale.aliases] == ["race_alias"]
+        assert session.scalar(select(func.count()).select_from(alias_association_table)) == 1
+
+    @pytest.mark.backend("postgres", "mysql")
+    @pytest.mark.usefixtures("testing_dag_bundle")
+    def test_add_asset_alias_association_tolerates_concurrent_alias_create(self, session):
+        """Another writer creates the same alias after our lookup missed it."""
+        asset = AssetModel(uri="test://race/", name="race_asset", group="asset")
+        session.add(asset)
+        session.commit()
+
+        if TYPE_CHECKING:
+            assert settings.Session
+            assert settings.Session.session_factory
+        real_scalars = session.scalars
+        calls = 0
+
+        def _lookup_then_create_alias(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            result = list(real_scalars(*args, **kwargs))
+            if calls == 1:
+                other = settings.Session.session_factory()
+                try:
+                    other.add(AssetAliasModel(name="race_alias"))
+                    other.commit()
+                finally:
+                    other.close()
+            return result
+
+        with mock.patch.object(session, "scalars", side_effect=_lookup_then_create_alias, autospec=True):
+            AssetManager._add_asset_alias_association(["race_alias"], asset, session=session)
+        session.flush()
+
+        assert calls == 2
+        assert [a.name for a in asset.aliases] == ["race_alias"]
+        assert session.scalar(select(func.count()).select_from(AssetAliasModel)) == 1
 
     @pytest.mark.parametrize("reference_kind", ["asset", "alias", "name", "uri"])
     def test_register_asset_change_does_not_queue_draining_dag(
@@ -871,6 +942,79 @@ class TestAssetManager:
                 select(AssetPartitionDagRun.target_dag_id).order_by(AssetPartitionDagRun.id)
             ).all() == ["a-consumer", "z-consumer"]
         finally:
+            _clear_partition_db()
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.parametrize(
+        ("consumer_dag_ids", "expected"),
+        [
+            pytest.param(
+                ["fanout-consumer"],
+                [("fanout-consumer", "k-1"), ("fanout-consumer", "k-2"), ("fanout-consumer", "k-3")],
+                id="single-consumer",
+            ),
+            pytest.param(
+                ["z-fanout-consumer", "a-fanout-consumer"],
+                [
+                    ("a-fanout-consumer", "k-1"),
+                    ("a-fanout-consumer", "k-2"),
+                    ("a-fanout-consumer", "k-3"),
+                    ("z-fanout-consumer", "k-1"),
+                    ("z-fanout-consumer", "k-2"),
+                    ("z-fanout-consumer", "k-3"),
+                ],
+                id="multiple-consumers",
+            ),
+        ],
+    )
+    @mock.patch.object(IdentityMapper, "to_downstream", autospec=True, return_value=["k-3", "k-2", "k-1"])
+    def test_partition_fanout_creates_apdrs_in_key_order(
+        self, mock_to_downstream, session, dag_maker, consumer_dag_ids, expected
+    ):
+        _clear_partition_db()
+        try:
+            asset = Asset(name="fanout-order-asset")
+            for dag_id in consumer_dag_ids:
+                with dag_maker(
+                    dag_id=dag_id,
+                    schedule=PartitionedAssetTimetable(assets=asset, batch_asset_events=True),
+                    session=session,
+                ):
+                    EmptyOperator(task_id="consume")
+            with dag_maker(
+                dag_id="fanout-producer", schedule=PartitionedAtRuntime(), session=session
+            ) as producer:
+                EmptyOperator(task_id="emit", outlets=[asset])
+            dag_run = dag_maker.create_dagrun(partition_key="source-key", session=session)
+            [ti] = dag_run.get_task_instances(session=session)
+
+            TaskInstance.register_asset_changes_in_db(
+                ti=ti,
+                task_outlets=[outlet.asprofile() for outlet in producer.get_task("emit").outlets],
+                outlet_events=[],
+                session=session,
+            )
+            session.flush()
+
+            assert (
+                session.execute(
+                    select(
+                        AssetPartitionDagRun.target_dag_id, AssetPartitionDagRun.pending_partition_key
+                    ).order_by(AssetPartitionDagRun.id)
+                ).all()
+                == expected
+            )
+            assert (
+                session.execute(
+                    select(
+                        PartitionedAssetKeyLog.target_dag_id, PartitionedAssetKeyLog.target_partition_key
+                    ).order_by(PartitionedAssetKeyLog.id)
+                ).all()
+                == expected
+            )
+            assert mock_to_downstream.call_count == len(consumer_dag_ids)
+        finally:
+            session.rollback()
             _clear_partition_db()
 
     def test_assigning_created_dag_run_id_clears_pending_partition_key(self):

@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
@@ -58,6 +59,7 @@ from airflow.api_fastapi.execution_api.datamodels.token import ExecutionToken, T
 from airflow.api_fastapi.execution_api.routes import task_instances as task_instances_route
 from airflow.api_fastapi.execution_api.routes.task_instances import _emit_task_span, ti_update_state
 from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.crypto import get_fernet
 from airflow.exceptions import AirflowSkipException, TaskNotFound
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models import DagRun, RenderedTaskInstanceFields, TaskReschedule, Trigger
@@ -70,7 +72,7 @@ from airflow.models.log import Log
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.taskinstance import TaskInstance, clear_loop_task_instances, clear_task_instances
-from airflow.models.xcom import XComModel, XComModelV2
+from airflow.models.xcom import EXTERNAL_CLEAR_TARGET_XCOM_KEY, XComModel, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.sdk import Asset, TaskGroup, TriggerRule, task, task_group
@@ -820,6 +822,53 @@ class TestTIRunState:
         assert response.status_code == 200
         events = response.json()["dag_run"]["consumed_asset_events"]
         assert [e["partition_key"] for e in events] == ["2024-01-15"]
+
+    def test_ti_run_loads_consumed_event_assets_and_aliases_in_bulk(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_consumed_events_in_bulk",
+            state=State.QUEUED,
+            session=session,
+        )
+        assets = [
+            AssetModel(name=f"upstream_{i}", uri=f"s3://bucket/upstream_{i}", group="asset", extra={})
+            for i in range(3)
+        ]
+        alias = AssetAliasModel(name="upstream_alias", group="asset")
+        session.add_all([*assets, *(AssetActive.for_asset(asset) for asset in assets), alias])
+        session.flush()
+        for asset in assets:
+            event = AssetEvent(asset_id=asset.id)
+            event.source_aliases.append(alias)
+            ti.dag_run.consumed_asset_events.append(event)
+        session.commit()
+
+        with (
+            capture_orm_selects("asset") as asset_selects,
+            capture_orm_selects("asset_alias") as alias_selects,
+        ):
+            response = client.patch(
+                f"/execution/task-instances/{ti.id}/run",
+                json={
+                    "state": "running",
+                    "hostname": "h",
+                    "unixname": "u",
+                    "pid": 1,
+                    "start_date": "2024-09-30T12:00:00Z",
+                },
+            )
+
+        assert response.status_code == 200
+        events = response.json()["dag_run"]["consumed_asset_events"]
+        assert sorted(event["asset"]["name"] for event in events) == [
+            "upstream_0",
+            "upstream_1",
+            "upstream_2",
+        ]
+        assert [event["source_aliases"] for event in events] == [[{"name": "upstream_alias"}]] * 3
+        assert len(asset_selects) == 1
+        assert len(alias_selects) == 1
 
     def test_ti_run_missing_dagrun_returns_404(self, client, session, create_task_instance):
         """A missing DagRun must surface as a clean 404, not an internal 500."""
@@ -3966,6 +4015,8 @@ class TestTIUpdateState:
             assert len(t) == 1
             assert t[0].created_date == instant
             assert t[0].classpath == "my-classpath"
+            stored = get_fernet().decrypt(t[0].encrypted_kwargs.encode("utf-8"))
+            assert json.loads(stored) == payload["trigger_kwargs"]
             assert t[0].kwargs == {
                 "key": "value",
                 "moment": datetime(2024, 12, 18, 00, 00, 1, tzinfo=timezone.utc),
@@ -3974,7 +4025,32 @@ class TestTIUpdateState:
                 assert t[0].queue == "default"
             else:
                 assert t[0].queue is None
-            assert (t[0].dag_id, t[0].owner_ref) == (ti.dag_id, {"ti_id": str(ti.id)})
+            assert (t[0].dag_id, t[0].used_by_ref) == (ti.dag_id, {"ti_id": str(ti.id)})
+
+    def test_ti_update_state_to_deferred_rejects_string_trigger_kwargs(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(
+            task_id="test_ti_update_state_to_deferred_rejects_string_trigger_kwargs",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "deferred",
+                "trigger_kwargs": '{"key": "value"}',
+                "classpath": "my-classpath",
+                "next_method": "execute_callback",
+            },
+        )
+
+        assert response.status_code == 422
+        session.expire_all()
+        assert session.scalar(select(TaskInstance.state).where(TaskInstance.id == ti.id)) == State.RUNNING
+        assert session.scalars(select(Trigger)).all() == []
 
     @staticmethod
     def _defer_ti_in_team_bundle(client, session, create_task_instance):
@@ -4781,6 +4857,36 @@ class TestTIUpdateState:
         ti1 = session.get(TaskInstance, ti1.id)
         assert ti1.state == State.FAILED
 
+    def test_ti_update_state_to_failed_with_fail_fast_and_task_removed_from_dag(
+        self, client, session, dag_maker
+    ):
+        dag_id = "test_dag_with_fail_fast_task_removed"
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True):
+            EmptyOperator(task_id="boom")
+            EmptyOperator(task_id="victim")
+
+        dr = dag_maker.create_dagrun()
+        boom = dr.get_task_instance(task_id="boom", session=session)
+        boom.state = TaskInstanceState.RUNNING
+        boom.start_date = DEFAULT_START_DATE
+        victim = dr.get_task_instance(task_id="victim", session=session)
+        victim.state = TaskInstanceState.RUNNING
+        session.commit()
+
+        # Re-parse without "victim"; the unversioned run resolves to this latest version.
+        with dag_maker(dag_id=dag_id, fail_fast=True, serialized=True):
+            EmptyOperator(task_id="boom")
+
+        response = client.patch(
+            f"/execution/task-instances/{boom.id}/state",
+            json={"state": TerminalTIState.FAILED, "end_date": DEFAULT_END_DATE.isoformat()},
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        assert session.get(TaskInstance, boom.id).state == TaskInstanceState.FAILED
+        assert session.get(TaskInstance, victim.id).state == TaskInstanceState.RUNNING
+
     def test_ti_update_state_reschedule_mysql_limit_triggers_fail_fast(
         self, client, session, dag_maker, time_machine
     ):
@@ -4940,6 +5046,61 @@ class TestTIUpdateState:
         assert session.scalars(
             select(TaskStateStoreModel).where(TaskStateStoreModel.task_id == ti.task_id)
         ).all()
+
+    def test_ti_update_state_to_success_records_the_external_clear_target(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(task_id="mark", start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        session.commit()
+        target = {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": "2026-10-01T00:00:00Z",
+            "recursion_depth": 3,
+        }
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "external_clear_target": target,
+            },
+        )
+
+        assert response.status_code == 204
+        session.expire_all()
+        stored = session.scalars(
+            select(XComModelV2.value).where(
+                XComModelV2.task_instance_id == ti.id, XComModelV2.key == EXTERNAL_CLEAR_TARGET_XCOM_KEY
+            )
+        ).one()
+        assert XComModel.deserialize_value_primitives(SimpleNamespace(value=stored)) == target
+
+    def test_ti_update_state_to_success_rejects_a_naive_external_clear_target_date(
+        self, client, session, create_task_instance
+    ):
+        ti = create_task_instance(task_id="mark", start_date=DEFAULT_START_DATE, state=State.RUNNING)
+        session.commit()
+        target = {
+            "dag_id": "child",
+            "task_id": "wait",
+            "logical_date": "2026-10-01T00:00:00",
+            "recursion_depth": 1,
+        }
+
+        response = client.patch(
+            f"/execution/task-instances/{ti.id}/state",
+            json={
+                "state": "success",
+                "end_date": DEFAULT_END_DATE.isoformat(),
+                "external_clear_target": target,
+            },
+        )
+
+        assert response.status_code == 422
+        session.expire_all()
+        assert session.get(TaskInstance, ti.id).state == State.RUNNING
 
 
 class TestTISkipDownstream:

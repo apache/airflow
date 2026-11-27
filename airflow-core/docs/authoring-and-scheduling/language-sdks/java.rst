@@ -682,8 +682,9 @@ position, and the SDK passes them in. A ``Task`` class receives both in ``execut
 running task, such as ``context.ti.taskId``, ``context.ti.tryNumber`` and ``context.dagRun.logicalDate``.
 
 A value a method returns, or a ``Task`` class passes to ``client.setXCom``, becomes the task's ``return_value``
-XCom, and is what a downstream task receives. An uncaught exception fails the task, and retries it if the task
-has retries.
+XCom, and is what a downstream task receives. A ``void`` method pushes nothing. Any other method's result is
+pushed, so returning ``null`` stores a null XCom. An uncaught exception fails the task, and retries it if the
+task has retries.
 
 The ``Client``
 ~~~~~~~~~~~~~~
@@ -705,11 +706,12 @@ The ``Client``
      - A ``Connection`` with ``id``, ``type``, ``host``, ``schema``, ``login``, ``password``, ``port`` and
        ``extra``. Throws when the connection does not exist.
    * - ``getXCom(taskId)``
-     - The ``return_value`` XCom of a task in the same Dag run, or ``null`` when it does not exist. Overloads
-       read another key, Dag or run; see the API reference. For the Java types values arrive as, see
-       :ref:`java-sdk/types`.
+     - The ``return_value`` XCom of a task in the same Dag run, or ``null`` when it does not exist. For a mapped
+       task, it is the values of all its instances in a ``List`` ordered by map index. Overloads read another
+       key, Dag, run, or one instance of a mapped task; a map index that selects no task instance reads
+       ``null``. See the API reference. For the Java types values arrive as, see :ref:`java-sdk/types`.
    * - ``setXCom(value)`` / ``setXCom(key, value)``
-     - Publishes an XCom value. The value must be JSON-serializable.
+     - Publishes an XCom value. The value must be JSON-serializable; ``null`` stores a null XCom.
    * - ``getTaskStateStore()``
      - This task instance's key/value store, with ``get``, ``set``, ``delete`` and ``clear``. See
        :ref:`java-sdk/task-state-store`.
@@ -747,6 +749,93 @@ names when case and underscores are ignored, and keys that match no field are ig
 the defaults of the Dag's params, and the conf of a scheduled run is empty. For the classes that ``getConf``
 accepts and the cases where it throws, see ``DagRun.getConf`` in the `Java SDK API reference
 <https://airflow.apache.org/docs/java-sdk/stable/>`__.
+
+.. _java-sdk/cancellation:
+
+Stopping when Airflow asks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Airflow asks a running task to stop when, for example, a user marks its task instance as failed. The
+supervisor, the Airflow process that started the task's JVM, then sends the JVM ``SIGTERM``. If the JVM
+is still running after a grace period, the supervisor sends ``SIGKILL``. When a user marks the task
+instance failed or success, or clears it, the grace period is
+:ref:`core.killed_task_cleanup_time <config:core__killed_task_cleanup_time>` seconds.
+
+By default the JVM handles the signal as it does without the SDK: shutdown hooks run and the JVM exits.
+A process the task started gets the same signals, because the supervisor signals the JVM's whole process
+group. So a task does not need to stop a process that exits on ``SIGTERM`` and stays in that group.
+
+To stop anything else, such as a job in an external system, implement ``StoppableTask``. This interface
+adds ``onKill``, the Java counterpart of an operator's ``on_kill``:
+
+.. code-block:: java
+
+    public class ReportTask implements StoppableTask {
+      private final ReportService service = new ReportService();
+      private volatile String jobId;
+
+      @Override
+      public void execute(Context context, Client client) throws Exception {
+        jobId = service.submit();
+        if (context.isCancelled()) {
+          service.cancel(jobId);
+          throw new IllegalStateException("Airflow asked the task to stop");
+        }
+        service.waitFor(jobId); // Throws if the job fails or is cancelled.
+      }
+
+      @Override
+      public void onKill(Context context) throws Exception {
+        if (jobId != null) {
+          service.cancel(jobId);
+        }
+      }
+    }
+
+With annotations, mark the method that stops the task with ``@Airflow.OnKill`` and name the task. The
+method can take a ``Context``, and the annotation processor generates a ``StoppableTask`` that calls it on
+the same object as the task method:
+
+.. code-block:: java
+
+    private final ReportService service = new ReportService();
+    private volatile String jobId;
+
+    @Airflow.Task(id = "build_report", retries = 2)
+    public void buildReport(Context context) throws Exception {
+      jobId = service.submit();
+      if (context.isCancelled()) {
+        service.cancel(jobId);
+        throw new IllegalStateException("Airflow asked the task to stop");
+      }
+      service.waitFor(jobId); // Throws if the job fails or is cancelled.
+    }
+
+    @Airflow.OnKill(task = "build_report")
+    public void stopReport() throws Exception {
+      if (jobId != null) {
+        service.cancel(jobId);
+      }
+    }
+
+After starting such a task, the SDK catches the first ``SIGTERM`` or ``SIGINT``, and the JVM keeps running.
+``Context.isCancelled()`` then returns true and the SDK calls ``onKill``. A task that checks for a stop request in a loop
+can leave ``onKill``, or its ``@Airflow.OnKill`` method, empty. In that loop, it can call
+``Context.awaitCancellation(timeout)`` instead of ``Thread.sleep``. In a task that is not a ``StoppableTask``,
+``isCancelled`` and ``awaitCancellation`` throw. ``StoppableTask`` in the
+`Java SDK API reference <https://airflow.apache.org/docs/java-sdk/stable/>`__ explains when the SDK calls ``onKill`` and
+what ``onKill`` must handle.
+
+Two things differ from ``on_kill`` in Python. ``on_kill`` runs on the task's own thread. ``onKill`` runs on a
+separate thread while the task keeps running. And Python calls ``on_kill`` as soon as ``execution_timeout``
+passes, while the Java SDK has no timer for ``execution_timeout``. ``onKill`` runs when the supervisor sends
+``SIGTERM``, which is ``killed_task_cleanup_time`` seconds after the timeout.
+
+If the SDK can catch neither ``SIGTERM`` nor ``SIGINT``, for example because the JVM runs with ``-Xrs``, the SDK
+fails a ``StoppableTask`` before the task starts. Airflow does not retry the task. If the SDK let the task start
+anyway, the task could begin work that ``onKill`` would never get the chance to stop. To run a ``StoppableTask``,
+remove ``-Xrs`` from the JVM options. A runtime image built with ``jlink`` also needs the ``jdk.unsupported``
+module.
 
 .. _java-sdk/task-state-store:
 
@@ -1101,11 +1190,11 @@ The ``java`` command cannot load a classpath containing paths that use the ``:``
 systems). The version directory of a Dag bundle may contain one, for example when it is named after a
 timestamp. The coordinator tries to handle this automatically by reading such a bundle through a symbolic link
 created in a temporary directory. A file or directory *inside* the Dag bundle still cannot contain the colon
-separator.
+separator. Such a Dag bundle fails to parse, and its tasks fail without retrying.
 
 This approach should generally work. On the off chance it does not, however, all such links are located in
-``airflow-java-classpath-<uid>`` under the temporary directory (``$TMPDIR`` on Linux, usually ``/tmp``).
-Airflow logs should also report which link corresponds to which bundle.
+``airflow-java-classpath-<uid>`` under the temporary directory (``/tmp`` by default on Linux, or ``$TMPDIR``
+if set). Airflow logs should also report which link corresponds to which bundle.
 
 Each link is named after the first 16 hexadecimal digits of the SHA-256 hash of the bundle version's absolute
 path, so the same path always gets the same link. Links are not removed immediately when they are not needed,

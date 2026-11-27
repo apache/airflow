@@ -119,7 +119,9 @@ You can configure the credentials in three ways:
 Managing secrets
 """"""""""""""""
 
-If you want to configure a connection, you need to save it as a :ref:`connection URI representation <generating_connection_uri>`.
+If you want to configure a connection, you can save it either as a
+:ref:`JSON representation <connection-serialization-json-example>` or as a
+:ref:`connection URI representation <generating_connection_uri>`.
 Variables should be saved as plain text.
 
 In order to manage secrets, you can use the ``gcloud`` tool or other supported tools. For more information, take a look at:
@@ -151,6 +153,24 @@ You can do it with the gcloud tools as in the example below.
         --data-file=- \
         --replication-policy=automatic
     Created version [1] of the secret [airflow-connections-first-connection].
+
+A connection with many extras is easier to read and maintain as JSON, because its values do not need
+to be URL-encoded. The ``extra`` field can be a nested JSON object:
+
+.. code-block:: bash
+
+    $ echo '{
+        "conn_type": "google_cloud_platform",
+        "extra": {
+          "project": "my-project",
+          "key_path": "/keys/sa.json",
+          "scope": "https://www.googleapis.com/auth/cloud-platform"
+        }
+      }' | gcloud beta secrets create \
+        airflow-connections-second-connection \
+        --data-file=- \
+        --replication-policy=automatic
+    Created version [1] of the secret [airflow-connections-second-connection].
 
 If you have the default backend configuration and you want to create a variable named ``first-variable``,
 you should create a secret named ``airflow-variables-first-variable``. You can do it with the gcloud
@@ -251,4 +271,5 @@ delete secrets by running ``gcloud beta secrets delete``:
 .. code-block:: bash
 
     gcloud beta secrets delete airflow-connections-first-connection
+    gcloud beta secrets delete airflow-connections-second-connection
     gcloud beta secrets delete airflow-variables-first-variable

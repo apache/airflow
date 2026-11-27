@@ -63,8 +63,6 @@ class TestProjectStructure:
         OVERLOOKED_TESTS = [
             "providers/amazon/tests/unit/amazon/aws/executors/batch/test_batch_executor_config.py",
             "providers/amazon/tests/unit/amazon/aws/executors/ecs/test_ecs_executor_config.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/test_utils.py",
-            "providers/amazon/tests/unit/amazon/aws/executors/aws_lambda/docker/test_app.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_emr.py",
             "providers/amazon/tests/unit/amazon/aws/operators/test_sagemaker.py",
             "providers/amazon/tests/unit/amazon/aws/sensors/test_emr.py",
@@ -72,7 +70,6 @@ class TestProjectStructure:
             "providers/celery/tests/unit/celery/executors/test_celery_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_exceptions.py",
-            "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_kube_config.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/test_python_kubernetes_script.py",
             "providers/cncf/kubernetes/tests/unit/cncf/kubernetes/utils/test_delete_from.py",
             "providers/common/compat/tests/unit/common/compat/standard/test_utils.py",

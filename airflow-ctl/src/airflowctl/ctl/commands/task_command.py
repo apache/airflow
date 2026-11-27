@@ -21,6 +21,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import rich
+from rich.markup import escape
 
 from airflowctl.api.client import NEW_API_CLIENT, ClientKind, ServerResponseError, provide_api_client
 from airflowctl.api.datamodels.generated import StructuredLogMessage, TaskInstanceState
@@ -99,7 +100,7 @@ def failed_deps(args, api_client=NEW_API_CLIENT) -> None:
     except ServerResponseError as e:
         if e.response.status_code == 404:
             rich.print(
-                f"[red]{_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index, e)}[/red]"
+                f"[red]{escape(_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index, e))}[/red]"
             )
             sys.exit(1)
         raise
@@ -122,7 +123,9 @@ def states_for_dag_run(args, api_client=NEW_API_CLIENT) -> None:
         task_instances = api_client.task_instances.list(dag_id=args.dag_id, dag_run_id=run_id).task_instances
     except ServerResponseError as e:
         if e.response.status_code == 404:
-            rich.print(f"[red]Dag run {run_id!r} of Dag {args.dag_id!r} not found[/red]")
+            rich.print(
+                f"[red]Dag run {escape(repr(run_id))} of Dag {escape(repr(args.dag_id))} not found[/red]"
+            )
             sys.exit(1)
         raise
 
@@ -150,7 +153,7 @@ def state(args, api_client=NEW_API_CLIENT) -> None:
     except ServerResponseError as e:
         if e.response.status_code == 404:
             rich.print(
-                f"[red]{_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index, e)}[/red]"
+                f"[red]{escape(_task_instance_not_found_message(args.dag_id, run_id, args.task_id, args.map_index, e))}[/red]"
             )
             sys.exit(1)
         raise
@@ -175,7 +178,7 @@ def logs(args, api_client=NEW_API_CLIENT) -> None:
     except ServerResponseError as e:
         if e.response.status_code == 404:
             rich.print(
-                f"[red]{_task_instance_not_found_message(args.dag_id, args.dag_run_id, args.task_id, args.map_index, e)}[/red]"
+                f"[red]{escape(_task_instance_not_found_message(args.dag_id, args.dag_run_id, args.task_id, args.map_index, e))}[/red]"
             )
             sys.exit(1)
         raise

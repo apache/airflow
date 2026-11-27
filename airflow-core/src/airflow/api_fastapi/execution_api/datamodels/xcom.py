@@ -41,9 +41,19 @@ class GetXComSliceFilterParams(BaseModel):
 
 
 class GetXcomFilterParams(BaseModel):
-    """Class to house the params that can optionally be set for Get XCom."""
+    """
+    Optional query params of Get XCom, selecting which value to read.
 
-    map_index: int = -1
+    ``map_index`` reads one task instance, and ``offset`` one value of a mapped
+    task by position. Without them, the read returns the task's result: an
+    unmapped task's value, or a mapped task's values as a list, as the slice
+    endpoint returns them.
+
+    With ``include_prior_dates``, an omitted ``map_index`` reads -1 instead,
+    since the slice mixes earlier runs' values.
+    """
+
+    map_index: int | None = None
     include_prior_dates: bool = False
     offset: int | None = None
     previous_iteration: bool = False

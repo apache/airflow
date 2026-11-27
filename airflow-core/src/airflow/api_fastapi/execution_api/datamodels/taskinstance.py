@@ -27,6 +27,7 @@ from pydantic import (
     Discriminator,
     Field,
     JsonValue,
+    PositiveInt,
     Tag,
     TypeAdapter,
     WithJsonSchema,
@@ -123,6 +124,15 @@ class TITerminalStatePayload(StrictBaseModel):
     loop_decision: LoopDecisionPayload | None = None
 
 
+class ExternalClearTargetPayload(StrictBaseModel):
+    """A task in another Dag that clearing the reporting task also clears, as resolved when it ran."""
+
+    dag_id: Annotated[str, Field(min_length=1)]
+    task_id: Annotated[str, Field(min_length=1)]
+    logical_date: UtcDateTime
+    recursion_depth: PositiveInt
+
+
 class TISuccessStatePayload(StrictBaseModel):
     """Schema for updating TaskInstance to success state."""
 
@@ -145,6 +155,8 @@ class TISuccessStatePayload(StrictBaseModel):
     outlet_events: Annotated[list[dict[str, Any]], Field(default_factory=list)]
     rendered_map_index: str | None = None
     loop_decision: LoopDecisionPayload | None = None
+    external_clear_target: ExternalClearTargetPayload | None = None
+    """A task in another Dag to clear whenever this attempt is cleared with its downstream tasks."""
 
 
 class TITargetStatePayload(StrictBaseModel):
@@ -168,23 +180,15 @@ class TIDeferredStatePayload(StrictBaseModel):
         ),
     ]
     classpath: str
-    trigger_kwargs: Annotated[dict[str, JsonValue] | str, Field(default_factory=dict)]
-    """
-    Kwargs to pass to the trigger constructor, either a plain dict or an encrypted string.
-
-    Both forms will be passed along to the trigger, the server will not handle either.
-    """
+    trigger_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
+    """Serde-encoded kwargs to pass to the trigger constructor. The server encrypts them before storing."""
 
     trigger_timeout: timedelta | None = None
     queue: str | None = None
     next_method: str
     """The name of the method on the operator to call in the worker after the trigger has fired."""
     next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
-    """
-    Kwargs to pass to the above method, either a plain dict or an encrypted string.
-
-    Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
-    """
+    """Serde-encoded kwargs to pass to the above method; returned on resume with the event added under `event`."""
     rendered_map_index: str | None = None
 
 
@@ -225,11 +229,7 @@ class TIAwaitingInputStatePayload(StrictBaseModel):
     next_method: str
     """The name of the method on the operator to call in the worker after input is received."""
     next_kwargs: Annotated[dict[str, JsonValue], Field(default_factory=dict)]
-    """
-    Kwargs to pass to the above method, either a plain dict or an encrypted string.
-
-    Both forms will be passed along to the TaskSDK upon resume, the server will not handle either.
-    """
+    """Serde-encoded kwargs to pass to the above method; returned on resume with the event added under `event`."""
     rendered_map_index: str | None = None
 
 

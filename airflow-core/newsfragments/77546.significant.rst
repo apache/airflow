@@ -1,0 +1,18 @@
+Executors' ``queue_workload()`` writes now commit after the QUEUED state
+
+The scheduler now commits the QUEUED state of a batch of task instances first, which releases the
+scheduler critical section, and only then builds their workloads and calls each executor's
+``queue_workload()``. Whatever an executor writes to the ``session`` passed to ``queue_workload()``,
+such as the ``EdgeExecutor``'s ``edge_job`` rows, is committed in that second transaction, no longer
+with the QUEUED state.
+
+**Migration for executor authors:**
+
+- ``queue_workload()`` must only buffer the workload until the next ``heartbeat`` sends it. Do not
+  send it and do not commit ``session``.
+- If building the batch fails, the scheduler rolls ``session`` back, resets the task instances that
+  are still QUEUED to SCHEDULED and removes their workloads from ``executor_queues``. Other in-memory
+  state kept for a workload, such as a key added to ``running``, must stay correct when that happens,
+  for example by being reconciled with the database on the next ``sync``.
+- Adoption code must accept a task instance that is QUEUED by a scheduler that died between the two
+  commits, before its ``queue_workload()`` writes were committed.

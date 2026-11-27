@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+0.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add '@task.modal' to run Python functions on Modal without Airflow in the image (#76502)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 0.1.0
 .....
 

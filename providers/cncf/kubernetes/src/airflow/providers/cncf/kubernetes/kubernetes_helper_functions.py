@@ -69,7 +69,7 @@ TRANSIENT_STATUS_CODES = {409, 429, 500, 502, 503, 504}
 # urllib3's HTTPError already spans a body cut off mid-read and a read timeout. aiohttp reports
 # those two outside ClientConnectionError: ClientPayloadError when the socket dies after the
 # response headers, and a bare TimeoutError when the total request timeout expires.
-TRANSIENT_CONNECTION_ERRORS: tuple[type[BaseException], ...] = (
+TRANSIENT_CONNECTION_ERRORS: tuple[type[Exception], ...] = (
     HTTPError,
     ClientConnectionError,
     ClientPayloadError,

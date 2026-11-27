@@ -32,6 +32,7 @@ import {
 } from "src/layouts/Details/Grid/constants";
 import { flattenNodes } from "src/layouts/Details/Grid/utils";
 
+import { TASK_STREAM_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
 import { SearchParamsKeys } from "src/constants/searchParams";
 import { useGroups } from "src/context/groups";
 import { useTimezone } from "src/context/timezone";
@@ -79,10 +80,10 @@ export const Gantt = ({
   const { openGroupIds, toggleGroupId } = useGroups();
   const { selectedTimezone } = useTimezone();
 
-  const filterRoot = searchParams.get("root") ?? undefined;
-  const includeUpstream = searchParams.get("upstream") === "true";
-  const includeDownstream = searchParams.get("downstream") === "true";
-  const depthParam = searchParams.get("depth");
+  const filterRoot = searchParams.get(TASK_STREAM_SEARCH_PARAMS.root) ?? undefined;
+  const includeUpstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.upstream) === "true";
+  const includeDownstream = searchParams.get(TASK_STREAM_SEARCH_PARAMS.downstream) === "true";
+  const depthParam = searchParams.get(TASK_STREAM_SEARCH_PARAMS.depth);
   const depth = depthParam !== null && depthParam !== "" ? parseInt(depthParam, 10) : undefined;
 
   // Task-level time window, written by the Start/End Date pills in GridFilters.
@@ -91,9 +92,10 @@ export const Gantt = ({
   const endDateGte = searchParams.get(SearchParamsKeys.END_DATE_GTE) ?? undefined;
   const endDateLte = searchParams.get(SearchParamsKeys.END_DATE_LTE) ?? undefined;
 
-  const { data: gridRuns, isLoading: runsLoading } = useGridRuns({
+  // Match the Grid's query and discard its pagination lookahead row so the combined view polls once.
+  const { data: dataGridRuns, isLoading: runsLoading } = useGridRuns({
     dagRunState,
-    limit,
+    limit: limit + 1,
     offset,
     runAfterGte,
     runAfterLte,
@@ -101,6 +103,7 @@ export const Gantt = ({
     runType,
     triggeringUser,
   });
+  const gridRuns = dataGridRuns?.slice(0, limit);
   const { data: dagStructure, isLoading: structureLoading } = useGridStructure({
     dagRunState,
     depth,
@@ -117,7 +120,11 @@ export const Gantt = ({
 
   const { summariesByRunId } = useGridTiSummariesStream({
     dagId,
+    endDateGte,
+    endDateLte,
     runIds: runId && selectedRun ? [runId] : [],
+    startDateGte,
+    startDateLte,
     states: selectedRun ? [selectedRun.state] : [],
   });
   const gridTiSummaries = summariesByRunId.get(runId);
