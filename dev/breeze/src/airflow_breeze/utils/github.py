@@ -36,9 +36,11 @@ from airflow_breeze.utils.path_utils import AIRFLOW_ROOT_PATH
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 
 if TYPE_CHECKING:
-    from requests import Response
+    from requests import Response, Session
 
 GITHUB_TOKEN_ENV_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
+# The only workflow that builds images for pull requests: ci-arm.yml does not run on them.
+PR_IMAGES_WORKFLOW = "ci-amd.yml"
 
 
 def env_without_github_tokens(env: Mapping[str, str] | None = None) -> dict[str, str]:
@@ -395,44 +397,82 @@ def get_tag_date(tag: str) -> str | None:
     return datetime.fromtimestamp(timestamp, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def download_artifact_from_run_id(run_id: str, output_file: Path, github_repository: str, github_token: str):
+def _list_run_artifacts(
+    session: Session, headers: dict[str, str], github_repository: str, run_id: str
+) -> list[dict]:
+    url: str | None = (
+        f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/artifacts?per_page=100"
+    )
+    artifacts: list[dict] = []
+    while url:
+        artifact_response = session.get(url, headers=headers)
+
+        if artifact_response.status_code != 200:
+            console_print(
+                "[error]Describing artifacts failed with status code "
+                f"{artifact_response.status_code}: {artifact_response.text}",
+            )
+            sys.exit(1)
+
+        artifacts.extend(artifact_response.json()["artifacts"])
+        url = artifact_response.links.get("next", {}).get("url")
+    return artifacts
+
+
+def _find_image_artifact(artifacts: list[dict], artifact_prefix: str) -> dict | None:
+    return next((a for a in artifacts if a["name"].startswith(artifact_prefix)), None)
+
+
+def _print_image_artifacts(artifacts: list[dict], which_runs: str) -> None:
+    image_artifacts = sorted({a["name"] for a in artifacts if "-image-save-" in a["name"]})
+    if image_artifacts:
+        console_print(
+            f"[info]Image artifacts of {which_runs}: {', '.join(image_artifacts)}. "
+            "Set --python and --platform to match one of these artifacts."
+        )
+
+
+def download_artifact_from_run_id(
+    run_id: str, artifact_prefix: str, output_file: Path, github_repository: str, github_token: str
+):
     """
-    Downloads a file from GitHub Actions artifact
+    Downloads an image from an artifact of a GitHub Actions run
 
     :param run_id: run_id of the workflow
-    :param output_file: Path where the file should be downloaded
+    :param artifact_prefix: stash key of the image: the artifact name starts with this key
+    :param output_file: Path where the image file should be stored
     :param github_repository: GitHub repository
     :param github_token: GitHub token
     """
     import requests
-    from tqdm import tqdm
 
-    url = f"https://api.github.com/repos/{github_repository}/actions/runs/{run_id}/artifacts"
     headers = {"Accept": "application/vnd.github.v3+json"}
 
     session = requests.Session()
     headers["Authorization"] = f"Bearer {github_token}"
-    artifact_response = requests.get(url, headers=headers)
 
-    if artifact_response.status_code != 200:
+    artifacts = _list_run_artifacts(session, headers, github_repository, run_id)
+    artifact = _find_image_artifact(artifacts, artifact_prefix)
+
+    if not artifact:
         console_print(
-            "[error]Describing artifacts failed with status code "
-            f"{artifact_response.status_code}: {artifact_response.text}",
+            f"[error]Run {run_id} has no artifact for {artifact_prefix}. The run may still be in progress or be "
+            "waiting for approval, or it may not have needed an image. Images are kept for only 2 days, so a "
+            "run older than that no longer has an image."
         )
+        _print_image_artifacts(artifacts, "this run")
         sys.exit(1)
 
-    download_url = None
-    file_name = os.path.splitext(os.path.basename(output_file))[0]
-    for artifact in artifact_response.json()["artifacts"]:
-        if artifact["name"].startswith(file_name):
-            download_url = artifact["archive_download_url"]
-            break
+    _download_image_artifact(session, headers, run_id, artifact, output_file)
 
-    if not download_url:
-        console_print(f"[error]No artifact found for {file_name}")
-        sys.exit(1)
 
-    console_print(f"[info]Downloading artifact from {download_url} to {output_file}")
+def _download_image_artifact(
+    session: Session, headers: dict[str, str], run_id: str, artifact: dict, output_file: Path
+) -> None:
+    from tqdm import tqdm
+
+    download_url = artifact["archive_download_url"]
+    console_print(f"[info]Downloading artifact {artifact['name']} from {download_url} to {output_file}")
 
     response = session.get(download_url, stream=True, headers=headers)
 
@@ -443,28 +483,42 @@ def download_artifact_from_run_id(run_id: str, output_file: Path, github_reposit
         sys.exit(1)
 
     total_size = int(response.headers.get("content-length", 0))
-    temp_file = tempfile.NamedTemporaryFile().name + "/file.zip"
-    os.makedirs(os.path.dirname(temp_file), exist_ok=True)
+    output_file.parent.mkdir(parents=True, exist_ok=True)
 
-    with tqdm(total=total_size, unit="B", unit_scale=True, desc=temp_file, ascii=True) as progress_bar:
-        with open(temp_file, "wb") as f:
-            for chunk in response.iter_content(chunk_size=1 * 1024 * 1024):
-                if chunk:
-                    f.write(chunk)
-                    progress_bar.update(len(chunk))
+    with tempfile.TemporaryDirectory(dir=output_file.parent) as temp_dir:
+        temp_file = os.path.join(temp_dir, "file.zip")
 
-    with zipfile.ZipFile(temp_file, "r") as zip_ref:
-        zip_ref.extractall("/tmp/")
+        with tqdm(total=total_size, unit="B", unit_scale=True, desc=temp_file, ascii=True) as progress_bar:
+            with open(temp_file, "wb") as f:
+                for chunk in response.iter_content(chunk_size=1 * 1024 * 1024):
+                    if chunk:
+                        f.write(chunk)
+                        progress_bar.update(len(chunk))
 
-    os.remove(temp_file)
+        with zipfile.ZipFile(temp_file, "r") as zip_ref:
+            members = zip_ref.namelist()
+            image = next((member for member in members if member.endswith(".tar")), None)
+            if not image:
+                console_print(
+                    f"[error]Artifact {artifact['name']} of run {run_id} holds no image. It holds only "
+                    f"{', '.join(members)}. A run on RunsOn runners saves its image in an S3 cache, and its "
+                    "artifact holds only the digest of the image. So Breeze cannot download that image. "
+                    f"Build the image locally from the commit of run {run_id} instead."
+                )
+                sys.exit(1)
+            os.replace(zip_ref.extract(image, temp_dir), output_file)
 
 
-def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str, github_token: str):
+def download_artifact_from_pr(
+    pr: str, artifact_prefix: str, output_file: Path, github_repository: str, github_token: str
+):
     import requests
 
     pr_number = pr.lstrip("#")
     pr_url = f"https://api.github.com/repos/{github_repository}/pulls/{pr_number}"
-    workflow_run_url = f"https://api.github.com/repos/{github_repository}/actions/runs"
+    workflow_run_url = (
+        f"https://api.github.com/repos/{github_repository}/actions/workflows/{PR_IMAGES_WORKFLOW}/runs"
+    )
 
     headers = {"Accept": "application/vnd.github.v3+json"}
 
@@ -475,35 +529,64 @@ def download_artifact_from_pr(pr: str, output_file: Path, github_repository: str
 
     if pull_response.status_code != 200:
         console_print(
-            f"[error]Fetching PR failed with status codee {pull_response.status_code}: {pull_response.text}",
+            f"[error]Fetching PR failed with status code {pull_response.status_code}: {pull_response.text}",
         )
         sys.exit(1)
 
-    ref = pull_response.json()["head"]["ref"]
+    # Find the run by commit. PRs from different forks can use the same branch name, such as main.
+    head_sha = pull_response.json()["head"]["sha"]
 
     workflow_runs = session.get(
-        workflow_run_url, headers=headers, params={"event": "pull_request", "branch": ref}
+        workflow_run_url, headers=headers, params={"event": "pull_request", "head_sha": head_sha}
     )
 
     if workflow_runs.status_code != 200:
         console_print(
-            "[error]Fetching workflow runs failed with status code %s, %s, "
-            "you might need to provide GITHUB_TOKEN, set it as environment variable",
-            workflow_runs.status_code,
-            workflow_runs.content,
+            f"[error]Fetching workflow runs failed with status code {workflow_runs.status_code}: "
+            f"{workflow_runs.text}. You might need to provide GITHUB_TOKEN, set it as environment variable",
         )
         sys.exit(1)
 
-    data = workflow_runs.json()["workflow_runs"]
-    sorted_data = sorted(data, key=lambda x: datetime.fromisoformat(x["created_at"]), reverse=True)
-    run_id = None
-    # Filter only workflow with ci.yml, we may get multiple workflows for a PR ex: codeql-analysis.yml
+    runs = workflow_runs.json()["workflow_runs"]
+    if not runs:
+        console_print(
+            f"[error]PR {pr} has no {PR_IMAGES_WORKFLOW} run for its head commit {head_sha}. "
+            "Wait for CI to start, or use --from-run with a run of an earlier commit."
+        )
+        sys.exit(1)
 
-    for run in sorted_data:
-        if run.get("path").endswith("ci.yml"):
-            run_id = run["id"]
-            break
+    # The newest run of the head commit can have no image. This happens, for example, when the run was
+    # cancelled, or when it skipped its jobs because an earlier run of the same commit already passed.
+    checked_artifacts: list[dict] = []
+    digest_artifact: tuple[str, dict] | None = None
+    for run in sorted(runs, key=lambda run: datetime.fromisoformat(run["created_at"]), reverse=True):
+        run_id = str(run["id"])
+        artifacts = _list_run_artifacts(session, headers, github_repository, run_id)
+        artifact = _find_image_artifact(artifacts, artifact_prefix)
+        if artifact and artifact["name"].startswith(f"{artifact_prefix}-s3-"):
+            # A run on RunsOn runners saves only the digest of the image, in an artifact whose name has -s3-
+            # after the stash key. An older run of the same commit on public runners can have the image.
+            digest_artifact = digest_artifact or (run_id, artifact)
+        elif artifact:
+            console_print(f"[info]Found run id {run_id} for PR {pr}")
+            _download_image_artifact(session, headers, run_id, artifact, output_file)
+            return
+        checked_artifacts.extend(artifacts)
 
-    console_print(f"[info]Found run id {run_id} for PR {pr}")
+    if digest_artifact:
+        # The download below finds only a digest and prints an error that explains why Breeze cannot load
+        # the image of a run on RunsOn runners.
+        run_id, artifact = digest_artifact
+        console_print(f"[info]Found run id {run_id} for PR {pr}")
+        _download_image_artifact(session, headers, run_id, artifact, output_file)
+        return
 
-    download_artifact_from_run_id(str(run_id), output_file, github_repository, github_token)
+    console_print(
+        f"[error]No {PR_IMAGES_WORKFLOW} run of the head commit {head_sha} of PR {pr} has an artifact for "
+        f"{artifact_prefix}. The runs of that commit may still be in progress or be waiting for approval, or "
+        "they may not have needed an image. Images are kept for only 2 days, so a run older than that no "
+        "longer has an image. If the CI of this PR runs in the fork of its author, its images are in the runs "
+        "of that fork."
+    )
+    _print_image_artifacts(checked_artifacts, "these runs")
+    sys.exit(1)
