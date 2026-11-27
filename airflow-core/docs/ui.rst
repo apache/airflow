@@ -137,6 +137,11 @@ Key elements include:
 - **Action buttons** to trigger the Dag, reparse it, or pause/resume
 - **Tabbed interface**: Overview (recent failures, run counts, task logs); Grid View (status heatmap); Graph View (task dependencies); Runs (full run history); Tasks (aggregated stats); Events (system- or asset-triggered); Code (Dag source); and Details (extended metadata)
 
+For versioned bundles, the header also shows the bundle version associated with the latest stored Dag version,
+linked to its source when available. This can differ from the bundle's newest fetched version, for example when
+a newer file fails to parse or the serialisation update interval defers saving a successfully parsed version.
+It does not identify the version used by a historical Dag run.
+
 This page also includes a visual **timeline of recent Dag runs** and a **log preview for failures**, helping users quickly identify issues across runs.
 
 .. tab-set::
