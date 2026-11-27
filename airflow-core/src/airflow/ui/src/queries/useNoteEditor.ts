@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Shared note-editing state and save logic, parameterised over the underlying
@@ -33,6 +33,10 @@ export const useNoteEditor = ({
   readonly savedNote: string | null;
 }) => {
   const [note, setNote] = useState<string | null>(savedNote);
+
+  // The hook survives navigation between entities, so keep the editable draft
+  // aligned with the newly selected entity's server-backed note.
+  useEffect(() => setNote(savedNote), [savedNote]);
 
   const onSave = () => {
     if (note !== savedNote) {
