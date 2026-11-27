@@ -71,6 +71,7 @@ from airflowctl.api.datamodels.generated import (
     ImportErrorCollectionResponse,
     ImportErrorResponse,
     JobCollectionResponse,
+    PatchTaskInstanceBody,
     PluginCollectionResponse,
     PluginImportErrorCollectionResponse,
     PoolBody,
@@ -81,12 +82,10 @@ from airflowctl.api.datamodels.generated import (
     ProviderDetailsResponse,
     QueuedEventCollectionResponse,
     QueuedEventResponse,
-    TaskCollectionResponse,
     TaskDependencyCollectionResponse,
     TaskInstanceCollectionResponse,
     TaskInstanceResponse,
     TaskInstancesLogResponse,
-    TaskResponse,
     TaskStateStoreBody,
     TaskStateStoreCollectionResponse,
     TaskStateStorePatchBody,
@@ -1043,24 +1042,19 @@ class TasksOperations(BaseOperations):
     """Tasks operations."""
 
     def get(
-        self, dag_id: str, task_id: str, version_number: int | None = None
-    ) -> TaskResponse | ServerResponseError:
-        """Get a task for a Dag."""
-        self.response = self.client.get(
-            f"dags/{_quote_path_param(dag_id)}/tasks/{_quote_path_param(task_id)}",
-            params=_build_query_params(version_number=version_number),
-        )
-        return validate_response(self.response.content, TaskResponse)
+        self, dag_id: str, dag_run_id: str, task_id: str, map_index: int | None = None
+    ) -> TaskInstanceResponse | ServerResponseError:
+        """Get a task instance of a Dag run."""
+        path = _build_task_instance_path(dag_id, dag_run_id, task_id, map_index)
+        self.response = self.client.get(path)
+        return validate_response(self.response.content, TaskInstanceResponse)
 
-    def list(self, dag_id: str, order_by: str | None = None) -> TaskCollectionResponse | ServerResponseError:
-        """List tasks for a Dag."""
-        # The server returns every task for the Dag in one response, so this
-        # intentionally does not use execute_list's limit/offset pagination.
-        self.response = self.client.get(
-            f"dags/{_quote_path_param(dag_id)}/tasks",
-            params=_build_query_params(order_by=order_by),
+    def list(self, dag_id: str, dag_run_id: str) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """List the task instances of a Dag run."""
+        return super().execute_list(
+            path=f"dags/{_quote_path_param(dag_id)}/dagRuns/{_quote_path_param(dag_run_id)}/taskInstances",
+            data_model=TaskInstanceCollectionResponse,
         )
-        return validate_response(self.response.content, TaskCollectionResponse)
 
     def clear(
         self, dag_id: str, clear_task_instances: ClearTaskInstancesBody
@@ -1069,6 +1063,21 @@ class TasksOperations(BaseOperations):
         self.response = self.client.post(
             f"dags/{_quote_path_param(dag_id)}/clearTaskInstances",
             json=clear_task_instances.model_dump(mode="json", exclude_defaults=True),
+        )
+        return validate_response(self.response.content, TaskInstanceCollectionResponse)
+
+    def update(
+        self,
+        dag_id: str,
+        dag_run_id: str,
+        task_id: str,
+        patch_task_instance: PatchTaskInstanceBody,
+        map_index: int | None = None,
+    ) -> TaskInstanceCollectionResponse | ServerResponseError:
+        """Update the state or note of a task instance; with map_index only that mapped instance is changed."""
+        path = _build_task_instance_path(dag_id, dag_run_id, task_id, map_index)
+        self.response = self.client.patch(
+            path, json=patch_task_instance.model_dump(mode="json", exclude_none=True)
         )
         return validate_response(self.response.content, TaskInstanceCollectionResponse)
 

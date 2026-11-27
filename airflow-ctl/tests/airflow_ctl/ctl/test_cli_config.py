@@ -1279,36 +1279,47 @@ class TestCliConfigMethods:
         assert args_by_flag["--task-ids"].kwargs["type"] is str
         assert "--output" in args_by_flag
 
-    def test_tasks_get_and_list_args_parse(self):
-        """``tasks get`` and ``tasks list`` parse positionals and optional flags, and reject missing required args."""
+    def test_tasks_get_list_and_update_args_parse(self):
+        """``tasks get``, ``list`` and ``update`` take required ids positionally and reject missing ones."""
         command_factory = CommandFactory()
         tasks_group = next(
             group_command for group_command in command_factory.group_commands if group_command.name == "tasks"
         )
         sub_commands = {sub_command.name: sub_command for sub_command in tasks_group.subcommands}
 
-        get_parser = argparse.ArgumentParser()
-        for arg in sub_commands["get"].args:
-            arg.add_to_parser(get_parser)
-        namespace = get_parser.parse_args(["example_bash_operator", "runme_0"])
-        assert namespace.dag_id == "example_bash_operator"
-        assert namespace.task_id == "runme_0"
-        assert namespace.version_number is None
-        namespace = get_parser.parse_args(["example_bash_operator", "runme_0", "--version-number", "3"])
-        assert namespace.version_number == 3
-        with pytest.raises(SystemExit):
-            get_parser.parse_args(["example_bash_operator"])
+        def build_parser(name):
+            parser = argparse.ArgumentParser()
+            for arg in sub_commands[name].args:
+                arg.add_to_parser(parser)
+            return parser
 
-        list_parser = argparse.ArgumentParser()
-        for arg in sub_commands["list"].args:
-            arg.add_to_parser(list_parser)
-        namespace = list_parser.parse_args(["example_bash_operator"])
-        assert namespace.dag_id == "example_bash_operator"
-        assert namespace.order_by is None
-        namespace = list_parser.parse_args(["example_bash_operator", "--order-by=-start_date"])
-        assert namespace.order_by == "-start_date"
+        get_parser = build_parser("get")
+        namespace = get_parser.parse_args(["example_bash_operator", "manual__1", "runme_0"])
+        assert (namespace.dag_id, namespace.dag_run_id, namespace.task_id) == (
+            "example_bash_operator",
+            "manual__1",
+            "runme_0",
+        )
+        assert namespace.map_index is None
         with pytest.raises(SystemExit):
-            list_parser.parse_args([])
+            get_parser.parse_args(["example_bash_operator", "manual__1"])
+
+        list_parser = build_parser("list")
+        namespace = list_parser.parse_args(["example_bash_operator", "manual__1"])
+        assert (namespace.dag_id, namespace.dag_run_id) == ("example_bash_operator", "manual__1")
+        with pytest.raises(SystemExit):
+            list_parser.parse_args(["example_bash_operator"])
+
+        update_parser = build_parser("update")
+        namespace = update_parser.parse_args(
+            ["example_bash_operator", "manual__1", "runme_0", "--new-state", "failed", "--map-index", "2"]
+        )
+        assert namespace.task_id == "runme_0"
+        assert namespace.new_state == "failed"
+        assert namespace.map_index == 2
+        assert namespace.note is None
+        with pytest.raises(SystemExit):
+            update_parser.parse_args(["example_bash_operator", "manual__1"])
 
     @pytest.mark.parametrize(
         ("field", "raw_value", "expected_value"),
@@ -1431,8 +1442,13 @@ class TestCliConfigMethods:
             ("taskinstances", "get", "Get a task instance for a given Dag run"),
             ("taskinstances", "get-dependencies", "Get unmet scheduler dependencies for a task instance"),
             ("taskinstances", "state-store", "Manage the state store of a task instance"),
-            ("tasks", "get", "Retrieve a task for a Dag by its ID and task ID"),
-            ("tasks", "list", "List tasks for a Dag"),
+            ("tasks", "get", "Retrieve a task instance by Dag ID, run ID, and task ID"),
+            ("tasks", "list", "List all task instances for a given Dag run"),
+            (
+                "tasks",
+                "update",
+                "Update task instance state or note; use --map-index to target a single mapped instance",
+            ),
             ("tasks", "clear", "Clear task instances of a Dag by its ID"),
         ],
     )
