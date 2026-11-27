@@ -428,12 +428,19 @@ class TestEksPodTrigger:
         assert kwargs["pod_name"] == "test-pod"
         assert kwargs["pod_namespace"] == "default"
 
-    def test_serialize_roundtrip(self):
+    @pytest.mark.parametrize("log_events_on_startup", [True, False])
+    def test_serialize_roundtrip(self, log_events_on_startup):
         """A trigger created from serialized kwargs should serialize identically."""
-        trigger = self._create_trigger()
+        trigger = self._create_trigger(log_events_on_startup=log_events_on_startup)
         classpath, kwargs = trigger.serialize()
 
+        if log_events_on_startup:
+            assert "log_events_on_startup" not in kwargs
+        else:
+            assert kwargs["log_events_on_startup"] is False
+
         trigger2 = EksPodTrigger(**kwargs)
+        assert trigger2.log_events_on_startup is log_events_on_startup
         classpath2, kwargs2 = trigger2.serialize()
 
         assert classpath == classpath2

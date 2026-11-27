@@ -1489,10 +1489,11 @@ class TestEksPodOperator:
         # Verify super()._refresh_cached_properties() was NOT called since we raised
         mock_super_refresh.assert_not_called()
 
+    @pytest.mark.parametrize("log_events_on_startup", [True, False])
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"
     )
-    def test_invoke_defer_method_uses_eks_trigger(self, mock_convert_config):
+    def test_invoke_defer_method_uses_eks_trigger(self, mock_convert_config, log_events_on_startup):
         """invoke_defer_method should create an EksPodTrigger and call defer."""
         op = EksPodOperator(
             task_id="run_pod",
@@ -1503,6 +1504,7 @@ class TestEksPodOperator:
             labels={"demo": "hello_world"},
             get_logs=True,
             on_finish_action="delete_pod",
+            log_events_on_startup=log_events_on_startup,
         )
 
         # Set up pod metadata as it would be after execute creates the pod
@@ -1523,6 +1525,9 @@ class TestEksPodOperator:
         assert trigger._aws_conn_id == "aws_default"
         assert trigger.pod_name == "test-pod-abc123"
         assert trigger.pod_namespace == "default"
+        assert trigger.log_events_on_startup is log_events_on_startup
+        if not log_events_on_startup:
+            assert trigger.serialize()[1]["log_events_on_startup"] is False
 
     @mock.patch(
         "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.convert_config_file_to_dict"

@@ -120,6 +120,7 @@ class EksPodTrigger(KubernetesPodTrigger):
     :param eks_cluster_name: The name of the Amazon EKS Cluster.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param region: Which AWS region the connection should use.
+    :param log_events_on_startup: Log the pod's Kubernetes events while waiting for it to start.
     """
 
     def __init__(
@@ -148,6 +149,7 @@ class EksPodTrigger(KubernetesPodTrigger):
         last_log_time: DateTime | None = None,
         logging_interval: int | None = None,
         trigger_kwargs: dict | None = None,
+        log_events_on_startup: bool = True,
     ):
         super().__init__(
             pod_name=pod_name,
@@ -170,6 +172,7 @@ class EksPodTrigger(KubernetesPodTrigger):
             last_log_time=last_log_time,
             logging_interval=logging_interval,
             trigger_kwargs=trigger_kwargs,
+            log_events_on_startup=log_events_on_startup,
         )
         self.eks_cluster_name = eks_cluster_name
         self._aws_conn_id = aws_conn_id
