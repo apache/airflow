@@ -17,8 +17,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import pathlib
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -112,6 +115,447 @@ class TestJWKS:
                 await jwks.get_key("kid")
             assert isinstance(await jwks.get_key("kid2"), jwt.PyJWK)
             spy_agency.assert_spy_called(spy)
+
+
+class _Clock:
+    def __init__(self):
+        self.now = 1_000_000.0
+
+    def monotonic(self) -> float:
+        return self.now
+
+
+@pytest.fixture
+def clock():
+    fake_clock = _Clock()
+    with patch("airflow.api_fastapi.auth.tokens.time.monotonic", side_effect=fake_clock.monotonic):
+        yield fake_clock
+
+
+def _jwk_without_alg(private_key, kid: str) -> dict:
+    jwk_dict = key_to_jwk_dict(private_key, kid)
+    jwk_dict.pop("alg", None)
+    return jwk_dict
+
+
+def _write_jwks(path: pathlib.Path, *jwk_dicts: dict) -> None:
+    path.write_text(json.dumps({"keys": list(jwk_dicts)}))
+
+
+def _served_jwks_client(documents: list) -> httpx2.AsyncClient:
+    """Serve the last entry of ``documents``; an exception entry is raised instead."""
+
+    async def mock_transport(request):
+        document = documents[-1]
+        if isinstance(document, Exception):
+            raise document
+        return httpx2.Response(status_code=200, json=document)
+
+    return httpx2.AsyncClient(transport=httpx2.MockTransport(mock_transport))
+
+
+@pytest.mark.usefixtures("clock")
+class TestJWKSKeyRotation:
+    @pytest.fixture
+    def jwks_file(self, tmp_path: pathlib.Path) -> pathlib.Path:
+        return tmp_path / "jwks.json"
+
+    async def test_unknown_kid_reloads_local_jwks(self, clock, jwks_file, rsa_private_key):
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = JWKS(url=str(jwks_file))
+        await jwks.get_key("old")
+
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 11
+
+        assert (await jwks.get_key("new")).key_id == "new"
+
+    async def test_unknown_kid_reloads_remote_jwks(self, clock, rsa_private_key):
+        documents: list = [{"keys": [key_to_jwk_dict(rsa_private_key, "old")]}]
+        jwks = JWKS(url="https://example.com/jwks.json", client=_served_jwks_client(documents))
+        await jwks.get_key("old")
+
+        documents.append({"keys": [key_to_jwk_dict(rsa_private_key, "new")]})
+        clock.now += 11
+
+        assert (await jwks.get_key("new")).key_id == "new"
+
+    async def test_unknown_kid_reload_is_rate_limited(self, clock, jwks_file, rsa_private_key):
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = JWKS(url=str(jwks_file), refresh_retry_interval_secs=30)
+        await jwks.get_key("old")
+
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 5
+        with pytest.raises(KeyError, match="new"):
+            await jwks.get_key("new")
+
+        clock.now += 30
+        assert (await jwks.get_key("new")).key_id == "new"
+
+    async def test_unknown_kid_does_not_reload_when_refresh_disabled(self, clock, jwks_file, rsa_private_key):
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = JWKS(url=str(jwks_file), refresh_jwks=False)
+        await jwks.get_key("old")
+
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 3601
+
+        with pytest.raises(KeyError, match="new"):
+            await jwks.get_key("new")
+
+    async def test_kid_still_unknown_after_reload_is_rejected(self, clock, jwks_file, rsa_private_key):
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "old"))
+        validator = JWTValidator(
+            jwks=JWKS(url=str(jwks_file)), issuer="http://test-issuer", algorithm="RS256", audience="abc"
+        )
+        generator = JWTGenerator(
+            private_key=rsa_private_key,
+            kid="unpublished",
+            issuer="http://test-issuer",
+            algorithm="RS256",
+            audience="abc",
+            valid_for=300,
+        )
+        clock.now += 11
+
+        with pytest.raises(jwt.InvalidTokenError, match="Kid did not match any validation keys"):
+            await validator.avalidated_claims(generator.generate())
+
+    @pytest.mark.parametrize(
+        ("elapsed_secs", "expected_kid"),
+        [
+            pytest.param(3599, "old", id="before-refresh-interval"),
+            pytest.param(3601, "new", id="after-refresh-interval"),
+        ],
+    )
+    async def test_local_jwks_is_reloaded_after_refresh_interval(
+        self, clock, jwks_file, rsa_private_key, elapsed_secs, expected_kid
+    ):
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = JWKS(url=str(jwks_file))
+        await jwks.fetch_jwks()
+
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += elapsed_secs
+        await jwks.fetch_jwks()
+
+        assert [key.key_id for key in jwks._jwks.keys] == [expected_kid]
+
+    @pytest.mark.parametrize(
+        "broken_content",
+        [
+            pytest.param("not json", id="unreadable"),
+            pytest.param(json.dumps(["not", "an", "object"]), id="not-an-object"),
+            pytest.param(json.dumps({"keys": []}), id="no-keys"),
+            pytest.param(json.dumps({"keys": [{"kty": "unknown"}]}), id="no-usable-keys"),
+        ],
+    )
+    async def test_failed_local_reload_keeps_current_keyset(
+        self, clock, jwks_file, rsa_private_key, broken_content
+    ):
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = JWKS(url=str(jwks_file))
+        await jwks.fetch_jwks()
+
+        jwks_file.write_text(broken_content)
+        clock.now += 3601
+        await jwks.fetch_jwks()
+
+        assert (await jwks.get_key("old")).key_id == "old"
+
+    async def test_failed_remote_reload_keeps_current_keyset(self, clock, rsa_private_key):
+        documents: list = [{"keys": [key_to_jwk_dict(rsa_private_key, "old")]}]
+        jwks = JWKS(url="https://example.com/jwks.json", client=_served_jwks_client(documents))
+        await jwks.fetch_jwks()
+
+        documents.append(httpx2.ConnectError("issuer unreachable"))
+        clock.now += 3601
+        await jwks.fetch_jwks()
+
+        assert (await jwks.get_key("old")).key_id == "old"
+
+    async def test_failed_reload_is_retried_after_retry_interval(self, clock, jwks_file, rsa_private_key):
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = JWKS(url=str(jwks_file))
+        await jwks.fetch_jwks()
+
+        jwks_file.write_text("not json")
+        clock.now += 3601
+        await jwks.fetch_jwks()
+
+        _write_jwks(jwks_file, key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 11
+        await jwks.fetch_jwks()
+
+        assert [key.key_id for key in jwks._jwks.keys] == ["new"]
+
+    async def test_unloadable_jwks_rejects_every_kid(self, jwks_file):
+        jwks = JWKS(url=str(jwks_file))
+
+        with pytest.raises(KeyError, match="kid"):
+            await jwks.get_key("kid")
+
+    async def test_from_private_key_is_not_reloaded(self, clock, rsa_private_key):
+        jwks = JWKS.from_private_key((rsa_private_key, "kid"))
+        clock.now += 3601
+
+        assert (await jwks.get_key("kid")).key_id == "kid"
+        with pytest.raises(KeyError, match="other"):
+            await jwks.get_key("other")
+
+
+class _FakeIssuer:
+    """Serve the last entry of ``documents``, recording each fetch; the next fetch can be held in flight."""
+
+    def __init__(self, *jwk_dicts: dict):
+        self.documents: list = [{"keys": list(jwk_dicts)}]
+        self.fetches: list = []
+        self.fetch_started = threading.Event()
+        self._hold_next = False
+        self._held: tuple[asyncio.AbstractEventLoop, asyncio.Event] | None = None
+
+    def rotate_to(self, *jwk_dicts: dict) -> None:
+        self.documents.append({"keys": list(jwk_dicts)})
+
+    def hold_next_fetch(self) -> None:
+        self._hold_next = True
+        self.fetch_started.clear()
+
+    def release_fetch(self) -> None:
+        assert self._held is not None
+        loop, released = self._held
+        loop.call_soon_threadsafe(released.set)
+
+    async def _serve(self, request):
+        self.fetches.append(request)
+        if self._hold_next:
+            self._hold_next = False
+            self._held = (asyncio.get_running_loop(), asyncio.Event())
+            self.fetch_started.set()
+            await self._held[1].wait()
+        return httpx2.Response(status_code=200, json=self.documents[-1])
+
+    def jwks(self) -> JWKS:
+        client = httpx2.AsyncClient(transport=httpx2.MockTransport(self._serve))
+        return JWKS(url="https://example.com/jwks.json", client=client)
+
+
+async def _get_key_concurrently(jwks: JWKS, kid: str, requests: int = 20) -> list:
+    return list(await asyncio.gather(*(jwks.get_key(kid) for _ in range(requests)), return_exceptions=True))
+
+
+async def _start_reload_and_shut_down_once_joined(jwks: JWKS, kid: str, joined: threading.Event) -> None:
+    request = asyncio.create_task(jwks.get_key(kid))
+    await asyncio.to_thread(joined.wait, 5)
+    assert not request.done()
+
+
+async def _get_key_while_fetch_held(jwks: JWKS, kid: str, issuer: _FakeIssuer) -> jwt.PyJWK:
+    request = asyncio.create_task(jwks.get_key(kid))
+    for _ in range(10):
+        await asyncio.sleep(0)
+    assert not request.done()
+    issuer.release_fetch()
+    return await request
+
+
+@pytest.mark.usefixtures("clock")
+class TestJWKSConcurrentRequests:
+    async def test_concurrent_first_requests_share_one_fetch(self, rsa_private_key):
+        issuer = _FakeIssuer(key_to_jwk_dict(rsa_private_key, "kid"))
+        jwks = issuer.jwks()
+
+        results = await _get_key_concurrently(jwks, "kid")
+
+        assert [result.key_id for result in results] == ["kid"] * 20
+        assert len(issuer.fetches) == 1
+
+    async def test_concurrent_requests_for_rotated_key_share_one_reload(self, clock, rsa_private_key):
+        issuer = _FakeIssuer(key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = issuer.jwks()
+        await jwks.get_key("old")
+
+        issuer.rotate_to(key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 11
+        results = await _get_key_concurrently(jwks, "new")
+
+        assert [result.key_id for result in results] == ["new"] * 20
+        assert len(issuer.fetches) == 2
+
+    async def test_concurrent_requests_for_made_up_key_share_one_reload(self, clock, rsa_private_key):
+        issuer = _FakeIssuer(key_to_jwk_dict(rsa_private_key, "kid"))
+        jwks = issuer.jwks()
+        await jwks.get_key("kid")
+
+        clock.now += 11
+        results = await _get_key_concurrently(jwks, "made-up")
+
+        assert all(isinstance(result, KeyError) for result in results)
+        assert len(issuer.fetches) == 2
+
+    def test_reload_on_another_event_loop(self, clock, rsa_private_key):
+        issuer = _FakeIssuer(key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = issuer.jwks()
+        asyncio.run(jwks.get_key("old"))
+
+        issuer.rotate_to(key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 11
+
+        assert asyncio.run(jwks.get_key("new")).key_id == "new"
+        assert len(issuer.fetches) == 2
+
+    def test_request_on_another_event_loop_waits_for_reload_in_flight(self, clock, rsa_private_key):
+        issuer = _FakeIssuer(key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = issuer.jwks()
+        asyncio.run(jwks.get_key("old"))
+
+        issuer.rotate_to(key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 11
+        issuer.hold_next_fetch()
+
+        with ThreadPoolExecutor(max_workers=1) as other_thread:
+            reload_on_other_loop = other_thread.submit(asyncio.run, jwks.get_key("new"))
+            assert issuer.fetch_started.wait(timeout=5)
+
+            key = asyncio.run(_get_key_while_fetch_held(jwks, "new", issuer))
+
+            assert key.key_id == "new"
+            assert reload_on_other_loop.result(timeout=5).key_id == "new"
+        assert len(issuer.fetches) == 2
+
+    async def test_cancelling_the_request_that_started_a_reload_does_not_cut_it_short(
+        self, clock, rsa_private_key
+    ):
+        issuer = _FakeIssuer(key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = issuer.jwks()
+        await jwks.get_key("old")
+
+        issuer.rotate_to(key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 11
+        issuer.hold_next_fetch()
+        starting_request = asyncio.create_task(jwks.get_key("new"))
+        await asyncio.to_thread(issuer.fetch_started.wait, 5)
+        waiting_request = asyncio.create_task(jwks.get_key("new"))
+        await asyncio.sleep(0)
+
+        starting_request.cancel()
+        issuer.release_fetch()
+
+        assert (await waiting_request).key_id == "new"
+        assert starting_request.cancelled()
+        assert len(issuer.fetches) == 2
+
+    def test_reload_cut_short_by_event_loop_shutdown_is_retried_by_waiting_request(
+        self, clock, rsa_private_key
+    ):
+        issuer = _FakeIssuer(key_to_jwk_dict(rsa_private_key, "old"))
+        jwks = issuer.jwks()
+        asyncio.run(jwks.get_key("old"))
+
+        issuer.rotate_to(key_to_jwk_dict(rsa_private_key, "new"))
+        clock.now += 11
+        issuer.hold_next_fetch()
+        joined = threading.Event()
+
+        async def request_joining_reload_on_loop_that_shuts_down(other_loop):
+            request = asyncio.create_task(jwks.get_key("new"))
+            await asyncio.sleep(0)
+            joined.set()
+            await asyncio.wrap_future(other_loop)
+            return await request
+
+        with ThreadPoolExecutor(max_workers=1) as other_thread:
+            other_loop = other_thread.submit(
+                asyncio.run, _start_reload_and_shut_down_once_joined(jwks, "new", joined)
+            )
+            assert issuer.fetch_started.wait(timeout=5)
+
+            key = asyncio.run(request_joining_reload_on_loop_that_shuts_down(other_loop))
+
+        assert key.key_id == "new"
+        assert len(issuer.fetches) == 3
+
+
+class TestJWKSDefaultAlgorithm:
+    @pytest.mark.parametrize(
+        ("default_algorithm", "published_alg", "expected_algorithm"),
+        [
+            pytest.param("RS512", None, "RS512", id="alg-less-key-gets-default"),
+            pytest.param("RS512", "RS384", "RS384", id="published-alg-is-kept"),
+            pytest.param(None, None, "RS256", id="no-default-keeps-key-type-default"),
+        ],
+    )
+    async def test_key_algorithm(
+        self, tmp_path: pathlib.Path, rsa_private_key, default_algorithm, published_alg, expected_algorithm
+    ):
+        jwk_dict = _jwk_without_alg(rsa_private_key, "kid")
+        if published_alg:
+            jwk_dict["alg"] = published_alg
+        jwks_file = tmp_path / "jwks.json"
+        _write_jwks(jwks_file, jwk_dict)
+
+        jwks = JWKS(url=str(jwks_file), default_algorithm=default_algorithm)
+
+        assert (await jwks.get_key("kid")).algorithm_name == expected_algorithm
+
+    @pytest.mark.parametrize("default_algorithm", ["RS521", "none", "None"])
+    def test_unusable_default_algorithm_is_rejected(self, default_algorithm):
+        with pytest.raises(ValueError, match="JWKS default algorithm"):
+            JWKS(url="https://example.com/jwks.json", default_algorithm=default_algorithm)
+
+    async def test_alg_less_key_validates_token_of_default_algorithm(
+        self, tmp_path: pathlib.Path, rsa_private_key
+    ):
+        jwks_file = tmp_path / "jwks.json"
+        _write_jwks(jwks_file, _jwk_without_alg(rsa_private_key, "kid"))
+        validator = JWTValidator(
+            jwks=JWKS(url=str(jwks_file), default_algorithm="RS512"),
+            issuer="http://test-issuer",
+            algorithm="RS512",
+            audience="abc",
+        )
+        generator = JWTGenerator(
+            private_key=rsa_private_key,
+            kid="kid",
+            issuer="http://test-issuer",
+            algorithm="RS512",
+            audience="abc",
+            valid_for=300,
+        )
+
+        claims = await validator.avalidated_claims(generator.generate())
+
+        assert claims["iss"] == "http://test-issuer"
+
+
+@conf_vars(
+    {
+        ("api_auth", "trusted_jwks_url"): "https://example.com/jwks.json",
+        ("api_auth", "trusted_jwks_refresh_interval"): "600",
+        ("api_auth", "trusted_jwks_refresh_retry_interval"): "15",
+        ("api_auth", "trusted_jwks_default_algorithm"): "RS512",
+    }
+)
+def test_sig_validation_args_configure_trusted_jwks():
+    jwks = get_sig_validation_args()["jwks"]
+
+    assert (jwks.refresh_interval_secs, jwks.refresh_retry_interval_secs, jwks.default_algorithm) == (
+        600,
+        15,
+        "RS512",
+    )
+
+
+@conf_vars({("api_auth", "trusted_jwks_url"): "https://example.com/jwks.json"})
+def test_sig_validation_args_trusted_jwks_defaults():
+    jwks = get_sig_validation_args()["jwks"]
+
+    assert (jwks.refresh_interval_secs, jwks.refresh_retry_interval_secs, jwks.default_algorithm) == (
+        3600,
+        10,
+        None,
+    )
 
 
 def test_load_pk_from_file(tmp_path: pathlib.Path, rsa_private_key):
