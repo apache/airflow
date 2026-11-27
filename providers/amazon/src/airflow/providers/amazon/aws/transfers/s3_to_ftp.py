@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ftplib
 import posixpath
 from collections.abc import Sequence
 from tempfile import NamedTemporaryFile
@@ -51,7 +52,9 @@ class S3ToFTPOperator(BaseOperator):
         a list with exact key suffixes present under the s3_key prefix, or a string
         prefix that all filenames must match. The prefix applies to the file name, the
         last segment of each key under s3_key. Use ``"*"`` to move all objects under
-        the s3_key prefix.
+        the s3_key prefix; each folder marker, a key ending in ``"/"`` such as the S3
+        console creates, is created as a directory on the FTP server, with any missing
+        parents. A string prefix does not select folder markers.
     :param ftp_path: The ftp remote path. For a single file it must include the file
         path. For multiple files it is the destination directory path and must end
         with ``"/"``.
@@ -113,6 +116,32 @@ class S3ToFTPOperator(BaseOperator):
             ftp_hook.store_file(ftp_path, local_tmp_file.name)
             self.log.info("File stored in %s", ftp_path)
 
+    def _create_directory(self, ftp_hook: FTPHook, s3_key: str, ftp_path: str) -> None:
+        validate_destination_path(ftp_path, self.ftp_path, base_name="ftp_path")
+        self.log.info("Creating directory %s for folder marker s3://%s/%s", ftp_path, self.s3_bucket, s3_key)
+        self._create_remote_dirs(ftp_hook, posixpath.normpath(ftp_path))
+
+    @classmethod
+    def _create_remote_dirs(cls, ftp_hook: FTPHook, path: str) -> None:
+        """Create ``path`` and any missing parents, accepting a directory that already exists."""
+        # MKD answers 550 for an existing directory as for a real failure, so check with CWD first.
+        if cls._is_directory(ftp_hook.get_conn(), path):
+            return
+        parent = posixpath.dirname(path)
+        if parent and parent != path:
+            cls._create_remote_dirs(ftp_hook, parent)
+        ftp_hook.create_directory(path)
+
+    @staticmethod
+    def _is_directory(conn: ftplib.FTP, path: str) -> bool:
+        cwd = conn.pwd()
+        try:
+            conn.cwd(path)
+        except ftplib.error_perm:
+            return False
+        conn.cwd(cwd)
+        return True
+
     def execute(self, context: Context):
         s3_hook = S3Hook(self.aws_conn_id)
         ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
@@ -121,9 +150,16 @@ class S3ToFTPOperator(BaseOperator):
             if isinstance(self.s3_filenames, str):
                 self.log.info("Getting files in s3://%s/%s", self.s3_bucket, self.s3_key)
                 all_keys = s3_hook.list_keys(bucket_name=self.s3_bucket, prefix=self.s3_key) or []
-                filenames = [k[len(self.s3_key) :] for k in all_keys]
+                # A key ending in "/" is a folder marker, such as the S3 console creates for each
+                # folder. It has no file name for a prefix to match, and an FTP server cannot
+                # store a file at a path ending in "/", so it is never transferred as a file.
+                folder_markers = [k for k in all_keys if k.endswith("/")]
+                filenames = [k[len(self.s3_key) :] for k in all_keys if not k.endswith("/")]
                 s3_prefix: str = self.s3_filenames
                 if s3_prefix == "*":
+                    # Create every directory before any file, so a file under a marker finds it.
+                    for marker in folder_markers:
+                        self._create_directory(ftp_hook, marker, self.ftp_path + marker[len(self.s3_key) :])
                     files = filenames
                 else:
                     # ``list_keys`` recurses, so the prefix applies to the file name, while the

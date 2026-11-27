@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ftplib
 from unittest import mock
 
 import pytest
@@ -70,6 +71,12 @@ class TestS3ToFTPOperator:
                 ["pre_dir/other.txt"],
                 id="nested-keys-keep-their-directory",
             ),
+            pytest.param(
+                ["source/pre_dir/", "source/pre_dir/pre_two.txt", "source/pre_dir/other.txt"],
+                [("source/pre_dir/pre_two.txt", "/destination/pre_dir/new_two.txt")],
+                ["pre_dir/other.txt"],
+                id="folder-marker-is-not-selected-or-reported",
+            ),
         ],
     )
     @mock.patch.object(S3ToFTPOperator, "_download_from_s3")
@@ -80,7 +87,8 @@ class TestS3ToFTPOperator:
     ):
         """The prefix matches only the start of the file name, and only that leading occurrence is
         renamed. ``list_keys`` recurses, so a nested key is matched on its file name and keeps its
-        directory, while the old substring rule still decides which skipped keys are reported."""
+        directory, while the old substring rule still decides which skipped keys are reported. A
+        folder marker has no file name, so it is neither selected, created nor reported."""
         mock_s3_hook = mock_s3_hook_class.return_value
         mock_s3_hook.list_keys.return_value = keys
         operator = S3ToFTPOperator(
@@ -99,6 +107,115 @@ class TestS3ToFTPOperator:
             mock.call(mock_s3_hook, mock_ftp_hook_class.return_value, *call) for call in expected
         ]
         mock_log_warning.assert_called_once_with(mock.ANY, len(skipped), "pre_", skipped, "")
+        mock_ftp_hook_class.return_value.create_directory.assert_not_called()
+
+    @staticmethod
+    def _fake_ftp_server(ftp_hook, *, dirs, files, events):
+        """Back the mocked hook with in-memory paths. Like a real server, CWD succeeds only for a
+        directory and MKD answers 550 for any existing path. Returns the session state."""
+        conn = ftp_hook.get_conn.return_value
+        state = {"cwd": "/home/user"}
+
+        def fake_cwd(path):
+            if path not in dirs:
+                raise ftplib.error_perm(f"550 {path}: No such file or directory")
+            state["cwd"] = path
+
+        def fake_mkd(path):
+            if path in dirs or path in files:
+                raise ftplib.error_perm(f"550 {path}: File exists")
+            dirs.add(path)
+            events.append(("mkd", path))
+
+        conn.pwd.side_effect = lambda: state["cwd"]
+        conn.cwd.side_effect = fake_cwd
+        ftp_hook.create_directory.side_effect = fake_mkd
+        return state
+
+    @mock.patch.object(S3ToFTPOperator, "_download_from_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.FTPHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.S3Hook")
+    def test_execute_creates_folder_markers_as_directories(
+        self, mock_s3_hook_class, mock_ftp_hook_class, mock_download_from_s3
+    ):
+        """A key ending in ``/`` is a folder marker, such as the S3 console creates for each folder.
+        With ``"*"`` each marker is created as a directory, with any missing parents, before any file
+        is transferred, so a file under a marker lands in it. A directory that exists is kept, and
+        the session returns to its working directory."""
+        events: list[tuple[str, ...]] = []
+        dirs = {"/", "/home/user", "/destination"}
+        state = self._fake_ftp_server(mock_ftp_hook_class.return_value, dirs=dirs, files=set(), events=events)
+        mock_download_from_s3.side_effect = lambda s3, ftp, key, path: events.append(("put", key, path))
+        mock_s3_hook_class.return_value.list_keys.return_value = [
+            "source/",
+            "source/deep/nested/",
+            "source/empty/",
+            "source/one.txt",
+            "source/sub/",
+            "source/sub/two.txt",
+        ]
+        operator = S3ToFTPOperator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key="source/",
+            ftp_path="/destination/",
+            s3_filenames="*",
+        )
+
+        operator.execute(None)
+
+        assert events == [
+            ("mkd", "/destination/deep"),
+            ("mkd", "/destination/deep/nested"),
+            ("mkd", "/destination/empty"),
+            ("mkd", "/destination/sub"),
+            ("put", "source/one.txt", "/destination/one.txt"),
+            ("put", "source/sub/two.txt", "/destination/sub/two.txt"),
+        ]
+        assert state["cwd"] == "/home/user"
+
+    @pytest.mark.parametrize(
+        ("keys", "files", "error", "match"),
+        [
+            pytest.param(
+                ["source/", "source/sub/"],
+                {"/destination/sub"},
+                ftplib.error_perm,
+                "File exists",
+                id="file-at-marker-path",
+            ),
+            pytest.param(
+                ["source/../../etc/"],
+                set(),
+                ValueError,
+                "escapes configured ftp_path",
+                id="marker-escapes-ftp-path",
+            ),
+        ],
+    )
+    @mock.patch.object(S3ToFTPOperator, "_download_from_s3")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.FTPHook")
+    @mock.patch("airflow.providers.amazon.aws.transfers.s3_to_ftp.S3Hook")
+    def test_execute_fails_on_folder_marker_that_cannot_be_a_directory(
+        self, mock_s3_hook_class, mock_ftp_hook_class, mock_download_from_s3, keys, files, error, match
+    ):
+        events: list[tuple[str, ...]] = []
+        dirs = {"/", "/home/user", "/destination"}
+        self._fake_ftp_server(mock_ftp_hook_class.return_value, dirs=dirs, files=files, events=events)
+        mock_s3_hook_class.return_value.list_keys.return_value = keys
+        operator = S3ToFTPOperator(
+            task_id=TASK_ID,
+            s3_bucket=BUCKET,
+            s3_key="source/",
+            ftp_path="/destination/",
+            s3_filenames="*",
+        )
+
+        with pytest.raises(error, match=match):
+            operator.execute(None)
+
+        assert events == []
+        mock_download_from_s3.assert_not_called()
 
 
 class TestS3ToFTPOperatorInit:
