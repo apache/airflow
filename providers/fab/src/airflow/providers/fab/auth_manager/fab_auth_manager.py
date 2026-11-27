@@ -65,6 +65,7 @@ from airflow.providers.common.compat.security.access_view import (
 )
 from airflow.providers.fab.auth_manager.models import Role, User
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+from airflow.providers.fab.auth_manager.security_manager.passwords import is_empty_password
 from airflow.providers.fab.version_compat import AIRFLOW_V_3_1_PLUS
 from airflow.providers.fab.www.app import create_app
 from airflow.providers.fab.www.security import permissions
@@ -509,12 +510,11 @@ class FabAuthManager(BaseAuthManager[User]):
         """
         username = body.get("username")
         password = body.get("password")
-        # Treat a password made only of NUL bytes as empty, as Flask-AppBuilder's login API does.
         if (
             not isinstance(username, str)
             or not isinstance(password, str)
             or not username
-            or not password.strip("\x00")
+            or is_empty_password(password)
         ):
             raise ValueError("Username and password must be provided")
 
