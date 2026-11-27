@@ -38,6 +38,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Timeout
 import org.msgpack.core.MessagePack
 import org.msgpack.core.buffer.ArrayBufferInput
+import org.msgpack.value.Value
+import org.msgpack.value.ValueFactory
 import java.io.ByteArrayOutputStream
 import java.time.Duration
 import java.time.OffsetDateTime
@@ -108,27 +110,20 @@ class CommsTest {
     Assertions.assertEquals(expected, actual)
   }
 
-  private fun successFrame(
+  private fun bodyFrame(
     type: String,
-    vararg fields: Pair<String, Any>,
+    vararg fields: Pair<String, Value>,
   ): (Int) -> ByteArray =
     { id ->
+      val body =
+        ValueFactory.newMap(
+          mapOf("type" to ValueFactory.newString(type), *fields).mapKeys { (key, _) -> ValueFactory.newString(key) },
+        )
       val out = ByteArrayOutputStream()
       MessagePack.newDefaultPacker(out).use { packer ->
         packer.packArrayHeader(3)
         packer.packInt(id)
-        packer.packMapHeader(fields.size + 1)
-        packer.packString("type")
-        packer.packString(type)
-        for ((key, value) in fields) {
-          packer.packString(key)
-          when (value) {
-            is Int -> packer.packInt(value)
-            is Boolean -> packer.packBoolean(value)
-            is String -> packer.packString(value)
-            else -> error("unsupported fixture value: $value")
-          }
-        }
+        packer.packValue(body)
         packer.packNil()
       }
       out.toByteArray()
@@ -137,9 +132,9 @@ class CommsTest {
   private fun responseFrame(
     id: Int,
     key: String = "return_value",
-  ): ByteArray = successFrame("XComResult", "key" to key, "value" to 1)(id)
+  ): ByteArray = bodyFrame("XComResult", "key" to ValueFactory.newString(key), "value" to ValueFactory.newInteger(1))(id)
 
-  private fun okResponseFrame(id: Int): ByteArray = successFrame("OKResponse", "ok" to true)(id)
+  private fun okResponseFrame(id: Int): ByteArray = bodyFrame("OKResponse", "ok" to ValueFactory.newBoolean(true))(id)
 
   // The supervisor answers a request that yields no result with a bare `[id]` frame.
   private fun emptyResponseFrame(id: Int): ByteArray {
@@ -429,7 +424,9 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun getDagRunStateReadsTheState() {
     val (body, state, failure) =
-      transportRoundTrip(successFrame("DagRunStateResult", "state" to "running")) { it.getDagRunState("downstream", "run") }
+      transportRoundTrip(
+        bodyFrame("DagRunStateResult", "state" to ValueFactory.newString("running")),
+      ) { it.getDagRunState("downstream", "run") }
 
     Assertions.assertNull(failure, "getDagRunState should return normally, got $failure")
     Assertions.assertEquals("running", state)
@@ -443,7 +440,13 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun isDagPausedReadsTheFlag() {
     val (body, paused, failure) =
-      transportRoundTrip(successFrame("DagResult", "dag_id" to "downstream", "is_paused" to true)) { it.isDagPaused("downstream") }
+      transportRoundTrip(
+        bodyFrame(
+          "DagResult",
+          "dag_id" to ValueFactory.newString("downstream"),
+          "is_paused" to ValueFactory.newBoolean(true),
+        ),
+      ) { it.isDagPaused("downstream") }
 
     Assertions.assertNull(failure, "isDagPaused should return normally, got $failure")
     Assertions.assertEquals(true, paused)
@@ -530,7 +533,7 @@ class CommsTest {
   fun taskStateStoreGetUnwrapsResult() {
     var value: Any? = null
     val (body, failure) =
-      roundTrip(successFrame("TaskStateStoreResult", "value" to "job-42"), currentTaskInstance()) {
+      roundTrip(bodyFrame("TaskStateStoreResult", "value" to ValueFactory.newString("job-42")), currentTaskInstance()) {
         value = it.taskStateStore.get("job_id")
       }
 
@@ -725,7 +728,7 @@ class CommsTest {
         val healthy = async { comm.communicate<XComResult>(GetVariable().also { it.key = "b" }) }
         fromClient.readOneRequest()
 
-        toClient.writeFrame(successFrame("SomeFutureMessage")(0))
+        toClient.writeFrame(bodyFrame("SomeFutureMessage")(0))
         toClient.writeFrame(responseFrame(1))
 
         Assertions.assertInstanceOf(
