@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from unittest import mock
 from uuid import UUID
 
@@ -695,4 +696,65 @@ class TestPubSubAsyncHook:
             retry=DEFAULT,
             timeout=None,
             metadata=(),
+        )
+
+
+PUBLISHED_BEFORE = datetime(2026, 11, 2, 10, 0, tzinfo=UTC)
+
+
+def _metric_series(age_seconds: int) -> mock.MagicMock:
+    """A backlog metric measured 5 minutes after ``PUBLISHED_BEFORE``."""
+    point = mock.MagicMock()
+    point.interval.end_time = PUBLISHED_BEFORE + timedelta(minutes=5)
+    point.value.int64_value = age_seconds
+    return mock.MagicMock(points=[point])
+
+
+class TestPubSubHookMessagesDelivered:
+    def setup_method(self):
+        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
+            self.pubsub_hook = PubSubHook(gcp_conn_id="test")
+
+    @pytest.mark.parametrize(
+        ("series", "expected"),
+        [
+            pytest.param([], False, id="not-reported-yet"),
+            pytest.param([mock.MagicMock(points=[])], False, id="no-points"),
+            pytest.param([_metric_series(301)], False, id="message-from-before-still-waiting"),
+            pytest.param([_metric_series(300)], True, id="delivered"),
+            pytest.param([_metric_series(0)], True, id="nothing-waiting"),
+        ],
+    )
+    @mock.patch(PUBSUB_STRING.format("PubSubHook.get_credentials"))
+    @mock.patch(PUBSUB_STRING.format("MetricServiceClient"))
+    def test_are_messages_delivered(self, mock_client, mock_get_credentials, series, expected):
+        mock_client.return_value.list_time_series.return_value = series
+
+        result = self.pubsub_hook.are_messages_delivered(
+            subscription=TEST_SUBSCRIPTION, published_before=PUBLISHED_BEFORE, project_id=TEST_PROJECT
+        )
+
+        assert result is expected
+        mock_client.assert_called_once_with(
+            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO
+        )
+        request = mock_client.return_value.list_time_series.call_args.kwargs["request"]
+        assert request["name"] == f"projects/{TEST_PROJECT}"
+        assert "subscription/oldest_unacked_message_age" in request["filter"]
+        assert f'resource.labels.subscription_id = "{TEST_SUBSCRIPTION}"' in request["filter"]
+
+    @pytest.mark.asyncio
+    @mock.patch(PUBSUB_STRING.format("sync_to_async"))
+    @mock.patch(PUBSUB_STRING.format("PubSubAsyncHook.get_sync_hook"))
+    async def test_async_are_messages_delivered(self, mock_get_sync_hook, mock_sync_to_async):
+        mock_sync_to_async.return_value = mock.AsyncMock(return_value=True)
+
+        result = await PubSubAsyncHook().are_messages_delivered(
+            subscription=TEST_SUBSCRIPTION, published_before=PUBLISHED_BEFORE, project_id=TEST_PROJECT
+        )
+
+        assert result is True
+        mock_sync_to_async.assert_called_once_with(mock_get_sync_hook.return_value.are_messages_delivered)
+        mock_sync_to_async.return_value.assert_awaited_once_with(
+            subscription=TEST_SUBSCRIPTION, published_before=PUBLISHED_BEFORE, project_id=TEST_PROJECT
         )

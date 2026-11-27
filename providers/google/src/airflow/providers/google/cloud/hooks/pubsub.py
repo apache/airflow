@@ -26,16 +26,20 @@ This module contains a Google Pub/Sub Hook.
 
 from __future__ import annotations
 
+import time
 import warnings
 from base64 import b64decode
 from collections.abc import Sequence
+from datetime import datetime, timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from asgiref.sync import sync_to_async
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.exceptions import NotFound
+from google.cloud.monitoring_v3 import ListTimeSeriesRequest, MetricServiceClient, TimeInterval
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
 from google.cloud.pubsub_v1.types import PublisherOptions
 from google.pubsub_v1.services.subscriber.async_client import SubscriberAsyncClient
@@ -598,6 +602,48 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def are_messages_delivered(
+        self, subscription: str, published_before: datetime, project_id: str = PROVIDE_PROJECT_ID
+    ) -> bool:
+        """
+        Check that every message published before ``published_before`` has been acknowledged.
+
+        Uses the ``oldest_unacked_message_age`` metric from Cloud Monitoring, which PubSub reports
+        about once a minute: the oldest waiting message was published at "measurement time - age".
+        If that is not earlier than ``published_before``, nothing older is still waiting.
+
+        :param subscription: The subscription name, without the ``projects/.../subscriptions/`` prefix.
+        :param published_before: Messages published before this time must be acknowledged.
+        :param project_id: The Google Cloud project of the subscription.
+        """
+        client = MetricServiceClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+        now = int(time.time())
+        series_list = client.list_time_series(
+            request={
+                "name": f"projects/{project_id}",
+                "filter": (
+                    'metric.type = "pubsub.googleapis.com/subscription/oldest_unacked_message_age" '
+                    f'AND resource.labels.subscription_id = "{subscription}"'
+                ),
+                "interval": TimeInterval(end_time={"seconds": now}, start_time={"seconds": now - 600}),
+                "view": ListTimeSeriesRequest.TimeSeriesView.FULL,
+            }
+        )
+        latest_point = next((series.points[0] for series in series_list if series.points), None)
+        if latest_point is None:
+            self.log.info("PubSub has not reported the backlog of subscription %s yet", subscription)
+            return False
+        oldest_publish_time = latest_point.interval.end_time - timedelta(
+            seconds=latest_point.value.int64_value
+        )
+        self.log.info(
+            "Oldest message still waiting in subscription %s was published at %s",
+            subscription,
+            oldest_publish_time,
+        )
+        return oldest_publish_time >= published_before
+
 
 class PubSubAsyncHook(GoogleBaseAsyncHook):
     """Class to get asynchronous hook for Google Cloud PubSub."""
@@ -608,6 +654,15 @@ class PubSubAsyncHook(GoogleBaseAsyncHook):
         super().__init__(**kwargs)
         self.project_id = project_id
         self._client: SubscriberAsyncClient | None = None
+
+    async def are_messages_delivered(
+        self, subscription: str, published_before: datetime, project_id: str = PROVIDE_PROJECT_ID
+    ) -> bool:
+        """Async version of :meth:`PubSubHook.are_messages_delivered`."""
+        sync_hook = await self.get_sync_hook()
+        return await sync_to_async(sync_hook.are_messages_delivered)(
+            subscription=subscription, published_before=published_before, project_id=project_id
+        )
 
     async def _get_subscriber_client(self) -> SubscriberAsyncClient:
         """

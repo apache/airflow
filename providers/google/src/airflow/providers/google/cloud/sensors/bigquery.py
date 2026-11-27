@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryStreamingBufferEmptyTrigger,
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
+    BigQueryTablePartitionReadyTrigger,
 )
 from airflow.providers.google.version_compat import AIRFLOW_V_3_0_PLUS
 
@@ -488,3 +489,101 @@ class BigQueryStreamingBufferEmptySensor(BaseSensorOperator):
             map_index=ti.map_index,
             try_number=(ti.max_tries or 0) - (self.retries or 0) + 1,
         )
+
+
+class BigQueryTablePartitionReadySensor(BaseSensorOperator):
+    """
+    Wait until a partition that is filled by streaming has stopped receiving rows.
+
+    :class:`BigQueryTablePartitionExistenceSensor` passes as soon as the first row arrives. This sensor
+    waits until the partition has rows and nothing new was written to it for ``settle_period``, so
+    downstream tasks do not read a half-filled partition. Rows that arrive later than the settle
+    period are not waited for. Every check runs a small query on ``INFORMATION_SCHEMA.PARTITIONS``.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:BigQueryTablePartitionReadySensor`
+
+    :param project_id: The Google Cloud project of the table.
+    :param dataset_id: The dataset of the table.
+    :param table_id: The table that contains the partition.
+    :param partition_id: The partition ID: ``YYYYMMDD`` for daily partitions (``{{ ds_nodash }}``),
+        ``YYYYMMDDHH`` for hourly ones.
+    :param settle_period: How long the partition must go without new rows. Defaults to 10 minutes.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :param deferrable: Run the sensor in deferrable mode.
+    """
+
+    template_fields: Sequence[str] = (
+        "project_id",
+        "dataset_id",
+        "table_id",
+        "partition_id",
+        "impersonation_chain",
+        "gcp_conn_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        dataset_id: str,
+        table_id: str,
+        partition_id: str,
+        settle_period: timedelta = timedelta(minutes=10),
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.dataset_id = dataset_id
+        self.table_id = table_id
+        self.partition_id = partition_id
+        self.settle_period = settle_period
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.deferrable = deferrable
+
+    def poke(self, context: Context) -> bool:
+        hook = BigQueryHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
+        return hook.is_partition_ready(
+            dataset_id=self.dataset_id,
+            table_id=self.table_id,
+            partition_id=self.partition_id,
+            project_id=self.project_id,
+            settle_period_seconds=self.settle_period.total_seconds(),
+        )
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable:
+            super().execute(context)
+            return
+        if self.poke(context=context):
+            return
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=BigQueryTablePartitionReadyTrigger(
+                project_id=self.project_id,
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                partition_id=self.partition_id,
+                settle_period_seconds=self.settle_period.total_seconds(),
+                gcp_conn_id=self.gcp_conn_id,
+                poll_interval=self.poke_interval,
+                impersonation_chain=self.impersonation_chain,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
+        return event["message"]
