@@ -30,9 +30,9 @@ from sqlalchemy import select
 
 from airflow._shared.secrets_masker import secrets_masker
 from airflow.api_fastapi.common.db.common import AsyncSessionDep
-from airflow.api_fastapi.core_api.security import GetUserDep
+from airflow.api_fastapi.core_api.security import TEAM_SCOPED_RESOURCES, GetUserDep
 from airflow.configuration import conf
-from airflow.models import Connection, Log, Pool, Variable
+from airflow.models import Log
 from airflow.models.task_coordinates import build_coordinate_filters
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.team import find_invalid_team_names
@@ -43,13 +43,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
-
-# Request parameter identifying a team-scoped resource, and the columns to read its team from.
-_TEAM_SCOPED_RESOURCES = {
-    "pool_name": (Pool.team_name, Pool.pool),
-    "variable_key": (Variable.team_name, Variable.key),
-    "connection_id": (Connection.team_name, Connection.conn_id),
-}
 
 
 def _sanitize_for_stdlib_log(value: str) -> str:
@@ -224,7 +217,7 @@ async def _resolve_team_name(params: dict, *, dag_id: str | None, session: Async
         return None
     if not conf.getboolean("core", "multi_team"):
         return None
-    for param, (team_column, resource_column) in _TEAM_SCOPED_RESOURCES.items():
+    for param, (team_column, resource_column) in TEAM_SCOPED_RESOURCES.items():
         if (resource_id := params.get(param)) is not None:
             return await session.scalar(select(team_column).where(resource_column == resource_id))
     return None

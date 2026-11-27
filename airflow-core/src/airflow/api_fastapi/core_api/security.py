@@ -27,7 +27,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer, OAuth2Pas
 from itsdangerous import BadSignature, URLSafeSerializer
 from jwt import ExpiredSignatureError, InvalidTokenError
 from pydantic import NonNegativeInt, TypeAdapter, ValidationError
-from sqlalchemy import and_, false, or_, select
+from sqlalchemy import and_, exists, false, or_, select
 from sqlalchemy.orm import Session
 
 from airflow.api_fastapi.app import get_auth_manager
@@ -83,6 +83,7 @@ from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.team import Team, dag_bundle_team_association_table
 from airflow.models.trigger import Trigger
 from airflow.models.xcom import XComModel
+from airflow.utils.session import create_session_async
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import Select
@@ -706,7 +707,7 @@ def requires_access_pool(method: ResourceMethod) -> Callable[[Request, BaseUser]
         user: GetUserDep,
     ) -> None:
         pool_name = request.path_params.get("pool_name")
-        for team_name in await _collect_teams_to_check(method, request, pool_name, Pool.get_team_name):
+        for team_name in await _collect_teams_to_check(method, request, "pool_name"):
 
             def _callback(tn: str | None = team_name) -> bool:
                 return get_auth_manager().is_authorized_pool(
@@ -812,9 +813,7 @@ def requires_access_connection(
         user: GetUserDep,
     ) -> None:
         connection_id = request.path_params.get("connection_id")
-        for team_name in await _collect_teams_to_check(
-            method, request, connection_id, Connection.get_team_name
-        ):
+        for team_name in await _collect_teams_to_check(method, request, "connection_id"):
 
             def _callback(tn: str | None = team_name) -> bool:
                 return get_auth_manager().is_authorized_connection(
@@ -967,7 +966,7 @@ def requires_access_variable(
         user: GetUserDep,
     ) -> None:
         variable_key: str | None = request.path_params.get("variable_key")
-        for team_name in await _collect_teams_to_check(method, request, variable_key, Variable.get_team_name):
+        for team_name in await _collect_teams_to_check(method, request, "variable_key"):
 
             def _callback(tn: str | None = team_name) -> bool:
                 return get_auth_manager().is_authorized_variable(
@@ -1412,49 +1411,63 @@ def requires_authenticated() -> Callable:
     return inner
 
 
+# Request parameter identifying a team-scoped resource, and the columns to read its team from.
+TEAM_SCOPED_RESOURCES = {
+    "pool_name": (Pool.team_name, Pool.pool),
+    "variable_key": (Variable.team_name, Variable.key),
+    "connection_id": (Connection.team_name, Connection.conn_id),
+}
+
+
 async def _collect_teams_to_check(
     method: ResourceMethod,
     request: Request,
-    resource_id: str | None,
-    get_existing_team: Callable[[str], str | None],
+    resource_param: str,
 ) -> set[str | None]:
     """Collect validated team names from existing resource (DB) and/or request body."""
     if not conf.getboolean("core", "multi_team"):
         return {None}
     teams: set[str | None] = set()
-    if method != "POST":
-        teams.add(get_existing_team(resource_id) if resource_id else None)
-    if method in ("POST", "PUT"):
-        body: Any = None
-        # ``POST /connections/defaults`` declares no body model, so FastAPI parses nothing for it
-        # and the read below is its only parse: a bodyless request there names no team and must
-        # still be served. Every other route arriving here declares a body, which FastAPI has
-        # already parsed and cached by the time this dependency runs.
-        if await request.body():
-            try:
-                body = await request.json()
-            except Exception as e:
-                # Broad because ``json.loads`` also raises UnicodeDecodeError, a bare ValueError
-                # (a number over ``int_max_str_digits``) and RecursionError, none of them
-                # JSONDecodeError. Fail closed: a body that cannot be read may carry a
-                # ``team_name``, so reject it rather than treat it as naming no team.
+    async with create_session_async() as session:
+        if method != "POST":
+            resource_id = request.path_params.get(resource_param)
+            team_column, resource_column = TEAM_SCOPED_RESOURCES[resource_param]
+            teams.add(
+                await session.scalar(select(team_column).where(resource_column == resource_id))
+                if resource_id
+                else None
+            )
+        if method in ("POST", "PUT"):
+            body: Any = None
+            # ``POST /connections/defaults`` declares no body model, so FastAPI parses nothing for it
+            # and the read below is its only parse: a bodyless request there names no team and must
+            # still be served. Every other route arriving here declares a body, which FastAPI has
+            # already parsed and cached by the time this dependency runs.
+            if await request.body():
+                try:
+                    body = await request.json()
+                except Exception as e:
+                    # Broad because ``json.loads`` also raises UnicodeDecodeError, a bare ValueError
+                    # (a number over ``int_max_str_digits``) and RecursionError, none of them
+                    # JSONDecodeError. Fail closed: a body that cannot be read may carry a
+                    # ``team_name``, so reject it rather than treat it as naming no team.
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Request body is not valid JSON",
+                    ) from e
+            raw = body.get("team_name") if isinstance(body, dict) else None
+            if raw is not None and not isinstance(raw, str):
+                # Fail closed: reject non-string team_name before authz / DB lookup.
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Request body is not valid JSON",
-                ) from e
-        raw = body.get("team_name") if isinstance(body, dict) else None
-        if raw is not None and not isinstance(raw, str):
-            # Fail closed: reject non-string team_name before authz / DB lookup.
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="'team_name' must be a string",
-            )
-        if raw and not Team.get_name_if_exists(raw):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Team {raw!r} does not exist",
-            )
-        teams.add(raw)
+                    detail="'team_name' must be a string",
+                )
+            if raw and not await session.scalar(select(exists().where(Team.name == raw))):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Team {raw!r} does not exist",
+                )
+            teams.add(raw)
     return teams
 
 

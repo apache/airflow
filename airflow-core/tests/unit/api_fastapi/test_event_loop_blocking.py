@@ -24,6 +24,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from airflow.models import Connection, Pool, Variable
 from airflow.models.dag import clear_team_name_cache
 
 from tests_common.test_utils.api_fastapi import iter_api_routes
@@ -157,6 +158,62 @@ class TestNoSyncDbOnEventLoop:
         route, mode = entry.rsplit("::", 1)
         method, path = route.split(" ", 1)
         assert not _send_request(test_client, event_loop_queries, method, path, mode)
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @pytest.mark.parametrize(
+        ("method", "url", "body", "expected_status"),
+        [
+            pytest.param("POST", "/api/v2/pools", {"name": "new_pool", "slots": 1}, 201, id="post-pool"),
+            pytest.param(
+                "POST",
+                "/api/v2/connections",
+                {"connection_id": "new_conn", "conn_type": "http"},
+                201,
+                id="post-connection",
+            ),
+            pytest.param(
+                "POST", "/api/v2/variables", {"key": "new_var", "value": "v"}, 201, id="post-variable"
+            ),
+            pytest.param(
+                "PATCH",
+                "/api/v2/pools/team_pool",
+                {"name": "team_pool", "slots": 2, "include_deferred": False},
+                200,
+                id="patch-pool",
+            ),
+            pytest.param(
+                "PATCH",
+                "/api/v2/connections/team_conn",
+                {"connection_id": "team_conn", "conn_type": "http"},
+                200,
+                id="patch-connection",
+            ),
+            pytest.param(
+                "PATCH",
+                "/api/v2/variables/team_var",
+                {"key": "team_var", "value": "v2"},
+                200,
+                id="patch-variable",
+            ),
+        ],
+    )
+    def test_team_lookup_runs_no_sync_sql_on_the_event_loop(
+        self, test_client, event_loop_queries, testing_team, session, method, url, body, expected_status
+    ):
+        """The event loop sweep sends ``{}`` as the body, so it never reaches the lookup of a ``team_name`` in it."""
+        session.add_all(
+            [
+                Pool(pool="team_pool", slots=1, include_deferred=False),
+                Connection(conn_id="team_conn", conn_type="http"),
+                Variable(key="team_var", val="v"),
+            ]
+        )
+        session.commit()
+
+        response = test_client.request(method, url, json={**body, "team_name": testing_team.name})
+
+        assert response.status_code == expected_status
+        assert [query.site for query in event_loop_queries] == []
 
 
 class _OffloadFinder(ast.NodeVisitor):

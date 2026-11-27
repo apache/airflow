@@ -552,12 +552,6 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    def get_team_name(variable_key: str, *, session=NEW_SESSION) -> str | None:
-        stmt = select(Variable.team_name).where(Variable.key == variable_key)
-        return session.scalar(stmt)
-
-    @staticmethod
-    @provide_session
     def get_key_to_team_name_mapping(
         variable_keys: list[str], *, session=NEW_SESSION
     ) -> dict[str, str | None]:

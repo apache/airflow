@@ -585,13 +585,6 @@ class TestVariable:
 
         assert c != b
 
-    def test_get_team_name(self, testing_team: Team, session: Session):
-        var = Variable(key="key", val="value", team_name=testing_team.name)
-        session.add(var)
-        session.flush()
-
-        assert Variable.get_team_name("key", session=session) == "testing"
-
     def test_get_key_to_team_name_mapping(self, testing_team: Team, session: Session):
         var1 = Variable(key="key1", val="value1", team_name=testing_team.name)
         var2 = Variable(key="key2", val="value2")
