@@ -239,21 +239,19 @@ date and end date.
 
 .. _backfill-priority-propagation:
 
-Deprioritizing downstream asset-triggered runs
+Lower priority for asset-triggered runs from backfill
 ''''''''''''''''''''''''''''''''''''''''''''''
 A backfill run is queued behind normal Dag runs of the same Dag. Runs triggered by asset events that a backfill
-emits are, by default, ordinary asset-triggered runs and get no such treatment. To give Dag runs that are triggered
-by asset events from backfills - and all asset triggered Dag runs  further downstreams - the same low priority,
-enable ``propagate_priority`` on the backfill (the **Also deprioritize downstream asset-triggered runs** checkbox
-in the UI, ``--propagate-priority`` in the CLI, or ``"propagate_priority": true`` in the REST API). It is off by
-default and only affects the backfill it is set on.
+emits are, by default, ordinary asset-triggered runs. To give them the same low priority, including
+asset-triggered runs further downstream, enable ``propagate_priority`` on the backfill. In the UI, check the
+**Also deprioritize downstream asset-triggered runs** checkbox, in the CLI use the ``--propagate-priority`` flag,
+or in the REST API set ``"propagate_priority": true``. By default, ``propagate_priority`` is off.
 
 When it is enabled:
 
-* Asset events emitted by the backfill's runs are marked as such. A Dag run that consumes **any** marked
-  event is *backfill-derived*, and its own asset events are marked as well. That way the priority carries through
-  every downstream Dag run and asset event. The mark is stored on the event, so it survives the cleanup of the
-  run that emitted it.
+* Asset events emitted by the backfill's runs are marked. A Dag run that consumes **any** marked event is
+  considered *backfill-derived*, and its own asset events are marked as well, so the priority carries through every
+  downstream asset event. The mark is stored on the event, so it survives the cleanup of the run that emitted it.
 * The classification is made once, when the run is created, from the complete set of events the run
   consumes. This includes runs that mix marked and unmarked events and rollup partitions. Events that arrive later
   do not change it.
