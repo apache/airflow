@@ -246,27 +246,31 @@ class S3ToAzureBlobStorageOperator(BaseOperator):
 
         if not self.replace:
             # Only grab the files from S3 that are not in Azure Blob already. This will prevent any files that
-            # exist in both S3 and Azure Blob from being overwritten. If a blob_name is provided, check to
-            # see if that blob exists
-            azure_blob_files: list[str] = []
+            # exist in both S3 and Azure Blob from being overwritten. Compare the blob name that move_file()
+            # writes, because the listing returns full blob names while files_to_move holds names relative to
+            # s3_prefix.
+            azure_blob_files: set[str] = set()
 
             if self.blob_name:
-                # If the singular blob (stored at self.blob_name) exists, add it to azure_blob_files so it
-                # can be removed from the list of files to move
+                # If the singular blob (stored at self.blob_name) exists, add it so it can be removed from
+                # the list of files to move
                 if self.wasb_hook.check_for_blob(self.container_name, self.blob_name):
-                    azure_blob_files.append(self.blob_name.split("/")[-1])
+                    azure_blob_files.add(self.blob_name)
 
             elif self.blob_prefix:
-                azure_blob_files += self.wasb_hook.get_blobs_list_recursive(
-                    container_name=self.container_name, prefix=self.blob_prefix
+                azure_blob_files.update(
+                    self.wasb_hook.get_blobs_list_recursive(
+                        container_name=self.container_name, prefix=self.blob_prefix
+                    )
                 )
             else:
                 raise InvalidAzureBlobParameters
 
-            # This conditional block only does one thing - it alters the elements in the files_to_move list.
-            # This list is being trimmed to remove the existing files in the Azure Blob (as mentioned above)
-            existing_files = azure_blob_files if azure_blob_files else []
-            files_to_move = list(set(files_to_move) - set(existing_files))
+            files_to_move = [
+                file_name
+                for file_name in files_to_move
+                if self._create_key(self.blob_name, self.blob_prefix, file_name) not in azure_blob_files
+            ]
 
         return files_to_move
 
