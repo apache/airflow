@@ -293,6 +293,8 @@ class FTPHook(BaseHook):
         :param path: remote file path
         """
         conn = self.get_conn()
+        # SIZE may be rejected in ASCII mode, including after a directory listing.
+        conn.voidcmd("TYPE I")
         size = conn.size(path)
         return int(size) if size is not None else None
 
