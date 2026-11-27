@@ -122,6 +122,24 @@ export function buildImportScript(packageJson) {
   ].join("\n");
 }
 
+/**
+ * The CommonJS counterpart of `buildImportScript`. Node loads an ES module through `require()`, but
+ * only when an `exports` condition it matches for `require` (such as `default`) names the file.
+ */
+export function buildRequireScript(packageJson) {
+  return [
+    ...collectExportSubpaths(packageJson).map(
+      (subpath) => `require(${JSON.stringify(packageJson.name + subpath)});`,
+    ),
+    `const sdk = require(${JSON.stringify(packageJson.name)});`,
+    `for (const name of ${JSON.stringify(REQUIRED_ROOT_EXPORTS)}) {`,
+    '  if (typeof sdk[name] !== "function") {',
+    "    throw new Error(`the root export does not expose ${name} to require()`);",
+    "  }",
+    "}",
+  ].join("\n");
+}
+
 function verifyPackage() {
   const temporaryDirectory = mkdtempSync(join(tmpdir(), "airflow-ts-sdk-package-"));
 
@@ -164,6 +182,9 @@ function verifyPackage() {
       cwd: consumerDirectory,
     });
     run("node", ["--input-type=module", "--eval", buildImportScript(packageJson)], {
+      cwd: consumerDirectory,
+    });
+    run("node", ["--input-type=commonjs", "--eval", buildRequireScript(packageJson)], {
       cwd: consumerDirectory,
     });
 
