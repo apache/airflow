@@ -30,7 +30,7 @@ import pendulum
 import pytest
 import tenacity
 import time_machine
-from kubernetes.client import ApiClient, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
+from kubernetes.client import ApiClient, CoreV1Api, V1Pod, V1PodSecurityContext, V1PodStatus, models as k8s
 from kubernetes.client.exceptions import ApiException
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -1235,6 +1235,34 @@ class TestKubernetesPodOperator:
         )
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.runtime_class_name is None
+
+    @pytest.mark.parametrize("uid", ["4057eb7b-8483-4064-8779-ecc230861cf1", None])
+    @pytest.mark.parametrize("grace_period", [30, None])
+    def test_on_kill_pins_the_delete_to_the_pod_it_started(self, grace_period, uid):
+        k = KubernetesPodOperator(task_id="task", termination_grace_period=grace_period)
+        k.pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name", namespace="default", uid=uid))
+        k.client = MagicMock(spec=CoreV1Api)
+
+        k.on_kill()
+
+        k.client.delete_namespaced_pod.assert_called_once_with(
+            name="pod-name",
+            namespace="default",
+            body=k8s.V1DeleteOptions(
+                grace_period_seconds=grace_period,
+                preconditions=k8s.V1Preconditions(uid=uid) if uid else None,
+            ),
+        )
+
+    def test_on_kill_does_not_retry_when_the_pod_was_replaced(self):
+        k = KubernetesPodOperator(task_id="task")
+        k.pod = k8s.V1Pod(metadata=k8s.V1ObjectMeta(name="pod-name", namespace="default", uid="stale-uid"))
+        k.client = MagicMock(spec=CoreV1Api)
+        k.client.delete_namespaced_pod.side_effect = ApiException(status=409)
+
+        k.on_kill()
+
+        k.client.delete_namespaced_pod.assert_called_once()
 
     def test_termination_grace_period_correctly_set(self):
         k = KubernetesPodOperator(

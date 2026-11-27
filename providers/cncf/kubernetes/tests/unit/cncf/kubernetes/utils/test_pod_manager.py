@@ -37,12 +37,14 @@ from kubernetes.client import (
     V1ContainerStateTerminated,
     V1ContainerStateWaiting,
     V1ContainerStatus,
+    V1DeleteOptions,
     V1ObjectMeta,
     V1ObjectReference,
     V1Pod,
     V1PodCondition,
     V1PodSpec,
     V1PodStatus,
+    V1Preconditions,
 )
 from kubernetes.client.rest import ApiException
 from kubernetes.stream.ws_client import STDOUT_CHANNEL
@@ -385,6 +387,27 @@ class TestPodManager:
     )
     def test_parse_log_level(self, message, expected_level):
         assert _parse_log_level(message) == expected_level
+
+    @pytest.mark.parametrize("uid", ["4057eb7b-8483-4064-8779-ecc230861cf1", None])
+    def test_delete_pod_pins_the_request_to_the_observed_pod(self, uid):
+        pod = V1Pod(metadata=V1ObjectMeta(name="my-pod", namespace="default", uid=uid))
+
+        self.pod_manager.delete_pod(pod)
+
+        self.mock_kube_client.delete_namespaced_pod.assert_called_once_with(
+            "my-pod",
+            "default",
+            body=V1DeleteOptions(preconditions=V1Preconditions(uid=uid) if uid else None),
+        )
+
+    def test_delete_pod_does_not_retry_when_the_pod_was_replaced(self):
+        self.mock_kube_client.delete_namespaced_pod.side_effect = ApiException(status=409)
+
+        self.pod_manager.delete_pod(
+            V1Pod(metadata=V1ObjectMeta(name="my-pod", namespace="default", uid="stale-uid"))
+        )
+
+        self.mock_kube_client.delete_namespaced_pod.assert_called_once()
 
     def test_log_message_uses_detected_log_level(self):
         """_log_message should forward ERROR lines at ERROR level, not INFO."""
