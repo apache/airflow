@@ -567,7 +567,9 @@ function start_api_server_with_examples(){
     export AIRFLOW__API__EXPOSE_CONFIG=True
     airflow dags reserialize
     echo "Example dags parsing finished"
-    if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+    # Not grep -q: at DEBUG level the command still logs to stdout after the match, and with pipefail
+    # its broken pipe would fail the check.
+    if airflow config get-value core auth_manager | grep "FabAuthManager" >/dev/null; then
         echo "Create admin user"
         airflow users create -u admin -p admin -f Thor -l Administrator -r Admin -e admin@email.domain || true
         echo "Admin user created"

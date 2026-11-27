@@ -2038,7 +2038,9 @@ function create_www_user() {
         exit 1
     fi
 
-    if airflow config get-value core auth_manager | grep -q "FabAuthManager"; then
+    # Not grep -q: at DEBUG level the command still logs to stdout after the match, and with pipefail
+    # its broken pipe would fail the check.
+    if airflow config get-value core auth_manager | grep "FabAuthManager" >/dev/null; then
         airflow users create \
            --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
            --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
