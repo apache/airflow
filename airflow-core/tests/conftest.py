@@ -5,9 +5,7 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
+# http://www.apache.org/licenses/LICENSE-2.0
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,8 +37,6 @@ collect_ignore = [
     "tests/unit/dags_corrupted/test_impersonation_custom.py",
     "tests_common/test_utils/perf/dags/elastic_dag.py",
 ]
-
-
 @contextmanager
 def _config_bundles(bundles: dict[str, Path | str]):
     from tests_common.test_utils.config import conf_vars
@@ -74,7 +70,6 @@ def configure_testing_dag_bundle():
             yield
 
     return _config_bundle
-
 
 @pytest.fixture
 def test_zip_path(tmp_path: Path):
