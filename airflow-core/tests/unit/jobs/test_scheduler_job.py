@@ -10467,6 +10467,73 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).select_from(DagRun)) == 6
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 6
 
+    def test_queued_runs_skipped_when_dag_lock_held_by_another_scheduler(self, dag_maker, session):
+        """A scheduler must not start non-backfill runs of a Dag whose row another scheduler has locked."""
+        with dag_maker(dag_id="test_dag_lock", schedule="@daily", max_active_runs=1, session=session):
+            EmptyOperator(task_id="mytask")
+        for i in range(3):
+            dag_maker.create_dagrun(
+                run_id=f"run_{i}",
+                logical_date=DEFAULT_DATE + timedelta(days=i),
+                state=DagRunState.QUEUED,
+                session=session,
+            )
+        session.flush()
+
+        job_runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+
+        def running_count():
+            return session.scalar(
+                select(func.count(DagRun.id)).where(
+                    DagRun.dag_id == "test_dag_lock", DagRun.state == DagRunState.RUNNING
+                )
+            )
+
+        # Simulate another scheduler holding the Dag row lock
+        with patch.object(job_runner, "_lock_dags", return_value=set()):
+            job_runner._start_queued_dagruns(session)
+            session.flush()
+        assert running_count() == 0
+
+        job_runner._start_queued_dagruns(session)
+        session.flush()
+        assert running_count() == 1
+
+    @pytest.mark.need_serialized_dag
+    @pytest.mark.backend("postgres", "mysql")
+    def test_concurrent_schedulers_respect_max_active_runs(self, dag_maker, session):
+        """Two schedulers starting queued runs of the same Dag at once must not exceed max_active_runs."""
+        dag_id = "test_concurrent_schedulers_max_active_runs"
+        with dag_maker(dag_id=dag_id, schedule="@daily", max_active_runs=1, session=session):
+            EmptyOperator(task_id="mytask")
+        for i in range(3):
+            dag_maker.create_dagrun(
+                run_id=f"run_{i}",
+                logical_date=DEFAULT_DATE + timedelta(days=i),
+                state=DagRunState.QUEUED,
+                session=session,
+            )
+        session.commit()
+
+        runner = SchedulerJobRunner(job=Job(), executors=[MockExecutor(do_update=False)])
+        # Each scheduler examines one queued run, so SKIP LOCKED hands them different runs of the Dag
+        with (
+            patch.object(DagRun, "DEFAULT_DAGRUNS_TO_EXAMINE", 1),
+            create_session(scoped=False) as scheduler_a,
+            create_session(scoped=False) as scheduler_b,
+        ):
+            # Neither scheduler commits before the other one has made its decision
+            runner._start_queued_dagruns(scheduler_a)
+            scheduler_a.flush()
+            runner._start_queued_dagruns(scheduler_b)
+            scheduler_b.flush()
+
+        session.expire_all()
+        running = session.scalar(
+            select(func.count(DagRun.id)).where(DagRun.dag_id == dag_id, DagRun.state == DagRunState.RUNNING)
+        )
+        assert running == 1
+
     def test_backfill_runs_skipped_when_lock_held_by_another_scheduler(self, dag_maker, session):
         """Test that a scheduler skips backfill runs when another scheduler holds the lock."""
         dag_id = "test_dag1"
