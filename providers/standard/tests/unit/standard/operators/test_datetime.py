@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 
+import pendulum
 import pytest
 import time_machine
 from sqlalchemy import delete
@@ -344,3 +345,67 @@ class TestBranchDateTimeOperator:
             **{"run_after": timezone.datetime(2020, 8, 7)},
         )
         assert branch_op.choose_branch(context={"dag_run": dr}) == "branch_1"
+
+    @pytest.mark.parametrize(
+        ("now", "expected"),
+        [
+            pytest.param(timezone.datetime(2020, 7, 6, 22, 50), "branch_1", id="dag-date-after-utc-date"),
+            pytest.param(timezone.datetime(2020, 7, 7, 14, 30), "branch_2", id="after-upper-in-dag-timezone"),
+            pytest.param(
+                timezone.datetime(2020, 7, 6, 21, 30), "branch_2", id="before-lower-in-dag-timezone"
+            ),
+        ],
+    )
+    def test_target_times_use_the_date_in_the_dag_timezone(self, dag_maker, now, expected):
+        """Times are compared on the current date in the Dag's timezone, not the UTC date."""
+        with dag_maker(
+            "branch_datetime_operator_dag_timezone",
+            default_args={
+                "owner": "airflow",
+                "start_date": pendulum.datetime(2020, 1, 1, tz="Asia/Seoul"),
+            },
+            schedule=INTERVAL,
+            serialized=True,
+        ):
+            branch_op = BranchDateTimeOperator(
+                task_id="datetime_branch",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                target_lower=datetime.time(7, 0, 0),
+                target_upper=datetime.time(23, 0, 0),
+            )
+
+        with time_machine.travel(now, tick=False):
+            assert branch_op.choose_branch(context={}) == expected
+
+    @pytest.mark.parametrize(
+        ("logical_date", "expected"),
+        [
+            pytest.param(timezone.datetime(2020, 7, 6, 22, 50), "branch_1", id="dag-date-after-utc-date"),
+            pytest.param(timezone.datetime(2020, 7, 7, 14, 30), "branch_2", id="after-upper-in-dag-timezone"),
+            pytest.param(
+                timezone.datetime(2020, 7, 6, 21, 30), "branch_2", id="before-lower-in-dag-timezone"
+            ),
+        ],
+    )
+    def test_target_times_use_the_logical_date_in_the_dag_timezone(self, dag_maker, logical_date, expected):
+        """With use_task_logical_date, times are compared on the logical date in the Dag's timezone."""
+        with dag_maker(
+            "branch_datetime_operator_logical_date_dag_timezone",
+            default_args={
+                "owner": "airflow",
+                "start_date": pendulum.datetime(2020, 1, 1, tz="Asia/Seoul"),
+            },
+            schedule=INTERVAL,
+            serialized=True,
+        ):
+            branch_op = BranchDateTimeOperator(
+                task_id="datetime_branch",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                target_lower=datetime.time(7, 0, 0),
+                target_upper=datetime.time(23, 0, 0),
+                use_task_logical_date=True,
+            )
+
+        assert branch_op.choose_branch(context={"logical_date": logical_date}) == expected
