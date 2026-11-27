@@ -58,6 +58,7 @@ from urllib.parse import urlsplit
 from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
 from pydantic_ai.tools import AgentDepsT
 
+from airflow.providers.common.ai.exceptions import SkillsConfigurationError
 from airflow.providers.common.ai.utils.skill_files import SkillRunState, build_skill_files_toolset
 
 if TYPE_CHECKING:
@@ -262,7 +263,7 @@ def _import_harness_skills() -> tuple[type[Skills[Any]], type[LocalWorkspaceBack
         from pydantic_ai.workspaces import LocalWorkspaceBackend
         from pydantic_ai_harness.skills import Skills
     except ImportError as e:
-        raise ValueError(
+        raise SkillsConfigurationError(
             "AirflowSkills requires pydantic-ai-harness. Install the 'skills' extra: "
             "pip install 'apache-airflow-providers-common-ai[skills]'."
         ) from e
@@ -377,7 +378,10 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         # has to exist by now. The copy returned below removes it when the run ends; for a run that never starts,
         # the finalizer (garbage collection, or at interpreter exit) is the backstop. The run's state is kept in
         # ``self._runs`` in process memory, which is why only Airflow's durable execution is supported.
-        locations, cleanup = _materialize_skills(self._sources)
+        try:
+            locations, cleanup = _materialize_skills(self._sources)
+        except (ValueError, TypeError) as error:
+            raise SkillsConfigurationError(f"AirflowSkills could not load its skills: {error}") from error
         run_id = ctx.run_id or ""
         state = SkillRunState(skill_dirs={})
         try:
@@ -394,6 +398,9 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
             catalog = await skills.load()
             state.skill_dirs = {skill.name: Path(skill.directory) for skill in catalog.skills}
             offered = await skills.for_run(ctx)
+        except (ValueError, TypeError) as error:
+            cleanup()
+            raise SkillsConfigurationError(f"AirflowSkills could not load its skills: {error}") from error
         except BaseException:
             cleanup()
             raise

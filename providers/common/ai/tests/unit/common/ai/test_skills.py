@@ -42,6 +42,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.toolsets import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
+from airflow.providers.common.ai.exceptions import SkillsConfigurationError
 from airflow.providers.common.ai.skills import (
     AirflowSkills,
     GitSkills,
@@ -51,6 +52,7 @@ from airflow.providers.common.ai.skills import (
 )
 from airflow.providers.common.ai.toolsets.sandbox import SandboxToolset
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
+from airflow.providers.common.compat.sdk import AirflowFailException
 
 pytest.importorskip("git")
 pytest.importorskip("airflow.providers.git.hooks.git")
@@ -334,7 +336,9 @@ class TestAirflowSkillsConstruction:
         agent = Agent(model_calling(), capabilities=[AirflowSkills([tmp_path])])
 
         with mock.patch.dict(sys.modules, {"pydantic_ai_harness.skills": None}):
-            with pytest.raises(ValueError, match=r"apache-airflow-providers-common-ai\[skills\]"):
+            with pytest.raises(
+                SkillsConfigurationError, match=r"apache-airflow-providers-common-ai\[skills\]"
+            ):
                 await agent.run("go")
 
 
@@ -593,7 +597,7 @@ class TestAirflowSkillsCleanup:
         capability = AirflowSkills([GIT_SOURCE], exclude=["no-such-skill"])
         agent = Agent(model_calling(), capabilities=[capability])
 
-        with pytest.raises(ValueError, match="no-such-skill"):
+        with pytest.raises(SkillsConfigurationError, match="no-such-skill"):
             await agent.run("go")
 
         assert not clones[0].exists()
@@ -604,7 +608,28 @@ class TestAirflowSkillsCleanup:
         capability = AirflowSkills([tmp_path / "missing"])
         agent = Agent(model_calling(), capabilities=[capability])
 
-        with pytest.raises(ValueError, match="library directory does not exist"):
+        with pytest.raises(SkillsConfigurationError, match="AirflowSkills could not load its skills"):
+            await agent.run("go")
+
+        assert capability._runs == {}
+
+    @mock.patch("airflow.providers.common.ai.skills._clone_git", autospec=True)
+    @pytest.mark.asyncio
+    async def test_a_failed_clone_is_left_for_airflow_to_retry(self, mock_clone):
+        mock_clone.side_effect = RuntimeError("Failed to clone")
+        agent = Agent(model_calling(), capabilities=[AirflowSkills([GIT_SOURCE])])
+
+        with pytest.raises(RuntimeError, match="Failed to clone") as excinfo:
+            await agent.run("go")
+
+        assert not isinstance(excinfo.value, AirflowFailException)
+
+    @pytest.mark.asyncio
+    async def test_an_invalid_git_source_fails_without_a_retry(self):
+        capability = AirflowSkills([GitSkills(repo_url="https://u:p@host/r")])
+        agent = Agent(model_calling(), capabilities=[capability])
+
+        with pytest.raises(SkillsConfigurationError, match="must not embed a username or password"):
             await agent.run("go")
 
         assert capability._runs == {}

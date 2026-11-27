@@ -114,6 +114,17 @@ class DurableJournalError(AirflowFailException):
     """
 
 
+class SkillsConfigurationError(AirflowFailException):
+    """
+    Raised when ``AirflowSkills`` cannot load its skills because of how it is configured.
+
+    The harness or GitPython is not installed, a local source does not exist, ``include`` or
+    ``exclude`` names a skill no source holds, or a ``GitSkills`` URL or path is not valid.
+    Every attempt would fail the same way, so the task fails without retrying. A failed
+    clone is not one of these: it raises ``RuntimeError`` and is retried as usual.
+    """
+
+
 class LLMFileAnalysisError(ValueError):
     """Base class for file-analysis validation errors."""
 

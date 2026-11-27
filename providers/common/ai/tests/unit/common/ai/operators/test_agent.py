@@ -85,7 +85,11 @@ from airflow.providers.common.ai.durable import AirflowDurability
 from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX, RUN_ID_KEY, build_step_key
 from airflow.providers.common.ai.durable.journal import DurableJournal, DurableRun, journal_scope
 from airflow.providers.common.ai.durable.storage import DurableStorage
-from airflow.providers.common.ai.exceptions import DurableJournalError, UnsupportedToolDeferralError
+from airflow.providers.common.ai.exceptions import (
+    DurableJournalError,
+    SkillsConfigurationError,
+    UnsupportedToolDeferralError,
+)
 from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
 from airflow.providers.common.ai.operators.agent import (
     AgentOperator,
@@ -119,6 +123,7 @@ from airflow.providers.common.ai.utils.usage_budget import (
 from airflow.providers.common.compat.sdk import (
     DAG,
     AirflowException,
+    AirflowFailException,
     AirflowOptionalProviderFeatureException,
     BaseHook,
     task,
@@ -2476,6 +2481,30 @@ class TestAgentOperatorDurable:
             pytest.raises(UserError, match="Two toolsets have the same `id` .airflow_skills."),
         ):
             op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
+
+    @pytest.mark.parametrize("durable", [False, True])
+    def test_a_skills_configuration_error_fails_the_task_without_a_retry(self, durable, tmp_path):
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=durable,
+            enable_tool_logging=False,
+            capabilities=[AirflowSkills([tmp_path / "missing"])],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("done")])), **kw
+        )
+
+        with (
+            patch.object(
+                AgentOperator, "_build_durable_storage", autospec=True, return_value=MemoryStorage()
+            ),
+            pytest.raises(SkillsConfigurationError) as excinfo,
+        ):
+            op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
+        assert isinstance(excinfo.value, AirflowFailException)
 
     def test_retry_keeps_the_first_attempts_run_id_and_conversation_id(self):
         """Capabilities that key their state on the run id must see the same one on a replay."""

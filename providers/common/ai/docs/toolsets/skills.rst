@@ -195,6 +195,17 @@ An agent can have only one ``AirflowSkills``; put every source in it.
 With ``durable=True``, a script that has run is replayed from the journal on a retry instead of
 running again.
 
+When a run cannot start
+~~~~~~~~~~~~~~~~~~~~~~~
+
+A configuration that cannot load its skills raises
+:class:`~airflow.providers.common.ai.exceptions.SkillsConfigurationError`, and the task fails
+without retrying, because every attempt would fail the same way. That covers a missing
+``pydantic-ai-harness`` or GitPython, a local source that does not exist, an ``include`` or
+``exclude`` naming a skill no source holds, and a ``GitSkills`` URL or path that is not valid.
+A clone that fails raises ``RuntimeError`` instead, and the task retries as often as its
+``retries`` allows.
+
 Trust model
 ~~~~~~~~~~~
 
