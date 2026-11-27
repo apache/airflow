@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import create_autospec, patch
+from unittest.mock import call, create_autospec, patch
 
 import click
 import pytest
@@ -25,8 +25,9 @@ from click import UsageError
 from click.testing import CliRunner
 
 from airflow_breeze.commands import developer_commands
-from airflow_breeze.commands.developer_commands import build_docs, down, run
+from airflow_breeze.commands.developer_commands import build_docs, doctor, down, run
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
+from airflow_breeze.utils.confirm import Answer
 
 
 @pytest.fixture
@@ -114,6 +115,51 @@ def test_down_lists_projects_left_in_other_worktrees(runner, tmp_path, args, lis
     else:
         find_others.assert_not_called()
         assert "/work/other" not in output
+
+
+@pytest.mark.parametrize(("args", "cleanup_build_cache"), [([], False), (["--cleanup-build-cache"], True)])
+def test_down_cleans_build_cache_only_on_request(runner, args, cleanup_build_cache):
+    with (
+        patch("airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True),
+        patch(
+            "airflow_breeze.commands.developer_commands.bring_compose_projects_down",
+            autospec=True,
+            return_value=[],
+        ) as teardown,
+        patch(
+            "airflow_breeze.commands.developer_commands.find_other_worktree_projects",
+            autospec=True,
+            return_value={},
+        ),
+        patch("airflow_breeze.commands.developer_commands.run_command", autospec=True) as run,
+    ):
+        result = runner.invoke(down, args)
+    assert result.exit_code == 0
+    assert teardown.call_args.kwargs["cleanup_build_cache"] is cleanup_build_cache
+    run.assert_not_called()
+
+
+@pytest.mark.parametrize("cache_removal_confirmed", [False, True])
+def test_doctor_removes_build_cache_volumes_after_confirmation(runner, tmp_path, cache_removal_confirmed):
+    answers = [Answer.NO, Answer.YES if cache_removal_confirmed else Answer.NO, Answer.NO]
+    with (
+        patch("airflow_breeze.commands.developer_commands.ShellParams", autospec=True),
+        patch("airflow_breeze.commands.developer_commands.check_docker_resources", autospec=True),
+        patch("airflow_breeze.commands.developer_commands.perform_environment_checks", autospec=True),
+        patch("airflow_breeze.commands.developer_commands.fix_ownership_using_docker", autospec=True),
+        patch("airflow_breeze.commands.developer_commands.run_command", autospec=True),
+        patch("airflow_breeze.commands.developer_commands.AIRFLOW_ROOT_PATH", tmp_path),
+        patch("airflow_breeze.commands.developer_commands.user_confirm", autospec=True, side_effect=answers),
+        patch(
+            "airflow_breeze.commands.developer_commands.bring_compose_projects_down",
+            autospec=True,
+            return_value=[],
+        ) as teardown,
+        runner.isolated_filesystem(temp_dir=tmp_path),
+    ):
+        result = runner.invoke(doctor, catch_exceptions=False)
+    assert result.exit_code == 0
+    assert teardown.call_args_list == [call(all_worktrees=True, cleanup_build_cache=cache_removal_confirmed)]
 
 
 @pytest.fixture
