@@ -2153,12 +2153,12 @@ class DagSerialization(BaseSerialization):
     @classmethod
     def fill_config_defaults(cls, serialized_obj: dict[str, Any]) -> None:
         """
-        Fill in the Dag settings a serialized Dag leaves unset from the Airflow config, as a Python Dag does.
+        Fill in config-backed defaults omitted by a Lang-SDK Dag.
 
-        A Lang-SDK runtime cannot read the Airflow config, so it leaves ``max_active_tasks``,
-        ``max_active_runs``, ``max_consecutive_failed_dag_runs``, ``catchup``,
-        ``disable_bundle_versioning`` and the tasks' default ``execution_timeout`` out unless the Dag
-        sets them. A value the Dag sets is kept. *serialized_obj* is changed in place.
+        Language SDKs cannot read Airflow's config, so core fills missing Dag settings and
+        adds task defaults to ``client_defaults.tasks``. Values already supplied by the
+        payload take precedence.
+        *serialized_obj* is changed in place.
         """
         dag = serialized_obj.get("dag")
         if not isinstance(dag, dict):
@@ -2178,9 +2178,15 @@ class DagSerialization(BaseSerialization):
         ):
             if key not in dag:
                 dag[key] = get(section, option)
-        if (execution_timeout := conf.gettimedelta("core", "default_task_execution_timeout")) is not None:
-            task_defaults = serialized_obj.setdefault("client_defaults", {}).setdefault("tasks", {})
-            task_defaults.setdefault("execution_timeout", execution_timeout.total_seconds())
+        # Native runtimes cannot read Airflow's task defaults, so supply the table a Python Dag
+        # carries. generate_client_defaults() already drops every value equal to its schema
+        # default, which leaves exactly the config-backed fields. A default the payload already
+        # carries wins.
+        client_defaults = serialized_obj.setdefault("client_defaults", {})
+        client_defaults["tasks"] = {
+            **OperatorSerialization.generate_client_defaults(),
+            **client_defaults.get("tasks", {}),
+        }
 
     @classmethod
     def validate_serialized_dag(cls, serialized_obj: dict[str, Any]) -> SerializedDAG:
