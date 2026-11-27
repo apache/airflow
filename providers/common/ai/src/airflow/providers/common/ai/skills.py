@@ -15,14 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Framework-agnostic `Agent Skills <https://agentskills.io>`__ sources for Airflow.
+`Agent Skills <https://agentskills.io>`__ sources for Airflow, and the pydantic-ai capability that offers them.
 
-This module resolves skill *sources* -- a local directory or a ``GitSkills``
-descriptor -- into local ``SKILL.md`` directories, cloning Git repositories with
-a token taken from an Airflow connection. The output is a list of directory
-paths, the interchange format every Agent Skills implementation consumes
-(pydantic-ai-skills, LangChain DeepAgents, Strands), so the same Airflow
-credential handling works across frameworks.
+``resolve_skills`` and ``GitSkills`` do not depend on an agent framework. They resolve skill
+*sources* -- a local directory or a ``GitSkills`` descriptor -- into local ``SKILL.md``
+directories, cloning Git repositories with a token taken from an Airflow connection. The
+output is a list of directory paths, the interchange format every Agent Skills implementation
+consumes (pydantic-ai-skills, LangChain DeepAgents, Strands), so the same Airflow credential
+handling works across frameworks.
 
 For pydantic-ai use :class:`AirflowSkills`, or the deprecated
 :class:`~airflow.providers.common.ai.toolsets.skills.AgentSkillsToolset` binding. For other frameworks,
@@ -48,7 +48,7 @@ import os
 import shutil
 import tempfile
 import weakref
-from collections.abc import Callable, Collection, Iterator
+from collections.abc import Callable, Collection, Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +65,8 @@ if TYPE_CHECKING:
     from pydantic_ai.capabilities import WrapRunHandler
     from pydantic_ai.run import AgentRunResult
     from pydantic_ai.toolsets import AbstractToolset
+    from pydantic_ai.workspaces import LocalWorkspaceBackend
+    from pydantic_ai_harness.skills import Skills
 
 __all__ = ["AirflowSkills", "GitSkills", "SkillSource", "resolve_skills"]
 
@@ -100,7 +102,7 @@ class GitSkills:
         Skill bundles can contain scripts an agent may run on the worker. Because
         the repository is fetched at run time, anyone who can modify it can
         introduce code that runs in your environment, outside DAG review. Point
-        ``repo_url`` at a trusted repository and pin ``branch`` to a trusted ref.
+        ``repo_url`` at a trusted repository and set ``branch`` to a tag, because a branch name moves.
     """
 
     repo_url: str
@@ -255,7 +257,7 @@ def resolve_skills(sources: list[SkillSource]) -> Iterator[list[str]]:
         cleanup()
 
 
-def _import_harness_skills() -> tuple[Any, Any]:
+def _import_harness_skills() -> tuple[type[Skills[Any]], type[LocalWorkspaceBackend]]:
     try:
         from pydantic_ai.workspaces import LocalWorkspaceBackend
         from pydantic_ai_harness.skills import Skills
@@ -355,7 +357,9 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         return None
 
     @classmethod
-    def combine(cls, capabilities: Any) -> Any:
+    def combine(
+        cls, capabilities: Sequence[AbstractCapability[AgentDepsT]]
+    ) -> AbstractCapability[AgentDepsT]:
         raise ValueError(
             "An agent can have only one AirflowSkills, because its file tools share one toolset id. "
             "Put every source in a single AirflowSkills."
@@ -368,8 +372,11 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         if self._finalizer is not None:
             return self
         skills_class, workspace_class = _import_harness_skills()
-        # The harness reads the directories as soon as the run starts, so the clone has to exist by now;
-        # the copy returned below removes it when the run ends, and the finalizer covers a run that never starts.
+        # pydantic-ai advises against acquiring temporary files in for_run, because nothing releases them if the
+        # run fails before it starts. Here the harness reads the directories as soon as the run starts, so the clone
+        # has to exist by now. The copy returned below removes it when the run ends; for a run that never starts,
+        # the finalizer (garbage collection, or at interpreter exit) is the backstop. The run's state is kept in
+        # ``self._runs`` in process memory, which is why only Airflow's durable execution is supported.
         locations, cleanup = _materialize_skills(self._sources)
         run_id = ctx.run_id or ""
         state = SkillRunState(skill_dirs={})
