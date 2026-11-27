@@ -1349,6 +1349,7 @@ PodManager
 PodSpec
 podSpec
 podspec
+Pokémon
 Polaris
 polaris
 polars

@@ -121,3 +121,14 @@ class ResolveOmittedXComMapIndexByTaskDefinition(VersionChangeWithSideEffects):
     instructions_to_migrate_to_previous_version = (
         schema(GetXcomFilterParams).field("map_index").had(type=int, default=-1),
     )
+
+
+class AddRegionToXComFilterParams(VersionChange):
+    """Add the `region_id` and `region_index` fields to GetXcomFilterParams, to name the producer's pass."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(GetXcomFilterParams).field("region_id").didnt_exist,
+        schema(GetXcomFilterParams).field("region_index").didnt_exist,
+    )
