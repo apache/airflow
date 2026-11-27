@@ -125,6 +125,7 @@ def run_docker_compose_tests(
     test_type: str = "docker-compose",
     skip_image_check: bool = False,
     test_mode: str = "basic",
+    python_client_wheel: Path | None = None,
 ) -> tuple[int, str]:
     if not skip_image_check:
         command_result = run_command(
@@ -192,8 +193,11 @@ def run_docker_compose_tests(
     if include_success_outputs:
         env["INCLUDE_SUCCESS_OUTPUTS"] = "true"
     env["AIRFLOW_UID"] = str(os.getuid())
+    uv_command = ["uv", "run", "--frozen"]
+    if python_client_wheel is not None:
+        uv_command.extend(["--with", python_client_wheel.as_posix()])
     command_result = run_command(
-        ["uv", "run", "--frozen", "pytest", *pytest_args],
+        [*uv_command, "pytest", *pytest_args],
         env=env,
         check=False,
         cwd=cwd,

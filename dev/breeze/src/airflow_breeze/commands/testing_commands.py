@@ -86,12 +86,16 @@ from airflow_breeze.commands.common_package_installation_options import (
     option_providers_skip_constraints,
     option_use_distributions_from_dist,
 )
-from airflow_breeze.commands.release_management_commands import option_distribution_format
+from airflow_breeze.commands.release_management_commands import (
+    PYTHON_CLIENT_DIR_PATH,
+    option_distribution_format,
+)
 from airflow_breeze.global_constants import (
     ALL_TEST_SUITES,
     ALL_TEST_TYPE,
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     PROVIDER_TEST_SPLITS,
     TESTCONTAINERS_IMAGES_BY_PROVIDER,
     GroupOfTests,
@@ -121,7 +125,9 @@ from airflow_breeze.utils.parallel import (
 )
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_CTL_ROOT_PATH,
+    AIRFLOW_DIST_PATH,
     AIRFLOW_ROOT_PATH,
+    BREEZE_ROOT_PATH,
     FILES_PATH,
     cleanup_python_generated_files,
     get_default_project_name,
@@ -1616,6 +1622,36 @@ def airflow_e2e_tests(
         build_params = BuildProdParams(python=python, github_repository=github_repository)
         image_name = build_params.airflow_image_name
 
+    python_client_wheel = None
+    if e2e_test_mode == "basic":
+        build_env = os.environ.copy()
+        build_env.pop("PYTHON_CLIENT_REPO", None)
+        build_env.pop("UV_FROZEN", None)
+        # Client generation pins the interpreter used to post-process its Python sources.
+        run_command(
+            [
+                "uv",
+                "run",
+                "--isolated",
+                "--locked",
+                "--project",
+                BREEZE_ROOT_PATH.as_posix(),
+                "--python",
+                DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+                "breeze",
+                "release-management",
+                "prepare-python-client",
+                "--distribution-format",
+                "wheel",
+                "--version-suffix",
+                "",
+            ],
+            cwd=AIRFLOW_ROOT_PATH,
+            env=build_env,
+        )
+        client_version = (PYTHON_CLIENT_DIR_PATH / "version.txt").read_text().strip()
+        python_client_wheel = AIRFLOW_DIST_PATH / f"apache_airflow_client-{client_version}-py3-none-any.whl"
+
     console_print(f"[info]Running Airflow E2E tests with image: {image_name}[/]")
     # If the image is used from docker hub, test container will pull that part of test. A locally
     # built compat image (--airflow-version) is present on the host, so skip the check for it too.
@@ -1630,6 +1666,7 @@ def airflow_e2e_tests(
         test_type="airflow-e2e-tests",
         skip_image_check=skip_image_check,
         test_mode=e2e_test_mode,
+        python_client_wheel=python_client_wheel,
     )
     sys.exit(return_code)
 

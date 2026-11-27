@@ -3085,7 +3085,6 @@ name = "apache-airflow-e2e-tests"
 version = "0.0.1"
 source = { editable = "airflow-e2e-tests" }
 dependencies = [
-    { name = "apache-airflow-client" },
     { name = "apache-airflow-core" },
     { name = "apache-airflow-devel-common" },
     { name = "boto3" },
@@ -3095,12 +3094,12 @@ dependencies = [
 
 [package.dev-dependencies]
 mypy = [
+    { name = "apache-airflow-client" },
     { name = "apache-airflow-devel-common", extra = ["mypy"] },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "apache-airflow-client", specifier = ">=3.4.0" },
     { name = "apache-airflow-core", editable = "airflow-core" },
     { name = "apache-airflow-devel-common", editable = "devel-common" },
     { name = "boto3", specifier = ">=1.43.6" },
@@ -3109,7 +3108,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-mypy = [{ name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" }]
+mypy = [
+    { name = "apache-airflow-client", specifier = ">=3.4.0" },
+    { name = "apache-airflow-devel-common", extras = ["mypy"], editable = "devel-common" },
+]
 
 [[package]]
 name = "apache-airflow-helm-chart"

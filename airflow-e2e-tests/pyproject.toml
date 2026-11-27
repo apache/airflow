@@ -42,7 +42,6 @@ maintainers = [
 version = "0.0.1"
 
 dependencies = [
-    "apache-airflow-client>=3.4.0",
     "apache-airflow-core",
     "apache-airflow-devel-common",
     "pendulum>=3.1.0",
@@ -82,5 +81,7 @@ bypass-selection = true
 
 [dependency-groups]
 mypy = [
+    # Breeze supplies the client built from this checkout when running the tests.
+    "apache-airflow-client>=3.4.0",
     "apache-airflow-devel-common[mypy]",
 ]
