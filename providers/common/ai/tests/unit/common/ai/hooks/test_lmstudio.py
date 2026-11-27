@@ -213,8 +213,16 @@ class TestLMStudioBackendLoad:
         [
             pytest.param(httpx2.Response(200, text="<html>login</html>"), "not JSON", id="non-json-body"),
             pytest.param(httpx2.Response(200, json=[{"key": "qwen3"}]), "JSON list", id="top-level-list"),
-            pytest.param(httpx2.Response(200, json={"models": None}), "NoneType", id="models-null"),
-            pytest.param(httpx2.Response(200, json={}), "NoneType", id="models-missing"),
+            pytest.param(
+                httpx2.Response(200, json={"models": None}),
+                r"'models' of type NoneType, expected a list\.$",
+                id="models-null",
+            ),
+            pytest.param(
+                httpx2.Response(200, json={}),
+                r"'models' of type NoneType, expected a list\.$",
+                id="models-missing",
+            ),
             pytest.param(httpx2.Response(200, json={"models": {"qwen3": {}}}), "dict", id="models-not-list"),
             pytest.param(
                 httpx2.Response(200, json={"models": ["qwen3"]}), "not objects", id="entry-not-object"

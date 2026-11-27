@@ -411,6 +411,10 @@ Things to know:
   `TTL and auto-evict <https://lmstudio.ai/docs/developer/core/ttl-and-auto-evict>`__).
   It stays in memory until you unload it, for example with
   `POST /api/v1/models/unload <https://lmstudio.ai/docs/developer/rest/unload>`__.
+  This holds only for a load the backend sends. If the list already shows an
+  instance of the model, for example one an earlier LLM call loaded just in
+  time, the backend sends no load request and that instance keeps whatever TTL
+  it was loaded with.
 - **Connection.** ``base_url`` may end in ``/v1`` or ``/api/v1`` and must be set
   (``ValueError`` otherwise). The backend does not send an API token, so LM
   Studio with
