@@ -43,7 +43,7 @@ import time_machine
 from sqlalchemy import Delete, delete, event as sa_event, func, inspect, select, text, update
 from sqlalchemy.dialects import mysql
 from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import Subquery, visitors
 
 from airflow import settings
@@ -79,6 +79,7 @@ from airflow.jobs.scheduler_job_runner import (
     MAX_TI_REFILL_QUERIES_PER_LOOP,
     TASK_STUCK_IN_QUEUED_RESCHEDULE_EVENT,
     TI_METRIC_STATES,
+    ConcurrencyMap,
     SchedulerJobRunner,
     _associate_asset_events_with_dag_run,
 )
@@ -210,8 +211,6 @@ from unit.listeners import dag_listener
 from unit.models import TEST_DAGS_FOLDER
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.session import Session
-
     from tests_common.pytest_plugin import DagMaker
 
 pytestmark = pytest.mark.db_test
@@ -3675,6 +3674,134 @@ class TestSchedulerJob:
         queued_task_ids = [(ti.task_id, ti.map_index) for ti in res]
         # ti_a1 should be blocked, task_b may be queued
         assert ("task_a", 1) not in queued_task_ids
+        session.rollback()
+
+    def test_concurrency_map_counts(self, dag_maker, session):
+        states_in_first_run = {
+            "running": TaskInstanceState.RUNNING,
+            "queued": TaskInstanceState.QUEUED,
+            "deferred": TaskInstanceState.DEFERRED,
+            "awaiting_input": TaskInstanceState.AWAITING_INPUT,
+            "scheduled": TaskInstanceState.SCHEDULED,
+            "success": TaskInstanceState.SUCCESS,
+        }
+        with dag_maker(dag_id="limited", session=session):
+            for task_id in states_in_first_run:
+                EmptyOperator(task_id=task_id, max_active_tis_per_dag=16)
+        first_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, run_id="first", session=session)
+        second_run = dag_maker.create_dagrun_after(
+            first_run, run_type=DagRunType.SCHEDULED, run_id="second", session=session
+        )
+        for ti in first_run.get_task_instances(session=session):
+            ti.state = states_in_first_run[ti.task_id]
+        second_run.get_task_instance("running", session=session).state = TaskInstanceState.RUNNING
+        selected = second_run.get_task_instance("queued", session=session)
+        selected.state = TaskInstanceState.SCHEDULED
+        with dag_maker(dag_id="other", session=session):
+            EmptyOperator(task_id="running")
+        other_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, run_id="other", session=session)
+        other_run.get_task_instance("running", session=session).state = TaskInstanceState.RUNNING
+        session.flush()
+        concurrency_map = ConcurrencyMap()
+        concurrency_map.load(session=session)
+
+        # Only running and queued task instances count for their Dag run.
+        assert concurrency_map.dag_run_active_tasks_map == {
+            ("limited", "first"): 2,
+            ("limited", "second"): 1,
+            ("other", "other"): 1,
+        }
+
+        # Counted before the Dag's counts are loaded: still SCHEDULED in the database.
+        concurrency_map.add_selected_task_instance(selected)
+
+        assert concurrency_map.dag_run_active_tasks_map["limited", "second"] == 2
+        # Loaded on first use. Deferred and awaiting input task instances count for their task, as well as
+        # the selected one.
+        assert {
+            task_id: concurrency_map.get_task_counts("limited", task_id, "first", session=session)
+            for task_id in states_in_first_run
+        } == {
+            "running": (2, 1),
+            "queued": (2, 1),
+            "deferred": (1, 1),
+            "awaiting_input": (1, 1),
+            "scheduled": (0, 0),
+            "success": (0, 0),
+        }
+        assert concurrency_map.get_task_counts("limited", "queued", "second", session=session) == (2, 1)
+
+        # A refill candidate query can bring back a Dag already loaded: its counts are not added again.
+        concurrency_map.load_task_counts(["limited", "other"], session=session)
+
+        assert concurrency_map.get_task_counts("limited", "queued", "second", session=session) == (2, 1)
+        assert concurrency_map.get_task_counts("other", "running", "other", session=session) == (1, 1)
+
+        concurrency_map.load(session=session)
+
+        assert concurrency_map.get_task_counts("limited", "queued", "second", session=session) == (1, 0)
+
+    def test_concurrency_map_load_hints_ti_state_index_on_mysql(self):
+        session = mock.create_autospec(Session, instance=True)
+
+        ConcurrencyMap().load(session=session)
+
+        statement = session.execute.call_args.args[0]
+        assert "FROM task_instance USE INDEX (ti_state)" in str(statement.compile(dialect=mysql.dialect()))
+
+    @pytest.mark.parametrize(
+        ("task_limit", "expected_queued", "expected_counted_dags"),
+        [
+            pytest.param(
+                1,
+                ["no_limits", "refill_a", "refill_b"],
+                [{"first_a", "first_b"}, {"refill_a", "refill_b"}],
+                id="limited",
+            ),
+            pytest.param(None, ["first_a", "first_b", "no_limits"], [], id="unlimited"),
+        ],
+    )
+    def test_select_task_instances_to_queue_counts_tasks_at_most_once_per_candidate_query(
+        self, dag_maker, session, task_limit, expected_queued, expected_counted_dags
+    ):
+        # The first candidate query brings "first_*" and "no_limits"; with a limit, "first_*" are at it, so
+        # the batch of 3 is refilled with "refill_*", which have limits too but room left.
+        dag_ids = ("first_a", "first_b", "no_limits", "refill_a", "refill_b")
+        for dag_id, priority_weight in zip(dag_ids, (10, 10, 10, 1, 1)):
+            with dag_maker(dag_id=dag_id, session=session):
+                EmptyOperator(
+                    task_id="task",
+                    priority_weight=priority_weight,
+                    max_active_tis_per_dag=None if dag_id == "no_limits" else task_limit,
+                )
+            dag_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, session=session)
+            dag_run.get_task_instance("task", session=session).state = TaskInstanceState.SCHEDULED
+            if dag_id.startswith("first"):
+                running_run = dag_maker.create_dagrun_after(
+                    dag_run, run_type=DagRunType.SCHEDULED, session=session
+                )
+                running_run.get_task_instance("task", session=session).state = TaskInstanceState.RUNNING
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        with capture_orm_selects("task_instance") as statements:
+            queued_tis = self.job_runner._select_task_instances_to_queue(
+                3, make_pool_stats(), set(), session=session
+            )
+
+        assert sorted(ti.dag_id for ti in queued_tis) == expected_queued
+        task_count_statements = [
+            statement
+            for statement in statements
+            if "GROUP BY task_instance.dag_id, task_instance.task_id, task_instance.run_id" in statement
+        ]
+        counted_dags = []
+        for statement in task_count_statements:
+            dag_ids_in = re.search(r"task_instance\.dag_id IN \(([^)]*)\)", statement)
+            counted_dags.append(
+                {dag_id.strip("'") for dag_id in dag_ids_in[1].split(", ")} if dag_ids_in else set()
+            )
+        assert counted_dags == expected_counted_dags
         session.rollback()
 
     def test_find_executable_task_instances_deferred_does_not_affect_max_active_tasks(
