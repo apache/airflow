@@ -21,6 +21,7 @@ import inspect
 import logging
 import logging.config
 import os
+import pprint
 import sys
 import textwrap
 from enum import Enum
@@ -30,6 +31,7 @@ from unittest.mock import patch
 import pytest
 
 from airflow_shared.secrets_masker.secrets_masker import (
+    _WRAPPED_SPACE_PATTERN,
     DEFAULT_SENSITIVE_FIELDS,
     RedactedIO,
     SecretsMasker,
@@ -39,6 +41,23 @@ from airflow_shared.secrets_masker.secrets_masker import (
 )
 
 from tests_common.test_utils.config import env_vars
+
+# Every character ``str.split()`` treats as whitespace except the plain space, which ``pprint`` prints as is,
+# and the line feed, which multi-line secrets handle per line.
+WHITESPACE_CHARS_PPRINT_ESCAPES = [
+    char for char in map(chr, range(sys.maxunicode + 1)) if char.isspace() and char not in " \n"
+]
+
+# Every character ``repr`` prints escaped in Latin-1, plus one of each other kind: format characters, a private
+# use character, an unassigned code point and a lone surrogate.
+NON_PRINTABLE_CHARS = [char for char in map(chr, range(0x100)) if not char.isprintable()] + [
+    "\u200b",
+    "\ufeff",
+    "\ue000",
+    "\u0378",
+    "\U000e0001",
+    "\ud800",
+]
 
 pytestmark = pytest.mark.enable_redact
 PASSWORD = "password"
@@ -1072,7 +1091,7 @@ class TestMaskSecretAdapter:
             self.secrets_masker.secret_mask_adapter = None
             mask_secret("a secret")
 
-        assert self.secrets_masker.patterns == {"a secret"}
+        assert self.secrets_masker.patterns == {"a secret", f"a{_WRAPPED_SPACE_PATTERN}secret"}
 
     @pytest.mark.parametrize(
         ("secret", "should_be_masked", "is_first_short", "comment"),
@@ -1293,6 +1312,151 @@ class TestEdgeCases:
 
         assert secrets_masker.redact(formatted) == expected
 
+    @pytest.mark.parametrize(
+        ("secret", "formatted"),
+        [
+            pytest.param(
+                "alpha bravo charlie delta hotel foxtrot",
+                "{'k': 'alpha bravo '\n      'charlie delta '\n      'hotel foxtrot'}",
+                id="long-words",
+            ),
+            pytest.param(
+                "a" * 77 + " b",
+                "{'k': '" + "a" * 77 + " '\n      'b'}",
+                id="short-word-left-on-its-own-literal",
+            ),
+        ],
+    )
+    def test_secret_with_spaces_masked_when_split_into_adjacent_literals(self, secret, formatted):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        assert secrets_masker.redact(formatted) == "{'k': '***'}"
+        assert secrets_masker.redact(f"x {secret} y") == "x *** y"
+
+    def test_secret_with_spaces_does_not_mask_its_words_alone(self):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask("a secret")
+
+        assert secrets_masker.redact("failed to load secret") == "failed to load secret"
+
+    @pytest.mark.parametrize(
+        "separator",
+        [pytest.param(char, id=f"U+{ord(char):04X}") for char in WHITESPACE_CHARS_PPRINT_ESCAPES],
+    )
+    @pytest.mark.parametrize("width", [80, 12])
+    def test_secret_with_whitespace_separator_masked_in_real_pprint_output(self, separator, width):
+        secret = f"alpha beta{separator}gamma delta"
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        for value in (secret, {"spec": {"env": [{"name": "X", "value": secret}]}}):
+            formatted = pprint.pformat(value, width=width)
+            redacted = secrets_masker.redact(formatted)
+
+            assert "alpha" in formatted
+            assert not any(word in redacted for word in ("alpha", "beta", "gamma", "delta"))
+
+    @pytest.mark.parametrize(
+        "secret",
+        [
+            pytest.param("back\\slash", id="backslash"),
+            pytest.param('it\'s a "quoted" secret', id="both-quote-kinds"),
+        ],
+    )
+    def test_secret_masked_when_printed_by_repr(self, secret):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+        printed = repr(secret)
+
+        assert secrets_masker.redact(printed) == f"{printed[0]}***{printed[-1]}"
+        assert secrets_masker.redact(f"x {secret} y") == "x *** y"
+
+    @pytest.mark.parametrize(
+        "char",
+        [pytest.param(char, id=f"U+{ord(char):04X}") for char in NON_PRINTABLE_CHARS],
+    )
+    def test_secret_with_non_printable_character_masked_when_printed_by_repr(self, char):
+        secret = f"abcde{char}fghij"
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+        printed = repr(secret)
+
+        assert char not in printed
+        assert secrets_masker.redact(printed) == f"{printed[0]}***{printed[-1]}"
+
+    @pytest.mark.parametrize(
+        ("secret", "formatted"),
+        [
+            pytest.param(
+                "DOMAIN\\user and more words here please",
+                "{'k': 'DOMAIN\\\\user '\n      'and more '\n      'words here '\n      'please'}",
+                id="backslash",
+            ),
+            pytest.param(
+                "alpha\x00beta gamma delta",
+                "{'k': 'alpha\\x00beta '\n      'gamma delta'}",
+                id="non-printable-character",
+            ),
+            pytest.param(
+                "alpha it's\"quoted bravo charlie delta",
+                "{'k': 'alpha '\n      'it\\'s\"quoted '\n      'bravo '\n      'charlie '\n      'delta'}",
+                id="both-quote-kinds-in-one-word",
+            ),
+        ],
+    )
+    def test_secret_with_escaped_characters_masked_when_split_into_adjacent_literals(self, secret, formatted):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        assert secrets_masker.redact(formatted) == "{'k': '***'}"
+        assert secrets_masker.redact(f"x {secret} y") == "x *** y"
+
+    @pytest.mark.xfail(strict=True, reason="the leading and trailing whitespace is not part of the pattern")
+    def test_known_limitation_wrapped_secret_with_leading_and_trailing_spaces(self):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask("  error  ")
+
+        assert "error" not in secrets_masker.redact("{'k': '  '\n      'error  '}")
+
+    @pytest.mark.xfail(strict=True, reason="pprint escapes a quote per wrapped piece, not per word")
+    def test_known_limitation_wrapped_secret_with_quote_kinds_in_different_words(self):
+        secret = """alpha it's "quoted" bravo charlie delta"""
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+
+        formatted = "{'k': 'alpha it\\'s \"quoted\" '\n      'bravo charlie delta'}"
+
+        assert not any(word in secrets_masker.redact(formatted) for word in ("alpha", "quoted", "bravo"))
+
+    @pytest.mark.xfail(strict=True, reason="patterns are ordered by length, not by what they match")
+    def test_known_limitation_longer_secret_with_other_whitespace_loses_to_wrapped_pattern_of_its_prefix(
+        self,
+    ):
+        longer_secret = "aa\u00a0bb\u00a0cc\u00a0dd\u00a0ee\\z"
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask("aa bb cc dd ee")
+        secrets_masker.add_mask(longer_secret)
+
+        assert secrets_masker.redact(f"x {longer_secret} y") == "x *** y"
+
+    def test_longer_secret_with_backslash_wins_over_wrapped_pattern_of_its_prefix(self):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask("alpha beta")
+        secrets_masker.add_mask("alpha beta\\gamma")
+
+        assert secrets_masker.redact("x alpha beta\\gamma y") == "x *** y"
+
     @pytest.mark.parametrize("newline", ["\n", "\r\n"])
     def test_multiline_secret_registers_stripped_lines(self, newline):
         secret = newline.join(["  first-line-1  ", "", "second-line-2"])
@@ -1308,6 +1472,29 @@ class TestEdgeCases:
         single_line_masker.add_mask("  error  ")
         assert single_line_masker.patterns == {r"\ \ error\ \ "}
 
+    @pytest.mark.xfail(
+        strict=True, reason="each line of a multi-line secret is registered as plain text, see _adaptations"
+    )
+    @pytest.mark.parametrize(
+        "secret",
+        [
+            pytest.param("first-line-here\nDOMAIN\\useraccount\nlast-line-here", id="line-with-backslash"),
+            pytest.param(
+                "first-line-here\n" + " ".join(f"longword{i}" for i in range(12)) + "\nlast-line-here",
+                id="line-with-spaces-wrapped",
+            ),
+        ],
+    )
+    def test_known_limitation_multiline_secret_with_special_or_wrapped_lines(self, secret):
+        secrets_masker = SecretsMasker()
+        configure_secrets_masker_for_test(secrets_masker)
+        secrets_masker.add_mask(secret)
+        value = {"spec": {"env": [{"name": "X", "value": secret}]}}
+
+        redacted = secrets_masker.redact(pprint.pformat(value, width=30))
+
+        assert not any(word in redacted for word in ("useraccount", "longword3", "longword9"))
+
     @pytest.mark.parametrize(("newline", "escaped"), [("\n", r"\n"), ("\r\n", r"\r\n")])
     def test_secret_with_trailing_newline_registers_stripped_value(self, newline, escaped):
         secrets_masker = SecretsMasker()
@@ -1315,7 +1502,7 @@ class TestEdgeCases:
         secrets_masker.add_mask(f"token-value{newline}")
 
         assert r"token\-value" in secrets_masker.patterns
-        assert secrets_masker.redact(f"{{'v': 'token-value{escaped}'}}") == f"{{'v': '***{escaped}'}}"
+        assert secrets_masker.redact(f"{{'v': 'token-value{escaped}'}}") == "{'v': '***'}"
 
 
 class TestDirectMethodCalls:
