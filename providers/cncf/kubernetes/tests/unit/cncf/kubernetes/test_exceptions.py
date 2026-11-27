@@ -42,7 +42,7 @@ class TestKubernetesExceptions:
         assert issubclass(exc_class, Exception)
 
     @pytest.mark.parametrize(
-        "exc_class, message",
+        ("exc_class", "message"),
         [
             (PodMutationHookException, "Failed to mutate pod spec during execution"),
             (PodReconciliationError, "Unable to reconcile conflicting pod configurations"),
@@ -50,9 +50,7 @@ class TestKubernetesExceptions:
             (KubernetesApiPermissionError, "Forbidden: Service account lacks pods/create RBAC"),
         ],
     )
-    def test_exception_instantiation_and_message(
-        self, exc_class: type[AirflowException], message: str
-    ):
+    def test_exception_instantiation_and_message(self, exc_class: type[AirflowException], message: str):
         exc = exc_class(message)
         assert str(exc) == message
         assert exc.args == (message,)
