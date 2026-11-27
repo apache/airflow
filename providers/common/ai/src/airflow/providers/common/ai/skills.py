@@ -59,7 +59,7 @@ from pydantic_ai.capabilities import AbstractCapability, CombinedCapability
 from pydantic_ai.tools import AgentDepsT
 
 from airflow.providers.common.ai.exceptions import SkillsConfigurationError
-from airflow.providers.common.ai.utils.skill_files import SkillRunState, build_skill_files_toolset
+from airflow.providers.common.ai.utils.skill_files import TOOLSET_ID, build_skill_files_toolset
 
 if TYPE_CHECKING:
     from pydantic_ai import RunContext
@@ -276,9 +276,9 @@ def _list_absolute_directories(locations: list[_SkillsLocation]) -> list[str]:
 
 
 def _discard_run(
-    runs: dict[str, SkillRunState], run_id: str, state: SkillRunState, cleanup: Callable[[], None]
+    runs: dict[str, dict[str, Path]], run_id: str, skill_dirs: dict[str, Path], cleanup: Callable[[], None]
 ) -> None:
-    if runs.get(run_id) is state:
+    if runs.get(run_id) is skill_dirs:
         del runs[run_id]
     cleanup()
 
@@ -300,6 +300,9 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
     Sources are resolved when a run starts, not when the Dag is parsed, and cloned repositories
     are removed when the run ends. ``${SKILL_DIR}/`` and ``${CLAUDE_SKILL_DIR}/`` at the start of a
     path given to either tool name the skill's own directory.
+
+    One instance can serve several runs at once if their run ids differ. Two runs with the same run id
+    overwrite each other's skill directories.
 
     :param sources: Skill library directories and :class:`GitSkills` descriptors. Each directory
         holds one sub-directory per skill. When two sources hold a skill of the same name, the one
@@ -323,7 +326,7 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
     :param max_retries: Correction attempts the model gets per tool call. Defaults to the agent's.
     """
 
-    id = "airflow_skills"
+    id = TOOLSET_ID
 
     def __init__(
         self,
@@ -351,7 +354,7 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         self._sources = list(sources)
         self._include = include
         self._exclude = exclude
-        self._runs: dict[str, SkillRunState] = {}
+        self._runs: dict[str, dict[str, Path]] = {}
         self._toolset = build_skill_files_toolset(
             runs=self._runs,
             resources=resources,
@@ -393,7 +396,6 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         except (ValueError, TypeError) as error:
             raise SkillsConfigurationError(f"AirflowSkills could not load its skills: {error}") from error
         run_id = ctx.run_id or ""
-        state = SkillRunState(skill_dirs={})
         try:
             directories = _list_absolute_directories(locations)
             workspace = workspace_class(Path.cwd())
@@ -406,7 +408,7 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
                     directories, exclude=self._exclude, duplicate_names="keep_first", workspace=workspace
                 )
             catalog = await skills.load()
-            state.skill_dirs = {skill.name: Path(skill.directory) for skill in catalog.skills}
+            skill_dirs = {skill.name: Path(skill.directory) for skill in catalog.skills}
             offered = await skills.for_run(ctx)
         except (ValueError, TypeError) as error:
             cleanup()
@@ -415,8 +417,8 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
             cleanup()
             raise
         run = copy.copy(self)
-        self._runs[run_id] = state
-        run._finalizer = weakref.finalize(run, _discard_run, self._runs, run_id, state, cleanup)
+        self._runs[run_id] = skill_dirs
+        run._finalizer = weakref.finalize(run, _discard_run, self._runs, run_id, skill_dirs, cleanup)
         return CombinedCapability([run, offered])
 
     async def wrap_run(self, ctx: RunContext[AgentDepsT], *, handler: WrapRunHandler) -> AgentRunResult[Any]:

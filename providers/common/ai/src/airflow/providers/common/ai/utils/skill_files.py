@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import dataclasses
 import fnmatch
 import json
 import os
@@ -65,6 +64,7 @@ _OUTPUT_DRAIN_GRACE_SECONDS = 2.0
 # so the exit is found by polling ``returncode`` (pydantic-ai's ``LocalWorkspaceBackend`` does the same).
 _EXIT_POLL_INTERVAL_SECONDS = 0.005
 _MAX_SCRIPT_OUTPUT_BYTES = 50_000
+_DRAIN_CHUNK_BYTES = 65536
 _MAX_RESOURCE_BYTES = 1_000_000
 _ARGUMENT_NAME = re.compile(r"[A-Za-z][A-Za-z0-9_-]*")
 _SCRIPT_PARENTS = frozenset({".", "scripts"})
@@ -75,13 +75,6 @@ _SHELL_INTERPRETERS: dict[str, list[str]] = {
     ".bash": ["bash"],
     ".zsh": ["zsh"],
 }
-
-
-@dataclasses.dataclass
-class SkillRunState:
-    """The skill directories one run can reach, by skill name."""
-
-    skill_dirs: dict[str, Path]
 
 
 def _build_script_env(inherit_env: Sequence[str]) -> dict[str, str]:
@@ -212,7 +205,7 @@ def _build_script_args(args: Mapping[str, Any] | None) -> list[str]:
 def _kill_process(process: asyncio.subprocess.Process) -> None:
     try:
         os.killpg(process.pid, signal.SIGKILL)
-    except (OSError, ValueError):
+    except OSError:
         with contextlib.suppress(OSError):
             process.kill()
 
@@ -220,7 +213,7 @@ def _kill_process(process: asyncio.subprocess.Process) -> None:
 class _SkillFilesToolset(FunctionToolset[Any]):
     def __init__(
         self,
-        runs: Mapping[str, SkillRunState],
+        runs: Mapping[str, Mapping[str, Path]],
         *,
         resources: bool,
         scripts: bool,
@@ -238,13 +231,13 @@ class _SkillFilesToolset(FunctionToolset[Any]):
             self.add_function(self.run_skill_script, takes_ctx=True)
 
     def _get_skill_dir(self, ctx: RunContext[Any], skill_name: str) -> Path:
-        state = self._runs.get(ctx.run_id or "")
-        if state is None or skill_name not in state.skill_dirs:
-            available = ", ".join(sorted(state.skill_dirs)) if state else "none"
+        skill_dirs = self._runs.get(ctx.run_id or "")
+        if skill_dirs is None or skill_name not in skill_dirs:
+            available = ", ".join(sorted(skill_dirs)) if skill_dirs is not None else "none"
             raise ModelRetry(f"Unknown skill {skill_name!r}. Available skills: {available}.")
         if skill_name not in ctx.loaded_capability_ids:
             raise ModelRetry(f"Load the skill first with load_capability(id={skill_name!r}).")
-        return state.skill_dirs[skill_name]
+        return skill_dirs[skill_name]
 
     async def read_skill_resource(self, ctx: RunContext[Any], skill_name: str, resource: str) -> Any:
         """
@@ -340,7 +333,7 @@ async def _reap_process(process: asyncio.subprocess.Process) -> None:
 
     async def finish() -> None:
         stream = process.stdout
-        while stream is not None and await stream.read(65536):
+        while stream is not None and await stream.read(_DRAIN_CHUNK_BYTES):
             pass
         await process.wait()
 
@@ -393,7 +386,7 @@ async def _collect_output(process: asyncio.subprocess.Process, data: bytearray) 
 
 def build_skill_files_toolset(
     *,
-    runs: Mapping[str, SkillRunState],
+    runs: Mapping[str, Mapping[str, Path]],
     resources: bool,
     scripts: bool,
     exclude_resources: Sequence[str],

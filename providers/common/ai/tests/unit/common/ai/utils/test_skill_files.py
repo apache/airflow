@@ -30,7 +30,7 @@ from pydantic_ai.models.test import TestModel
 from pydantic_ai.usage import RunUsage
 
 from airflow.providers.common.ai.utils import skill_files
-from airflow.providers.common.ai.utils.skill_files import SkillRunState, build_skill_files_toolset
+from airflow.providers.common.ai.utils.skill_files import build_skill_files_toolset
 
 RUN_ID = "run-1"
 
@@ -47,7 +47,7 @@ def make_context(*, loaded: set[str] | None = None, run_id: str = RUN_ID, max_re
 
 
 def make_toolset(skill_dir: Path, **overrides: Any):
-    runs = {RUN_ID: SkillRunState(skill_dirs={"demo": skill_dir})}
+    runs = {RUN_ID: {"demo": skill_dir}}
     options: dict[str, Any] = {
         "runs": runs,
         "resources": True,
