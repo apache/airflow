@@ -21,12 +21,12 @@ import type { JsonValue } from "./client-types.js";
 import { isPlainRecord } from "./dag.js";
 
 /**
- * Copy a literal argument as plain JSON, without the `{__type, __var}` wrapper of Dag
- * serialization: Python writes a literal as it is, and the runtime hands it to the handler
- * undecoded.
+ * Copy a value as plain JSON, without the `{__type, __var}` wrapper of Dag serialization.
+ * It checks a literal argument, which Python writes as it is and the runtime hands to the
+ * handler undecoded, and each request to the supervisor, such as an XCom push.
  *
- * A value JSON cannot carry, such as a `Date` or a `Map`, is rejected rather
- * than reaching the handler as something else.
+ * A value JSON cannot carry, such as a `Date` or a `Map`, is rejected with a `TypeError`
+ * rather than reaching the other side as something else.
  */
 export function toPlainJson(value: unknown, label: string): JsonValue {
   if (value === null || value === undefined) return null;
@@ -38,7 +38,7 @@ export function toPlainJson(value: unknown, label: string): JsonValue {
     for (const [key, item] of Object.entries(value)) copy[key] = toPlainJson(item, label);
     return copy;
   }
-  throw new Error(
+  throw new TypeError(
     `${label} holds ${describeType(value)}, which JSON cannot carry; pass a string, a finite ` +
       "number, a boolean, null, an array or a plain object",
   );

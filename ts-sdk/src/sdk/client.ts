@@ -98,6 +98,8 @@ export interface TaskClient {
    * {@link SetXComOpts} for how `mapIndex` defaults.
    *
    * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
+   * @throws `TypeError` when `value` holds something JSON cannot carry, such as a
+   * `Date` or a `Buffer`.
    * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is an empty string, or `mapIndex` is not an integer.
    */
   setXCom(opts: SetXComOpts): Promise<void>;
@@ -173,6 +175,8 @@ export interface TaskStateStore {
    * negative, NaN, or Infinity; when the deployment's
    * `[state_store] default_retention_days` is invalid; or when the resolved
    * expiry would overflow the wire timestamp (year 9999).
+   * @throws `TypeError` when `value` holds something JSON cannot carry, such as a
+   * `Date` or a `Buffer`.
    */
   set(key: string, value: NonNullable<JsonValue>, opts?: TaskStateStoreSetOpts): Promise<void>;
 

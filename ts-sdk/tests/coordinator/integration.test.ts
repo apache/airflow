@@ -1021,6 +1021,22 @@ describe("coordinator runtime integration", () => {
     expect(setXComReqs).toHaveLength(0);
   });
 
+  it("fails the task without pushing when the handler returns a value JSON cannot carry", async () => {
+    testDag.task("dated", async () => ({ fetchedAt: new Date(0) }))();
+
+    const result = await driveSupervisor(makeStartupDetails("dated"));
+
+    expect(result.firstResponse!.body).toMatchObject({ type: "TaskState", state: "failed" });
+    expect(result.runtimeRequests.filter((r) => r.type === "SetXCom")).toHaveLength(0);
+    expect(
+      result.logRecords.some(
+        (r) =>
+          r["event"] === "[ts-sdk.runtime] Task failed" &&
+          String(r["error"]).includes("SetXCom request holds a Date, which JSON cannot carry"),
+      ),
+    ).toBe(true);
+  });
+
   describe("triggerDagRun", () => {
     const DAG_STATE_TRIGGER = "airflow.providers.standard.triggers.external_task.DagStateTrigger";
     const OK = { body: { type: "OKResponse", ok: true } };
