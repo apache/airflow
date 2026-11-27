@@ -19,19 +19,23 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from airflow.api.common.mark_tasks import (
     find_task_relatives,
     set_dag_run_state_to_failed,
     set_dag_run_state_to_success,
+    set_state,
 )
 from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.sdk import task as task_decorator, task_group
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 
+from tests_common.test_utils.mapping import expand_mapped_task
+
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.definitions.dag import SerializedDAG
 
     from tests_common.pytest_plugin import DagMaker
@@ -172,3 +176,175 @@ def test_find_task_relatives_upstream_still_includes_setups(dag_maker: DagMaker[
 
     assert "normal_t" in relatives
     assert "setup_t" in relatives
+
+
+def _create_mapped_group_dagrun(dag_maker: DagMaker[SerializedDAG], name: str):
+    """Build a mapped task group ``tg`` of two instances, each holding ``a >> b``, all failed."""
+    with dag_maker(name) as dag:
+
+        @task_decorator
+        def make_arg_lists():
+            return [[1], [2]]
+
+        @task_group
+        def tg(value):
+            EmptyOperator(task_id="a") >> EmptyOperator(task_id="b")
+
+        tg.expand(value=make_arg_lists())
+
+    dr = dag_maker.create_dagrun(state=DagRunState.FAILED)
+    session = dag_maker.session
+    for task_id in ("tg.a", "tg.b"):
+        expand_mapped_task(dag.get_task(task_id), dr.run_id, "make_arg_lists", length=2, session=session)
+    session.execute(
+        update(TaskInstance).where(TaskInstance.dag_id == dag.dag_id).values(state=TaskInstanceState.FAILED)
+    )
+    session.flush()
+    return dag, dr
+
+
+def _read_states(dag_maker: DagMaker[SerializedDAG], dag: SerializedDAG):
+    rows = dag_maker.session.execute(
+        select(TaskInstance.task_id, TaskInstance.map_index, TaskInstance.state).where(
+            TaskInstance.dag_id == dag.dag_id
+        )
+    ).all()
+    return {(task_id, map_index): state for task_id, map_index, state in rows}
+
+
+@pytest.mark.parametrize(
+    ("selected", "direction", "expected"),
+    [
+        pytest.param(
+            "tg.a",
+            "downstream",
+            {
+                ("make_arg_lists", -1): TaskInstanceState.FAILED,
+                ("tg.a", 0): TaskInstanceState.FAILED,
+                ("tg.a", 1): TaskInstanceState.SUCCESS,
+                ("tg.b", 0): TaskInstanceState.FAILED,
+                ("tg.b", 1): TaskInstanceState.SUCCESS,
+            },
+            id="downstream",
+        ),
+        pytest.param(
+            "tg.b",
+            "upstream",
+            {
+                ("make_arg_lists", -1): TaskInstanceState.SUCCESS,
+                ("tg.a", 0): TaskInstanceState.FAILED,
+                ("tg.a", 1): TaskInstanceState.SUCCESS,
+                ("tg.b", 0): TaskInstanceState.FAILED,
+                ("tg.b", 1): TaskInstanceState.SUCCESS,
+            },
+            id="upstream",
+        ),
+    ],
+)
+def test_set_state_marks_only_the_relatives_of_the_selected_map_index(
+    dag_maker: DagMaker[SerializedDAG], selected: str, direction: str, expected: dict
+):
+    dag, dr = _create_mapped_group_dagrun(dag_maker, "TEST_DAG_MAPPED_GROUP")
+
+    set_state(
+        tasks=[(dag.get_task(selected), 1)],
+        run_id=dr.run_id,
+        upstream=direction == "upstream",
+        downstream=direction == "downstream",
+        state=TaskInstanceState.SUCCESS,
+        commit=True,
+        session=dag_maker.session,
+    )
+
+    assert _read_states(dag_maker, dag) == expected
+
+
+def test_set_state_keeps_every_map_index_when_several_runs_are_in_scope(
+    dag_maker: DagMaker[SerializedDAG],
+):
+    """``past`` and ``future`` span runs whose expansions differ, so map indexes are not narrowed."""
+    dag, dr = _create_mapped_group_dagrun(dag_maker, "TEST_DAG_MAPPED_GROUP_FUTURE")
+
+    set_state(
+        tasks=[(dag.get_task("tg.a"), 1)],
+        run_id=dr.run_id,
+        downstream=True,
+        future=True,
+        state=TaskInstanceState.SUCCESS,
+        commit=True,
+        session=dag_maker.session,
+    )
+
+    assert _read_states(dag_maker, dag) == {
+        ("make_arg_lists", -1): TaskInstanceState.FAILED,
+        ("tg.a", 0): TaskInstanceState.FAILED,
+        ("tg.a", 1): TaskInstanceState.SUCCESS,
+        ("tg.b", 0): TaskInstanceState.SUCCESS,
+        ("tg.b", 1): TaskInstanceState.SUCCESS,
+    }
+
+
+def _create_nested_mapped_group_dagrun(dag_maker: DagMaker[SerializedDAG], name: str):
+    """Build a mapped group ``tg`` holding ``a`` and a mapped group ``inner`` holding ``b``, all failed."""
+    with dag_maker(name) as dag:
+
+        @task_decorator
+        def make_arg_lists():
+            return [[1], [2]]
+
+        @task_decorator
+        def consume(value):
+            pass
+
+        @task_group
+        def inner(value):
+            consume.override(task_id="b")(value=value)
+
+        @task_group
+        def tg(value):
+            consume.override(task_id="a")(value=value) >> inner.expand(value=[1, 2])
+
+        tg.expand(value=make_arg_lists())
+
+    dr = dag_maker.create_dagrun(state=DagRunState.FAILED)
+    session = dag_maker.session
+    for task_id in ("tg.a", "tg.inner.b"):
+        expand_mapped_task(dag.get_task(task_id), dr.run_id, "make_arg_lists", length=2, session=session)
+    session.execute(
+        update(TaskInstance).where(TaskInstance.dag_id == dag.dag_id).values(state=TaskInstanceState.FAILED)
+    )
+    session.flush()
+    return dag, dr
+
+
+def test_set_state_narrows_a_relative_expanded_further_inside_the_group(
+    dag_maker: DagMaker[SerializedDAG],
+):
+    """
+    A relative expanded again inside the common group is narrowed by the shared helper.
+
+    The helper derives the width of that further expansion from the selected task's own
+    expansion, so ``tg.inner.b`` map index 1, which also belongs to this group instance, is
+    not reached. What this pins is that map indexes 2 and 3, which belong to the other
+    instance of ``tg``, are left alone.
+    """
+    dag, dr = _create_nested_mapped_group_dagrun(dag_maker, "TEST_DAG_NESTED_MAPPED_GROUP")
+
+    set_state(
+        tasks=[(dag.get_task("tg.a"), 0)],
+        run_id=dr.run_id,
+        downstream=True,
+        state=TaskInstanceState.SUCCESS,
+        commit=True,
+        session=dag_maker.session,
+    )
+
+    assert _read_states(dag_maker, dag) == {
+        ("make_arg_lists", -1): TaskInstanceState.FAILED,
+        ("tg.a", 0): TaskInstanceState.SUCCESS,
+        ("tg.a", 1): TaskInstanceState.FAILED,
+        ("tg.inner.b", 0): TaskInstanceState.SUCCESS,
+        ("tg.inner.b", 1): TaskInstanceState.FAILED,
+        ("tg.inner.b", 2): TaskInstanceState.FAILED,
+        ("tg.inner.b", 3): TaskInstanceState.FAILED,
+    }
