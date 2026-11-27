@@ -503,6 +503,14 @@ ARG_SHUT_DOWN_LOGGING = Arg(
 ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="store_true")
 ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
 ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
+ARG_EXCLUDE_DEPENDENT_DAGS = Arg(
+    ("--exclude-dependent-dags",),
+    help=(
+        "Do not clear the tasks in other Dags that the cleared tasks point at, "
+        "for example with an ExternalTaskMarker"
+    ),
+    action="store_true",
+)
 ARG_KEEP_TASK_STATE = Arg(
     ("--keep-task-state",),
     help="Keep the task state store entries of cleared tasks so they resume from them",
@@ -1523,6 +1531,7 @@ TASKS_COMMANDS = (
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
+            ARG_EXCLUDE_DEPENDENT_DAGS,
             ARG_KEEP_TASK_STATE,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
