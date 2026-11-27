@@ -28,6 +28,20 @@ Changelog
 ---------
 
 .. note::
+    When a retry reattaches to the pod of a previous try and finds it ``Succeeded``,
+    ``KubernetesPodOperator`` now treats that pod as the finished run instead of deleting it and
+    starting a new pod. This applies only with ``do_xcom_push=False``; with XCom on, the pod is still
+    deleted and recreated because its result can no longer be read. Set ``reattach_on_restart=False``
+    (or ``durable=False`` on Airflow 3.3+) to always start a new pod on retry.
+
+.. note::
+    With ``on_kill_action="keep_pod"`` and tries left, a pod whose try hits ``execution_timeout`` is
+    now left running and the retry reattaches to it, in sync mode with ``durable=True`` (or
+    ``reattach_on_restart=True`` below Airflow 3.3) and no ``retry_policy`` set. Set
+    ``on_kill_action="delete_pod"`` or ``durable=False`` (``reattach_on_restart=False`` below
+    Airflow 3.3) to delete the pod on timeout as before.
+
+.. note::
 
     This provider now requires ``kubernetes>=37.0.0,<38.0.0``. Kubernetes models use
     Pydantic validation and keyword-only constructors. Update positional arguments

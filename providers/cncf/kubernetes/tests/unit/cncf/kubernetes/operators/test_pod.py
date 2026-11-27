@@ -58,6 +58,7 @@ from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowNotFoundException,
     AirflowSkipException,
+    AirflowTaskTimeout,
     TaskDeferred,
     timezone,
 )
@@ -1014,6 +1015,8 @@ class TestKubernetesPodOperator:
             task_id="task",
             name="hello",
             log_pod_spec_on_failure=False,
+            # With XCom on, a succeeded pod's result can't be read back, so it is still recreated.
+            do_xcom_push=True,
         )
         k.reattach_on_restart = True
         context = create_context(k)
@@ -1066,6 +1069,7 @@ class TestKubernetesPodOperator:
             task_id="task",
             name="hello",
             log_pod_spec_on_failure=False,
+            do_xcom_push=True,
         )
         k.reattach_on_restart = True
         context = create_context(k)
@@ -2865,10 +2869,16 @@ class TestKubernetesPodOperatorDurableExecution:
         self.create_mock.assert_not_called()
         assert result == running_pod
 
-    @pytest.mark.parametrize("pod_phase", [PodPhase.SUCCEEDED, PodPhase.FAILED])
+    @pytest.mark.parametrize(
+        ("pod_phase", "do_xcom_push"),
+        [
+            pytest.param(PodPhase.SUCCEEDED, True, id="succeeded-with-xcom"),
+            pytest.param(PodPhase.FAILED, False, id="failed"),
+        ],
+    )
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion")
     def test_durable_reconnect_terminal_state_runs_existing_handling(
-        self, mock_process_pod_deletion, pod_phase
+        self, mock_process_pod_deletion, pod_phase, do_xcom_push
     ):
         k = KubernetesPodOperator(
             image="ubuntu:16.04",
@@ -2877,6 +2887,7 @@ class TestKubernetesPodOperatorDurableExecution:
             task_id="task",
             name="hello",
             log_pod_spec_on_failure=False,
+            do_xcom_push=do_xcom_push,
         )
         context = create_context(k)
         task_state_store = MagicMock()
@@ -2901,6 +2912,34 @@ class TestKubernetesPodOperatorDurableExecution:
         mock_process_pod_deletion.assert_called_once_with(terminal_pod)
         self.create_mock.assert_called_once_with(pod=mock_pod_request_obj)
         assert result == mock_pod_request_obj
+
+    @patch(f"{KPO_MODULE}.KubernetesPodOperator.process_pod_deletion")
+    def test_durable_reconnect_reuses_succeeded_pod_without_xcom(self, mock_process_pod_deletion):
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            task_id="task",
+            name="hello",
+        )
+        context = create_context(k)
+        task_state_store = MagicMock()
+        task_state_store.get.return_value = {"name": "prior-pod", "namespace": "default"}
+        context["task_state_store"] = task_state_store
+
+        succeeded_pod = MagicMock()
+        succeeded_pod.status.phase = PodPhase.SUCCEEDED
+        succeeded_pod.status.reason = None
+        succeeded_pod.metadata.name = "prior-pod"
+        k.hook.get_pod = MagicMock(return_value=succeeded_pod)
+        mock_pod_request_obj = MagicMock()
+        mock_pod_request_obj.to_dict.return_value = {"metadata": {"name": "new-pod"}}
+
+        result = k.get_or_create_pod(pod_request_obj=mock_pod_request_obj, context=context)
+
+        mock_process_pod_deletion.assert_not_called()
+        self.create_mock.assert_not_called()
+        assert result == succeeded_pod
 
     def test_durable_reconnect_skips_already_checked_pod_and_creates_fresh(self):
         k = KubernetesPodOperator(
@@ -2946,6 +2985,90 @@ class TestKubernetesPodOperatorDurableExecution:
             {"name": "new-pod", "namespace": "default"},
         )
         assert result == mock_pod_request_obj
+
+    @pytest.mark.parametrize(
+        (
+            "durable",
+            "on_kill_action",
+            "try_number",
+            "has_retry_policy",
+            "expect_pod_kept",
+            "declined_because",
+        ),
+        [
+            pytest.param(True, "keep_pod", 1, False, True, None, id="durable_keep_pod"),
+            pytest.param(
+                True, "keep_pod", 2, False, False, "this is the last try", id="durable_keep_pod_last_try"
+            ),
+            pytest.param(True, "delete_pod", 1, False, False, None, id="durable_default_on_kill"),
+            pytest.param(
+                False, "keep_pod", 1, False, False, "durable execution is off", id="not_durable_keep_pod"
+            ),
+            pytest.param(
+                True,
+                "keep_pod",
+                1,
+                True,
+                False,
+                "a retry_policy is set and may not retry",
+                id="durable_keep_pod_with_retry_policy",
+            ),
+        ],
+    )
+    def test_execution_timeout_keeps_pod_only_when_durable_and_keep_pod(
+        self, durable, on_kill_action, try_number, has_retry_policy, expect_pod_kept, declined_because, caplog
+    ):
+        from unit.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+
+        MockWrapper.reset()
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            task_id="task",
+            name="hello",
+            log_pod_spec_on_failure=False,
+            durable=durable,
+            on_kill_action=on_kill_action,
+            callbacks=MockKubernetesPodOperatorCallback,
+        )
+        if has_retry_policy:
+            # Set directly: the retry_policy argument only exists on Airflow 3.3+.
+            k.retry_policy = MagicMock()
+        context = create_context(k)
+        context["ti"] = MagicMock(spec=TaskInstance, try_number=try_number, max_tries=1)
+        running_pod = k8s.V1Pod(
+            metadata=k8s.V1ObjectMeta(name="running-pod", namespace="default"),
+            status=k8s.V1PodStatus(phase="Running"),
+        )
+
+        with (
+            patch.object(k, "build_pod_request_obj", return_value=k8s.V1Pod(metadata=k8s.V1ObjectMeta())),
+            patch.object(k, "get_or_create_pod", return_value=running_pod),
+            patch.object(k, "find_pod", return_value=running_pod),
+            patch.object(k, "await_pod_start"),
+            patch.object(k, "await_init_containers_completion"),
+            patch.object(k, "await_pod_completion", side_effect=AirflowTaskTimeout("timed out")),
+            patch.object(k, "patch_already_checked", autospec=True) as mock_patch_already_checked,
+            patch.object(k, "process_pod_deletion", autospec=True) as mock_process_pod_deletion,
+        ):
+            # Without keep, cleanup raises its own failure for the non-succeeded pod, replacing the timeout.
+            with pytest.raises(AirflowTaskTimeout if expect_pod_kept else AirflowException):
+                k.execute_sync(context)
+
+        if expect_pod_kept:
+            mock_patch_already_checked.assert_not_called()
+            mock_process_pod_deletion.assert_not_called()
+            MockWrapper.mock_callbacks.on_pod_cleanup.assert_not_called()
+        else:
+            mock_patch_already_checked.assert_called_once()
+            mock_process_pod_deletion.assert_called_once()
+        if declined_because:
+            assert {
+                "event": "on_kill_action is keep_pod, but the pod is cleaned up after execution_timeout "
+                f"because {declined_because}.",
+                "log_level": "info",
+            } in caplog
+        else:
+            assert {"event": re.compile(r"on_kill_action is keep_pod, but .*")} not in caplog
 
     def test_durable_true_without_state_store_fallsback(self):
         """No task_state_store key in context (e.g. Airflow <3.3): unchanged label-search behavior."""

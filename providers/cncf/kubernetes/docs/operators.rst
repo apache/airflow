@@ -243,6 +243,19 @@ persisted, the operator falls back to the same label search ``reattach_on_restar
 used, so a running pod from a prior attempt is still found and reattached to rather than
 duplicated. Once an identity is persisted, subsequent retries skip the label search entirely.
 
+By default, a try interrupted by ``execution_timeout`` deletes the pod (per ``on_finish_action``), so the retry
+starts a fresh pod. To let the retry reattach instead, set ``on_kill_action="keep_pod"``: the pod is left running
+and is not marked as already checked. On the last try no retry follows, so the pod is cleaned up as usual.
+With a ``retry_policy`` set, the pod is cleaned up on timeout as well, since the policy may not retry.
+If the retry never starts, for example because ``dagrun_timeout`` passes during ``retry_delay`` or the task
+is marked failed while up for retry, nothing cleans up the kept pod and it runs until it finishes. Set
+``active_deadline_seconds`` to bound it, long enough for the whole job across tries, since Kubernetes counts it
+from the pod's start and the retry reattaches to the same pod.
+A clear also reattaches to a kept pod: the cleared run finds it like a retry would, and with
+``do_xcom_push=False`` a pod that already succeeded marks the cleared task successful without running it again.
+Delete the pod before clearing to start the work over.
+This applies to sync mode with ``durable=True`` (or ``reattach_on_restart=True`` below Airflow 3.3) only.
+
 To always create a fresh pod on retry rather than reattaching, set ``durable=False``:
 
 .. code-block:: python
