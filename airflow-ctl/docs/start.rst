@@ -53,6 +53,18 @@ OR, when the auth manager of the API server offers browser login (for example to
 This opens the login page of the API server in your browser and waits for the login to complete.
 The browser redirects back to airflowctl on ``127.0.0.1``, so it must run on the same machine.
 Pass ``--no-browser`` to only print the login URL, for example to open it in another browser.
+
+When the browser cannot run on the same machine, for example over SSH or in a container, and the
+auth manager offers it, log in with a code instead:
+
+.. code-block:: bash
+
+  airflowctl auth login --device-code --api-url <api_url>
+
+airflowctl prints a URL and a code. Open the URL on any device, enter the code and log in;
+airflowctl waits until you approve the login (``--timeout`` seconds, 300 by default).
+Only approve a code that you started yourself.
+
 On a machine without a keyring, also pass ``--skip-keyring``: the token is printed instead of
 stored, and you can set ``AIRFLOW_CLI_TOKEN`` to it.
 
