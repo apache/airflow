@@ -410,6 +410,10 @@ This operator can be run in deferrable mode by passing ``deferrable=True`` as a 
     :start-after: [START howto_sensor_wait_for_job_status_deferrable]
     :end-before: [END howto_sensor_wait_for_job_status_deferrable]
 
+Pass ``job_name`` instead of ``job_id`` to monitor the latest created job with that name. The sensor waits
+if no match exists. Use a name unique to the intended run, such as ``my-job-{{ ds_nodash }}``, to avoid
+selecting a previous run.
+
 :class:`~airflow.providers.google.cloud.sensors.dataflow.DataflowJobMetricsSensor`.
 
 .. exampleinclude:: /../../google/tests/system/google/cloud/dataflow/example_dataflow_native_python_async.py
