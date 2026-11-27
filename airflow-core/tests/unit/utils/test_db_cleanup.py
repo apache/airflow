@@ -2600,7 +2600,7 @@ class TestPartitionedAssetKeyLogCleanup:
 
 @pytest.mark.db_test
 class TestBundleManifestCleanup:
-    """A manifest is purged only if it is old and no Dag run or current release names it."""
+    """A manifest is purged only if it is old and no Dag run, Dag version or current release names it."""
 
     def setup_method(self):
         with create_session() as session:
@@ -2617,6 +2617,7 @@ class TestBundleManifestCleanup:
             PythonOperator(task_id="probe", python_callable=print)
         dag_run = dag_maker.create_dagrun()
         dag_run.bundle_version = "pinned"
+        dag_run.created_dag_version.bundle_version = "versioned"
 
         with create_session() as session:
             session.add_all(
@@ -2625,6 +2626,9 @@ class TestBundleManifestCleanup:
                         bundle_name="b", bundle_version="unreferenced", manifest={}, created_at=old
                     ),
                     DagBundleManifest(bundle_name="b", bundle_version="pinned", manifest={}, created_at=old),
+                    DagBundleManifest(
+                        bundle_name="b", bundle_version="versioned", manifest={}, created_at=old
+                    ),
                     DagBundleManifest(bundle_name="b", bundle_version="current", manifest={}, created_at=old),
                     DagBundleManifest(
                         bundle_name="b",
@@ -2652,7 +2656,7 @@ class TestBundleManifestCleanup:
         with create_session() as session:
             surviving = set(session.scalars(select(DagBundleManifest.bundle_version)).all())
 
-        assert surviving == {"pinned", "current", "recent"}
+        assert surviving == {"pinned", "versioned", "current", "recent"}
 
 
 def _delete_test_timestamp():
