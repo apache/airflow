@@ -34,7 +34,12 @@ from airflow.api_fastapi.execution_api.datamodels.xcom import GetXcomFilterParam
 
 
 class AddDagProcessorJobEndpoints(VersionChange):
-    """Add Dag processor lifecycle, inventory, shared-source publication, and requested-work endpoints."""
+    """
+    Add Dag processor lifecycle, inventory, shared-source publication, and requested-work endpoints.
+
+    A callback claim can request only version-pinned callbacks from selected bundles.
+    A processor finishing a finite run can replay an unanswered claim without acquiring new work.
+    """
 
     description = __doc__
 

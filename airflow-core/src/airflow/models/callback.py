@@ -26,6 +26,7 @@ from uuid import UUID
 
 import structlog
 import uuid6
+from pydantic import ValidationError
 from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -62,6 +63,7 @@ class CallbackKey:
 
 
 if TYPE_CHECKING:
+    from pydantic_core import ErrorDetails
     from sqlalchemy.orm import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
@@ -144,6 +146,11 @@ class Callback(Base, BaseWorkload):
     # Used to route dag-processor callbacks to filter by bundle name.
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
+    # Null for legacy Dag processor rows until their version is needed for routing.
+    is_version_pinned: Mapped[bool | None]
+    # Set when an API server cannot decode a Dag processor row; claims skip the row until then.
+    decode_retry_after: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
     processor_job_id: Mapped[int | None] = mapped_column(
@@ -165,6 +172,7 @@ class Callback(Base, BaseWorkload):
     trigger = relationship("Trigger", back_populates="callback", uselist=False)
 
     __table_args__ = (
+        Index("idx_callback_bundle_version_pinned", bundle_name, "is_version_pinned"),
         Index(
             "idx_callback_trigger_id",
             trigger_id,
@@ -347,6 +355,18 @@ class ExecutorCallback(Callback):
         )
 
 
+def _get_error_location(detail: ErrorDetails) -> str:
+    """Return where validation failed, without the stored key that names an unexpected field."""
+    location = detail["loc"]
+    if detail["type"] == "extra_forbidden":
+        location = (*location[:-1], "<unexpected field>")
+    return ".".join(map(str, location)) or "<root>"
+
+
+class UndecodableCallbackError(ValueError):
+    """A stored Dag processor callback that cannot be decoded; the message never quotes stored values."""
+
+
 class DagProcessorCallback(Callback):
     """Used to store Dag Processor's callback requests in the DB."""
 
@@ -359,11 +379,31 @@ class DagProcessorCallback(Callback):
         self.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
         self.state = None
         self.bundle_name = callback.bundle_name
+        self.is_version_pinned = callback.bundle_version is not None
         self.data |= {"req_class": callback.__class__.__name__, "req_data": callback.to_json()}
 
     def get_callback_request(self) -> CallbackRequest:
+        """
+        Decode the stored request.
+
+        :raises UndecodableCallbackError: if the stored data is not an object, names no request class, or
+            is not a valid request of that class.
+        """
+        if not isinstance(self.data, dict):
+            raise UndecodableCallbackError(f"Stored data is a {type(self.data).__name__}, not an object")
         module = import_module("airflow.callbacks.callback_requests")
-        callback_request_class = getattr(module, self.data["req_class"])
-        # Get the function (from the instance) that we need to call
-        from_json = getattr(callback_request_class, "from_json")
-        return from_json(self.data["req_data"])
+        req_class = self.data.get("req_class")
+        request_class = module.CALLBACK_REQUEST_CLASSES.get(req_class) if isinstance(req_class, str) else None
+        if request_class is None:
+            raise UndecodableCallbackError("Unsupported request class")
+        try:
+            return request_class.from_json(self.data.get("req_data"))
+        except ValidationError as error:
+            # Validation messages quote the stored values, which can include user-supplied run conf.
+            locations = sorted(
+                {
+                    _get_error_location(detail)
+                    for detail in error.errors(include_url=False, include_input=False)
+                }
+            )
+            raise UndecodableCallbackError(f"Invalid {req_class} data at {', '.join(locations)}") from None

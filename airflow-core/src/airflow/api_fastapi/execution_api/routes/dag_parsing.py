@@ -23,6 +23,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Literal, Protocol, TypeVar
 from uuid import UUID
 
+import structlog
 from cadwyn import VersionedAPIRouter
 from fastapi import HTTPException, Request, Security, status
 from sqlalchemy import delete, or_, select
@@ -51,7 +52,12 @@ from airflow.api_fastapi.execution_api.security import (
     require_auth,
 )
 from airflow.configuration import conf
-from airflow.dag_processing.claims import get_available_work_filter
+from airflow.dag_processing.claims import (
+    UNDECODABLE_CALLBACK_RETRY_INTERVAL,
+    get_available_work_filter,
+    get_decodable_callback_filter,
+    prepare_callback_source_filter,
+)
 from airflow.dag_processing.collection import (
     DagBundleOwnershipError,
     DagPublicationValidationError,
@@ -63,7 +69,7 @@ from airflow.dag_processing.collection import (
 )
 from airflow.jobs.job import Job
 from airflow.models.asset import remove_references_to_deleted_dags
-from airflow.models.callback import DagProcessorCallback
+from airflow.models.callback import DagProcessorCallback, UndecodableCallbackError
 from airflow.models.dag import DagModel
 from airflow.models.dag_processor_publication_receipt import DagProcessorPublicationReceipt
 from airflow.models.dag_processor_work_claim import DagProcessorWorkClaim
@@ -126,12 +132,14 @@ class DagParsingRoute(ExecutionAPIRoute):
         return handle_bounded_request
 
 
+log = structlog.get_logger(__name__)
+
 router = VersionedAPIRouter(route_class=DagParsingRoute)
 
 
-def _compute_payload_hash(body: BaseModel) -> str:
+def _compute_payload_hash(body: BaseModel, *, exclude: set[str] | None = None) -> str:
     """Hash a request body independently of key order; a non-JSON float raises ValueError."""
-    payload = json.dumps(body.model_dump(mode="json"), sort_keys=True, allow_nan=False)
+    payload = json.dumps(body.model_dump(mode="json", exclude=exclude), sort_keys=True, allow_nan=False)
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
@@ -454,7 +462,9 @@ class _RequestedWork(Protocol[WorkT]):
 
     def build_query(self, *, replaying: bool) -> Select[WorkT]: ...
 
-    def get_payload(self, work: WorkT) -> tuple[str, CallbackRequest | None]: ...
+    def get_payload(self, work: WorkT) -> tuple[str, CallbackRequest | None] | None:
+        """Return the work's path and request, or None after releasing work that cannot be delivered."""
+        ...
 
     def parse_key(self, work_id: str) -> UUID | str: ...
 
@@ -466,11 +476,26 @@ class _CallbackWork:
     def build_query(self, *, replaying: bool) -> Select[DagProcessorCallback]:
         query = select(self.model).order_by(self.model.priority_weight.desc(), self.model.id)
         if not replaying:
-            query = query.where(self.model.state.is_(None))
+            query = query.where(self.model.state.is_(None), get_decodable_callback_filter())
         return query
 
-    def get_payload(self, work: DagProcessorCallback) -> tuple[str, CallbackRequest]:
-        request = work.get_callback_request()
+    def get_payload(self, work: DagProcessorCallback) -> tuple[str, CallbackRequest] | None:
+        try:
+            request = work.get_callback_request()
+        except UndecodableCallbackError as error:
+            # A newer or older Airflow version may have written it, so acknowledging it away could lose a
+            # valid callback. Released with a cooldown, any API server can retry it without it heading
+            # every poll meanwhile.
+            work.processor_job_id = None
+            work.processor_claim_id = None
+            work.decode_retry_after = timezone.utcnow() + UNDECODABLE_CALLBACK_RETRY_INTERVAL
+            log.error(
+                "Stored callback cannot be decoded; releasing it for a later retry",
+                id=work.id,
+                reason=str(error),
+                retry_after=work.decode_retry_after,
+            )
+            return None
         return request.filepath, request
 
     def parse_key(self, work_id: str) -> UUID:
@@ -517,6 +542,10 @@ def claim_work(
     _validate_job(job_id, token, session=session)
     if kind == "callbacks":
         return _claim_work(_CallbackWork(), job_id, body, token.claims.dag_bundles, session=session)
+    if body.pinned_only_bundle_names:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, detail="pinned_only_bundle_names applies only to callbacks"
+        )
     return _claim_work(_PriorityWork(), job_id, body, token.claims.dag_bundles, session=session)
 
 
@@ -530,7 +559,7 @@ def _claim_work(
 ) -> list[ProcessorWorkItem]:
     model = source.model
     receipt = session.get(DagProcessorWorkClaim, (job_id, source.kind))
-    payload_hash = _compute_payload_hash(body)
+    payload_hash = _compute_payload_hash(body, exclude={"replay_only"})
     replaying = receipt is not None and body.claim_sequence <= receipt.claim_sequence
     query = source.build_query(replaying=replaying)
     if receipt is not None and replaying:
@@ -546,9 +575,16 @@ def _claim_work(
         receipt.claim_id = body.claim_id
         receipt.claim_sequence = body.claim_sequence
         receipt.payload_hash = payload_hash
+        if body.replay_only:
+            # Fence the original request if it arrives after this replay finds no receipt.
+            return []
         ready = select(DagBundleModel.name).where(DagBundleModel.active.is_(True))
         query = query.where(
-            model.bundle_name.in_(body.bundle_names),
+            prepare_callback_source_filter(
+                body.bundle_names, body.pinned_only_bundle_names or (), limit=body.limit, session=session
+            )
+            if source.kind == "callbacks"
+            else model.bundle_name.in_(body.bundle_names),
             model.bundle_name.in_(ready),
             get_available_work_filter(model.processor_job_id),
         )
@@ -563,7 +599,9 @@ def _claim_work(
     for work in replay:
         if work.bundle_name is None or work.bundle_name not in granted_bundles:
             raise HTTPException(status.HTTP_403_FORBIDDEN, detail={"reason": "bundle_not_granted"})
-        path, callback = source.get_payload(work)
+        if (payload := source.get_payload(work)) is None:
+            continue
+        path, callback = payload
         result.append(
             ProcessorWorkItem(
                 id=str(work.id),
