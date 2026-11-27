@@ -1877,13 +1877,29 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
         context["dag"], task, context["dag_run"].conf, suppress_exception=False
     )
 
-    context["inlets"] = task.inlets
-    context["outlets"] = task.outlets
-    context["inlet_events"] = InletEventsAccessors(task.inlets)
-    if (asset_state_store := create_asset_state_store(ti)) is None:
-        context.pop("asset_state_store", None)
-    else:
-        context["asset_state_store"] = asset_state_store
+    context.pop("asset_state_store", None)
+    context.update(build_asset_context(ti))
+
+
+def build_asset_context(ti: RuntimeTaskInstanceProtocol) -> Context:
+    """
+    Return the asset keys of the context for a task instance's task.
+
+    ``inlets`` and ``outlets``, the ``inlet_events`` accessors and, when the task has an asset
+    among them, the ``asset_state_store`` accessors. This makes no supervisor calls; the
+    accessors are built when first used, or by their ``build_lookups``.
+
+    :meta private:
+    """
+    task = ti.task
+    asset_context: Context = {
+        "inlets": task.inlets,
+        "outlets": task.outlets,
+        "inlet_events": InletEventsAccessors(task.inlets),
+    }
+    if (asset_state_store := create_asset_state_store(ti)) is not None:
+        asset_context["asset_state_store"] = asset_state_store
+    return asset_context
 
 
 def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:

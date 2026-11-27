@@ -59,6 +59,7 @@ from airflow.sdk.exceptions import (
     DownstreamTasksSkipped,
     TaskDeferred,
 )
+from airflow.sdk.execution_time.context import build_asset_context
 from airflow.sdk.execution_time.executor import AsyncAwareExecutor
 from airflow.sdk.execution_time.task_runner import (
     CheckpointDeserializationError,
@@ -968,6 +969,8 @@ class IndexedTaskUnmapper:
     ) -> None:
         self._params = operator.params
         self._expand_input = operator.expand_input
+        self._inlets = operator.inlets
+        self._outlets = operator.outlets
         self._mapped_operator = mapped_operator
         self._context = context
         self._jinja_env = operator.get_template_env(dag=operator.dag)
@@ -1017,6 +1020,8 @@ class IndexedTaskUnmapper:
             indexed_ti.own_params = process_params(
                 context["dag"], unmapped_task, context["dag_run"].conf, suppress_exception=False
             )
+        if unmapped_task.inlets != self._inlets or unmapped_task.outlets != self._outlets:
+            indexed_ti.own_assets = self._build_own_assets(indexed_ti)
 
         # Rendered against the context the indexed task will execute with (its own ti, task, params
         # and store view), not the parent's: a template must read the same values as execute() does.
@@ -1050,6 +1055,21 @@ class IndexedTaskUnmapper:
                 memo.update((id(item), item) for item in value.values())
         for field in self._partial_template_fields:
             setattr(task, field, copy.deepcopy(getattr(task, field), memo))
+
+    @staticmethod
+    def _build_own_assets(indexed_ti: IndexedTaskInstance) -> dict[str, Any]:
+        """
+        Build the asset keys of the context for an operator whose ``__init__`` changed its inlets or outlets.
+
+        What ``context_update_for_unmapped`` sets for a mapped task instance, with the accessors built
+        here, on the worker thread, as the task runner builds the parent's before execute: building
+        makes blocking supervisor calls, which an async operator would otherwise make on the event loop.
+        """
+        own_assets = build_asset_context(indexed_ti)
+        own_assets["inlet_events"].build_lookups()
+        if (asset_state_store := own_assets.get("asset_state_store")) is not None:
+            asset_state_store.build_lookups()
+        return dict(own_assets)
 
 
 class IndexedTaskLifecycle:

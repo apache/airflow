@@ -2895,11 +2895,66 @@ def test_run_mapped_task_with_constructor_inlets(create_runtime_ti, mock_supervi
         mapped = InletReaderOperator.partial(task_id="t").expand(inlet_name=["a", "b"])
 
     ti = create_runtime_ti(task=mapped, map_index=1)
-    state, _, error = run(ti, context=ti.get_template_context(), log=mock.MagicMock())
+    state, _, error = run(
+        ti, context=ti.get_template_context(), log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+    )
 
     assert error is None
     assert state == TaskInstanceState.SUCCESS
     assert captured == {"inlets": [Asset("b")], "events": [asset_event_resp]}
+
+
+def test_run_iterated_task_with_constructor_inlets(create_runtime_ti, mock_supervisor_comms):
+    """Inlets added by an iterated operator's ``__init__`` are accessible in each indexed task's context."""
+    mock_supervisor_comms.asend.return_value = None
+
+    def _send(msg=None, *args, **kwargs):
+        if isinstance(msg, ValidateInletsAndOutlets):
+            return InactiveAssetsResult(inactive_assets=[])
+        if isinstance(msg, GetAssetEventByAsset):
+            return AssetEventsResult(
+                asset_events=[
+                    AssetEventResult(
+                        id=1,
+                        created_dagruns=[],
+                        timestamp=timezone.utcnow(),
+                        asset=AssetResponse(name=msg.name, uri=msg.name, group="asset"),
+                    )
+                ]
+            )
+        return OKResponse(ok=True)
+
+    mock_supervisor_comms.send.side_effect = _send
+
+    captured = {}
+
+    class InletReaderOperator(BaseOperator):
+        def __init__(self, *, inlet_name: str, **kwargs):
+            super().__init__(**kwargs)
+            self.inlet_name = inlet_name
+            self.inlets.append(Asset(inlet_name))
+
+        def execute(self, context):
+            captured[self.inlet_name] = (
+                context["inlets"],
+                [event.asset.name for event in context["inlet_events"][Asset(self.inlet_name)]],
+                repr(context["asset_state_store"][Asset(self.inlet_name)]),
+            )
+
+    with DAG("dag_with_iterated_inlet_task") as dag:
+        iterated = InletReaderOperator.partial(task_id="t").iterate(inlet_name=["a", "b"])
+
+    ti = create_runtime_ti(task=iterated, dag_id=dag.dag_id)
+    state, _, error = run(
+        ti, context=ti.get_template_context(), log=mock.MagicMock(spec=structlog.typing.FilteringBoundLogger)
+    )
+
+    assert error is None
+    assert state == TaskInstanceState.SUCCESS
+    assert captured == {
+        "a": ([Asset("a")], ["a"], "<AssetStateStoreAccessor name='a'>"),
+        "b": ([Asset("b")], ["b"], "<AssetStateStoreAccessor name='b'>"),
+    }
 
 
 @pytest.mark.parametrize(

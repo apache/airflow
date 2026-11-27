@@ -1217,6 +1217,10 @@ class IndexedTaskInstance(RuntimeTaskInstance):
     # The params processed for this index's operator when they differ from the iterated task's:
     # the index iterates ``params``, or the operator set its own. None when the parent's apply.
     own_params: dict[str, Any] | None = None
+    # The asset keys of the context (inlets, outlets and their accessors, built) for this index's
+    # operator when its ``__init__`` changed the iterated task's inlets or outlets. None when the
+    # parent's apply.
+    own_assets: dict[str, Any] | None = None
 
     @classmethod
     def create_indexed_task(
@@ -1350,11 +1354,12 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         Return the parent's context as this indexed task sees it.
 
         A clone of ``context`` with this task instance under ``ti`` and ``task_instance``, its
-        unmapped operator under ``task``, its :attr:`own_params` under ``params`` when it has
-        them, and its indexed view of the store under ``task_state_store``: the keys
-        ``context_update_for_unmapped`` sets for a mapped task instance, and the store next to
-        them, so that a template and ``execute`` read the same values. Without params of its
-        own, the parent's processed params, copied by ``clone_context``, are this task's. The one
+        unmapped operator under ``task``, its :attr:`own_params` under ``params`` and its
+        :attr:`own_assets` under the asset keys when it has them, and its indexed view of the store
+        under ``task_state_store``: the keys ``context_update_for_unmapped`` sets for a mapped task
+        instance, and the store next to them, so that a template and ``execute`` read the same
+        values. Without params or assets of its own, the parent's, copied by ``clone_context``,
+        are this task's. The one
         place these keys are listed: :meth:`IndexedTaskRunner.indexed_context` builds the context
         the task runs in from it, and ``IndexedTaskUnmapper.unmap`` the one its
         templates are rendered against. ``outlet_events`` is swapped when given, for the run;
@@ -1369,6 +1374,9 @@ class IndexedTaskInstance(RuntimeTaskInstance):
         }
         if self.own_params is not None:
             indexed["params"] = copy.deepcopy(self.own_params)
+        if self.own_assets is not None:
+            indexed.pop("asset_state_store", None)
+            indexed.update(cast("Context", self.own_assets))
         if outlet_events is not None:
             indexed["outlet_events"] = outlet_events
         return indexed
