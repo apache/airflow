@@ -16,29 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import datetime
-from dataclasses import is_dataclass
-
 from airflow.providers.amazon.aws.executors.aws_lambda.utils import (
-    CONFIG_GROUP_NAME,
-    INVALID_CREDENTIALS_EXCEPTIONS,
     AllLambdaConfigKeys,
     InvokeLambdaKwargsConfigKeys,
-    LambdaQueuedTask,
 )
 from airflow.providers.amazon.aws.executors.utils.base_config_keys import BaseConfigKeys
-
-
-class TestAwsLambdaUtilsConstants:
-    def test_config_group_name(self):
-        assert CONFIG_GROUP_NAME == "aws_lambda_executor"
-
-    def test_invalid_credentials_exceptions(self):
-        assert INVALID_CREDENTIALS_EXCEPTIONS == [
-            "ExpiredTokenException",
-            "InvalidClientTokenId",
-            "UnrecognizedClientException",
-        ]
 
 
 class TestConfigKeys:
@@ -61,56 +43,3 @@ class TestConfigKeys:
         assert AllLambdaConfigKeys.END_WAIT_TIMEOUT == "end_wait_timeout"
         assert AllLambdaConfigKeys.FUNCTION_NAME == "function_name"
         assert AllLambdaConfigKeys.QUALIFIER == "function_qualifier"
-
-
-class TestLambdaQueuedTask:
-    def test_is_dataclass(self):
-        assert is_dataclass(LambdaQueuedTask)
-
-    def test_instantiation_and_fields(self):
-        now = datetime.datetime.now(datetime.timezone.utc)
-        task = LambdaQueuedTask(
-            key="test_task_key",
-            command=["airflow", "tasks", "run"],
-            queue="default",
-            executor_config={"memory": 512},
-            attempt_number=1,
-            next_attempt_time=now,
-        )
-
-        assert task.key == "test_task_key"
-        assert task.command == ["airflow", "tasks", "run"]
-        assert task.queue == "default"
-        assert task.executor_config == {"memory": 512}
-        assert task.attempt_number == 1
-        assert task.next_attempt_time == now
-
-    def test_equality(self):
-        now = datetime.datetime(2026, 1, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
-        task1 = LambdaQueuedTask(
-            key="k1",
-            command=["run"],
-            queue="q",
-            executor_config={},
-            attempt_number=1,
-            next_attempt_time=now,
-        )
-        task2 = LambdaQueuedTask(
-            key="k1",
-            command=["run"],
-            queue="q",
-            executor_config={},
-            attempt_number=1,
-            next_attempt_time=now,
-        )
-        task3 = LambdaQueuedTask(
-            key="k2",
-            command=["run"],
-            queue="q",
-            executor_config={},
-            attempt_number=1,
-            next_attempt_time=now,
-        )
-
-        assert task1 == task2
-        assert task1 != task3

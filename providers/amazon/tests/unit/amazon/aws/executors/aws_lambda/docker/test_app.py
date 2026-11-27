@@ -34,10 +34,7 @@ class TestGetQueueUrl:
             "QUEUE_URL",
             "https://sqs.us-east-1.amazonaws.com/123456789012/fallback-queue",
         )
-        assert (
-            app.get_queue_url()
-            == "https://sqs.us-east-1.amazonaws.com/123456789012/airflow-queue"
-        )
+        assert app.get_queue_url() == "https://sqs.us-east-1.amazonaws.com/123456789012/airflow-queue"
 
     def test_falls_back_to_queue_url_env_var(self, monkeypatch):
         monkeypatch.delenv("AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL", raising=False)
@@ -45,10 +42,7 @@ class TestGetQueueUrl:
             "QUEUE_URL",
             "https://sqs.us-east-1.amazonaws.com/123456789012/fallback-queue",
         )
-        assert (
-            app.get_queue_url()
-            == "https://sqs.us-east-1.amazonaws.com/123456789012/fallback-queue"
-        )
+        assert app.get_queue_url() == "https://sqs.us-east-1.amazonaws.com/123456789012/fallback-queue"
 
     def test_raises_runtime_error_when_no_queue_url_set(self, monkeypatch):
         monkeypatch.delenv("AIRFLOW__AWS_LAMBDA_EXECUTOR__QUEUE_URL", raising=False)
@@ -70,8 +64,14 @@ class TestGetSqsClient:
 
 
 class TestFetchDagsFromS3:
+    @mock.patch("airflow.providers.amazon.aws.executors.aws_lambda.docker.app.mkdtemp")
     @mock.patch("airflow.providers.amazon.aws.executors.aws_lambda.docker.app.boto3.resource")
-    def test_downloads_dags_and_skips_directories(self, mock_boto3_resource, monkeypatch):
+    def test_downloads_dags_and_skips_directories(
+        self, mock_boto3_resource, mock_mkdtemp, monkeypatch, tmp_path
+    ):
+        mock_mkdtemp.return_value = str(tmp_path)
+        monkeypatch.setenv("AIRFLOW__CORE__DAGS_FOLDER", "/initial/dags/folder")
+
         mock_s3 = mock.MagicMock()
         mock_bucket = mock.MagicMock()
         mock_boto3_resource.return_value = mock_s3
@@ -87,12 +87,11 @@ class TestFetchDagsFromS3:
 
         app.fetch_dags_from_s3("s3://test-bucket/dags/")
 
+        mock_mkdtemp.assert_called_once_with(prefix="airflow_dags_")
         mock_s3.Bucket.assert_called_once_with("test-bucket")
         mock_bucket.objects.filter.assert_called_once_with(Prefix="dags/")
-        assert mock_bucket.download_file.call_count == 1
-        call_key = mock_bucket.download_file.call_args[0][0]
-        assert call_key == "dags/my_dag.py"
-        assert "AIRFLOW__CORE__DAGS_FOLDER" in app.os.environ
+        mock_bucket.download_file.assert_called_once_with("dags/my_dag.py", str(tmp_path / "my_dag.py"))
+        assert app.os.environ["AIRFLOW__CORE__DAGS_FOLDER"] == str(tmp_path)
 
 
 class TestRunAndReport:
@@ -137,6 +136,13 @@ class TestRunAndReport:
 
         app.run_and_report("echo test", "task_fail_key")
 
+        mock_subprocess_run.assert_called_once_with(
+            "echo test",
+            check=False,
+            shell=True,
+            stdout=app.subprocess.PIPE,
+            stderr=app.subprocess.STDOUT,
+        )
         mock_sqs.send_message.assert_called_once()
         sent_body = json.loads(mock_sqs.send_message.call_args[1]["MessageBody"])
         assert sent_body == {"task_key": "task_fail_key", "return_code": 1}
