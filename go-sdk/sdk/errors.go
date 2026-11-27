@@ -45,3 +45,7 @@ var XComNotFound = errors.New("xcom not found")
 //
 // See the “Get“ method of [TaskStateStore] for an example
 var TaskStateNotFound = errors.New("task state not found")
+
+// TaskTimeout is the cause of a task's context when the task runs past its execution_timeout.
+// Check errors.Is(context.Cause(ctx), TaskTimeout) to tell a timeout from Airflow stopping the task.
+var TaskTimeout = errors.New("task timed out")

@@ -40,7 +40,8 @@ import (
 // one of genmodels.SucceedTask, TaskState, RetryTask, or DeferTask. A task from airflow.TriggerDagRun
 // is the only one that defers, and RunTask runs it without a Go function. When RunTask cannot
 // delete an XCom, cannot resolve the execution_timeout, finds it has already elapsed, or
-// arg_bindings is invalid, the task fails without running.
+// arg_bindings is invalid, the task fails without running. A task that runs past its
+// execution_timeout fails; see enabledExecutionTimeout.run.
 //
 // The supervisor owns the Execution-API state transitions, so the runtime only
 // invokes the user's task function and returns its terminal response.
@@ -116,9 +117,9 @@ func RunTask(
 		}
 	}
 
-	timeoutSeconds, err := resolveExecutionTimeout(details.TIContext.ExecutionTimeout)
-	if err == nil && timeoutSeconds != nil {
-		err = client.setExecutionTimeout(ctx, *timeoutSeconds)
+	timeout, err := resolveExecutionTimeout(details.TIContext.ExecutionTimeout)
+	if err == nil {
+		err = timeout.start(ctx, client)
 	}
 	if err != nil {
 		logger.Error("Unable to apply execution_timeout",
@@ -129,6 +130,18 @@ func RunTask(
 		return failTask(details.TIContext.ShouldRetry, err)
 	}
 
+	return timeout.run(ctx, details.TIContext.ShouldRetry, logger, func(ctx context.Context) any {
+		return runTask(ctx, task, details, client, logger)
+	})
+}
+
+func runTask(
+	ctx context.Context,
+	task bundle.Task,
+	details *genmodels.StartupDetails,
+	client *CoordinatorClient,
+	logger *slog.Logger,
+) any {
 	// The runtime runs a TriggerDagRun task itself. It has no Go function to bind arguments to.
 	if trigger, ok := task.(*bundle.TriggerTask); ok {
 		return runTriggerDagRun(ctx, details, trigger.Spec, client, logger, defaultTriggerEnv)
@@ -157,7 +170,7 @@ func taskInstanceOf(details *genmodels.StartupDetails) sdk.TaskInstance {
 	}
 }
 
-// failTask returns the terminal body for a task that fails before it runs: RetryTask when
+// failTask returns the terminal body of a task that fails with err: RetryTask when
 // ti_context.should_retry is set, otherwise a FAILED TaskState.
 func failTask(shouldRetry bool, err error) any {
 	if shouldRetry {
