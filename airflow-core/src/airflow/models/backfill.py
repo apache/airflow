@@ -57,7 +57,7 @@ from airflow.utils.sqlalchemy import (
     is_lock_not_available_error,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
@@ -309,7 +309,13 @@ def _get_latest_dag_run_row_query(*, dag_id: str, info: DagRunInfo):
         stmt = stmt.where(DagRun.partition_date == info.partition_date)
     if info.logical_date is not None:
         stmt = stmt.where(DagRun.logical_date == info.logical_date)
-    stmt = stmt.order_by(DagRun.start_date.is_(None), DagRun.start_date.desc())
+    # Unfinished runs sort first: a partition can have several runs, and any queued or
+    # running one must be found whatever its timestamps (a requeued run has no start_date).
+    stmt = stmt.order_by(
+        DagRun.state.in_(State.unfinished_dr_states).desc(),
+        DagRun.start_date.is_(None),
+        DagRun.start_date.desc(),
+    )
     return stmt.limit(1)
 
 
@@ -558,8 +564,8 @@ def _create_backfill_dag_run_partitioned(
 
     # reprocess_behavior allows a retry: create a new run alongside the existing
     # one rather than clearing it. The prior run is kept as a historical record;
-    # _get_latest_dag_run_row_query picks the newest run by start_date, so the
-    # new backfill run becomes the active one going forward.
+    # _get_latest_dag_run_row_query returns unfinished runs first, then the newest
+    # by start_date, so the new backfill run becomes the active one going forward.
     dr = dag.create_dagrun(
         run_id=dag.timetable.generate_run_id(
             run_type=DagRunType.BACKFILL_JOB,
