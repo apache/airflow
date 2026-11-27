@@ -57,6 +57,7 @@ a `.map()`, `.zip()` or `.concat()` result as an expand argument, a mapped upstr
 6. **Only `map()` callables run outside the server and supervisor, applied on top of the element they picked.** Selection and transformation separate: [`_MapResult`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/task-sdk/src/airflow/sdk/definitions/xcom_arg.py#L398) indexes first, then applies the callables.
    The server sends the same binding in both modes, and the runtime picks who applies the callables: a Dag definition's runtime applies its own, read from its own bundle,
    and a stub TaskHandler sends `ApplyMap`, which the supervisor's Python sidecar answers by running the Python Dag's callables.
+   A stub's `expand_kwargs()` dict is the one exception: the supervisor has the sidecar run its callables itself, before binding anything (*Which signature a call is checked against*).
    No language reads another's callable.
 7. **The map-index label is a runtime call, not a template.** `map_index_template` is Jinja and no other language renders it; an SDK sends `SetRenderedMapIndex` instead.
 8. **Reduce is a lazy sequence, never a materialized value.** A downstream consumer reads length and elements on demand, as [`LazyXComSequence`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/task-sdk/src/airflow/sdk/execution_time/lazy_sequence.py#L64) does.
@@ -84,8 +85,8 @@ The coordinator only starts the SDK runtime subprocess; the supervisor handles e
 |---|---|---|
 | Scheduler | Python | Counts the expansion and turns the `-1` placeholder into N instances. |
 | API server, Execution API | Python | Works out which row and element each binding reads, and builds the bindings for `ti_run`. Never reads an XCom value. |
-| Supervisor | Python, in the worker process | Measures a Lang-SDK producer's map length; reads each bound value and narrows it to this index; forwards every XCom request. |
-| Python sidecar | Python, one per Lang-SDK task instance, started on the first request that needs it | Runs `[core] xcom_backend`, so a runtime only sends and receives plain values. For a Python Dag, imports the Dag file and applies its `map()` callables on `ApplyMap`. |
+| Supervisor | Python, in the worker process | Measures a Lang-SDK producer's map length; reads each bound value and narrows it to this index; resolves and checks a stub's `expand_kwargs()` dict, which a Python task still does itself, though we want one implementation for both; forwards every XCom request. |
+| Python sidecar | Python, one per Lang-SDK task instance, started on the first request that needs it | Runs `[core] xcom_backend`, so a runtime only sends and receives plain values. For a Python Dag, imports the Dag file and applies its `map()` callables on `ApplyMap`, or for the supervisor when it resolves a stub's `expand_kwargs()` dict. |
 | SDK runtime | the SDK's own language | Runs the handler, applies its own `map()` callables or sends `ApplyMap`, holds the reduce sequence. |
 
 ## Authoring interface
@@ -199,24 +200,19 @@ the call does not set it through `partial()` or `expand()`. `"default": null` is
 or its equivalent in the runtime's language, not a missing default: a parameter that defaults to
 `None` is common in Python. So a writer emits `default` whenever the server may read it, `null`
 included, a reader tells the two cases apart by the key and not by its value, and anything that
-reads and rewrites an entry keeps the key's presence. For a stub paired with a task handler, only
-the stub's default counts. One declared only in the handler does not, even where the two are written
-in the same language, because the stub is the signature the call is checked against. A Dag
-definition's own task has no stub, so its handler is the signature and its defaults apply, which the
-`kwargs` entry below relies on.
+reads and rewrites an entry keeps the key's presence. Which signature's default counts is in
+*Which signature a call is checked against* below.
 
 `expand_kwargs()` is the one form that needs every parameter's real name when the Dag is written,
 because each instance's dict is matched against `name` by key. A stub always has them. A Dag
 definition's own task may not: a TypeScript handler's argument type is erased, so a call whose dicts
 come from an upstream names no keys. Such a task writes a single `kwargs` entry in place of a `param`
 per expanded parameter. The server still picks this index's dict, and the runtime spreads it into the
-handler's arguments beside the `partial()` ones. A key the dict leaves out takes the handler's own
-default; a key `partial()` also sets fails the instance, as Python's `mapping already partial` does;
-and a key the handler does not take is passed on with the rest, since the runtime has no parameter
-list to check it against. A runtime that binds by position cannot spread a dict either, so an SDK
-that writes synthetic names, as Go writes `arg0`, `arg1`, … since a Go function keeps no parameter
-names at run time, offers `expandKwargs` only for a handler whose names it can read, such as the
-fields of a struct argument.
+handler's arguments beside the `partial()` ones. Its keys follow *Which signature a call is
+checked against* below, with the handler as the signature. A runtime that binds by position cannot
+spread a dict either, so an SDK that writes synthetic names, as Go writes `arg0`, `arg1`, … since a
+Go function keeps no parameter names at run time, offers `expandKwargs` only for a handler whose
+names it can read, such as the fields of a struct argument.
 
 A `param` entry is the signature, not the call. The mapped values stay in the fields Python already
 writes: `op_kwargs_expand_input`, a decorated task's name for `expand_input`, and
@@ -241,6 +237,31 @@ the same mapped group is `sequence`, that producer being expanded itself, and th
 to this index's row. A runtime never sees `xcom` or `tuple` either: the supervisor reads them and sends a `literal`.
 
 With no `_arg_bindings` at all, a stub task keeps its older behaviour of ignoring call arguments.
+
+#### Which signature a call is checked against
+
+A stub task's call is checked against the stub, even where its task handler is written in the same
+language, so only the stub's defaults count; one declared only in the handler does not. A Dag
+definition's own task has no stub, so its handler is the signature and its defaults apply.
+
+Under `expand_kwargs()`, that signature decides each instance's dict as a whole:
+
+- A parameter the dict leaves out takes its `partial()` value or the signature's default, and fails
+  the instance with neither, as a missing argument does in Python.
+- A key that is no parameter, or that names a parameter `partial()` sets, fails the instance, as
+  Python's constructor and `mapping already partial` do. With `strict=False`, a key naming a
+  `partial()` parameter replaces its value instead, as Python's `expand_kwargs(..., strict=False)`
+  does. Only a Python Dag's stub can set it; `spread` is always strict.
+
+For a stub, the supervisor resolves and checks the dict before anything is bound, in the order
+Python does. The run context's `expand_kwargs` (below) says where this index's dict is. The
+supervisor reads it once, runs its `map()` callables in the Python sidecar if it has any (a skip
+from them skips the instance), fails the instance on any key that no binding carrying `kwarg` names,
+and gives each such binding its value from the result. When `partial()` sets every parameter, no
+binding carries `kwarg`, so any key fails, as in Python.
+
+With `spread`, the runtime fails a key that `partial()` sets (step 4) and passes the rest on to the
+handler, whose runtime rejects an unknown one as far as it can.
 
 ## What the Execution API sends
 
@@ -285,14 +306,28 @@ class _ArgBindingBase(BaseModel):
     """Run this argument's ``map()`` callables on the picked value (decision 6)."""
 
     kwarg: str | None = None
-    """``expand_kwargs()`` only: take this key of the value, after any ``map()`` callables."""
+    """
+    ``expand_kwargs()`` only: take this key of the dict.
+
+    Set for a parameter ``partial()`` does not set, and with ``strict=False`` for one it does too.
+    A stub takes the key from the dict its run context's ``expand_kwargs`` resolves, after any
+    ``map()`` callables.
+    """
 
     fallback: ArgPart | None = None
-    """The value when ``kwarg`` is missing: the ``partial()`` value or the signature default."""
+    """
+    The value when the dict has no ``kwarg`` key.
+
+    The signature default, or with ``strict=False`` the ``partial()`` value.
+    """
 
     spread: bool = False
-    """``expand_kwargs()`` on a Dag definition's own task only: the value, after any ``map()``
-    callables, is a dict the runtime spreads into the handler's arguments."""
+    """
+    ``expand_kwargs()`` on a Dag definition's own task only: spread the value into the arguments.
+
+    The value, after any ``map()`` callables, is a dict the runtime spreads into the handler's
+    arguments.
+    """
 
 
 class XComArgBinding(_ArgBindingBase, XComRef):
@@ -309,8 +344,11 @@ class TupleArgBinding(_ArgBindingBase):
     kind: Literal["tuple"]
 
     parts: list[ArgPart]
-    """One part per zipped argument, in zip order. A ``fillvalue`` standing in at this index
-    is a ``LiteralValue``."""
+    """
+    One part per zipped argument, in zip order.
+
+    A ``fillvalue`` standing in at this index is a ``LiteralValue``.
+    """
 
 
 class XComSequenceArgBinding(_ArgBindingBase):
@@ -319,8 +357,11 @@ class XComSequenceArgBinding(_ArgBindingBase):
     kind: Literal["sequence"]
 
     task_id: str
-    """Task whose ``return_value`` rows make up the sequence. The server decides which rows
-    are live and in what order; the runtime asks only for offsets."""
+    """
+    Task whose ``return_value`` rows make up the sequence.
+
+    The server decides which rows are live and in what order; the runtime asks only for offsets.
+    """
 
 
 TaskArgBinding = TypeAliasType(
@@ -339,19 +380,42 @@ Before the runtime starts, the supervisor turns every binding into what the runt
 | `literal` | passes it on | `literal` |
 | `xcom` | GETs the row through the XCom backend, then takes `element_index` when set | `literal` |
 | `tuple` | reads every part and puts them in one array, in zip order | `literal` |
-| any of these with `kwarg`, no `apply_map` | then takes that key, else reads `fallback`; with neither, fails the task | `literal` |
-| any of these with `apply_map` | reads the value and any `fallback`, and leaves the callables and `kwarg` to the runtime | `literal`, with `apply_map` |
+| `expand_kwargs` in the run context | reads the dict once, runs any `map()` callables in the sidecar (a skip skips the instance), and checks its keys (*Which signature a call is checked against*) | nothing |
+| any of these with `kwarg` | takes that key from the resolved dict, else reads `fallback`; with neither, fails the task | `literal` |
+| any of these with `apply_map` | reads the value, and leaves the callables to the runtime | `literal`, with `apply_map` |
 | `sequence` | passes it on | `sequence` |
 
-The run context gains one field:
+The run context gains two fields:
 
 ```python
 class TIRunContext(BaseModel):
     ...
     needs_mapped_length: bool | None = None
-    """Set only for a Lang-SDK task: True when its return value is expanded over downstream, so the
-    supervisor has to measure it. Derived from ``not ti.is_mapped and any(task.iter_mapped_dependants())``.
-    None for a Python task, which measures its own."""
+    """
+    Whether the supervisor has to measure this task's return value.
+
+    Set only for a Lang-SDK task: True when its return value is expanded over downstream. Derived
+    from ``not ti.is_mapped and any(task.iter_mapped_dependants())``. None for a Python task, which
+    measures its own.
+    """
+
+    expand_kwargs: ExpandKwargsSource | None = None
+    """Set only for a stub expanded with ``expand_kwargs()``."""
+
+
+class ExpandKwargsSource(BaseModel):
+    """
+    One instance's ``expand_kwargs()`` dict, for a stub.
+
+    The supervisor reads it once, runs any ``map()`` callables, checks its keys, and gives each
+    ``kwarg`` binding its value from the result. It is sent even when no binding carries ``kwarg``.
+    """
+
+    part: ArgPart
+    """Where the dict is: a ``LiteralValue`` for a literal row, else an ``XComRef``."""
+
+    apply_map: bool = False
+    """Run the expand input's ``map()`` callables on the dict first, in the Python sidecar."""
 ```
 
 The supervisor wire gains one request, for a stub TaskHandler that needs a Python Dag's `map()` callables run:
@@ -405,9 +469,10 @@ Each change ships behind an Execution API version with a mirrored supervisor wir
 ```
 
 [`get_task_map_length`](https://github.com/apache/airflow/blob/27b8c82f54d44830176eb049f2e42916c7849bb0/airflow-core/src/airflow/serialization/definitions/xcom_arg.py#L150)
-reads `xcom.mapped_length` for an unmapped producer and counts rows for a mapped one. `zip` takes
-the `min` of its arguments, or the `max` when a fill value is set; `concat` takes the sum; `map`
-delegates to the argument it wraps, because it is elementwise and cannot change the count.
+reads `xcom.mapped_length` for an unmapped producer and counts the non-null rows of a mapped one
+(see *Read path*). `zip` takes the `min` of its arguments, or the `max` when a fill value is set;
+`concat` takes the sum; `map` delegates to the argument it wraps, because it is elementwise and
+cannot change the count.
 
 ### Acting on `needs_mapped_length`
 
@@ -440,10 +505,10 @@ What the server sends for each authoring form, and what the runtime receives aft
 |---|---|---|
 | `.expand({ row: ["a", "b"] })` | `literal`, `value` already the element | that `literal` |
 | `.expand({ row: rows })` | `xcom`, `task_id`, `element_index=i` | `literal`: element `i` of the row |
-| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, `map_index=i` | `literal`: that row |
+| `.expand({ row: mappedUpstream })` | `xcom`, `task_id`, and the `map_index` of the producer's `i`-th non-null row in map-index order | `literal`: that row |
 | `.expand({ a: …, b: … })` | one binding per argument, each with its own coordinate | one `literal` per argument |
 | `.partial({ region: … })` | `literal`, or `xcom` with no index | the same value at every index |
-| `.expandKwargs(rows)` | per parameter: `xcom` with `element_index=i`, `kwarg` and `fallback` | `literal`: that key of element `i`, else the fallback |
+| `.expandKwargs(rows)` | per parameter that `partial()` does not set (with `strict=False`, every parameter): a binding with `kwarg` and `fallback`, read from the run context's `expand_kwargs` | `literal`: that key of the resolved dict, else the fallback |
 | `.expandKwargs(rows)`, from a `kwargs` entry | one `xcom` with `element_index=i` and `spread` | `literal`: element `i`, spread into the arguments |
 | `.zip(a, b)` | `tuple`, one part per zipped argument | `literal`: the parts as one array |
 | `.concat(a, b)` | `xcom` for whichever argument owns this index | `literal`: that element |
@@ -453,8 +518,8 @@ What the server sends for each authoring form, and what the runtime receives aft
 
 An element of a dict is its `(key, value)` pair in the stored value's order, the pair a Python task reading the same XCom gets.
 A runtime receives it as a two-item array, such as `["uk", 3]`.
-With `.expandKwargs(…)`, a parameter missing from this index's dict takes its `partial()` value or its default, and fails the task with neither, as a missing argument does in Python.
-With `spread`, a key missing from the dict is left to the handler's own default.
+A mapped producer's null result gives the consumer no instance, so instance `i` reads the producer's `i`-th non-null row in map-index order rather than producer map index `i`, as Python's lazy sequence does. A Python producer writes no row for `None`. A language-SDK producer can store a null row ([#77281](https://github.com/apache/airflow/pull/77281)), so the map length the server counts and the sequence reads both have to leave such rows out. Neither does yet: the count is `count(map_index)` over every row, and the reads filter only SQL `NULL`, not a JSON `null` value.
+With `.expandKwargs(…)`, each key of this index's dict follows *Which signature a call is checked against*.
 
 A Dag definition and a Python Dag with stub TaskHandler differ only in who applies `map()` callables.
 
@@ -539,11 +604,13 @@ Either way the handler receives a finished value, and no callable crosses the wi
 A Dag definition's runtime finds its closures by the binding's parameter name.
 The sidecar finds the Python callables the same way, through the task's expand input or its mapped task group's, as the server did to set the flag.
 The supervisor answers `ApplyMap` the way it answers an XCom backend request, once the sidecar replies, so its request loop keeps running.
-Only a stub TaskHandler with an `apply_map` binding starts the sidecar for this.
+The sidecar starts for this only for a stub: when its TaskHandler sends `ApplyMap` for an
+`expand()` argument, or when the supervisor resolves an `expand_kwargs()` dict that has `map()`
+callables.
 
 With `.expandKwargs(rows.map(toKwargs))` the callables build each instance's dict, and each parameter takes its `kwarg` from it.
 A `spread` binding has no parameter name, so a Dag definition's runtime finds its callables as its task's one `expand_kwargs()` input.
-`toKwargs` runs once per instance: a runtime reuses the result across parameters, and the sidecar does the same across `ApplyMap` requests.
+`toKwargs` runs once per instance. For a stub, the supervisor runs it before serving any binding; a Dag definition's runtime runs its own and reuses the result across parameters.
 
 A `map()` callable may skip its instance, as a Python one does by raising `AirflowSkipException`.
 The runtime handles a skip from its own callables, or a `MapResult` with `skipped` set, like a skip raised by the handler.
@@ -596,10 +663,11 @@ What every SDK implements, in order. Nothing here is language-specific.
 
 1. Read `ti.map_index` and `ti_context.expanded_ti_count` from `StartupDetails`. A `map_index` of `-1` means the task is not mapped.
 2. Take the delivered binding for this map index: a `literal`, or a `sequence` for a reduce. A kind the SDK does not implement fails the task before the handler runs.
-3. For a binding with `apply_map`, get its `map()` callables run: a Dag definition applies its own, and a stub TaskHandler sends `ApplyMap`. Then take `kwarg`, or `fallback` when the key is missing; with `spread`, merge the value's keys into the handler's arguments, failing the instance on one a `partial()` binding also sets. Run the callables once per instance, even when several parameters share them. A skip from them skips the instance.
-4. Optionally send `SetRenderedMapIndex` to label the instance.
-5. Run the handler with that one element.
-6. Push the return value. The supervisor adds the map length; the SDK sends none.
+3. For a binding with `apply_map`, get its `map()` callables run: a Dag definition applies its own, and a stub TaskHandler sends `ApplyMap`. A skip from the callables skips the instance.
+4. For a binding with `spread`, merge the value's keys into the handler's arguments, failing the instance on one a `partial()` binding also sets.
+5. Optionally send `SetRenderedMapIndex` to label the instance.
+6. Run the handler with that one element.
+7. Push the return value. The supervisor adds the map length; the SDK sends none.
 
 ## Consequences
 
@@ -653,11 +721,13 @@ so the binding would carry a path into the tree and every runtime would walk it.
 
 **Applying Python `map()` callables when the task starts.** The supervisor would need to know whether the task runs a Python Dag or a Dag definition, which only the coordinator decides.
 The runtime already knows its own mode, and a request reuses the sidecar the XCom backend runs in.
+`expand_kwargs()` is the exception: a stub writes `param` entries and a Dag definition a `kwargs` entry, so the server knows it serves a stub and sets the run context's `expand_kwargs` only then.
 
 ## Related work, out of scope
 
 - **Moving Python tasks onto the supervisor path.** A Python task could send plain values and let the supervisor measure, store and narrow them,
-  as it does for a Lang-SDK task, so one implementation serves every runtime. It changes Python task behaviour, so it is a separate follow-up.
+  as it does for a Lang-SDK task, so one implementation serves every runtime. That includes resolving an `expand_kwargs()` dict, which a Python task
+  still does in its own runtime (`ListOfDictsExpandInput.resolve`). It changes Python task behaviour, so it is a separate follow-up.
 - **The shapes decision 4 rejects for a Lang-SDK task.** A `map()` inside a `zip()` or `concat()`, a `zip()` inside a `zip()`,
   and a `map()`, `zip()` or `concat()` result passed whole, to an unmapped task or through `partial()` to a mapped one. Each needs a binding that nests, or a resolver for the whole argument.
   An argument from a task in a more deeply nested mapped group reads a range of that producer's rows, and no binding carries a subset of a producer's rows.
