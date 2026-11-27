@@ -60,6 +60,8 @@ class KubernetesResults(NamedTuple):
     namespace: str
     resource_version: str
     failure_details: FailureDetails | None
+    # The pod already had ``metadata.deletionTimestamp`` set when the watcher saw it.
+    deletion_requested: bool = False
 
 
 class KubernetesWatch(NamedTuple):
@@ -71,6 +73,8 @@ class KubernetesWatch(NamedTuple):
     annotations: dict[str, str]
     resource_version: str
     failure_details: FailureDetails | None
+    # The pod already had ``metadata.deletionTimestamp`` set when the watcher saw it.
+    deletion_requested: bool = False
 
 
 # TODO: Remove after Airflow 2 support is removed
