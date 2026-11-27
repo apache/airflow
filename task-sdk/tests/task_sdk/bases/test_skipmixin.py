@@ -96,6 +96,87 @@ class TestSkipMixin:
 
         ti.xcom_push.assert_not_called()
 
+    def test_skip_leaves_task_waiting_for_past_depends_to_the_scheduler(self):
+        """skip() leaves a direct downstream task that waits for its past depends out of the state change."""
+        mixin = SkipMixin()
+        mixin.task_id = "gate"
+        mixin.downstream_task_ids = {"skip_now", "flag_only", "wait"}
+
+        skip_now = MagicMock(
+            spec=BaseOperator,
+            task_id="skip_now",
+            depends_on_past=True,
+            wait_for_past_depends_before_skipping=False,
+        )
+        flag_only = MagicMock(
+            spec=BaseOperator,
+            task_id="flag_only",
+            depends_on_past=False,
+            wait_for_past_depends_before_skipping=True,
+        )
+        wait = MagicMock(
+            spec=BaseOperator,
+            task_id="wait",
+            depends_on_past=True,
+            wait_for_past_depends_before_skipping=True,
+        )
+        # Reached through "wait", not a direct downstream task: skipped at once as before.
+        indirect = MagicMock(
+            spec=BaseOperator,
+            task_id="indirect",
+            depends_on_past=True,
+            wait_for_past_depends_before_skipping=True,
+        )
+        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1)
+
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            mixin.skip(ti=ti, tasks=[skip_now, flag_only, wait, indirect])
+
+        # The decision still lists "wait", so NotPreviouslySkippedDep skips it once its past depends are met.
+        ti.xcom_push.assert_called_once_with(
+            key=XCOM_SKIPMIXIN_KEY,
+            value={XCOM_SKIPMIXIN_SKIPPED: ["skip_now", "flag_only", "wait", "indirect"]},
+        )
+        assert exc_info.value.tasks == ["skip_now", "flag_only", "indirect"]
+
+    def test_skip_all_except_leaves_task_waiting_for_past_depends_to_the_scheduler(self):
+        """skip_all_except() leaves a task that waits for its past depends out of the state change."""
+        mixin = SkipMixin()
+        mixin.downstream_task_ids = {"down1", "down2", "down3"}
+
+        downstream1 = MagicMock(
+            spec=BaseOperator,
+            task_id="down1",
+            depends_on_past=True,
+            wait_for_past_depends_before_skipping=True,
+        )
+        downstream2 = MagicMock(
+            spec=BaseOperator,
+            task_id="down2",
+            depends_on_past=True,
+            wait_for_past_depends_before_skipping=False,
+        )
+        downstream3 = MagicMock(spec=BaseOperator, task_id="down3")
+        downstream3.get_flat_relative_ids.return_value = set()
+
+        mock_task = MagicMock(spec=BaseOperator)
+        mock_task.downstream_list = [downstream1, downstream2, downstream3]
+        mock_dag = MagicMock(spec=DAG)
+        mock_dag.task_ids = ["gate", "down1", "down2", "down3"]
+        mock_dag.get_task.return_value = downstream3
+        mock_task.dag = mock_dag
+
+        ti = Mock(spec=RuntimeTaskInstanceProtocol, map_index=-1, task=mock_task)
+
+        with pytest.raises(DownstreamTasksSkipped) as exc_info:
+            mixin.skip_all_except(ti=ti, branch_task_ids="down3")
+
+        assert exc_info.value.tasks == [("down2", -1)]
+        ti.xcom_push.assert_called_once_with(
+            key=XCOM_SKIPMIXIN_KEY,
+            value={XCOM_SKIPMIXIN_FOLLOWED: ["down3"]},
+        )
+
     def test_skip_all_except_with_none_skips_all(self):
         """skip_all_except(None) should skip all downstream tasks."""
         mixin = SkipMixin()

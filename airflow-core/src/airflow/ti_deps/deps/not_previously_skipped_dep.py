@@ -141,7 +141,9 @@ class NotPreviouslySkippedDep(BaseTIDep):
         # If the parent SkipMixin has run, and the XCom result stored indicates this
         # ti should be skipped, set ti.state to SKIPPED and fail the rule so that the
         # ti does not execute.
-        if dep_context.wait_for_past_depends_before_skipping:
+        if TYPE_CHECKING:
+            assert ti.task
+        if dep_context.wait_for_past_depends_before_skipping or ti.task.wait_for_past_depends_before_skipping:
             if not is_past_depends_met(ti, session=session):
                 yield self._failing_status(reason="Task should be skipped but the past depends are not met")
                 return
