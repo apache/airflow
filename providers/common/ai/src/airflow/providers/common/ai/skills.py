@@ -44,6 +44,7 @@ manager removes any cloned directories on exit.
 from __future__ import annotations
 
 import copy
+import logging
 import os
 import shutil
 import tempfile
@@ -68,6 +69,8 @@ if TYPE_CHECKING:
     from pydantic_ai.toolsets import AbstractToolset
     from pydantic_ai.workspaces import LocalWorkspaceBackend
     from pydantic_ai_harness.skills import Skills
+
+log = logging.getLogger(__name__)
 
 __all__ = ["AirflowSkills", "GitSkills", "SkillSource", "resolve_skills"]
 
@@ -322,7 +325,8 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         script's process group. ``None`` registers no script tool. Defaults to ``"worker"``.
     :param inherit_env: Names of worker environment variables a script receives besides ``PATH``, ``HOME``,
         ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. The values are read on the worker
-        when the script runs and are not stored in the Dag; a name the worker has not set is skipped.
+        when the script runs and are not stored in the Dag; a name the worker has not set is skipped, and
+        its name is logged as a warning when the run starts.
     :param max_retries: Correction attempts the model gets per tool call. Defaults to the agent's.
     """
 
@@ -349,8 +353,9 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
                 f"AirflowSkills scripts must be 'worker' or None, got {scripts!r}. Running scripts in a "
                 "sandbox needs a way to copy skills into it, which is not available yet."
             )
-        if isinstance(inherit_env, str) or not all(isinstance(name, str) and name for name in inherit_env):
-            raise TypeError("inherit_env must be a collection of variable names, not a string.")
+        env_names = [inherit_env] if isinstance(inherit_env, str) else list(inherit_env)
+        if isinstance(inherit_env, str) or not all(isinstance(name, str) and name for name in env_names):
+            raise TypeError("inherit_env must be a collection of non-empty variable names, not a string.")
         self._sources = list(sources)
         self._include = include
         self._exclude = exclude
@@ -360,9 +365,10 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
             resources=resources,
             scripts=scripts is not None,
             exclude_resources=exclude_resources or [],
-            inherit_env=list(inherit_env),
+            inherit_env=env_names,
             max_retries=max_retries,
         )
+        self._script_env_names = env_names if scripts is not None else []
         self._finalizer: weakref.finalize | None = None
 
     @classmethod
@@ -373,7 +379,7 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
     def combine(
         cls, capabilities: Sequence[AbstractCapability[AgentDepsT]]
     ) -> AbstractCapability[AgentDepsT]:
-        raise ValueError(
+        raise SkillsConfigurationError(
             "An agent can have only one AirflowSkills, because its file tools share one toolset id. "
             "Put every source in a single AirflowSkills."
         )
@@ -416,6 +422,9 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         except BaseException:
             cleanup()
             raise
+        missing = [name for name in self._script_env_names if name not in os.environ]
+        if missing:
+            log.warning("inherit_env names variables the worker has not set: %s", ", ".join(missing))
         run = copy.copy(self)
         self._runs[run_id] = skill_dirs
         run._finalizer = weakref.finalize(run, _discard_run, self._runs, run_id, skill_dirs, cleanup)

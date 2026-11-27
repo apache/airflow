@@ -326,14 +326,22 @@ class TestAirflowSkillsConstruction:
 
         assert (capability.get_toolset() is not None) is expected
 
-    @pytest.mark.parametrize("inherit_env", ["PATH", ["PATH", 1]])
+    @pytest.mark.parametrize("inherit_env", ["PATH", ["PATH", 1], [""]])
     def test_inherit_env_must_be_a_collection_of_names(self, inherit_env):
-        with pytest.raises(TypeError, match="inherit_env must be a collection of variable names"):
+        with pytest.raises(TypeError, match="inherit_env must be a collection of non-empty variable names"):
             AirflowSkills(["skills"], inherit_env=inherit_env)
 
+    def test_inherit_env_given_as_a_generator_is_kept(self):
+        capability = AirflowSkills(["skills"], inherit_env=(name for name in ["TZ", "HTTP_PROXY"]))
+
+        assert capability._script_env_names == ["TZ", "HTTP_PROXY"]
+        assert capability.get_toolset()._inherit_env == ("TZ", "HTTP_PROXY")
+
     def test_two_of_them_cannot_be_combined(self):
-        with pytest.raises(ValueError, match="only one AirflowSkills"):
+        with pytest.raises(SkillsConfigurationError, match="only one AirflowSkills") as excinfo:
             AirflowSkills.combine([AirflowSkills(["a"]), AirflowSkills(["b"])])
+
+        assert isinstance(excinfo.value, AirflowFailException)
 
     @pytest.mark.asyncio
     async def test_a_missing_harness_is_reported(self, tmp_path):
@@ -377,6 +385,30 @@ class TestAirflowSkillsRun:
         instructions = seen[0].instructions or ""
         assert "- alpha: the alpha skill" in instructions
         assert "- beta: the beta skill" in instructions
+
+    @pytest.mark.asyncio
+    async def test_inherit_env_names_the_worker_has_not_set_are_logged_once_per_run(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        write_skill(tmp_path, "alpha", files={"scripts/hello.py": "print('hi')\n"})
+        monkeypatch.setenv("SKILL_TEST_PRESENT", "secret-value")
+        monkeypatch.delenv("SKILL_TEST_MISSING", raising=False)
+        call = ("run_skill_script", {"skill_name": "alpha", "script": "scripts/hello.py"})
+        agent = Agent(
+            build_calling_model(("load_capability", {"id": "alpha"}), call, call),
+            capabilities=[
+                AirflowSkills([tmp_path], inherit_env=["SKILL_TEST_PRESENT", "SKILL_TEST_MISSING"])
+            ],
+        )
+
+        await agent.run("go")
+
+        assert {
+            "event": "inherit_env names variables the worker has not set: SKILL_TEST_MISSING",
+            "log_level": "warning",
+        } in caplog
+        assert len([event for event in caplog.messages if "inherit_env" in event]) == 1
+        assert "secret-value" not in str(caplog.messages)
 
     @pytest.mark.asyncio
     async def test_a_skill_that_was_not_loaded_is_refused_until_it_is(self, tmp_path):

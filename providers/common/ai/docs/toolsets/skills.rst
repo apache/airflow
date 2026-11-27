@@ -193,8 +193,9 @@ Parameters
   Running scripts in a sandbox is not supported yet, and any other value raises ``ValueError``.
 - ``inherit_env``: Names of worker environment variables a script receives, besides ``PATH``,
   ``HOME``, ``LANG``, ``LC_ALL`` and ``LC_CTYPE``, which it always gets. A name is looked up on the
-  worker when the script runs, so no value is stored in the Dag file or its serialized form, and a
-  name the worker has not set is skipped. Default: none.
+  worker when the script runs, so no value is stored in the Dag file or its serialized form. A name
+  the worker has not set is skipped, and its name, never a value, is logged as a warning when the run
+  starts. Default: none.
 - ``max_retries``: How many times the model may correct failed calls to one of the two tools.
   Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
 
@@ -214,7 +215,8 @@ A configuration that cannot load its skills raises
 :class:`~airflow.providers.common.ai.exceptions.SkillsConfigurationError`, and the task fails
 without retrying, because every attempt would fail the same way. That covers a missing
 ``pydantic-ai-harness`` or GitPython, a local source that does not exist, an ``include`` or
-``exclude`` naming a skill no source holds, and a ``GitSkills`` URL or path that is not valid.
+``exclude`` naming a skill no source holds, a ``GitSkills`` URL or path that is not valid, and a second
+``AirflowSkills`` on an agent that is not ``durable``.
 A clone that fails raises ``RuntimeError`` instead, and the task retries as often as its
 ``retries`` allows.
 
