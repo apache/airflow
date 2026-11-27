@@ -18,28 +18,36 @@
 from __future__ import annotations
 
 from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
-from airflow_google_provider_resource_cleanup.helpers import get_resource_path, run_command_async
+from airflow_google_provider_resource_cleanup.helpers import curl, resolve_resource_path
+
+API_BASE = "https://dlp.googleapis.com/v2/"
 
 
-async def _delete_dlp_job(resource: dict, log_prefix: str):
-    job_id = get_resource_path(resource)
-    cmd_delete = f"gcloud alpha dlp jobs delete {job_id.split('/')[-1]} --quiet"
-    await run_command_async(cmd_delete, log_prefix)
-
-
-async def _delete_dlp_job_trigger(resource: dict, log_prefix: str):
-    job_id = get_resource_path(resource)
-    cmd_delete = f"gcloud alpha dlp job-triggers delete {job_id.split('/')[-1]} --quiet"
-    await run_command_async(cmd_delete, log_prefix)
+async def _delete_dlp_resource(
+    resource: dict,
+    log_prefix: str,
+    *,
+    project_id: str | None = None,
+):
+    name = resolve_resource_path(resource, project_id=project_id)
+    return await curl(f"{API_BASE}{name}", log_prefix=log_prefix, check=True, ignore_not_found=True)
 
 
 class DLPDeleteHandler(BaseDeleteHandler):
     DELETERS = {
-        "dlp.googleapis.com/DlpJob": _delete_dlp_job,
-        "dlp.googleapis.com/JobTrigger": _delete_dlp_job_trigger,
+        "dlp.googleapis.com/JobTrigger": _delete_dlp_resource,
+        "dlp.googleapis.com/DiscoveryConfig": _delete_dlp_resource,
+        "dlp.googleapis.com/DlpJob": _delete_dlp_resource,
+        "dlp.googleapis.com/InspectTemplate": _delete_dlp_resource,
+        "dlp.googleapis.com/DeidentifyTemplate": _delete_dlp_resource,
+        "dlp.googleapis.com/StoredInfoType": _delete_dlp_resource,
     }
 
     DELETION_ORDER = [
-        "dlp.googleapis.com/DlpJob",
         "dlp.googleapis.com/JobTrigger",
+        "dlp.googleapis.com/DiscoveryConfig",
+        "dlp.googleapis.com/DlpJob",
+        "dlp.googleapis.com/InspectTemplate",
+        "dlp.googleapis.com/DeidentifyTemplate",
+        "dlp.googleapis.com/StoredInfoType",
     ]
