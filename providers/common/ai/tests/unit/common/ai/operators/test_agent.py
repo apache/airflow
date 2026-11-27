@@ -100,6 +100,7 @@ from airflow.providers.common.ai.sandbox.base import (
     SandboxBackend,
     SandboxExecResult,
 )
+from airflow.providers.common.ai.skills import AirflowSkills
 from airflow.providers.common.ai.toolsets.hook import HookToolset
 from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.mcp import MCPToolset
@@ -2389,6 +2390,92 @@ class TestAgentOperatorDurable:
         assert live == {"model": 1, "tool": 0}
         # And the journal is gone once the task succeeded.
         assert storage.entries == {}
+
+    def test_retry_replays_a_skill_script_instead_of_running_it_again(self, tmp_path):
+        """A script an ``AirflowSkills`` capability runs on the worker is recorded, so a retry does not repeat its side effects."""
+        library = tmp_path / "library"
+        (library / "counter" / "scripts").mkdir(parents=True)
+        (library / "counter" / "SKILL.md").write_text(
+            "---\nname: counter\ndescription: counts runs\n---\nRun scripts/count.py\n"
+        )
+        (library / "counter" / "scripts" / "count.py").write_text(
+            "import pathlib, sys\n"
+            "with pathlib.Path(sys.argv[2]).open('a') as handle:\n"
+            "    handle.write('ran\\n')\n"
+            "print('counted')\n"
+        )
+        counter = tmp_path / "counter.txt"
+        fail_final = [True]
+
+        def model_fn(messages, info):
+            match sum(isinstance(m, ModelResponse) for m in messages):
+                case 0:
+                    return ModelResponse(parts=[ToolCallPart("load_capability", {"id": "counter"})])
+                case 1:
+                    return ModelResponse(
+                        parts=[
+                            ToolCallPart(
+                                "run_skill_script",
+                                {
+                                    "skill_name": "counter",
+                                    "script": "scripts/count.py",
+                                    "args": {"counter": str(counter)},
+                                },
+                            )
+                        ]
+                    )
+            if fail_final[0]:
+                raise RuntimeError("worker died")
+            return ModelResponse(parts=[TextPart("done")])
+
+        storage = MemoryStorage()
+        for try_number in (1, 2):
+            op = AgentOperator(
+                task_id="t",
+                prompt="hi",
+                llm_conn_id="c",
+                durable=True,
+                enable_tool_logging=False,
+                capabilities=[AirflowSkills([library])],
+            )
+            op.llm_hook = MagicMock(spec=["create_agent"])
+            op.llm_hook.create_agent.side_effect = lambda **kw: Agent(FunctionModel(model_fn), **kw)
+            context = _make_context(ti=_make_ti(id=f"ti-{try_number}", try_number=try_number))
+            with (
+                patch.object(AgentOperator, "_build_durable_storage", autospec=True, return_value=storage),
+                pytest.raises(RuntimeError, match="worker died") if try_number == 1 else nullcontext(),
+            ):
+                op.execute(context=context)
+            fail_final[0] = False
+
+        assert counter.read_text() == "ran\n"
+        assert op._durable_journal.stats.replayed["tool"] == 1
+
+    def test_a_toolset_sharing_the_airflow_skills_id_is_refused_when_the_run_starts(self, tmp_path):
+        """The operator's parse-time id check does not see the capability's toolset, so the clash surfaces
+        only when pydantic-ai registers the toolsets."""
+        (tmp_path / "library").mkdir()
+        op = AgentOperator(
+            task_id="t",
+            prompt="hi",
+            llm_conn_id="c",
+            durable=True,
+            enable_tool_logging=False,
+            toolsets=[FunctionToolset(id="airflow_skills")],
+            capabilities=[AirflowSkills([tmp_path / "library"])],
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kw: Agent(
+            FunctionModel(lambda messages, info: ModelResponse(parts=[TextPart("done")])), **kw
+        )
+
+        with (
+            patch.object(
+                AgentOperator, "_build_durable_storage", autospec=True, return_value=MemoryStorage()
+            ),
+            pytest.raises(UserError, match="Two toolsets have the same `id` .airflow_skills."),
+        ):
+            op.execute(context=_make_context(ti=_make_ti(id="ti-1", try_number=1)))
 
     def test_retry_keeps_the_first_attempts_run_id_and_conversation_id(self):
         """Capabilities that key their state on the run id must see the same one on a replay."""
