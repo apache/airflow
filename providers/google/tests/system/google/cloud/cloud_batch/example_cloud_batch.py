@@ -80,7 +80,7 @@ def _assert_tasks(ti):
 def _create_job():
     runnable = batch_v1.Runnable()
     runnable.container = batch_v1.Runnable.Container()
-    runnable.container.image_uri = "gcr.io/google-containers/busybox"
+    runnable.container.image_uri = "mirror.gcr.io/library/busybox:latest"
     runnable.container.entrypoint = "/bin/sh"
     runnable.container.commands = [
         "-c",
