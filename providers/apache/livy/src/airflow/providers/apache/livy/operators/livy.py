@@ -147,6 +147,7 @@ class LivyOperator(ResumableJobMixin, BaseOperator):
         self._extra_headers = extra_headers or {}
 
         self._batch_id: int | str | None = None
+        self._app_id_pushed_for: int | str | None = None
         self.retry_args = retry_args
         self.deferrable = deferrable
         self.openlineage_inject_parent_job_info = openlineage_inject_parent_job_info
@@ -182,7 +183,10 @@ class LivyOperator(ResumableJobMixin, BaseOperator):
         if not self.deferrable and self._polling_interval > 0:
             # Synchronous wait: route through the resumable mixin so a worker crash mid-poll
             # reconnects to the running batch on retry instead of resubmitting a duplicate.
-            return self.execute_resumable(context)
+            # On reconnect the mixin returns what poll_until_complete returns and skips
+            # get_job_result, so return the batch id, which every path sets.
+            self.execute_resumable(context)
+            return self._batch_id
 
         _batch_id: int | str = self.hook.post_batch(**self.spark_params)
         self._batch_id = _batch_id
@@ -237,11 +241,20 @@ class LivyOperator(ResumableJobMixin, BaseOperator):
         # Set _batch_id so on_kill() can delete the batch after a reconnect (submit_job was skipped).
         self._batch_id = cast("int | str", external_id)
         self.poll_for_termination(self._batch_id)
+        # On reconnect the mixin calls only poll_until_complete, never get_job_result,
+        # so the app_id XCom is pushed here.
+        self._push_app_id(context, self._batch_id)
 
     def get_job_result(self, external_id: JsonValue, context: Context) -> Any:
-        batch_id = cast("int | str", external_id)
+        self._batch_id = cast("int | str", external_id)
+        # Already pushed by poll_until_complete, unless the batch had succeeded before this try.
+        if self._app_id_pushed_for != self._batch_id:
+            self._push_app_id(context, self._batch_id)
+        return self._batch_id
+
+    def _push_app_id(self, context: Context, batch_id: int | str) -> None:
         context["ti"].xcom_push(key="app_id", value=self.hook.get_batch(batch_id)["appId"])
-        return batch_id
+        self._app_id_pushed_for = batch_id
 
     def poll_for_termination(self, batch_id: int | str) -> None:
         """
