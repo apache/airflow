@@ -1379,12 +1379,19 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
         # above and output serialization) has succeeded. Cleaning up earlier and
         # then raising would leave the Airflow retry with an empty journal,
         # re-executing every already-completed model and tool step.
-        if self._durable_journal is not None:
-            self._durable_journal.cleanup()
-            if self._tool_approval_answers_stored and (store := context.get("task_state_store")) is not None:
-                self._delete_approval_state(store, _TOOL_APPROVAL_ANSWERS_KEY)
+        self._delete_durable_state(context)
         self._clear_usage_budget(context)
         return output
+
+    def _delete_durable_state(self, context: Context) -> None:
+        """Delete what a durable run keeps for a retry: its journal and the answers reviewers gave it."""
+        if self._durable_journal is None:
+            return
+        self._durable_journal.cleanup()
+        if self._tool_approval_answers_stored and (store := context.get("task_state_store")) is not None:
+            self._delete_approval_state(store, _TOOL_APPROVAL_ANSWERS_KEY)
+        if self.enable_hitl_review:
+            self._delete_review_answers(context)
 
     def _convert_output_for_xcom(self, output: Any) -> Any:
         """Return the XCom value, with dicts in place of models that a downstream task could not load."""
@@ -1877,10 +1884,8 @@ class AgentOperator(CancellableAgentRunMixin, BaseOperator, HITLReviewMixin, Usa
                     self.output_type, saved["output_json"], serialize_output=False, is_edited=False
                 )
             )
-        if self._durable_journal is not None:
-            # The approved output is the task's result, so nothing replays the review again.
-            self._durable_journal.cleanup()
-            self._delete_review_answers(context)
+        # The approved output is the task's result, so nothing replays the review again.
+        self._delete_durable_state(context)
         self._clear_usage_budget(context)
         return result
 

@@ -20,15 +20,20 @@ from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from pydantic import BaseModel
+from pydantic_ai import Agent
 from pydantic_ai.capabilities import Thinking
-from pydantic_ai.messages import ImageUrl
+from pydantic_ai.messages import ImageUrl, ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.toolsets.function import FunctionToolset
 
 from airflow.providers.common.ai.decorators.agent import _AgentDecoratedOperator
+from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX
 from airflow.providers.common.ai.toolsets.logging import ToolLoggingCapability
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.prompt_cache import PromptCaching
 from airflow.providers.common.ai.utils.toolset_base import MaskingToolset
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_3_PLUS
 
 try:
     from airflow.sdk.serde import SUPPORTS_OPERATOR_DESERIALIZATION_WALKER as _CORE_WALKER
@@ -260,3 +265,247 @@ class TestAgentDecoratedOperator:
             llm_conn_id="my_llm",
         )
         assert op.durable is False
+
+
+class _Pause(BaseException):
+    """Stands in for the pause of a run that waits for an approval or a review."""
+
+
+def _describe(text: str, source: str = "") -> str:
+    return f"Describe {text}"
+
+
+@patch("airflow.providers.common.ai.operators.agent.AgentOperator.execute", autospec=True)
+class TestAgentCallbacks:
+    def test_output_processor_returns_the_result_from_the_output_and_the_arguments_it_names(
+        self, mock_execute
+    ):
+        mock_execute.return_value = "a cat"
+
+        def with_source(output: str, source: str) -> dict:
+            return {"source": source, "answer": output}
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture", "source": "cat.png"},
+            llm_conn_id="my_llm",
+            output_processor=with_source,
+        )
+
+        assert op.execute(context=_make_context()) == {"source": "cat.png", "answer": "a cat"}
+
+    def test_output_processor_also_gets_an_argument_that_was_passed_by_position(self, mock_execute):
+        mock_execute.return_value = "a cat"
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_args=["the picture", "cat.png"],
+            llm_conn_id="my_llm",
+            output_processor=lambda output, source: (source, output),
+        )
+
+        assert op.execute(context=_make_context()) == ("cat.png", "a cat")
+
+    def test_error_handler_returns_the_output_to_use_for_a_failed_run(self, mock_execute):
+        mock_execute.side_effect = ValueError("refused")
+        seen = []
+
+        def no_answer(error: Exception, source: str) -> str:
+            seen.append((error, source))
+            return "no answer"
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture", "source": "cat.png"},
+            llm_conn_id="my_llm",
+            error_handler=no_answer,
+        )
+
+        assert op.execute(context=_make_context()) == "no answer"
+        assert seen == [(mock_execute.side_effect, "cat.png")]
+
+    def test_output_of_the_error_handler_goes_through_the_output_processor(self, mock_execute):
+        mock_execute.side_effect = ValueError("refused")
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture", "source": "cat.png"},
+            llm_conn_id="my_llm",
+            error_handler=lambda error: "no answer",
+            output_processor=lambda output, source: {"source": source, "answer": output},
+        )
+
+        assert op.execute(context=_make_context()) == {"source": "cat.png", "answer": "no answer"}
+
+    def test_error_handler_may_raise(self, mock_execute):
+        mock_execute.side_effect = ValueError("throttled")
+
+        def reraise(error: Exception) -> str:
+            raise error
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture"},
+            llm_conn_id="my_llm",
+            error_handler=reraise,
+        )
+
+        with pytest.raises(ValueError, match="throttled"):
+            op.execute(context=_make_context())
+
+    def test_failed_run_fails_the_task_without_error_handler(self, mock_execute):
+        mock_execute.side_effect = ValueError("refused")
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture"},
+            llm_conn_id="my_llm",
+            output_processor=lambda output: output,
+        )
+
+        with pytest.raises(ValueError, match="refused"):
+            op.execute(context=_make_context())
+
+    def test_error_of_the_callable_is_not_handed_to_the_error_handler(self, mock_execute):
+        def failing_prompt() -> str:
+            raise KeyError("no such document")
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=failing_prompt,
+            llm_conn_id="my_llm",
+            error_handler=lambda error: "no answer",
+        )
+
+        with pytest.raises(KeyError, match="no such document"):
+            op.execute(context=_make_context())
+        mock_execute.assert_not_called()
+
+    def test_pause_passes_the_error_handler_by(self, mock_execute):
+        mock_execute.side_effect = _Pause()
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture"},
+            llm_conn_id="my_llm",
+            error_handler=lambda error: "no answer",
+        )
+
+        with pytest.raises(_Pause):
+            op.execute(context=_make_context())
+
+    @pytest.mark.parametrize(
+        ("method", "kwargs"),
+        [
+            (
+                "resume_after_tool_approval",
+                {"tool_call_ids": [], "usage": {}, "transcript_sha256": "", "toolset_ids": [], "event": {}},
+            ),
+            ("resume_hitl_review", {"iteration": 1, "deadline": None, "state_sha256": "", "event": {}}),
+        ],
+    )
+    def test_resumed_run_goes_through_the_callbacks_too(self, mock_execute, method, kwargs):
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture", "source": "cat.png"},
+            llm_conn_id="my_llm",
+            output_processor=lambda output, source: {"source": source, "answer": output},
+        )
+
+        with patch(
+            f"airflow.providers.common.ai.operators.agent.AgentOperator.{method}",
+            autospec=True,
+            return_value="a cat",
+        ) as mock_resume:
+            result = getattr(op, method)(_make_context(), **kwargs)
+
+        assert result == {"source": "cat.png", "answer": "a cat"}
+        mock_resume.assert_called_once_with(op, ANY, **kwargs)
+        mock_execute.assert_not_called()
+
+
+class TestAgentCallbacksOnARealRun:
+    """The callbacks around ``AgentOperator.execute`` itself, with only the model stubbed."""
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_output_processor_gets_the_output_the_task_would_return(
+        self, mock_hook_cls, make_mock_run_result
+    ):
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.return_value = make_mock_run_result("a cat")
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture", "source": "cat.png"},
+            llm_conn_id="my_llm",
+            output_processor=lambda output, source: {"source": source, "answer": output},
+        )
+
+        assert op.execute(context=_make_context()) == {"source": "cat.png", "answer": "a cat"}
+
+    @patch("airflow.providers.common.ai.operators.agent.PydanticAIHook", autospec=True)
+    def test_error_handler_gets_the_error_the_model_raised(self, mock_hook_cls):
+        refused = ValueError("content filter")
+        mock_agent = MagicMock(spec=["run_sync", "instrument"])
+        mock_agent.run_sync.side_effect = refused
+        mock_hook_cls.get_hook.return_value.create_agent.return_value = mock_agent
+        seen = []
+
+        def no_answer(error: Exception, source: str) -> str:
+            seen.append((error, source))
+            return "no answer"
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture", "source": "cat.png"},
+            llm_conn_id="my_llm",
+            error_handler=no_answer,
+        )
+
+        assert op.execute(context=_make_context()) == "no answer"
+        assert seen == [(refused, "cat.png")]
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="the journal is kept in the task state store")
+    def test_handled_failure_of_a_durable_run_leaves_no_journal(self, task_state_store_accessor):
+        journaled = []
+
+        def look_up() -> str:
+            return "a cat"
+
+        def refuse_after_the_tool(messages, info) -> ModelResponse:
+            if any(isinstance(part, ToolReturnPart) for message in messages for part in message.parts):
+                raise ValueError("content filter")
+            return ModelResponse(parts=[ToolCallPart(tool_name="look_up", args={})])
+
+        def no_answer(error: Exception) -> str:
+            journaled.extend(
+                key for key in task_state_store_accessor.data if key.startswith(DURABLE_KEY_PREFIX)
+            )
+            return "no answer"
+
+        op = _AgentDecoratedOperator(
+            task_id="test",
+            python_callable=_describe,
+            op_kwargs={"text": "the picture"},
+            llm_conn_id="my_llm",
+            toolsets=[FunctionToolset(tools=[look_up], id="tools")],
+            enable_tool_logging=False,
+            durable=True,
+            error_handler=no_answer,
+        )
+        op.llm_hook = MagicMock(spec=["create_agent"])
+        op.llm_hook.create_agent.side_effect = lambda **kwargs: Agent(
+            FunctionModel(refuse_after_the_tool), **kwargs
+        )
+        context = {**_make_context(), "task_state_store": task_state_store_accessor}
+
+        assert op.execute(context=context) == "no answer"
+        # The failed run had recorded its steps for a retry; the task succeeded, so none is left.
+        assert journaled
+        assert not [key for key in task_state_store_accessor.data if key.startswith(DURABLE_KEY_PREFIX)]

@@ -83,6 +83,33 @@ the prompt string; all other parameters are passed to the operator.
     :start-after: [START howto_decorator_agent]
     :end-before: [END howto_decorator_agent]
 
+Shaping the result and handling a failed run
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The decorated function only builds the prompt, so two optional callables cover what happens
+after the run:
+
+- ``output_processor(output, ...)`` is called with the agent's output, as the task would return
+  it, and what it returns is the task's result. Use it when the task must return more than what
+  the model said, such as which of its inputs the answer is for: mapped results can then be
+  joined by key instead of by position.
+- ``error_handler(error, ...)`` is called with the exception of a failed agent run. It returns
+  the output to use instead, which then goes through ``output_processor``, or raises. Without
+  it, a request the model refuses, such as a content-filter ``400``, fails the task again on
+  every retry.
+
+After their first parameter, both name the arguments of the decorated function they need
+(``ticket``, ``ti``, ...), as the function itself does. They also run when a task that paused
+for tool approval or for a review resumes. An error of the decorated function itself is not
+handed to ``error_handler``. What ``output_processor`` returns is pushed to XCom as it is, so
+return values XCom can carry. A failure ``error_handler`` handles ends the task, so under
+durable execution the journal of the failed run is deleted, as after a run that succeeded.
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent.py
+    :language: python
+    :start-after: [START howto_decorator_agent_callbacks]
+    :end-before: [END howto_decorator_agent_callbacks]
+
 .. _howto/operator:agent-multimodal:
 
 Multimodal prompts
