@@ -676,6 +676,7 @@ async def test_fail_overflowed_subscriber_drains_full_queue_before_putting_senti
         trigger_class=_ProgrammableSharedStreamTrigger,
         kwargs={},
         on_poll_terminate=lambda g: None,
+        on_seq_resolved=lambda seq: None,
         max_subscriber_queue=cap,
         ack_timeout=300.0,
         log=structlog.get_logger("test"),
@@ -882,6 +883,7 @@ def test_is_ack_required_multi_level_inheritance(override_level, expected):
         trigger_class=_Grandchild,
         kwargs={},
         on_poll_terminate=lambda g: None,
+        on_seq_resolved=lambda seq: None,
         max_subscriber_queue=8,
         ack_timeout=300.0,
         log=structlog.get_logger("test"),
@@ -3053,6 +3055,7 @@ async def test_unconfirmed_persist_at_timeout_fails_subscriber():
         await asyncio.sleep(0.05)
         assert cls.advanced == ["p1"]
         assert cls.outcomes == [AdvanceOutcome(acked=0, failed=1)]
+        assert manager._seq_owner == {}, "the timed-out binding's seq must leave the owner map"
 
         # The still-online subscriber sees the AckTimeout; the confirmation
         # for the bound sequence number never arrives.
@@ -3086,8 +3089,71 @@ async def test_group_stop_abandons_unconfirmed_advance():
     # the group stops and the advance is abandoned — the broker redelivers.
     await manager.unsubscribe(1, key)
     assert manager._groups == {}
+    assert manager._seq_owner == {}, "the stopping group must sweep its unconfirmed seqs from the owner map"
     assert cls.advanced == [], "an unconfirmed advance must be abandoned at group stop"
     assert cls.aclose_calls == 1
+
+
+@pytest.mark.asyncio
+@mock.patch.object(
+    _SharedStreamGroup,
+    "confirm_persisted",
+    autospec=True,
+    side_effect=_SharedStreamGroup.confirm_persisted,
+)
+async def test_confirm_persisted_routes_seqs_to_owning_group_only(group_confirm_persisted):
+    """A confirmation resolves the seq in the group that drew it; other live groups are untouched."""
+    cls_a = _make_ack_required_trigger_class([({"n": "a"}, "pa")])
+    cls_b = _make_ack_required_trigger_class([({"n": "b"}, "pb")])
+    for cls in (cls_a, cls_b):
+        cls.advanced.clear()
+        cls.outcomes.clear()
+
+    t_a = cls_a(queue_url="https://qa")
+    t_b = cls_b(queue_url="https://qb")
+    key_a, key_b = t_a.shared_stream_key(), t_b.shared_stream_key()
+    assert key_a != key_b
+    manager = SharedStreamManager()
+    next_a = next_b = None
+    try:
+        s_a = manager.subscribe(trigger_id=1, trigger=t_a, key=key_a)
+        s_b = manager.subscribe(trigger_id=2, trigger=t_b, key=key_b)
+
+        it_a, it_b = s_a.__aiter__(), s_b.__aiter__()
+        await _pull_raw(it_a)
+        seq_a = manager.bind_pending_event(trigger_id=1, key=key_a)
+        await _pull_raw(it_b)
+        seq_b = manager.bind_pending_event(trigger_id=2, key=key_b)
+        assert seq_a is not None
+        assert seq_b is not None
+        assert manager._seq_owner == {seq_a: key_a, seq_b: key_b}
+        group_a, group_b = manager._groups[key_a], manager._groups[key_b]
+
+        next_a = await _resume_past_yield(it_a)
+        next_b = await _resume_past_yield(it_b)
+
+        manager.confirm_persisted([seq_a])
+        group_confirm_persisted.assert_called_once_with(group_a, [seq_a])
+        assert manager._seq_owner == {seq_b: key_b}, "a routed confirmation must evict its owner entry"
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls_a.advanced == ["pa"]
+        assert cls_b.advanced == [], "group B must not advance on group A's confirmation"
+
+        manager.confirm_persisted([seq_b])
+        assert group_confirm_persisted.call_args_list == [
+            mock.call(group_a, [seq_a]),
+            mock.call(group_b, [seq_b]),
+        ]
+        assert manager._seq_owner == {}
+        for _ in range(5):
+            await asyncio.sleep(0)
+        assert cls_b.advanced == ["pb"]
+    finally:
+        await _cancel_quietly(next_a)
+        await _cancel_quietly(next_b)
+        await manager.unsubscribe(1, key_a)
+        await manager.unsubscribe(2, key_b)
 
 
 @pytest.mark.asyncio
