@@ -40,7 +40,8 @@ log = structlog.get_logger(__name__)
 class CallbackFetchMethod(StrEnum):
     """Methods used to fetch callback at runtime."""
 
-    # For future use once Dag Processor callbacks (on_success_callback/on_failure_callback) get moved to executors
+    # For Dag processor callbacks (Dag and task callbacks, and emails), which the worker reads from
+    # the parsed Dag
     DAG_ATTRIBUTE = "dag_attribute"
 
     # For deadline callbacks since they import callbacks through the import path
@@ -51,6 +52,26 @@ class CallbackFetchMethod(StrEnum):
 # passed to the callback as they are, as for callbacks stored before the key was introduced.
 CALLBACK_KWARGS_ENCODING_KEY = "kwargs_encoding"
 SERDE_KWARGS_ENCODING = "serde"
+
+# Identifies the worker allowed to repeat its token exchange after losing the API response.
+STARTED_BY_KEY = "started_by"
+# Only schedulers that reap lost deadline workers set this on the callbacks they enqueue.
+HEARTBEAT_SUPPORTED_KEY = "heartbeat_supported"
+# Stamped by the scheduler so the worker and scheduler agree on the execution timeout.
+EXECUTION_TIMEOUT_KEY = "execution_timeout"
+# Which try at getting the callback started this is, from 1; absent on a first try.
+TRY_NUMBER_KEY = "try_number"
+# Holds the serialized callback request; workers read it from the Execution API, not the workload.
+CALLBACK_REQUEST_DATA_KEY = "req_data"
+
+
+def get_callback_report_window(execution_timeout: int) -> int:
+    """Return the seconds a routed callback has from its start to report its outcome: its timeout and a grace."""
+    return execution_timeout + max(60, execution_timeout // 2)
+
+
+class CallbackLaunchUnconfirmed(Exception):
+    """The executor could not establish that the failure belongs to the worker that claimed the callback."""
 
 
 class CallbackDTO(BaseModel):
@@ -80,6 +101,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
     """Execute the given Callback."""
 
     callback: CallbackDTO
+    executor_config: dict | None = Field(default=None, exclude=True)
 
     type: Literal[WorkloadType.EXECUTE_CALLBACK] = Field(init=False, default=WorkloadType.EXECUTE_CALLBACK)
 
@@ -119,6 +141,7 @@ class ExecuteCallback(BaseDagBundleWorkload):
         dag_rel_path: Path | None = None,
         generator: JWTGenerator | None = None,
         bundle_info: BundleInfo | None = None,
+        executor_config: dict | None = None,
     ) -> ExecuteCallback:
         """Create an ExecuteCallback workload from a Callback ORM model."""
         if not bundle_info:
@@ -132,10 +155,19 @@ class ExecuteCallback(BaseDagBundleWorkload):
             )
         fname = f"executor_callbacks/{dag_run.dag_id}/{dag_run.run_id}/{callback.id}"
 
+        data = callback.data
+        if callback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
+            # The request carries the run's context, which may hold run conf: the worker reads it
+            # from the Execution API rather than from executor transports, which also limit its size.
+            data = {key: value for key, value in data.items() if key != CALLBACK_REQUEST_DATA_KEY}
+
         return cls(
-            callback=CallbackDTO.model_validate(callback, from_attributes=True),
+            callback=CallbackDTO(
+                id=str(callback.id), fetch_method=CallbackFetchMethod(callback.fetch_method), data=data
+            ),
             dag_rel_path=dag_rel_path or Path(dag_run.dag_model.relative_fileloc or ""),
             token=cls.generate_token(str(callback.id), generator),
             log_path=fname,
             bundle_info=bundle_info,
+            executor_config=executor_config,
         )

@@ -912,7 +912,7 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
         task_instance_to_runtime,
     )
     from airflow.callbacks.callback_requests import TaskCallbackRequest
-    from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+    from airflow.callbacks.database_callback_sink import get_callback_sink
     from airflow.models.dagbag import DBDagBag
     from airflow.models.task_coordinates import TaskCoordinateResolver
     from airflow.utils.state import TaskInstanceState
@@ -920,9 +920,9 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
     callback_type = event.task_instance_state
     should_retry = False
     dag_bag = DBDagBag()
+    dag = None
 
     if event.task_instance_state == TaskInstanceState.FAILED:
-        # Load the serialized task so retry eligibility matches the normal task path.
         try:
             dag = dag_bag.get_dag_for_run(dag_run=task_instance.dag_run, session=session)
             if dag is not None:
@@ -930,7 +930,8 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
                 should_retry = task_instance.is_eligible_to_retry()
         except Exception:
             log.exception(
-                "Could not load task for %s; failing terminally without retry routing", task_instance
+                "Could not load Dag or task for %s; completing terminally without retry routing",
+                task_instance,
             )
         if should_retry:
             callback_type = TaskInstanceState.UP_FOR_RETRY
@@ -942,26 +943,30 @@ def _(event: BaseTaskEndEvent, *, task_instance: TaskInstance, session: Session)
             TaskInstanceState.FAILED,
             TaskInstanceState.UP_FOR_RETRY,
         ):
-            if task_instance.dag_model.relative_fileloc is None:
+            callback_filepath = (
+                dag.relative_fileloc if dag is not None else None
+            ) or task_instance.dag_model.relative_fileloc
+            if callback_filepath is None:
                 raise RuntimeError("relative_fileloc should not be None for a finished task")
             from airflow.models.dag_version import _resolve_ti_callback_bundle_info
 
             bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(task_instance)
             request = TaskCallbackRequest(
-                filepath=task_instance.dag_model.relative_fileloc,
+                filepath=callback_filepath,
                 ti=task_instance_to_runtime(
                     task_instance,
                     model=TIDataModel,
                     map_index=TaskCoordinateResolver(dag_bag, session).public_map_index(task_instance),
                 ),
                 task_callback_type=callback_type,
+                task_started=task_instance.has_run_on_worker,
                 bundle_name=bundle_name,
                 bundle_version=bundle_version,
                 version_data=version_data,
             )
             log.info("Sending callback: %s", request)
             try:
-                DatabaseCallbackSink().send(callback=request, session=session)
+                get_callback_sink().send(callback=request, session=session)
             except Exception:
                 log.exception("Failed to send callback.")
 

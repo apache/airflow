@@ -157,6 +157,7 @@ from airflow.sdk.execution_time.coordinator import TaskLaunchError, get_coordina
 from airflow.sdk.execution_time.request_handlers import (
     handle_delete_variable,
     handle_delete_xcom,
+    handle_get_assets_by_alias,
     handle_get_connection,
     handle_get_dag_run_state,
     handle_get_dr_count,
@@ -645,9 +646,17 @@ See: https://github.com/python/cpython/issues/105912
 """
 
 
+class _CallbackIOThread(threading.Thread):
+    """An in-flight callback operation that may outlive a timed-out callback in a reused worker."""
+
+
+def _has_live_callback_io() -> bool:
+    return any(isinstance(thread, _CallbackIOThread) for thread in threading.enumerate())
+
+
 def _should_use_exec() -> bool:
-    """Whether forked children should ``exec`` a fresh interpreter on this platform."""
-    return sys.platform in _FORK_EXEC_PLATFORMS
+    """Use a fresh interpreter on unsafe platforms or while callback I/O may hold inherited locks."""
+    return sys.platform in _FORK_EXEC_PLATFORMS or _has_live_callback_io()
 
 
 def task_process_uses_exec() -> bool:
@@ -830,6 +839,7 @@ class WatchedSubprocess:
         [
             _register_client_handler(DeleteVariable, handle_delete_variable),
             _register_client_handler(DeleteXCom, handle_delete_xcom),
+            _register_client_handler(GetAssetsByAlias, handle_get_assets_by_alias),
             _register_client_handler(GetConnection, handle_get_connection),
             _register_client_handler(GetDagRunState, handle_get_dag_run_state),
             _register_client_handler(GetDRCount, handle_get_dr_count),
@@ -1251,10 +1261,15 @@ class WatchedSubprocess:
         if handler is None:
             self._reject_request(msg, log, req_id)
             return
-        result = handler(self, msg, log, req_id)
+        result = self._call_request_handler(handler, msg, log, req_id)
         if result is not ResponseSent.ALREADY_SENT:
             resp, dump_opts = result
             self.send_msg(resp, request_id=req_id, error=None, **dump_opts)
+
+    def _call_request_handler(
+        self, handler: RequestHandler[Any], msg: BaseModel, log: FilteringBoundLogger, req_id: int
+    ) -> RequestResult | ResponseSent:
+        return handler(self, msg, log, req_id)
 
     def _reject_request(self, msg, log: FilteringBoundLogger, req_id: int) -> None:
         log.error("Unhandled request", msg=msg)
@@ -2223,12 +2238,6 @@ class ActivitySubprocess(WatchedSubprocess):
             return AssetResult.from_asset_response(asset_resp), {"exclude_unset": True}
         return asset_resp, {}
 
-    def _handle_get_assets_by_alias(
-        self, msg: GetAssetsByAlias, log: FilteringBoundLogger, req_id: int
-    ) -> RequestResult:
-        resp = self.client.assets.get_by_alias(alias_name=msg.alias_name)
-        return resp, {}
-
     def _handle_get_asset_event_by_asset(
         self, msg: GetAssetEventByAsset, log: FilteringBoundLogger, req_id: int
     ) -> RequestResult:
@@ -2433,6 +2442,7 @@ class ActivitySubprocess(WatchedSubprocess):
         **WatchedSubprocess._get_shared_request_handlers(
             DeleteVariable,
             DeleteXCom,
+            GetAssetsByAlias,
             GetConnection,
             GetDRCount,
             GetDagRunState,
@@ -2469,7 +2479,6 @@ class ActivitySubprocess(WatchedSubprocess):
                 register_request_method(GetAssetByUri, _handle_get_asset_by_uri),
                 register_request_method(GetAssetEventByAsset, _handle_get_asset_event_by_asset),
                 register_request_method(GetAssetEventByAssetAlias, _handle_get_asset_event_by_asset_alias),
-                register_request_method(GetAssetsByAlias, _handle_get_assets_by_alias),
                 register_request_method(GetAssetStateStoreByName, _handle_get_asset_state_store_by_name),
                 register_request_method(GetAssetStateStoreByUri, _handle_get_asset_state_store_by_uri),
                 register_request_method(GetDag, _handle_get_dag),

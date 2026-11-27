@@ -2325,6 +2325,210 @@ class TestEcsExecutorConfig:
 class TestEcsExecutorCallbackSupport:
     """Tests for ExecuteCallback support in the ECS Executor."""
 
+    @pytest.mark.db_test
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires routed callbacks"
+    )
+    @pytest.mark.parametrize(
+        ("cloud_state", "started", "stop"),
+        [(State.QUEUED, False, True), (State.QUEUED, True, False), (State.RUNNING, False, False)],
+        ids=["expired-before-start", "stale-cloud-state", "running-cloud-task"],
+    )
+    def test_release_only_stops_an_unstarted_expired_ecs_task(
+        self, mock_executor, session, cloud_state, started, stop
+    ):
+        from airflow.callbacks.callback_requests import DagCallbackRequest
+        from airflow.models.callback import CallbackKey, ExecutorCallback
+        from airflow.utils.state import CallbackState
+
+        callback = ExecutorCallback.from_dag_processor_request(
+            DagCallbackRequest(
+                dag_id="d", run_id="r", filepath="d.py", bundle_name="testing", bundle_version=None
+            )
+        )
+        callback.state = CallbackState.FAILED
+        if started:
+            callback.started_at = timezone.utcnow()
+        session.add(callback)
+        session.commit()
+        key = CallbackKey(str(callback.id))
+        callback.output = "uncommitted scheduler update"
+        mock_executor.active_workers.add_task(mock_task(ARN1, cloud_state), key, None, ["callback"], {}, 1)
+        mock_executor.release_callback(key)
+        session.rollback()
+        assert session.get_one(ExecutorCallback, callback.id).output is None
+        assert mock_executor.ecs.stop_task.call_args_list == (
+            [
+                mock.call(
+                    cluster=mock_executor.cluster,
+                    task=ARN1,
+                    reason="Airflow settled this callback before worker startup",
+                )
+            ]
+            if stop
+            else []
+        )
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    @pytest.mark.parametrize("submitted", [False, True], ids=["pending", "submitted"])
+    def test_release_callback_stops_submission_and_tracking(
+        self, mock_executor, callback_workload, submitted, time_machine
+    ):
+        from airflow.executors.workloads import ExecuteTask
+        from airflow.executors.workloads.base import WorkloadType
+
+        time_machine.move_to("2026-10-27T00:00:00Z", tick=False)
+        callback_key = callback_workload.key
+        pending_key, active_key, queued_key = (TaskInstanceUuid(uuid4()) for _ in range(3))
+        command = ["unrelated", "task"]
+        queued_workload = mock.Mock(spec=ExecuteTask)
+        task_queue = mock_executor.executor_queues[WorkloadType.EXECUTE_TASK]
+        task_queue[queued_key] = queued_workload
+        mock_executor.execute_async(pending_key, command)
+        mock_executor.active_workers.add_task(mock_task("active-task"), active_key, None, command, {}, 1)
+        mock_executor.running.update((callback_key, pending_key, active_key))
+        if submitted:
+            mock_executor.active_workers.add_task(
+                mock_task("callback-task"), callback_key, None, ["callback"], {}, 2
+            )
+        else:
+            mock_executor.execute_async(callback_key, [callback_workload])
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = False
+
+        mock_executor.release_callback(callback_key)
+        mock_executor.release_callback(callback_key)
+
+        assert [task.key for task in mock_executor.pending_workloads] == [pending_key]
+        assert mock_executor.active_workers.key_to_arn == {active_key: "active-task"}
+        assert mock_executor.active_workers.arn_to_key == {"active-task": active_key}
+        assert set(mock_executor.active_workers.tasks) == {"active-task"}
+        assert set(mock_executor.active_workers.key_to_task_info) == {active_key}
+        assert set(mock_executor.active_workers.key_to_failure_counts) == {active_key}
+        assert mock_executor.running == {pending_key, active_key}
+        assert task_queue == {queued_key: queued_workload}
+        assert callback_key not in mock_executor.event_buffer
+
+        mock_executor.IS_BOTO_CONNECTION_HEALTHY = True
+        active_task = {
+            "taskArn": "active-task",
+            "lastStatus": "RUNNING",
+            "desiredStatus": "RUNNING",
+            "containers": [],
+        }
+        mock_executor.ecs.describe_tasks.return_value = {"tasks": [active_task], "failures": []}
+        mock_executor.ecs.run_task.return_value = {
+            "tasks": [{**active_task, "taskArn": "new-task"}],
+            "failures": [],
+        }
+        mock_executor.sync()
+
+        mock_executor.ecs.describe_tasks.assert_called_once_with(
+            tasks=["active-task"], cluster="some-cluster"
+        )
+        mock_executor.ecs.run_task.assert_called_once()
+        overrides = mock_executor.ecs.run_task.call_args.kwargs["overrides"]["containerOverrides"]
+        assert overrides[0]["command"] == command
+        assert mock_executor.active_workers.key_to_arn == {active_key: "active-task", pending_key: "new-task"}
+        assert callback_key not in mock_executor.event_buffer
+        mock_executor.ecs.stop_task.assert_not_called()
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    def test_release_callback_cancels_its_run_task_call_not_yet_started(
+        self, concurrent_executor, callback_workload
+    ):
+        started = threading.Semaphore(0)
+        release = threading.Event()
+
+        def run_task(**kwargs):
+            started.release()
+            release.wait(timeout=10)
+            task_number = kwargs["overrides"]["containerOverrides"][0]["command"][-1]
+            task = {
+                "taskArn": f"{ARN1}-{task_number}",
+                "lastStatus": "",
+                "desiredStatus": "",
+                "containers": [{"name": "some-ecs-container"}],
+            }
+            return {"tasks": [task], "failures": []}
+
+        concurrent_executor.ecs.run_task.side_effect = run_task
+        task_keys = [TaskInstanceKey("dag", f"task_{i}", "run", 1, -1) for i in range(2)]
+        for i, key in enumerate(task_keys):
+            concurrent_executor.execute_async(key, ["airflow", "tasks", str(i)])
+        concurrent_executor.execute_async(callback_workload.key, [callback_workload])
+        concurrent_executor.attempt_workload_runs()
+        # Both threads (run_task_concurrency is 2) are busy, so the callback's call waits for one.
+        assert started.acquire(timeout=10)
+        assert started.acquire(timeout=10)
+
+        concurrent_executor.release_callback(callback_workload.key)
+        release.set()
+        wait(list(concurrent_executor._run_task_futures), timeout=10)
+        concurrent_executor.attempt_workload_runs()
+
+        assert concurrent_executor.ecs.run_task.call_count == 2
+        assert set(concurrent_executor.active_workers.get_all_task_keys()) == set(task_keys)
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "release_callback"), reason="Requires callback release support"
+    )
+    @pytest.mark.parametrize(
+        ("response", "stopped"),
+        [
+            pytest.param(
+                {
+                    "tasks": [{"taskArn": ARN1, "lastStatus": "", "desiredStatus": "", "containers": []}],
+                    "failures": [],
+                },
+                [ARN1],
+                id="started",
+            ),
+            pytest.param(
+                {"tasks": [], "failures": [{"arn": ARN1, "reason": "RESOURCE:MEMORY"}]},
+                [],
+                id="failed-to-start",
+            ),
+            pytest.param(
+                ClientError({"Error": {"Code": "ThrottlingException", "Message": "slow down"}}, "RunTask"),
+                [],
+                id="throttled",
+            ),
+        ],
+    )
+    def test_a_run_task_call_in_flight_does_not_revive_its_released_callback(
+        self, concurrent_executor, callback_workload, response, stopped
+    ):
+        started = threading.Event()
+        release = threading.Event()
+
+        def run_task(**kwargs):
+            started.set()
+            release.wait(timeout=10)
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+        concurrent_executor.ecs.run_task.side_effect = run_task
+        key = callback_workload.key
+        concurrent_executor.execute_async(key, [callback_workload])
+        concurrent_executor.attempt_workload_runs()
+        assert started.wait(timeout=10)
+
+        concurrent_executor.release_callback(key)
+        release.set()
+        wait(list(concurrent_executor._run_task_futures), timeout=10)
+        concurrent_executor.attempt_workload_runs()
+
+        assert not concurrent_executor._run_task_futures
+        assert not concurrent_executor.pending_workloads
+        assert len(concurrent_executor.active_workers) == 0
+        assert key not in concurrent_executor.event_buffer
+        assert [call.kwargs["task"] for call in concurrent_executor.ecs.stop_task.call_args_list] == stopped
+
     @pytest.fixture
     def callback_workload(self):
         """Create a mock ExecuteCallback workload for testing."""
@@ -2390,6 +2594,126 @@ class TestEcsExecutorCallbackSupport:
         assert queued.command[0] == "python"
         assert queued.command[2] == "airflow.sdk.execution_time.execute_workload"
         assert queued.command[3] == "--json-string"
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
+    @pytest.mark.parametrize("legacy_workload", [False, True], ids=["configured", "older-core"])
+    @mock.patch.object(
+        ecs_executor, "calculate_next_attempt_delay", autospec=True, return_value=dt.timedelta(0)
+    )
+    def test_callback_executor_config_survives_launch_retry(
+        self, mock_backoff, mock_executor, callback_workload, legacy_workload
+    ):
+        assert mock_executor.supports_routed_callbacks
+        executor_config = {
+            "overrides": {"taskRoleArn": "arn:aws:iam::123456789012:role/callback-role"},
+            "networkConfiguration": {"awsvpcConfiguration": {"subnets": ["callback-subnet"]}},
+        }
+        if legacy_workload:
+            if hasattr(callback_workload, "executor_config"):
+                del callback_workload.executor_config
+        elif hasattr(callback_workload, "executor_config"):
+            callback_workload.executor_config = executor_config
+        else:
+            pytest.skip("Core does not carry executor configuration on callback workloads")
+
+        mock_executor.queue_workload(callback_workload, session=None)
+        mock_executor._process_workloads([callback_workload])
+        queued = mock_executor.pending_workloads[0]
+        assert queued.executor_config == ({} if legacy_workload else executor_config)
+        serialized = json.loads(queued.command[-1])
+        assert serialized["callback"]["id"] == str(callback_workload.callback.id)
+        assert "executor_config" not in serialized
+        mock_executor.ecs.run_task.side_effect = [
+            RuntimeError("temporary launch failure"),
+            {
+                "tasks": [
+                    {
+                        "taskArn": ARN1,
+                        "lastStatus": "PENDING",
+                        "desiredStatus": "RUNNING",
+                        "containers": [{"name": "container-name"}],
+                    }
+                ],
+                "failures": [],
+            },
+        ]
+
+        mock_executor.attempt_workload_runs()
+        mock_executor.attempt_workload_runs()
+
+        assert not mock_executor.pending_workloads
+        assert mock_executor.ecs.run_task.call_count == 2
+        for call in mock_executor.ecs.run_task.call_args_list:
+            kwargs = call.kwargs
+            assert kwargs["overrides"].get("taskRoleArn") == (
+                None if legacy_workload else executor_config["overrides"]["taskRoleArn"]
+            )
+            assert kwargs["networkConfiguration"]["awsvpcConfiguration"]["subnets"] == (
+                ["sub1", "sub2"] if legacy_workload else ["callback-subnet"]
+            )
+            assert kwargs["overrides"]["containerOverrides"][0]["command"] == queued.command
+        assert mock_executor.active_workers.arn_to_key[ARN1] == callback_workload.callback.key
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires monitored callbacks"
+    )
+    def test_lost_run_task_response_preserves_callback_slot(self, mock_executor, callback_workload):
+        from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+        from airflow.utils.state import CallbackState
+
+        mock_executor.max_run_task_attempts = 1
+        mock_executor.ecs.run_task.side_effect = TimeoutError("lost RunTask response")
+        mock_executor.queue_workload(callback_workload, session=None)
+        mock_executor.trigger_workloads(1)
+
+        mock_executor.attempt_workload_runs()
+
+        key = callback_workload.key
+        state, info = mock_executor.get_event_buffer()[key]
+        assert state == CallbackState.FAILED
+        assert isinstance(info, CallbackLaunchUnconfirmed)
+        assert str(info) == "lost RunTask response"
+        assert key in mock_executor.running
+        assert not mock_executor.pending_workloads
+
+    @pytest.mark.skipif(
+        not hasattr(BaseExecutor, "supports_routed_callbacks"), reason="Requires monitored callbacks"
+    )
+    @pytest.mark.parametrize(
+        ("is_callback", "failed_container"),
+        [(True, "container-name"), (True, "sidecar"), (False, "container-name")],
+    )
+    def test_duplicate_exit_only_discards_a_callback_in_its_airflow_container(
+        self, mock_executor, is_callback, failed_container
+    ):
+        from airflow.models.callback import CallbackKey
+
+        key = CallbackKey(str(uuid4())) if is_callback else TaskInstanceUuid(uuid4())
+        mock_executor.active_workers.add_task(mock_task(ARN1), key, None, ["workload"], {}, 1)
+        mock_executor.running.add(key)
+        mock_executor.ecs.describe_tasks.return_value = {
+            "tasks": [
+                {
+                    "taskArn": ARN1,
+                    "lastStatus": "STOPPED",
+                    "desiredStatus": "STOPPED",
+                    "startedAt": "2024-01-01T00:00:00Z",
+                    "containers": [
+                        {"name": name, "exitCode": os.EX_TEMPFAIL if name == failed_container else 0}
+                        for name in ("container-name", "sidecar")
+                    ],
+                }
+            ],
+            "failures": [],
+        }
+
+        mock_executor.sync_running_workloads()
+
+        assert not mock_executor.active_workers.arn_to_key
+        assert key in mock_executor.running
+        assert not mock_executor.get_event_buffer()
+        duplicate = is_callback and failed_container == "container-name"
+        assert [task.key for task in mock_executor.pending_workloads] == ([] if duplicate else [key])
 
     @pytest.mark.skipif(not AIRFLOW_V_3_3_PLUS, reason="Test requires Airflow 3.3+")
     def test_callback_sync_running_success(self, mock_executor, callback_workload):

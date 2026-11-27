@@ -64,6 +64,19 @@ class AssetProfile(BaseModel):
     type: Annotated[str, Field(title="Type")]
 
 
+class CallbackRunPayload(BaseModel):
+    """
+    The attempt exchanging a callback's token, so a retry of its own exchange is recognized.
+    """
+
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    hostname: Annotated[str, Field(title="Hostname")]
+    pid: Annotated[int, Field(title="Pid")]
+    attempt_id: Annotated[UUID, Field(title="Attempt Id")]
+
+
 class CallbackTerminalState(str, Enum):
     """
     Terminal states a callback can transition to from RUNNING.
@@ -71,6 +84,10 @@ class CallbackTerminalState(str, Enum):
 
     SUCCESS = "success"
     FAILED = "failed"
+
+
+class Output(RootModel[str]):
+    root: Annotated[str, Field(max_length=2000, title="Output")]
 
 
 class CallbackTerminalStatePayload(BaseModel):
@@ -82,7 +99,7 @@ class CallbackTerminalStatePayload(BaseModel):
         extra="forbid",
     )
     state: CallbackTerminalState
-    output: Annotated[str | None, Field(title="Output")] = None
+    output: Annotated[Output | None, Field(title="Output")] = None
 
 
 class ConnectionResponse(BaseModel):
@@ -1231,6 +1248,20 @@ class TaskArgBinding(RootModel[XComArgBinding | LiteralArgBinding]):
     root: Annotated[XComArgBinding | LiteralArgBinding, Field(discriminator="kind", title="TaskArgBinding")]
 
 
+class DagCallbackContext(BaseModel):
+    """
+    What a worker needs to run a Dag's success or failure callbacks.
+    """
+
+    type: Annotated[Literal["DagCallback"], Field(title="Type")]
+    dag_id: Annotated[str, Field(title="Dag Id")]
+    run_id: Annotated[str, Field(title="Run Id")]
+    is_failure_callback: Annotated[bool | None, Field(title="Is Failure Callback")] = True
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    dag_run: DagRun | None = None
+    last_ti: TaskInstance | None = None
+
+
 class DagCallbackRequest(BaseModel):
     """
     A Class with information about the success/failure DAG callback to be executed.
@@ -1279,6 +1310,18 @@ class TIRunContext(BaseModel):
     multi_team: Annotated[bool | None, Field(title="Multi Team")] = False
 
 
+class TaskCallbackContext(BaseModel):
+    """
+    What a worker needs to run a task's failure or retry callbacks.
+    """
+
+    type: Annotated[Literal["TaskCallback"], Field(title="Type")]
+    ti: TaskInstance
+    task_callback_type: TaskInstanceState | None = None
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    ti_context: TIRunContext | None = None
+
+
 class TaskCallbackRequest(BaseModel):
     """
     Task callback status information.
@@ -1295,7 +1338,20 @@ class TaskCallbackRequest(BaseModel):
     ti: TaskInstance
     task_callback_type: TaskInstanceState | None = None
     context_from_server: TIRunContext | None = None
+    task_started: Annotated[bool | None, Field(title="Task Started")] = True
     type: Annotated[Literal["TaskCallbackRequest"] | None, Field(title="Type")] = "TaskCallbackRequest"
+
+
+class EmailCallbackContext(BaseModel):
+    """
+    What a worker needs to send a task's failure or retry email.
+    """
+
+    type: Annotated[Literal["EmailCallback"], Field(title="Type")]
+    ti: TaskInstance
+    email_type: Annotated[EmailType, Field(title="Email Type")]
+    msg: Annotated[str | None, Field(title="Msg")] = None
+    ti_context: TIRunContext
 
 
 class EmailRequest(BaseModel):
@@ -1311,6 +1367,7 @@ class EmailRequest(BaseModel):
     ti: TaskInstance
     email_type: Annotated[EmailType | None, Field(title="Email Type")] = EmailType.FAILURE
     context_from_server: TIRunContext
+    task_started: Annotated[bool | None, Field(title="Task Started")] = True
     type: Annotated[Literal["EmailRequest"] | None, Field(title="Type")] = "EmailRequest"
 
 
@@ -1329,3 +1386,14 @@ class ProcessorWorkItem(BaseModel):
     callback: Annotated[
         DagCallbackRequest | TaskCallbackRequest | EmailRequest | None, Field(title="Callback")
     ] = None
+
+
+class CallbackContextResponse(BaseModel):
+    """
+    The context of a Dag-attribute callback, read by the worker that runs it.
+    """
+
+    context: Annotated[
+        DagCallbackContext | TaskCallbackContext | EmailCallbackContext,
+        Field(discriminator="type", title="Context"),
+    ]

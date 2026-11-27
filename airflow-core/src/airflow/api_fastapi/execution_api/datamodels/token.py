@@ -50,6 +50,15 @@ class TIClaims(_JWTClaims):
     exp: float | None = None
 
 
+class CallbackClaims(TIClaims):
+    """Signed identity of a callback after exchange. It has no task instance."""
+
+    scope: Literal["execution"] = "execution"
+    dag_id: str | None = None
+    run_id: str | None = None
+    bundle_name: str | None = None
+
+
 DagBundleGrant = Annotated[frozenset[Annotated[str, Field(min_length=1)]], Field(min_length=1)]
 
 
@@ -97,6 +106,12 @@ class TIToken(ExecutionToken):
     """Authenticated task, workload, or callback identity."""
 
     claims: TIClaims
+
+
+class CallbackExecutionToken(TIToken):
+    """A callback using the execution endpoints after its token exchange."""
+
+    claims: CallbackClaims
 
 
 class DagProcessorSessionToken(ExecutionToken):

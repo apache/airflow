@@ -418,6 +418,7 @@ class TestDeadline:
 
         callback = session.scalar(select(Deadline).where(Deadline.id == deadline_id)).callback
         assert callback.id == callback_id
+        assert callback.dag_run_id == dagrun_id
         assert callback.data["dag_run_id"] == str(dagrun_id)
         assert callback.data["dag_id"] == dag_id
         assert callback.data["deadline_id"] == str(deadline_id)

@@ -18,15 +18,15 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import StrEnum
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, cast, runtime_checkable
 from uuid import UUID
 
 import structlog
 import uuid6
-from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid
+from sqlalchemy import ForeignKey, Index, Integer, String, Text, Uuid, or_, select, update
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 # Re-exporting as _accepts_context for backward compatibility
@@ -40,8 +40,12 @@ from airflow.configuration import conf
 from airflow.executors.workloads import BaseWorkload
 from airflow.executors.workloads.callback import (
     CALLBACK_KWARGS_ENCODING_KEY,
+    CALLBACK_REQUEST_DATA_KEY,
+    EXECUTION_TIMEOUT_KEY,
     SERDE_KWARGS_ENCODING,
+    STARTED_BY_KEY,
     CallbackFetchMethod,
+    get_callback_report_window,
 )
 from airflow.models import Base
 from airflow.models.base import StringID
@@ -62,9 +66,11 @@ class CallbackKey:
 
 
 if TYPE_CHECKING:
+    from sqlalchemy import CursorResult
     from sqlalchemy.orm import Session
 
     from airflow.callbacks.callback_requests import CallbackRequest
+    from airflow.models.dagrun import DagRun
     from airflow.triggers.base import TriggerEvent
 
 log = structlog.get_logger(__name__)
@@ -141,11 +147,19 @@ class Callback(Base, BaseWorkload):
     # Used by subclasses to store information about how to run the callback
     data: Mapped[dict] = mapped_column(ExtendedJSON, nullable=False)
 
+    dag_run_id: Mapped[int | None] = mapped_column(ForeignKey("dag_run.id", ondelete="SET NULL"))
+    # Distinguishes a deleted run from a row written by an older scheduler with only a JSON reference.
+    has_dag_run_reference: Mapped[bool | None]
+    heartbeat_supported: Mapped[bool | None]
+
     # Used to route dag-processor callbacks to filter by bundle name.
     bundle_name: Mapped[str | None] = mapped_column(StringID(), nullable=True)
 
     # State of the Callback of type: CallbackState. Can be null for instances of DagProcessorCallback.
     state: Mapped[str | None] = mapped_column(String(10))
+    started_at: Mapped[datetime | None] = mapped_column(UtcDateTime)
+    # The latest time to start while queued, or to hear from the worker while running.
+    state_deadline: Mapped[datetime | None] = mapped_column(UtcDateTime)
     processor_job_id: Mapped[int | None] = mapped_column(
         ForeignKey("job.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -170,6 +184,16 @@ class Callback(Base, BaseWorkload):
             trigger_id,
             postgresql_where=trigger_id.is_not(None),
             sqlite_where=trigger_id.is_not(None),
+        ),
+        Index("idx_callback_dag_run_id", "dag_run_id"),
+        # Every scheduler loop looks callbacks up by type and state, and routed ones by fetch method too.
+        Index("idx_callback_type_state_fetch_method", "type", "state", "fetch_method", "id"),
+        Index(
+            "idx_callback_state_deadline",
+            "state",
+            "state_deadline",
+            postgresql_where=state_deadline.is_not(None),
+            sqlite_where=state_deadline.is_not(None),
         ),
     )
 
@@ -229,9 +253,99 @@ class Callback(Base, BaseWorkload):
         """Return the DAG ID for scheduler routing."""
         return self.data.get("dag_id")
 
+    def set_dag_run(self, dag_run: DagRun) -> None:
+        self.dag_run_id = dag_run.id
+        self.has_dag_run_reference = True
+
+    def get_dag_run(self, *, session: Session) -> DagRun | None:
+        """Resolve the original run even if SQLite has reused its integer primary key."""
+        from airflow.models.dagrun import DagRun
+
+        if self.dag_run_id is not None:
+            return session.get(DagRun, self.dag_run_id)
+        if self.has_dag_run_reference:
+            return None
+
+        # Rows enqueued by an older scheduler have only the serialized run identity.
+        try:
+            dag_run_id = int(self.data["dag_run_id"])
+        except (KeyError, TypeError, ValueError):
+            return None
+        request = self.get_callback_request()
+        if request is None:
+            # Deadline.handle_miss snapshots the Dag run before queueing the callback.
+            run = ((self.data.get("kwargs") or {}).get("context") or {}).get("dag_run") or {}
+            dag_id, run_id = run.get("dag_id"), run.get("dag_run_id")
+            if not dag_id or not run_id:
+                # A deadline row still links a legacy callback to its run via foreign keys.
+                from airflow.models.deadline import Deadline
+
+                return session.scalar(
+                    select(DagRun)
+                    .join(Deadline, Deadline.dagrun_id == DagRun.id)
+                    .where(Deadline.callback_id == self.id, DagRun.id == dag_run_id)
+                )
+        else:
+            dag_id, run_id, _ = request.get_routing_info()
+        return session.scalar(
+            select(DagRun).where(DagRun.id == dag_run_id, DagRun.dag_id == dag_id, DagRun.run_id == run_id)
+        )
+
     def get_executor_name(self) -> str | None:
         """Return the executor name for scheduler routing."""
         return self.data.get("executor")
+
+    @property
+    def started_by(self) -> dict[str, Any] | None:
+        """Return the worker process that exchanged the callback's token, if it identified itself."""
+        return self.data.get(STARTED_BY_KEY)
+
+    def try_start(
+        self,
+        when: datetime,
+        *,
+        started_by: dict[str, Any] | None,
+        heartbeat_timeout: timedelta | None,
+        session: Session,
+    ) -> bool:
+        """Claim a queued callback before its deadline; the scheduler can concurrently replace it."""
+        timeout = (
+            self.data.get(EXECUTION_TIMEOUT_KEY)
+            if self.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE
+            else None
+        )
+        report_window = (
+            timedelta(seconds=get_callback_report_window(timeout)) if timeout else heartbeat_timeout
+        )
+        claimed = cast(
+            "CursorResult",
+            session.execute(
+                update(Callback)
+                .where(
+                    Callback.id == self.id,
+                    Callback.state == CallbackState.QUEUED,
+                    or_(Callback.state_deadline.is_(None), Callback.state_deadline > when),
+                )
+                .values(
+                    state=CallbackState.RUNNING,
+                    started_at=when,
+                    state_deadline=when + report_window if report_window else None,
+                    data={**self.data, STARTED_BY_KEY: started_by},
+                )
+                .execution_options(synchronize_session=False)
+            ),
+        )
+        if not claimed.rowcount:
+            return False
+        session.expire(self)
+        return True
+
+    def get_callback_request(self) -> CallbackRequest | None:
+        """Return the Dag processor callback request this callback stores, or ``None`` if it has none."""
+        if (req_class := self.data.get("req_class")) is None:
+            return None
+        request_class = getattr(import_module("airflow.callbacks.callback_requests"), req_class)
+        return request_class.from_json(self.data[CALLBACK_REQUEST_DATA_KEY])
 
     @staticmethod
     def create_from_sdk_def(callback_def: CallbackDefinitionProtocol, **kwargs) -> Callback:
@@ -321,26 +435,50 @@ class ExecutorCallback(Callback):
     __mapper_args__ = {"polymorphic_identity": CallbackType.EXECUTOR}
 
     def __init__(
-        self, callback_def: ImportPathExecutorCallbackDefProtocol, fetch_method: CallbackFetchMethod, **kwargs
+        self,
+        callback_def: CallbackDefinitionProtocol,
+        fetch_method: CallbackFetchMethod,
+        **kwargs,
     ):
         """
-        Initialize an ExecutorCallback from a callback definition and fetch method.
+        Initialize an ExecutorCallback from a callback definition, or from a Dag processor callback request.
 
-        :param callback_def: Callback definition with path, kwargs, and executor
+        :param callback_def: Import-path definition or the request from the Dag processor
         :param fetch_method: Method to fetch the callback at runtime
         :param kwargs: Passed to parent Callback.__init__ (see base class for details)
         """
         from airflow.serialization.encoders import encode_stored_callback_kwargs
 
+        if callback_def is None:
+            raise TypeError("An ExecutorCallback needs a callback definition or a callback request")
         super().__init__(**kwargs)
         self.fetch_method = fetch_method
         self.data |= callback_def.serialize()
-        # The kwargs are decoded by the callback runner on the worker, which needs the marker
-        # to tell them apart from the already-decoded kwargs of callbacks stored before it.
-        self.data["kwargs"] = encode_stored_callback_kwargs(self.data.get("kwargs") or {})
-        self.data[CALLBACK_KWARGS_ENCODING_KEY] = SERDE_KWARGS_ENCODING
+        if fetch_method == CallbackFetchMethod.IMPORT_PATH:
+            # Workers use the marker to distinguish stored kwargs from already-decoded legacy values.
+            self.data["kwargs"] = encode_stored_callback_kwargs(self.data.get("kwargs") or {})
+            self.data[CALLBACK_KWARGS_ENCODING_KEY] = SERDE_KWARGS_ENCODING
+
+    @classmethod
+    def from_dag_processor_request(cls, request: CallbackRequest) -> ExecutorCallback:
+        """
+        Store a Dag processor callback request for the scheduler to route to an executor.
+
+        The callback waits SCHEDULED until a scheduler routes it: queues it, or fails it when no
+        executor can run it. A scheduler with routing turned off makes it a Dag processor callback
+        again instead. As an executor callback, no Dag processor claims it in the meantime, and
+        schedulers from before routing leave it alone: they only queue PENDING ones.
+        """
+        callback = cls(request, CallbackFetchMethod.DAG_ATTRIBUTE)
+        callback.bundle_name = request.bundle_name
+        return callback
 
     def __repr__(self):
+        if self.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
+            return (
+                f"{self.data.get('req_class')} for Dag {self.get_dag_id()} "
+                f"on {self.data.get('executor') or 'default'} executor"
+            )
         return (
             f"{self.data['path']}({_format_kwargs_for_display(self.data['kwargs'])}) "
             f"on {self.data.get('executor', 'default')} executor"
@@ -359,11 +497,9 @@ class DagProcessorCallback(Callback):
         self.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
         self.state = None
         self.bundle_name = callback.bundle_name
-        self.data |= {"req_class": callback.__class__.__name__, "req_data": callback.to_json()}
+        self.data |= callback.serialize()
 
     def get_callback_request(self) -> CallbackRequest:
-        module = import_module("airflow.callbacks.callback_requests")
-        callback_request_class = getattr(module, self.data["req_class"])
-        # Get the function (from the instance) that we need to call
-        from_json = getattr(callback_request_class, "from_json")
-        return from_json(self.data["req_data"])
+        if (request := super().get_callback_request()) is None:
+            raise ValueError(f"Dag processor callback {self.id} stores no callback request")
+        return request

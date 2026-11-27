@@ -3734,8 +3734,63 @@ callbacks:
         Maximum execution time in seconds for deadline callbacks.
         Set to a positive integer to enable. When a callback exceeds this duration,
         it is terminated with SIGTERM followed by SIGKILL if it does not exit within 5 seconds.
-        0 means no timeout (default).
+        0 means no execution time limit (default). When the scheduler that queues the callback,
+        API server, and worker support callback heartbeats, the worker still reports liveness.
+        If it stops reporting for longer than ``[scheduler] task_instance_heartbeat_timeout``,
+        the scheduler marks the callback failed.
       version_added: 3.3.0
       type: integer
       example: "300"
       default: "0"
+    route_dag_processor_callbacks:
+      description: |
+        Run Dag success and failure callbacks, task failure and retry callbacks, and the task emails
+        that a task could not send itself on executors instead of in a Dag processor.
+
+        A started task's callbacks and emails use its executor, queue, and executor configuration
+        where supported by the executor. A Dag's callbacks run on the default executor of the
+        Dag's team. Callbacks for a task that never started, such as one failed while stuck in
+        the queue, run on the team's default executor and queue. The worker parses the Dag file
+        at the bundle version recorded in the callback request, or the current file in an unversioned
+        bundle. Workers on the team's default queue need all dependencies imported by those Dag files.
+
+        No Dag processor runs these callbacks while this is on, so every executor must be able to run
+        callbacks: the scheduler doesn't start otherwise. Callbacks no executor can run, such as those
+        of Lang-SDK Dags, fail with the reason. One that never starts is routed again, up to three tries.
+        Callbacks stored before this was turned on still run in a Dag processor.
+
+        Upgrade schedulers, API servers, workers, and executor providers before enabling this option.
+        The scheduler checks that each executor declares support for routed callbacks. Older provider
+        versions may run deadline alerts without applying task-specific settings to routed callbacks.
+        Callbacks stored for routing wait until a scheduler that routes them runs. Turning routing
+        off hands callbacks waiting to be routed back to the Dag processor. Already routed callbacks
+        finish on their executors.
+      version_added: 3.5.0
+      type: boolean
+      example: ~
+      default: "False"
+    routed_callback_execution_timeout:
+      description: |
+        Maximum time in seconds a callback routed by ``[callbacks] route_dag_processor_callbacks``
+        may take on its worker, including preparing its Dag bundle and parsing its Dag file. The
+        worker terminates a callback that takes longer, and the scheduler fails a routed callback
+        whose worker has not reported it finished within this time plus a grace period. Must be at
+        least 1.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "300"
+    max_routed_callbacks_per_loop:
+      description: |
+        The maximum number of Dag processor callbacks each scheduler loop routes to executors, and
+        the size of each scan window. A loop checks up to two windows for callbacks to route, or to
+        fail when no executor can run them.
+        Each scheduler limits newly routed callbacks per loop to half its free slots across
+        executors and half the free slots on each executor, rounded down with a minimum of one
+        when a slot is free. These limits leave local capacity for task admission when more than
+        one slot is free. They do not reserve shared worker capacity or set a cluster-wide limit
+        on running callbacks. Must be at least 1.
+      version_added: 3.5.0
+      type: integer
+      example: ~
+      default: "20"

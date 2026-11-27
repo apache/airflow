@@ -20,24 +20,69 @@ import pytest
 
 pytestmark = pytest.mark.db_test
 
-MISSING_CALLBACK_URL = "/execution/callbacks/00000000-0000-0000-0000-000000000000/state"
+MISSING_CALLBACK_URL = "/execution/callbacks/00000000-0000-0000-0000-000000000000"
 
 
-class TestUpdateCallbackStateEndpointVersioning:
-    """The callbacks/{callback_id}/state endpoint didn't exist before the 2027-02-28 API version."""
+@pytest.mark.parametrize(
+    ("method", "path", "body"),
+    [
+        pytest.param("GET", "context", None, id="context"),
+        pytest.param("GET", "previous-successful-dagrun", None, id="previous-successful-dagrun"),
+        pytest.param("PATCH", "state", {"state": "success"}, id="state"),
+        pytest.param("PUT", "heartbeat", None, id="heartbeat"),
+    ],
+)
+class TestCallbackEndpointVersioning:
+    """These callback endpoints first appeared in the 2027-02-28 API version."""
 
-    def test_old_version_returns_404(self, client):
-        """Before 2027-02-28 the route is absent, so routing itself 404s (no endpoint-shaped detail)."""
+    def test_old_version_returns_404(self, client, method, path, body):
         client.headers["Airflow-API-Version"] = "2026-10-30"
 
-        response = client.patch(MISSING_CALLBACK_URL, json={"state": "success"})
+        response = client.request(method, f"{MISSING_CALLBACK_URL}/{path}", json=body)
 
         assert response.status_code == 404
         assert response.json() == {"detail": "Not Found"}
 
-    def test_head_version_routes_to_endpoint(self, client):
-        """At head the route exists: the same request reaches the endpoint's own 404 handling."""
-        response = client.patch(MISSING_CALLBACK_URL, json={"state": "success"})
+    def test_head_version_routes_to_endpoint(self, client, method, path, body):
+        response = client.request(method, f"{MISSING_CALLBACK_URL}/{path}", json=body)
 
         assert response.status_code == 404
         assert response.json()["detail"]["reason"] == "not_found"
+
+
+@pytest.fixture
+def queued_callback(session):
+    from airflow.executors.workloads.callback import HEARTBEAT_SUPPORTED_KEY
+    from airflow.models.callback import CallbackFetchMethod, CallbackState, ExecutorCallback
+    from airflow.sdk.definitions.callback import SyncCallback
+
+    from tests_common.test_utils.db import clear_db_callbacks
+
+    clear_db_callbacks()
+    callback = ExecutorCallback(
+        callback_def=SyncCallback(_empty_callback, kwargs={}), fetch_method=CallbackFetchMethod.IMPORT_PATH
+    )
+    callback.state = CallbackState.QUEUED
+    callback.data[HEARTBEAT_SUPPORTED_KEY] = True
+    session.add(callback)
+    session.commit()
+    yield callback
+    clear_db_callbacks()
+
+
+def _empty_callback():
+    pass
+
+
+def test_old_version_keeps_the_single_use_exchange(client, queued_callback):
+    """The body that lets an attempt repeat its own exchange doesn't exist before 2027-02-28."""
+    client.headers["Airflow-API-Version"] = "2026-10-30"
+    url = f"/execution/callbacks/{queued_callback.id}/run"
+    body = {"hostname": "worker-1", "pid": 4242, "attempt_id": "01890a5d-ac70-7a5b-b7d5-0dd5b1c7be49"}
+
+    first = client.patch(url, json=body, headers={"Prefer": "callback-heartbeat"})
+    repeated = client.patch(url, json=body)
+
+    assert first.status_code == 204
+    assert "Airflow-Callback-Heartbeat-Timeout" not in first.headers
+    assert repeated.status_code == 409

@@ -264,6 +264,10 @@ Token structure (Execution API)
      - Not-before timestamp.
    * - ``exp``
      - Expiration timestamp, determined by the scope's lifetime and any parent credential's expiry.
+   * - ``dag_id``, ``run_id``, ``bundle_name``
+     - On an ``execution`` token a callback exchanged for: the Dag, Dag run, and Dag bundle the
+       callback runs for. A callback has no task instance, so its team is resolved from the signed
+       ``bundle_name`` for its Connection, Variable, and XCom access.
 
 Token scopes (Execution API)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -290,7 +294,13 @@ The Execution API uses the following token scopes. Each endpoint accepts only it
 
 **callback**
    A single-use token exchanged at ``/callbacks/{callback_id}/run`` for an ``execution``
-   token when a queued callback starts.
+   token when a queued callback starts. Once the callback runs, the exchange is refused, except
+   when repeated by the same attempt to run it, which identifies itself with an ID it generates, as
+   when it never got the response. For routed Dag and task callbacks, the ``execution`` token lasts
+   at least until the worker must report the outcome. Workers that support heartbeats for deadline
+   callbacks can keep reporting liveness even when the callback has no execution time limit.
+   The token carries the callback's Dag, Dag run, and Dag bundle so deadline callbacks can use their
+   Dag bundle's team in multi-team mode.
 
 **dag_processor_session**
    A provisioned credential accepted only by ``POST /jobs`` for Job registration and renewal.

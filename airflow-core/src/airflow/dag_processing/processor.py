@@ -347,6 +347,8 @@ def _get_dag_with_task(
 def _execute_callbacks(
     dagbag: DagBag, callback_requests: list[CallbackRequest], log: FilteringBoundLogger
 ) -> None:
+    # The worker builds the same callback context and selects callbacks in
+    # airflow.sdk.execution_time.dag_attribute_callbacks. Keep the two paths in sync.
     for request in callback_requests:
         if isinstance(request, (TaskCallbackRequest, EmailRequest)):
             log_extra = {

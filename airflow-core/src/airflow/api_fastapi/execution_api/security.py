@@ -28,6 +28,12 @@ Token types (``TokenType``):
     Restricted scope, only accepted on routes that opt in via
     ``Security(require_auth, scopes=["token:workload"])``.
 
+``"callback"``
+    A callback's single-use token, exchanged at ``/callbacks/{id}/run`` for an
+    ``execution`` token that carries the callback's ``dag_id``, ``run_id`` and
+    ``bundle_name``. A callback has no task instance, so its team is resolved
+    from the signed bundle.
+
 ``"dag_processor_session"``
     Issued to a Dag processor session by trusted provisioning, never by the
     processor itself. ``sub`` identifies the session and the ``dag_bundles``
@@ -110,6 +116,8 @@ from sqlalchemy import select
 
 from airflow.api_fastapi.auth.tokens import JWTGenerator, JWTValidator
 from airflow.api_fastapi.execution_api.datamodels.token import (
+    CallbackClaims,
+    CallbackExecutionToken,
     DagParseClaims,
     DagParseToken,
     DagProcessorClaims,
@@ -235,6 +243,10 @@ class JWTBearer(HTTPBearer):
             token_type = (
                 _TOKEN_MODELS.get(scope, ExecutionToken) if isinstance(scope, str) else ExecutionToken
             )
+            # Only callback exchanges sign a Dag, run, or bundle identity. Older task tokens
+            # may contain the same keys with null values after a refresh.
+            if scope == "execution" and any(claims.get(name) for name in ("dag_id", "run_id", "bundle_name")):
+                token_type = CallbackExecutionToken
             token = token_type.model_validate({"id": claims.get("sub"), "claims": claims})
         except ValidationError as err:
             log.warning("JWT claims did not match Execution API principal schema", exc_info=True)
@@ -490,10 +502,19 @@ async def require_dag_in_granted_bundle(
 DagInGrantedBundle = Depends(require_dag_in_granted_bundle)
 
 
-def issue_execution_token(services: svcs.Container, response: Response, sub: str) -> None:
+def issue_execution_token(
+    services: svcs.Container,
+    response: Response,
+    sub: str,
+    claims: dict[str, str] | None = None,
+    min_valid_for: float | None = None,
+) -> None:
     """Mint an ``execution``-scoped token and set it on the ``Refreshed-API-Token`` header."""
     generator: JWTGenerator = services.get(JWTGenerator)
-    response.headers["Refreshed-API-Token"] = generator.generate(extras={"sub": sub, "scope": "execution"})
+    response.headers["Refreshed-API-Token"] = generator.generate(
+        extras={**(claims or {}), "sub": sub, "scope": "execution"},
+        valid_for=max(generator.valid_for, min_valid_for) if min_valid_for else None,
+    )
 
 
 class ExecutionAPIRoute(APIRoute):
@@ -547,7 +568,7 @@ async def get_team_name_dep(
     async with create_session_async() as session:
         if isinstance(token, (DagProcessorToken, DagParseToken)):
             return await session.scalar(_team_name_for_bundle_stmt(dag_bundle))
-        return await session.scalar(_team_name_for_ti_stmt(token.id))
+        return await session.scalar(_team_name_for_requester_stmt(token))
 
 
 def get_team_name_for_ti(ti_id, session) -> str | None:
@@ -575,6 +596,13 @@ def _team_name_for_ti_stmt(ti_id):
         .where(TaskInstance.id == ti_id)
         .execution_options(include_all_attempts=True)
     )
+
+
+def _team_name_for_requester_stmt(token: ExecutionToken):
+    """Build the select statement resolving a task's or callback's token to its team name."""
+    if isinstance(token.claims, CallbackClaims):
+        return _team_name_for_bundle_stmt(token.claims.bundle_name)
+    return _team_name_for_ti_stmt(token.id)
 
 
 def _team_name_for_bundle_stmt(bundle_name):

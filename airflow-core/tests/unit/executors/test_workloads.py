@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import dataclasses
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import get_args
 from uuid import UUID, uuid4
 
@@ -571,3 +571,49 @@ class TestExecuteCallbackMakeVersionData:
 
         assert workload.bundle_info.version == "abc123"
         assert workload.bundle_info.version_data is None
+
+
+class TestExecuteCallbackMakeDagAttribute:
+    """A routed Dag processor callback carries no run context through executor transports."""
+
+    @pytest.mark.parametrize(
+        ("fetch_method", "keeps_request"),
+        [
+            pytest.param(CallbackFetchMethod.DAG_ATTRIBUTE, False, id="dag-attribute"),
+            pytest.param(CallbackFetchMethod.IMPORT_PATH, True, id="import-path"),
+        ],
+    )
+    def test_request_is_left_out_of_dag_attribute_workloads(self, fetch_method, keeps_request):
+        callback, dag_run = TestExecuteCallbackMakeVersionData._make_mocks(
+            bundle_version=None, version_data=None
+        )
+        callback.fetch_method = fetch_method
+        callback.data = {
+            "req_class": "DagCallbackRequest",
+            "req_data": '{"conf": "secret"}',
+            "dag_id": "test_dag",
+        }
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run, dag_rel_path=Path("moved/dag.py"))
+
+        assert workload.callback.fetch_method == fetch_method
+        assert ("req_data" in workload.callback.data) is keeps_request
+        assert workload.callback.data["req_class"] == "DagCallbackRequest"
+        assert workload.dag_rel_path == Path("moved/dag.py")
+        assert workload.executor_config is None
+
+    @pytest.mark.parametrize("executor_config", [None, {}, {"pod_override": object()}])
+    def test_executor_config_stays_on_the_executor_side(self, executor_config):
+        callback, dag_run = TestExecuteCallbackMakeVersionData._make_mocks(
+            bundle_version=None, version_data=None
+        )
+        callback.fetch_method = CallbackFetchMethod.DAG_ATTRIBUTE
+
+        workload = ExecuteCallback.make(callback=callback, dag_run=dag_run, executor_config=executor_config)
+
+        assert workload.executor_config == executor_config
+        assert "executor_config" not in workload.callback.data
+        assert "executor_config" not in workload.model_dump()
+        assert "executor_config" not in workload.model_dump(mode="json")
+        received = ExecuteCallback.model_validate_json(workload.model_dump_json())
+        assert received.executor_config is None

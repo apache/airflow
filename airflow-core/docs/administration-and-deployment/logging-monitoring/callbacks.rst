@@ -38,9 +38,38 @@ There are three different places where callbacks can be defined.
 .. warning::
 
     Callback functions are executed after tasks are completed.
-    Errors in callback functions will show up in dag processor logs rather than task logs.
-    By default, dag processor logs do not show up in the UI and instead can be found in
+    For callbacks that run in a Dag processor, errors appear in the Dag processor logs.
+    By default, those logs can be found in
     ``$AIRFLOW_HOME/logs/dag_processor/latest/dags-folder/<the_path_for_your_dag>/DAG_FILE.py.log``
+
+.. note::
+    Dag callbacks, and the task failure and retry callbacks and emails that a task cannot run itself (for example
+    after it was killed externally or stopped sending heartbeats), run in a Dag processor by default. Set
+    :ref:`callbacks.route_dag_processor_callbacks <config:callbacks__route_dag_processor_callbacks>` to ``True`` to
+    run them on executors instead. A started task's callbacks use its executor, queue, and ``executor_config``
+    where supported by the executor. Dag callbacks and callbacks of tasks that never started use the default
+    executor and queue of the Dag's team. Workers on that queue must be able to import the Dag file,
+    including any modules it imports from providers or other packages. If an import fails, the callback
+    is marked failed before the callback function runs. The scheduler does not retry that failure.
+    Routed callback logs are written under
+    ``$AIRFLOW_HOME/logs/executor_callbacks/<dag_id>/<run_id>/``. Every executor must then be able to run callbacks,
+    or the scheduler doesn't start. Upgrade the executor providers on the schedulers and the SDK on
+    the workers before enabling routing. For example, older Amazon provider versions can run deadline
+    alerts but omit a task's ECS IAM and network overrides when launching its callback. Custom executors
+    declare ``supports_routed_callbacks = True`` once they preserve the launch settings and handle
+    duplicate deliveries. For container executors, exit code 75 (``os.EX_TEMPFAIL``) from the
+    callback command means that the Execution API refused this delivery because the callback
+    already started or its start deadline passed. Discard the delivery without retrying it or
+    reporting a terminal callback state. The admitted worker reports its own outcome.
+    During a rolling upgrade, deadline callbacks queued by older schedulers
+    keep their original worker-loss handling. Before rolling back the last upgraded scheduler,
+    let deadline callbacks it enrolled for heartbeat monitoring finish or expire.
+
+    Each scheduler limits new callbacks in a loop to half its free slots across executors and half the free slots
+    on each executor, rounded down with a minimum of one when a slot is free.
+    :ref:`callbacks.max_routed_callbacks_per_loop <config:callbacks__max_routed_callbacks_per_loop>` also caps
+    admissions in each loop. These limits apply to each scheduler's own executor instances. Shared workers can
+    still be occupied entirely by callbacks, including callbacks admitted over successive scheduler loops.
 
 .. note::
     As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions

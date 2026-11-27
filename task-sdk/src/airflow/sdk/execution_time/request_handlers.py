@@ -52,6 +52,7 @@ from airflow.sdk.execution_time.comms import (
     DeleteAssetStateStoreByUri,
     DeleteVariable,
     DeleteXCom,
+    GetAssetsByAlias,
     GetAssetStateStoreByName,
     GetAssetStateStoreByUri,
     GetConnection,
@@ -331,6 +332,10 @@ def handle_get_xcom(client: Client, msg: GetXCom) -> tuple[BaseModel | None, dic
     if isinstance(xcom, XComSequenceSliceResponse):
         return XComSequenceSliceResult.from_response(xcom), {}
     return xcom, {}
+
+
+def handle_get_assets_by_alias(client: Client, msg: GetAssetsByAlias) -> tuple[BaseModel, dict[str, bool]]:
+    return client.assets.get_by_alias(alias_name=msg.alias_name), {}
 
 
 def handle_get_asset_state_store_by_name(

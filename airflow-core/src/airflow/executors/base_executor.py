@@ -84,6 +84,7 @@ if TYPE_CHECKING:
     from airflow.executors.executor_utils import ExecutorName
     from airflow.executors.workloads import ExecutorWorkload
     from airflow.executors.workloads.types import WorkloadKey, WorkloadState
+    from airflow.models.callback import CallbackKey
     from airflow.models.connection_test import ConnectionTestKey
     from airflow.models.taskinstance import TaskInstance
 
@@ -208,6 +209,16 @@ class BaseExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = False
     supported_workload_types: frozenset[WorkloadType] = frozenset({WorkloadType.EXECUTE_TASK})
     supports_callbacks = _LegacyWorkloadFlag(WorkloadType.EXECUTE_CALLBACK)
+    # EXECUTE_CALLBACK covers import-path deadline alerts. Routed callbacks additionally require
+    # the task's queue and executor_config, duplicate-delivery handling, and release_callback.
+    supports_routed_callbacks: bool = False
+
+    @property
+    def can_route_callbacks(self) -> bool:
+        return (
+            self.supports_routed_callbacks and WorkloadType.EXECUTE_CALLBACK in self.supported_workload_types
+        )
+
     supports_connection_test = _LegacyWorkloadFlag(WorkloadType.TEST_CONNECTION)
     supports_multi_team: bool = False
     # Opt in only when submission, adoption, result decoding and cleanup all carry UUIDs.
@@ -554,6 +565,11 @@ class BaseExecutor(LoggingMixin):
     def fail_connection_test(self, key: ConnectionTestKey) -> None:
         """Drop a connection-test workload from in-memory queues (called by the reaper)."""
         self.executor_queues[WorkloadType.TEST_CONNECTION].pop(key, None)
+        self.running.discard(key)
+
+    def release_callback(self, key: CallbackKey) -> None:
+        """Drop a callback workload settled without an executor event from in-memory queues (called by the reaper)."""
+        self.executor_queues[WorkloadType.EXECUTE_CALLBACK].pop(key, None)
         self.running.discard(key)
 
     def _get_metric_name(self, metric_base_name: str) -> str:
@@ -945,15 +961,23 @@ class BaseExecutor(LoggingMixin):
                 sentry_integration=getattr(workload, "sentry_integration", ""),
             )
         if isinstance(workload, ExecuteCallback):
-            from airflow.executors.workloads.callback import CALLBACK_KWARGS_ENCODING_KEY
+            from airflow.executors.workloads.callback import (
+                CALLBACK_KWARGS_ENCODING_KEY,
+                EXECUTION_TIMEOUT_KEY,
+                CallbackFetchMethod,
+            )
             from airflow.sdk.execution_time.callback_supervisor import supervise_callback
 
-            # Only passed when set, so callbacks stored without it run on any Task SDK, while
-            # encoded kwargs fail on a Task SDK that cannot decode them instead of reaching
-            # the callback encoded.
-            encoding_kwargs = {}
+            # Only passed when set, so callbacks stored without them run on any Task SDK, while
+            # encoded kwargs and Dag-attribute callbacks fail on a Task SDK that cannot run them
+            # instead of reaching the callback encoded or running nothing.
+            optional_kwargs: dict[str, Any] = {}
             if kwargs_encoding := workload.callback.data.get(CALLBACK_KWARGS_ENCODING_KEY):
-                encoding_kwargs["callback_kwargs_encoding"] = kwargs_encoding
+                optional_kwargs["callback_kwargs_encoding"] = kwargs_encoding
+            if workload.callback.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE:
+                optional_kwargs["fetch_method"] = workload.callback.fetch_method.value
+            if (execution_timeout := workload.callback.data.get(EXECUTION_TIMEOUT_KEY)) is not None:
+                optional_kwargs["execution_timeout"] = execution_timeout
             return supervise_callback(
                 id=workload.callback.id,
                 callback_path=workload.callback.data.get("path", ""),
@@ -963,7 +987,7 @@ class BaseExecutor(LoggingMixin):
                 bundle_info=workload.bundle_info,
                 token=workload.token,
                 server=server,
-                **encoding_kwargs,
+                **optional_kwargs,
             )
         if isinstance(workload, TestConnection):
             from airflow.sdk.execution_time.connection_test_supervisor import supervise_connection_test

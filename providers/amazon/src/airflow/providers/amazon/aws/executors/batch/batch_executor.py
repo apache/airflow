@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from collections import deque
 from collections.abc import Sequence
@@ -42,10 +43,17 @@ from airflow.providers.amazon.version_compat import (
 from airflow.providers.common.compat.sdk import AirflowException, Stats, timezone
 from airflow.utils.helpers import merge_dicts, prune_dict
 
+if AIRFLOW_V_3_3_PLUS:
+    from airflow.models.callback import CallbackKey
+
 if AIRFLOW_V_3_4_PLUS:
     from airflow.executors.workloads.base import WorkloadType
 
     _SUPPORTED_WORKLOAD_TYPES = frozenset({WorkloadType.EXECUTE_TASK, WorkloadType.EXECUTE_CALLBACK})
+
+if hasattr(BaseExecutor, "supports_routed_callbacks"):
+    from airflow.executors.workloads.callback import CallbackLaunchUnconfirmed
+    from airflow.utils.state import CallbackState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -101,6 +109,7 @@ class AwsBatchExecutor(BaseExecutor):
     """
 
     supports_multi_team: bool = True
+    supports_routed_callbacks: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
     if AIRFLOW_V_3_4_PLUS:
         supported_workload_types: frozenset[WorkloadType] = _SUPPORTED_WORKLOAD_TYPES
@@ -183,7 +192,12 @@ class AwsBatchExecutor(BaseExecutor):
                     del self.executor_queues[WorkloadType.EXECUTE_CALLBACK][callback_key]
                 else:
                     del self.queued_callbacks[callback_key]
-                self.execute_async(key=callback_key, command=callback_command, queue=queue)  # type: ignore[arg-type]
+                self.execute_async(
+                    key=callback_key,
+                    command=callback_command,  # type: ignore[arg-type]
+                    queue=queue,
+                    executor_config=getattr(workload, "executor_config", None),
+                )
                 self.running.add(callback_key)
             else:
                 raise RuntimeError(f"{type(self)} cannot handle workloads of type {type(workload)}")
@@ -272,6 +286,18 @@ class AwsBatchExecutor(BaseExecutor):
             # up and kill the scheduler process
             self.log.exception("Failed to sync %s", self.__class__.__name__)
 
+    def release_callback(self, key: CallbackKey) -> None:
+        """Stop submitting or tracking a callback settled by the scheduler."""
+        self.pending_jobs = deque(job for job in self.pending_jobs if job.key != key)
+        if job_id := self.active_workers.key_to_id.pop(key, None):
+            self.active_workers.remove_job(job_id)
+            try:
+                # CancelJob only affects queued jobs. A worker already running can finish reporting.
+                self.batch.cancel_job(jobId=job_id, reason="Airflow settled this callback")
+            except Exception:
+                self.log.exception("Failed to cancel Batch job %s for released callback %s", job_id, key)
+        super().release_callback(key)
+
     def sync_running_jobs(self):
         all_job_ids = self.active_workers.get_all_jobs()
         if not all_job_ids:
@@ -331,6 +357,14 @@ class AwsBatchExecutor(BaseExecutor):
         # Airflow, which will be handled separately.
         job_info = self.active_workers.id_to_job_info[job.job_id]
         workload_key = self.active_workers.id_to_key[job.job_id]
+        if (
+            hasattr(BaseExecutor, "supports_routed_callbacks")
+            and isinstance(workload_key, CallbackKey)
+            and job.exit_code == os.EX_TEMPFAIL
+        ):
+            # Keep the logical slot until the admitted callback reports or its lease expires.
+            self.active_workers.pop_by_id(job.job_id)
+            return
         workload_cmd = job_info.cmd
         queue = job_info.queue
         exec_info = job_info.config
@@ -415,7 +449,17 @@ class AwsBatchExecutor(BaseExecutor):
                         f"Dropping the workload. Reason: {failure_reason}",
                         ti_key=workload_key,
                     )
-                    self.fail(key=workload_key)
+                    if hasattr(BaseExecutor, "supports_routed_callbacks") and isinstance(
+                        workload_key, CallbackKey
+                    ):
+                        self.change_state(
+                            workload_key,
+                            CallbackState.FAILED,
+                            info=CallbackLaunchUnconfirmed(failure_reason),
+                            remove_running=False,
+                        )
+                    else:
+                        self.fail(key=workload_key)
                 else:
                     batch_job.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
                         attempt_number

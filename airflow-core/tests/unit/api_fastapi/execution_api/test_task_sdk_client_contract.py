@@ -26,20 +26,26 @@ mocked tests in ``task-sdk/tests/task_sdk/api/test_client.py``.
 from __future__ import annotations
 
 import json
+from datetime import timedelta
 from uuid import uuid4
 
 import pytest
+import time_machine
 from sqlalchemy import delete
 
 from airflow._shared.timezones import timezone
+from airflow.api_fastapi.execution_api.security import require_auth
+from airflow.executors.workloads.callback import HEARTBEAT_SUPPORTED_KEY
 from airflow.models.asset import AssetActive, AssetModel
 from airflow.models.asset_state_store import AssetStateStoreModel
+from airflow.models.callback import CallbackFetchMethod, CallbackState, ExecutorCallback
 from airflow.models.connection import Connection
 from airflow.models.task_state_store import TaskStateStoreModel
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XComModelV2
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
+from airflow.sdk.api.client import ServerResponseError
 from airflow.sdk.api.datamodels._generated import (
     AssetStateStoreResponse,
     ConnectionResponse,
@@ -49,16 +55,57 @@ from airflow.sdk.api.datamodels._generated import (
     XComSequenceIndexResponse,
     XComSequenceSliceResponse,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.definitions.callback import SyncCallback
+from airflow.sdk.exceptions import CallbackAlreadyStartedError, ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse, XComCountResponse
 from airflow.utils.session import create_session
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_connections, clear_db_variables
 
 pytestmark = pytest.mark.db_test
 
 MAPPED_VALUES = ["a", "b"]
 SLASHED_KEY = "nested/key"
+
+
+@conf_vars({("scheduler", "task_instance_heartbeat_timeout"): "30"})
+@pytest.mark.parametrize("scheduler_enrolled", [True, False], ids=["new-scheduler", "old-scheduler"])
+def test_deadline_callback_heartbeat_and_duplicate_delivery(
+    task_sdk_client, in_process_execution_api, monkeypatch, session, scheduler_enrolled
+):
+    # The in-process transport normally supplies a task token; token scopes are tested on the HTTP routes.
+    monkeypatch.setitem(in_process_execution_api.app.dependency_overrides, require_auth, lambda: None)
+    callback = ExecutorCallback(SyncCallback("builtins.print"), CallbackFetchMethod.IMPORT_PATH)
+    if scheduler_enrolled:
+        callback.data[HEARTBEAT_SUPPORTED_KEY] = True
+    callback.state = CallbackState.QUEUED
+    session.add(callback)
+    session.commit()
+    try:
+        with time_machine.travel(timezone.datetime(2026, 10, 22), tick=False) as clock:
+            if not scheduler_enrolled:
+                assert task_sdk_client.callbacks.run(callback.id) is None
+                session.refresh(callback)
+                assert callback.state_deadline is None
+                with pytest.raises(ServerResponseError) as exc_info:
+                    task_sdk_client.callbacks.run(callback.id)
+                assert exc_info.value.response.status_code == 409
+                return
+            assert task_sdk_client.callbacks.run(callback.id) == 30
+            session.refresh(callback)
+            assert callback.state_deadline == timezone.utcnow() + timedelta(seconds=30)
+            clock.shift(timedelta(seconds=10))
+            with pytest.raises(CallbackAlreadyStartedError):
+                task_sdk_client.callbacks.run(callback.id)
+            session.refresh(callback)
+            assert callback.state_deadline == timezone.utcnow() + timedelta(seconds=20)
+            task_sdk_client.callbacks.heartbeat(callback.id, timeout=5)
+            session.refresh(callback)
+            assert callback.state_deadline == timezone.utcnow() + timedelta(seconds=30)
+    finally:
+        session.delete(callback)
+        session.commit()
 
 
 class TestXComOperations:

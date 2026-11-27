@@ -1196,6 +1196,23 @@ class TestLocalExecutorBookkeeping:
         assert executor.event_buffer == {}
         assert not executor._worker_tasks
 
+    def test_late_results_after_callback_released_are_ignored(self, local_executor_with_mock_worker):
+        executor, proc = local_executor_with_mock_worker
+        workload = _make_workload("callback")
+        key = executor.get_workload_key(workload)
+        executor.queue_workload(workload, session=mock.create_autospec(Session, instance=True))
+        executor.heartbeat()
+        executor.release_callback(key)
+        executor.result_queue.put((proc.pid, key, workload.running_state, None))
+        executor.result_queue.put((proc.pid, key, workload.success_state, None))
+
+        executor.sync()
+
+        assert executor.event_buffer == {}
+        assert not executor._worker_tasks
+        assert not executor._dispatch_counts
+        assert executor.slots_available == 1
+
     def test_terminal_from_worker_that_does_not_own_the_key_is_ignored(
         self, local_executor_with_mock_worker, mocker
     ):
@@ -1397,7 +1414,7 @@ class TestLocalExecutorCallbackSupport:
         "airflow.sdk.execution_time.callback_supervisor.supervise_callback",
         side_effect=RuntimeError("Callback subprocess exited with code 1"),
     )
-    def test_execute_workload_raises_on_callback_failure(self, mock_supervise_callback):
+    def test_execute_workload_propagates_unreported_callback_failure(self, mock_supervise_callback):
         callback_data = CallbackDTO(
             id=self.CALLBACK_UUID,
             fetch_method=CallbackFetchMethod.IMPORT_PATH,

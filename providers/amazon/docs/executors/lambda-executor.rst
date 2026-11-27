@@ -63,6 +63,12 @@ which Lambda will automatically send messages to for invocations that fail to be
 for example due to the 15 minute max timeout of Lambda functions. The Lambda executor will
 also poll this DLQ for messages and update the internal state with the results it receives.
 
+For callback workloads, a custom Lambda handler must copy the complete ``task_key`` and the
+exact integer subprocess return code into the SQS result. If Lambda delivers a callback twice,
+the Task SDK exits with code 75 on the duplicate. The executor acknowledges that message and
+continues waiting for the worker that claimed the callback. The example handler already
+forwards both fields unchanged.
+
 .. image:: ../img/lambda_executor.png
 
 Quotas

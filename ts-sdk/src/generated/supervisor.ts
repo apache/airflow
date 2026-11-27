@@ -275,6 +275,7 @@ export type FromDefault = boolean;
  */
 export type ExecutionTimeout = number | null;
 export type MultiTeam = boolean;
+export type TaskStarted = boolean;
 export type Type13 = "TaskCallbackRequest";
 export type Filepath2 = string;
 export type BundleName3 = string;
@@ -284,6 +285,7 @@ export type VersionData3 = {
 } | null;
 export type Msg2 = string | null;
 export type EmailType = "failure" | "retry";
+export type TaskStarted1 = boolean;
 export type Type14 = "EmailRequest";
 export type CallbackRequests = (DagCallbackRequest | TaskCallbackRequest | EmailRequest)[];
 export type Type15 = "DagFileParseRequest";
@@ -1059,6 +1061,7 @@ export interface TaskCallbackRequest {
   ti: TaskInstance;
   task_callback_type?: TaskInstanceState | null;
   context_from_server?: TIRunContext | null;
+  task_started?: TaskStarted;
   type?: Type13;
 }
 /**
@@ -1159,6 +1162,7 @@ export interface EmailRequest {
   ti: TaskInstance;
   email_type?: EmailType;
   context_from_server: TIRunContext;
+  task_started?: TaskStarted1;
   type?: Type14;
 }
 /**

@@ -1,0 +1,189 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+"""
+Tests for the callback storage migrations, using the schema at each revision.
+
+The table is declared here instead of taken from ``airflow.models``, so later model changes cannot change
+what these tests exercise.
+"""
+
+from __future__ import annotations
+
+from importlib import import_module
+
+import pytest
+import sqlalchemy as sa
+import uuid6
+
+from airflow import settings
+from airflow._shared.timezones import timezone
+from airflow.utils.db import downgrade, upgradedb
+from airflow.utils.sqlalchemy import UtcDateTime
+
+pytestmark = pytest.mark.db_test
+
+_migration = import_module("airflow.migrations.versions.0159_3_5_0_add_callback_lookup_index")
+PREVIOUS_REVISION = _migration.down_revision
+
+metadata = sa.MetaData()
+callback = sa.Table(
+    "callback",
+    metadata,
+    sa.Column("id", sa.Uuid, primary_key=True),
+    sa.Column("type", sa.String(20)),
+    sa.Column("fetch_method", sa.String(20)),
+    sa.Column("data", sa.JSON),
+    sa.Column("state", sa.String(10)),
+    sa.Column("output", sa.Text),
+    sa.Column("priority_weight", sa.Integer),
+    sa.Column("created_at", UtcDateTime),
+)
+
+
+@pytest.fixture
+def database_at_revision():
+    """Run one test against the migrated database, then move it back to the current head."""
+    original_async_conn = settings.SQL_ALCHEMY_CONN_ASYNC
+    settings.SQL_ALCHEMY_CONN_ASYNC = ""
+    settings.dispose_orm(do_log=False)
+    settings.configure_orm(disable_connection_pool=True)
+    try:
+        with settings.engine.begin() as connection:
+            connection.execute(callback.delete())
+        yield settings.engine
+    finally:
+        try:
+            with settings.engine.begin() as connection:
+                connection.execute(callback.delete())
+            upgradedb()
+        finally:
+            settings.SQL_ALCHEMY_CONN_ASYNC = original_async_conn
+            settings.reconfigure_orm()
+
+
+def test_downgrade_settles_routed_callbacks(database_at_revision):
+    """Earlier versions neither route nor reap callbacks stored for routing."""
+    rows = {
+        "waiting": ("executor", "dag_attribute", "scheduled"),
+        "queued": ("executor", "dag_attribute", "queued"),
+        "running": ("executor", "dag_attribute", "running"),
+        "finished": ("executor", "dag_attribute", "success"),
+        "deadline": ("executor", "import_path", "scheduled"),
+        "dag_processor": ("dag_processor", "dag_attribute", None),
+    }
+    ids = {name: uuid6.uuid7() for name in rows}
+    with database_at_revision.begin() as connection:
+        for name, (type_, fetch_method, state) in rows.items():
+            connection.execute(
+                callback.insert().values(
+                    id=ids[name],
+                    type=type_,
+                    fetch_method=fetch_method,
+                    data={},
+                    state=state,
+                    priority_weight=1,
+                    created_at=timezone.utcnow(),
+                )
+            )
+
+    downgrade(to_revision=PREVIOUS_REVISION)
+
+    with database_at_revision.connect() as connection:
+        inspector = sa.inspect(connection)
+        assert "state_deadline" not in {column["name"] for column in inspector.get_columns("callback")}
+        assert "idx_callback_state_deadline" not in {
+            index["name"] for index in inspector.get_indexes("callback")
+        }
+        stored = {
+            row.id: (row.type, row.state, row.output)
+            for row in connection.execute(
+                sa.select(callback.c.id, callback.c.type, callback.c.state, callback.c.output)
+            )
+        }
+    downgraded = "Airflow was downgraded before the callback finished"
+    assert {name: stored[callback_id] for name, callback_id in ids.items()} == {
+        "waiting": ("dag_processor", None, None),
+        "queued": ("dag_processor", None, None),
+        "running": ("executor", "failed", downgraded),
+        "finished": ("executor", "success", None),
+        "deadline": ("executor", "scheduled", None),
+        "dag_processor": ("dag_processor", None, None),
+    }
+
+    upgradedb(to_revision=_migration.revision)
+    with database_at_revision.connect() as connection:
+        inspector = sa.inspect(connection)
+        indexes = {index["name"]: index["column_names"] for index in inspector.get_indexes("callback")}
+        assert indexes["idx_callback_state_deadline"] == ["state", "state_deadline"]
+        assert indexes["idx_callback_type_state_fetch_method"] == ["type", "state", "fetch_method", "id"]
+        assert connection.execute(
+            sa.select(sa.column("started_at", UtcDateTime), sa.column("state_deadline", UtcDateTime))
+            .select_from(callback)
+            .where(callback.c.id == ids["deadline"])
+        ).one() == (None, None)
+
+
+def test_run_reference_migration_preserves_deadlines(database_at_revision):
+    link = import_module("airflow.migrations.versions.0160_3_5_0_link_callbacks_to_dag_runs")
+    downgrade(to_revision=link.down_revision)
+    deadline = sa.table(
+        "deadline",
+        sa.column("id", sa.Uuid),
+        sa.column("callback_id", sa.Uuid),
+        sa.column("created_at", UtcDateTime),
+        sa.column("last_updated_at", UtcDateTime),
+        sa.column("deadline_time", UtcDateTime),
+        sa.column("missed", sa.Boolean),
+    )
+    callback_id, deadline_id = uuid6.uuid7(), uuid6.uuid7()
+    now = timezone.utcnow()
+    with database_at_revision.begin() as conn:
+        conn.execute(
+            callback.insert().values(
+                id=callback_id,
+                type="executor",
+                fetch_method="import_path",
+                data={},
+                state="queued",
+                priority_weight=1,
+                created_at=now,
+            )
+        )
+        conn.execute(
+            deadline.insert().values(
+                id=deadline_id,
+                callback_id=callback_id,
+                created_at=now,
+                last_updated_at=now,
+                deadline_time=now,
+                missed=True,
+            )
+        )
+    for migrate, rev in [(upgradedb, link.revision), (downgrade, link.down_revision)]:
+        migrate(to_revision=rev)
+        with database_at_revision.connect() as conn:
+            assert (
+                conn.scalar(sa.select(deadline.c.callback_id).where(deadline.c.id == deadline_id))
+                == callback_id
+            )
+            has_fk = any(
+                fk["constrained_columns"] == ["dag_run_id"]
+                and fk["referred_table"] == "dag_run"
+                and fk["options"].get("ondelete") == "SET NULL"
+                for fk in sa.inspect(conn).get_foreign_keys("callback")
+            )
+            assert has_fk is (rev == link.revision)

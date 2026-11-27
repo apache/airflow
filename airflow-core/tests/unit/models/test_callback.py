@@ -587,6 +587,88 @@ class TestDagProcessorCallback:
         assert retrieved.priority_weight == 11
         assert retrieved.state is None
 
+    def test_get_callback_request_without_a_stored_request_raises(self):
+        callback = DagProcessorCallback(
+            priority_weight=1,
+            callback=DagCallbackRequest(
+                dag_id="test_dag", bundle_name="testing", bundle_version=None, filepath="dag.py", run_id="r"
+            ),
+        )
+        callback.data = {}
+
+        with pytest.raises(ValueError, match="stores no callback request"):
+            callback.get_callback_request()
+
+
+class TestExecutorCallbackFromDagProcessorRequest:
+    def test_stores_the_request_to_wait_for_routing(self, session):
+        request = DagCallbackRequest(
+            dag_id="test_dag", bundle_name="testing", bundle_version="v1", filepath="dag.py", run_id="r"
+        )
+        callback = ExecutorCallback.from_dag_processor_request(request)
+        session.add(callback)
+        session.commit()
+
+        session.expunge_all()
+        stored = session.get_one(Callback, callback.id)
+        assert isinstance(stored, ExecutorCallback)
+        assert stored.state == CallbackState.SCHEDULED
+        assert stored.fetch_method == CallbackFetchMethod.DAG_ATTRIBUTE
+        assert stored.bundle_name == "testing"
+        assert stored.get_callback_request() == request
+
+    def test_needs_a_definition_or_a_request(self):
+        with pytest.raises(TypeError, match="needs a callback definition or a callback request"):
+            ExecutorCallback(None, CallbackFetchMethod.IMPORT_PATH)
+
+
+class TestRoutedCallbackData:
+    """The data the scheduler and the Execution API keep on a routed Dag processor callback."""
+
+    def test_import_path_callback_has_no_callback_request(self):
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.IMPORT_PATH)
+
+        assert callback.get_callback_request() is None
+
+    @pytest.mark.parametrize(
+        ("fetch_method", "report_window"),
+        [
+            (CallbackFetchMethod.DAG_ATTRIBUTE, timedelta(seconds=450)),
+            (CallbackFetchMethod.IMPORT_PATH, None),
+        ],
+    )
+    def test_claiming_a_queued_callback_replaces_the_queue_deadline(
+        self, session, fetch_method, report_window
+    ):
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=fetch_method)
+        started = timezone.datetime(2026, 10, 22, 12, 0, 0)
+        callback.state = CallbackState.QUEUED
+        callback.state_deadline = started + timedelta(hours=1)
+        callback.data["execution_timeout"] = 300
+        session.add(callback)
+        session.commit()
+
+        assert callback.try_start(
+            started, started_by={"hostname": "worker-1", "pid": 4242}, heartbeat_timeout=None, session=session
+        )
+        session.commit()
+        session.expire_all()
+
+        stored = session.get_one(Callback, callback.id)
+        assert stored.started_at == started
+        assert stored.state_deadline == (started + report_window if report_window else None)
+        assert stored.started_by == {"hostname": "worker-1", "pid": 4242}
+
+    def test_repr_of_a_routed_callback_names_its_request_and_executor(self):
+        callback = ExecutorCallback(TEST_SYNC_CALLBACK, fetch_method=CallbackFetchMethod.DAG_ATTRIBUTE)
+        callback.data = {
+            "req_class": "TaskCallbackRequest",
+            "dag_id": "test_dag",
+            "executor": "CeleryExecutor",
+        }
+
+        assert repr(callback) == "TaskCallbackRequest for Dag test_dag on CeleryExecutor executor"
+
 
 class TestAcceptsContext:
     def test_true_when_var_keyword_present(self):
