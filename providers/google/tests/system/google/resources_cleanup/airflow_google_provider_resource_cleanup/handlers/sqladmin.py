@@ -18,34 +18,67 @@
 from __future__ import annotations
 
 from airflow_google_provider_resource_cleanup.handlers._base import BaseDeleteHandler
-from airflow_google_provider_resource_cleanup.helpers import curl, get_resource_path, run_command_async
+from airflow_google_provider_resource_cleanup.helpers import (
+    build_project_flag,
+    get_resource_path,
+    resolve_resource_path,
+    run_command_async,
+)
 
 
-async def _delete_instance(resource: dict, log_prefix: str):
-    name = get_resource_path(resource)
-    project_id = name.split("/")[1]
-    cmd = f"gcloud sql instances delete {name} --project={project_id} --quiet"
-    await run_command_async(cmd, log_prefix)
+def _extract_backup_params(resource: dict) -> tuple[str, str]:
+    path_parts = get_resource_path(resource).split("/")
+    instance = path_parts[3]
+    backup_id = path_parts[-1]
+    return backup_id, instance
 
 
-async def _delete_backup(resource: dict, log_prefix: str):
-    name = get_resource_path(resource)
-    project_id = name.split("/")[1]
-    cmd = f"gcloud sql backups delete {name} --project={project_id} --quiet"
-    await run_command_async(cmd, log_prefix)
+async def _delete_instance(
+    resource: dict,
+    log_prefix: str,
+    *,
+    project_id: str | None = None,
+):
+    instance = get_resource_path(resource).split("/")[-1]
+    project_flag = build_project_flag(resource, project_id=project_id)
+    cmd = f"gcloud sql instances delete {instance}{project_flag} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
-async def _delete_backup_run(resource: dict, log_prefix: str):
-    name = get_resource_path(resource)
-    url = f"https://sqladmin.googleapis.com/sql/v1beta4/{name}"
-    await curl(url, log_prefix=log_prefix)
+async def _delete_backup(
+    resource: dict,
+    log_prefix: str,
+    *,
+    project_id: str | None = None,
+):
+    path = resolve_resource_path(resource, project_id=project_id)
+    path_parts = path.split("/")
+    project_flag = build_project_flag(resource, project_id=project_id)
+    if "instances" in path_parts:
+        backup_id, instance = _extract_backup_params(resource)
+        cmd = f"gcloud sql backups delete {backup_id} --instance={instance}{project_flag} --quiet"
+    else:
+        cmd = f"gcloud sql backups delete {path}{project_flag} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
+
+
+async def _delete_backup_run(
+    resource: dict,
+    log_prefix: str,
+    *,
+    project_id: str | None = None,
+):
+    backup_id, instance = _extract_backup_params(resource)
+    project_flag = build_project_flag(resource, project_id=project_id)
+    cmd = f"gcloud sql backups delete {backup_id} --instance={instance}{project_flag} --quiet"
+    return await run_command_async(cmd, log_prefix, check=True, ignore_not_found=True)
 
 
 class CloudSQLDeleteHandler(BaseDeleteHandler):
     DELETERS = {
         "sqladmin.googleapis.com/Backup": _delete_backup,
-        "sqladmin.googleapis.com/Instance": _delete_instance,
         "sqladmin.googleapis.com/BackupRun": _delete_backup_run,
+        "sqladmin.googleapis.com/Instance": _delete_instance,
     }
     DELETION_ORDER = [
         "sqladmin.googleapis.com/BackupRun",
