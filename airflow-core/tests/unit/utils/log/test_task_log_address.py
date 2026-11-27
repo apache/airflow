@@ -21,11 +21,12 @@ from unittest import mock
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import delete, event
 
 from airflow.configuration import conf
 from airflow.models.dagbag import DBDagBag
-from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.dagrun import DagRun
+from airflow.models.dynamic_region import SENTINEL_REGION_ID, DynamicRegion
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.providers.standard.operators.python import PythonOperator
@@ -39,6 +40,8 @@ from airflow.utils.log.task_log_address import (
     region_log_position,
     render_task_log_filename,
 )
+from airflow.utils.session import create_session
+from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.asserts import assert_queries_count
 
@@ -360,3 +363,33 @@ def test_log_context_falls_back_to_stored_regions_when_the_pinned_dag_lost_the_n
 
     assert context.log_position == "pass=2/map=0"
     assert context.map_index == 0
+
+
+@pytest.mark.db_test
+@pytest.mark.parametrize("skip_missing_regions", [True, False])
+def test_log_contexts_of_a_dag_run_deleted_meanwhile(dag_maker, session, skip_missing_regions):
+    with dag_maker(serialized=True):
+        PythonOperator.partial(task_id="mapped", python_callable=str).expand(op_args=[[1], [2]])
+    deleted_run = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+    kept_run = dag_maker.create_dagrun_after(deleted_run, run_type=DagRunType.SCHEDULED)
+    tis = []
+    for run in (deleted_run, kept_run):
+        run.task_instance_scheduling_decisions(session=session)
+        tis.extend(run.get_task_instances(session=session))
+    session.commit()
+    for ti in tis:
+        # Load what is read from the objects, as the scheduler does, before their rows are deleted.
+        assert ti.dag_run is not None
+        assert ti.region_id != SENTINEL_REGION_ID
+    session.expunge_all()
+    with create_session(scoped=False) as other_session:
+        other_session.execute(
+            delete(DagRun).where(DagRun.dag_id == deleted_run.dag_id, DagRun.run_id == deleted_run.run_id)
+        )
+
+    if skip_missing_regions:
+        contexts = prepare_task_log_contexts(tis, session=session, skip_missing_regions=True)
+        assert contexts.keys() == {ti.id for ti in tis if ti.run_id == kept_run.run_id}
+    else:
+        with pytest.raises(KeyError):
+            prepare_task_log_contexts(tis, session=session)
