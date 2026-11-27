@@ -47,6 +47,18 @@ Exports a copy of all or a subset of documents from Google Cloud Firestore to Go
     :start-after: [START howto_operator_export_database_to_gcs]
     :end-before: [END howto_operator_export_database_to_gcs]
 
+You can also run the operator in deferrable mode by setting ``deferrable=True``:
+
+.. exampleinclude:: /../../google/tests/system/google/cloud/gcs/example_firestore.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_export_database_to_gcs_deferrable]
+    :end-before: [END howto_operator_export_database_to_gcs_deferrable]
+
+By default, ``reattach_on_restart=True`` allows retried tasks to reattach to an in-progress export
+operation or recover if an export with the same explicit ``outputUriPrefix`` path, ``collectionIds``,
+and ``namespaceIds`` started during the current Dag run has already completed.
+
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with
 :template-fields:`airflow.providers.google.firebase.operators.firestore.CloudFirestoreExportDatabaseOperator`
 parameters which allows you to dynamically determine values.
