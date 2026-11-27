@@ -54,6 +54,7 @@ NEVER_NARROWED_DIRS = frozenset({"example_dags", "dags", "system", "plugins", "m
 DOC_SUFFIXES = (".md", ".rst")
 SKIPPED_DIRS = frozenset({"__pycache__", "node_modules", ".venv"})
 DOTTED_NAME = re.compile(r"^[A-Za-z_]\w*(\.\w+)+$")
+RELATIVE_DOTTED_NAME = re.compile(r"^\.+[A-Za-z_]\w*(?:[\.:]\w+)*$")
 
 
 def _find_provider_dirs(root: Path) -> list[Path]:
@@ -153,7 +154,7 @@ def _extract_edges(
                 edges.update(_resolve_imported_name(imported, alias.name, modules))
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             value = node.value
-            if value.startswith(".") and DOTTED_NAME.match("x" + value):
+            if value.startswith(".") and RELATIVE_DOTTED_NAME.match(value):
                 level = len(value) - len(value.lstrip("."))
                 base = ".".join(package.split(".")[: len(package.split(".")) - level + 1])
                 value = f"{base}.{value.lstrip('.')}"

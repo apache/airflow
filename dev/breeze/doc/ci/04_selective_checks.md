@@ -520,7 +520,7 @@ together using `pytest-xdist` (pytest-xdist distributes the tests among parallel
   which include the scheduled canary runs, still run all of them:
   * `Shared distributions tests` run when `shared/`, `devel-common/`, `dev/mypy/`, the root `pyproject.toml`
     or `uv.lock` changed. The
-    standalone Airflow test (`run-generic-basic-tests`) still runs for every change.
+    standalone Airflow test (`run-generic-basic-tests`) runs when unit tests run (skipped for text-only, doc-only, or component branches).
   * `Check translation completeness` runs when a UI translation file under
     `airflow-core/src/airflow/ui/public/i18n/` changed.
   * `Check that image builds quickly` runs when the CI image is built and a file the image is built
@@ -780,6 +780,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | generate-constraints                                    | Whether the Generate constraints job runs                                                               | false                                    |      |
 | generate-pypi-constraints                               | Whether that job also resolves the constraints against PyPI                                             | false                                    |      |
 | generated-dependencies-changed                          | Whether generated dependencies have changed ("true"/"false")                                            | false                                    |      |
+| has-added-or-renamed-files                             | Whether the PR added or renamed files ("true"/"false")                                                  | true                                     |      |
 | has-migrations                                          | Whether the PR has migrations ("true"/"false")                                                          | false                                    |      |
 | hatch-build-changed                                     | When hatch build.py changed in the PR.                                                                  | false                                    |      |
 | helm-test-packages                                      | List of helm packages to test as JSON array (`["All"]` on RunsOn: one job runs them all)              | \["airflow_aux", "airflow_core"\]        | *    |
@@ -815,7 +816,7 @@ GitHub Actions to pass the list of parameters to a command to execute
 | run-api-tests                                           | Whether "api-tests" are needed to run ("true"/"false")                                                  | true                                     |      |
 | run-generic-prod-image-tests                            | Whether the PROD image's own tests run (Docker Compose, examples, basic e2e): off on component branches | true                                     |      |
 | run-docs-publish                                        | Whether the built docs are published locally and their versions validated: docs, provider versions or docs tooling changed | true                                     |      |
-| run-generic-basic-tests                                 | Whether the standalone Airflow test runs: off on component branches                                   | true                                     |      |
+| run-generic-basic-tests                                 | Whether the standalone Airflow test runs: off on component branches, text-only, or doc-only PRs         | true                                     |      |
 | run-helm-tests                                          | Whether Helm tests are needed to run ("true"/"false")                                                   | true                                     |      |
 | run-image-build-time-check                              | Whether `Check that image builds quickly` runs: the CI image is built and a file it is built from changed | true                                     |      |
 | run-kubernetes-tests                                    | Whether Kubernetes tests should be run ("true"/"false")                                                 | true                                     |      |

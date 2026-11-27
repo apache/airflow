@@ -370,6 +370,7 @@ jobs:
       run-airflow-ctl-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-tests }}
       run-airflow-ctl-integration-tests: ${{ steps.selective-checks.outputs.run-airflow-ctl-integration-tests }}
       run-generic-basic-tests: ${{ steps.selective-checks.outputs.run-generic-basic-tests }}
+      has-added-or-renamed-files: ${{ steps.selective-checks.outputs.has-added-or-renamed-files }}
       run-shared-distributions-tests: ${{ steps.selective-checks.outputs.run-shared-distributions-tests }}
       run-translation-check: ${{ steps.selective-checks.outputs.run-translation-check }}
       run-image-build-time-check: ${{ steps.selective-checks.outputs.run-image-build-time-check }}
@@ -608,6 +609,7 @@ jobs:
       run-breeze-integration-tests: ${{needs.build-info.outputs.run-breeze-integration-tests}}
       run-scripts-tests: ${{needs.build-info.outputs.run-scripts-tests}}
       run-generic-basic-tests: ${{needs.build-info.outputs.run-generic-basic-tests}}
+      has-added-or-renamed-files: ${{needs.build-info.outputs.has-added-or-renamed-files}}
       run-shared-distributions-tests: ${{needs.build-info.outputs.run-shared-distributions-tests}}
       run-translation-check: ${{needs.build-info.outputs.run-translation-check}}
       latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}

@@ -70,6 +70,11 @@ on:  # yamllint disable-line rule:truthy
           component
         required: true
         type: string
+      has-added-or-renamed-files:
+        description: "Whether the PR added or renamed files (true/false)"
+        required: false
+        type: string
+        default: "true"
       basic-checks-only:
         description: "Whether to run only basic checks (true/false)"
         required: true
@@ -401,6 +406,7 @@ jobs:
   test-git-clone-on-windows:
     timeout-minutes: 5
     name: "Test git clone on Windows"
+    if: inputs.has-added-or-renamed-files == 'true' || inputs.canary-run == 'true'
     runs-on: ["windows-2025"]
     steps:
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
