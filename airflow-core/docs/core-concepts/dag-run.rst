@@ -241,27 +241,27 @@ date and end date.
 
 Deprioritizing downstream asset-triggered runs
 ''''''''''''''''''''''''''''''''''''''''''''''
-A backfill run is queued behind normal Dag runs of the same Dag. Runs triggered by the asset events that a
-backfill emits are, by default, ordinary asset-triggered runs and get no such treatment. To give them the
-same low priority, enable ``propagate_priority`` on the backfill (the **Also deprioritize downstream
-asset-triggered runs** checkbox in the UI, ``--propagate-priority`` in the CLI, or ``"propagate_priority": true``
-in the REST API). It is off by default and only affects the backfill it is set on.
+A backfill run is queued behind normal Dag runs of the same Dag. Runs triggered by asset events that a backfill
+emits are, by default, ordinary asset-triggered runs and get no such treatment. To give Dag runs that are triggered
+by asset events from backfills - and all asset triggered Dag runs  further downstreams - the same low priority,
+enable ``propagate_priority`` on the backfill (the **Also deprioritize downstream asset-triggered runs** checkbox
+in the UI, ``--propagate-priority`` in the CLI, or ``"propagate_priority": true`` in the REST API). It is off by
+default and only affects the backfill it is set on.
 
 When it is enabled:
 
-* Asset events emitted by the backfill's runs are marked. A Dag run that consumes **any** marked event is
-  *backfill-derived*, and its own asset events are marked as well, so the priority carries through every
-  downstream hop without further opt-in. The mark is stored on the event, so it survives the cleanup of the
+* Asset events emitted by the backfill's runs are marked as such. A Dag run that consumes **any** marked
+  event is *backfill-derived*, and its own asset events are marked as well. That way the priority carries through
+  every downstream Dag run and asset event. The mark is stored on the event, so it survives the cleanup of the
   run that emitted it.
 * The classification is made once, when the run is created, from the complete set of events the run
   consumes. This includes runs that mix marked and unmarked events and rollup partitions. Events that arrive later
   do not change it.
 * Backfill-derived runs are still asset-triggered runs, and keep sharing the Dag's ``max_active_runs``. When
   runs are queued, normal runs are started first, and backfill-derived runs follow in the order they became
-  eligible. They do not count towards the capacity for creating normal runs, and a backlog of them does not delay the
-  creation of normal runs.
+  eligible.
 * Events whose origin is unknown, such as events created through the REST API or before the upgrade, are
-  treated as normal.
+  treated as normal Dag runs.
 
 Running Dag runs are never preempted: a backfill-derived run that already started finishes as usual. Pools,
 pool slots, worker capacity and task priority weights are not changed, so provision them as needed.
