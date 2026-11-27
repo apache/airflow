@@ -47,11 +47,7 @@ This ADR records the TypeScript spelling of it.
    `TaskStateStore` without the retention option, which the asset messages do not carry.
 6. **Inlet event methods take an `InletEventQueryParams` object** and return promises.
 7. **`AssetExtra` aliases `JsonObject`** for asset and event `extra`.
-8. **A `runImmediately` duration is sent as a msgpack float**, as Python writes it. A JS number
-   with no fraction would encode as an integer, so the frame encoder subclasses the
-   `@msgpack/msgpack` `Encoder` to write a wrapped value as a float. The override uses private
-   methods, so a test checks the encoded bytes.
-9. **Durations are seconds as a `number`; datetimes are a `Date` or an ISO 8601 string with an
+8. **Durations are seconds as a `number`; datetimes are a `Date` or an ISO 8601 string with an
    offset.** A string without an offset is rejected at build time.
 
 ## Signatures
@@ -98,7 +94,7 @@ interface OutletEventAccessor {
   add(asset: Asset | AssetRef, extra?: AssetExtra): void;   // throws on a non-alias
 }
 interface TaskClient {
-  inletEvents(asset: AssetLike): InletEventAccessor;
+  inletEvents(asset: AssetLike): InletEventAccessor;       // throws if asset is not an inlet
   assetStateStore(asset: Asset | AssetRef): AssetStateStore;
 }
 interface InletEventQueryParams {
@@ -153,7 +149,7 @@ function multipleCron(expressions: string[], timezone: string, options?: { inter
 function cronPartition(expression: string, timezone: string, options?: { runOffset?: number; runImmediately?: RunImmediately; keyFormat?: string }): Timetable;
 function delta(delta: number, options?: { interval?: number }): Timetable;
 function deltaDataInterval(delta: number): Timetable;
-function events(dates: (Date | string)[], options?: { restrictToEvents?: boolean; presorted?: boolean; description?: string }): Timetable;
+function events(dates: (Date | string)[], options?: { restrictToEvents?: boolean; description?: string }): Timetable;
 function once(): Timetable;
 function continuous(): Timetable;
 function none(): Timetable;
@@ -198,8 +194,8 @@ function waitForAll(): WaitPolicy;
 function minimumCount(n: number): WaitPolicy;   // n != 0; negative counts from the expected total
 
 // @apache-airflow/ts-sdk/python
-function timetableRef(path: string, data?: JsonObject): Timetable;
-function partitionMapperRef(path: string, data?: JsonObject): PartitionMapper;
+function timetableRef(path: string, kwargs?: JsonObject): Timetable;               // constructor arguments
+function partitionMapperRef(path: string, kwargs?: JsonObject): PartitionMapper;
 function triggerRef(path: string, kwargs?: JsonObject, options?: { queue?: string }): TriggerRef;
 ```
 
@@ -243,7 +239,7 @@ schedules.cronPartition("0 0 * * *", "UTC", { runOffset: -1, runImmediately: fal
 schedules.delta(6 * 3600, { interval: 3600 });
 schedules.deltaDataInterval(86400);
 schedules.events([new Date("2026-12-24T00:00:00Z"), "2026-12-31T00:00:00+01:00"],
-  { restrictToEvents: true, presorted: true, description: "Holidays" });
+  { restrictToEvents: true, description: "Holidays" });
 schedules.once();
 schedules.continuous();
 schedules.none();
@@ -313,6 +309,7 @@ dag.task("load", async () => {
 
 - Widening `DagSpec.schedule` keeps every existing Dag compiling, since a string is still accepted.
 - `outletEvents()` for an asset outside the task's outlets or in a stub TaskHandler, and `add()` on
-  a non-alias accessor, throw where Python drops the event silently.
+  a non-alias accessor, throw. These land after the Python change that makes the same cases raise.
+- `add()` with a ref, or with an asset whose URI is not declared, makes a round trip to resolve it.
 - The builders must change whenever a Python built-in's `serialize()` changes; the golden fixtures
   from ADR-0019 catch that in CI.

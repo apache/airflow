@@ -60,8 +60,7 @@ surface of [ADR-0002](0002-native-dag-interface.md).
    nothing return `null`, as the existing `Client` methods do.
 9. **Inlet events take a `Consumer<InletEventQueryParams>`**, applied once when `query`, `first` or
    `last` is called. `extra(key, value)` is repeatable, as in Python.
-10. **Durations are `java.time.Duration`; datetimes are `OffsetDateTime` or `Instant`.** A
-    `runImmediately` duration is sent as a `Double`, as Python writes it.
+10. **Durations are `java.time.Duration`; datetimes are `OffsetDateTime` or `Instant`.**
     `LocalDateTime` is not accepted, since it has no offset.
 
 ## Signatures
@@ -127,7 +126,7 @@ interface OutletEventAccessor {
 }
 
 // Client
-InletEventAccessor inletEvents(AssetLike asset);
+InletEventAccessor inletEvents(AssetLike asset);           // IllegalStateException if asset is not an inlet
 AssetStateStore assetStateStore(Asset asset);
 AssetStateStore assetStateStore(AssetRef asset);
 final class InletEventQueryParams {
@@ -165,7 +164,7 @@ final class CronOptions {            // interval(Duration), runImmediately(boole
 }                                    // the last call wins. run_immediately=None is not exposed.
 final class CronPartitionOptions {   // runOffset(int), runImmediately(boolean | Duration), keyFormat(String)
 }
-final class EventsOptions {          // restrictToEvents(boolean), presorted(boolean), description(String)
+final class EventsOptions {          // restrictToEvents(boolean), description(String)
 }
 final class PartitionedAssetOptions {  // defaultMapper(PartitionMapper), mapper(AssetLike, PartitionMapper),
 }                                      // batchAssetEvents(boolean)
@@ -234,8 +233,8 @@ enum Direction { FORWARD, BACKWARD }
 @interface Schedule {}                                      // on a static Timetable method with no arguments
 
 // org.apache.airflow.sdk.python.Python
-static Timetable timetableRef(String path, Map<String, Object> data);
-static PartitionMapper partitionMapperRef(String path, Map<String, Object> data);
+static Timetable timetableRef(String path, Map<String, Object> kwargs);          // constructor arguments
+static PartitionMapper partitionMapperRef(String path, Map<String, Object> kwargs);
 static Trigger triggerRef(String path, Map<String, Object> kwargs);
 static Trigger triggerRef(String path, Map<String, Object> kwargs, String queue);
 ```
@@ -289,7 +288,7 @@ public class Reports {
       Schedules.deltaDataInterval(Duration.ofDays(1)),
       Schedules.events(List.of(OffsetDateTime.parse("2026-12-24T00:00:00Z"))),
       Schedules.events(List.of(OffsetDateTime.parse("2026-12-31T00:00:00+01:00")), o -> o
-          .restrictToEvents(true).presorted(true).description("Holidays")),
+          .restrictToEvents(true).description("Holidays")),
       Schedules.once(),
       Schedules.continuous(),
       Schedules.none(),
@@ -334,14 +333,15 @@ public class Reports {
 
   public static List<DagDef> dags() {
     var cron = new DagDef("cron_report").schedule("0 3 * * *").config("queue", "java");
-    cron.task("load", Load.class);
     var legacy = new DagDef("legacy_report").config("schedule", "@daily");
-    legacy.task("load", Load.class);
     var daily = new DagDef("daily_report").schedule(Schedules.asset(BOTH)).config("queue", "java");
-    daily.task("load", Load.class)
-        .inlets(ORDERS, CUSTOMERS, EXPORTS, ARCHIVE)
-        .outlets(ORDERS, EXPORTS, ADHOC, EVENTS);
-    return List.of(cron, legacy, daily);
+    List<DagDef> dags = List.of(cron, legacy, daily);
+    for (DagDef dag : dags) {
+      dag.task("load", Load.class)
+          .inlets(ORDERS, CUSTOMERS, RAW_FILES, EXPORTS, ARCHIVE)
+          .outlets(ORDERS, EXPORTS, ADHOC, EVENTS);
+    }
+    return dags;
   }
 
   public static class Load implements Task {
@@ -425,6 +425,7 @@ public class CronReport { /* ... */ }
 - Existing `config("schedule", "...")` calls and `@Airflow.Dag(schedule = "...")` attributes keep
   working.
 - `outletEvents` for an asset outside the task's outlets or in a stub TaskHandler, and `add` on a
-  non-alias accessor, throw where Python drops the event silently.
+  non-alias accessor, throw. These land after the Python change that makes the same cases raise.
+- `add` with a ref, or with an asset whose URI is not declared, makes a round trip to resolve it.
 - The builders must change whenever a Python built-in's `serialize()` changes; the golden fixtures
   from core ADR-0019 catch that in CI.

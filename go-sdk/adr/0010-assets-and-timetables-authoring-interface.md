@@ -61,8 +61,7 @@ This ADR records the Go spelling of it.
 8. **Inlet events take `sdk.InletEventQueryParams`**, which `airflow` re-exports with
    `airflow.Ascending` and `airflow.Descending`. `Order` replaces Python's `ascending` because its
    zero value, `Ascending`, is Python's default. `Limit: 0` means no limit. Durations are
-   `time.Duration` and datetimes are `time.Time`. `RunImmediately.Within` is sent as a `float64`,
-   as Python writes it.
+   `time.Duration` and datetimes are `time.Time`.
 
 ## Signatures
 
@@ -121,7 +120,7 @@ type AssetExtra = map[string]any
 type AssetKey struct{ Name, URI, AliasName string }
 type AssetKeyer interface{ AssetKey() AssetKey }
 type AssetClient interface {                              // embedded in Client
-    InletEvents(asset AssetKeyer) InletEventAccessor
+    InletEvents(asset AssetKeyer) InletEventAccessor     // its methods return an error if asset is not an inlet
     AssetStateStore(asset AssetKeyer) AssetStateStore
 }
 type SortOrder int
@@ -146,6 +145,7 @@ type InletEventAccessor interface {
 }
 type AssetStateStore interface {
     Get(ctx context.Context, key string) (any, error)      // wraps AssetStateNotFound
+    UnmarshalJSONValue(ctx context.Context, key string, pointer any) error
     Set(ctx context.Context, key string, value any) error
     Delete(ctx context.Context, key string) error
     Clear(ctx context.Context) error
@@ -197,8 +197,8 @@ type DeltaOptions struct{ Interval time.Duration }
 func Delta(delta time.Duration, opts ...DeltaOptions) airflow.Timetable
 func DeltaDataInterval(delta time.Duration) airflow.Timetable
 type EventsOptions struct {
-    RestrictToEvents, Presorted bool
-    Description                 string
+    RestrictToEvents bool
+    Description      string
 }
 func Events(dates []time.Time, opts ...EventsOptions) airflow.Timetable
 func Once() airflow.Timetable
@@ -277,8 +277,8 @@ func MinimumCount(n int) WaitPolicy                         // n != 0; negative 
 
 // package python
 type TriggerOptions struct{ Queue string }
-func TimetableRef(path string, data map[string]any) airflow.Timetable
-func PartitionMapperRef(path string, data map[string]any) airflow.PartitionMapper
+func TimetableRef(path string, kwargs map[string]any) airflow.Timetable           // constructor arguments
+func PartitionMapperRef(path string, kwargs map[string]any) airflow.PartitionMapper
 func TriggerRef(path string, kwargs map[string]any, opts ...TriggerOptions) airflow.Trigger
 ```
 
@@ -336,7 +336,7 @@ var (
         schedule.Delta(6*time.Hour, schedule.DeltaOptions{Interval: time.Hour}),
         schedule.DeltaDataInterval(24 * time.Hour),
         schedule.Events([]time.Time{time.Date(2026, 12, 24, 0, 0, 0, 0, time.UTC)},
-            schedule.EventsOptions{RestrictToEvents: true, Presorted: true, Description: "Holidays"}),
+            schedule.EventsOptions{RestrictToEvents: true, Description: "Holidays"}),
         schedule.Once(),
         schedule.Continuous(),
         schedule.None(),
@@ -377,13 +377,14 @@ var (
 )
 
 func newDags() []*airflow.DagRef {
-    cronDag := airflow.Dag("cron_report", airflow.DagSpec{Schedule: schedule.Literal("0 3 * * *"), Queue: "golang"})
-    cronDag.Task(load)
-    dag := airflow.Dag("daily_report", airflow.DagSpec{Schedule: schedule.Asset(both), Queue: "golang"})
-    dag.Task(load, airflow.TaskSpec{
-        Inlets:  []airflow.AssetLike{orders, customers, exportsAlias},
+    loadSpec := airflow.TaskSpec{
+        Inlets:  []airflow.AssetLike{orders, customers, rawFiles, exportsAlias},
         Outlets: []airflow.AssetLike{orders, exportsAlias},
-    })
+    }
+    cronDag := airflow.Dag("cron_report", airflow.DagSpec{Schedule: schedule.Literal("0 3 * * *"), Queue: "golang"})
+    cronDag.Task(load, loadSpec)
+    dag := airflow.Dag("daily_report", airflow.DagSpec{Schedule: schedule.Asset(both), Queue: "golang"})
+    dag.Task(load, loadSpec)
     return []*airflow.DagRef{cronDag, dag}
 }
 
@@ -441,7 +442,8 @@ func load(actx airflow.Context) error {
             return err
         }
     }
-    if _, err := store.Get(actx, "watermark"); err != nil && !errors.Is(err, sdk.AssetStateNotFound) {
+    var watermark string
+    if err := store.UnmarshalJSONValue(actx, "watermark", &watermark); err != nil && !errors.Is(err, sdk.AssetStateNotFound) {
         return err
     }
     if err := store.Delete(actx, "watermark"); err != nil {
@@ -457,6 +459,8 @@ func load(actx airflow.Context) error {
   `internal/genspec` injects for `schedule`, its test and the field's doc comment change with it.
 - Every fake `sdk.Client`, such as in tests, gains the `AssetClient` methods.
 - The accessor returns an error for an asset outside the task's outlets, in a stub TaskHandler, and
-  for `Add` on a non-alias accessor, where Python drops the event silently.
+  for `Add` on a non-alias accessor. These land after the Python change that makes the same cases
+  raise.
+- `Add` with a ref, or with an asset whose URI is not declared, makes a round trip to resolve it.
 - The builders must change whenever a Python built-in's `serialize()` changes; the golden fixtures
   from core ADR-0019 catch that in CI.
