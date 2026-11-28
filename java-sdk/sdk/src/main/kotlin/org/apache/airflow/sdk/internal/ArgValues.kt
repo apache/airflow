@@ -60,7 +60,7 @@ import java.lang.reflect.Type
  * the task still runs on what it can bind.
  */
 object ArgValues {
-  private val mapper: ObjectMapper = JsonMapper.builder().build().findAndRegisterModules()
+  private val mapper: ObjectMapper = JsonMapper.builder().build().registerDiscoveredModules()
   private val logger = Logger(ArgValues::class)
 
   /**

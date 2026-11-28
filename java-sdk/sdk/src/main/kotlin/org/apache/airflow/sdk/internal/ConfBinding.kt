@@ -44,7 +44,7 @@ private val confMapper: ObjectMapper by lazy {
     .disable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
     .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
     .build()
-    .findAndRegisterModules()
+    .registerDiscoveredModules()
 }
 
 /**

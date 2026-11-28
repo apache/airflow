@@ -20,15 +20,27 @@
 package org.apache.airflow.sdk.execution
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import com.fasterxml.jackson.core.JsonGenerator
+import com.fasterxml.jackson.databind.BeanDescription
 import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.JsonSerializer
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationConfig
 import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.databind.SerializerProvider
+import com.fasterxml.jackson.databind.module.SimpleModule
+import com.fasterxml.jackson.databind.ser.BeanSerializerModifier
+import com.fasterxml.jackson.databind.ser.impl.UnknownSerializer
+import com.fasterxml.jackson.databind.ser.std.BeanSerializerBase
+import com.fasterxml.jackson.databind.ser.std.StdSerializer
 import com.fasterxml.jackson.databind.util.StdDateFormat
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import org.apache.airflow.sdk.execution.comm.Discriminator
 import org.apache.airflow.sdk.execution.comm.PutVariable
 import org.apache.airflow.sdk.execution.comm.SetTaskStateStore
 import org.apache.airflow.sdk.execution.comm.SetXCom
+import org.apache.airflow.sdk.internal.registerDiscoveredModules
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 import org.msgpack.core.buffer.ArrayBufferInput
@@ -65,6 +77,33 @@ object Frame {
       setDateFormat(StdDateFormat().withColonInTimeZone(true))
       REQUIRED_NULLABLE_REQUESTS.forEach { addMixIn(it, KeepNullFields::class.java) }
     }
+
+  /**
+   * Encodes values that task code hands to Airflow, using every Jackson module
+   * on the classpath and rejecting objects that have no properties to encode.
+   */
+  private val userValueMapper: ObjectMapper by lazy {
+    mapper.copy().apply {
+      registerModule(SimpleModule().setSerializerModifier(RejectEmptyBeans))
+      registerDiscoveredModules()
+    }
+  }
+
+  /**
+   * Converts a user value into JSON-shaped data (maps, lists, strings, numbers,
+   * booleans, null) with [valueMapper].
+   *
+   * The tree is read back with [mapper], which has no discovered modules:
+   * jackson-module-scala replaces untyped deserialization with Scala
+   * collections, which [packAny] cannot send.
+   *
+   * @throws IllegalArgumentException if [value] is or contains an object with no
+   *   properties to encode, or a byte array.
+   */
+  internal fun encodeUserValue(
+    value: Any?,
+    valueMapper: ObjectMapper,
+  ): Any? = value?.let { mapper.treeToValue(valueMapper.valueToTree<JsonNode>(it), Any::class.java) }
 
   fun encodeRequest(
     id: Int,
@@ -136,11 +175,45 @@ object Frame {
   }
 
   @Suppress("UNCHECKED_CAST")
-  private fun toBody(value: Any): Map<String, Any?> =
+  private fun toBody(value: Any): Map<String, Any?> {
+    if (value is Map<*, *>) return value as Map<String, Any?>
+    // Encode the user value first, so [mapper] never sees the raw object.
     when (value) {
-      is Map<*, *> -> value as Map<String, Any?>
-      else -> mapper.convertValue(value, MutableMap::class.java) as MutableMap<String, Any?>
+      is SetXCom -> value.value = encodeUserValue(value.value, userValueMapper)
+      is SetTaskStateStore -> value.value = encodeUserValue(value.value, userValueMapper)
     }
+    return mapper.convertValue(value, MutableMap::class.java) as MutableMap<String, Any?>
+  }
+}
+
+private object RejectEmptyBeans : BeanSerializerModifier() {
+  override fun modifySerializer(
+    config: SerializationConfig,
+    beanDesc: BeanDescription,
+    serializer: JsonSerializer<*>,
+  ): JsonSerializer<*> {
+    val empty =
+      serializer is UnknownSerializer ||
+        (serializer is BeanSerializerBase && !serializer.properties().hasNext() && beanDesc.findAnyGetter() == null)
+    return if (empty) EmptyBeanSerializer(beanDesc.beanClass) else serializer
+  }
+}
+
+private class EmptyBeanSerializer(
+  private val type: Class<*>,
+) : StdSerializer<Any>(Any::class.java) {
+  override fun serialize(
+    value: Any,
+    gen: JsonGenerator,
+    provider: SerializerProvider,
+  ) {
+    provider.reportBadDefinition<Unit>(
+      type,
+      "Cannot send ${type.name} to Airflow: Jackson finds no properties to encode, so it would be stored as {}. " +
+        "Convert it to a java.util.Map, a java.util.List or a JSON scalar, or add a Jackson module for the type " +
+        "to the bundle (jackson-module-scala for Scala collections, Option and case classes).",
+    )
+  }
 }
 
 private fun Discriminator.discriminate(body: Map<*, *>): Class<*>? {
