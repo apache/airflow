@@ -117,6 +117,17 @@ export function parseArgs(argv: readonly string[]): ParsedArgs {
   return { commAddr, logsAddr };
 }
 
+/** Node writes to a pipe or socket asynchronously and drops what is still queued when the
+ *  process exits. On macOS the supervisor's stderr socket holds 8 KiB, less than the minified
+ *  line Node prints before an uncaught error, so without this the error itself is lost. */
+function blockOnStdio(): void {
+  for (const stream of [process.stdout, process.stderr]) {
+    (stream as { _handle?: { setBlocking?: (blocking: boolean) => void } })._handle?.setBlocking?.(
+      true,
+    );
+  }
+}
+
 /** Start the coordinator runtime, dispatching to `bundle`. Resolves when the
  *  subprocess has delivered its terminal frame and closed both sockets.
  *
@@ -134,6 +145,7 @@ export async function startCoordinator(
     );
     return;
   }
+  blockOnStdio();
   const parsed =
     opts.commAddr && opts.logsAddr
       ? { commAddr: opts.commAddr, logsAddr: opts.logsAddr }
