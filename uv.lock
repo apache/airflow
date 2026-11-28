@@ -4994,6 +4994,7 @@ shields = [
 ]
 skills = [
     { name = "apache-airflow-providers-git" },
+    { name = "pydantic-ai-harness", extra = ["skills"] },
     { name = "pydantic-ai-skills" },
 ]
 sql = [
@@ -5028,7 +5029,7 @@ dev = [
     { name = "opensandbox" },
     { name = "openshell" },
     { name = "protobuf" },
-    { name = "pydantic-ai-harness", extra = ["codemode"] },
+    { name = "pydantic-ai-harness", extra = ["codemode", "skills"] },
     { name = "pydantic-ai-skills" },
     { name = "pydantic-ai-slim", extra = ["mcp"] },
     { name = "python-docx" },
@@ -5073,6 +5074,7 @@ requires-dist = [
     { name = "pyarrow", marker = "python_full_version >= '3.14' and extra == 'parquet'", specifier = ">=22.0.0" },
     { name = "pyarrow", marker = "python_full_version < '3.14' and extra == 'parquet'", specifier = ">=18.0.0" },
     { name = "pydantic-ai-harness", extras = ["codemode"], marker = "extra == 'code-mode'", specifier = ">=0.35.0" },
+    { name = "pydantic-ai-harness", extras = ["skills"], marker = "extra == 'skills'", specifier = ">=0.66.0" },
     { name = "pydantic-ai-shields", marker = "extra == 'shields'", specifier = ">=0.3.4" },
     { name = "pydantic-ai-skills", marker = "extra == 'skills'", specifier = ">=1.2.0,<2" },
     { name = "pydantic-ai-slim", specifier = ">=2.66.0" },
@@ -5114,7 +5116,7 @@ dev = [
     { name = "opensandbox", specifier = ">=1.1.0" },
     { name = "openshell", specifier = ">=0.1.2,<0.2" },
     { name = "protobuf", specifier = ">=6.31.1" },
-    { name = "pydantic-ai-harness", extras = ["codemode"], specifier = ">=0.35.0" },
+    { name = "pydantic-ai-harness", extras = ["codemode", "skills"], specifier = ">=0.66.0" },
     { name = "pydantic-ai-skills", specifier = ">=1.2.0,<2" },
     { name = "pydantic-ai-slim", extras = ["mcp"], specifier = ">=2.46.0" },
     { name = "python-docx", specifier = ">=1.1.2" },
@@ -21487,6 +21489,9 @@ wheels = [
 codemode = [
     { name = "pydantic-ai-slim", extra = ["duckduckgo"] },
     { name = "pydantic-monty" },
+]
+skills = [
+    { name = "pyyaml" },
 ]
 
 [[package]]

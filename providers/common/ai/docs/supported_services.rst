@@ -58,7 +58,7 @@ Toolsets
      - Modal, Islo, OpenSandbox, OpenShell, Boat and Docker Sandboxes (sbx), through the
        shipped backends; other services can be added with a
        ``SandboxBackend`` subclass
-   * - :doc:`AgentSkillsToolset <toolsets/skills>`
+   * - :doc:`AgentSkillsToolset <toolsets/skills>` (deprecated; use ``AirflowSkills``)
      - Agent skills from local paths and remote Git repositories
    * - :doc:`LangChain Bridge <toolsets/langchain>`
      - LangChain tools

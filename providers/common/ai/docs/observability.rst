@@ -99,7 +99,8 @@ How it works
   push it; like ``run_id`` and ``usage``, with ``enable_hitl_review`` it is the initial
   run's model, not a human-feedback regeneration's, since ``regenerate_with_feedback``
   doesn't re-push it.
-* **Skills.** An ``AgentSkillsToolset`` publishes the skills it offered the agent, where
+* **Skills.** An ``AgentSkillsToolset`` (deprecated; ``AirflowSkills`` does not publish this yet)
+  publishes the skills it offered the agent, where
   each came from (a local path, or a repository, path and commit) and the skill tools the
   agent called for each, under the namespaced key ``__AIRFLOW__COMMON_AI_SKILLS__``. See
   :ref:`agent-skills-observability`.

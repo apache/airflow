@@ -123,9 +123,14 @@ checklist.
      - Runs SQL over Parquet, CSV and Avro files and Iceberg tables, in the worker.
      - ``sql``, plus ``apache-airflow-providers-common-sql[datafusion]``, and its
        ``apache.iceberg`` extra for Iceberg
-   * - :doc:`AgentSkillsToolset <toolsets/skills>`
-     - Loads ``SKILL.md`` instruction bundles when the model asks for one.
+   * - :doc:`AgentSkillsToolset <toolsets/skills>` (deprecated)
+     - Loads ``SKILL.md`` instruction bundles when the model asks for one. Use ``AirflowSkills``.
      - ``skills``; on Airflow 2, install ``pydantic-ai-skills>=1.2.0,<2``
+   * - :ref:`AirflowSkills <agent-skills-airflow-skills>`
+     - The capability form of the same Agent Skills, built on ``pydantic-ai-harness``'s ``Skills``,
+       with resource and script tools.
+     - ``skills``; on Airflow 2, install ``pydantic-ai-harness[skills]>=0.66.0``, since the Git provider
+       the extra pulls in needs Airflow 3
    * - :doc:`SandboxToolset <sandbox/index>`
      - Gives the agent a shell and a filesystem in an isolated sandbox: a hosted
        service, a server you run, or a microVM on your machine for local development.

@@ -46,7 +46,7 @@ output → AI validation → arithmetic correction) to prevent hallucination.
 
 .. code-block:: text
 
-    track_aip_progress  (AgentOperator + AgentSkillsToolset)
+    track_aip_progress  (AgentOperator + AirflowSkills)
         → review_report (ApprovalOperator)
 
 The agent loads the ``aip-tracker`` skill (an `agentskills.io
@@ -92,7 +92,7 @@ from pydantic_ai.usage import UsageLimits
 
 from airflow.providers.common.ai.operators.agent import AgentOperator
 from airflow.providers.common.ai.operators.llm import LLMOperator
-from airflow.providers.common.ai.toolsets.skills import AgentSkillsToolset
+from airflow.providers.common.ai.skills import AirflowSkills
 from airflow.providers.common.compat.sdk import dag, task
 from airflow.providers.standard.operators.hitl import ApprovalOperator
 from airflow.sdk import Param
@@ -932,11 +932,11 @@ example_aip_progress_tracker()
 
 
 # ===========================================================================
-# DAG 2: Agent-based AIP tracker (AgentOperator + AgentSkillsToolset)
+# Dag 2: Agent-based AIP tracker (AgentOperator + AirflowSkills)
 #
 # Same use case, different architecture.  Instead of a 12-task deterministic
 # pipeline, a single AgentOperator with the aip-tracker skill loaded via
-# AgentSkillsToolset.  The agent discovers the skill's grounding rules and
+# AirflowSkills.  The agent discovers the skill's grounding rules and
 # calls custom tools to gather evidence from Confluence and GitHub.
 # ===========================================================================
 
@@ -1112,7 +1112,7 @@ skill. Fix any violations before returning."""
     },
 )
 def example_aip_progress_tracker_skills():
-    """Skills-based AIP tracker using AgentSkillsToolset.
+    """Skills-based AIP tracker using AirflowSkills.
 
     Same use case as ``example_aip_progress_tracker`` but solved with a
     single ``AgentOperator`` that loads the ``aip-tracker`` skill and
@@ -1152,10 +1152,8 @@ def example_aip_progress_tracker_skills():
         llm_conn_id=LLM_CONN_ID,
         system_prompt=AGENT_SYSTEM_PROMPT,
         prompt="{{ ti.xcom_pull(task_ids='build_agent_prompt') }}",
-        toolsets=[
-            AgentSkillsToolset(sources=[SKILLS_DIR]),
-            aip_toolset,
-        ],
+        capabilities=[AirflowSkills(sources=[SKILLS_DIR])],
+        toolsets=[aip_toolset],
         agent_params={"model_settings": {"temperature": 0, "max_tokens": 16_000}},
         usage_limits=UsageLimits(
             request_limit=30,

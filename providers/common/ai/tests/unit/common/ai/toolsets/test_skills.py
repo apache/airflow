@@ -26,17 +26,19 @@ import asyncio
 import os
 import sys
 import types
+import warnings
 from collections import Counter
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
-from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults
+from pydantic_ai import Agent, DeferredToolRequests, DeferredToolResults, RunContext
 from pydantic_ai.capabilities import ProcessHistory
 from pydantic_ai.exceptions import UnexpectedModelBehavior
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, ToolCallPart, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.toolsets import DynamicToolset
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.ai.skills import GitSkills, _SkillsLocation
 from airflow.providers.common.ai.toolsets.skills import (
     AgentSkillsToolset,
@@ -46,6 +48,11 @@ from airflow.providers.common.ai.toolsets.skills import (
 from airflow.providers.common.ai.utils.logging import SKILLS_XCOM_KEY
 
 pytest.importorskip("pydantic_ai_skills")
+
+# AgentSkillsToolset is deprecated; these tests cover its behavior until it is removed.
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:AgentSkillsToolset is deprecated:airflow.exceptions.AirflowProviderDeprecationWarning"
+)
 
 
 class _FakeInner:
@@ -75,6 +82,19 @@ def _write_skill(directory, name="demo-skill"):
 
 
 class TestConstruction:
+    def test_construction_warns_and_points_to_airflow_skills(self):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=r"skills\.AirflowSkills") as record:
+            AgentSkillsToolset(sources=["./skills"])
+
+        assert len(record) == 1
+        assert record[0].filename == __file__
+
+    def test_per_run_copy_does_not_warn_again(self):
+        toolset = AgentSkillsToolset(sources=["./skills"])
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", AirflowProviderDeprecationWarning)
+            asyncio.run(toolset.for_run(create_autospec(RunContext, instance=True)))
+
     def test_is_abstract_toolset_and_lazy(self):
         from pydantic_ai.toolsets.abstract import AbstractToolset
 
@@ -86,7 +106,7 @@ class TestConstruction:
     def test_get_tools_before_enter_raises(self):
         toolset = AgentSkillsToolset(sources=["./skills"])
         with pytest.raises(RuntimeError, match="must be entered"):
-            asyncio.run(toolset.get_tools(MagicMock()))
+            asyncio.run(toolset.get_tools(create_autospec(RunContext, instance=True, messages=[])))
 
 
 class TestLifecycle:
@@ -135,7 +155,7 @@ class TestLifecycle:
             autospec=True,
             return_value=([_SkillsLocation("/x")], lambda: None),
         ):
-            with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):  # noqa: spec
+            with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):
                 asyncio.run(_enter_exit(toolset))
 
         assert captured["exclude_resources"] == ["*.env", "secrets/*"]
@@ -155,7 +175,7 @@ class TestLifecycle:
             autospec=True,
             return_value=([_SkillsLocation("/x")], lambda: None),
         ):
-            with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):  # noqa: spec
+            with patch("pydantic_ai_skills.SkillsToolset", fake_skillstoolset):
                 asyncio.run(_enter_exit(toolset))
 
         assert "exclude_tools" not in captured
@@ -172,7 +192,7 @@ class TestLifecycle:
         toolset = AgentSkillsToolset(
             sources=["/x"], exclude_tools={"run_skill_script"}, exclude_resources=["*.env"], max_retries=3
         )
-        per_run = asyncio.run(toolset.for_run(MagicMock()))  # noqa: spec  (for_run ignores ctx)
+        per_run = asyncio.run(toolset.for_run(create_autospec(RunContext, instance=True)))
         assert per_run is not toolset
         assert per_run._exclude_tools == {"run_skill_script"}
         assert per_run._exclude_resources == ["*.env"]
