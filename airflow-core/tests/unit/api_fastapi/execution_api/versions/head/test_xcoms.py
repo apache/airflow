@@ -1841,6 +1841,27 @@ class TestXComsSetEndpoint:
         dag_result = XComModelV2.get_for_attempt(ti.id, "return_value", session=session).dag_result
         assert dag_result is True
 
+    def test_set_xcom_handles_value_error(self, client, create_task_instance, authenticate_as, session):
+        """Test that setting an XCom returns a 404 response when a ValueError is raised."""
+        ti = create_task_instance()
+        session.commit()
+        authenticate_as(ti)
+
+        with patch(
+            "airflow.api_fastapi.execution_api.routes.xcoms.XComModel.set_for_attempt",
+            side_effect=ValueError("unknown task instance id"),
+        ):
+            response = client.post(
+                f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}/xcom_1",
+                json="value",
+            )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "unknown task instance id",
+        }
+
 
 class TestXComsDeleteEndpoint:
     def test_xcom_delete_endpoint(self, client, create_task_instance, authenticate_as, session):
