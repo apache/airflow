@@ -28,6 +28,7 @@ from sqlalchemy.exc import NoResultFound
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.api_fastapi.common.dagbag import DagBagDep, get_dag_for_run, resolve_run_on_latest_version
 from airflow.api_fastapi.common.db.common import AsyncSessionDep, SessionDep
+from airflow.api_fastapi.common.db.dags import eager_load_teams
 from airflow.api_fastapi.common.types import UtcDateTime
 from airflow.api_fastapi.compat import HTTP_422_UNPROCESSABLE_CONTENT
 from airflow.api_fastapi.execution_api.datamodels.dagrun import DagRunStateResponse, TriggerDAGRunPayload
@@ -73,9 +74,13 @@ def get_previous_dagrun_compat(
     "/{dag_id}/{run_id}",
     responses={status.HTTP_404_NOT_FOUND: {"description": "Dag run not found"}},
 )
-def get_dag_run(dag_id: str, run_id: str, session: SessionDep) -> DagRun:
+async def get_dag_run(dag_id: str, run_id: str, *, session: AsyncSessionDep) -> DagRun:
     """Get detail of a Dag run."""
-    dr = session.scalar(select(DagRunModel).where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id))
+    dr = await session.scalar(
+        select(DagRunModel)
+        .where(DagRunModel.dag_id == dag_id, DagRunModel.run_id == run_id)
+        .options(*eager_load_teams(DagRunModel.dag_model))
+    )
     if dr is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND,

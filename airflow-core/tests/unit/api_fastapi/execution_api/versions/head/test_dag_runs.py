@@ -29,13 +29,16 @@ from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.datamodels.token import TIClaims, TIToken
 from airflow.api_fastapi.execution_api.security import require_auth
 from airflow.models import DagModel
+from airflow.models.dagbundle import DagBundleModel
 from airflow.models.dagrun import DagRun
+from airflow.models.team import Team
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.timetables.trigger import CronPartitionTimetable
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_runs
 
 pytestmark = pytest.mark.db_test
@@ -509,6 +512,28 @@ class TestDagRunDetail:
             "note": None,
             "team_name": None,
         }
+
+    @conf_vars({("core", "multi_team"): "True"})
+    @mock.patch.object(DagModel, "get_team_name", autospec=True)
+    def test_get_team_owned_dag_run(self, mock_get_team_name, client, session, dag_maker):
+        dag_id = "test_team_owned_dag_run"
+        run_id = "test_run"
+        with dag_maker(dag_id=dag_id, session=session):
+            EmptyOperator(task_id="task")
+        dag_maker.create_dagrun(run_id=run_id)
+
+        bundle = DagBundleModel(name="detail-test-bundle")
+        bundle.teams.append(Team(name="detail-test-team"))
+        session.add(bundle)
+        session.flush()
+        session.execute(update(DagModel).where(DagModel.dag_id == dag_id).values(bundle_name=bundle.name))
+        session.commit()
+
+        response = client.get(f"/execution/dag-runs/{dag_id}/{run_id}")
+
+        assert response.status_code == 200
+        assert response.json()["team_name"] == "detail-test-team"
+        mock_get_team_name.assert_not_called()
 
     def test_dag_run_not_found(self, client):
         response = client.get("/execution/dag-runs/dag_not_found/test_run_id")
