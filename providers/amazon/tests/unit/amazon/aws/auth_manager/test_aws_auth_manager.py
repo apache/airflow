@@ -957,3 +957,19 @@ class TestAwsAuthManager:
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0
+
+    def test_deserialize_user(self, auth_manager):
+        token = {
+            "sub": "test_user_id",
+            "groups": ["group1", "group2"],
+            "username": "test_username",
+            "email": "test@example.com",
+        }
+        token_copy = dict(token)
+        user = auth_manager.deserialize_user(token)
+
+        assert user.get_id() == "test_user_id"
+        assert user.get_groups() == ["group1", "group2"]
+        assert user.username == "test_username"
+        assert user.email == "test@example.com"
+        assert token == token_copy
