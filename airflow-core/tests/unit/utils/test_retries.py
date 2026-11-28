@@ -24,7 +24,7 @@ import pytest
 from sqlalchemy.exc import InternalError, OperationalError
 from sqlalchemy.orm.exc import StaleDataError
 
-from airflow.utils.retries import retry_db_transaction
+from airflow.utils.retries import retry_db_transaction, retry_db_transaction_async
 
 
 class TestRetries:
@@ -109,3 +109,81 @@ class TestRetries:
         error_message = rf"session is a required argument for {test_function.__qualname__}"
         with pytest.raises(TypeError, match=error_message):
             test_function()
+
+    @pytest.mark.asyncio
+    async def test_retry_db_transaction_async_succeeds(self):
+        """Test that async transactions return successfully."""
+        mock_session = mock.MagicMock()
+        mock_session.rollback = mock.AsyncMock()
+        mock_obj = mock.AsyncMock(return_value="success")
+
+        @retry_db_transaction_async(retries=2)
+        async def test_function(session):
+            return await mock_obj()
+
+        result = await test_function(session=mock_session)
+
+        assert result == "success"
+        mock_obj.assert_awaited_once()
+        mock_session.rollback.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_retry_db_transaction_async_retries_db_error(self):
+        """Test that async transactions retry after DBAPIError."""
+        mock_session = mock.MagicMock()
+        mock_session.rollback = mock.AsyncMock()
+        attempts = 0
+
+        @retry_db_transaction_async(retries=2)
+        async def test_function(session):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise OperationalError(
+                    statement="SELECT 1",
+                    params=None,
+                    orig=Exception("Database error"),
+                )
+            return "success"
+
+        result = await test_function(session=mock_session)
+
+        assert result == "success"
+        assert attempts == 2
+        mock_session.rollback.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_retry_db_transaction_async_rolls_back_after_max_retries(self):
+        """Test that async transactions rollback after every failed attempt."""
+        mock_session = mock.MagicMock()
+        mock_session.rollback = mock.AsyncMock()
+        mock_obj = mock.AsyncMock(
+            side_effect=OperationalError(
+                statement="SELECT 1",
+                params=None,
+                orig=Exception("Database error"),
+            )
+        )
+
+        @retry_db_transaction_async(retries=2)
+        async def test_function(session):
+            await mock_obj()
+
+        with pytest.raises(OperationalError):
+            await test_function(session=mock_session)
+
+        assert mock_obj.await_count == 2
+        assert mock_session.rollback.await_count == 2
+
+    @pytest.mark.asyncio
+    async def test_retry_db_transaction_async_fails_when_session_not_passed(self):
+        """Test that an error is raised when async session is not passed."""
+
+        @retry_db_transaction_async
+        async def test_function(session):
+            return None
+
+        error_message = rf"session is a required argument for {test_function.__qualname__}"
+
+        with pytest.raises(TypeError, match=error_message):
+            await test_function()

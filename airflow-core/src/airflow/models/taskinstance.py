@@ -175,6 +175,7 @@ if TYPE_CHECKING:
     from typing import Literal
 
     from sqlalchemy.engine import Connection as SAConnection, Engine
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import ORMExecuteState
     from sqlalchemy.sql import Update
     from sqlalchemy.sql.elements import ColumnElement
@@ -2723,6 +2724,24 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         rtif.write(session=session)
         session.flush()
         RenderedTaskInstanceFields.delete_old_records(self.task_id, self.dag_id, session=session)
+
+    async def update_rtif_async(self, rendered_fields, *, session: AsyncSession):
+
+        from airflow.models.renderedtifields import RenderedTaskInstanceFields
+
+        task_id = self.task_id
+        dag_id = self.dag_id
+
+        rtif = await session.run_sync(
+            lambda sync_session: RenderedTaskInstanceFields(
+                ti=self,
+                render_templates=False,
+                rendered_fields=rendered_fields,
+            )
+        )
+        await rtif.write_async(session=session)
+        await session.flush()
+        await RenderedTaskInstanceFields.delete_old_records_async(task_id, dag_id, session=session)
 
     def update_heartbeat(self):
         with create_session() as session:

@@ -5764,6 +5764,31 @@ class TestTIPutRTIF:
         assert rtifs[0].task_instance_id == ti.id
         assert rtifs[0].rendered_fields == payload
 
+    def test_ti_put_rtif_updates_existing_record(self, client, session, create_task_instance):
+        ti = create_task_instance(
+            task_id="test_ti_put_rtif_updates_existing_record",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+
+        first_payload = {"field1": "original_value"}
+        response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=first_payload)
+        assert response.status_code == 201
+
+        updated_payload = {"field1": "updated_value"}
+        response = client.put(f"/execution/task-instances/{ti.id}/rtif", json=updated_payload)
+        assert response.status_code == 201
+
+        session.expire_all()
+
+        rtifs = session.scalars(
+            select(RenderedTaskInstanceFields).where(RenderedTaskInstanceFields.task_instance_id == ti.id)
+        ).all()
+
+        assert len(rtifs) == 1
+        assert rtifs[0].rendered_fields == updated_payload
+
     def test_ti_put_rtif_missing_ti(self, client, session, create_task_instance):
         create_task_instance(
             task_id="test_ti_put_rtif_missing_ti",

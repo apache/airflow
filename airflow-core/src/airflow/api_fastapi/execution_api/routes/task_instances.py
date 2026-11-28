@@ -1393,22 +1393,23 @@ async def ti_heartbeat(
         ]
     ),
 )
-def ti_put_rtif(
+async def ti_put_rtif(
     task_instance_id: UUID,
     put_rtif_payload: Annotated[dict[str, JsonValue], Body()],
-    session: SessionDep,
+    session: AsyncSessionDep,
 ):
     """Add an RTIF entry for a task instance, sent by the worker."""
     bind_contextvars(ti_id=str(task_instance_id))
     log.info("Updating RenderedTaskInstanceFields", field_count=len(put_rtif_payload))
 
-    task_instance = session.scalar(
+    task_instance = await session.scalar(
         select(TI).where(TI.id == task_instance_id).execution_options(include_all_attempts=True)
     )
     if task_instance is None or task_instance.working_set is None:
         # On retry/clear, the server regenerates the TI id. Return 410 for the stale id.
         _raise_ti_not_in_live_table(task_instance_id, archived_in_history=task_instance is not None)
-    task_instance.update_rtif(put_rtif_payload, session=session)
+
+    await task_instance.update_rtif_async(put_rtif_payload, session=session)
     log.debug("RenderedTaskInstanceFields updated successfully")
 
     return {"message": "Rendered task instance fields successfully set"}

@@ -53,6 +53,79 @@ def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: Logger | None
     return tenacity.Retrying(**retry_kwargs)
 
 
+def run_with_db_retries_async(max_retries: int = MAX_DB_RETRIES, logger: Logger | None = None, **kwargs):
+    """Return Tenacity AsyncRetrying object with project specific default."""
+    import tenacity
+
+    retry_kwargs = dict(
+        retry=tenacity.retry_if_exception_type(exception_types=(DBAPIError, StaleDataError)),
+        wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
+        stop=tenacity.stop_after_attempt(max_retries),
+        reraise=True,
+        **kwargs,
+    )
+    if logger is not None:
+        retry_kwargs["before_sleep"] = tenacity.before_sleep_log(logger, logging.DEBUG, True)
+
+    return tenacity.AsyncRetrying(**retry_kwargs)
+
+
+def retry_db_transaction_async(
+    _func: Callable | None = None, *, retries: int = MAX_DB_RETRIES, **retry_kwargs
+):
+    """
+    Retry async functions in case of DBAPIError from DB.
+
+    It should not be used with an async session provider.
+    """
+
+    def retry_decorator(func: Callable) -> Callable:
+        func_params = signature(func).parameters
+        try:
+            session_args_idx = tuple(func_params).index("session")
+        except ValueError:
+            raise ValueError(f"Function {func.__qualname__} has no `session` argument") from None
+        del func_params
+
+        @functools.wraps(func)
+        async def wrapped_function(*args, **kwargs):
+            if args and hasattr(args[0], "logger"):
+                logger = args[0].logger()
+            elif args and hasattr(args[0], "log"):
+                logger = args[0].log
+            else:
+                logger = logging.getLogger(func.__module__)
+
+            if "session" in kwargs:
+                session = kwargs["session"]
+            elif len(args) > session_args_idx:
+                session = args[session_args_idx]
+            else:
+                raise TypeError(f"session is a required argument for {func.__qualname__}")
+
+            async for attempt in run_with_db_retries_async(
+                max_retries=retries, logger=logger, **retry_kwargs
+            ):
+                with attempt:
+                    logger.debug(
+                        "Running %s with retries. Try %d of %d",
+                        func.__qualname__,
+                        attempt.retry_state.attempt_number,
+                        retries,
+                    )
+                    try:
+                        return await func(*args, **kwargs)
+                    except (DBAPIError, StaleDataError):
+                        await session.rollback()
+                        raise
+
+        return wrapped_function
+
+    if _func is None:
+        return retry_decorator
+    return retry_decorator(_func)
+
+
 @overload
 def retry_db_transaction(*, retries: int = MAX_DB_RETRIES) -> Callable[[F], F]: ...
 

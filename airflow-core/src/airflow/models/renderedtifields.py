@@ -42,11 +42,12 @@ from airflow.models.base import Base, StringID, TaskInstanceDependencies
 from airflow.models.taskinstance import LegacyTaskDataOwner
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.serialization.helpers import serialize_template_field
-from airflow.utils.retries import retry_db_transaction
+from airflow.utils.retries import retry_db_transaction, retry_db_transaction_async
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import build_upsert_stmt, get_dialect_name
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.selectable import ScalarSelect
 
@@ -196,6 +197,44 @@ class RenderedTaskInstanceFields(Base):
                 session.expire(existing, list(updated))
 
     @classmethod
+    async def set_for_attempt_async(
+        cls,
+        *,
+        task_instance_id: UUID,
+        rendered_fields: dict,
+        k8s_pod_yaml: dict | None = None,
+        session: AsyncSession,
+    ) -> None:
+        from airflow._shared.secrets_masker import redact
+
+        updated = {
+            "rendered_fields": {key: redact(value, key) for key, value in rendered_fields.items()},
+            "k8s_pod_yaml": redact(k8s_pod_yaml) if k8s_pod_yaml else k8s_pod_yaml,
+        }
+
+        await session.flush()
+        await session.execute(
+            build_upsert_stmt(
+                session.get_bind().dialect.name,
+                cls,
+                ["task_instance_id"],
+                {
+                    "id": uuid6.uuid7(),
+                    "task_instance_id": task_instance_id,
+                    **updated,
+                },
+                updated,
+            )
+        )
+
+        for existing in session.identity_map.values():
+            if (
+                isinstance(existing, cls)
+                and existing.__dict__.get("task_instance_id", task_instance_id) == task_instance_id
+            ):
+                session.expire(existing, list(updated))
+
+    @classmethod
     @provide_session
     def delete_for_attempts(cls, *, producer_ids, session: Session = NEW_SESSION) -> None:
         owner = LegacyTaskDataOwner.__table__
@@ -291,6 +330,15 @@ class RenderedTaskInstanceFields(Base):
             session=session,
         )
 
+    @retry_db_transaction_async
+    async def write_async(self, *, session: AsyncSession) -> None:
+        await self.set_for_attempt_async(
+            task_instance_id=self.task_instance_id,
+            rendered_fields=self.rendered_fields,
+            k8s_pod_yaml=self.k8s_pod_yaml,
+            session=session,
+        )
+
     @classmethod
     @provide_session
     def delete_old_records(
@@ -344,6 +392,47 @@ class RenderedTaskInstanceFields(Base):
         session.flush()
 
     @classmethod
+    async def delete_old_records_async(
+        cls,
+        task_id: str,
+        dag_id: str,
+        num_to_keep: int = conf.getint(
+            "core",
+            "num_dag_runs_to_retain_rendered_fields",
+            fallback=0,
+        ),
+        *,
+        session: AsyncSession,
+    ) -> None:
+        """Delete rendered fields from older Dag runs asynchronously."""
+        if num_to_keep <= 0:
+            return
+
+        from airflow.models.dagrun import DagRun
+
+        run_ids_to_keep_query = (
+            select(DagRun.run_id)
+            .where(DagRun.dag_id == dag_id)
+            .order_by(DagRun.run_after.desc())
+            .limit(num_to_keep)
+        )
+
+        if session.get_bind().dialect.name == "mysql":
+            run_ids_to_keep: list[str] | ScalarSelect[str] = list(
+                (await session.scalars(run_ids_to_keep_query)).all()
+            )
+        else:
+            run_ids_to_keep = run_ids_to_keep_query.scalar_subquery()
+
+        await cls._do_delete_old_records_async(
+            dag_id=dag_id,
+            task_id=task_id,
+            run_ids_to_keep=run_ids_to_keep,
+            session=session,
+        )
+        await session.flush()
+
+    @classmethod
     @retry_db_transaction
     def _do_delete_old_records(
         cls,
@@ -364,6 +453,41 @@ class RenderedTaskInstanceFields(Base):
             )
         )
         session.execute(
+            delete(cls)
+            .where(
+                select(1)
+                .where(
+                    TaskInstance.id == cls.task_instance_id,
+                    TaskInstance.dag_id == dag_id,
+                    TaskInstance.task_id == task_id,
+                    TaskInstance.run_id.not_in(run_ids_to_keep),
+                )
+                .exists()
+            )
+            .execution_options(synchronize_session="fetch")
+        )
+
+    @classmethod
+    @retry_db_transaction_async
+    async def _do_delete_old_records_async(
+        cls,
+        *,
+        task_id: str,
+        dag_id: str,
+        run_ids_to_keep: list[str] | ScalarSelect[str],
+        session: AsyncSession,
+    ) -> None:
+        from airflow.models.taskinstance import TaskInstance
+
+        legacy = LegacyRenderedTaskInstanceFields.__table__
+        await session.execute(
+            delete(legacy).where(
+                legacy.c.dag_id == dag_id,
+                legacy.c.task_id == task_id,
+                legacy.c.run_id.not_in(run_ids_to_keep),
+            )
+        )
+        await session.execute(
             delete(cls)
             .where(
                 select(1)
