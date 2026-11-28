@@ -7129,6 +7129,34 @@ class TestTIPatchRenderedMapIndex:
 
         assert response.status_code == 404
 
+    def test_ti_patch_rendered_map_index_archived_ti_returns_410(self, client, session, create_task_instance):
+        """Test that a 410 error is returned when a TI was cleared and moved to TIH."""
+        ti = create_task_instance(
+            task_id="test_ti_patch_rendered_map_index_archived",
+            state=State.RUNNING,
+            session=session,
+        )
+        session.commit()
+        old_ti_id = ti.id
+
+        # Simulate task being cleared: this archives the current try to TIH
+        # and assigns a new UUID to the TI, mirroring prepare_db_for_next_try().
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+
+        assert session.get(TaskInstance, old_ti_id) is not None
+
+        response = client.patch(
+            f"/execution/task-instances/{old_ti_id}/rendered-map-index",
+            json="late_label",
+        )
+
+        assert response.status_code == 410
+        assert response.json()["detail"] == {
+            "reason": "not_found",
+            "message": "Task Instance not found, it may have been moved to the Task Instance History table",
+        }
+
     def test_ti_patch_rendered_map_index_empty_string(self, client, session, create_task_instance):
         """Test that empty string is accepted (clears the rendered_map_index)."""
         ti = create_task_instance(

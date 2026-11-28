@@ -1442,10 +1442,26 @@ def ti_patch_rendered_map_index(
 
     result = cast("CursorResult[Any]", result)
     if result.rowcount == 0:
-        log.error("Task Instance not found")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task Instance not found",
+        # On retry/clear the server archives the attempt and hands the replacement row a
+        # new id, so a miss usually means the caller is a worker still finishing a
+        # superseded attempt -- or the id is simply wrong. Tell the two apart like the
+        # heartbeat and RTIF endpoints do, instead of always answering plain 404.
+        row = session.execute(
+            select(TI.id, TI.working_set)
+            .where(TI.id == task_instance_id)
+            .execution_options(include_all_attempts=True)
+        ).first()
+        if row is None:
+            log.error("Task Instance not found")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Task Instance not found",
+            )
+        if row.working_set is not None:
+            # The live row is already carrying this value; nothing to update.
+            return
+        _raise_ti_not_in_live_table(
+            task_instance_id, archived_in_history=IdentifyArchivedTaskStateUpdates.is_applied
         )
 
 

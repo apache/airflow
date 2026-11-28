@@ -1736,18 +1736,29 @@ def _run_task_and_map_outcome(
                 with suppress(jinja2.TemplateSyntaxError, jinja2.UndefinedError):
                     previous_rendered_map_index = ti.rendered_map_index
                     ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
-                    # Send update only if value changed (e.g., user set context variables during execution)
-                    if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
+                # Send update only if value changed (e.g., user set context variables during execution).
+                # Also guard the send itself: an API error here must not mask the main error either.
+                if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
+                    try:
                         SUPERVISOR_COMMS.send(
                             msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
                         )
+                    except Exception:
+                        log.exception("Failed to set rendered map index after execution", ti=ti)
                 raise
             else:  # If the task succeeded, render normally to let rendering error bubble up.
                 previous_rendered_map_index = ti.rendered_map_index
                 ti.rendered_map_index = _render_map_index(context, ti=ti, log=log)
-                # Send update only if value changed (e.g., user set context variables during execution)
+                # Send update only if value changed (e.g., user set context variables during execution).
+                # The map index is a UI label: a late update landing after the task instance was
+                # replaced on retry/clear must not turn a successful task into a failed one.
                 if ti.rendered_map_index and ti.rendered_map_index != previous_rendered_map_index:
-                    SUPERVISOR_COMMS.send(msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index))
+                    try:
+                        SUPERVISOR_COMMS.send(
+                            msg=SetRenderedMapIndex(rendered_map_index=ti.rendered_map_index)
+                        )
+                    except Exception:
+                        log.exception("Failed to set rendered map index after execution", ti=ti)
 
         _push_xcom_if_needed(result, ti, log)
         _resolve_external_clear_target(context, ti, log)

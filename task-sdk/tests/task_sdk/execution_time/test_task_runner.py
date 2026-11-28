@@ -158,6 +158,7 @@ from airflow.sdk.execution_time.comms import (
     SetAssetStateStoreByUri,
     SetExecutionTimeout,
     SetRenderedFields,
+    SetRenderedMapIndex,
     SetTaskStateStore,
     SetXCom,
     SkipDownstreamTasks,
@@ -4099,6 +4100,82 @@ class TestRuntimeTaskInstance:
             "Failed to set rendered fields during finalization",
             ti=runtime_ti,
             task=task,
+        )
+
+    @staticmethod
+    def _api_server_error():
+        return AirflowRuntimeError(
+            error=ErrorResponse(
+                error=ErrorType.API_SERVER_ERROR,
+                detail={
+                    "status_code": 404,
+                    "message": "Not Found",
+                    "detail": {"detail": "Not Found"},
+                },
+            )
+        )
+
+    def test_map_index_update_error_does_not_mask_task_failure(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """An API error sending the post-execution map index update must not mask the task failure."""
+
+        class FailWithLabelUpdate(BaseOperator):
+            def execute(self, context):
+                context["my_label"] = "final label"
+                raise RuntimeError("original task failure")
+
+        task = FailWithLabelUpdate(task_id="failing_task", map_index_template="{{ my_label }}")
+        runtime_ti = create_runtime_ti(task=task, dag_id="map_index_mask_failure")
+        mock_log = mock.MagicMock()
+
+        # Only the map index update fails; every other supervisor message goes through.
+        def send_side_effect(msg):
+            if isinstance(msg, SetRenderedMapIndex):
+                raise self._api_server_error()
+            return None
+
+        mock_supervisor_comms.send.side_effect = send_side_effect
+
+        state, _msg, error = run(runtime_ti, context=runtime_ti.get_template_context(), log=mock_log)
+
+        assert state == TaskInstanceState.FAILED
+        assert isinstance(error, RuntimeError)
+        assert str(error) == "original task failure"
+        # The original error must survive to the failure handlers, and the swallowed
+        # send error is what gets logged by the guard -- the guard's call comes before
+        # the generic "Task failed with exception" of _handle_handler_failure().
+        assert mock_log.exception.call_args_list[0] == mock.call(
+            "Failed to set rendered map index after execution", ti=runtime_ti
+        )
+
+    def test_map_index_update_error_does_not_fail_succeeded_task(
+        self, create_runtime_ti, mock_supervisor_comms
+    ):
+        """An API error sending the post-execution map index update must not fail a successful task."""
+
+        class SucceedWithLabelUpdate(BaseOperator):
+            def execute(self, context):
+                context["my_label"] = "final label"
+
+        task = SucceedWithLabelUpdate(task_id="succeeding_task", map_index_template="{{ my_label }}")
+        runtime_ti = create_runtime_ti(task=task, dag_id="map_index_mask_success")
+        mock_log = mock.MagicMock()
+
+        def send_side_effect(msg):
+            if isinstance(msg, SetRenderedMapIndex):
+                raise self._api_server_error()
+            return None
+
+        mock_supervisor_comms.send.side_effect = send_side_effect
+
+        state, _msg, error = run(runtime_ti, context=runtime_ti.get_template_context(), log=mock_log)
+
+        assert state == TaskInstanceState.SUCCESS
+        assert error is None
+        assert runtime_ti.rendered_map_index == "final label"
+        mock_log.exception.assert_called_once_with(
+            "Failed to set rendered map index after execution", ti=runtime_ti
         )
 
     @pytest.mark.parametrize(

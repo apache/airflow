@@ -4669,6 +4669,52 @@ class TestHandleRequest:
         else:
             assert frame.error is None
 
+    @pytest.mark.parametrize(
+        ("status_code", "expects_error"),
+        [
+            pytest.param(404, False, id="404_not_found_is_swallowed"),
+            pytest.param(410, False, id="410_archived_is_swallowed"),
+            pytest.param(500, True, id="500_propagates"),
+        ],
+    )
+    def test_set_rendered_map_index_swallows_404_and_410_but_propagates_other_errors(
+        self, watched_subprocess, mocker, status_code, expects_error
+    ):
+        """A stale-id map index update is skipped; other errors propagate.
+
+        On retry/clear the server replaces the TI id; archived attempts get 410
+        (like the RTIF endpoint) and older servers answer plain 404. The map index
+        is a UI label, so a late update from a finishing worker must not fail the
+        task either way.
+        """
+        watched_subprocess, read_socket = watched_subprocess
+
+        error = ServerResponseError(
+            message="boom",
+            request=httpx2.Request("PATCH", "http://test"),
+            response=httpx2.Response(status_code, json={"detail": "boom"}),
+        )
+        watched_subprocess.client.task_instances.set_rendered_map_index = mocker.Mock(side_effect=error)
+
+        generator = watched_subprocess.handle_requests(log=mocker.Mock())
+        next(generator)
+
+        msg = SetRenderedMapIndex(rendered_map_index="a label")
+        req_frame = _RequestFrame(id=randint(1, 2**32 - 1), body=msg.model_dump())
+        generator.send(req_frame)
+
+        read_socket.settimeout(0.1)
+        frame_len = int.from_bytes(read_socket.recv(4), "big")
+        frame = msgspec.msgpack.Decoder(_ResponseFrame).decode(read_socket.recv(frame_len))
+
+        assert frame.id == req_frame.id
+        if expects_error:
+            assert frame.error is not None
+            assert frame.error["error"] == "API_SERVER_ERROR"
+            assert frame.error["detail"]["status_code"] == status_code
+        else:
+            assert frame.error is None
+
     def test_handle_requests_network_exception_does_not_crash_loop(self, watched_subprocess, mocker):
         """A transient network error must not crash the IPC generator.
 
