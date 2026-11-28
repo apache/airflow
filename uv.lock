@@ -5331,6 +5331,9 @@ sqlalchemy = [
     { name = "sqlalchemy", version = "2.0.57", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "sqlalchemy", version = "2.1.8", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
 ]
+sqlglot = [
+    { name = "sqlglot" },
+]
 
 [package.dev-dependencies]
 dev = [
@@ -5339,7 +5342,7 @@ dev = [
     { name = "apache-airflow-providers-amazon" },
     { name = "apache-airflow-providers-apache-iceberg" },
     { name = "apache-airflow-providers-common-compat" },
-    { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars", "sqlalchemy"] },
+    { name = "apache-airflow-providers-common-sql", extra = ["pandas", "polars", "sqlalchemy", "sqlglot"] },
     { name = "apache-airflow-providers-google" },
     { name = "apache-airflow-providers-mysql" },
     { name = "apache-airflow-providers-odbc" },
@@ -5349,6 +5352,7 @@ dev = [
     { name = "apache-airflow-task-sdk" },
     { name = "datafusion" },
     { name = "pyiceberg-core" },
+    { name = "sqlglot" },
 ]
 docs = [
     { name = "apache-airflow-devel-common", extra = ["docs"] },
@@ -5371,9 +5375,10 @@ requires-dist = [
     { name = "polars", marker = "extra == 'polars'", specifier = ">=1.26.0" },
     { name = "pyiceberg-core", marker = "extra == 'pyiceberg-core'", specifier = ">=0.8.0" },
     { name = "sqlalchemy", marker = "extra == 'sqlalchemy'", specifier = ">=1.4.54,!=2.1.0" },
+    { name = "sqlglot", marker = "extra == 'sqlglot'", specifier = ">=30.0.0" },
     { name = "sqlparse", specifier = ">=0.5.1" },
 ]
-provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "datafusion", "pyiceberg-core", "apache-iceberg", "amazon", "google"]
+provides-extras = ["pandas", "openlineage", "polars", "sqlalchemy", "datafusion", "pyiceberg-core", "apache-iceberg", "amazon", "google", "sqlglot"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -5385,6 +5390,7 @@ dev = [
     { name = "apache-airflow-providers-common-sql", extras = ["pandas"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["polars"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-common-sql", extras = ["sqlalchemy"], editable = "providers/common/sql" },
+    { name = "apache-airflow-providers-common-sql", extras = ["sqlglot"], editable = "providers/common/sql" },
     { name = "apache-airflow-providers-google", editable = "providers/google" },
     { name = "apache-airflow-providers-mysql", editable = "providers/mysql" },
     { name = "apache-airflow-providers-odbc", editable = "providers/odbc" },
@@ -5394,6 +5400,7 @@ dev = [
     { name = "apache-airflow-task-sdk", editable = "task-sdk" },
     { name = "datafusion", specifier = ">=50.0.0,<52.0.0" },
     { name = "pyiceberg-core", specifier = ">=0.8.0" },
+    { name = "sqlglot", specifier = ">=30.0.0" },
 ]
 docs = [{ name = "apache-airflow-devel-common", extras = ["docs"], editable = "devel-common" }]
 

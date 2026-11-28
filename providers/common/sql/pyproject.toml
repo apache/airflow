@@ -102,6 +102,9 @@ dependencies = [
 "google" = [
     "apache-airflow-providers-google>=23.1.0"  # use next version
 ]
+"sqlglot" = [
+    "sqlglot>=30.0.0",
+]
 
 [dependency-groups]
 dev = [
@@ -121,6 +124,8 @@ dev = [
     "apache-airflow-providers-odbc",
     "apache-airflow-providers-sqlite",
     "apache-airflow-providers-common-sql[sqlalchemy]",
+    "apache-airflow-providers-common-sql[sqlglot]",
+    "sqlglot>=30.0.0",
     "datafusion>=50.0.0,<52.0.0",
     "pyiceberg-core>=0.8.0",
 ]
