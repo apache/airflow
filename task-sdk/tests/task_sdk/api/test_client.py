@@ -1405,6 +1405,8 @@ class TestXCOMOperations:
             pytest.param({"map_index": -1}, {}, id="explicit-map-index"),
             pytest.param({"include_prior_dates": True}, {}, id="prior-dates"),
             pytest.param({}, {"Airflow-API-Version": "2027-02-28"}, id="server-resolves-map-index"),
+            pytest.param({"region_id": uuid7()}, {}, id="region-id"),
+            pytest.param({"region_index": 0}, {}, id="region-index"),
         ],
     )
     def test_xcom_get_does_not_read_the_slice(self, kwargs, headers):
