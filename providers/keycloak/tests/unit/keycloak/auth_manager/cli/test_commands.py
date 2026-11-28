@@ -38,15 +38,14 @@ from airflow.providers.keycloak.auth_manager.cli.commands import (
     _create_permissions,
     _ensure_resource_server_decision_strategy,
     _get_default_permission_configs,
-    _get_exported_permission_names,
     _get_extended_resource_methods,
-    _get_permissions_to_create,
     _get_resource_methods,
     _get_scopes_to_create,
     _preview_permission_update,
     _preview_resources,
     _update_admin_permission_resources,
     _update_read_only_permission_resources,
+    _validate_permission_prerequisites,
     add_user_to_team_command,
     create_all_command,
     create_permissions_command,
@@ -153,7 +152,7 @@ def test_default_permissions_reject_missing_resources_or_scopes(teams, missing_r
     ]
 
     with pytest.raises(ValueError, match="Cannot create permissions:") as exc_info:
-        _get_permissions_to_create(client, "test-id", teams=teams)
+        _validate_permission_prerequisites(client, "test-id", teams=teams)
 
     expected_resources = [missing_resource] if missing_resource else []
     expected_scopes = [missing_scope] if missing_scope else []
@@ -258,31 +257,6 @@ def test_ensure_resource_server_decision_strategy(
         )
     else:
         assert output == ""
-
-
-@pytest.mark.parametrize("settings", [b"invalid settings", []], ids=["bytes", "list"])
-@pytest.mark.parametrize("dry_run", [False, True])
-@patch(
-    "airflow.providers.keycloak.auth_manager.cli.commands.raise_error_from_response",
-    autospec=True,
-)
-def test_ensure_resource_server_decision_strategy_rejects_invalid_settings(
-    mock_check_response, settings, dry_run, capsys
-):
-    client = Mock(spec=["connection"])
-    client.connection = Mock(spec=["realm_name", "raw_get", "raw_put"])
-    client.connection.realm_name = "test-realm"
-    mock_check_response.return_value = settings
-
-    with pytest.raises(ValueError, match="Expected Keycloak resource-server settings to be a JSON object"):
-        _ensure_resource_server_decision_strategy(client, "test-id", _dry_run=dry_run)
-
-    client.connection.raw_get.assert_called_once_with(
-        "admin/realms/test-realm/clients/test-id/authz/resource-server"
-    )
-    client.connection.raw_put.assert_not_called()
-    assert mock_check_response.call_count == 1
-    assert capsys.readouterr().out == ""
 
 
 @pytest.mark.parametrize("include_global_admin", [True, False])
@@ -424,12 +398,6 @@ def test_permission_update_preview_reports_only_changes(changes, config_changes,
     assert capsys.readouterr().out == expected_output
 
 
-@pytest.mark.parametrize("value", ['"GET"', '{"GET": true}', '["GET", 123]', None, "invalid-json"])
-def test_exported_permission_names_reject_invalid_values(value):
-    with pytest.raises(ValueError, match="Invalid 'scopes' in exported permission 'PoolRead'"):
-        _get_exported_permission_names({"name": "PoolRead", "config": {"scopes": value}}, "scopes")
-
-
 @pytest.mark.parametrize("permission_type", ["scope", "resource"])
 @pytest.mark.parametrize("exists", [False, True])
 @pytest.mark.parametrize("provided_snapshot", [False, True])
@@ -479,20 +447,43 @@ def test_attachment_dry_run_uses_export_without_writes(permission_type, exists, 
     "attach_permissions",
     [_attach_team_permissions, _attach_team_menu_permissions, _attach_superadmin_permissions],
 )
-@pytest.mark.parametrize("provided_snapshot", [False, True])
-def test_team_attachment_dry_run_shares_snapshot(attach_permissions, provided_snapshot):
-    client = Mock(spec=["get_client_authz_settings"])
+def test_team_attachment_dry_run_shares_snapshot(attach_permissions):
+    client = Mock(spec=[])
     settings = {"policies": []}
-    client.get_client_authz_settings.return_value = settings
 
-    if provided_snapshot:
-        attach_permissions(client, "test-id", "team-a", _dry_run=True, authz_settings=settings)
-        assert client.mock_calls == []
-    else:
-        attach_permissions(client, "test-id", "team-a", _dry_run=True)
-        assert client.mock_calls == [call.get_client_authz_settings(client_id="test-id")]
-        attach_permissions(client, "test-id", "team-a", _dry_run=True)
-        assert client.mock_calls == [call.get_client_authz_settings(client_id="test-id")] * 2
+    attach_permissions(client, "test-id", "team-a", _dry_run=True, authz_settings=settings)
+
+    assert client.mock_calls == []
+
+
+@pytest.mark.parametrize(("admin_exists", "policy_attached"), [(True, True), (True, False), (False, False)])
+def test_superadmin_dry_run_previews_only_admin_policy_attachment(admin_exists, policy_attached, capsys):
+    client = Mock(spec=[])
+    settings = {
+        "policies": [
+            {
+                "name": "Admin",
+                "type": "scope",
+                "logic": "POSITIVE",
+                "decisionStrategy": "UNANIMOUS",
+                "config": {
+                    "resources": json.dumps(["Dag:team-a", "Dag:team-b"]),
+                    "scopes": json.dumps(["GET", "LIST", "POST", "PUT", "DELETE"]),
+                    "applyPolicies": json.dumps(["Allow-SuperAdmin"] if policy_attached else []),
+                },
+            }
+        ]
+        if admin_exists
+        else []
+    }
+
+    _attach_superadmin_permissions(client, "test-id", "team-a", _dry_run=True, authz_settings=settings)
+
+    admin_messages = [line for line in capsys.readouterr().out.splitlines() if "'Admin'" in line]
+    assert admin_messages == (
+        [] if policy_attached else ["Would attach policy 'Allow-SuperAdmin' to permission 'Admin'."]
+    )
+    assert client.mock_calls == []
 
 
 @pytest.mark.parametrize("missing_policy", [None, "Allow-Viewer"])
@@ -1302,7 +1293,6 @@ class TestCommands:
         mock_get_policy_id.side_effect = lambda client, client_uuid, name: f"policy-{name}"
         mock_get_permission_policy_ids.return_value = [
             "custom-policy",
-            "policy-Allow-Viewer",
             "custom-policy",
         ]
         client.get_client_authz_permissions.return_value = [
@@ -1371,15 +1361,7 @@ class TestCommands:
                             "decisionStrategy": "AFFIRMATIVE",
                             "scopes": [scope.lower() for scope in scopes],
                             "resources": [f"resource-{resource}"],
-                            "policies": list(
-                                dict.fromkeys(
-                                    [
-                                        "custom-policy",
-                                        "policy-Allow-Viewer",
-                                        *[f"policy-Allow-{role}" for role in roles],
-                                    ]
-                                )
-                            ),
+                            "policies": ["custom-policy", *[f"policy-Allow-{role}" for role in roles]],
                         },
                     )
                 )
@@ -1493,6 +1475,7 @@ class TestCommands:
                 resource_names=["Dag:team-a", "Team:team-a"],
                 decision_strategy="AFFIRMATIVE",
                 _dry_run=False,
+                authz_settings=None,
             )
         mock_attach_policy.assert_any_call(
             client,
@@ -1508,6 +1491,7 @@ class TestCommands:
                 "Variable:team-a",
             ],
             _dry_run=False,
+            authz_settings=None,
         )
         mock_attach_resource_policy.assert_any_call(
             client,
@@ -1516,6 +1500,7 @@ class TestCommands:
             policy_name="Allow-User-team-a",
             resource_names=["Dag:team-a"],
             _dry_run=False,
+            authz_settings=None,
         )
         mock_attach_resource_policy.assert_any_call(
             client,
@@ -1529,6 +1514,7 @@ class TestCommands:
                 "Variable:team-a",
             ],
             _dry_run=False,
+            authz_settings=None,
         )
         mock_attach_policy.assert_any_call(
             client,
@@ -1539,6 +1525,7 @@ class TestCommands:
             resource_names=EXPECTED_TEAM_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
+            authz_settings=None,
         )
         mock_attach_policy.assert_any_call(
             client,
@@ -1549,6 +1536,7 @@ class TestCommands:
             resource_names=EXPECTED_TEAM_ADMIN_MENU_RESOURCES,
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
+            authz_settings=None,
         )
         mock_attach_policy.assert_any_call(
             client,
@@ -1565,6 +1553,7 @@ class TestCommands:
             ],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
+            authz_settings=None,
         )
         mock_attach_policy.assert_any_call(
             client,
@@ -1575,6 +1564,7 @@ class TestCommands:
             resource_names=[item.value for item in sorted(MenuItem, key=lambda item: item.value)],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
+            authz_settings=None,
         )
         for role_name in TEAM_ROLE_NAMES:
             mock_attach_policy.assert_any_call(
@@ -1586,6 +1576,7 @@ class TestCommands:
                 resource_names=["View"],
                 decision_strategy="AFFIRMATIVE",
                 _dry_run=False,
+                authz_settings=None,
             )
         mock_attach_policy.assert_any_call(
             client,
@@ -1596,6 +1587,7 @@ class TestCommands:
             resource_names=["AdminView"],
             decision_strategy="AFFIRMATIVE",
             _dry_run=False,
+            authz_settings=None,
         )
         admin_view_policies = [
             c.kwargs["policy_name"]

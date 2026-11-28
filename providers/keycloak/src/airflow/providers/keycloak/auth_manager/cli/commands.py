@@ -19,8 +19,7 @@ from __future__ import annotations
 import json
 import logging
 from enum import Enum
-from functools import partial
-from typing import get_args
+from typing import cast, get_args
 
 from keycloak import KeycloakAdmin, KeycloakError
 from keycloak.exceptions import (
@@ -289,14 +288,10 @@ def _ensure_resource_server_decision_strategy(
     url = f"admin/realms/{realm}/clients/{client_uuid}/authz/resource-server"
 
     response = client.connection.raw_get(url)
-    settings = raise_error_from_response(
-        response,
-        KeycloakGetError,
-        expected_codes=[200],
+    settings = cast(
+        "dict",
+        raise_error_from_response(response, KeycloakGetError, expected_codes=[200]),
     )
-
-    if not isinstance(settings, dict):
-        raise ValueError("Expected Keycloak resource-server settings to be a JSON object.")
 
     if settings.get("decisionStrategy") == "AFFIRMATIVE":
         return
@@ -521,14 +516,11 @@ def _validate_permission_creation_plan(
     teams: list[str],
     *,
     include_global_admin: bool = True,
-    scopes: list[dict] | None = None,
+    scopes: list[dict],
 ) -> None:
     """Validate permission prerequisites against a provisioning plan."""
     standard_names, menu_names = _get_resource_names_to_create(teams)
     resources = [{"name": name} for name in standard_names + menu_names]
-
-    if scopes is None:
-        scopes = _get_scopes_to_create()
 
     _validate_required_authz_objects(
         _get_permission_configs(
@@ -782,20 +774,13 @@ def _get_permissions_to_create(
     *,
     include_global_admin: bool = True,
 ) -> list[dict]:
-    """Validate permission prerequisites and resolve names to Keycloak IDs."""
+    """Resolve validated permission resource and scope names to Keycloak IDs."""
     perm_configs = _get_permission_configs(
         teams,
         include_global_admin=include_global_admin,
     )
     all_scopes = client.get_client_authz_scopes(client_uuid)
     all_resources = client.get_client_authz_resources(client_uuid)
-
-    _validate_required_authz_objects(
-        perm_configs,
-        scopes=all_scopes,
-        resources=all_resources,
-        teams=teams,
-    )
 
     result = []
 
@@ -1098,18 +1083,6 @@ def _attach_team_permissions(
     _dry_run: bool = False,
     authz_settings: dict | None = None,
 ) -> None:
-    if _dry_run and authz_settings is None:
-        authz_settings = client.get_client_authz_settings(client_id=client_uuid)
-    attach_scope = (
-        partial(_attach_policy_to_scope_permission, authz_settings=authz_settings)
-        if _dry_run
-        else _attach_policy_to_scope_permission
-    )
-    attach_resource = (
-        partial(_attach_policy_to_resource_permission, authz_settings=authz_settings)
-        if _dry_run
-        else _attach_policy_to_resource_permission
-    )
     team_dag_resources = [
         f"{KeycloakResource.DAG.value}:{team}",
     ]
@@ -1119,7 +1092,7 @@ def _attach_team_permissions(
     ]
     team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
 
-    attach_scope(
+    _attach_policy_to_scope_permission(
         client,
         client_uuid,
         permission_name=f"ReadOnly-{team}",
@@ -1128,9 +1101,10 @@ def _attach_team_permissions(
         resource_names=team_readable_resources,
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
+        authz_settings=authz_settings,
     )
     for role_name in ("User", "Op", "Admin"):
-        attach_scope(
+        _attach_policy_to_scope_permission(
             client,
             client_uuid,
             permission_name=f"ReadOnly-{team}",
@@ -1139,8 +1113,9 @@ def _attach_team_permissions(
             resource_names=team_readable_resources,
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
+            authz_settings=authz_settings,
         )
-    attach_scope(
+    _attach_policy_to_scope_permission(
         client,
         client_uuid,
         permission_name=f"Admin-{team}",
@@ -1148,16 +1123,18 @@ def _attach_team_permissions(
         scope_names=_get_extended_resource_methods() + ["LIST"],
         resource_names=team_scoped_resources,
         _dry_run=_dry_run,
+        authz_settings=authz_settings,
     )
-    attach_resource(
+    _attach_policy_to_resource_permission(
         client,
         client_uuid,
         permission_name=f"User-{team}",
         policy_name=_team_role_policy_name(team, "User"),
         resource_names=team_dag_resources,
         _dry_run=_dry_run,
+        authz_settings=authz_settings,
     )
-    attach_resource(
+    _attach_policy_to_resource_permission(
         client,
         client_uuid,
         permission_name=f"Op-{team}",
@@ -1169,12 +1146,13 @@ def _attach_team_permissions(
             f"{KeycloakResource.VARIABLE.value}:{team}",
         ],
         _dry_run=_dry_run,
+        authz_settings=authz_settings,
     )
     # ``View`` only covers the views every team role may read. Views over records that are not tied
     # to a team (e.g. audit log rows not tied to a Dag) live on ``AdminView``, which team roles do not
     # get -- see ``_attach_superadmin_permissions``.
     for role_name in TEAM_ROLE_NAMES:
-        attach_scope(
+        _attach_policy_to_scope_permission(
             client,
             client_uuid,
             permission_name="ViewAccess",
@@ -1183,6 +1161,7 @@ def _attach_team_permissions(
             resource_names=[KeycloakResource.VIEW.value],
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
+            authz_settings=authz_settings,
         )
 
     _attach_global_list_permissions(client, client_uuid, _dry_run=_dry_run, authz_settings=authz_settings)
@@ -1191,16 +1170,9 @@ def _attach_team_permissions(
 def _attach_global_list_permissions(
     client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False, authz_settings: dict | None = None
 ) -> None:
-    if _dry_run and authz_settings is None:
-        authz_settings = client.get_client_authz_settings(client_id=client_uuid)
-    attach_scope = (
-        partial(_attach_policy_to_scope_permission, authz_settings=authz_settings)
-        if _dry_run
-        else _attach_policy_to_scope_permission
-    )
     resource_names = list(TEAM_SCOPED_RESOURCE_NAMES) + list(GLOBAL_SCOPED_RESOURCE_NAMES)
     for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME):
-        attach_scope(
+        _attach_policy_to_scope_permission(
             client,
             client_uuid,
             permission_name="GlobalList",
@@ -1209,6 +1181,7 @@ def _attach_global_list_permissions(
             resource_names=resource_names,
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
+            authz_settings=authz_settings,
         )
 
 
@@ -1220,13 +1193,6 @@ def _attach_team_menu_permissions(
     _dry_run: bool = False,
     authz_settings: dict | None = None,
 ) -> None:
-    if _dry_run and authz_settings is None:
-        authz_settings = client.get_client_authz_settings(client_id=client_uuid)
-    attach_scope = (
-        partial(_attach_policy_to_scope_permission, authz_settings=authz_settings)
-        if _dry_run
-        else _attach_policy_to_scope_permission
-    )
     menu_permission_name = f"MenuAccess-{team}"
     menu_admin_permission_name = f"MenuAccess-Admin-{team}"
     team_menu_resources = [item.value for item in sorted(TEAM_MENU_ITEMS, key=lambda item: item.value)]
@@ -1252,7 +1218,7 @@ def _attach_team_menu_permissions(
         _dry_run=_dry_run,
     )
     for role_name in TEAM_ROLE_NAMES:
-        attach_scope(
+        _attach_policy_to_scope_permission(
             client,
             client_uuid,
             permission_name=menu_permission_name,
@@ -1261,8 +1227,9 @@ def _attach_team_menu_permissions(
             resource_names=team_menu_resources,
             decision_strategy="AFFIRMATIVE",
             _dry_run=_dry_run,
+            authz_settings=authz_settings,
         )
-    attach_scope(
+    _attach_policy_to_scope_permission(
         client,
         client_uuid,
         permission_name=menu_admin_permission_name,
@@ -1271,6 +1238,7 @@ def _attach_team_menu_permissions(
         resource_names=team_admin_menu_resources,
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
+        authz_settings=authz_settings,
     )
 
 
@@ -1282,25 +1250,30 @@ def _attach_superadmin_permissions(
     _dry_run: bool = False,
     authz_settings: dict | None = None,
 ) -> None:
-    if _dry_run and authz_settings is None:
-        authz_settings = client.get_client_authz_settings(client_id=client_uuid)
-    attach_scope = (
-        partial(_attach_policy_to_scope_permission, authz_settings=authz_settings)
-        if _dry_run
-        else _attach_policy_to_scope_permission
-    )
     team_scoped_resources = [f"{resource}:{team}" for resource in sorted(TEAM_SCOPED_RESOURCE_NAMES)]
-    attach_scope(
-        client,
-        client_uuid,
-        permission_name="Admin",
-        policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
-        scope_names=_get_extended_resource_methods() + ["LIST"],
-        resource_names=team_scoped_resources,
-        decision_strategy="AFFIRMATIVE",
-        _dry_run=_dry_run,
-    )
-    attach_scope(
+    if _dry_run:
+        # The final Admin settings are owned by _update_admin_permission_resources across all teams.
+        permission = next(
+            (item for item in (authz_settings or {}).get("policies", []) if item.get("name") == "Admin"),
+            None,
+        )
+        policies = _get_exported_permission_names(permission, "applyPolicies") if permission else set()
+        policy_name = _role_policy_name(SUPER_ADMIN_ROLE_NAME)
+        if policy_name not in policies:
+            print(f"Would attach policy '{policy_name}' to permission 'Admin'.")
+    else:
+        _attach_policy_to_scope_permission(
+            client,
+            client_uuid,
+            permission_name="Admin",
+            policy_name=_role_policy_name(SUPER_ADMIN_ROLE_NAME),
+            scope_names=_get_extended_resource_methods() + ["LIST"],
+            resource_names=team_scoped_resources,
+            decision_strategy="AFFIRMATIVE",
+            _dry_run=False,
+            authz_settings=authz_settings,
+        )
+    _attach_policy_to_scope_permission(
         client,
         client_uuid,
         permission_name="ViewAccess",
@@ -1309,8 +1282,9 @@ def _attach_superadmin_permissions(
         resource_names=[KeycloakResource.VIEW.value],
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
+        authz_settings=authz_settings,
     )
-    attach_scope(
+    _attach_policy_to_scope_permission(
         client,
         client_uuid,
         permission_name="AdminViewAccess",
@@ -1319,8 +1293,9 @@ def _attach_superadmin_permissions(
         resource_names=[KeycloakResource.ADMIN_VIEW.value],
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
+        authz_settings=authz_settings,
     )
-    attach_scope(
+    _attach_policy_to_scope_permission(
         client,
         client_uuid,
         permission_name="MenuAccess",
@@ -1329,6 +1304,7 @@ def _attach_superadmin_permissions(
         resource_names=[item.value for item in sorted(MenuItem, key=lambda item: item.value)],
         decision_strategy="AFFIRMATIVE",
         _dry_run=_dry_run,
+        authz_settings=authz_settings,
     )
 
 
@@ -1511,14 +1487,7 @@ def _ensure_aggregate_policy(
 
 def _get_exported_permission_names(permission: dict, key: str) -> set[str]:
     # Keycloak exports references as JSON-encoded names rather than the IDs used by update requests.
-    value = permission.get("config", {}).get(key, "[]")
-    try:
-        names = json.loads(value)
-    except (TypeError, ValueError) as exc:
-        raise ValueError(f"Invalid '{key}' in exported permission '{permission['name']}'.") from exc
-    if not isinstance(names, list) or any(not isinstance(name, str) for name in names):
-        raise ValueError(f"Invalid '{key}' in exported permission '{permission['name']}'.")
-    return set(names)
+    return set(json.loads(permission.get("config", {}).get(key, "[]")))
 
 
 def _preview_permission_update(

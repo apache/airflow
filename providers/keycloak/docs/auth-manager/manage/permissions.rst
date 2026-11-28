@@ -106,8 +106,8 @@ Finally, with the command below, we create the permissions using the previously 
 Without ``--teams``, the CLI creates resource-specific permissions for non-team installations.
 It generates a ``<Resource>Read`` permission with ``GET`` and ``LIST`` scopes and a
 ``<Resource>Write`` permission with ``POST``, ``PUT``, and ``DELETE`` scopes for each resource
-except the generic ``Menu`` resource. The current model has 24 read/write permissions for
-12 resources, plus ``DefaultMenuAccess`` for individual menu resources with the ``MENU`` scope.
+except the generic ``Menu`` resource. It also creates ``DefaultMenuAccess`` for individual
+menu resources with the ``MENU`` scope.
 
 The generated non-team grants are:
 
