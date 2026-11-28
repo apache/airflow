@@ -988,6 +988,7 @@ export type DAGDetailsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime?: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
@@ -1026,6 +1027,10 @@ export type DAGDetailsResponse = {
     active_runs_count?: number;
     team_name?: string | null;
     latest_dag_version: DagVersionResponse | null;
+    /**
+     * Partition key suggested for a manual trigger of this Dag. Computed only by the Dag details endpoint; null when the timetable offers no suggestion.
+     */
+    suggested_partition_key?: string | null;
     /**
      * Whether this Dag's schedule supports backfilling.
      */
@@ -1071,6 +1076,7 @@ export type DAGResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime?: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;
@@ -3290,6 +3296,7 @@ export type DAGWithLatestDagRunsResponse = {
     timetable_summary: string | null;
     timetable_description: string | null;
     timetable_partitioned: boolean;
+    timetable_partitioned_at_runtime?: boolean;
     timetable_periodic: boolean;
     tags: Array<DagTagResponse>;
     max_active_tasks: number;

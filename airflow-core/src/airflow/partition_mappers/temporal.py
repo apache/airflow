@@ -180,8 +180,20 @@ class _BaseTemporalMapper(PartitionMapper):
             dt = make_aware(dt, self._timezone)
         else:
             dt = dt.astimezone(self._timezone)
-        normalized = self.normalize(dt)
-        return self.format(normalized)
+        return self.format_period_containing(dt)
+
+    def format_period_containing(self, dt: datetime) -> str:
+        """
+        Return the downstream key of the period that contains *dt*.
+
+        *dt* must be an aware datetime, otherwise ``ValueError`` is raised: a naive value would
+        silently be read as the host's local time. It is converted to this mapper's timezone before
+        normalizing, because period boundaries (day, week, ...) differ between timezones; the
+        key is formatted with ``output_format`` exactly as :meth:`to_downstream` formats it.
+        """
+        if dt.tzinfo is None:
+            raise ValueError(f"format_period_containing requires an aware datetime, got naive {dt!r}")
+        return self.format(self.normalize(dt.astimezone(self._timezone)))
 
     @abstractmethod
     def normalize(self, dt: datetime) -> datetime:

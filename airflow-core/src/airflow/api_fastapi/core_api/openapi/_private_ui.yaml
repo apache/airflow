@@ -4181,6 +4181,10 @@ components:
         timetable_partitioned:
           type: boolean
           title: Timetable Partitioned
+        timetable_partitioned_at_runtime:
+          type: boolean
+          title: Timetable Partitioned At Runtime
+          default: false
         timetable_periodic:
           type: boolean
           title: Timetable Periodic

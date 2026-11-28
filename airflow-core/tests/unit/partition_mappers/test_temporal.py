@@ -171,6 +171,123 @@ class TestTemporalMappers:
         # → start-of-day in New York is 2026-02-11
         assert pm.to_downstream("2026-02-11T06:00:00+0000") == "2026-02-11"
 
+    @pytest.mark.parametrize(
+        ("mapper_cls", "expected_key"),
+        [
+            pytest.param(StartOfHourMapper, "2026-02-10T14", id="hour"),
+            pytest.param(StartOfDayMapper, "2026-02-10", id="day"),
+            pytest.param(StartOfWeekMapper, "2026-02-09 (W07)", id="week"),
+            pytest.param(StartOfMonthMapper, "2026-02", id="month"),
+            pytest.param(StartOfQuarterMapper, "2026-Q1", id="quarter"),
+            pytest.param(StartOfYearMapper, "2026", id="year"),
+        ],
+    )
+    def test_format_period_containing_formats_period_start(
+        self, mapper_cls: type[_BaseTemporalMapper], expected_key: str
+    ):
+        pm = mapper_cls()
+        now = pendulum.datetime(2026, 2, 10, 14, 30, 45, tz="UTC")
+        assert pm.format_period_containing(now) == expected_key
+
+    def test_format_period_containing_rejects_naive_datetime(self):
+        with pytest.raises(ValueError, match="aware"):
+            StartOfDayMapper().format_period_containing(datetime(2026, 2, 10, 14, 30))
+
+    @pytest.mark.parametrize(
+        ("mapper", "now", "expected_key"),
+        [
+            # Each instant falls in a different period in UTC than in the mapper's timezone.
+            pytest.param(
+                StartOfHourMapper(timezone="Asia/Kolkata"),
+                pendulum.datetime(2026, 2, 10, 14, 40, tz="UTC"),
+                "2026-02-10T20",
+                id="hour-kolkata-half-hour-offset",
+            ),
+            pytest.param(
+                StartOfDayMapper(timezone="Asia/Taipei"),
+                pendulum.datetime(2026, 2, 10, 20, tz="UTC"),
+                "2026-02-11",
+                id="day-taipei",
+            ),
+            # Same instant as day-taipei, written in a third timezone: the result depends only on
+            # the instant and the mapper's timezone.
+            pytest.param(
+                StartOfDayMapper(timezone="Asia/Taipei"),
+                pendulum.datetime(2026, 2, 10, 15, tz="America/New_York"),
+                "2026-02-11",
+                id="day-taipei-now-given-in-new-york-time",
+            ),
+            pytest.param(
+                StartOfDayMapper(timezone="America/New_York"),
+                pendulum.datetime(2026, 6, 15, 2, 30, tz="UTC"),
+                "2026-06-14",
+                id="day-new-york-evening",
+            ),
+            pytest.param(
+                StartOfWeekMapper(timezone="Asia/Taipei"),
+                pendulum.datetime(2026, 2, 8, 23, 30, tz="UTC"),
+                "2026-02-09 (W07)",
+                id="week-taipei-sunday-utc-is-monday-local",
+            ),
+            pytest.param(
+                StartOfMonthMapper(timezone="Asia/Taipei"),
+                pendulum.datetime(2026, 2, 28, 20, tz="UTC"),
+                "2026-03",
+                id="month-taipei",
+            ),
+            pytest.param(
+                StartOfQuarterMapper(timezone="Asia/Taipei"),
+                pendulum.datetime(2026, 3, 31, 20, tz="UTC"),
+                "2026-Q2",
+                id="quarter-taipei",
+            ),
+            pytest.param(
+                StartOfYearMapper(timezone="Asia/Taipei"),
+                pendulum.datetime(2025, 12, 31, 20, tz="UTC"),
+                "2026",
+                id="year-taipei",
+            ),
+            # 2026-06-15 04:30 UTC is 00:30 EDT (UTC-4) on the 15th; with the winter offset
+            # (UTC-5) it would be 23:30 EST on the 14th.
+            pytest.param(
+                StartOfDayMapper(timezone="America/New_York"),
+                pendulum.datetime(2026, 6, 15, 4, 30, tz="UTC"),
+                "2026-06-15",
+                id="day-new-york-summer-time",
+            ),
+            # DST ended 2025-11-02 06:00 UTC; 06:30 UTC is 01:30 EST (UTC-5), not 02:30 EDT.
+            pytest.param(
+                StartOfHourMapper(timezone="America/New_York"),
+                pendulum.datetime(2025, 11, 2, 6, 30, tz="UTC"),
+                "2025-11-02T01",
+                id="hour-new-york-after-fall-back",
+            ),
+            # DST began 2026-03-08 07:00 UTC; 07:30 UTC is 03:30 EDT (UTC-4), not 02:30 EST.
+            pytest.param(
+                StartOfHourMapper(timezone="America/New_York"),
+                pendulum.datetime(2026, 3, 8, 7, 30, tz="UTC"),
+                "2026-03-08T03",
+                id="hour-new-york-after-spring-forward",
+            ),
+            # After DST began, local midnight on 2026-03-09 is 04:00 UTC (UTC-4), not 05:00 UTC:
+            # 03:30 UTC is 23:30 EDT on the 8th, and 04:30 UTC is 00:30 EDT on the 9th.
+            pytest.param(
+                StartOfDayMapper(timezone="America/New_York"),
+                pendulum.datetime(2026, 3, 9, 3, 30, tz="UTC"),
+                "2026-03-08",
+                id="day-new-york-just-before-local-midnight-after-spring-forward",
+            ),
+            pytest.param(
+                StartOfDayMapper(timezone="America/New_York"),
+                pendulum.datetime(2026, 3, 9, 4, 30, tz="UTC"),
+                "2026-03-09",
+                id="day-new-york-just-after-local-midnight-after-spring-forward",
+            ),
+        ],
+    )
+    def test_format_period_containing_uses_mapper_timezone(self, mapper, now, expected_key):
+        assert mapper.format_period_containing(now) == expected_key
+
     def test_encode_upstream_accepts_aware_utc_decode(self):
         """`encode_upstream` accepts aware datetimes produced by `decode_downstream` with %z."""
         mapper = StartOfDayMapper(

@@ -21,7 +21,7 @@ import { useState } from "react";
 import { Center, HStack, Spinner, Text, VStack } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 
-import { useDagServiceGetDag } from "openapi/queries";
+import { useDagServiceGetDagDetails } from "openapi/queries";
 
 import { Modal, Tooltip, RadioCardItem, RadioCardRoot } from "src/system-components";
 
@@ -60,7 +60,7 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
     isError,
     isFetching,
     isLoading,
-  } = useDagServiceGetDag(
+  } = useDagServiceGetDagDetails(
     {
       dagId,
     },
@@ -68,6 +68,7 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
     {
       enabled: open,
       // The paused state decides whether a drain is requested, so it must not come from a stale cache.
+      // The same goes for suggested_partition_key, which is computed per request and may name an elapsed partition.
       staleTime: 0,
     },
   );
@@ -76,7 +77,10 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
   const isPaused = dag?.is_paused ?? false;
   const hasSchedule = dag?.timetable_summary !== null;
   const isPartitioned = dag ? dag.timetable_partitioned : false;
+  const isPartitionedAtRuntime = dag?.timetable_partitioned_at_runtime ?? false;
   const { error, isPending, resetError, triggerDagRun } = useTrigger({ dagId, onSuccessConfirm: onClose });
+  // Keep null: the form reads undefined as "not loaded yet" and null as "no suggestion", which empties the field.
+  const suggestedPartitionKey = dag?.suggested_partition_key;
   const maxDisplayLength = 59; // hard-coded length to prevent dag name overflowing the modal
   const nameOverflowing = dagDisplayName.length > maxDisplayLength;
 
@@ -145,12 +149,16 @@ const TriggerDAGModal = ({ dagDisplayName, dagId, onClose, open, prefillConfig }
               error={error}
               hasSchedule={hasSchedule}
               isPartitioned={isPartitioned}
+              isPartitionedAtRuntime={isPartitionedAtRuntime}
               isPaused={isPaused}
               isPending={isPending}
+              // Remount per Dag so a partition key typed for the previous Dag does not carry over.
+              key={dagId}
               onPausedDagActionChange={Boolean(error) ? resetError : undefined}
               onSubmitTrigger={triggerDagRun}
               open={open}
               prefillConfig={prefillConfig}
+              suggestedPartitionKey={suggestedPartitionKey}
             />
           ) : (
             isBackfillable && dag && <RunBackfillForm dag={dag} disabled={isFetching} onClose={onClose} />

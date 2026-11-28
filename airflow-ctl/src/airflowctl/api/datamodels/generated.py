@@ -2502,6 +2502,9 @@ class DAGResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")]
     timetable_description: Annotated[str | None, Field(title="Timetable Description")]
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_partitioned_at_runtime: Annotated[
+        bool | None, Field(title="Timetable Partitioned At Runtime")
+    ] = False
     timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
@@ -3755,6 +3758,9 @@ class DAGDetailsResponse(BaseModel):
     timetable_summary: Annotated[str | None, Field(title="Timetable Summary")]
     timetable_description: Annotated[str | None, Field(title="Timetable Description")]
     timetable_partitioned: Annotated[bool, Field(title="Timetable Partitioned")]
+    timetable_partitioned_at_runtime: Annotated[
+        bool | None, Field(title="Timetable Partitioned At Runtime")
+    ] = False
     timetable_periodic: Annotated[bool, Field(title="Timetable Periodic")]
     tags: Annotated[list[DagTagResponse], Field(title="Tags")]
     max_active_tasks: Annotated[int, Field(title="Max Active Tasks")]
@@ -3797,6 +3803,13 @@ class DAGDetailsResponse(BaseModel):
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     team_name: Annotated[str | None, Field(title="Team Name")] = None
     latest_dag_version: DagVersionResponse | None
+    suggested_partition_key: Annotated[
+        str | None,
+        Field(
+            description="Partition key suggested for a manual trigger of this Dag. Computed only by the Dag details endpoint; null when the timetable offers no suggestion.",
+            title="Suggested Partition Key",
+        ),
+    ] = None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]
