@@ -75,4 +75,5 @@ def get_provider_info():
                 "connection-type": "ftp",
             }
         ],
+        "filesystems": ["airflow.providers.ftp.fs.ftp"],
     }

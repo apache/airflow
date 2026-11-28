@@ -6045,6 +6045,7 @@ source = { editable = "providers/ftp" }
 dependencies = [
     { name = "apache-airflow" },
     { name = "apache-airflow-providers-common-compat" },
+    { name = "fsspec" },
 ]
 
 [package.optional-dependencies]
@@ -6069,6 +6070,7 @@ requires-dist = [
     { name = "apache-airflow", editable = "." },
     { name = "apache-airflow-providers-common-compat", editable = "providers/common/compat" },
     { name = "apache-airflow-providers-openlineage", marker = "extra == 'openlineage'", editable = "providers/openlineage" },
+    { name = "fsspec", specifier = ">=2023.10.0" },
 ]
 provides-extras = ["openlineage"]
 

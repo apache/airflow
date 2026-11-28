@@ -55,6 +55,7 @@ PIP package                                 Version required
 ==========================================  ==================
 ``apache-airflow``                          ``>=2.11.0``
 ``apache-airflow-providers-common-compat``  ``>=1.8.0``
+``fsspec``                                  ``>=2023.10.0``
 ==========================================  ==================
 
 Optional cross provider package dependencies
