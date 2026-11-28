@@ -121,3 +121,28 @@ it.each([
 
   expect(await screen.findByRole("link", { name: "work" })).toHaveAttribute("href", expected);
 });
+
+it("renders no sort control, since listAssetStateStore cannot order the entries", async () => {
+  vi.spyOn(AssetStateStoreService, "listAssetStateStore").mockResolvedValue({
+    asset_state_store: [
+      { key: "watermark", last_updated_by: null, updated_at: "2026-09-28T00:00:00Z", value: "ready" },
+    ],
+    total_entries: 1,
+  });
+
+  render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={["/assets/1/state"]}>
+        <TimezoneProvider>
+          <Routes>
+            <Route element={<AssetStateStore />} path="/assets/:assetId/state" />
+          </Routes>
+        </TimezoneProvider>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
+
+  // The mocked translate returns the key, so every sort button is named "sort".
+  expect(await screen.findByText("watermark")).toBeInTheDocument();
+  expect(screen.queryAllByRole("button", { name: "sort" })).toEqual([]);
+});

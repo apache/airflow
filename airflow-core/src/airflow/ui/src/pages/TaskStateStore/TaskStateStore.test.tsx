@@ -17,11 +17,12 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { TaskInstanceService, TaskStateStoreService } from "openapi/requests";
+import type { TaskInstanceResponse } from "openapi/requests/types.gen";
 
 import { TimezoneProvider } from "src/context/timezone";
 import type * as Utils from "src/utils";
@@ -36,50 +37,52 @@ vi.mock("src/utils", async (importOriginal) => ({
 }));
 vi.mock("src/queries/useConfig", () => ({ useConfig: () => false }));
 
+const taskInstance: TaskInstanceResponse = {
+  dag_display_name: "dag",
+  dag_id: "dag",
+  dag_run_id: "run",
+  dag_version: null,
+  duration: null,
+  end_date: null,
+  executor: null,
+  executor_config: "{}",
+  hostname: null,
+  id: "execution",
+  in_loop: true,
+  logical_date: null,
+  map_index: -1,
+  max_tries: 0,
+  note: null,
+  operator: null,
+  operator_name: null,
+  pid: null,
+  pool: "default_pool",
+  pool_slots: 1,
+  priority_weight: null,
+  queue: null,
+  queued_when: null,
+  region_id: "11111111-1111-1111-1111-111111111111",
+  region_index: 3,
+  rendered_map_index: null,
+  run_after: "2026-01-01T00:00:00Z",
+  scheduled_when: null,
+  start_date: null,
+  state: "success",
+  task_display_name: "member",
+  task_id: "member",
+  trigger: null,
+  triggerer_job: null,
+  try_number: 1,
+  unixname: null,
+};
+
 afterEach(() => vi.restoreAllMocks());
 
 it("lists state for the exact loop coordinate, retaining the public unmapped index", async () => {
   const fetch = vi
     .spyOn(TaskStateStoreService, "listTaskStateStore")
     .mockResolvedValue({ task_state_store: [], total_entries: 0 });
-  const task = vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue({
-    dag_display_name: "dag",
-    dag_id: "dag",
-    dag_run_id: "run",
-    dag_version: null,
-    duration: null,
-    end_date: null,
-    executor: null,
-    executor_config: "{}",
-    hostname: null,
-    id: "execution",
-    in_loop: true,
-    logical_date: null,
-    map_index: -1,
-    max_tries: 0,
-    note: null,
-    operator: null,
-    operator_name: null,
-    pid: null,
-    pool: "default_pool",
-    pool_slots: 1,
-    priority_weight: null,
-    queue: null,
-    queued_when: null,
-    region_id: "11111111-1111-1111-1111-111111111111",
-    region_index: 3,
-    rendered_map_index: null,
-    run_after: "2026-01-01T00:00:00Z",
-    scheduled_when: null,
-    start_date: null,
-    state: "success",
-    task_display_name: "member",
-    task_id: "member",
-    trigger: null,
-    triggerer_job: null,
-    try_number: 1,
-    unixname: null,
-  });
+  const task = vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue(taskInstance);
 
   render(
     <BaseWrapper>
@@ -111,4 +114,34 @@ it("lists state for the exact loop coordinate, retaining the public unmapped ind
 
   await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.objectContaining(coordinates)));
   expect(task).toHaveBeenCalledWith(coordinates);
+});
+
+it("renders no sort control, since listTaskStateStore cannot order the entries", async () => {
+  // The header row renders whether or not there are entries, and an entry would pull its value
+  // over a second request this test has no reason to stand up.
+  vi.spyOn(TaskStateStoreService, "listTaskStateStore").mockResolvedValue({
+    task_state_store: [],
+    total_entries: 0,
+  });
+  vi.spyOn(TaskInstanceService, "getMappedTaskInstance").mockResolvedValue(taskInstance);
+
+  render(
+    <BaseWrapper>
+      <MemoryRouter initialEntries={["/dags/dag/runs/run/tasks/member/task-state-store"]}>
+        <TimezoneProvider>
+          <Routes>
+            <Route
+              element={<TaskStateStore />}
+              path="/dags/:dagId/runs/:runId/tasks/:taskId/task-state-store"
+            />
+          </Routes>
+        </TimezoneProvider>
+      </MemoryRouter>
+    </BaseWrapper>,
+  );
+
+  // Locale files are not served in jsdom, so translate hands back the key and each sort button in
+  // the header row is named "sort".
+  expect(await screen.findByTestId("table-list")).toBeInTheDocument();
+  expect(screen.queryAllByRole("button", { name: "sort" })).toEqual([]);
 });
