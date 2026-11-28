@@ -7254,6 +7254,67 @@ class TestTIDagRunNoteUpdate:
 
         assert response.status_code == 404
 
+    def test_update_dag_run_note_archived_task_instance_still_updates_note(
+        self, client, session, create_task_instance
+    ):
+        """A cleared attempt that is still running must not fail its note update on the run."""
+        ti = create_task_instance(
+            task_id="test_update_dag_run_note_archived_ti",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti_id = ti.id
+        session.commit()
+
+        # Simulate the task being cleared while running: this archives the current try
+        # and assigns a new UUID to the successor, as prepare_db_for_next_try() does.
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+
+        assert session.get(TaskInstance, ti_id) is not None
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/dag-run-note",
+            json={"note": "Halfway through processing"},
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+        dag_run = session.get(TaskInstance, ti_id).dag_run
+        assert dag_run.note == "Halfway through processing"
+        assert dag_run.dag_run_note.user_id is None
+
+    def test_update_dag_run_note_null_note_for_archived_task_instance_is_noop(
+        self, client, session, create_task_instance
+    ):
+        """A null note on an archived attempt leaves a user-authored note untouched."""
+        ti = create_task_instance(
+            task_id="test_update_dag_run_note_archived_ti_null",
+            state=State.RUNNING,
+            session=session,
+        )
+        ti.dag_run.note = ("Keep existing note", "user_id")
+        ti_id = ti.id
+        session.commit()
+
+        ti.prepare_db_for_next_try(session)
+        session.commit()
+
+        response = client.patch(
+            f"/execution/task-instances/{ti_id}/dag-run-note",
+            json={"note": None},
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        session.expire_all()
+        dag_run = session.get(TaskInstance, ti_id).dag_run
+        assert dag_run.note == "Keep existing note"
+        assert dag_run.dag_run_note.user_id == "user_id"
+
     def test_update_dag_run_note_rejects_too_long_note(self, client, session, create_task_instance):
         ti = create_task_instance(
             task_id="test_update_dag_run_note_rejects_too_long_note",

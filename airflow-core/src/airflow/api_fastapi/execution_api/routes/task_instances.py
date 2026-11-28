@@ -1226,6 +1226,10 @@ def update_dag_run_note(
 
     An empty note removes the existing note, matching the public API. A null note is a
     no-op so runtime callers can leave a user-authored note untouched.
+
+    The caller is looked up among archived attempts too: the note belongs to the DagRun
+    rather than the attempt, so a task that was cleared while its code was updating the
+    note finishes the write on its next attempt instead of failing with a runtime error.
     """
     bind_contextvars(ti_id=str(task_instance_id))
 
@@ -1234,6 +1238,7 @@ def update_dag_run_note(
         .join(TI, and_(TI.dag_id == DR.dag_id, TI.run_id == DR.run_id))
         .options(joinedload(DR.dag_run_note))
         .where(TI.id == task_instance_id)
+        .execution_options(include_all_attempts=True)
     )
     if dag_run is None:
         raise HTTPException(
