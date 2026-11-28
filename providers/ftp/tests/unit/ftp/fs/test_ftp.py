@@ -134,7 +134,7 @@ class TestFtpFilesystem:
     def test_passive_extra_is_applied_on_every_connect(self, mock_connect, ftp_connection, query, passive):
         ftp_connection(f"ftp://testuser:testpass@testhost{query}")
 
-        fs = get_fs(conn_id=TEST_CONN_ID, storage_options={"skip_instance_cache": True})
+        fs = get_fs(conn_id=TEST_CONN_ID)
         fs.ftp.set_pasv.assert_called_once_with(passive)
 
         # A read that is cut short reconnects through ``_connect``.
@@ -151,7 +151,7 @@ class TestFtpFilesystem:
         ],
     )
     def test_reconnects_when_the_server_closed_the_connection(self, mock_connect, method, args):
-        fs = _AirflowFTPFileSystem(host="testhost", skip_instance_cache=True)
+        fs = _AirflowFTPFileSystem(host="testhost")
         fs.ftp.voidcmd.side_effect = ftplib.error_temp("421 Timeout.")
 
         with mock.patch.object(FTPFileSystem, method, autospec=True) as parent_method:
@@ -162,7 +162,7 @@ class TestFtpFilesystem:
 
     @pytest.mark.parametrize("method", ["ls", "_open"])
     def test_keeps_a_live_connection(self, mock_connect, method):
-        fs = _AirflowFTPFileSystem(host="testhost", skip_instance_cache=True)
+        fs = _AirflowFTPFileSystem(host="testhost")
 
         with mock.patch.object(FTPFileSystem, method, autospec=True):
             getattr(fs, method)("/data")
