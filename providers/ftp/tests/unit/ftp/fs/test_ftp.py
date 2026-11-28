@@ -82,6 +82,37 @@ class TestFtpFilesystem:
 
         mock_ftp_fs.assert_called_once_with(host="manual-host", username="manual-user")
 
+    @pytest.mark.parametrize(
+        ("conn_uri", "conn_id", "storage_options", "match"),
+        [
+            pytest.param(None, None, None, "needs a connection id", id="no-connection"),
+            pytest.param(
+                "ftp://testuser:testpass@", TEST_CONN_ID, None, "has no host", id="connection-without-host"
+            ),
+        ],
+    )
+    @mock.patch(FS_CLASS, autospec=True)
+    def test_get_fs_without_host_raises(
+        self, mock_ftp_fs, ftp_connection, conn_uri, conn_id, storage_options, match
+    ):
+        if conn_uri:
+            ftp_connection(conn_uri)
+
+        with pytest.raises(ValueError, match=match):
+            get_fs(conn_id=conn_id, storage_options=storage_options)
+
+        mock_ftp_fs.assert_not_called()
+
+    @mock.patch(FS_CLASS, autospec=True)
+    def test_get_fs_host_from_storage_options_for_connection_without_host(self, mock_ftp_fs, ftp_connection):
+        ftp_connection("ftp://testuser:testpass@")
+
+        get_fs(conn_id=TEST_CONN_ID, storage_options={"host": "manual-host"})
+
+        mock_ftp_fs.assert_called_once_with(
+            passive=True, host="manual-host", port=21, username="testuser", password="testpass"
+        )
+
     @mock.patch(FS_CLASS, autospec=True)
     def test_get_fs_storage_options_override_connection(self, mock_ftp_fs, ftp_connection):
         ftp_connection("ftp://testuser:testpass@testhost")

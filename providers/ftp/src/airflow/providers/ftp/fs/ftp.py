@@ -65,7 +65,10 @@ class _AirflowFTPFileSystem(FTPFileSystem):
 
 def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -> AbstractFileSystem:
     if conn_id is None:
-        return _AirflowFTPFileSystem(**(storage_options or {}))
+        manual_options = storage_options or {}
+        if not manual_options.get("host"):
+            raise ValueError("An FTP path needs a connection id, for example ftp://my_conn@/path/to/file.")
+        return _AirflowFTPFileSystem(**manual_options)
 
     conn = BaseHook.get_connection(conn_id)
     extras = conn.extra_dejson
@@ -80,4 +83,6 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         options["encoding"] = encoding
 
     options.update(storage_options or {})
+    if not options["host"]:
+        raise ValueError(f"FTP connection {conn_id!r} has no host to connect to.")
     return _AirflowFTPFileSystem(passive=_get_passive_mode(extras), **options)
