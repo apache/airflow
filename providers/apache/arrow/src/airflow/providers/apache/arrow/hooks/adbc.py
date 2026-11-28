@@ -270,7 +270,6 @@ class AdbcHook(DbApiHook):
         sql: str,
         replace: bool,
         fast_executemany: bool,
-        matches_table_columns: bool,
     ) -> Callable[[RecordBatch], object]:
         """
         Return the callable that loads one RecordBatch through ``cursor``.
@@ -280,9 +279,7 @@ class AdbcHook(DbApiHook):
         Otherwise it is bound to the generated ``INSERT`` statement with
         ``cursor.executemany``, which most drivers execute once per row.
         ``replace=True`` always binds, because bulk ingest cannot carry the
-        dialect's conflict clause. A batch that does not hold every table column
-        in table order also binds, because some drivers, such as DuckDB's, match
-        ingested columns by position rather than by name.
+        dialect's conflict clause.
 
         ``fast_executemany`` is a hint: if the driver does not implement bulk ingest
         (the first ``adbc_ingest`` call raises ``NotSupportedError``), that batch and
@@ -292,11 +289,6 @@ class AdbcHook(DbApiHook):
         if replace or not fast_executemany:
             if replace and fast_executemany:
                 self.log.debug("Bulk ingest cannot replace rows; binding them to the statement instead")
-            return bind
-        if not matches_table_columns:
-            self.log.debug(
-                "Bulk ingest needs every table column in table order; binding rows to the statement instead"
-            )
             return bind
 
         self.log.info("Using bulk ingest (adbc_ingest) for conn_id '%s'", self.get_conn_id())
@@ -396,8 +388,9 @@ class AdbcHook(DbApiHook):
                     schema_name=schema_name,
                     sql=sql,
                     replace=replace,
-                    fast_executemany=fast_executemany,
-                    matches_table_columns=list(target_fields) == table_columns,
+                    # Some drivers, such as DuckDB's, match ingested columns by position
+                    # rather than by name, so other column lists are bound instead.
+                    fast_executemany=fast_executemany and list(target_fields) == table_columns,
                 )
 
                 for chunked_rows in chunked(rows, commit_every or None):

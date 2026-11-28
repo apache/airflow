@@ -294,7 +294,6 @@ class TestAdbcHook:
         self.conn.adbc_get_table_schema.return_value = schema(
             [field("first", string()), field("last", string()), field("age", int64())]
         )
-        self.hook._log = mock.MagicMock(spec=logging.Logger)
         row = {"first": "Alice", "last": "Smith", "age": 30}
 
         self.hook.insert_rows("t", [tuple(row[name] for name in target_fields)], target_fields=target_fields)
@@ -304,10 +303,6 @@ class TestAdbcHook:
         batch = (self.cur.adbc_ingest if ingested else self.cur.executemany).call_args[0][1]
         assert batch.schema.names == target_fields
         assert batch.to_pylist() == [{name: row[name] for name in target_fields}]
-        bind_note = (
-            "Bulk ingest needs every table column in table order; binding rows to the statement instead"
-        )
-        assert (mock.call(bind_note) in self.hook._log.debug.call_args_list) is not ingested
 
     @pytest.mark.skipif(
         importlib.util.find_spec("adbc_driver_sqlite") is None,
