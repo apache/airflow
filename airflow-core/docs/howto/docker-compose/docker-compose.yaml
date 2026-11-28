@@ -171,7 +171,8 @@ services:
     command: celery worker
     healthcheck:
       # yamllint disable rule:line-length
-      test: ["CMD-SHELL", 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"']
+      # HOSTNAME is not set in the health check shell on some runtimes (e.g. Podman), so ask Python, as the Helm chart does
+      test: ["CMD-SHELL", 'host="$$(python -c "import socket; print(socket.gethostname())")"; celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${host}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${host}"']
       interval: 30s
       timeout: 10s
       retries: 5
