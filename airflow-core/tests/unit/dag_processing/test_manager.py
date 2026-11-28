@@ -443,7 +443,7 @@ class TestDagFileProcessorManager:
         processor._bundle_importer_registries = registries.copy()
         known_files = {"removed": set(), "retained": set()}
 
-        processor._bundle_lifecycle.reconcile(known_files=known_files)
+        processor._reconcile_bundles(known_files=known_files)
 
         bundles.refresh.assert_called_once_with()
         bundles.get_all_bundle_names.assert_called_once_with()
@@ -492,7 +492,7 @@ class TestDagFileProcessorManager:
         manager._callback_to_execute[file] = [mock.create_autospec(DagCallbackRequest, instance=True)]
         known_files = {bundle.name: {file}}
 
-        manager._bundle_lifecycle.reconcile(known_files)
+        manager._reconcile_bundles(known_files)
 
         process.kill.assert_called_once_with(signal.SIGKILL)
         process.close.assert_called_once_with()
@@ -507,7 +507,7 @@ class TestDagFileProcessorManager:
         assert not manager._bundle_refresh_retry_at
         assert not manager._bundle_failed_sources
 
-        manager._bundle_lifecycle.reconcile(known_files)
+        manager._reconcile_bundles(known_files)
 
         assert manager._dag_bundles == [bundle]
         assert manager._bundle_refresh_generations[bundle.name] > source.refresh_generation
@@ -526,9 +526,9 @@ class TestDagFileProcessorManager:
         bundles.get_all_bundle_names.return_value = ["added"]
         bundles.get_bundle.side_effect = [RuntimeError("temporarily unavailable"), added]
         processor = DagFileProcessorManager(max_runs=1)
-        processor._bundle_lifecycle.reconcile(known_files={})
+        processor._reconcile_bundles(known_files={})
         assert processor._dag_bundles == []
-        processor._bundle_lifecycle.reconcile(known_files={})
+        processor._reconcile_bundles(known_files={})
         assert processor._dag_bundles == [added]
         assert bundles.sync_bundles_to_db.call_args_list == [
             mock.call(deactivate_missing=True, bundle_instances={}),
@@ -551,10 +551,10 @@ class TestDagFileProcessorManager:
         bundles.get_bundle.return_value = added
         bundles.sync_bundles_to_db.side_effect = [RuntimeError("database unavailable"), None]
         processor = DagFileProcessorManager(max_runs=1)
-        processor._bundle_lifecycle.reconcile(known_files={})
+        processor._reconcile_bundles(known_files={})
         assert processor._dag_bundles == []
         assert processor._force_refresh_bundles == set()
-        processor._bundle_lifecycle.reconcile(known_files={})
+        processor._reconcile_bundles(known_files={})
         assert processor._dag_bundles == [added]
         assert bundles.sync_bundles_to_db.call_args_list == [
             mock.call(deactivate_missing=True, bundle_instances={"added": added}),
@@ -581,7 +581,7 @@ class TestDagFileProcessorManager:
         processor._force_refresh_bundles.add("retained")
         known_files = {"retained": set()}
 
-        processor._bundle_lifecycle.reconcile(known_files=known_files)
+        processor._reconcile_bundles(known_files=known_files)
 
         assert processor._dag_bundles == [retained]
         assert processor._bundle_versions == {"retained": "v1"}
@@ -628,7 +628,7 @@ class TestDagFileProcessorManager:
             processor._bundle_name_to_team_name["bundle-a"] = None
             config_file.write_text("[]")
             mock_sync.side_effect = RuntimeError("database unavailable")
-            processor._bundle_lifecycle.reconcile(known_files={})
+            processor._reconcile_bundles(known_files={})
 
             mock_start = mock_native if native else mock_python
             processor._create_process(
@@ -678,7 +678,7 @@ class TestDagFileProcessorManager:
             for _ in range(2):
                 processor._create_process(file, source=DagParseSource())
                 assert mock_start.call_args.kwargs["bundle_config"].team_name == "team-a"
-                processor._bundle_lifecycle.reconcile(known_files={})
+                processor._reconcile_bundles(known_files={})
             with create_session() as session:
                 assert session.get(DagBundleModel, "bundle-a").teams[0].name == "team-a"
 
@@ -802,7 +802,7 @@ class TestDagFileProcessorManager:
                 known_files["removed"] = {removed_file}
 
             config_file.write_text(json.dumps([retained_config]))
-            processor._bundle_lifecycle.reconcile(known_files=known_files)
+            processor._reconcile_bundles(known_files=known_files)
 
             assert removed_file not in processor._callback_to_execute
             assert removed_file not in processor._file_queue
@@ -898,7 +898,7 @@ class TestDagFileProcessorManager:
             processor.sync_bundles()
             processor._dag_bundles = processor.get_all_bundles()
             config_file.write_text(json.dumps([] if remove_all else configs[1:]))
-            processor._bundle_lifecycle.reconcile(known_files={})
+            processor._reconcile_bundles(known_files={})
             with create_session() as session:
                 bundle_a = session.get(DagBundleModel, "bundle-a")
                 assert bundle_a.active is bool(bundle_names_to_parse)
@@ -912,7 +912,7 @@ class TestDagFileProcessorManager:
                         is_stale=False,
                     )
                 )
-            processor._bundle_lifecycle.reconcile(known_files={})
+            processor._reconcile_bundles(known_files={})
             cleanup_processor_metadata()
             with create_session() as session:
                 assert session.get(DagBundleModel, "bundle-a").active is bool(bundle_names_to_parse)
@@ -5825,7 +5825,7 @@ class TestDagFileProcessorManager:
 
         assert get_state.call_args_list == [mock.call(manager, "urgent"), mock.call(manager, "regular")]
         assert manager._bundles_last_refreshed == 110
-        assert reconcile.call_args_list == [mock.call(manager, known_files={})] * 2
+        assert reconcile.call_args_list == [mock.call(manager._bundle_lifecycle, known_files={})] * 2
         urgent.refresh.assert_not_called()
         regular.refresh.assert_not_called()
 
@@ -7762,7 +7762,7 @@ class TestDagFileProcessorManagerWithAPIClient:
             manager = DagFileProcessorManager(max_runs=1, api_client=api_client)
             with pytest.raises(AirflowConfigException, match="not supported with an HTTP-backed"):
                 manager.before_run()
-            manager._bundle_lifecycle.reconcile(known_files={})
+            manager._reconcile_bundles(known_files={})
         prepare_context.assert_not_called()
         sync.assert_not_called()
 

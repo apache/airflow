@@ -31,7 +31,7 @@ import sys
 import time
 from collections import Counter, OrderedDict, defaultdict, deque
 from contextlib import AbstractContextManager, nullcontext
-from copy import deepcopy
+from copy import copy, deepcopy
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from operator import attrgetter, itemgetter
@@ -43,7 +43,7 @@ import attrs
 import httpx2
 import structlog
 from pydantic import ValidationError
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only
 from tabulate import tabulate
@@ -651,6 +651,16 @@ class DagFileProcessorManager(LoggingMixin):
             self.deactivate_stale_dags(last_parsed=last_parsed)
             self._bundle_lifecycle.cleanup()
             self._last_deactivate_stale_dags_time = time.monotonic()
+
+    @provide_session
+    def _clear_inactive_bundle_import_errors(self, *, session: Session = NEW_SESSION) -> None:
+        inactive_bundles = select(DagBundleModel.name).where(DagBundleModel.active.is_(False))
+        inactive_error = ParseImportError.bundle_name.in_(inactive_bundles)
+        ids = session.scalars(
+            select(ParseImportError.id).where(inactive_error).order_by(ParseImportError.id).limit(500)
+        ).all()
+        if ids:
+            session.execute(delete(ParseImportError).where(ParseImportError.id.in_(ids), inactive_error))
 
     def _cleanup_stale_bundle_versions(self):
         if self.stale_bundle_cleanup_interval <= 0:
@@ -1468,18 +1478,41 @@ class DagFileProcessorManager(LoggingMixin):
             self._resort_file_queue()
             self._add_new_files_to_queue(known_files=known_files)
 
-    def _apply_reconciled_bundles(
-        self,
-        dag_bundle_manager: DagBundlesManager,
-        *,
-        configured_names: set[str],
-        bundle_names: set[str],
-        added: dict[str, BaseDagBundle],
-        known_files: dict[str, set[DagFileInfo]],
-    ) -> None:
-        """Adopt a bundle list that has been written to the database, and drop removed bundles' work."""
+    def _reconcile_bundles(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+        if self.api_client is not None:
+            return
+        try:
+            dag_bundle_manager = copy(self._dag_bundle_manager)
+            dag_bundle_manager.refresh()
+            configured_names = set(dag_bundle_manager.get_all_bundle_names())
+        except Exception:
+            self.log.exception("Could not load Dag bundles; keeping the current bundles")
+            return
+
         loaded_bundles = {bundle.name: bundle for bundle in self._dag_bundles}
+        bundle_names = (
+            configured_names & set(self.bundle_names_to_parse)
+            if self.bundle_names_to_parse
+            else configured_names
+        )
         removed_names = loaded_bundles.keys() - bundle_names
+        bundle_instances: dict[str, BaseDagBundle] = {}
+        for name in sorted(bundle_names - loaded_bundles.keys()):
+            try:
+                bundle_instances[name] = dag_bundle_manager.get_bundle(name)
+            except Exception:
+                self.log.exception("Could not create Dag bundle %s; will retry", name)
+
+        try:
+            # Other processors can overwrite active state even when our configuration is unchanged.
+            dag_bundle_manager.sync_bundles_to_db(
+                deactivate_missing=not self.bundle_names_to_parse,
+                bundle_instances=bundle_instances,
+            )
+        except Exception:
+            self.log.exception("Could not reconcile Dag bundles; keeping the current bundles")
+            return
+
         self._dag_bundle_manager = dag_bundle_manager
         purged_callbacks = [
             file
@@ -1494,11 +1527,11 @@ class DagFileProcessorManager(LoggingMixin):
         if purged_callbacks and not removed_names:
             stats.gauge("dag_processing.file_path_queue_size", len(self._file_queue))
             self._record_files_awaiting_source()
-        if not removed_names and not added:
+        if not removed_names and not bundle_instances:
             return
-        loaded_bundles.update(added)
+        loaded_bundles.update(bundle_instances)
         self._dag_bundles = [loaded_bundles[name] for name in sorted(bundle_names & loaded_bundles.keys())]
-        self._force_refresh_bundles.update(added)
+        self._force_refresh_bundles.update(bundle_instances)
         self._bundle_name_to_team_name.clear()
         for name in removed_names:
             self._bundle_importer_registries.pop(name, None)
@@ -1510,7 +1543,9 @@ class DagFileProcessorManager(LoggingMixin):
             known_files.pop(name, None)
         if removed_names:
             self.handle_removed_files(known_files=known_files)
-        self.log.info("Reconciled Dag bundles: added=%s, removed=%s", sorted(added), sorted(removed_names))
+        self.log.info(
+            "Reconciled Dag bundles: added=%s, removed=%s", sorted(bundle_instances), sorted(removed_names)
+        )
 
     def _find_files_in_bundle(self, bundle: BaseDagBundle) -> DagBundleDiscoveryResult:
         """

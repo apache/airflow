@@ -26,7 +26,7 @@ import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import nullcontext
-from copy import copy, deepcopy
+from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, cast
 
@@ -226,66 +226,12 @@ class _ReloadingBundleLifecycle(_BaseBundleLifecycle):
             )
 
     def reconcile(self, known_files: dict[str, set[DagFileInfo]]) -> None:
-        processor = self.processor
-        if processor.api_client is not None:
-            return
-        try:
-            dag_bundle_manager = copy(processor._dag_bundle_manager)
-            dag_bundle_manager.refresh()
-            configured_names = set(dag_bundle_manager.get_all_bundle_names())
-        except Exception:
-            processor.log.exception("Could not load Dag bundles; keeping the current bundles")
-            return
-
-        loaded_names = {bundle.name for bundle in processor._dag_bundles}
-        bundle_names = (
-            configured_names & set(processor.bundle_names_to_parse)
-            if processor.bundle_names_to_parse
-            else configured_names
-        )
-        added: dict[str, BaseDagBundle] = {}
-        for name in sorted(bundle_names - loaded_names):
-            try:
-                added[name] = dag_bundle_manager.get_bundle(name)
-            except Exception:
-                processor.log.exception("Could not create Dag bundle %s; will retry", name)
-
-        try:
-            # Other processors can overwrite active state even when our configuration is unchanged.
-            dag_bundle_manager.sync_bundles_to_db(
-                deactivate_missing=not processor.bundle_names_to_parse,
-                bundle_instances=added,
-            )
-        except Exception:
-            processor.log.exception("Could not reconcile Dag bundles; keeping the current bundles")
-            return
-
-        processor._apply_reconciled_bundles(
-            dag_bundle_manager,
-            configured_names=configured_names,
-            bundle_names=bundle_names,
-            added=added,
-            known_files=known_files,
-        )
+        self.processor._reconcile_bundles(known_files)
 
     def cleanup(self) -> None:
         # A processor that has not seen a removal yet can write import errors after deactivation.
         if not self.processor.bundle_names_to_parse:
-            _clear_inactive_bundle_import_errors()
-
-
-@provide_session
-def _clear_inactive_bundle_import_errors(*, session: Session = NEW_SESSION) -> None:
-    # Import here to avoid circular import
-    from airflow.models.errors import ParseImportError
-
-    inactive_bundles = select(DagBundleModel.name).where(DagBundleModel.active.is_(False))
-    inactive_error = ParseImportError.bundle_name.in_(inactive_bundles)
-    ids = session.scalars(
-        select(ParseImportError.id).where(inactive_error).order_by(ParseImportError.id).limit(500)
-    ).all()
-    if ids:
-        session.execute(delete(ParseImportError).where(ParseImportError.id.in_(ids), inactive_error))
+            self.processor._clear_inactive_bundle_import_errors()
 
 
 class _BaseBundleConfigSource(ABC):
