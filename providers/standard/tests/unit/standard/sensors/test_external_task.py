@@ -70,6 +70,7 @@ from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.compat import DagSerialization, OperatorSerialization
+from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import clear_db_runs
 from tests_common.test_utils.mock_operators import MockOperator
@@ -1593,6 +1594,48 @@ class TestExternalTaskSensorV3:
             states=["success"],
         )
         assert op.external_dates_filter == DEFAULT_DATE.isoformat()
+
+    @pytest.mark.execution_timeout(10)
+    @pytest.mark.parametrize(
+        ("default_timezone", "expected_log_dates"),
+        [
+            pytest.param("UTC", "2026-07-06T21:00:00+00:00", id="utc"),
+            pytest.param(
+                "Asia/Seoul",
+                "2026-07-06T21:00:00+00:00 (default timezone: 2026-07-07T06:00:00+09:00)",
+                id="configured-timezone",
+            ),
+            pytest.param(
+                "system",
+                "2026-07-06T21:00:00+00:00 (default timezone: 2026-07-06T17:00:00-04:00)",
+                id="system",
+            ),
+            pytest.param("Not/A_Timezone", "2026-07-06T21:00:00+00:00", id="invalid-timezone"),
+        ],
+    )
+    @mock.patch(
+        "airflow.providers.standard.sensors.external_task.pendulum.local_timezone",
+        return_value=pendulum.timezone("America/New_York"),
+    )
+    def test_external_dag_sensor_poke_log_default_timezone(
+        self, mock_local_timezone, default_timezone, expected_log_dates, caplog, dag_maker
+    ):
+        logical_date = pendulum.datetime(2026, 7, 6, 21, tz="UTC")
+        self.context["logical_date"] = logical_date
+        self.context["ti"].get_dr_count = mock.MagicMock(return_value=1)
+        with dag_maker("test_dag_child"):
+            op = ExternalTaskSensor(
+                task_id="test_external_dag_sensor_check",
+                external_dag_id="other_dag",
+            )
+
+        with conf_vars({("core", "default_timezone"): default_timezone}):
+            with caplog.at_level(logging.INFO, logger=op.log.name):
+                caplog.clear()
+                assert op.poke(context=self.context) is True
+
+        assert f"Poking for DAG 'other_dag' on {expected_log_dates} ... " in caplog.messages
+        assert op.external_dates_filter == logical_date.isoformat()
 
     @pytest.mark.execution_timeout(10)
     def test_external_task_sensor_task_group_failed_states(self, dag_maker):
