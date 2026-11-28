@@ -380,7 +380,8 @@ and mark those as well. You can accomplish this by running the following command
 ```
 
 To find documentation changes to consider for backporting, run these commands from
-the repository root. Replace `vX-Y-test` in both commands with your target test branch.
+the repository root. Replace `vX-Y-test` in both commands with your target release
+test branch.
 
 ```shell
 git fetch upstream
@@ -388,14 +389,6 @@ git log --oneline upstream/vX-Y-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/m
 git log --oneline --decorate upstream/vX-Y-test..upstream/main -- \
   airflow-core/docs/ docker-stack-docs/ task-sdk/docs/ | grep -vf /tmp/merged
 ```
-
-The comparison finds commits reachable from `main` but not from the selected test
-branch that touch these documentation paths. The `grep` filter excludes apparent
-matches using PR numbers extracted from the test branch. This is only a heuristic:
-backports may have different PR numbers, multiple PR references, or original PR
-references recorded only in descriptions. Results may include changes already
-backported or miss changes that still need backporting. Review each result's full
-diff and backport status before cherry-picking; commits may also change code.
 
 Those changes that are "doc-only" changes should be marked with `type:doc-only` label so that they
 land in documentation part of the changelog. The tool to review and assign the labels is described below.
