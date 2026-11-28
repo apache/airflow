@@ -362,8 +362,10 @@ For enforce to default ``botocore``/``boto3`` behaviour you might set value to `
 The precedence rules are as follows:
 
   1. ``endpoint_url`` specified per service level.
-  2. ``endpoint_url`` specified in root level of connection extra. Please note that **sts** client which are
-     uses in assume role or test connection do not use global parameter.
+  2. ``endpoint_url`` specified in root level of connection extra. Please note that the **sts** clients
+     used for assume role, for test connection, and by
+     :class:`~airflow.providers.amazon.aws.hooks.eks.EksHook` to build the kubeconfig for
+     :class:`~airflow.providers.amazon.aws.operators.eks.EksPodOperator` do not use the global parameter.
   3. Default ``botocore``/``boto3`` behaviour
 
 

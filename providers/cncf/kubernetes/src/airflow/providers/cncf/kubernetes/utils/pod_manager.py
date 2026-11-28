@@ -29,7 +29,7 @@ from collections.abc import Callable, Generator, Iterable
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import pendulum
 from kubernetes import client, watch
@@ -59,11 +59,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from kubernetes.client.models.core_v1_event import CoreV1Event
     from kubernetes.client.models.core_v1_event_list import CoreV1EventList
-    from kubernetes.client.models.v1_container_state import V1ContainerState
-    from kubernetes.client.models.v1_container_state_waiting import V1ContainerStateWaiting
-    from kubernetes.client.models.v1_object_reference import V1ObjectReference
+    from kubernetes.client.models.v1_object_meta import V1ObjectMeta
     from kubernetes.client.models.v1_pod import V1Pod
-    from kubernetes.client.models.v1_pod_condition import V1PodCondition
+    from kubernetes_asyncio import client as async_client
     from urllib3.response import HTTPResponse
 
     from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
@@ -129,7 +127,9 @@ def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
 
 
 def log_pod_event(
-    pod_manager: PodManager | AsyncPodManager, event: CoreV1Event, seen_events: set[str]
+    pod_manager: PodManager | AsyncPodManager,
+    event: CoreV1Event | async_client.CoreV1Event,
+    seen_events: set[str],
 ) -> None:
     """
     Log a pod event if not already seen.
@@ -138,16 +138,16 @@ def log_pod_event(
     :param event: Kubernetes event
     :param seen_events: Set of event UIDs already logged to avoid duplicates
     """
-    event_uid = event.metadata.uid
+    event_uid = cast("str", event.metadata.uid)
     if event_uid not in seen_events:
         seen_events.add(event_uid)
-        involved_object: V1ObjectReference = event.involved_object
+        involved_object = event.involved_object
         pod_manager.log.info("The Pod has an Event: %s from %s", event.message, involved_object.field_path)
 
 
 async def await_pod_start(
     pod_manager: PodManager | AsyncPodManager,
-    pod: V1Pod,
+    pod: V1Pod | async_client.V1Pod,
     schedule_timeout: int = 120,
     startup_timeout: int = 120,
     check_interval: float = 1,
@@ -166,27 +166,27 @@ async def await_pod_start(
     pod_manager.log.info("::group::Waiting up to %ss to get the POD scheduled...", schedule_timeout)
     pod_was_scheduled = False
     start_check_time = time.time()
-    is_async = isinstance(pod_manager, AsyncPodManager)
+    remote_pod: V1Pod | async_client.V1Pod
     while True:
-        if is_async:
-            remote_pod = await pod_manager.read_pod(pod)
+        if isinstance(pod_manager, AsyncPodManager):
+            remote_pod = await pod_manager.read_pod(cast("async_client.V1Pod", pod))
         else:
-            remote_pod = pod_manager.read_pod(pod)
-        pod_status = remote_pod.status
+            remote_pod = pod_manager.read_pod(cast("V1Pod", pod))
+        pod_status = cast("client.V1PodStatus | async_client.V1PodStatus", remote_pod.status)
 
         if pod_status.phase == PodPhase.FAILED and pod_status.container_statuses is None:
             pod_manager.stop_watching_events = True
             pod_manager.log.info("::endgroup::")
             raise PodLaunchFailedException("Pod failed before containers started")
 
-        if pod_status.phase not in (PodPhase.PENDING, PodPhase.UNKNOWN):
+        if pod_status.phase not in {PodPhase.PENDING, PodPhase.UNKNOWN}:
             pod_manager.stop_watching_events = True
             pod_manager.log.info("Pod has reached %s phase before launch timeout", pod_status.phase)
             pod_manager.log.info("::endgroup::")
             break
 
         # Check for timeout
-        pod_conditions: list[V1PodCondition] = pod_status.conditions
+        pod_conditions = pod_status.conditions
         if pod_conditions and any(
             (condition.type == "PodScheduled" and condition.status == "True") for condition in pod_conditions
         ):
@@ -219,7 +219,7 @@ async def await_pod_start(
         await asyncio.sleep(check_interval)
 
 
-def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
+def detect_pod_terminate_early_issues(pod: V1Pod | async_client.V1Pod) -> str | None:
     """
     Identify issues that justify terminating the pod early.
 
@@ -257,6 +257,8 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
     ERROR_MESSAGE = "Image for container '{name}' cannot be pulled, unable to start: {reason}\n{message}"
 
     pod_status = pod.status
+    if pod_status is None:
+        return None
     # ``init_container_statuses`` also lists native sidecars -- init containers with
     # ``restartPolicy: Always`` -- which can fail a restart mid-run. Scan init containers
     # only until ``Initialized`` is true: one that cannot pull keeps it false, and kubelet
@@ -272,8 +274,10 @@ def detect_pod_terminate_early_issues(pod: V1Pod) -> str | None:
         *(pod_status.container_statuses or []),
     ]
     for container_status in container_statuses:
-        container_state: V1ContainerState = container_status.state
-        container_waiting: V1ContainerStateWaiting | None = container_state.waiting
+        container_state = container_status.state
+        if container_state is None:
+            continue
+        container_waiting = container_state.waiting
         if not container_waiting:
             continue
 
@@ -419,13 +423,14 @@ class PodManager(LoggingMixin):
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Run POD asynchronously."""
+        metadata = cast("V1ObjectMeta", pod.metadata)
         sanitized_pod = self._client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
         self.log.debug("Pod Creation Request: \n%s", json_pod)
         try:
             resp = self._client.create_namespaced_pod(
-                body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
+                body=sanitized_pod, namespace=cast("str", metadata.namespace), **kwargs
             )
             self.log.debug("Pod Creation Response: %s", resp)
         except Exception as e:
@@ -438,9 +443,10 @@ class PodManager(LoggingMixin):
     @generic_api_retry
     def delete_pod(self, pod: V1Pod) -> None:
         """Delete POD."""
+        metadata = cast("V1ObjectMeta", pod.metadata)
         try:
             self._client.delete_namespaced_pod(
-                pod.metadata.name, pod.metadata.namespace, body=client.V1DeleteOptions()
+                cast("str", metadata.name), cast("str", metadata.namespace), body=client.V1DeleteOptions()
             )
         except ApiException as e:
             # If the pod is already deleted
@@ -470,7 +476,12 @@ class PodManager(LoggingMixin):
                     log_pod_event(self, event, seen_events)
                     resource_version = event.metadata.resource_version
             except Exception as e:
-                self.log.warning("Stopped watching events of pod %s: %s", pod.metadata.name, e, exc_info=True)
+                self.log.warning(
+                    "Stopped watching events of pod %s: %s",
+                    pod.metadata.name if pod.metadata else None,
+                    e,
+                    exc_info=True,
+                )
                 return
             await asyncio.sleep(check_interval)
 
@@ -538,6 +549,8 @@ class PodManager(LoggingMixin):
 
         :meta private:
         """
+        metadata = cast("V1ObjectMeta", pod.metadata)
+        pod_namespace, pod_name = cast("str", metadata.namespace), cast("str", metadata.name)
 
         def consume_logs(*, since_time: DateTime | None = None) -> tuple[DateTime | None, Exception | None]:
             """
@@ -595,9 +608,9 @@ class PodManager(LoggingMixin):
                                 # marker but do not emit a noisy ``[base] ``
                                 # row or break the previous buffered message
                                 # with a stray continuation (#36571).
-                                self.container_log_times[
-                                    (pod.metadata.namespace, pod.metadata.name, container_name)
-                                ] = line_timestamp
+                                self.container_log_times[(pod_namespace, pod_name, container_name)] = (
+                                    line_timestamp
+                                )
                                 continue
                             if message_to_log is None:  # first line in the log
                                 message_to_log = message
@@ -620,9 +633,9 @@ class PodManager(LoggingMixin):
                                 )
                                 last_captured_timestamp = message_timestamp
                                 if last_captured_timestamp is not None:
-                                    self.container_log_times[
-                                        (pod.metadata.namespace, pod.metadata.name, container_name)
-                                    ] = last_captured_timestamp
+                                    self.container_log_times[(pod_namespace, pod_name, container_name)] = (
+                                        last_captured_timestamp
+                                    )
                                 message_to_log = message
                                 message_timestamp = line_timestamp
                         else:  # continuation of the previous log line
@@ -644,9 +657,9 @@ class PodManager(LoggingMixin):
                         )
                     last_captured_timestamp = message_timestamp
                     if last_captured_timestamp:
-                        self.container_log_times[
-                            (pod.metadata.namespace, pod.metadata.name, container_name)
-                        ] = last_captured_timestamp
+                        self.container_log_times[(pod_namespace, pod_name, container_name)] = (
+                            last_captured_timestamp
+                        )
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
                 # duplicate log entries
@@ -681,7 +694,7 @@ class PodManager(LoggingMixin):
             if not isinstance(exc, TimeoutError):
                 self.log.warning(
                     "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
-                    pod.metadata.name,
+                    pod_name,
                     container_name,
                 )
             time.sleep(1)
@@ -745,18 +758,20 @@ class PodManager(LoggingMixin):
 
         :meta private:
         """
+        metadata = cast("V1ObjectMeta", pod.metadata)
+        pod_namespace, pod_name = cast("str", metadata.namespace), cast("str", metadata.name)
         pod_logging_statuses = []
         all_containers = self.get_init_container_names(pod)
         containers_to_log = self._reconcile_requested_log_containers(
             requested=init_containers,
             actual=all_containers,
-            pod_name=pod.metadata.name,
+            pod_name=pod_name,
         )
         # sort by spec.initContainers because containers runs sequentially
         containers_to_log = sorted(containers_to_log, key=lambda cn: all_containers.index(cn))
         for c in containers_to_log:
             self._await_init_container_start(pod=pod, container_name=c)
-            since_time = self.container_log_times.get((pod.metadata.namespace, pod.metadata.name, c))
+            since_time = self.container_log_times.get((pod_namespace, pod_name, c))
             status = self.fetch_container_logs(
                 pod=pod,
                 container_name=c,
@@ -783,15 +798,17 @@ class PodManager(LoggingMixin):
 
         :meta private:
         """
+        metadata = cast("V1ObjectMeta", pod.metadata)
+        pod_namespace, pod_name = cast("str", metadata.namespace), cast("str", metadata.name)
         pod_logging_statuses = []
         all_containers = self.get_container_names(pod)
         containers_to_log = self._reconcile_requested_log_containers(
             requested=containers,
             actual=all_containers,
-            pod_name=pod.metadata.name,
+            pod_name=pod_name,
         )
         for c in containers_to_log:
-            since_time = self.container_log_times.get((pod.metadata.namespace, pod.metadata.name, c))
+            since_time = self.container_log_times.get((pod_namespace, pod_name, c))
             status = self.fetch_container_logs(
                 pod=pod,
                 container_name=c,
@@ -836,6 +853,7 @@ class PodManager(LoggingMixin):
         :param do_xcom_push: whether to push XComs
         :return: V1Pod
         """
+        metadata = cast("V1ObjectMeta", pod.metadata)
         while True:
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
@@ -845,14 +863,14 @@ class PodManager(LoggingMixin):
                     "Container '%s' completed but pod %s still has phase %s "
                     "(likely due to a sidecar container). Skipping waiting for pod completion.",
                     container_name,
-                    pod.metadata.name,
+                    metadata.name,
                     remote_pod.status.phase,
                 )
                 break
             # abort waiting if defined issues are detected
             if detect_pod_terminate_early_issues(remote_pod):
                 break
-            self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
+            self.log.info("Pod %s has phase %s", metadata.name, remote_pod.status.phase)
             time.sleep(2)
         return remote_pod
 
@@ -879,7 +897,8 @@ class PodManager(LoggingMixin):
         **kwargs,
     ) -> PodLogsConsumer:
         """Read log from the POD."""
-        additional_kwargs = {}
+        metadata = cast("V1ObjectMeta", pod.metadata)
+        additional_kwargs: dict[str, Any] = {}
         if since_seconds:
             additional_kwargs["since_seconds"] = since_seconds
 
@@ -889,8 +908,8 @@ class PodManager(LoggingMixin):
 
         try:
             logs = self._client.read_namespaced_pod_log(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
+                name=cast("str", metadata.name),
+                namespace=cast("str", metadata.namespace),
                 container=container_name,
                 follow=follow,
                 timestamps=timestamps,
@@ -902,7 +921,7 @@ class PodManager(LoggingMixin):
             raise
 
         return PodLogsConsumer(
-            response=logs,
+            response=cast("HTTPResponse", logs),
             pod=pod,
             pod_manager=self,
             container_name=container_name,
@@ -915,7 +934,8 @@ class PodManager(LoggingMixin):
 
         :meta private:
         """
-        return [container_spec.name for container_spec in pod.spec.init_containers]
+        pod_spec = cast("client.V1PodSpec", pod.spec)
+        return [container_spec.name for container_spec in pod_spec.init_containers or []]
 
     def get_container_names(self, pod: V1Pod) -> list[str]:
         """
@@ -939,17 +959,18 @@ class PodManager(LoggingMixin):
         :param resource_version: Only return events newer than this resource version
         :param limit: Maximum number of events to return
         """
+        metadata = cast("V1ObjectMeta", pod.metadata)
         try:
             return self._client.list_namespaced_event(
-                namespace=pod.metadata.namespace,
-                field_selector=f"involvedObject.name={pod.metadata.name}",
+                namespace=cast("str", metadata.namespace),
+                field_selector=f"involvedObject.name={metadata.name}",
                 resource_version=resource_version,
                 resource_version_match="NotOlderThan" if resource_version else None,
             )
         except TypeError:
             return self._client.list_namespaced_event(
-                namespace=pod.metadata.namespace,
-                field_selector=f"involvedObject.name={pod.metadata.name}",
+                namespace=cast("str", metadata.namespace),
+                field_selector=f"involvedObject.name={metadata.name}",
                 resource_version=resource_version,
             )
         except HTTPError as e:
@@ -958,8 +979,11 @@ class PodManager(LoggingMixin):
     @generic_api_retry
     def read_pod(self, pod: V1Pod) -> V1Pod:
         """Read POD information."""
+        metadata = cast("V1ObjectMeta", pod.metadata)
         try:
-            return self._client.read_namespaced_pod(pod.metadata.name, pod.metadata.namespace)
+            return self._client.read_namespaced_pod(
+                cast("str", metadata.name), cast("str", metadata.namespace)
+            )
         except HTTPError as e:
             raise KubernetesApiException(f"There was an error reading the kubernetes API: {e}")
 
@@ -1003,10 +1027,11 @@ class PodManager(LoggingMixin):
             running, for example ``KubernetesJobOperator``, whose Job can never reach a
             terminal state while the sidecar is alive.
         """
+        metadata = cast("V1ObjectMeta", pod.metadata)
         # make sure that xcom sidecar container is still running
         if not self.container_is_running(pod, PodDefaults.SIDECAR_CONTAINER_NAME):
             raise XComRetrievalError(
-                f"{PodDefaults.SIDECAR_CONTAINER_NAME} container is not running! Not possible to read xcom from pod: {pod.metadata.name}"
+                f"{PodDefaults.SIDECAR_CONTAINER_NAME} container is not running! Not possible to read xcom from pod: {metadata.name}"
             )
 
         try:
@@ -1020,24 +1045,24 @@ class PodManager(LoggingMixin):
                     raise
                 self.log.warning(
                     "Failed to kill xcom sidecar container in pod %s, leaving it running: %s",
-                    pod.metadata.name,
+                    metadata.name,
                     e,
                 )
 
     @generic_api_retry
     def extract_xcom_json(self, pod: V1Pod) -> str:
         """Retrieve XCom value and also check if xcom json is valid."""
+        metadata = cast("V1ObjectMeta", pod.metadata)
         command = (
             f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; "
             f"then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; "
             f"else echo {EMPTY_XCOM_RESULT}; fi"
         )
-        result = None
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
-                pod.metadata.name,
-                pod.metadata.namespace,
+                metadata.name,
+                metadata.namespace,
                 container=PodDefaults.SIDECAR_CONTAINER_NAME,
                 command=[
                     "/bin/sh",
@@ -1049,31 +1074,31 @@ class PodManager(LoggingMixin):
                 stderr=True,
                 tty=False,
                 _preload_content=False,
+                binary=True,
             )
         ) as client:
             self.log.info("Running command... %s", command)
             client.run_forever()
             if client.peek_stderr():
-                stderr = client.read_stderr()
+                stderr = client.read_stderr().decode("utf-8", errors="replace")
                 self.log.error("stderr from command: %s", stderr)
-            result = client.read_all()
+            result = client.read_all().decode("utf-8", errors="replace")
             if result and result.rstrip() != EMPTY_XCOM_RESULT:
                 # Note: result string is parsed to check if its valid json.
                 # This function still returns a string which is converted into json in the calling method.
                 json.loads(result)
 
-        if result is None:
-            raise XComRetrievalError(f"Failed to extract xcom from pod: {pod.metadata.name}")
         return result
 
     @generic_api_retry
     def extract_xcom_kill(self, pod: V1Pod):
         """Kill xcom sidecar container."""
+        metadata = cast("V1ObjectMeta", pod.metadata)
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
-                pod.metadata.name,
-                pod.metadata.namespace,
+                metadata.name,
+                metadata.namespace,
                 container=PodDefaults.SIDECAR_CONTAINER_NAME,
                 command=["/bin/sh"],
                 stdin=True,
@@ -1194,14 +1219,16 @@ class AsyncPodManager(LoggingMixin):
         self._callbacks = callbacks or []
         self.stop_watching_events = False
 
-    async def read_pod(self, pod: V1Pod) -> V1Pod:
+    async def read_pod(self, pod: async_client.V1Pod) -> async_client.V1Pod:
         """Read POD information."""
         return await self._hook.get_pod(
             pod.metadata.name,
             pod.metadata.namespace,
         )
 
-    async def read_pod_events(self, pod: V1Pod, resource_version: str | None = None) -> CoreV1EventList:
+    async def read_pod_events(
+        self, pod: async_client.V1Pod, resource_version: str | None = None
+    ) -> async_client.CoreV1EventList:
         """Get pod's events."""
         return await self._hook.get_pod_events(
             pod.metadata.name,
@@ -1209,7 +1236,7 @@ class AsyncPodManager(LoggingMixin):
             resource_version=resource_version,
         )
 
-    async def watch_pod_events(self, pod: V1Pod, startup_check_interval: float = 30) -> None:
+    async def watch_pod_events(self, pod: async_client.V1Pod, startup_check_interval: float = 30) -> None:
         """
         Watch pod events and write to log.
 
@@ -1234,7 +1261,11 @@ class AsyncPodManager(LoggingMixin):
                 return
 
     async def await_pod_start(
-        self, pod: V1Pod, schedule_timeout: int = 120, startup_timeout: int = 120, check_interval: float = 1
+        self,
+        pod: async_client.V1Pod,
+        schedule_timeout: int = 120,
+        startup_timeout: int = 120,
+        check_interval: float = 1,
     ) -> None:
         """
         Wait for the pod to reach phase other than ``Pending``.
@@ -1256,7 +1287,7 @@ class AsyncPodManager(LoggingMixin):
         )
 
     async def fetch_container_logs_before_current_sec(
-        self, pod: V1Pod, container_name: str, since_time: DateTime | None = None
+        self, pod: async_client.V1Pod, container_name: str, since_time: DateTime | None = None
     ) -> DateTime | None:
         """
         Asynchronously read the log file of the specified pod.

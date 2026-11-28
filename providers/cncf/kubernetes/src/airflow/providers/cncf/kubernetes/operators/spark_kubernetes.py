@@ -110,7 +110,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.reattach_on_restart = reattach_on_restart
         self.delete_on_termination = delete_on_termination
         self.do_xcom_push = do_xcom_push
-        self.namespace = namespace
+        self.namespace: str = namespace
         self.get_logs = get_logs
         self.log_events_on_failure = log_events_on_failure
         self.success_run_history_limit = success_run_history_limit
@@ -264,11 +264,13 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             pod = max(
                 pod_list,
                 key=lambda p: (
-                    p.metadata.deletion_timestamp is None,
-                    p.status.phase == PodPhase.SUCCEEDED,  # If the job succeeded while the worker was down.
-                    p.status.phase == PodPhase.PENDING,
-                    p.metadata.creation_timestamp or datetime.min.replace(tzinfo=UTC),
-                    p.metadata.name or "",
+                    cast("k8s.V1ObjectMeta", p.metadata).deletion_timestamp is None,
+                    # The job may have succeeded while the worker was down.
+                    cast("k8s.V1PodStatus", p.status).phase == PodPhase.SUCCEEDED,
+                    cast("k8s.V1PodStatus", p.status).phase == PodPhase.PENDING,
+                    cast("k8s.V1ObjectMeta", p.metadata).creation_timestamp
+                    or datetime.min.replace(tzinfo=UTC),
+                    cast("k8s.V1ObjectMeta", p.metadata).name or "",
                 ),
             )
             self.log.warning(
@@ -276,16 +278,20 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 "selecting pod %s for reattachment based on status.",
                 len(pod_list),
                 label_selector,
-                pod.metadata.name,
+                cast("k8s.V1ObjectMeta", pod.metadata).name,
             )
 
         if len(pod_list) == 1:
             pod = pod_list[0]
+            pod_metadata = cast("k8s.V1ObjectMeta", pod.metadata)
             self.log.info(
-                "Found matching driver pod %s with labels %s", pod.metadata.name, pod.metadata.labels
+                "Found matching driver pod %s with labels %s", pod_metadata.name, pod_metadata.labels
             )
             self.log.info("`try_number` of task_instance: %s", context["ti"].try_number)
-            self.log.info("`try_number` of pod: %s", pod.metadata.labels.get("try_number", "unknown"))
+            self.log.info(
+                "`try_number` of pod: %s",
+                cast("dict[str, str]", pod_metadata.labels).get("try_number", "unknown"),
+            )
         return pod
 
     def _get_field_selector(self) -> str:
@@ -369,8 +375,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
                 )
                 self.pod = existing_pod
                 self.pod_request_obj = None
-                if self.pod.metadata.name.endswith("-driver"):
-                    self.name = self.pod.metadata.name.removesuffix("-driver")
+                pod_name = cast("str", cast("k8s.V1ObjectMeta", self.pod.metadata).name)
+                if pod_name.endswith("-driver"):
+                    self.name = pod_name.removesuffix("-driver")
                 return
 
             if "spark" not in template_body:
@@ -424,9 +431,12 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
         """Add an "already checked" annotation to ensure we don't reattach on retries."""
-        pod.metadata.labels["already_checked"] = "True"
+        pod_metadata = cast("k8s.V1ObjectMeta", pod.metadata)
+        cast("dict[str, str]", pod_metadata.labels)["already_checked"] = "True"
         body = PodGenerator.serialize_pod(pod)
-        self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
+        self.client.patch_namespaced_pod(
+            cast("str", pod_metadata.name), cast("str", pod_metadata.namespace), body
+        )
 
     def dry_run(self) -> None:
         """Print out the spark job that would be created by this operator."""

@@ -236,10 +236,16 @@ file, and ``system_prompt`` is added to the file's ``instructions``:
 Build the path from ``__file__``: a relative path resolves against the worker's
 working directory, not the Dag file.
 
-With ``durable=True``, the toolsets that spec-file capabilities contribute are replayed
-like any other, and need an id the same way (see :doc:`../durable_execution`). The
-operator cannot see inside a spec file when the Dag is parsed, so a missing id there
-fails the task when the agent is built rather than the Dag when it loads.
+With durable execution (on by default for a task that can retry on Airflow 3.3 and later;
+see :doc:`../durable_execution`), the toolsets that spec-file capabilities contribute are
+replayed like any other, and need an id the same way. The
+operator cannot see inside a spec file when the Dag is parsed, so pydantic-ai checks them
+only when the agent is built. Where it refuses one, ``durable=True`` fails the task. Under
+the default, the task runs without durable execution and the log gives pydantic-ai's
+reason, unless the journal already holds a run, such as one an earlier attempt started:
+then the task fails too, since running the agent live would repeat that run's steps. A HITL
+review's regeneration is the exception, as it continues from the conversation (see
+:ref:`durable-not-journaled`).
 
 Agent features
 --------------
@@ -247,8 +253,8 @@ Agent features
 Five features have pages of their own:
 
 - :doc:`../message_history`: pass ``message_history`` to carry a conversation across runs.
-- :doc:`../durable_execution`: set ``durable=True`` to replay completed model and tool steps
-  on retry instead of paying for them again.
+- :doc:`../durable_execution`: replay completed model and tool steps on retry instead of
+  paying for them again.
 - :doc:`../capabilities`: pass pydantic-ai capabilities and ``pydantic-ai-shields`` guardrails
   with ``capabilities=``.
 - :doc:`../code_mode`: pass the ``CodeMode`` capability to collapse the agent's tools into a
@@ -350,7 +356,7 @@ When the provider reports cache activity, the task log shows it under the run su
 
 .. code-block:: text
 
-    LLM run complete: model=claude-sonnet-4-5, requests=2, tool_calls=1, input_tokens=..., ...
+    LLM run complete: model=claude-sonnet-5-5, requests=2, tool_calls=1, input_tokens=..., ...
     LLM prompt cache: cache_read_tokens=..., cache_write_tokens=...
 
 ``input_tokens`` includes both counts. With :doc:`../observability` turned on, each
@@ -363,7 +369,7 @@ Parameters
 - ``prompt``: The prompt to send to the agent (operator) or the return value
   of the decorated function (decorator).
 - ``llm_conn_id``: Airflow connection ID for the LLM provider.
-- ``model_id``: Model identifier (e.g. ``"openai:gpt-5"``). Overrides the
+- ``model_id``: Model identifier (e.g. ``"openai:gpt-6.1-sol"``). Overrides the
   connection's extra field.
 - ``system_prompt``: System-level instructions for the agent. Supports Jinja
   templating.
@@ -404,7 +410,7 @@ Parameters
   store under the ``__commonai_usage__`` key -- instead of each attempt
   starting a fresh count. This also applies to the implicit
   ``request_limit=50`` default, which can now block a retry that used to
-  pass on its own. A step replayed by ``durable=True`` does not count toward
+  pass on its own. A step replayed by durable execution does not count toward
   that total -- see ``durable`` below. To keep the same effective
   per-attempt headroom this cross-attempt total used to give each attempt on
   its own, scale each limit by ``retries + 1``, or use ``usage_limits=None``
@@ -428,16 +434,20 @@ Parameters
   regeneration shares the count of the run before it whenever ``usage_limits``
   is set, on every Airflow version; with ``usage_limits=None`` each
   regeneration starts a fresh count.
-- ``durable``: When ``True``, records each step the agent completes (model
-  requests, tool calls, other capabilities' ``@durable_operation`` methods) in a
-  journal kept for the task instance, and replays the recorded steps on retry
-  instead of running them again. A pydantic-ai ``MCPToolset`` needs an ``id``. A
-  ``FunctionToolset`` or a function that builds a toolset, passed in ``toolsets`` or
-  ``agent_params["toolsets"]``, needs none, and neither does a ``FunctionToolset`` held
-  directly by a ``Toolset`` capability (:ref:`durable-toolset-ids`). On Airflow >= 3.3
-  the journal uses the task state store (no configuration needed); on older Airflow
-  versions it requires the
-  ``[common.ai] durable_cache_path`` config option to be set. Default ``False``. A replayed
+- ``durable``: Whether a retry replays what earlier attempts completed. ``None``
+  (default) turns it on on Airflow >= 3.3 for a task that can retry (``retries``
+  above 0, or from Airflow 3.4 a ``retry_policy``), and off for any other task or where it cannot
+  apply, with the reason in the task log. ``True`` turns it on wherever the task
+  runs; ``False`` turns it off (:ref:`durable-opt-out`). When on, records each step
+  the agent completes (model requests, tool calls, other capabilities'
+  ``@durable_operation`` methods) in a journal kept for the task instance, and
+  replays the recorded steps on retry instead of running them again. A pydantic-ai
+  ``MCPToolset`` needs an ``id``. A ``FunctionToolset`` or a function that builds a
+  toolset, passed in ``toolsets`` or ``agent_params["toolsets"]``, needs none, and
+  neither does a ``FunctionToolset`` held directly by a ``Toolset`` capability
+  (:ref:`durable-toolset-ids`). On Airflow >= 3.3 the journal uses the task state
+  store (no configuration needed); on older Airflow versions it requires the
+  ``[common.ai] durable_cache_path`` config option to be set. A replayed
   step adds nothing to the usage counted against ``usage_limits`` or reported
   in the ``usage`` XCom -- not its request, tokens, cost, or tool calls -- so
   each attempt counts only the model and tool calls it actually makes, on
@@ -466,8 +476,9 @@ Parameters
 
 **HITL review parameters**: ``enable_hitl_review``, ``max_hitl_iterations``,
 ``hitl_timeout`` and ``hitl_poll_interval`` turn on and bound the iterative review
-loop, which needs the ``hitl_review`` plugin. :doc:`../hitl_review` documents each
-parameter and the review workflow.
+loop, which needs the ``hitl_review`` plugin. On Airflow 3.3+ the task waits for the
+reviewer in the ``awaiting_input`` state and holds no worker slot. :doc:`../hitl_review`
+documents each parameter and the review workflow.
 
 Logging
 -------
@@ -496,7 +507,7 @@ is logged with model name, token usage, and the full tool call sequence:
 
 .. code-block:: text
 
-    INFO - LLM run complete: model=gpt-5, requests=4, tool_calls=3, input_tokens=2847, output_tokens=512, total_tokens=3359
+    INFO - LLM run complete: model=gpt-6.1-sol, requests=4, tool_calls=3, input_tokens=2847, output_tokens=512, total_tokens=3359
     INFO - Tool call sequence: list_tables -> get_schema -> query
 
 At DEBUG level, the LLM output is also logged (truncated to 500 characters).

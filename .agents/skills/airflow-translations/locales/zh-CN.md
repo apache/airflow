@@ -147,6 +147,19 @@ Translate `Provider` and `Providers` as `整合套件` in UI text. This override
 parent skill's English-term default for zh-CN. Preserve literal package names
 and code identifiers.
 
+Keep these terms distinct, because the UI often shows them side by side:
+
+| English | zh-CN | Meaning |
+|---|---|---|
+| Trigger (noun) | `触发器` | An async object a deferred task, asset watcher or callback waits on |
+| Triggerer | `触发器进程` | The Airflow component process that runs triggers |
+| Trigger (verb), Triggered | `触发`, `已触发` | Starting a Dag run |
+| Trigger Rule | `触发规则` | A task's upstream-dependency condition |
+| Triggered By | `触发者` | Who or what started a Dag run |
+
+Do not translate Triggerer as `触发器` (that is a trigger) or `触发者` (that is
+Triggered By).
+
 The established zh-CN translations are defined in the existing locale files.
 Before translating, **read the existing zh-CN JSON files** to learn the
 established terminology:

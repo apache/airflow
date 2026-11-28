@@ -18,7 +18,7 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar, Literal
 from uuid import UUID
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 
-class CallbackFetchMethod(str, Enum):
+class CallbackFetchMethod(StrEnum):
     """Methods used to fetch callback at runtime."""
 
     # For future use once Dag Processor callbacks (on_success_callback/on_failure_callback) get moved to executors

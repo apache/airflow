@@ -184,10 +184,14 @@ class JournalStep:
         numbered under this step, so the runs of later steps keep their numbers on a
         retry that replays this step instead of running it.
         """
+        self.durable_run._live_kinds.add(self.kind)
         token = _EXECUTING_STEP.set(self)
+        executing = self.durable_run.journal._executing_steps
+        executing[id(self)] = self
         try:
             yield
         finally:
+            executing.pop(id(self), None)
             _EXECUTING_STEP.reset(token)
 
     def record(self, payload: Any) -> bool:
@@ -249,7 +253,7 @@ class JournalStep:
 
 @dataclass
 class JournalStats:
-    """What one task attempt replayed and recorded, by step kind."""
+    """What one task attempt replayed and recorded, by step kind; a review counts each regeneration on its own."""
 
     replayed: collections.Counter[StepKind] = field(default_factory=collections.Counter)
     recorded: collections.Counter[StepKind] = field(default_factory=collections.Counter)
@@ -299,9 +303,13 @@ class DurableRun:
         # The furthest position this attempt recorded a step at, and every position it recorded.
         self._last_saved = -1
         self._saved: set[int] = set()
+        # Every position this attempt replayed; with ``_saved``, what this attempt holds a record of.
+        self._replayed: set[int] = set()
         # Every position this attempt sent a write for, including writes reported as failed,
         # which may still have landed; cleanup of a run no earlier attempt started deletes these.
         self._written_positions: set[int] = set()
+        # The kinds of step this attempt ran rather than replayed, whether they returned or raised.
+        self._live_kinds: set[StepKind] = set()
         # The position of the last model step this attempt claimed.
         self._last_model_position: int | None = None
         # Read with the rest of the run's entry: whether the previous attempt failed because
@@ -310,6 +318,12 @@ class DurableRun:
         # Read with the rest of the run's entry: whether ``_diverge_from`` is where the task paused
         # rather than where an attempt failed.
         self._paused = False
+        # Read with the rest of the run's entry: the position of the run's last model request, noted
+        # by every completion that writes the entry and by a pause that trusts this attempt's steps,
+        # and rewritten by a completion whose last model request is elsewhere, as ``ask_model_again``
+        # trusts it over the steps. A pause that only notes how far the attempt got keeps it; a
+        # failure and ``ask_model_again`` write the entry without it, so the steps decide then.
+        self._noted_last_model: int | None = None
         # Read with the rest of the run's entry: the tool call that failed the previous attempt,
         # and on how many attempts in a row it did.
         self._tool_failure: dict[str, Any] = {}
@@ -320,6 +334,16 @@ class DurableRun:
     def position(self) -> int:
         """The position the next claimed step will take."""
         return self._position
+
+    def ran_steps(self) -> bool:
+        """
+        Whether this attempt ran a step of this run that running it live again would repeat.
+
+        Any step it recorded counts, and any other step it started, even one that raised or is never
+        recorded: a tool or a capability's hook may act before raising. A model request that raised
+        does not, so a run ``ModelFallback`` moved off a failed request can go again.
+        """
+        return bool(self._written_positions or self._live_kinds - {"model"})
 
     def _load_meta(self) -> None:
         if self._meta_loaded or not self._started_before:
@@ -333,6 +357,8 @@ class DurableRun:
         self._paused = meta.get("paused") is True
         tool_failure = meta.get("tool_failure")
         self._tool_failure = tool_failure if isinstance(tool_failure, dict) else {}
+        last_model = meta.get("last_model")
+        self._noted_last_model = last_model if isinstance(last_model, int) else None
 
     def peek(self, position: int) -> dict[str, Any] | None:
         """
@@ -450,6 +476,7 @@ class DurableRun:
             if fingerprint is None and not previous_replayed:
                 return step
             step.replayed = self._previous_replayed = True
+            self._replayed.add(position)
             step.payload = entry.get("payload")
             if count_replay:
                 step._replay_counted = True
@@ -610,11 +637,22 @@ class DurableRun:
         replay, this attempt has run live from there: what it recorded becomes trusted, and
         the earlier entries at positions it left empty (a call still waiting for approval, a
         tool that raised) are deleted. Positions from here on still run live after the pause.
+        Otherwise it only notes how far this attempt got, when that is further than any before.
         """
         self._load_meta()
         start = min((p for p in (self._diverge_from, self._diverged_at) if p is not None), default=None)
         if start is None or self._position <= start:
-            # This attempt has not run anything live past the untrusted entries yet.
+            # This attempt has not run anything live past the untrusted entries yet. Past a step
+            # it did not record (a tool set to run on every attempt), a later completion or
+            # cleanup cannot find how far it got, so note that and leave the rest as it was.
+            if self._position > self._high_water:
+                self._save_meta(
+                    self._diverge_from,
+                    model_at_fault=self._model_at_fault,
+                    paused=self._paused,
+                    tool_failure=self._tool_failure or None,
+                    last_model=self._noted_last_model,
+                )
             return
         survived = self._delete_unrecorded(range(start, self._position))
         trusted_until = survived[0] if survived else self._position
@@ -622,28 +660,55 @@ class DurableRun:
         # A pause is not a failure, and the task resumes in the same attempt, so the count of
         # attempts in a row a tool call failed carries over to a failure after the resume.
         self._save_meta(
-            trusted_until, model_at_fault=False, paused=True, tool_failure=self._tool_failure or None
+            trusted_until,
+            model_at_fault=False,
+            paused=True,
+            tool_failure=self._tool_failure or None,
+            last_model=self._last_model_position,
         )
 
     def complete(self) -> None:
         """
-        Note that the run succeeded, for a task that keeps the journal after it.
+        Note that the run succeeded, for a task that keeps the journal after it, such as for a review.
 
-        An earlier attempt that failed can leave a note saying where a retry stops replaying, such as
-        the model request a retry asks again. Once a run succeeds, a later attempt (a retry after the
-        task's own work after the run failed, say) must replay what this one recorded instead: the
-        note goes, and so does every entry an earlier attempt left at a position this one ran without
-        recording or past where this one ended. Writes nothing when no earlier attempt left a note.
+        An earlier attempt that failed left a note saying where a retry stops replaying. Once a
+        run succeeds, a later attempt must replay what this one recorded instead, as for a pause,
+        and not an entry an earlier attempt left at a position this one ran without recording,
+        or past where this one ended. Also notes how far the run went, and where its last model
+        request was, when a step it ran is not in the journal (a tool set to run on every attempt,
+        say), as a later reader cannot find either past such a gap; and rewrites that note when
+        this attempt's last model request is elsewhere. Writes nothing on a first attempt that
+        recorded every step, or a retry that replayed every step, when no earlier attempt left a
+        note and none went further. A retry that ran a step live always writes the note: an
+        attempt that was killed leaves none, and may have recorded steps past where this run
+        ended. Reads back each stale entry it deletes, so that one the storage failed to delete
+        is not trusted.
         """
         self._load_meta()
-        if self._diverge_from is None and not self._model_at_fault and not self._tool_failure:
+        gap = len(self._saved | self._replayed) < self._position
+        if not (
+            gap
+            or (self._started_before and len(self._replayed) < self._position)
+            or self.diverged
+            or self._diverge_from is not None
+            or self._model_at_fault
+            or self._tool_failure
+            or self._noted_last_model not in (None, self._last_model_position)
+            or self._position < self._high_water
+        ):
             return
-        start = min(p for p in (self._diverge_from, self._diverged_at, self._position) if p is not None)
-        survived = self._delete_unrecorded(range(start, max(self._high_water, self._position)))
+        end = max(self._high_water, self._position)
+        # Before both points every claimed step replayed, so no position there holds a stale entry;
+        # past where this run ended, every entry is an earlier attempt's.
+        untrusted = [p for p in (self._diverged_at, self._diverge_from) if p is not None]
+        survived = self._delete_unrecorded(range(min([*untrusted, self._position]), end))
         if not survived:
-            # Nothing is left past where this run ended.
+            # Nothing is left past where this run ended, so a later run as long has nothing to delete.
             self._high_water = self._position
-        self._save_meta(survived[0] if survived else None, model_at_fault=False)
+        # Every entry left replays on a later attempt, unless one could not be deleted.
+        self._save_meta(
+            survived[0] if survived else None, model_at_fault=False, last_model=self._last_model_position
+        )
 
     def _delete_unrecorded(self, positions: range) -> list[int]:
         """
@@ -663,6 +728,30 @@ class DurableRun:
             log.warning("Durable: could not delete entries this attempt replaced", positions=survived)
         return survived
 
+    def ask_model_again(self) -> None:
+        """
+        Make a retry ask the model again for this run's final answer, which succeeded but was turned down.
+
+        For a run whose answer a reviewer rejected, possibly in a later process than the run's: a
+        retry replays the run's steps up to its last model request, then asks the model again from
+        there. A run with no model step recorded runs again from its start.
+        """
+        self._load_meta()
+        position, last_model = 0, 0
+        # Read to the end of what any attempt recorded, as cleanup does.
+        while (entry := self.journal.storage.load_step(build_step_key(self.key, position))) is not None or (
+            position < self._high_water
+        ):
+            if entry is not None and entry.get("kind") == "model":
+                last_model = position
+            position += 1
+        if self._noted_last_model is not None:
+            # The run's last model request may itself be missing, such as a write the storage refused.
+            last_model = self._noted_last_model
+        # The scan found how far any attempt got, which the entry keeps for cleanup.
+        self._high_water = position
+        self._save_meta(last_model, model_at_fault=True)
+
     def _save_meta(
         self,
         diverge_from: int | None,
@@ -670,6 +759,7 @@ class DurableRun:
         model_at_fault: bool,
         paused: bool = False,
         tool_failure: Mapping[str, Any] | None = None,
+        last_model: int | None = None,
     ) -> None:
         meta = {
             "diverge_from": diverge_from,
@@ -677,6 +767,7 @@ class DurableRun:
             "model_at_fault": model_at_fault,
             "paused": paused,
             "tool_failure": tool_failure,
+            "last_model": last_model,
         }
         if self.journal._ensure_runs_listed():
             self._meta_written = True
@@ -727,6 +818,7 @@ class DurableRun:
         if not step.replayed:
             return
         step.replayed = False
+        self._replayed.discard(step.position)
         step.payload = None
         self._previous_replayed = False
         if step._replay_counted:
@@ -758,6 +850,9 @@ class DurableJournal:
     :param fail_on_unrecordable: Fail the task on a step result the journal cannot hold
         (see :meth:`JournalStep.cannot_record`). With ``False`` the step is logged and runs
         again on retry instead.
+    :param first_run: The number of the first top-level run this journal starts, for a task that
+        starts later runs in a later process than the runs before them, such as a regeneration
+        after a review round.
     """
 
     def __init__(
@@ -766,13 +861,14 @@ class DurableJournal:
         *,
         clean_up_after_run: bool = False,
         fail_on_unrecordable: bool = True,
+        first_run: int = 0,
     ) -> None:
         self.storage = storage
         self.clean_up_after_run = clean_up_after_run
         self.fail_on_unrecordable = fail_on_unrecordable
         self.stats = JournalStats()
         self._runs: list[DurableRun] = []
-        self._top_level_runs = 0
+        self._top_level_runs = first_run
         self._run_id: str | None = None
         # Keys of every run any attempt started, read on first use. Cleanup walks it, so a run
         # an earlier attempt started that this one never reaches (an agent called from a tool
@@ -784,6 +880,19 @@ class DurableJournal:
         # Errors a run of this attempt failed with and took as its own, with the run's key. An agent
         # run inside a step fails before the run the step belongs to, so that run can tell.
         self._run_failures: list[tuple[BaseException, str]] = []
+        # Steps whose work is running now, by id. Kept on the journal rather than read from the
+        # context, so a thread that did not inherit the context still sees them.
+        self._executing_steps: dict[int, JournalStep] = {}
+
+    def find_executing_tool_steps(self) -> list[JournalStep]:
+        """
+        Return the tool calls of this journal whose work is running now, in any thread.
+
+        It sees a call from code that runs in another thread without a copy of the call's
+        context, such as an agent the tool runs with ``loop.run_in_executor``.
+        """
+        # list() copies in one go, so a step another thread starts or ends meanwhile cannot break it.
+        return [step for step in list(self._executing_steps.values()) if step.kind == "tool"]
 
     def get_run_id(self, *, default: str) -> str:
         """
@@ -831,6 +940,48 @@ class DurableJournal:
             self._ensure_runs_listed()
         return durable_run
 
+    def ask_model_again(self, number: int) -> None:
+        """
+        Make a retry ask the model again for the final answer of top-level run ``number``.
+
+        See :meth:`DurableRun.ask_model_again`. The top-level runs after it followed from that
+        answer, so they are deleted: a retry starts them over. A run not on the run list recorded
+        nothing, since a run's steps are written only once it is listed, and runs from its start
+        anyway; a note for it would be on no list either, so nothing would ever delete it.
+        """
+        self.drop_runs_from(number + 1)
+        if str(number) in self._load_known_runs():
+            DurableRun(self, str(number)).ask_model_again()
+
+    def drop_runs_from(self, number: int) -> None:
+        """
+        Delete top-level run ``number`` and every later one, with the runs started inside them.
+
+        For runs that followed from an answer that no longer stands, such as the regenerations
+        after a review round the reviewer answered again: a later run with that number starts over.
+        """
+        known = self._load_known_runs()
+        later = {key for key in known if "." not in key and int(key) >= number}
+        if dropped := [DurableRun(self, key) for key in known if key.split(".", 1)[0] in later]:
+            self._delete_runs(dropped)
+
+    @property
+    def next_run_number(self) -> int:
+        """The number the next top-level run started outside any step takes."""
+        return self._top_level_runs
+
+    def holds_steps(self) -> bool:
+        """
+        Whether running the agent again without durable execution could repeat a step.
+
+        See :meth:`DurableRun.ran_steps`. A run an earlier attempt started counts too, as it may
+        hold steps this attempt has not reached.
+        """
+        if self.stats.not_recorded or any(durable_run.ran_steps() for durable_run in self._runs):
+            return True
+        started_now = {durable_run.key for durable_run in self._runs if not durable_run._started_before}
+        return any(key not in started_now for key in self._load_known_runs())
+
     def _ensure_runs_listed(self) -> bool:
         """Store the run list if a write of it failed or is due; return whether it holds every run."""
         if not self._runs_listed:
@@ -872,12 +1023,17 @@ class DurableJournal:
         if self._known_runs and len(self._known_runs) < len(known):
             self.storage.save_step(RUNS_KEY, {"runs": self._known_runs})
 
-    def log_summary(self, logger: logging.Logger | Any) -> None:
-        """Log what this attempt replayed and recorded, and which steps a retry would run again."""
+    def log_summary(self, logger: logging.Logger | Any, *, mode: str) -> None:
+        """
+        Log what this attempt replayed and recorded, and which steps a retry would run again.
+
+        :param mode: How durable execution was turned on, such as ``"on by default"``.
+        """
         replayed, recorded = self.stats.replayed, self.stats.recorded
         logger.info(
-            "Durable: replayed %d steps (%d model, %d tool, %d other), recorded %d new steps "
+            "Durable (%s): replayed %d steps (%d model, %d tool, %d other), recorded %d new steps "
             "(%d model, %d tool, %d other)",
+            mode,
             replayed.total(),
             replayed["model"],
             replayed["tool"],
@@ -928,6 +1084,13 @@ def build_task_storage(context: Context) -> DurableStorageProtocol:
 
 _ACTIVE_JOURNAL: ContextVar[DurableJournal | None] = ContextVar("commonai_durable_journal", default=None)
 _EXECUTING_STEP: ContextVar[JournalStep | None] = ContextVar("commonai_durable_step", default=None)
+
+
+def get_executing_step() -> JournalStep | None:
+    """Return the step whose work is running in this context, such as a tool call, or ``None``."""
+    return _EXECUTING_STEP.get()
+
+
 # The journal for the task attempt this process is running, when no caller set one
 # explicitly. Keyed by the attempt, so a second attempt in the same process (a test,
 # a long-lived worker) never reuses the first attempt's runs.
@@ -944,6 +1107,40 @@ def journal_scope(journal: DurableJournal) -> Iterator[DurableJournal]:
         _ACTIVE_JOURNAL.reset(token)
 
 
+def _get_task_context_and_attempt() -> tuple[Any, str] | None:
+    """Return the running task's context and attempt key, or ``None`` outside a task."""
+    try:
+        context = get_current_context()
+    except (RuntimeError, AirflowException):
+        # Airflow 3 raises RuntimeError outside a task, Airflow 2 AirflowException.
+        return None
+    return context, make_task_instance_run_key(context["task_instance"])
+
+
+def _find_attempt_journal(attempt: str) -> DurableJournal | None:
+    """Return the cached journal if it belongs to ``attempt``, else ``None``."""
+    if _task_journal is not None and _task_journal[0] == attempt:
+        return _task_journal[1]
+    return None
+
+
+def find_active_journal() -> DurableJournal | None:
+    """
+    Return the journal already recording this run, without creating one.
+
+    A journal set with :func:`journal_scope` wins. Otherwise, inside a running task, this
+    returns the task attempt's journal if something already created it. ``None`` means no
+    journal is recording: outside a task, or inside one where nothing has used durable
+    execution yet.
+    """
+    if (journal := _ACTIVE_JOURNAL.get()) is not None:
+        return journal
+    if (found := _get_task_context_and_attempt()) is None:
+        return None
+    _, attempt = found
+    return _find_attempt_journal(attempt)
+
+
 def current_journal() -> DurableJournal | None:
     """
     Return the active journal, or ``None`` outside an Airflow task.
@@ -951,18 +1148,17 @@ def current_journal() -> DurableJournal | None:
     A journal set with :func:`journal_scope` wins. Otherwise, inside a running task,
     this returns the task attempt's own journal, created on first use, which deletes the
     steps of each run as soon as it succeeds. Outside a task there is nothing to replay
-    into, so durable execution is off and the agent runs as it would without it.
+    into, so durable execution is off and the agent runs as it would without it. To read
+    the journal without creating it, use :func:`find_active_journal`.
     """
     global _task_journal
 
     if (journal := _ACTIVE_JOURNAL.get()) is not None:
         return journal
-    try:
-        context = get_current_context()
-    except (RuntimeError, AirflowException):
-        # Airflow 3 raises RuntimeError outside a task, Airflow 2 AirflowException.
+    if (found := _get_task_context_and_attempt()) is None:
         return None
-    attempt = make_task_instance_run_key(context["task_instance"])
-    if _task_journal is None or _task_journal[0] != attempt:
-        _task_journal = (attempt, DurableJournal(build_task_storage(context), clean_up_after_run=True))
+    context, attempt = found
+    if (journal := _find_attempt_journal(attempt)) is not None:
+        return journal
+    _task_journal = (attempt, DurableJournal(build_task_storage(context), clean_up_after_run=True))
     return _task_journal[1]

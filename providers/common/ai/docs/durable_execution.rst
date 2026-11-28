@@ -27,32 +27,70 @@ twice. With durable execution, each step the agent completes is recorded in a jo
 kept for the task instance, and the retry replays the recorded steps instead of running
 them again. Only the steps the failed attempt never finished run live.
 
-Durable execution only helps a task that has retries. To decide *whether* a failure is
-worth retrying, see :doc:`retry_policies`; a retried ``LLMBatchOperator`` re-attaches to
-its running batch instead (:ref:`llm-batch-reattach`). To resume a Strands Agents agent on a
-retry, see :ref:`howto/frameworks:strands-durable`; for an OpenAI Agents SDK agent, see
+On Airflow 3.3 and later, ``AgentOperator`` and ``@task.agent`` do this by default for
+every task that can retry. A task that cannot run again (no retries, and from Airflow 3.4
+no ``retry_policy`` either) has nothing to replay, so it runs as before. To decide
+*whether* a failure is worth retrying, see :doc:`retry_policies`; a retried
+``LLMBatchOperator`` re-attaches to its running batch instead (:ref:`llm-batch-reattach`). To resume a Strands Agents agent on a retry, see
+:ref:`howto/frameworks:strands-durable`; for an OpenAI Agents SDK agent, see
 :ref:`howto/frameworks:openai-agents-durable`.
 
-Turn it on
-----------
+When it is on
+-------------
 
-Set ``durable=True`` on ``AgentOperator``:
+An agent task needs nothing extra. This one retries up to three times, so on Airflow 3.3
+and later a retry replays what the failed attempt completed:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
     :language: python
     :start-after: [START howto_operator_agent_durable]
     :end-before: [END howto_operator_agent_durable]
 
-The same flag works on ``@task.agent``:
+The same holds for ``@task.agent``:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
     :language: python
     :start-after: [START howto_decorator_agent_durable]
     :end-before: [END howto_decorator_agent_durable]
 
-``durable=True`` attaches the
-:class:`~airflow.providers.common.ai.durable.AirflowDurability` capability to the
-agent. A pydantic-ai agent you build yourself in a plain ``@task`` takes the capability
+Under the default, the decision is made when the task runs; ``durable=True`` is checked
+when the Dag loads:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 75
+
+   * - ``durable``
+     - Durable execution
+   * - ``None`` (default)
+     - On, on Airflow 3.3 and later for a task with ``retries`` above 0, or from Airflow 3.4
+       a ``retry_policy``, since ``RetryAction.RESCHEDULE`` can run a task with no retries
+       again. A policy that never reschedules such a task leaves the journal of a failed
+       attempt with nothing to replay it, so pass ``durable=False`` there. Off on older
+       Airflow, for a task with no retries, and where it cannot apply
+       (:ref:`durable-not-journaled`).
+   * - ``True``
+     - On, on every Airflow version, even with no retries. A combination it cannot apply to
+       fails the Dag at load time; before Airflow 3.3 it needs ``[common.ai]
+       durable_cache_path`` (:ref:`durable-journal-storage`).
+   * - ``False``
+     - Off (:ref:`durable-opt-out`).
+
+When the default leaves durable execution off for a task that would otherwise get it, the
+task log says why, at the start of every attempt:
+
+.. code-block:: text
+
+    Durable execution is off for this task: the task has no retries, so no attempt would replay this one.
+
+An attempt that runs durably ends with a summary line saying what it replayed and how
+durable execution was turned on, ``on by default`` or ``durable=True``
+(:ref:`durable-task-log`). Each span the agent emits carries the boolean attribute
+``airflow.common_ai.durable``.
+
+``AgentOperator`` and ``@task.agent`` turn it on by attaching the
+:class:`~airflow.providers.common.ai.durable.AirflowDurability` capability to the agent.
+A pydantic-ai agent you build yourself in a plain ``@task`` takes the capability
 directly:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
@@ -64,6 +102,106 @@ The capability needs a name for the agent's steps: the agent's ``name``, or
 ``AirflowDurability(name=...)``. ``AgentOperator`` uses the agent's name when
 ``agent_params`` sets one, and the task id otherwise. Outside a running Airflow task
 the capability does nothing, so the same agent runs normally in a test or a notebook.
+
+.. _durable-opt-out:
+
+Turn it off
+-----------
+
+A replayed tool does not run, so a tool whose effect does not outlive the attempt, such as
+a session or a file in a temporary directory, would hand the model a result that no longer
+holds. When only some tools are like that, keep durable execution and
+:ref:`run those tools on every attempt <durable-tool-opt-out>`. When the whole task is,
+pass ``durable=False``:
+
+.. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_durable.py
+    :language: python
+    :start-after: [START howto_agent_durable_opt_out]
+    :end-before: [END howto_agent_durable_opt_out]
+
+``default_args={"durable": False}`` turns it off for every ``AgentOperator`` and
+``@task.agent`` in the Dag, since Airflow passes default arguments to every operator that
+takes them. It also turns off ``durable`` on every resumable operator in the Dag, such as
+``KubernetesPodOperator``, Spark, Databricks and Glue operators, which then submit a new job
+on every retry instead of reconnecting to the running one. Set ``durable=False`` on each
+agent task to leave those alone.
+
+.. _durable-not-journaled:
+
+When the default cannot apply
+-----------------------------
+
+Under the default, durable execution stays off for a task, and the task log names the
+reason, in these cases:
+
+- A ``SandboxToolset``, attached to a sandbox or not, wherever it sits among the toolsets and
+  capabilities. A replayed tool result describes a workspace the replay did not reproduce:
+  a replayed ``write_file`` leaves no file behind, and the first call that is not replayed
+  runs against whatever the sandbox holds now. Move the sandbox work into its own task to
+  make the rest of the agent durable. A sandbox built per run, by a function or a
+  ``DynamicToolset``, cannot be seen before the run, so pass ``durable=False`` to that task.
+- A toolset durable replay has no name for (:ref:`durable-toolset-ids`): a pydantic-ai
+  ``MCPToolset`` without an ``id``, a ``functools.partial`` or other callable without a
+  ``__qualname__`` that builds a toolset per run, or two toolsets that share an id.
+- A toolset without an id that the operator cannot give one to: inside a
+  ``CombinedCapability`` or a wrapper capability such as ``PrefixTools``, or built by a
+  ``Toolset`` capability when the run starts. pydantic-ai refuses to run a durable agent
+  whose toolset has no id, so durable execution would fail every attempt. A toolset another
+  kind of capability contributes, such as ``Capability(toolsets=[...])``, is checked by
+  pydantic-ai when the task runs, as in the next case.
+- A capability pydantic-ai refuses to run durably, such as one with ``@durable_operation``
+  methods and no ``id``. The task log quotes pydantic-ai's error. pydantic-ai checks this when
+  the agent is built, so a retry of a Dag that changed since the failed attempt can reach it
+  too. The task fails instead, and the log says why, when the journal already holds a run,
+  such as one an earlier attempt started or one that paused for tool approval, since running
+  the agent live would repeat its steps. Pass ``durable=False`` to such a task. A HITL
+  review's regeneration still runs without durable execution: it continues from the
+  conversation, so it repeats none of them.
+- A ``ModelFallback`` capability, or a capability that selects the model for each request, such
+  as ``SelectModel``, wherever it sits among the capabilities. Durable execution cannot record a
+  request moved to a model it was not given: pydantic-ai refuses it when the request is made,
+  which for a fallback is after the steps before the provider failed. Deciding before the run
+  keeps such a task working as it does with ``durable=False``. A function that picks the model
+  cannot be inspected for what it returns, so it counts whatever it returns. To keep durable
+  execution through a fallback, use a ``fallback_conn_ids`` chain (:doc:`provider_fallback`).
+- An agent pydantic-ai refuses only once its durable run has started, such as one that a
+  capability whose ``for_run`` builds it when the run starts moves to a model
+  instance the agent was not built with, or whose ``for_run`` returns one with another ``id``.
+  The agent runs again without durable execution, and the task log quotes pydantic-ai's error.
+  Hooks such as ``before_run`` run again, and so does a model request that failed, such as the one
+  ``ModelFallback`` falls back from. The task fails instead, and the log says why, when a step
+  running live would repeat already ran: a model request that got an answer, or a tool call or a
+  ``@durable_operation`` hook, even one that raised. It fails too when the task has a HITL
+  review, since the review's regenerations would
+  be refused the same way after the reviewer has answered. Pass ``durable=False`` to such a task.
+- A context with no task state store, such as one a unit test builds by hand.
+
+``durable=True`` refuses the first three with a ``ValueError`` when the Dag loads.
+
+The default decides this at the start of every attempt, for every case above except an agent
+pydantic-ai refuses once its run has started (that case has its own rule) and a missing task
+state store, and for a task whose ``retries`` is now 0. If the Dag changed since an earlier
+attempt, so that durable execution is now off, and that attempt, or this run before it paused
+for tool approval, started an agent run, the task fails with ``DurableJournalError`` instead of running the agent live,
+since the journal may hold steps, such as tool calls, that a live run would repeat. A step that
+raised before it was recorded cannot be told from none, so an attempt that failed on its first
+model request counts too: adding a ``ModelFallback`` after a provider outage fails the retry,
+and a ``fallback_conn_ids`` chain does not. The message names the reason and the ways out: pass
+``durable=False`` to run the agent without durable execution, undo the change to the Dag, or
+delete the task instance's task state (``DELETE .../state-store``, :ref:`durable-journal-storage`;
+a clear does so from Airflow 3.4, :ref:`durable-clear`). A HITL review's regeneration after the
+first round still runs without durable execution, since it continues from the conversation and
+repeats none of the first run's steps, and approving the review deletes the journal.
+
+An ``AirflowDurability`` capability you pass yourself journals each agent run on its own,
+as in a plain ``@task``, deleting the run's steps as soon as it succeeds. The operator then
+adds none of its own, and the task log says so. ``durable=True`` together with the
+capability is refused.
+
+A step durable execution cannot record stays live: under the default, a model response
+or tool result the journal cannot hold is named in a warning and runs again on retry, and
+the steps after it may run again too. ``durable=True`` fails the task on it instead, and
+so does an ``AirflowDurability`` capability you pass yourself (:ref:`durable-side-effects`).
 
 .. _durable-toolset-ids:
 
@@ -96,26 +234,27 @@ saw, and later steps get the new list. A clear that deletes the journal
 
 An ``MCPToolset`` from pydantic-ai still needs an id from you. Its calls are named after
 the toolset alone, and no id is derived from the server's URL or command, which can carry
-credentials. The Dag fails to load with:
+credentials. Under the default, durable execution stays off for the task and the task log
+gives the reason; with ``durable=True`` the Dag fails to load with:
 
 .. code-block:: text
 
-    ValueError: durable=True needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather'): durable replay records each tool call under it, and none is derived from the server's URL or command, which can carry credentials. Set it on the toolset itself; the id of a Toolset capability around a toolset does not reach it.
+    ValueError: durable execution needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather'): durable replay records each tool call under it, and none is derived from the server's URL or command, which can carry credentials. Set it on the toolset itself; the id of a Toolset capability around a toolset does not reach it. Or drop durable=True.
 
-So does a callable that has no ``__qualname__`` to name it by, such as a
+The same goes for a callable that has no ``__qualname__`` to name it by, such as a
 ``functools.partial``; pass it as ``DynamicToolset(function, id=...)``:
 
 .. code-block:: text
 
-    ValueError: durable=True names the steps of a toolset built per run after the function that builds it, but functools.partial(<function carrier_tools at 0x...>, carrier='dhl') has no __qualname__. Pass it as DynamicToolset(function, id=...).
+    ValueError: durable execution names the steps of a toolset built per run after the function that builds it, but functools.partial(<function carrier_tools at 0x...>, carrier='dhl') has no __qualname__. Pass it as DynamicToolset(function, id=...). Or drop durable=True.
 
-Two different toolsets with the same id are refused, since their calls would be filed
+Two different toolsets with the same id are refused too, since their calls would be filed
 under one name, and so are two functions with the same qualified name, such as two
 lambdas in one Dag file:
 
 .. code-block:: text
 
-    ValueError: durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders_dag_lambdas.<lambda>': durable replay records each tool call under its toolset's id, so a retry could not tell their calls apart.
+    ValueError: durable execution needs a unique id on each toolset, but more than one toolset has the id 'orders_dag_lambdas.<lambda>': durable replay records each tool call under its toolset's id, so a retry could not tell their calls apart. Or drop durable=True.
 
 Passing one toolset object in two places is fine. The provider's own toolsets
 (``SQLToolset``, ``HookToolset``, its ``MCPToolset`` and the rest) and tools passed as
@@ -126,29 +265,100 @@ does not fill in ids: there pydantic-ai raises ``UserError`` for a ``FunctionToo
 ``UserError`` naming it when it has none. pydantic-ai-harness ``SpendLimits`` has one by
 default.
 
+.. _durable-journal-storage:
+
 Where the journal is kept
 -------------------------
 
 On **Airflow 3.3 and later** the journal is kept in the
 :doc:`task state store <apache-airflow:core-concepts/task-state-store>`, scoped to the
-task instance. No configuration is needed. Each step is written to the Airflow metadata
+task instance. No configuration is needed. Each entry is a row in the Airflow metadata
 database; for agents with large model responses or tool results, set
 ``[workers] state_store_backend`` to offload the values to external storage instead.
 Without it, a step larger than ``[state_store] max_value_storage_bytes`` (64 KB by
 default) is still written to the database, and the task log warns that it exceeds the
 limit.
 
-When the agent run succeeds, its journal is deleted. On 3.3 and later, every step the
-agent completes is one write to the task state store, a call the task makes to the API
-server while the agent waits. A first attempt reads back only the list of agent runs the
-task started (and, in ``AgentOperator``, the run id), since no earlier attempt recorded
-anything; a retry also looks up each step of a run an earlier attempt started, and stops
-looking once the run takes a different path from that attempt. Deleting the journal is
-one call per entry; before 3.3 it rewrites the journal file instead, or removes it once
-nothing is left in it.
+The journal holds one entry per step, under keys that start with
+``__commonai_durable__``:
 
-On **Airflow before 3.3** the journal is a JSON file on ObjectStorage, and the location
-must be set:
+- each model response, as pydantic-ai's ``ModelResponse``, including the arguments of the
+  tool calls the model asked for;
+- each tool result, after Airflow's secret masker, so a connection password in a result
+  is stored as ``***``;
+- the run id the retries keep, the list of agent runs the task started, and a note per run
+  of where an attempt failed.
+
+With tool approval or HITL review, the reviewers' answers sit beside it under
+``common_ai_tool_approval_answers`` and ``common_ai_hitl_review_answers``
+(:ref:`durable-approvals`).
+
+Anyone who can read the Dag's task instances can read these entries through the REST API,
+with ``GET /api/v2/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/state-store``.
+For an agent task between its failed first attempt and its retry, the response lists these
+keys:
+
+.. code-block:: text
+
+    __commonai_durable__run_0_meta
+    __commonai_durable__run_0_step_0
+    __commonai_durable__run_0_step_1
+    __commonai_durable__run_0_step_2
+    __commonai_durable__run_id
+    __commonai_durable__runs
+
+``GET .../state-store/{key}`` returns one entry's value. The entries have no expiry
+(``expires_at`` is empty), and they are deleted:
+
+- when the agent run succeeds; with ``enable_hitl_review``, when the reviewer approves;
+- on Airflow 3.4 and later, when the task instance is cleared without keeping its task
+  state (:ref:`durable-clear`);
+- with their Dag run, for example when ``airflow db clean`` purges it;
+- by a user with delete access to the task instance, one key with
+  ``DELETE .../state-store/{key}`` or all of them with ``DELETE .../state-store``.
+
+A task that fails on its last retry keeps its journal until one of these happens.
+
+Every step the agent completes is one write to the task state store, a call the task makes
+to the API server while the agent waits. A first attempt also reads back the list of agent
+runs the task started, and the run id; a retry looks up each step of a run an earlier
+attempt started, and stops looking once the run takes a different path from that attempt.
+Deleting the journal is one call per entry. A scripted agent, which spends no time waiting
+for a model, measured this on one machine running ``airflow standalone`` with
+``LocalExecutor`` and PostgreSQL:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 20 20 20 20
+
+   * - Model requests
+     - Journal steps
+     - API calls, off / on
+     - Wall time, off / on
+     - Journal bytes written
+   * - 10
+     - 19
+     - 7 / 50
+     - 0.09 s / 0.55 s
+     - 22,012
+   * - 50
+     - 99
+     - 7 / 210
+     - 0.23 s / 2.31 s
+     - 115,288
+   * - 200
+     - 399
+     - 7 / 810
+     - 1.15 s / 9.77 s
+     - 465,836
+
+Wall time is ``execute()``, the median of three runs. Each journal step added 21 to 24 ms
+there, most of it waiting on journal calls. A real model request takes seconds, so most
+agent tasks barely notice. A task that makes hundreds of tool calls of a few milliseconds
+each will. Bytes written grow with the size of the model responses and tool results.
+
+On **Airflow before 3.3** the journal is used only with ``durable=True``. It is a JSON file
+on ObjectStorage, and the location must be set:
 
 .. code-block:: ini
 
@@ -170,6 +380,20 @@ Without the option, the task fails with:
 
     ValueError: Durable execution on Airflow before 3.3 needs [common.ai] durable_cache_path to be set, to say where its journal is kept. Example: durable_cache_path = file:///tmp/airflow_durable_cache
 
+For S3, the IAM role must also have ``s3:ListBucket`` permission on the bucket, in
+addition to permissions to read, write, and delete journal objects. Without
+``s3:ListBucket``, S3 returns ``403 Access Denied`` instead of ``404 Not Found``
+when the journal does not exist. This is treated as a storage read failure, so even
+the first task attempt fails. Read failures stop the attempt to avoid repeating
+completed LLM calls or tool operations when an existing journal cannot be read.
+They raise the original storage error, so Airflow retries them according to the
+task's configured retry policy.
+
+A corrupt journal also fails the task attempt and is left unchanged, but Airflow does
+not retry it. The ``path`` field on the ``Durable: journal is corrupt`` task-log warning
+names the file to inspect and restore before running the task again. Deleting it allows
+completed LLM calls and tool operations to run again.
+
 .. _durable-replay:
 
 How a retry replays
@@ -190,6 +414,10 @@ again, and the task log says so:
 .. code-block:: text
 
     Durable: the run took a different path from the previous attempt; this step and every step after it run again
+
+For a ``fallback_conn_ids`` chain, the fingerprint names the chain as a whole rather
+than its connections, and a recorded response replays only if the model that answered
+it is still in the chain; see :doc:`recovery`.
 
 A changed agent costs a re-run; it never replays results that belong to another
 conversation. Settings that only affect transport, ``timeout`` and the prompt cache
@@ -240,7 +468,8 @@ instead.
 
 Some steps have no request to fingerprint: another capability's
 ``@durable_operation``, or tool discovery. Such a step replays on its name, and only when
-the step before it also replayed.
+the step before it also replayed. A step that settles tool calls waiting for approval is
+fingerprinted by those calls, so it replays only for them.
 
 The journal records:
 
@@ -255,19 +484,23 @@ The journal records:
   summary follows a tool set to run on every attempt.
 
 A tool that raises ``ModelRetry``, ``ToolFailed``, ``ApprovalRequired`` or
-``CallDeferred`` replays as the same signal. ``AgentOperator`` does not support tool
-approval or deferred tools with ``durable=True``, so there such a call fails the task
-with ``UnsupportedToolDeferralError``, as it would without ``durable``. A tool that raises
-any other exception runs again on retry; once it has failed the run on two attempts in a
-row, the next retry asks the model again, as described above. ``SQLToolset`` uses that
-split: a statement the database rejects is a ``ModelRetry`` and replays, while failing to
-reach the database raises, so the retry queries it again rather than handing the model the
-old failure.
+``CallDeferred`` replays as the same signal; how approvals and reviews replay is in
+:ref:`durable-approvals`. A deferred tool (``CallDeferred``) fails the task with
+``UnsupportedToolDeferralError``, as it would without durable execution. A tool that
+raises any other exception runs again on retry; once it has failed the run on two attempts
+in a row, the next retry asks the model again, as described above. ``SQLToolset`` uses
+that split: a statement the database rejects is a ``ModelRetry`` and replays, while
+failing to reach the database raises, so the retry queries it again rather than handing
+the model the old failure.
 
 A task can run more than one agent, and an agent's tool can run another agent; each
 agent run is replayed on its own, and one a tool started is replayed under that tool
-call. The journal is deleted when the task succeeds, including any steps an earlier
-attempt recorded beyond where the last one went.
+call. Work a tool does inside its own step, such as calling another capability's
+``@durable_operation`` or running an agent, is part of that step: when the tool call
+replays, that work does not run, and the steps after the tool still replay.
+
+The journal is deleted when the task succeeds, including any steps an earlier attempt
+recorded beyond where the last one went.
 In a plain ``@task``, which has no such moment, the capability deletes a run's journal
 as soon as that run succeeds: after a failure, only the run that failed replays, and
 the agents that ran before it run again.
@@ -348,37 +581,45 @@ next differ and run live. Keep side effects in tools, whose results are recorded
 still writing the snippet. Both are off while the run is durable, so a retry runs the
 finished snippet the way the previous attempt did.
 
+.. _durable-task-log:
+
 What the task log shows
 -----------------------
 
 ``AgentOperator`` logs a summary at the end of every attempt, including the one that
-fails. Here an agent asked for two tools in one step: ``charge_card`` succeeded and
-``flaky_lookup`` raised, which failed the attempt. The failing attempt logged:
+fails. Here an agent looked up an order with ``lookup_order``, then called ``send_note``,
+which raised ``ConnectionError`` and failed the attempt. The task has retries and no
+``durable`` argument, so the line says ``on by default``:
 
 .. code-block:: text
 
-    LLM run failed: requests=1, tool_calls=1, input_tokens=58, output_tokens=9, total_tokens=67
-    Durable: replayed 0 steps (0 model, 0 tool, 0 other), recorded 2 new steps (1 model, 1 tool, 0 other)
+    TOOL RAN: lookup_order(4411) in default_on try 1
+    TOOL RAN: send_note in default_on try 1
+    Tool send_note failed after 0.01s
+    LLM run failed: requests=2, tool_calls=1, input_tokens=276, output_tokens=47, total_tokens=323
+    Durable (on by default): replayed 0 steps (0 model, 0 tool, 0 other), recorded 3 new steps (2 model, 1 tool, 0 other)
 
-The retry replayed the model response and ``charge_card``, and ran only ``flaky_lookup``
+The retry replayed both model responses and ``lookup_order``, and ran only ``send_note``
 and the final model request:
 
 .. code-block:: text
 
-    Durable: replayed 2 steps (1 model, 1 tool, 0 other), recorded 2 new steps (1 model, 1 tool, 0 other)
-    LLM run complete: model=test, requests=1, tool_calls=1, input_tokens=65, output_tokens=20, total_tokens=85
+    TOOL RAN: send_note in default_on try 2
+    Durable (on by default): replayed 3 steps (2 model, 1 tool, 0 other), recorded 2 new steps (1 model, 1 tool, 0 other)
+    LLM run complete: model=gpt-5.4-mini, requests=1, tool_calls=1, input_tokens=202, output_tokens=6, total_tokens=208
 
-These lines come from a test agent with two tools, not from the examples above.
-``charge_card`` ran once across both attempts, and the retry's usage counts only its own
-two live calls. A step that ran live but could not be recorded is named in a WARNING
-when it happens; the summary names such tool steps again and counts such model steps.
-Per-step detail is logged at DEBUG.
+The ``TOOL RAN`` lines are the tools' own logging. ``lookup_order`` ran once across both
+attempts, and the retry's usage counts only its own two live calls. With ``durable=True``
+the line starts ``Durable (durable=True):``. A step that ran live but could not be recorded
+is named in a WARNING when it happens; the summary names such tool steps again and counts
+such model steps. Per-step detail is logged at DEBUG.
 
 The agent's ``run_id`` and ``conversation_id``
 ----------------------------------------------
 
-Without ``durable``, each attempt's agent run gets a key for the attempt as its
-pydantic-ai ``run_id``: the task instance id on Airflow 3, which changes on every retry. With ``durable=True`` every attempt keeps the **first**
+Without durable execution, each attempt's agent run gets a key for the attempt as its
+pydantic-ai ``run_id``: the task instance id on Airflow 3, which changes on every retry.
+With durable execution every attempt keeps the **first**
 attempt's id, and so does the run's ``conversation_id`` when there is no
 ``message_history``. Capabilities that key their own state on these ids, such as
 pydantic-ai-harness ``SpendLimits`` and ``StepPersistence``, then find the records the
@@ -399,28 +640,49 @@ usage a replayed ``@durable_operation`` brings back. Each attempt counts only th
 it actually makes. Clearing a finished task instance starts a fresh budget; if the
 rerun replays from the journal (see :ref:`durable-clear`), the replayed steps cost nothing.
 
+.. _durable-approvals:
+
+Tool approval and HITL review
+-----------------------------
+
+On Airflow 3.3 and later, a tool that needs approval pauses a durable ``AgentOperator``
+task the way it pauses one without durable execution (:doc:`tool_approval`). The
+reviewer's answer is recorded as a step, so a retry does not ask again, and replays an
+approved call that returned instead of running it twice. :ref:`tool-approval-durable` lists
+the exceptions. A task that paused before an upgrade turned durable execution on by
+default resumes the way it paused, without a journal.
+
+With ``enable_hitl_review``, the first output and each regeneration after feedback are
+runs in the same journal. On Airflow 3.3 and later a retry applies the feedback the
+reviewer already gave instead of asking again, and a review that ends in a reject starts
+over with a new answer from the model (:ref:`hitl-review-durable`). The journal is
+deleted when the reviewer approves.
+
 .. _durable-clear:
 
 Clearing a task
 ---------------
 
-On Airflow 3.4 and later, clearing a task instance (its Clear dialog in the UI, or
-``POST /api/v2/dags/{dag_id}/clearTaskInstances``) deletes its task state, the journal
-included, so the rerun starts the agent over. This holds for the default task state store
-backend; a custom ``[state_store] backend`` keeps its entries. To resume from the journal
-instead, tick **Keep task state and resume** in the dialog, or send
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes its
+task state by default from Airflow 3.4. Every other clear, such as
+``airflow tasks clear`` or clearing a whole Dag run, does so from Airflow 3.5. The
+journal goes with it, so the rerun starts the agent over. This holds for the default
+task state store backend; a custom ``[state_store] backend`` keeps its entries. To keep
+task state, tick **Keep task state and resume** in the Clear dialog, or send
 ``"keep_task_state": true`` in the request. The **Keep task state on clear** UI setting
-ticks that box by default. Clearing the whole Dag run from the Clear Run dialog keeps task
-state; "Retries resume, clearing starts over" in
-:ref:`apache-airflow:concepts-resumable-tasks` lists the other ways of clearing and which
-of them keep it.
+ticks that box by default. From Airflow 3.5, ``airflow tasks clear --keep-task-state``
+keeps it too. The rerun then replays the journal and resumes the agent from the last
+step it finished. "Retries resume, clearing starts over" in
+:ref:`apache-airflow:concepts-resumable-tasks` lists the ways of clearing.
 
 Before Airflow 3.4 no clear deletes the journal (the task state store on 3.3, the file
 under ``durable_cache_path`` earlier), so a cleared task replays.
 
 A task that ran to success has no journal left, so clearing it starts over either way. For
-``AgentOperator`` and ``@task.agent``, the rerun's ``Durable:`` line in the task log
+``AgentOperator`` and ``@task.agent``, the rerun's ``Durable (...)`` summary line in the task log
 counts the steps it replayed; a count above zero means it resumed from the journal.
+
+.. _durable-side-effects:
 
 Side effects and idempotency
 ----------------------------
@@ -447,9 +709,11 @@ are not:
 depending on the pydantic-ai version and the toolset, such a result fails the task, or
 it comes back changed (as text, a list or a dict), which can make the steps after that
 tool call run again. Put bytes in a dict instead. A result the journal cannot encode,
-such as an object with no JSON form, fails the task with ``DurableJournalError`` and no
-retry, since it would fail the same way every time. A write the storage refuses or
-fails does not fail the task: the task log names the step, and a retry runs it again.
+such as an object with no JSON form, is named in a warning and left unrecorded under the
+default, so a retry runs that step again. With ``durable=True``, or an ``AirflowDurability``
+capability you pass yourself, it fails the task with
+``DurableJournalError`` and no retry, since it would fail the same way every time. A write the storage
+refuses or fails does not fail the task: the task log names the step, and a retry runs it again.
 
 .. _durable-tool-opt-out:
 
@@ -517,9 +781,8 @@ offered the tool, and the task is not retried:
 Limitations
 -----------
 
-- ``durable=True`` cannot be combined with ``enable_hitl_review``, a ``SandboxToolset``
-  or tool approval. ``AgentOperator`` raises ``ValueError`` for the first two when the Dag
-  is parsed.
+- Durable execution cannot be combined with a ``SandboxToolset``: the default leaves it
+  off for that task, and ``durable=True`` raises ``ValueError`` when the Dag is parsed.
 - A task instance that is retried across an upgrade of this provider from a version
   without ``AirflowDurability`` runs its steps live once: the journal keys changed.
 

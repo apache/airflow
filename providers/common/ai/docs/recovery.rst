@@ -21,9 +21,10 @@ Recovering from failures
 ========================
 
 An agent task can fail partway through a run: the model provider goes down or rate
-limits the task, or the worker running it dies. Two settings keep the work the agent
+limits the task, or the worker running it dies. Two features keep the work the agent
 already did: ``fallback_conn_ids`` moves a failed model request to another connection,
-and ``durable=True`` lets an Airflow retry replay the steps an earlier attempt
+and durable execution, on by default for a task that can retry on Airflow 3.3 and later
+(see :doc:`durable_execution`), lets an Airflow retry replay the steps an earlier attempt
 completed. To decide whether a failure is worth retrying at all, see
 :doc:`retry_policies`.
 
@@ -42,14 +43,16 @@ What each failure costs
      - Kept. The next connection receives the run's message history, including every
        tool result, and continues the run.
    * - Every connection in the chain fails, and the task raises
-       ``pydantic_ai.exceptions.FallbackExceptionGroup``
-     - Airflow ``retries`` with ``durable=True``
+       ``FallbackChainExhaustedError`` (a ``pydantic_ai.exceptions.FallbackExceptionGroup``;
+       see :doc:`provider_fallback` for which tasks raise it)
+     - Airflow ``retries``, with durable execution
      - Replayed. The retry replays the steps an earlier attempt recorded, whichever
        connection answered them, and continues on the first connection that answers now.
    * - The worker dies, or the task hits its ``execution_timeout``
-     - Airflow ``retries`` with ``durable=True``
+     - Airflow ``retries``, with durable execution
      - Replayed, as above. A step that was still running runs again.
-   * - Either of the last two, without ``durable=True``
+   * - Either of the last two, without durable execution (``durable=False``, or Airflow
+       before 3.3 without ``durable=True``)
      - Airflow ``retries``
      - Run again from the start: every model call is paid for again and every tool runs
        again.
@@ -66,15 +69,16 @@ attempt waits for the SDK's default of 600 seconds. Both SDKs also wait out a 42
 ``Retry-After`` header before retrying: the OpenAI SDK for up to two minutes, the
 Anthropic SDK for as long as the header asks.
 
-On Airflow before 3.3 the journal is a file under ``[common.ai] durable_cache_path``; a
+On Airflow before 3.3 durable execution is off unless the task sets ``durable=True``, and
+the journal is a file under ``[common.ai] durable_cache_path``; a
 retry that runs on another worker replays only if that path is shared storage. See
 :doc:`durable_execution`.
 
 Keep a run going through an outage
 ----------------------------------
 
-This task declares both settings: a standby connection for a failed request, and a
-journal for a failed attempt:
+This task has both: a standby connection for a failed request, and, because its
+``retries`` let it retry, a journal for a failed attempt:
 
 .. exampleinclude:: /../../ai/src/airflow/providers/common/ai/example_dags/example_agent_recovery.py
     :language: python
@@ -113,7 +117,7 @@ and the model that finished the run:
     Retrying request to /responses in 0.849597 seconds
     ::group::Tool call: get_schema
     ...
-    Durable: replayed 0 steps (0 model, 0 tool, 0 other), recorded 7 new steps (4 model, 3 tool, 0 other)
+    Durable (on by default): replayed 0 steps (0 model, 0 tool, 0 other), recorded 7 new steps (4 model, 3 tool, 0 other)
     ::group::LLM run complete: model=claude-sonnet-5, requests=4, tool_calls=3, input_tokens=5135, output_tokens=334, total_tokens=5469
     Tool call sequence: list_tables -> get_schema -> query
 
@@ -124,18 +128,45 @@ primary's ``timeout`` short.
 Retries after the whole chain fails
 -----------------------------------
 
-With ``durable=True``, each step is recorded in the task instance's journal whichever
-connection answered it. When every connection fails, the task raises
-``FallbackExceptionGroup`` and Airflow retries it. The retry replays the recorded steps,
-then sends its first live request through the chain from the top. The run continues on
-the first connection that answers, whether or not that is the one that answered before.
+Under durable execution, each step is recorded in the task instance's journal whichever
+connection answered it. When every connection fails, the operator (or ``@task.llm`` /
+``@task.agent``) raises ``FallbackChainExhaustedError``, and a plain ``@task`` with
+``AirflowDurability`` raises the bare ``FallbackExceptionGroup`` (see
+:doc:`provider_fallback`). Airflow retries either one. The retry replays the recorded steps,
+then sends its first live request through the chain from the top. The run continues on the
+first connection that answers, whether or not that is the one that answered before.
 
 A recorded model step replays only if the retry's request has the same fingerprint, and
-for a chain the model in the fingerprint is the whole chain, whichever connection
-answered. Adding, removing or reordering a connection in ``fallback_conn_ids``, or
-changing the ``model`` of a connection in it, between attempts therefore makes the retry
-run every step live, tools included. Changing a connection's credentials or host does
-not. "How a retry replays" in :doc:`durable_execution` gives the full matching rules.
+for a chain the fingerprint names the chain as a whole, not its connections. Each
+recorded response also notes which model of the chain answered it, and the step replays
+only if that model is still in the chain. Adding, removing or reordering other
+connections in ``fallback_conn_ids`` between attempts therefore keeps the steps that a
+remaining connection answered, as long as at least one fallback connection remains. With
+a single connection the hook passes the bare model to the agent instead of a chain, so
+the fingerprint changes and every step runs live; so does going from one connection to
+two. A step answered by a connection that was removed from the chain, or whose ``model``
+changed, runs live along with every step after it, tools included, and the task log
+names the reason.
+
+For a chain the hook builds, the response also notes the connection that answered,
+and the step replays only if a connection with that ID still serves the same model,
+so two connections that serve the same model are told apart. A connection is matched
+by its ID, not by what it points at: renaming a connection runs the steps it answered
+live, while changing its host or credentials does not invalidate them. A response the
+model left suspended, such as an Anthropic ``pause_turn``, is resumed by pydantic-ai on
+the first connection in the chain that serves its model, which need not be the one that
+answered it. If that connection fails with an error the chain falls back on, the chain
+abandons the suspended response, tries to cancel its job on that connection, which need
+not be the one that started it, and generates the turn again from the top of the chain.
+
+A ``FallbackModel`` built outside the hook, whose members do not record which one
+answered, keeps the earlier rule: its steps replay while the chain is unchanged and run
+live once it is edited.
+
+Upgrading to this behaviour changes the fingerprint of every model step recorded
+through a chain, so the first retry after the upgrade of a task whose journal was
+written by an earlier version runs live. "How a retry replays" in :doc:`durable_execution`
+gives the full matching rules.
 
 What is not covered
 -------------------
@@ -144,20 +175,29 @@ What is not covered
   whose worker died before its result was recorded. Make such tools idempotent; see
   "Side effects and idempotency" in :doc:`durable_execution`.
 - A request every provider rejects, such as a malformed one that each returns a 400
-  for, walks the whole chain on every attempt. A ``RetryRule`` cannot stop those retries
-  without stopping outage retries too: once a chain is configured, both raise
-  ``FallbackExceptionGroup``, and a rule compares only that top-level type. Retry
-  policies need Airflow 3.3 or later; see "When the connection also carries a fallback
-  chain" in :doc:`retry_policies`.
+  for, walks the whole chain on every attempt. The error the task raises is a
+  ``FallbackExceptionGroup``: ``FallbackChainExhaustedError``, carrying each connection's
+  error in ``member_errors``, from the operators and decorators, and the plain group from a
+  hand-built agent (see :doc:`provider_fallback`). ``LLMRetryPolicy`` and
+  ``ClassifierRetryPolicy`` match their ``fallback_rules`` against the last connection's
+  error too, so a rule can fail a permanent error such as a bad request without failing
+  outage retries, provided the two raise different exception types. Telling a rate limit
+  from a bad request needs ``ModelRateLimitError`` and ``ModelRequestRejectedError``
+  rules; see :doc:`retry_policies` for the pydantic-ai-slim versions that have them. A plain
+  ``ExceptionRetryPolicy`` compares only the group, and a retry still counts against
+  ``retries``. Retry policies need Airflow 3.3 or later; see "When the connection also
+  carries a fallback chain" in :doc:`retry_policies`.
 - No connection type builds the ``AnthropicVertex`` client that Claude on Vertex AI
   needs, so a chain cannot include Claude on Vertex AI. A Vertex AI connection reaches
   Gemini.
 - Failover and replay cover pydantic-ai agents only: ``fallback_conn_ids`` on the
-  pydantic-ai hooks and the operators built on them, and replay through ``durable=True``
-  or the ``AirflowDurability`` capability in a plain ``@task``. A Strands
+  pydantic-ai hooks and the operators built on them, and replay through durable execution
+  in ``AgentOperator`` and ``@task.agent`` or the ``AirflowDurability`` capability in a
+  plain ``@task``. A Strands
   Agents agent run through ``invoke_durably`` resumes from its own checkpoint on
   Airflow 3.3 and later (:ref:`howto/frameworks:strands-durable`), and a retried
   ``LLMBatchOperator`` re-attaches to its running batch (:ref:`llm-batch-reattach`).
 - A ``ManagedAgentToolset`` runs again on every attempt unless it is built with
-  ``replayable=True``. Durable execution cannot be combined with ``enable_hitl_review``,
-  a ``SandboxToolset`` or tool approval; see the limitations in :doc:`durable_execution`.
+  ``replayable=True``. Durable execution cannot be combined with a
+  ``SandboxToolset``: by default the operator turns it off for that task and logs why,
+  and ``durable=True`` raises; see the limitations in :doc:`durable_execution`.

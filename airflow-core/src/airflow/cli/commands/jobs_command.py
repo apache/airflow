@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from airflow.cli.utils import deprecated_for_airflowctl
-from airflow.jobs.job import Job, JobState
+from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState
 from airflow.utils.net import get_hostname
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -46,6 +46,10 @@ def check(args, *, session: Session = NEW_SESSION) -> None:
     query = select(Job).where(Job.state == JobState.RUNNING).order_by(Job.latest_heartbeat.desc())
     if args.job_type:
         query = query.where(Job.job_type == args.job_type)
+    else:
+        # ExecutorJob rows share a host with the scheduler that owns them, not a host of their own,
+        # so an unscoped check should not count them alongside the job types --job-type can select.
+        query = query.where(Job.job_type != EXECUTOR_JOB_TYPE)
     if args.hostname:
         query = query.where(Job.hostname == args.hostname)
     if args.local:

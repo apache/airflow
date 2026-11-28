@@ -96,6 +96,7 @@ from airflow.sdk.execution_time.context import (
     AssetStateStoreAccessor,
     AssetStateStoreAccessors,
     ConnectionAccessor,
+    InletEventsAccessor,
     InletEventsAccessors,
     MacrosAccessor,
     OutletEventAccessor,
@@ -943,8 +944,24 @@ class TestInletEventAccessor:
             AssetResult(name="test_uri", uri="test://test", group="asset"),
         ]
         obj = InletEventsAccessors(inlets=TEST_INLETS)
+        obj.build_lookups()
         mock_supervisor_comms.reset_mock()
         return obj
+
+    def test_build_resolves_refs_once(self, mock_supervisor_comms):
+        mock_supervisor_comms.send.return_value = AssetResult(
+            name="test_uri", uri="test://test", group="asset"
+        )
+        ref = TEST_ASSET_REFS[0]
+
+        accessors = InletEventsAccessors(inlets=[ref])
+        assert list(accessors) == [ref]
+        mock_supervisor_comms.send.assert_not_called()
+
+        accessors.build_lookups()
+        accessors.build_lookups()
+        assert accessors[ref] == InletEventsAccessor(asset_name="test_uri")
+        assert mock_supervisor_comms.send.mock_calls == [mock.call(GetAssetByName(name="test_uri"))]
 
     @pytest.mark.usefixtures("mock_supervisor_comms")
     def test__iter__(self, sample_inlet_evnets_accessor):
@@ -2739,7 +2756,10 @@ class TestAssetStateStoreAccessors:
         )
 
         accessors = AssetStateStoreAccessors([alias])
+        mock_supervisor_comms.send.assert_not_called()
 
+        accessors.build_lookups()
+        accessors.build_lookups()
         mock_supervisor_comms.send.assert_called_once_with(GetAssetsByAlias(alias_name="my_alias"))
         resolved = Asset(name="resolved_asset", uri="s3://bucket/resolved")
         assert resolved.name in accessors._by_name

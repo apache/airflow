@@ -478,10 +478,12 @@ that runs under ``context.WithoutCancel(actx)``. A helper that takes a plain ``c
 ``airflow.Context`` back with ``airflow.FromContext``.
 
 ``Conf`` is a ``map[string]any`` whose values follow the :ref:`XCom type mapping <go-sdk/types>`. Use a map lookup
-or ``len`` to check for configuration entries.
+or ``len`` to check for configuration entries, or :ref:`read the conf into a struct <go-sdk/dag-run-conf>` with
+typed fields.
 
-A value the task returns becomes its ``return_value`` XCom. A non-nil ``error``, or a panic, fails the task, and
-retries it if the task has retries.
+A value the task returns becomes its ``return_value`` XCom. A function that returns only ``error`` pushes nothing.
+A nil pointer or nil interface stores null, and a nil slice or map is pushed as an empty list or mapping.
+A non-nil ``error``, or a panic, fails the task, and retries it if the task has retries.
 
 ``airflow.NewContext`` builds a Context, so a unit test calls a task as an ordinary function:
 
@@ -493,6 +495,36 @@ retries it if the task has retries.
         airflow.DagRun{DagID: "simple_dag", RunID: "run1"},
     )
     require.NoError(t, transform(actx, "uk", map[string]any{"rows": 42}))
+
+.. _go-sdk/dag-run-conf:
+
+Reading the Dag run conf
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Reading ``Conf`` directly gives the value of a key as an ``any``, so a task that reads several keys asserts a Go
+type per key. ``UnmarshalConf`` reads the conf into a struct with typed fields instead:
+
+.. code-block:: go
+
+    type etlConf struct {
+        TargetTable string
+        Limit       int
+        Since       time.Time
+    }
+
+    func load(actx airflow.Context) error {
+        etl := etlConf{Limit: 100}
+        if err := actx.DagRun().UnmarshalConf(&etl); err != nil {
+            return err
+        }
+        ...
+    }
+
+For a run triggered with the conf ``{"target_table": "sales", "since": "2024-01-31T00:00:00Z"}``,
+``etl.TargetTable`` is ``"sales"``, ``etl.Since`` is that date, and ``etl.Limit`` stays ``100``.
+
+For how keys match fields and when it returns an error,
+see `DagRun.UnmarshalConf <https://pkg.go.dev/github.com/apache/airflow/go-sdk/sdk#DagRun.UnmarshalConf>`__.
 
 .. _go-sdk/client:
 
@@ -518,14 +550,17 @@ The ``sdk.Client``
      - A ``Connection`` with ``ID``, ``Type``, ``Host``, ``Port``, ``Login``, ``Password``, ``Path`` and ``Extra``,
        and a ``GetURI()`` helper.
    * - ``GetXCom(ctx, dagID, runID, taskID, mapIndex, key, nil)``
-     - An XCom value, as an ``any``. See :ref:`go-sdk/types`.
+     - An XCom value, as an ``any``, or ``nil`` when none was pushed. A ``nil`` ``mapIndex`` reads the task's
+       result: its value, or for a mapped task the values of all its instances in a ``[]any`` ordered by map
+       index. A map index reads one instance of a mapped task; one that selects no task instance reads ``nil``.
+       See :ref:`go-sdk/types`.
    * - ``PushXCom(ctx, ti, key, value)``
-     - Publishes an XCom value.
+     - Publishes an XCom value. ``nil``, including a nil slice or map, stores null.
    * - ``TaskStateStore()``
      - This task instance's key/value store. See :ref:`go-sdk/task-state-store`.
 
-A missing value returns an error that wraps ``sdk.VariableNotFound``, ``sdk.ConnectionNotFound``,
-``sdk.XComNotFound`` or ``sdk.TaskStateNotFound``, so test for it with ``errors.Is``.
+A missing Variable, Connection or task state value returns an error that wraps ``sdk.VariableNotFound``,
+``sdk.ConnectionNotFound`` or ``sdk.TaskStateNotFound``, so test for it with ``errors.Is``.
 
 ``sdk.Client`` is made of ``VariableClient``, ``ConnectionClient``, ``XComClient`` and ``TaskStateStoreClient``,
 so a helper can take only the one it needs, and a test can pass a fake.

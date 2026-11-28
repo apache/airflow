@@ -1,0 +1,763 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from __future__ import annotations
+
+import pytest
+
+pytest.importorskip("airflow.providers.common.ai.hooks.pydantic_ai")
+pytest.importorskip("pydantic_ai.providers.openai")
+
+import contextvars
+import importlib
+import json
+import sys
+import threading
+from importlib.metadata import version as get_package_version
+from unittest import mock
+
+import httpx2
+from openai import AsyncOpenAI
+from packaging.version import Version
+from pydantic_ai import Agent
+from pydantic_ai.exceptions import ModelAPIError
+from pydantic_ai.messages import ModelResponse, TextPart
+from pydantic_ai.models.fallback import FallbackModel
+from pydantic_ai.models.function import FunctionModel
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
+from requests import exceptions as requests_exceptions
+from tenacity import Future, RetryError
+
+from airflow.models import Connection
+from airflow.providers.common.ai.hooks.pydantic_ai import PydanticAIHook
+from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.databricks import hooks as databricks_hooks
+from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+from airflow.providers.databricks.hooks.model_serving import (
+    _UNUSED_TOKEN_PLACEHOLDER,
+    PydanticAIDatabricksHook,
+    _DatabricksServingAuth,
+)
+
+MODULE_PATH = "airflow.providers.databricks.hooks.model_serving"
+SERVING_URL = "https://adb-1.azuredatabricks.net/serving-endpoints"
+CONNECTION_EXTRA = {"model": "databricks-claude-sonnet-4-5", "databricks_conn_id": "databricks_conn"}
+DATABRICKS_CONN_URI = Connection(conn_type="pydanticai_databricks", extra=CONNECTION_EXTRA).get_uri()
+LEFTOVER_PASSWORD_CONN_URI = Connection(
+    conn_type="pydanticai_databricks", password="leftover-password", extra=CONNECTION_EXTRA
+).get_uri()
+# openai before 3.15.0 wraps any exception raised while sending a request, including one from an
+# httpx2 auth, in APIConnectionError; from 3.15.0 only httpx2 request errors are wrapped.
+_OPENAI_WRAPS_EVERY_SEND_ERROR = Version(get_package_version("openai")) < Version("3.15.0")
+PRIMARY_CONN_URI = Connection(
+    conn_type="pydanticai",
+    password="sk-test",
+    extra={"model": "openai:gpt-5", "fallback_conn_ids": ["fallback_conn"]},
+).get_uri()
+
+
+def _mock_databricks_hook(mock_hook_cls):
+    mock_hook = mock_hook_cls.return_value
+    mock_hook.host = "adb-1.azuredatabricks.net"
+    mock_hook.databricks_conn_id = "databricks_conn"
+    mock_hook.proxies = None
+    mock_hook.databricks_conn.extra_dejson = {}
+    mock_hook._endpoint_url.return_value = SERVING_URL
+    mock_hook._get_token.return_value = "real-token"
+    return mock_hook
+
+
+def _build_token_error(error: Exception, *, cause: BaseException | None = None, context=None) -> Exception:
+    error.__cause__ = cause
+    error.__context__ = context
+    return error
+
+
+def _build_retry_exhausted_error() -> RetryError:
+    return RetryError(Future(1))
+
+
+def _build_token_errors_by_kind() -> dict[str, tuple[Exception, bool]]:
+    """Map each kind of token failure to the exception ``_get_token`` raises and whether it is transient."""
+    return {
+        "retry_exhausted_explicit_cause": (
+            _build_token_error(
+                AirflowException("API requests to Databricks failed"), cause=_build_retry_exhausted_error()
+            ),
+            True,
+        ),
+        "retry_exhausted_implicit_context": (
+            _build_token_error(
+                AirflowException("API requests to Azure failed"), context=_build_retry_exhausted_error()
+            ),
+            True,
+        ),
+        "managed_identity_connection_error": (
+            _build_token_error(
+                ConnectionError("Failed to reach Azure Metadata Service"),
+                context=_build_retry_exhausted_error(),
+            ),
+            True,
+        ),
+        "not_configured": (AirflowException("Token authentication isn't configured"), False),
+        "rejected_credentials": (
+            _build_token_error(
+                AirflowException("Response: Unauthorized, Status Code: 401"),
+                context=requests_exceptions.HTTPError("401"),
+            ),
+            False,
+        ),
+        "metadata_not_azure": (
+            _build_token_error(ConnectionError("Can't reach Azure Metadata Service"), context=ValueError()),
+            False,
+        ),
+    }
+
+
+class TestDatabricksConnIdResolution:
+    def test_hook_argument_wins_over_extra(self):
+        hook = PydanticAIDatabricksHook(databricks_conn_id="explicit_conn")
+        assert hook._get_databricks_conn_id({"databricks_conn_id": "extra_conn"}) == "explicit_conn"
+
+    def test_falls_back_to_extra(self):
+        hook = PydanticAIDatabricksHook()
+        assert hook._get_databricks_conn_id({"databricks_conn_id": "extra_conn"}) == "extra_conn"
+
+    def test_raises_when_neither_is_set(self):
+        hook = PydanticAIDatabricksHook(llm_conn_id="pydanticai_conn")
+        with pytest.raises(ValueError, match="Databricks connection"):
+            hook._get_databricks_conn_id({})
+
+
+class TestGetProviderKwargs:
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_ignores_connection_password_and_host(self, mock_hook_cls):
+        """Leftover Password/Host on the pydanticai_databricks connection must not reach the provider."""
+        _mock_databricks_hook(mock_hook_cls)
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+        kwargs = hook._get_provider_kwargs(
+            api_key="leftover-password", base_url="https://ignored.example.com", extra={}
+        )
+
+        assert kwargs["base_url"] == SERVING_URL
+        mock_hook_cls.return_value._endpoint_url.assert_called_once_with("serving-endpoints")
+        assert kwargs["api_key"] == _UNUSED_TOKEN_PLACEHOLDER
+        mock_hook_cls.return_value._get_token.assert_called_once_with()
+        assert isinstance(kwargs["http_client"], httpx2.AsyncClient)
+        # Pin that per-request refresh is actually wired up: deleting `auth=...` from
+        # `_get_databricks_hook` would leave every assertion above green.
+        client_auth = kwargs["http_client"].auth
+        assert isinstance(client_auth, _DatabricksServingAuth)
+        assert client_auth._databricks_hook is mock_hook_cls.return_value
+
+    @pytest.mark.parametrize("kind", list(_build_token_errors_by_kind()))
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_token_error_fails_unless_transient(self, mock_hook_cls, kind):
+        error, is_transient = _build_token_errors_by_kind()[kind]
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook._get_token.side_effect = error
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+
+        if is_transient:
+            kwargs = hook._get_provider_kwargs(api_key=None, base_url=None, extra={})
+            assert kwargs["http_client"].auth._databricks_hook is mock_hook
+        else:
+            with pytest.raises(type(error)) as exc_info:
+                hook._get_provider_kwargs(api_key=None, base_url=None, extra={})
+            assert exc_info.value is error
+
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_databricks_hook_built_once(self, mock_hook_cls):
+        """A second call must reuse the same Databricks hook, not rebuild it."""
+        _mock_databricks_hook(mock_hook_cls)
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+        first = hook._get_provider_kwargs(None, None, {})
+        second = hook._get_provider_kwargs(None, None, {})
+
+        mock_hook_cls.assert_called_once_with(
+            databricks_conn_id="databricks_conn", caller="PydanticAIDatabricksHook"
+        )
+        assert first["http_client"] is second["http_client"]
+
+    @pytest.mark.parametrize(
+        "raw_host",
+        [
+            pytest.param(None, id="none"),
+            pytest.param("", id="empty"),
+            pytest.param("https://", id="scheme-only"),
+            pytest.param("  ", id="blank"),
+            pytest.param("adb-1.azuredatabricks.net/serving-endpoints", id="with-path"),
+            pytest.param("adb-1.azuredatabricks.net#frag", id="with-fragment"),
+            pytest.param("adb-1.azuredatabricks.net:", id="empty-port"),
+            pytest.param("adb-1.azuredatabricks.net:abc", id="non-numeric-port"),
+            pytest.param("adb-1.azuredatabricks.net:99999", id="port-out-of-range"),
+            pytest.param("svc@adb-1.azuredatabricks.net", id="userinfo-username"),
+            pytest.param("@adb-1.azuredatabricks.net", id="userinfo-empty-username"),
+            pytest.param("svc:s3cr3t@adb-1.azuredatabricks.net", id="userinfo-username-and-password"),
+            pytest.param("svc:s3cr3t@adb-1.azuredatabricks.net/serving-endpoints", id="userinfo-and-path"),
+            pytest.param(":443", id="port-only"),
+            pytest.param("https://[::1]:443", id="ipv6-with-scheme"),
+            pytest.param("https://adb-1.azuredatabricks.net  ", id="trailing-whitespace-with-scheme"),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_raises_when_databricks_connection_has_no_valid_host(self, mock_hook_cls, raw_host):
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        # Feed the host through the real normalisation the Databricks hook applies to the connection.
+        mock_hook.host = BaseDatabricksHook._parse_host(raw_host) if raw_host else raw_host
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+        with pytest.raises(ValueError, match="'databricks_conn' has no valid host") as exc_info:
+            hook._get_provider_kwargs(None, None, {})
+
+        # The host may carry credentials, so the message must never echo any part of it.
+        assert "s3cr3t" not in str(exc_info.value)
+        assert "svc" not in str(exc_info.value)
+        mock_hook._endpoint_url.assert_not_called()
+        assert hook._databricks_hook is None
+
+    @pytest.mark.parametrize(
+        "raw_host",
+        [
+            pytest.param("adb-1.azuredatabricks.net", id="bare"),
+            pytest.param("https://adb-1.azuredatabricks.net", id="with-scheme"),
+            pytest.param("adb-1.azuredatabricks.net/", id="trailing-slash"),
+            pytest.param("https://adb-1.azuredatabricks.net/", id="scheme-and-trailing-slash"),
+            pytest.param("adb-1.azuredatabricks.net:443", id="with-port"),
+            pytest.param("https://svc:s3cr3t@adb-1.azuredatabricks.net", id="scheme-drops-userinfo"),
+            pytest.param("[::1]:443", id="ipv6-bare"),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_accepts_host_shapes_the_databricks_hook_accepts(self, mock_hook_cls, raw_host):
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook.host = BaseDatabricksHook._parse_host(raw_host)
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+
+        assert hook._get_provider_kwargs(None, None, {})["base_url"] == SERVING_URL
+        mock_hook._endpoint_url.assert_called_once_with("serving-endpoints")
+
+    @pytest.mark.parametrize(
+        "proxies",
+        [
+            pytest.param({"https": "http://user:secret@proxy.example:3128"}, id="https"),
+            pytest.param({"http": "http://proxy.example:3128"}, id="http"),
+            pytest.param(
+                {"http": "http://proxy.example:3128", "https": "http://proxy.example:3128"}, id="both"
+            ),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_raises_when_databricks_connection_sets_proxies(self, mock_hook_cls, proxies):
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook.proxies = proxies
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+        with pytest.raises(ValueError, match="'databricks_conn' sets the 'proxies' extra") as exc_info:
+            hook._get_provider_kwargs(None, None, {})
+
+        assert "secret" not in str(exc_info.value)
+        assert hook._databricks_hook is None
+
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_raises_when_databricks_connection_sets_azure_resource_id(self, mock_hook_cls):
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook.databricks_conn.extra_dejson = {"azure_resource_id": "/subscriptions/s3cr3t-sub"}
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+        with pytest.raises(
+            ValueError, match="'databricks_conn' sets the 'azure_resource_id' extra"
+        ) as exc_info:
+            hook._get_provider_kwargs(None, None, {})
+
+        assert "s3cr3t-sub" not in str(exc_info.value)
+        mock_hook._endpoint_url.assert_not_called()
+        assert hook._databricks_hook is None
+
+    @pytest.mark.parametrize(
+        ("databricks_conn_kwargs", "expected_error"),
+        [
+            pytest.param(
+                {"host": "adb-1.azuredatabricks.net", "extra": {"proxies": {"https": "http://p:1"}}},
+                "sets the 'proxies' extra",
+                id="proxies",
+            ),
+            pytest.param(
+                {
+                    "host": "adb-1.azuredatabricks.net",
+                    "extra": {"azure_resource_id": "/subscriptions/s3cr3t-sub"},
+                },
+                "sets the 'azure_resource_id' extra",
+                id="azure-resource-id",
+            ),
+            pytest.param(
+                {"extra": {"host": "svc:s3cr3t@adb-1.azuredatabricks.net"}},
+                "has no valid host",
+                id="extra-host-with-userinfo",
+            ),
+            pytest.param(
+                {"host": "svc:s3cr3t@adb-1.azuredatabricks.net"},
+                "has no valid host",
+                id="connection-host-with-userinfo",
+            ),
+        ],
+    )
+    def test_rejects_unsupported_settings_on_a_real_databricks_connection(
+        self, databricks_conn_kwargs, expected_error
+    ):
+        """Run the guards against a real ``BaseDatabricksHook`` so a change in its attributes is caught."""
+        databricks_conn = Connection(conn_type="databricks", password="tok", **databricks_conn_kwargs)
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_DBX=databricks_conn.get_uri()):
+            hook = PydanticAIDatabricksHook(databricks_conn_id="dbx")
+            with pytest.raises(ValueError, match=expected_error) as exc_info:
+                hook._get_databricks_hook({})
+
+        for secret in ("s3cr3t", "p:1", "svc"):
+            assert secret not in str(exc_info.value)
+        assert hook._databricks_hook is None
+
+    @mock.patch.dict(
+        "os.environ",
+        AIRFLOW_CONN_DBX=Connection(
+            conn_type="databricks", host="https://adb-1.azuredatabricks.net", password="tok"
+        ).get_uri(),
+    )
+    def test_accepts_a_plain_real_databricks_connection(self):
+        hook = PydanticAIDatabricksHook(databricks_conn_id="dbx")
+
+        databricks_hook = hook._get_databricks_hook({})
+
+        assert isinstance(databricks_hook, BaseDatabricksHook)
+        assert hook._base_url == SERVING_URL
+
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_failed_first_build_is_not_remembered(self, mock_hook_cls):
+        """A failed first build must not leave half-built state that the second call silently reuses."""
+        _mock_databricks_hook(mock_hook_cls)
+        mock_hook_cls.return_value._endpoint_url.side_effect = [RuntimeError("no host"), SERVING_URL]
+
+        hook = PydanticAIDatabricksHook(databricks_conn_id="databricks_conn")
+        with pytest.raises(RuntimeError, match="no host"):
+            hook._get_provider_kwargs(None, None, {})
+        kwargs = hook._get_provider_kwargs(None, None, {})
+
+        assert kwargs["base_url"] == SERVING_URL
+        assert isinstance(kwargs["http_client"], httpx2.AsyncClient)
+
+
+class TestBareModelNameQualification:
+    def test_bare_model_name_gets_openai_chat_prefix(self):
+        hook = PydanticAIDatabricksHook(model_id="databricks-claude-sonnet-4-5")
+        assert (
+            hook._qualify_model_name("databricks-claude-sonnet-4-5")
+            == "openai-chat:databricks-claude-sonnet-4-5"
+        )
+
+    def test_already_prefixed_model_name_is_unchanged(self):
+        hook = PydanticAIDatabricksHook(model_id="openai:my-endpoint")
+        assert hook._qualify_model_name("openai:my-endpoint") == "openai:my-endpoint"
+
+
+class TestDatabricksServingAuth:
+    def test_auth_flow_refreshes_token_per_request(self):
+        """Each request must ask the Databricks hook again, not reuse headers set on the client."""
+        databricks_hook = mock.create_autospec(BaseDatabricksHook, instance=True)
+        databricks_hook._get_token.side_effect = ["token-1", "token-2"]
+        seen_auth_headers = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            seen_auth_headers.append(request.headers["Authorization"])
+            return httpx2.Response(200, json={"ok": True})
+
+        client = httpx2.Client(
+            auth=_DatabricksServingAuth(databricks_hook), transport=httpx2.MockTransport(handler)
+        )
+        client.get("https://example.com/x")
+        client.get("https://example.com/x")
+
+        assert seen_auth_headers == ["Bearer token-1", "Bearer token-2"]
+        databricks_hook._get_token.assert_called_with()
+
+    @pytest.mark.asyncio
+    async def test_async_auth_flow_refreshes_off_the_event_loop(self):
+        """`_get_token` may block (OAuth refresh, a connection lookup); it must run in a worker
+        thread, not inline on the event loop -- calling `BaseHook.get_connection` synchronously
+        from the loop thread while an async send is in flight raises `DeadlockImminentError`."""
+        loop_thread_ident = threading.get_ident()
+        seen_threads: list[threading.Thread] = []
+        tokens = iter(["token-1", "token-2"])
+
+        def get_token(raise_error: bool = False) -> str:
+            seen_threads.append(threading.current_thread())
+            return next(tokens)
+
+        databricks_hook = mock.create_autospec(BaseDatabricksHook, instance=True)
+        databricks_hook._get_token.side_effect = get_token
+        seen_auth_headers = []
+
+        async def handler(request: httpx2.Request) -> httpx2.Response:
+            seen_auth_headers.append(request.headers["Authorization"])
+            return httpx2.Response(200, json={"ok": True})
+
+        async with httpx2.AsyncClient(
+            auth=_DatabricksServingAuth(databricks_hook), transport=httpx2.MockTransport(handler)
+        ) as client:
+            await client.get("https://example.com/x")
+            await client.get("https://example.com/x")
+
+        assert seen_auth_headers == ["Bearer token-1", "Bearer token-2"]
+        assert seen_threads, "_get_token was never called"
+        assert all(thread.ident != loop_thread_ident for thread in seen_threads)
+        # The dedicated executor, not asyncio's default one: blocking lookups there can starve
+        # `asend()`'s reply read.
+        assert all(thread.name.startswith("databricks-serving-auth") for thread in seen_threads)
+
+    @pytest.mark.asyncio
+    async def test_async_auth_flow_carries_contextvars_into_worker_thread(self):
+        """`_get_token` may resolve Airflow connections, which relies on the caller's context."""
+        marker: contextvars.ContextVar[str] = contextvars.ContextVar("marker", default="unset")
+        seen_values: list[str] = []
+
+        def get_token(raise_error: bool = False) -> str:
+            seen_values.append(marker.get())
+            return "token"
+
+        databricks_hook = mock.create_autospec(BaseDatabricksHook, instance=True)
+        databricks_hook._get_token.side_effect = get_token
+
+        async with httpx2.AsyncClient(
+            auth=_DatabricksServingAuth(databricks_hook),
+            transport=httpx2.MockTransport(lambda request: httpx2.Response(200, json={})),
+        ) as client:
+            marker.set("from-caller")
+            await client.get("https://example.com/x")
+
+        assert seen_values == ["from-caller"]
+
+    @pytest.mark.parametrize("kind", list(_build_token_errors_by_kind()))
+    def test_token_failure_is_converted_only_when_transient(self, kind):
+        error, is_transient = _build_token_errors_by_kind()[kind]
+        databricks_hook = mock.create_autospec(BaseDatabricksHook, instance=True)
+        databricks_hook._get_token.side_effect = error
+        handler = mock.Mock(spec=["__call__"])
+        client = httpx2.Client(
+            auth=_DatabricksServingAuth(databricks_hook), transport=httpx2.MockTransport(handler)
+        )
+
+        with pytest.raises(httpx2.ConnectError if is_transient else type(error)) as exc_info:
+            client.get("https://example.com/x")
+
+        if is_transient:
+            assert exc_info.value.__cause__ is error
+            assert exc_info.value.request.url == "https://example.com/x"
+        else:
+            assert exc_info.value is error
+        handler.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("login", "password", "expected"),
+        [
+            pytest.param("token", "the-pat", "Bearer the-pat", id="login-token-is-a-pat"),
+            pytest.param(None, "the-pat", "Bearer the-pat", id="empty-login-is-a-pat"),
+            pytest.param("some-user", "the-pat", None, id="other-login-is-not-a-pat"),
+            pytest.param("token", None, None, id="login-token-without-password-is-not-configured"),
+        ],
+    )
+    def test_auth_flow_treats_login_token_with_password_as_pat(self, login, password, expected):
+        """The base hook sends Login ``token`` as Basic auth; serving endpoints need a Bearer header."""
+        databricks_conn = Connection(
+            conn_type="databricks", host="adb-1.azuredatabricks.net", login=login, password=password
+        )
+        seen_auth_headers = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            seen_auth_headers.append(request.headers["Authorization"])
+            return httpx2.Response(200, json={"ok": True})
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_DBX=databricks_conn.get_uri()):
+            auth = _DatabricksServingAuth(BaseDatabricksHook(databricks_conn_id="dbx"))
+            client = httpx2.Client(auth=auth, transport=httpx2.MockTransport(handler))
+            if expected is None:
+                with pytest.raises(AirflowException, match="Token authentication isn't configured"):
+                    client.get("https://example.com/x")
+            else:
+                client.get("https://example.com/x")
+
+        assert seen_auth_headers == ([] if expected is None else [expected])
+
+    @mock.patch.object(BaseDatabricksHook, "_get_sp_token", autospec=True, return_value="sp-oauth-token")
+    def test_auth_flow_prefers_oauth_over_login_token_password(self, mock_get_sp_token):
+        databricks_conn = Connection(
+            conn_type="databricks",
+            host="adb-1.azuredatabricks.net",
+            login="token",
+            password="the-pat",
+            extra={"service_principal_oauth": True},
+        )
+        seen_auth_headers = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            seen_auth_headers.append(request.headers["Authorization"])
+            return httpx2.Response(200, json={"ok": True})
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_DBX=databricks_conn.get_uri()):
+            auth = _DatabricksServingAuth(BaseDatabricksHook(databricks_conn_id="dbx"))
+            client = httpx2.Client(auth=auth, transport=httpx2.MockTransport(handler))
+            client.get("https://example.com/x")
+
+        mock_get_sp_token.assert_called_once()
+        assert seen_auth_headers == ["Bearer sp-oauth-token"]
+
+
+class TestGetConn:
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    @pytest.mark.asyncio
+    async def test_get_conn_fetches_token_when_building_the_model(self, mock_hook_cls):
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+
+        hook = PydanticAIDatabricksHook(llm_conn_id="test_conn")
+        model = hook.get_conn()
+        mock_hook._get_token.assert_called_once_with()
+
+        client = httpx2.AsyncClient(
+            auth=hook._http_client.auth,
+            transport=httpx2.MockTransport(lambda request: httpx2.Response(200, json={})),
+        )
+        await client.get("https://example.com/x")
+
+        assert isinstance(model, OpenAIChatModel)
+        assert mock_hook._get_token.call_count == 2
+
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=LEFTOVER_PASSWORD_CONN_URI)
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_get_conn_returns_chat_model_for_endpoint(self, mock_hook_cls):
+        _mock_databricks_hook(mock_hook_cls)
+        model = PydanticAIDatabricksHook(llm_conn_id="test_conn").get_conn()
+
+        assert isinstance(model, OpenAIChatModel)
+        assert model.model_name == "databricks-claude-sonnet-4-5"
+        mock_hook_cls.assert_called_once_with(
+            databricks_conn_id="databricks_conn", caller="PydanticAIDatabricksHook"
+        )
+
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    @pytest.mark.asyncio
+    async def test_request_goes_to_serving_endpoints_with_databricks_token(self, mock_hook_cls):
+        """Drive a real request through the model: URL, bearer token and endpoint name on the wire."""
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook._get_token.return_value = "real-token"
+        seen: list[httpx2.Request] = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            seen.append(request)
+            return httpx2.Response(
+                200,
+                json={
+                    "id": "1",
+                    "object": "chat.completion",
+                    "created": 0,
+                    "model": "databricks-claude-sonnet-4-5",
+                    "choices": [
+                        {
+                            "index": 0,
+                            "finish_reason": "stop",
+                            "message": {"role": "assistant", "content": "hi"},
+                        }
+                    ],
+                },
+            )
+
+        hook = PydanticAIDatabricksHook(llm_conn_id="test_conn")
+        kwargs = hook._get_provider_kwargs(None, None, hook._get_conn_and_extra()[1])
+        # Reuse the hook's real auth object but swap in a MockTransport. `_http_client` is private;
+        # there is no public seam for injecting a transport.
+        client = httpx2.AsyncClient(auth=kwargs["http_client"].auth, transport=httpx2.MockTransport(handler))
+        with mock.patch.object(hook, "_http_client", client):
+            result = await Agent(hook.get_conn()).run("hello")
+
+        assert result.output == "hi"
+        assert len(seen) == 1
+        assert str(seen[0].url) == f"{SERVING_URL}/chat/completions"
+        assert seen[0].headers["Authorization"] == "Bearer real-token"
+        assert _UNUSED_TOKEN_PLACEHOLDER not in seen[0].headers["Authorization"]
+        assert json.loads(seen[0].content)["model"] == "databricks-claude-sonnet-4-5"
+
+    @mock.patch.dict(
+        "os.environ",
+        AIRFLOW_CONN_PRIMARY_CONN=PRIMARY_CONN_URI,
+        AIRFLOW_CONN_FALLBACK_CONN=DATABRICKS_CONN_URI,
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_fallback_chain_dispatches_to_databricks_hook(self, mock_hook_cls):
+        """A generic pydanticai primary can fail over to a pydanticai_databricks connection."""
+        _mock_databricks_hook(mock_hook_cls)
+        model = PydanticAIHook(llm_conn_id="primary_conn").get_conn()
+
+        assert type(model).__name__ == "FallbackModel"
+        mock_hook_cls.assert_called_once_with(
+            databricks_conn_id="databricks_conn", caller="PydanticAIDatabricksHook"
+        )
+
+    @mock.patch.dict(
+        "os.environ",
+        AIRFLOW_CONN_PRIMARY_CONN=PRIMARY_CONN_URI,
+        AIRFLOW_CONN_FALLBACK_CONN=DATABRICKS_CONN_URI,
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    @pytest.mark.parametrize("kind", ["retry_exhausted_explicit_cause", "not_configured"])
+    def test_fallback_member_with_unusable_credentials_fails_chain_build(self, mock_hook_cls, kind):
+        error, is_transient = _build_token_errors_by_kind()[kind]
+        _mock_databricks_hook(mock_hook_cls)._get_token.side_effect = error
+        hook = PydanticAIHook(llm_conn_id="primary_conn")
+
+        if is_transient:
+            assert type(hook.get_conn()).__name__ == "FallbackModel"
+        else:
+            with pytest.raises(AirflowException, match="Token authentication isn't configured"):
+                hook.get_conn()
+
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    @pytest.mark.parametrize("kind", ["retry_exhausted_explicit_cause", "not_configured"])
+    @pytest.mark.asyncio
+    async def test_fallback_chain_depends_on_token_failure_kind(self, mock_hook_cls, kind):
+        """A credential that works when the model is built and fails later.
+
+        Only a token endpoint that stays unreachable fails over; a configuration error fails the
+        task. The second half needs openai>=3.15.0: older clients turn the auth's own exception into
+        APIConnectionError, which the fallback model treats like an unreachable endpoint.
+        """
+        error, is_transient = _build_token_errors_by_kind()[kind]
+        mock_hook = _mock_databricks_hook(mock_hook_cls)
+        mock_hook._get_token.side_effect = ["real-token", error]
+        fallback_calls: list[int] = []
+        first_handler = mock.Mock(spec=["__call__"])
+
+        def fallback_response(messages, info) -> ModelResponse:
+            fallback_calls.append(1)
+            return ModelResponse(parts=[TextPart("from fallback")])
+
+        hook = PydanticAIDatabricksHook(llm_conn_id="test_conn")
+        kwargs = hook._get_provider_kwargs(None, None, hook._get_conn_and_extra()[1])
+        client = httpx2.AsyncClient(
+            auth=kwargs["http_client"].auth, transport=httpx2.MockTransport(first_handler)
+        )
+        # max_retries=0 keeps openai from sleeping between attempts.
+        first = OpenAIChatModel(
+            "databricks-claude-sonnet-4-5",
+            provider=OpenAIProvider(
+                openai_client=AsyncOpenAI(
+                    base_url=SERVING_URL, api_key=_UNUSED_TOKEN_PLACEHOLDER, http_client=client, max_retries=0
+                )
+            ),
+        )
+        model = FallbackModel(first, FunctionModel(fallback_response), fallback_on=(ModelAPIError,))
+
+        if is_transient or _OPENAI_WRAPS_EVERY_SEND_ERROR:
+            result = await Agent(model).run("hello")
+            assert result.output == "from fallback"
+        else:
+            with pytest.raises(AirflowException, match="Token authentication isn't configured"):
+                await Agent(model).run("hello")
+            assert fallback_calls == []
+        first_handler.assert_not_called()
+
+
+class TestTestConnection:
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_success_fetches_token_when_building_the_model_and_again_explicitly(self, mock_hook_cls):
+        _mock_databricks_hook(mock_hook_cls)
+        ok, message = PydanticAIDatabricksHook(llm_conn_id="test_conn").test_connection()
+
+        assert ok is True
+        assert "only checked for being set, not validated against the workspace" in message
+        assert mock_hook_cls.return_value._get_token.call_count == 2
+
+    @mock.patch("requests.adapters.HTTPAdapter.send", autospec=True)
+    def test_personal_access_token_is_accepted_without_a_request(self, mock_send):
+        databricks_conn = Connection(
+            conn_type="databricks", host="adb-1.azuredatabricks.net", login="token", password="the-pat"
+        )
+        with mock.patch.dict(
+            "os.environ",
+            AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI,
+            AIRFLOW_CONN_DATABRICKS_CONN=databricks_conn.get_uri(),
+        ):
+            ok, message = PydanticAIDatabricksHook(llm_conn_id="test_conn").test_connection()
+
+        assert ok is True
+        assert "only checked for being set, not validated against the workspace" in message
+        mock_send.assert_not_called()
+
+    @mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=DATABRICKS_CONN_URI)
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_token_failure_is_reported(self, mock_hook_cls):
+        _mock_databricks_hook(mock_hook_cls)
+        mock_hook_cls.return_value._get_token.side_effect = RuntimeError("boom")
+        ok, message = PydanticAIDatabricksHook(llm_conn_id="test_conn").test_connection()
+
+        assert ok is False
+        assert "boom" in message
+
+    @pytest.mark.parametrize(
+        "extra",
+        [
+            pytest.param({"model": "databricks-claude-sonnet-4-5"}, id="no-databricks-conn-id"),
+            pytest.param({"databricks_conn_id": "databricks_conn"}, id="no-model"),
+        ],
+    )
+    @mock.patch(f"{MODULE_PATH}.BaseDatabricksHook", autospec=True)
+    def test_unresolvable_model_is_reported_without_token_fetch(self, mock_hook_cls, extra):
+        _mock_databricks_hook(mock_hook_cls)
+        connection = Connection(conn_type="pydanticai_databricks", extra=extra)
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=connection.get_uri()):
+            ok, message = PydanticAIDatabricksHook(llm_conn_id="test_conn").test_connection()
+
+        assert ok is False
+        assert message
+        mock_hook_cls.return_value._get_token.assert_not_called()
+
+
+class TestCommonAiVersionGuard:
+    def test_import_succeeds_with_supported_pydantic_ai_hook(self):
+        """Positive control: re-importing without the stub must not raise."""
+        # patch.dict restores sys.modules only; patch.object restores the parent package attribute.
+        with mock.patch.dict(sys.modules), mock.patch.object(databricks_hooks, "model_serving"):
+            sys.modules.pop(MODULE_PATH, None)
+            importlib.import_module(MODULE_PATH)
+
+    def test_import_rejects_pydantic_ai_hook_without_fallback_conn_ids(self):
+        class _OldPydanticAIHook:
+            # Stand-in for common-ai 0.9.0, whose __init__ has no fallback_conn_ids.
+            def __init__(self, llm_conn_id=None, model_id=None, **kwargs):
+                pass
+
+        with (
+            mock.patch.dict(sys.modules),
+            mock.patch.object(databricks_hooks, "model_serving"),
+            mock.patch("airflow.providers.common.ai.hooks.pydantic_ai.PydanticAIHook", _OldPydanticAIHook),
+        ):
+            sys.modules.pop(MODULE_PATH, None)
+            with pytest.raises(AirflowOptionalProviderFeatureException, match="1.0.0"):
+                importlib.import_module(MODULE_PATH)

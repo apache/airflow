@@ -421,7 +421,7 @@ class TestSlackWebhookHook:
         hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID)
         with pytest.raises(TypeError, match=r"Body expected dictionary, got .*\."):
             hook.send_dict(body=send_body)
-        assert mock_webhook_client_send_dict.assert_not_called
+        mock_webhook_client_send_dict.assert_not_called()
 
     @pytest.mark.parametrize("json_string", ["{'text': 'Single quotes'}", '{"text": "Missing }"'])
     @mock.patch("airflow.providers.slack.hooks.slack_webhook.WebhookClient")
@@ -435,7 +435,7 @@ class TestSlackWebhookHook:
         error_message = r"Body expected valid JSON string, got .*\. Original error:.*"
         with pytest.raises(AirflowException, match=error_message):
             hook.send_dict(body=json_string)
-        assert mock_webhook_client_send_dict.assert_not_called
+        mock_webhook_client_send_dict.assert_not_called()
 
     @pytest.mark.parametrize(
         "legacy_attr",

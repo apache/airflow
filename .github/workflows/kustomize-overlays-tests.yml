@@ -20,6 +20,13 @@ name: Kustomize overlays smoke tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining runners."
         required: true
@@ -73,6 +80,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & PROD image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -106,15 +118,17 @@ jobs:
       #                           can resolve the chart's image reference
       #                           without hitting ghcr (which is private).
       #   6. deploy-airflow
-      #   7. smoke-test-overlay  -> renders the overlay, auto-preloads the
-      #                             overlay's own images into the kind
-      #                             node (no per-overlay images list
-      #                             needed - discovery walks the rendered
-      #                             manifest), applies, walks the
-      #                             STATUS.yaml verify: block with
-      #                             fail-fast on ImagePullBackOff /
-      #                             CrashLoopBackOff, runs the optional
-      #                             per-overlay pytest module, cleans up.
+      #   7. smoke-test-overlay  -> renders and applies the overlay.
+      #                             Discovers images from the rendered
+      #                             manifest and preloads them before apply.
+      #                             Checks the STATUS.yaml verify: block
+      #                             then pod health across the Helm release.
+      #                             ImagePullBackOff and CrashLoopBackOff
+      #                             fail the checks immediately.
+      #                             Each resource check and the pod-health
+      #                             check get a separate timeout.
+      #                             Runs the optional per-overlay pytest
+      #                             module then cleans up.
       #   8. delete-cluster  -> always(), even on failure.
       - name: "Setup k8s/helm environment"
         run: breeze k8s setup-env

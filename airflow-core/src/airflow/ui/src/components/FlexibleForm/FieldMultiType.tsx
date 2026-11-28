@@ -20,6 +20,7 @@ import { useState } from "react";
 
 import { Textarea } from "@chakra-ui/react";
 
+import type { ParamValue } from "src/queries/useDagParams";
 import { paramPlaceholder, useParamStore } from "src/queries/useParamStore";
 
 import type { FlexibleFormElementProps } from ".";
@@ -48,7 +49,7 @@ export const FieldMultiType = ({ name, namespace = "default", onUpdate }: Flexib
   const stringIsAllowed = nonNullTypes.includes("string");
 
   const storedDisplay =
-    param.value === null || param.value === undefined
+    param.value === null
       ? ""
       : typeof param.value === "string"
         ? param.value
@@ -73,11 +74,11 @@ export const FieldMultiType = ({ name, namespace = "default", onUpdate }: Flexib
       return;
     }
 
-    let resolved: unknown;
+    let resolved: ParamValue = null;
     let matched = false;
 
     try {
-      const parsed = JSON.parse(value) as unknown;
+      const parsed = JSON.parse(value) as ParamValue;
 
       if (matchesSchemaType(parsed, nonNullTypes)) {
         resolved = parsed;

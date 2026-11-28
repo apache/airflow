@@ -65,6 +65,7 @@ from airflow.sdk.api.datamodels._generated import (
 )
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import (
+    DeferTask,
     ErrorResponse,
     GetXCom,
     GetXComCount,
@@ -160,6 +161,40 @@ def test_put_variable_value_from_older_runtime_is_kept():
     upgraded = get_schema_version_migrator().upgrade(body, PutVariable, "2026-10-30")
 
     assert upgraded["value"] == "x"
+
+
+@pytest.mark.parametrize(
+    ("trigger_kwargs", "accepted"),
+    [
+        pytest.param({"key": "value"}, True, id="dict"),
+        pytest.param('{"key": "value"}', False, id="string"),
+    ],
+)
+def test_defer_task_trigger_kwargs_from_older_runtime(trigger_kwargs, accepted):
+    body = {
+        "type": "DeferTask",
+        "classpath": "my-classpath",
+        "trigger_kwargs": trigger_kwargs,
+        "next_method": "execute_callback",
+    }
+
+    if accepted:
+        upgraded = get_schema_version_migrator().upgrade(body, DeferTask, "2026-10-30")
+        assert upgraded["trigger_kwargs"] == trigger_kwargs
+    else:
+        with pytest.raises(ValidationError):
+            get_schema_version_migrator().upgrade(body, DeferTask, "2026-10-30")
+
+
+def test_defer_task_trigger_kwargs_is_string_only_before_2026_12_01():
+    from airflow.sdk.execution_time.schema.versions import bundle
+
+    versioned = generate_versioned_models(bundle)
+    fields = {"classpath": "my-classpath", "trigger_kwargs": "{}", "next_method": "execute_callback"}
+
+    assert versioned["2026-10-30"][DeferTask](**fields).trigger_kwargs == "{}"
+    with pytest.raises(ValidationError):
+        versioned["2026-12-01"][DeferTask](**fields)
 
 
 @pytest.mark.parametrize(

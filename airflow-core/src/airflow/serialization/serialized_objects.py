@@ -48,7 +48,12 @@ from airflow._shared.module_loading import qualname
 from airflow._shared.timezones.timezone import from_timestamp, parse_timezone, utcnow
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DeserializationError, SerializationError
+from airflow.exceptions import (
+    AirflowException,
+    AirflowTimetableInvalid,
+    DeserializationError,
+    SerializationError,
+)
 from airflow.models.connection import Connection
 from airflow.models.expandinput import SchedulerMappedArgument, create_expand_input
 from airflow.models.taskinstancekey import TaskInstanceKey
@@ -2190,7 +2195,7 @@ class DagSerialization(BaseSerialization):
         """
         Check that a serialized Dag, such as one a Lang-SDK runtime produced, can be stored and loaded.
 
-        It must match the JSON schema, have unique task ids and deserialize with a timetable and complete
+        It must match the JSON schema, have unique task ids and deserialize with a valid timetable and complete
         deadline alert definitions. Like a Dag built with the SDK, it must not set a ``max_active_runs``
         its timetable forbids, nor ``catchup`` without a ``start_date``, and its task graph must have no
         cycle. *serialized_obj* is not changed.
@@ -2232,6 +2237,10 @@ class DagSerialization(BaseSerialization):
             ) from e
         if timetable is None:
             raise DeserializationError(dag_id, f"Dag {dag_id!r} has no timetable")
+        try:
+            timetable.validate()
+        except AirflowTimetableInvalid as e:
+            raise DeserializationError(dag_id, f"Dag {dag_id!r} has an invalid timetable: {e}") from e
         if (limit := timetable.active_runs_limit) is not None and deserialized.max_active_runs > limit:
             raise DeserializationError(
                 dag_id,

@@ -152,6 +152,7 @@ def perform_clear_dag_run(
     run_on_latest_version: bool | None,
     note: str | None,
     user: BaseUser,
+    keep_task_state: bool = False,
 ) -> DagRun:
     resolved_run_on_latest = resolve_run_on_latest_version(run_on_latest_version, dag_id, session)
     dag.clear(
@@ -160,6 +161,7 @@ def perform_clear_dag_run(
         only_new=only_new,
         only_failed=only_failed,
         run_on_latest_version=resolved_run_on_latest,
+        keep_task_state=keep_task_state,
         session=session,
     )
     dag_run_cleared = session.scalar(select(DagRun).where(DagRun.id == dag_run.id))

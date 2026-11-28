@@ -25,7 +25,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-amazon"
-version = "9.40.0"
+version = "9.41.0"
 description = "Provider package apache-airflow-providers-amazon for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -75,7 +75,7 @@ dependencies = [
     "redshift_connector>=2.1.13; python_version >= '3.14'",
     "asgiref>=2.3.0; python_version < '3.14'",
     "asgiref>=3.11.1; python_version >= '3.14'",
-    "PyAthena>=3.10.0",
+    "PyAthena>=3.28.0",
     "jmespath>=0.7.0",
     # Do not change sagemaker-studio versions without approval from AWS.
     # Capping sagemaker-studio under 1.1.0 temporarily until the NotebookOperator params are released to newer versions
@@ -92,6 +92,10 @@ dependencies = [
 ]
 "cncf.kubernetes" = [
     "apache-airflow-providers-cncf-kubernetes>=11.0.0",
+]
+"datafusion" = [
+    "datafusion>=50.0.0,<52.0.0",
+    "apache-airflow-providers-common-sql>=1.33.0",
 ]
 "s3fs" = [
     "s3fs>=2023.10.0",
@@ -167,6 +171,7 @@ dependencies = [
     "duckdb>=1.2.2",
 ]
 "sqlalchemy" = [
+    "PyAthena[sqlalchemy]>=3.28.0",
     "sqlalchemy>=1.4.54,!=2.1.0",
 ]
 
@@ -209,7 +214,8 @@ dev = [
     "apache-airflow-providers-common-sql[pandas,polars]",
     "apache-airflow-providers-amazon[sqlalchemy]",
     "apache-airflow-providers-amazon[parquet]",
-    "apache-airflow-providers-duckdb"
+    "apache-airflow-providers-duckdb",
+    "apache-airflow-providers-amazon[datafusion]"
 ]
 
 # To build docs:
@@ -238,8 +244,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.40.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.40.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.41.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.41.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

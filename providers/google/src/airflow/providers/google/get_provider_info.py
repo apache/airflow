@@ -805,6 +805,12 @@ def get_provider_info():
             },
         ],
         "filesystems": ["airflow.providers.google.cloud.fs.gcs"],
+        "object-storage-providers": [
+            {
+                "storage-type": "gcs",
+                "provider-class-name": "airflow.providers.google.cloud.datafusion.object_storage.GCSObjectStorageProvider",
+            }
+        ],
         "asset-uris": [
             {"schemes": ["gcp"], "handler": None},
             {

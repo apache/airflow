@@ -23,8 +23,11 @@ from unittest.mock import patch
 
 import elasticsearch
 import pytest
+import requests
 
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchRemoteLogIO, _render_log_id
+
+from tests_common.test_utils.config import conf_vars
 
 # The ES service hostname as defined in scripts/ci/docker-compose/integration-elasticsearch.yml
 ES_HOST = "http://elasticsearch:9200"
@@ -42,6 +45,15 @@ class _MockTI:
     id: uuid.UUID = dataclasses.field(default_factory=uuid.uuid4)
 
 
+@pytest.fixture(scope="module")
+def es_compat_with() -> str | None:
+    """Pin the server major only when it differs from the client's, so a same-major run keeps the default path."""
+    response = requests.get(ES_HOST, timeout=30)
+    response.raise_for_status()
+    server_major = response.json()["version"]["number"].split(".")[0]
+    return None if server_major == str(elasticsearch.__version__[0]) else server_major
+
+
 @pytest.mark.integration("elasticsearch")
 class TestElasticsearchRemoteLogIOIntegration:
     """
@@ -52,20 +64,20 @@ class TestElasticsearchRemoteLogIOIntegration:
     """
 
     @pytest.fixture(autouse=True)
-    def setup(self, tmp_path):
+    def setup(self, tmp_path, es_compat_with):
         # Use a unique index per test to avoid cross-test data pollution
         self.target_index = f"airflow-logs-{uuid.uuid4()}"
-        self.elasticsearch_io = ElasticsearchRemoteLogIO(
-            write_to_es=True,
-            write_stdout=False,
-            delete_local_copy=False,
-            host=ES_HOST,
-            base_log_folder=tmp_path,
-        )
+        with conf_vars({("elasticsearch", "es_compat_with"): es_compat_with}):
+            self.elasticsearch_io = ElasticsearchRemoteLogIO(
+                write_to_es=True,
+                write_stdout=False,
+                delete_local_copy=False,
+                host=ES_HOST,
+                base_log_folder=tmp_path,
+            )
         self.elasticsearch_io.target_index = self.target_index
         # Point index_patterns at the unique index so reads don't scan unrelated indices
         self.elasticsearch_io.index_patterns = self.target_index
-        self.elasticsearch_io.client = elasticsearch.Elasticsearch(ES_HOST)
 
     @pytest.fixture
     def ti(self):

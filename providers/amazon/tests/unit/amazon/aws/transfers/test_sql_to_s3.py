@@ -31,8 +31,14 @@ from packaging.version import Version
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
-from airflow.providers.common.compat.sdk import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.providers.common.compat.sdk import (
+    DAG,
+    AirflowException,
+    AirflowOptionalProviderFeatureException,
+)
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 
 PANDAS_3_PLUS = Version(pd.__version__).major >= 3
 
@@ -687,6 +693,43 @@ class TestSqlToS3Operator:
 
         with pytest.raises(ValueError, match="page_size can not be negative"):
             op.render_template_fields({})
+
+    @staticmethod
+    def _mapped_runtime_ti(create_runtime_ti, page_size):
+        with DAG(dag_id="dag", schedule=None):
+            mapped = SqlToS3Operator.partial(
+                task_id="task_id",
+                query="query",
+                s3_bucket="bucket",
+                sql_conn_id="mysql_conn_id",
+                page_size=page_size,
+            ).expand(s3_key=["key"])
+        return create_runtime_ti(task=mapped, map_index=0)
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="create_runtime_ti needs the Task SDK")
+    @pytest.mark.parametrize(
+        ("page_size", "expected"),
+        [
+            pytest.param("{{ 1 + 1 }}", 2, id="templated"),
+            pytest.param("0", 0, id="rendered-zero-means-unpaged"),
+        ],
+    )
+    def test_render_templates_converts_page_size_for_mapped_task(
+        self, create_runtime_ti, page_size, expected
+    ):
+        """A mapped task never calls render_template_fields, so the conversion must not rely on it."""
+        ti = self._mapped_runtime_ti(create_runtime_ti, page_size)
+
+        ti.render_templates(context=ti.get_template_context())
+
+        assert ti.task.page_size == expected
+
+    @pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="create_runtime_ti needs the Task SDK")
+    def test_render_templates_rejects_a_negative_page_size_for_mapped_task(self, create_runtime_ti):
+        ti = self._mapped_runtime_ti(create_runtime_ti, "-1")
+
+        with pytest.raises(ValueError, match="page_size can not be negative"):
+            ti.render_templates(context=ti.get_template_context())
 
     @mock.patch("airflow.providers.common.sql.operators.sql.BaseHook.get_connection")
     def test_hook_params(self, mock_get_conn):

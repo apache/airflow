@@ -48,7 +48,8 @@ class ToolApprovalError(RuntimeError):
     Raised when a run paused for tool approval cannot resume safely.
 
     The saved transcript, or the agent's rendered toolset ids, no longer match what the
-    reviewer saw. A retry starts a fresh run.
+    reviewer saw. A retry runs the agent again and asks the reviewer again; on Airflow 3.3,
+    where a task instance asks once, the retry fails instead.
     """
 
 
@@ -68,7 +69,7 @@ class UnsupportedToolDeferralError(AirflowFailException):
     Raised when an agent defers a tool call that nothing in the task can resolve.
 
     In ``AgentOperator``, either the tool hands its work to an external system, or it needs
-    approval where approval is not available (before Airflow 3.3, or with ``durable``,
+    approval where approval is not available (before Airflow 3.3, or with
     ``enable_hitl_review``, code mode or a ``SandboxToolset``). In ``run_durably`` for the
     OpenAI Agents SDK, a tool call needs approval and the run cannot pause the task for it,
     such as before Airflow 3.4 or with a ``session``. A retry would repeat the same call, so
@@ -105,9 +106,11 @@ class DurableJournalError(AirflowFailException):
 
     A step's result is not JSON-serializable, or the journal holds a result this version
     cannot replay. Or a task resumed with the answer to an approval, and the run, which
-    took a different path this time, never came back to the call the answer is for. The
-    same step fails the same way on every attempt, and an answer cannot be matched to a
-    call nobody was asked about, so the task fails without retrying.
+    took a different path this time, never came back to the call the answer is for. Or the
+    Dag changed so that the default turns durable execution off while an earlier attempt's
+    journal holds steps a live run would repeat. The same step fails the same way on every
+    attempt, and an answer cannot be matched to a call nobody was asked about, so the task
+    fails without retrying.
     """
 
 
