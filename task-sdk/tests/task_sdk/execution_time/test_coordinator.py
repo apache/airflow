@@ -32,6 +32,7 @@ from airflow.sdk.execution_time.coordinator import (
     BaseCoordinator,
     CoordinatorManager,
     InvalidCoordinatorError,
+    _get_coordinator_manager_for_parsing,
     get_coordinator_manager,
     reset_coordinator_manager,
 )
@@ -184,6 +185,34 @@ class TestCoordinatorManager:
         )
         with pytest.raises(InvalidCoordinatorError, match=r"'boom' sets task_handler_bundle_name="):
             CoordinatorManager.from_config()
+
+    @pytest.mark.parametrize("checks_bundle_names", [True, False])
+    @mock.patch("airflow.sdk.execution_time.coordinator._get_bundle_config_source", autospec=True)
+    def test_parsing_checks_task_handler_bundle_names_only_when_the_source_allows(
+        self, mock_source, sdk_config, checks_bundle_names
+    ):
+        mock_source.return_value.checks_bundle_names_when_parsing = checks_bundle_names
+        sdk_config(
+            coordinators=json.dumps(
+                {
+                    "boom": {
+                        "classpath": f"{_ExplodingCoordinator.__module__}._ExplodingCoordinator",
+                        "kwargs": {"task_handler_bundle_name": "ghost"},
+                    }
+                }
+            ),
+            queue_to_coordinator=json.dumps({"queue-boom": "boom"}),
+        )
+        if checks_bundle_names:
+            with pytest.raises(InvalidCoordinatorError, match=r"'boom' sets task_handler_bundle_name="):
+                _get_coordinator_manager_for_parsing()
+        else:
+            assert _get_coordinator_manager_for_parsing()._queue_to_coordinator == {"queue-boom": "boom"}
+
+    @mock.patch("airflow.sdk.execution_time.coordinator._get_bundle_config_source", autospec=True)
+    def test_parsing_shares_the_cached_manager_when_bundle_names_are_checked(self, mock_source):
+        mock_source.return_value.checks_bundle_names_when_parsing = True
+        assert _get_coordinator_manager_for_parsing() is get_coordinator_manager()
 
     def test_from_config_accepts_configured_task_handler_bundle_name(self, sdk_config):
         sdk_config(

@@ -33,8 +33,11 @@ from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleParseContext
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
+    _clear_inactive_bundle_import_errors,
     _get_bundle_config_source,
     _guess_best_bundle_for_fileloc,
+    _ReloadingBundleLifecycle,
+    _StaticBundleLifecycle,
     get_configured_bundle_names,
     get_configured_bundle_team_names,
 )
@@ -184,10 +187,9 @@ def test_get_configured_bundle_team_names(load_examples):
             ("dag_processor", "dag_bundle_config_list"): json.dumps(TEAM_BUNDLE_CONFIG),
         }
     ):
-        assert get_configured_bundle_team_names() == {
-            "team-bundle": "team-a",
-            "unscoped-bundle": None,
-        }
+        expected = {"team-bundle": "team-a", "unscoped-bundle": None}
+        assert get_configured_bundle_team_names() == expected
+        assert _get_bundle_config_source().get_bundle_teams() == expected
 
 
 @conf_vars(
@@ -2382,7 +2384,7 @@ def test_literal_configuration_does_not_reload(mock_command, mock_secret):
         }
     ):
         source = _get_bundle_config_source()
-        assert source.reconcilable is False
+        assert source.lifecycle_class is _StaticBundleLifecycle
         assert source.parse_context("my-test-bundle") is None
         manager = DagBundlesManager()
         assert source.parse_context("my-test-bundle", manager=lambda: manager) is None
@@ -2499,13 +2501,62 @@ def test_periodic_sync_defers_import_errors_to_bounded_cleanup(clear_db, session
         assert removed.active is False
         session.flush()
         assert session.scalar(select(func.count()).select_from(ParseImportError)) == 502
-        processor = DagFileProcessorManager(max_runs=1)
-        processor._clear_inactive_bundle_import_errors(session=session)
+        _clear_inactive_bundle_import_errors(session=session)
         assert sorted(session.scalars(select(ParseImportError.bundle_name))) == sorted(
             [active.name, removed.name]
         )
-        processor._clear_inactive_bundle_import_errors(session=session)
+        _clear_inactive_bundle_import_errors(session=session)
     assert session.scalars(select(ParseImportError.bundle_name)).all() == [active.name]
+
+
+@pytest.mark.parametrize(
+    ("lifecycle_class", "bundle_names_to_parse", "cleared"),
+    [
+        (_ReloadingBundleLifecycle, None, True),
+        (_ReloadingBundleLifecycle, ["my-test-bundle"], False),
+        (_StaticBundleLifecycle, None, False),
+    ],
+    ids=["reloading-unfiltered", "reloading-filtered", "static"],
+)
+@mock.patch("airflow.dag_processing.bundles.manager._clear_inactive_bundle_import_errors", autospec=True)
+def test_lifecycle_cleanup_clears_import_errors_only_for_unfiltered_reloading_processors(
+    mock_clear, lifecycle_class, bundle_names_to_parse, cleared
+):
+    processor = mock.create_autospec(DagFileProcessorManager, instance=True)
+    processor.bundle_names_to_parse = bundle_names_to_parse
+    lifecycle_class(processor).cleanup()
+    assert mock_clear.called is cleared
+
+
+@pytest.mark.parametrize(
+    ("lifecycle_class", "api_client", "scoped"),
+    [
+        (_ReloadingBundleLifecycle, None, True),
+        (_StaticBundleLifecycle, None, False),
+        (_StaticBundleLifecycle, mock.sentinel.api_client, True),
+    ],
+    ids=["reloading", "static", "static-http"],
+)
+@mock.patch("airflow.dag_processing.bundles.manager.BundleUsageTrackingManager", autospec=True)
+def test_lifecycle_removes_stale_versions_of_loaded_bundles_when_scoped(
+    tracking_manager, lifecycle_class, api_client, scoped
+):
+    versioned = mock.create_autospec(BaseDagBundle, instance=True, supports_versioning=True)
+    versioned.name = "versioned"
+    plain = mock.create_autospec(BaseDagBundle, instance=True, supports_versioning=False)
+    processor = mock.create_autospec(DagFileProcessorManager, instance=True)
+    processor.api_client = api_client
+    processor._dag_bundles = [versioned, plain]
+
+    lifecycle_class(processor).remove_stale_bundle_versions()
+
+    tracking = tracking_manager.return_value
+    if scoped:
+        tracking.remove_stale_bundle_versions_for_bundle.assert_called_once_with("versioned")
+        tracking.remove_stale_bundle_versions.assert_not_called()
+    else:
+        tracking.remove_stale_bundle_versions.assert_called_once_with()
+        tracking.remove_stale_bundle_versions_for_bundle.assert_not_called()
 
 
 @pytest.mark.parametrize("command_failed", [False, True], ids=["invalid-entry", "command-error"])
@@ -2762,7 +2813,7 @@ def test_reconcile_rejects_missing_team_and_accepts_correction(
 
     if lookup_before_reconcile:
         processor._dag_bundle_manager.get_bundle("second-bundle")
-    processor._reconcile_bundles(known_files=known_files)
+    processor._bundle_lifecycle.reconcile(known_files=known_files)
 
     assert processor._dag_bundles == [retained]
     assert set(processor._dag_bundle_manager._bundle_config) == {retained.name}
@@ -2781,14 +2832,14 @@ def test_reconcile_rejects_missing_team_and_accepts_correction(
     if revert_before_correction:
         dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG))
         _expire_bundle_config_snapshot()
-        processor._reconcile_bundles(known_files=known_files)
+        processor._bundle_lifecycle.reconcile(known_files=known_files)
         assert _get_bundle_config_source().current().names == {retained.name}
         mock_removed.assert_not_called()
 
     config["team_name"] = testing_team.name
     dynamic_bundle_config.write_text(json.dumps([config]))
     _expire_bundle_config_snapshot()
-    processor._reconcile_bundles(known_files=known_files)
+    processor._bundle_lifecycle.reconcile(known_files=known_files)
 
     assert [bundle.name for bundle in processor._dag_bundles] == ["second-bundle"]
     assert known_files == {}
@@ -2821,7 +2872,7 @@ def test_reconcile_retries_failed_template_update(
     dynamic_bundle_config.write_text(json.dumps(BASIC_BUNDLE_CONFIG + SECOND_BUNDLE_CONFIG))
     _expire_bundle_config_snapshot()
     mock_template.side_effect = RuntimeError("template temporarily unavailable")
-    processor._reconcile_bundles(known_files={})
+    processor._bundle_lifecycle.reconcile(known_files={})
 
     assert {bundle.name for bundle in processor._dag_bundles} == {"my-test-bundle", "second-bundle"}
     session.expire_all()
@@ -2842,14 +2893,14 @@ def test_reconcile_retries_failed_template_update(
 
         event.listen(type(session), "before_commit", fail_commit)
         try:
-            processor._reconcile_bundles(known_files={})
+            processor._bundle_lifecycle.reconcile(known_files={})
         finally:
             event.remove(type(session), "before_commit", fail_commit)
         session.expire_all()
         added = session.get(DagBundleModel, "second-bundle")
         assert added.signed_url_template == existing_template
         assert added.template_params == ({"subdir": "previous"} if existing_template else None)
-    processor._reconcile_bundles(known_files={})
+    processor._bundle_lifecycle.reconcile(known_files={})
 
     session.expire_all()
     added = session.get(DagBundleModel, "second-bundle")
@@ -2859,7 +2910,7 @@ def test_reconcile_retries_failed_template_update(
     assert processor._force_refresh_bundles == set()
     assert mock_template.call_args_list == [mock.call(bundle_instance)] * (4 if retry_sync_fails else 2)
     mock_template.reset_mock()
-    processor._reconcile_bundles(known_files={})
+    processor._bundle_lifecycle.reconcile(known_files={})
     mock_template.assert_not_called()
 
 
@@ -2882,7 +2933,7 @@ def test_reconcile_retries_startup_template_failure(
     mock_get_bundle.side_effect = get_bundle
     mock_template.side_effect = None
     mock_template.return_value = "https://example.com/repo/{version}"
-    processor._reconcile_bundles(known_files={})
+    processor._bundle_lifecycle.reconcile(known_files={})
 
     session.expire_all()
     bundle = session.get(DagBundleModel, bundle_instance.name)
@@ -2890,7 +2941,7 @@ def test_reconcile_retries_startup_template_failure(
     assert bundle.render_url(version="v1") == "https://example.com/repo/v1"
     assert processor._dag_bundles == [bundle_instance]
     mock_template.reset_mock()
-    processor._reconcile_bundles(known_files={})
+    processor._bundle_lifecycle.reconcile(known_files={})
     mock_template.assert_not_called()
 
 
@@ -2966,7 +3017,7 @@ def test_reloading_source_parse_context_without_manager(mock_command, dynamic_bu
     importers = [{"classpath": "airflow.sdk.importers.PythonDagImporter", "kwargs": {}}]
     mock_command.return_value = json.dumps([{**BASIC_BUNDLE_CONFIG[0], "importers": importers}])
     source = _get_bundle_config_source()
-    assert source.reconcilable is True
+    assert source.lifecycle_class is _ReloadingBundleLifecycle
 
     context = source.parse_context("my-test-bundle")
     assert context == BundleParseContext(importers=importers)

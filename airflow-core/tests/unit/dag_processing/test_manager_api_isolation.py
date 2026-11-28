@@ -122,7 +122,7 @@ def test_sync_bundles_checks_provisioning_without_writing_bundles(bundles_manage
     bundles_manager.return_value.sync_bundles_to_db.assert_not_called()
 
 
-@mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager", autospec=True)
+@mock.patch("airflow.dag_processing.bundles.manager.BundleUsageTrackingManager", autospec=True)
 def test_stale_bundle_version_cleanup_is_scoped_to_loaded_versioned_bundles(tracking_manager):
     manager = DagFileProcessorManager(max_runs=1, api_client=_create_client())
     manager._dag_bundles = [_create_bundle("versioned", supports_versioning=True), _create_bundle("plain")]

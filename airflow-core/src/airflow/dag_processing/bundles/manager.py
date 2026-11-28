@@ -23,9 +23,10 @@ import logging
 import os
 import time
 import warnings
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import nullcontext
-from copy import deepcopy
+from copy import copy, deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, ClassVar, NamedTuple, cast
 
@@ -37,7 +38,11 @@ from sqlalchemy.orm import selectinload
 from airflow._shared.configuration.parser import get_dynamic_option_reader
 from airflow._shared.module_loading import import_string
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.base import BaseDagBundle, BundleParseContext
+from airflow.dag_processing.bundles.base import (
+    BaseDagBundle,
+    BundleParseContext,
+    BundleUsageTrackingManager,
+)
 from airflow.exceptions import AirflowConfigException
 from airflow.models.dagbundle import DagBundleModel
 from airflow.models.team import Team
@@ -51,6 +56,8 @@ if TYPE_CHECKING:
 
     from sqlalchemy.engine import CursorResult
     from sqlalchemy.orm import Session
+
+    from airflow.dag_processing.manager import DagFileInfo, DagFileProcessorManager
 
 log = logging.getLogger(__name__)
 
@@ -174,23 +181,130 @@ def _build_internal_bundle_config(config: _ExternalBundleConfig) -> _InternalBun
     )
 
 
-class _StaticBundleConfigSource:
-    """The bundle configuration of this process, read from ``dag_bundle_config_list`` on first use."""
+class _BaseBundleLifecycle:
+    """How a Dag processor keeps its bundles in step with the bundle configuration source."""
 
-    reconcilable: ClassVar[bool] = False
+    def __init__(self, processor: DagFileProcessorManager) -> None:
+        self.processor = processor
 
-    @functools.cached_property
-    def _accepted(self) -> _BundleConfigSnapshot:
-        return _create_bundle_config_snapshot(_read_bundle_config_list())
+    def check_supported(self) -> None:
+        """Raise if the processor cannot run with this source."""
 
+    def reconcile(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+        """Apply bundle additions and removals to the processor and the database."""
+
+    def cleanup(self) -> None:
+        """Remove state left behind by removed bundles; run after the stale-Dag scan."""
+
+    def remove_stale_bundle_versions(self) -> None:
+        """Remove stale local versions of the bundles this processor may clean up."""
+        manager = BundleUsageTrackingManager()
+        for bundle in self.processor._dag_bundles:
+            if bundle.supports_versioning:
+                manager.remove_stale_bundle_versions_for_bundle(bundle.name)
+
+
+class _StaticBundleLifecycle(_BaseBundleLifecycle):
+    """The bundle list is fixed for the lifetime of the processor."""
+
+    def remove_stale_bundle_versions(self) -> None:
+        if self.processor.api_client is None:
+            BundleUsageTrackingManager().remove_stale_bundle_versions()
+        else:
+            super().remove_stale_bundle_versions()
+
+
+class _ReloadingBundleLifecycle(_BaseBundleLifecycle):
+    """The processor adds and removes bundles as the configured command or secret changes."""
+
+    def check_supported(self) -> None:
+        if self.processor.api_client is not None:
+            raise AirflowConfigException(
+                "Reloading dag_bundle_config_list through a command or secret is not supported "
+                "with an HTTP-backed Dag processor. Use a literal bundle configuration or a "
+                "database-backed Dag processor."
+            )
+
+    def reconcile(self, known_files: dict[str, set[DagFileInfo]]) -> None:
+        processor = self.processor
+        if processor.api_client is not None:
+            return
+        try:
+            dag_bundle_manager = copy(processor._dag_bundle_manager)
+            dag_bundle_manager.refresh()
+            configured_names = set(dag_bundle_manager.get_all_bundle_names())
+        except Exception:
+            processor.log.exception("Could not load Dag bundles; keeping the current bundles")
+            return
+
+        loaded_names = {bundle.name for bundle in processor._dag_bundles}
+        bundle_names = (
+            configured_names & set(processor.bundle_names_to_parse)
+            if processor.bundle_names_to_parse
+            else configured_names
+        )
+        added: dict[str, BaseDagBundle] = {}
+        for name in sorted(bundle_names - loaded_names):
+            try:
+                added[name] = dag_bundle_manager.get_bundle(name)
+            except Exception:
+                processor.log.exception("Could not create Dag bundle %s; will retry", name)
+
+        try:
+            # Other processors can overwrite active state even when our configuration is unchanged.
+            dag_bundle_manager.sync_bundles_to_db(
+                deactivate_missing=not processor.bundle_names_to_parse,
+                bundle_instances=added,
+            )
+        except Exception:
+            processor.log.exception("Could not reconcile Dag bundles; keeping the current bundles")
+            return
+
+        processor._apply_reconciled_bundles(
+            dag_bundle_manager,
+            configured_names=configured_names,
+            bundle_names=bundle_names,
+            added=added,
+            known_files=known_files,
+        )
+
+    def cleanup(self) -> None:
+        # A processor that has not seen a removal yet can write import errors after deactivation.
+        if not self.processor.bundle_names_to_parse:
+            _clear_inactive_bundle_import_errors()
+
+
+@provide_session
+def _clear_inactive_bundle_import_errors(*, session: Session = NEW_SESSION) -> None:
+    # Import here to avoid circular import
+    from airflow.models.errors import ParseImportError
+
+    inactive_bundles = select(DagBundleModel.name).where(DagBundleModel.active.is_(False))
+    inactive_error = ParseImportError.bundle_name.in_(inactive_bundles)
+    ids = session.scalars(
+        select(ParseImportError.id).where(inactive_error).order_by(ParseImportError.id).limit(500)
+    ).all()
+    if ids:
+        session.execute(delete(ParseImportError).where(ParseImportError.id.in_(ids), inactive_error))
+
+
+class _BaseBundleConfigSource(ABC):
+    """The bundle configuration of this process, chosen once per process."""
+
+    lifecycle_class: ClassVar[type[_BaseBundleLifecycle]]
+
+    checks_bundle_names_when_parsing: ClassVar[bool]
+    """Whether a parsing process may validate bundle names by reading this source itself."""
+
+    @abstractmethod
     def current(self) -> _BundleConfigSnapshot:
         """Return the accepted list, which is checked without importing bundle classes."""
-        return self._accepted
 
+    @abstractmethod
     def loadable(self) -> _BundleConfigSnapshot:
         """Return the newest accepted list whose bundle classes load in this process."""
-        return self._accepted
 
+    @abstractmethod
     def refresh(self, adopted: _BundleConfigSnapshot | None = None) -> None:
         """
         Read the list again if the check interval has passed.
@@ -199,9 +313,11 @@ class _StaticBundleConfigSource:
         accepted list.
         """
 
-    def refresh_for_missing(self, name: str) -> None:
-        """Read the list again for a bundle *name* that is not loadable, unless it missed recently."""
+    @abstractmethod
+    def find_loadable(self, name: str) -> _ExternalBundleConfig | None:
+        """Find a loadable bundle by *name*, reading the list again unless the name missed recently."""
 
+    @abstractmethod
     def parse_context(
         self,
         name: str,
@@ -209,14 +325,51 @@ class _StaticBundleConfigSource:
         manager: Callable[[], DagBundlesManager] | None = None,
     ) -> BundleParseContext | None:
         """
-        Return the accepted parse settings for *name*, or ``None`` for static configuration.
+        Return the accepted parse settings for *name*.
 
-        Static configuration lets parsing processes and workers read configuration directly as before.
+        ``None`` means parsing processes and workers read the configuration directly.
         """
+
+    @abstractmethod
+    def get_bundle_teams(self) -> dict[str, str | None]:
+        """Get the team of each bundle that should be processed, without reading a command or secret."""
+
+
+class _StaticBundleConfigSource(_BaseBundleConfigSource):
+    """``dag_bundle_config_list`` set literally, read on first use."""
+
+    lifecycle_class = _StaticBundleLifecycle
+    checks_bundle_names_when_parsing = True
+
+    @functools.cached_property
+    def _accepted(self) -> _BundleConfigSnapshot:
+        return _create_bundle_config_snapshot(_read_bundle_config_list())
+
+    def current(self) -> _BundleConfigSnapshot:
+        return self._accepted
+
+    def loadable(self) -> _BundleConfigSnapshot:
+        return self._accepted
+
+    def refresh(self, adopted: _BundleConfigSnapshot | None = None) -> None:
+        pass
+
+    def find_loadable(self, name: str) -> _ExternalBundleConfig | None:
+        return self._accepted.configs.get(name)
+
+    def parse_context(
+        self,
+        name: str,
+        *,
+        manager: Callable[[], DagBundlesManager] | None = None,
+    ) -> BundleParseContext | None:
         return None
 
+    def get_bundle_teams(self) -> dict[str, str | None]:
+        return dict(self._accepted.team_names)
 
-class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
+
+class _ReloadingBundleConfigSource(_BaseBundleConfigSource):
     """
     The output of ``dag_bundle_config_list_cmd`` or ``dag_bundle_config_list_secret``.
 
@@ -225,7 +378,9 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
     as a whole.
     """
 
-    reconcilable: ClassVar[bool] = True
+    lifecycle_class = _ReloadingBundleLifecycle
+    # Parsing processes receive the accepted settings instead of running the command again.
+    checks_bundle_names_when_parsing = False
     _loadable: _BundleConfigSnapshot
 
     def __init__(self, read_raw: Callable[[], str | None]) -> None:
@@ -241,6 +396,9 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
         # managers as it does with a static list.
         self._loadable = _create_bundle_config_snapshot(_read_bundle_config_list(self._read_raw))
         return self._loadable
+
+    def current(self) -> _BundleConfigSnapshot:
+        return self._accepted
 
     def loadable(self) -> _BundleConfigSnapshot:
         accepted = self._accepted
@@ -265,15 +423,19 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
         ):
             self._read(accepted if adopted is None else adopted)
 
-    def refresh_for_missing(self, name: str) -> None:
+    def find_loadable(self, name: str) -> _ExternalBundleConfig | None:
+        if (config := self.loadable().configs.get(name)) is not None:
+            return config
         now = time.monotonic()
         interval = conf.getint("dag_processor", "bundle_refresh_check_interval")
         self._missed_at = {missed: at for missed, at in self._missed_at.items() if now - at < interval}
-        if name not in self._missed_at:
-            # A bundle whose class failed to load was never used, so a corrected definition is allowed.
-            self._read(self.loadable())
-            if name not in self.loadable().configs:
-                self._missed_at[name] = now
+        if name in self._missed_at:
+            return None
+        # A bundle whose class failed to load was never used, so a corrected definition is allowed.
+        self._read(self.loadable())
+        if (config := self.loadable().configs.get(name)) is None:
+            self._missed_at[name] = now
+        return config
 
     def parse_context(
         self,
@@ -284,9 +446,7 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
         if manager is not None:
             config = manager()._get_bundle_config(name)
             return BundleParseContext(importers=deepcopy(config.importers), team_name=config.team_name)
-        if name not in self.loadable().configs:
-            self.refresh_for_missing(name)
-        if (external := self.loadable().configs.get(name)) is not None:
+        if (external := self.find_loadable(name)) is not None:
             return BundleParseContext(importers=deepcopy(external.importers), team_name=external.team_name)
         raise ValueError(f"Requested bundle '{name}' is not configured.")
 
@@ -304,9 +464,22 @@ class _ReloadingBundleConfigSource(_StaticBundleConfigSource):
         except Exception:
             log.exception("Could not reload Dag bundle configuration; keeping the last accepted list")
 
+    def get_bundle_teams(self) -> dict[str, str | None]:
+        # Unfiltered Dag processors reconcile the active bundles with the accepted list.
+        with create_session() as session:
+            return dict(
+                session.execute(
+                    select(DagBundleModel.name, Team.name)
+                    .outerjoin(DagBundleModel.teams)
+                    .where(DagBundleModel.active.is_(True))
+                )
+                .tuples()
+                .all()
+            )
+
 
 @functools.cache
-def _get_bundle_config_source() -> _StaticBundleConfigSource:
+def _get_bundle_config_source() -> _BaseBundleConfigSource:
     if (read_raw := get_dynamic_option_reader(conf, "dag_processor", "dag_bundle_config_list")) is None:
         return _StaticBundleConfigSource()
     return _ReloadingBundleConfigSource(read_raw)
@@ -918,10 +1091,7 @@ class DagBundlesManager(LoggingMixin):
         if self._bundle_names is None or name in self._bundle_names:
             # A bundle added after this manager loaded resolves without being adopted, so that the
             # Dag processor adopts it only after writing it to the database.
-            source = _get_bundle_config_source()
-            if name not in source.loadable().configs:
-                source.refresh_for_missing(name)
-            if (config := source.loadable().configs.get(name)) is not None:
+            if (config := _get_bundle_config_source().find_loadable(name)) is not None:
                 return _build_internal_bundle_config(config)
         raise ValueError(f"Requested bundle '{name}' is not configured.")
 

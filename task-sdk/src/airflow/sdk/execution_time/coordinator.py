@@ -411,9 +411,10 @@ def get_coordinator_manager(*, validate_handler_bundles: bool = True) -> Coordin
 
 
 def _get_coordinator_manager_for_parsing() -> CoordinatorManager:
-    if _get_bundle_config_source().reconcilable:
-        return get_coordinator_manager(validate_handler_bundles=False)
-    return get_coordinator_manager()
+    if _get_bundle_config_source().checks_bundle_names_when_parsing:
+        # Called without arguments to share the cached manager with every other caller.
+        return get_coordinator_manager()
+    return get_coordinator_manager(validate_handler_bundles=False)
 
 
 def reset_coordinator_manager() -> None:

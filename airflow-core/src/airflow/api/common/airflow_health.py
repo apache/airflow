@@ -26,18 +26,13 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import (
-    _get_bundle_config_source,
-    get_configured_bundle_team_names,
-)
+from airflow.dag_processing.bundles.manager import _get_bundle_config_source
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models.dagbundle import DagBundleModel
-from airflow.models.team import Team
-from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -185,18 +180,7 @@ def _live_executor_jobs(jobs: list[Job], live_scheduler_ids: set[int]) -> list[J
 def _configured_bundle_teams() -> dict[str, str | None]:
     """Get bundle coverage without running a deployment command or secrets lookup on a health request."""
     try:
-        if _get_bundle_config_source().reconcilable:
-            with create_session() as session:
-                return dict(
-                    session.execute(
-                        select(DagBundleModel.name, Team.name)
-                        .outerjoin(DagBundleModel.teams)
-                        .where(DagBundleModel.active.is_(True))
-                    )
-                    .tuples()
-                    .all()
-                )
-        return get_configured_bundle_team_names()
+        return _get_bundle_config_source().get_bundle_teams()
     except Exception:
         # A health probe must not fail on malformed bundle config; callers fall back to liveness only.
         log.warning("Could not read the Dag bundle configuration", exc_info=True)

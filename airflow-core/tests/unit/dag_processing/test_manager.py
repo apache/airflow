@@ -77,7 +77,10 @@ from airflow.dag_processing.bundles.local import LocalDagBundle
 from airflow.dag_processing.bundles.manager import (
     DagBundlesManager,
     _get_bundle_config_source,
+    _ReloadingBundleConfigSource,
+    _ReloadingBundleLifecycle,
     _StaticBundleConfigSource,
+    _StaticBundleLifecycle,
 )
 from airflow.dag_processing.collection import update_dag_parsing_results_in_db
 from airflow.dag_processing.dagbag import DagBag
@@ -402,18 +405,18 @@ class TestDagFileProcessorManager:
     @mock.patch(
         "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=False),
+        return_value=mock.Mock(spec=_StaticBundleConfigSource, lifecycle_class=_StaticBundleLifecycle),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_static_config_does_not_poll(self, mock_manager, mock_source):
-        DagFileProcessorManager(max_runs=1)._reconcile_bundles(known_files={})
+        DagFileProcessorManager(max_runs=1)._bundle_lifecycle.reconcile(known_files={})
         mock_manager.assert_not_called()
 
     @pytest.mark.parametrize("filtered", [False, True])
     @mock.patch(
         "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
+        return_value=mock.Mock(spec=_ReloadingBundleConfigSource, lifecycle_class=_ReloadingBundleLifecycle),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
@@ -440,7 +443,7 @@ class TestDagFileProcessorManager:
         processor._bundle_importer_registries = registries.copy()
         known_files = {"removed": set(), "retained": set()}
 
-        processor._reconcile_bundles(known_files=known_files)
+        processor._bundle_lifecycle.reconcile(known_files=known_files)
 
         bundles.refresh.assert_called_once_with()
         bundles.get_all_bundle_names.assert_called_once_with()
@@ -460,7 +463,7 @@ class TestDagFileProcessorManager:
     @mock.patch(
         "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
+        return_value=mock.Mock(spec=_ReloadingBundleConfigSource, lifecycle_class=_ReloadingBundleLifecycle),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_removal_clears_pending_parses_before_readding_bundle(
@@ -489,7 +492,7 @@ class TestDagFileProcessorManager:
         manager._callback_to_execute[file] = [mock.create_autospec(DagCallbackRequest, instance=True)]
         known_files = {bundle.name: {file}}
 
-        manager._reconcile_bundles(known_files)
+        manager._bundle_lifecycle.reconcile(known_files)
 
         process.kill.assert_called_once_with(signal.SIGKILL)
         process.close.assert_called_once_with()
@@ -504,7 +507,7 @@ class TestDagFileProcessorManager:
         assert not manager._bundle_refresh_retry_at
         assert not manager._bundle_failed_sources
 
-        manager._reconcile_bundles(known_files)
+        manager._bundle_lifecycle.reconcile(known_files)
 
         assert manager._dag_bundles == [bundle]
         assert manager._bundle_refresh_generations[bundle.name] > source.refresh_generation
@@ -513,7 +516,7 @@ class TestDagFileProcessorManager:
     @mock.patch(
         "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
+        return_value=mock.Mock(spec=_ReloadingBundleConfigSource, lifecycle_class=_ReloadingBundleLifecycle),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_retries_failed_construction(self, mock_manager, mock_source, tmp_path):
@@ -523,9 +526,9 @@ class TestDagFileProcessorManager:
         bundles.get_all_bundle_names.return_value = ["added"]
         bundles.get_bundle.side_effect = [RuntimeError("temporarily unavailable"), added]
         processor = DagFileProcessorManager(max_runs=1)
-        processor._reconcile_bundles(known_files={})
+        processor._bundle_lifecycle.reconcile(known_files={})
         assert processor._dag_bundles == []
-        processor._reconcile_bundles(known_files={})
+        processor._bundle_lifecycle.reconcile(known_files={})
         assert processor._dag_bundles == [added]
         assert bundles.sync_bundles_to_db.call_args_list == [
             mock.call(deactivate_missing=True, bundle_instances={}),
@@ -535,7 +538,7 @@ class TestDagFileProcessorManager:
     @mock.patch(
         "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
+        return_value=mock.Mock(spec=_ReloadingBundleConfigSource, lifecycle_class=_ReloadingBundleLifecycle),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     def test_reconcile_retries_template_persistence_after_sync_failure(
@@ -548,10 +551,10 @@ class TestDagFileProcessorManager:
         bundles.get_bundle.return_value = added
         bundles.sync_bundles_to_db.side_effect = [RuntimeError("database unavailable"), None]
         processor = DagFileProcessorManager(max_runs=1)
-        processor._reconcile_bundles(known_files={})
+        processor._bundle_lifecycle.reconcile(known_files={})
         assert processor._dag_bundles == []
         assert processor._force_refresh_bundles == set()
-        processor._reconcile_bundles(known_files={})
+        processor._bundle_lifecycle.reconcile(known_files={})
         assert processor._dag_bundles == [added]
         assert bundles.sync_bundles_to_db.call_args_list == [
             mock.call(deactivate_missing=True, bundle_instances={"added": added}),
@@ -561,7 +564,7 @@ class TestDagFileProcessorManager:
     @mock.patch(
         "airflow.dag_processing.manager._get_bundle_config_source",
         autospec=True,
-        return_value=mock.Mock(spec=_StaticBundleConfigSource, reconcilable=True),
+        return_value=mock.Mock(spec=_ReloadingBundleConfigSource, lifecycle_class=_ReloadingBundleLifecycle),
     )
     @mock.patch("airflow.dag_processing.manager.DagBundlesManager", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "handle_removed_files", autospec=True)
@@ -578,7 +581,7 @@ class TestDagFileProcessorManager:
         processor._force_refresh_bundles.add("retained")
         known_files = {"retained": set()}
 
-        processor._reconcile_bundles(known_files=known_files)
+        processor._bundle_lifecycle.reconcile(known_files=known_files)
 
         assert processor._dag_bundles == [retained]
         assert processor._bundle_versions == {"retained": "v1"}
@@ -625,7 +628,7 @@ class TestDagFileProcessorManager:
             processor._bundle_name_to_team_name["bundle-a"] = None
             config_file.write_text("[]")
             mock_sync.side_effect = RuntimeError("database unavailable")
-            processor._reconcile_bundles(known_files={})
+            processor._bundle_lifecycle.reconcile(known_files={})
 
             mock_start = mock_native if native else mock_python
             processor._create_process(
@@ -675,7 +678,7 @@ class TestDagFileProcessorManager:
             for _ in range(2):
                 processor._create_process(file, source=DagParseSource())
                 assert mock_start.call_args.kwargs["bundle_config"].team_name == "team-a"
-                processor._reconcile_bundles(known_files={})
+                processor._bundle_lifecycle.reconcile(known_files={})
             with create_session() as session:
                 assert session.get(DagBundleModel, "bundle-a").teams[0].name == "team-a"
 
@@ -799,7 +802,7 @@ class TestDagFileProcessorManager:
                 known_files["removed"] = {removed_file}
 
             config_file.write_text(json.dumps([retained_config]))
-            processor._reconcile_bundles(known_files=known_files)
+            processor._bundle_lifecycle.reconcile(known_files=known_files)
 
             assert removed_file not in processor._callback_to_execute
             assert removed_file not in processor._file_queue
@@ -895,7 +898,7 @@ class TestDagFileProcessorManager:
             processor.sync_bundles()
             processor._dag_bundles = processor.get_all_bundles()
             config_file.write_text(json.dumps([] if remove_all else configs[1:]))
-            processor._reconcile_bundles(known_files={})
+            processor._bundle_lifecycle.reconcile(known_files={})
             with create_session() as session:
                 bundle_a = session.get(DagBundleModel, "bundle-a")
                 assert bundle_a.active is bool(bundle_names_to_parse)
@@ -909,7 +912,7 @@ class TestDagFileProcessorManager:
                         is_stale=False,
                     )
                 )
-            processor._reconcile_bundles(known_files={})
+            processor._bundle_lifecycle.reconcile(known_files={})
             cleanup_processor_metadata()
             with create_session() as session:
                 assert session.get(DagBundleModel, "bundle-a").active is bool(bundle_names_to_parse)
@@ -2340,7 +2343,7 @@ class TestDagFileProcessorManager:
 
         assert "Lock not available when deactivating deleted DAGs for bundle testing_bundle" in caplog.text
 
-    @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
+    @mock.patch("airflow.dag_processing.bundles.manager.BundleUsageTrackingManager")
     def test_cleanup_stale_bundle_versions_interval(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
         manager.stale_bundle_cleanup_interval = 10
@@ -2354,7 +2357,7 @@ class TestDagFileProcessorManager:
         manager._cleanup_stale_bundle_versions()
         mock_bundle_manager.return_value.remove_stale_bundle_versions.assert_not_called()
 
-    @mock.patch("airflow.dag_processing.manager.BundleUsageTrackingManager")
+    @mock.patch("airflow.dag_processing.bundles.manager.BundleUsageTrackingManager")
     def test_cleanup_stale_bundle_versions(self, mock_bundle_manager):
         manager = DagFileProcessorManager(max_runs=1)
         manager.cleanup_stale_bundle_versions()
@@ -5779,7 +5782,7 @@ class TestDagFileProcessorManager:
     @time_machine.travel(DEFAULT_DATE, tick=False)
     @mock.patch("airflow.dag_processing.manager.time.monotonic", autospec=True)
     @mock.patch.object(DagFileProcessorManager, "get_bundle_state", autospec=True)
-    @mock.patch.object(DagFileProcessorManager, "_reconcile_bundles", autospec=True)
+    @mock.patch.object(_StaticBundleLifecycle, "reconcile", autospec=True)
     def test_urgent_bundle_checks_preserve_the_periodic_check_schedule(
         self, reconcile, get_state, monotonic, urgent_reason
     ):
@@ -5802,7 +5805,7 @@ class TestDagFileProcessorManager:
 
         assert get_state.call_args_list == [mock.call(manager, "urgent"), mock.call(manager, "regular")]
         assert manager._bundles_last_refreshed == 100
-        reconcile.assert_called_once_with(manager, known_files={})
+        reconcile.assert_called_once_with(manager._bundle_lifecycle, known_files={})
         if urgent_reason == "waiting":
             manager._bundles_waiting_for_refresh.add(urgent.name)
         else:
@@ -5814,7 +5817,7 @@ class TestDagFileProcessorManager:
             manager._refresh_dag_bundles({})
             get_state.assert_called_once_with(manager, "urgent")
             assert manager._bundles_last_refreshed == 100
-            reconcile.assert_called_once_with(manager, known_files={})
+            reconcile.assert_called_once_with(manager._bundle_lifecycle, known_files={})
 
         monotonic.return_value = 110
         get_state.reset_mock()
@@ -7759,7 +7762,7 @@ class TestDagFileProcessorManagerWithAPIClient:
             manager = DagFileProcessorManager(max_runs=1, api_client=api_client)
             with pytest.raises(AirflowConfigException, match="not supported with an HTTP-backed"):
                 manager.before_run()
-            manager._reconcile_bundles(known_files={})
+            manager._bundle_lifecycle.reconcile(known_files={})
         prepare_context.assert_not_called()
         sync.assert_not_called()
 
