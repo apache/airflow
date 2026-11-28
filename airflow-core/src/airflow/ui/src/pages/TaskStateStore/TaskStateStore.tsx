@@ -57,9 +57,12 @@ const getColumns = ({
   taskId,
   translate,
 }: ColumnsProps): Array<ColumnDef<DataTableFeatures, TaskStateStoreResponse>> => [
+  // DataTable only ever sorts on the server, and listTaskStateStore takes no order_by -- it always
+  // returns the entries by key. A sortable header here would move its arrow and nothing else.
   {
     accessorKey: "key",
     cell: ({ row: { original } }) => <Text>{original.key}</Text>,
+    enableSorting: false,
     header: translate("common:key"),
   },
   {
@@ -71,6 +74,7 @@ const getColumns = ({
   {
     accessorKey: "updated_at",
     cell: ({ row: { original } }) => <Time datetime={original.updated_at} />,
+    enableSorting: false,
     header: translate("common:table.updatedAt"),
   },
   {
@@ -83,6 +87,7 @@ const getColumns = ({
           {translate("taskStateStore.expiresAt.never")}
         </Badge>
       ),
+    enableSorting: false,
     header: translate("taskStateStore.expiresAt.column"),
   },
   {

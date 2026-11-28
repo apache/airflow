@@ -99,12 +99,16 @@ export const getColumns = (
     ? [
         {
           accessorKey: "dag_id",
+          enableSorting: false,
           header: translate("dagId"),
         } satisfies MetaColumn<TaskInstanceResponse>,
       ]
     : []),
+  // ActionAccordion holds these rows in memory with no query behind them, so a sort has nothing to
+  // act on. DataTable never sorts client side.
   {
     accessorKey: "task_id",
+    enableSorting: false,
     header: translate("taskId"),
   },
   {
@@ -118,10 +122,12 @@ export const getColumns = (
         {state ? translate(`common:states.${state}`) : translate("common:states.no_status")}
       </StateBadge>
     ),
+    enableSorting: false,
     header: translate("state"),
   },
   {
     accessorKey: "map_index",
+    enableSorting: false,
     header: translate("mapIndex"),
   },
   ...(hasLoopIteration
@@ -137,6 +143,7 @@ export const getColumns = (
     : []),
   {
     accessorKey: "dag_run_id",
+    enableSorting: false,
     header: translate("runId"),
   },
 ];
