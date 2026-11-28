@@ -158,6 +158,16 @@ downstream tasks should load the published Hub repository. Passing
 substitute: that operator writes a durable artifact and its writer accepts
 ``Dataset`` and ``DatasetDict``, not ``IterableDataset``.
 
+For a Hub source the operator passes ``embed_external_files=False`` to
+``push_to_hub``, so rows are published as they are stored: media bytes held in
+a row of an ``Image``, ``Audio``, or similar column are copied, and a row that
+references a file by path is published with that path, not the file's bytes.
+Readers of the published repository then need access to the referenced file.
+Datasets 5.2.0 streams a Hub image folder as bytes, so it is copied whole;
+5.0 and 5.1 stream it as file references. Set
+``push_kwargs={"embed_external_files": True}`` to use the Datasets default for
+this option. Local sources are not affected.
+
 
 PushToHubOperator
 -----------------
@@ -180,7 +190,10 @@ state or Hub-marker reuse. It returns ``repository_id``, the Hub commit identifi
 ``commit_sha``, the commit URL as ``commit_url``, the artifact fingerprint,
 and source provenance. Both live ``CommitInfo`` and recovered
 ``GitCommitInfo`` records are supported. Hub exceptions propagate without
-wrapping.
+wrapping. Like ``StreamDatasetOperator``, it passes
+``embed_external_files=False`` to ``push_to_hub`` unless ``push_kwargs`` sets
+it; artifacts written by this provider hold no media columns, so this changes
+nothing for them.
 
 The commit message includes an artifact fingerprint and target marker. The
 marker distinguishes repository configuration, revision, pull request target,
