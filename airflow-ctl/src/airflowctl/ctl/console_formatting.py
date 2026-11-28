@@ -73,12 +73,13 @@ class AirflowConsole(Console):
             self.print("No data found")
             return
 
+        columns = list(dict.fromkeys(key for row in data for key in row))
         table = SimpleTable(show_header=self.show_header)
-        for col in data[0]:
+        for col in columns:
             table.add_column(escape(str(col)))
 
         for row in data:
-            table.add_row(*(escape(str(d)) for d in row.values()))
+            table.add_row(*(escape(str(row.get(col, ""))) for col in columns))
         self.print(table)
 
     def print_as_plain_table(self, data: list[dict]):
@@ -86,8 +87,9 @@ class AirflowConsole(Console):
         if not data:
             self.print("No data found")
             return
-        rows = [d.values() for d in data]
-        output = tabulate(rows, tablefmt="plain", headers=list(data[0]))
+        columns = list(dict.fromkeys(key for row in data for key in row))
+        rows = [[row.get(col, "") for col in columns] for row in data]
+        output = tabulate(rows, tablefmt="plain", headers=columns)
         self.print(output, markup=False)
 
     def _normalize_data(self, value: Any, output: str) -> list | str | dict | None:

@@ -191,3 +191,41 @@ def test_print_as_keeps_square_brackets_in_headers(output, text):
     console.print_as([{text: "value"}], output=output)
 
     assert text in console.export_text()
+
+
+@pytest.mark.parametrize("output", ["table", "plain"])
+def test_print_as_aligns_table_values_by_column_name(output):
+    console = console_formatting.AirflowConsole(record=True)
+    console.print_as(
+        [
+            {"name": "alpha", "state": "running"},
+            {"state": "failed", "name": "beta", "owner": "team"},
+        ],
+        output=output,
+    )
+
+    lines = console.export_text().splitlines()
+    header = next(line for line in lines if "name" in line)
+    assert header.index("name") < header.index("state") < header.index("owner")
+    beta_row = next(line for line in lines if "beta" in line)
+    assert beta_row.index("beta") < beta_row.index("failed") < beta_row.index("team")
+
+
+@pytest.mark.parametrize("output", ["table", "plain"])
+def test_print_as_keeps_missing_middle_column_blank(output):
+    console = console_formatting.AirflowConsole(record=True)
+    console.print_as(
+        [
+            {"name": "alpha", "state": "running", "owner": "platform"},
+            {"name": "beta", "owner": "analytics"},
+        ],
+        output=output,
+    )
+
+    lines = console.export_text().splitlines()
+    header = next(line for line in lines if "name" in line)
+    beta_row = next(line for line in lines if "beta" in line)
+    state_start = header.index("state")
+    owner_start = header.index("owner")
+    assert beta_row.index("analytics") == owner_start
+    assert not beta_row[state_start:owner_start].replace("|", "").strip()
