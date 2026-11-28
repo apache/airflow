@@ -332,6 +332,30 @@ class ExternalTaskSensor(BaseSensorOperator):
     def _serialize_dttm_filter(dttm_filter: Sequence[datetime.datetime]) -> str:
         return ",".join(dt.isoformat() for dt in dttm_filter)
 
+    @classmethod
+    def _format_dttm_filter_for_log(cls, dttm_filter: Sequence[datetime.datetime]) -> str:
+        """
+        Render the date filter for the poke log, adding each date in ``[core] default_timezone``.
+
+        This only formats a log line, so any failure (e.g. an invalid timezone name, which core
+        itself tolerates by falling back to UTC) returns the plain serialized value instead of
+        failing the poke.
+        """
+        try:
+            tz_name = conf.get("core", "default_timezone", fallback="utc")
+            default_tz = pendulum.local_timezone() if tz_name == "system" else pendulum.timezone(tz_name)
+            formatted_dates = []
+            for dt in dttm_filter:
+                serialized_dt = dt.isoformat()
+                default_tz_dt = pendulum.instance(dt).in_timezone(default_tz).isoformat()
+                if default_tz_dt == serialized_dt:
+                    formatted_dates.append(serialized_dt)
+                else:
+                    formatted_dates.append(f"{serialized_dt} (default timezone: {default_tz_dt})")
+            return ",".join(formatted_dates)
+        except Exception:
+            return cls._serialize_dttm_filter(dttm_filter)
+
     def poke(self, context: Context) -> bool:
         # delay check to poke rather than __init__ in case it was supplied as XComArgs
         if self.external_task_ids and len(self.external_task_ids) > len(set(self.external_task_ids)):
@@ -341,13 +365,14 @@ class ExternalTaskSensor(BaseSensorOperator):
         serialized_dttm_filter = self._serialize_dttm_filter(dttm_filter)
         # Save as attribute - to be used by listeners
         self.external_dates_filter = serialized_dttm_filter
+        log_dttm_filter = self._format_dttm_filter_for_log(dttm_filter)
 
         if self.external_task_ids:
             self.log.info(
                 "Poking for tasks %s in dag %s on %s ... ",
                 self.external_task_ids,
                 self.external_dag_id,
-                serialized_dttm_filter,
+                log_dttm_filter,
             )
 
         if self.external_task_group_id:
@@ -355,14 +380,14 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "Poking for task_group '%s' in dag '%s' on %s ... ",
                 self.external_task_group_id,
                 self.external_dag_id,
-                serialized_dttm_filter,
+                log_dttm_filter,
             )
 
         if self.external_dag_id and not self.external_task_group_id and not self.external_task_ids:
             self.log.info(
                 "Poking for DAG '%s' on %s ... ",
                 self.external_dag_id,
-                serialized_dttm_filter,
+                log_dttm_filter,
             )
 
         if AIRFLOW_V_3_0_PLUS:
