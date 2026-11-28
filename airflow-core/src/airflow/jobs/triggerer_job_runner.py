@@ -34,7 +34,7 @@ from collections.abc import Callable, Generator, Hashable, Iterable, Iterator
 from contextlib import contextmanager, suppress
 from datetime import datetime
 from pathlib import Path
-from socket import socket
+from socket import SHUT_RD, socket
 from traceback import format_exception
 from typing import TYPE_CHECKING, Annotated, Any, BinaryIO, ClassVar, Literal, NamedTuple, TextIO, TypedDict
 from uuid import uuid4
@@ -332,8 +332,10 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # to force-kill here. trigger_runner may be None if start() raised.
             if self.trigger_runner is not None:
                 self.trigger_runner.kill(escalation_delay=10, force=True)
-                # Lines still in the runner's sockets are not read into the files, as draining them hangs
-                # while a trigger's child process keeps writing.
+                # kill() can return with log lines still unread, e.g. the "trigger completed" lines the
+                # runner writes as it cancels its triggers, so drain the sockets before uploading.
+                self.trigger_runner.stop_taking_output()
+                self.trigger_runner.cleanup_sockets_after_kill()
                 self.trigger_runner.close_trigger_log_files()
             self.log.info("Exited trigger loop")
             if _prev_ctx is None:
@@ -941,13 +943,26 @@ class TriggerRunnerSupervisor(WatchedSubprocess):
                 error=str(error),
             )
 
+    def stop_taking_output(self) -> None:
+        """
+        Shut the runner's sockets for reading, so a drain stops at what is already queued.
+
+        A trigger's child process can inherit the runner's stdout and outlive it. If it keeps writing, the
+        socket never runs empty and ``cleanup_sockets_after_kill()`` would never return.
+        """
+        for sock in list(self._open_sockets):
+            with suppress(OSError):
+                sock.shutdown(SHUT_RD)
+
     def close_trigger_log_files(self) -> None:
-        """Upload and close every watcher log file still open; call only once the runner has exited."""
-        factories = [
-            (trigger_id, self.logger_cache.pop(trigger_id))
-            for trigger_id, factory in list(self.logger_cache.items())
-            if isinstance(factory, WatcherLoggingFactory)
-        ]
+        """
+        Upload and close every trigger log file still open; call only once the runner has exited.
+
+        A trigger's log is otherwise only uploaded when the runner reports it finished, so the logs of
+        triggers still running when the triggerer stops would be lost with the local disk.
+        """
+        factories = list(self.logger_cache.items())
+        self.logger_cache.clear()
         self.watcher_logs.upload_and_close_all(factories)
 
     def run(self) -> None:

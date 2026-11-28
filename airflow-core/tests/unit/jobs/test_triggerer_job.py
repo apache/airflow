@@ -30,13 +30,15 @@ import os
 import random
 import selectors
 import shutil
+import subprocess
+import sys
 import threading
 import time
 import typing
 import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
-from socket import socket, socketpair
+from socket import MSG_PEEK, socket, socketpair
 from typing import Any, ClassVar
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
@@ -63,6 +65,7 @@ from structlog.typing import FilteringBoundLogger
 from airflow import settings
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.execution_api.in_process import TRIGGER_TI_ID_HEADER
+from airflow.configuration import conf
 from airflow.executors import workloads
 from airflow.executors.workloads.task import TaskInstanceDTO
 from airflow.executors.workloads.trigger import RunTrigger
@@ -1576,6 +1579,105 @@ def test_trigger_logger_fd_closed_when_upload_to_remote_raises(jobless_superviso
     assert 42 not in jobless_supervisor.running_triggers
 
 
+@pytest.mark.skipif(sys.platform == "darwin", reason="shutdown(SHUT_RD) discards queued data on macOS")
+def test_trigger_log_uploaded_when_triggerer_stops_before_trigger_finishes(session):
+    """The log a still-running trigger wrote before shutdown reaches remote storage."""
+    trigger = TimeDeltaTrigger(datetime.timedelta(hours=1))
+    _, _, trigger_orm, _ = create_trigger_in_db(session, trigger)
+
+    base_log_folder = Path(conf.get("logging", "base_log_folder"))
+    uploaded: dict[str, bytes] = {}
+
+    def fake_upload(path, ti):
+        uploaded[str(path)] = (base_log_folder / path).read_bytes()
+
+    remote_handler = MagicMock(processors=())
+    remote_handler.upload.side_effect = fake_upload
+    with patch("airflow.sdk.log.load_remote_log_handler", return_value=remote_handler):
+        trigger_runner_supervisor = TriggerRunnerSupervisor.start(job=Job(id=123456), capacity=10)
+        try:
+            trigger_runner_supervisor.load_triggers()
+            # Wait until the runner has started the trigger and its first log line has been written.
+            for _ in range(300):
+                trigger_runner_supervisor._service_subprocess(0.1)
+                factory = trigger_runner_supervisor.logger_cache.get(trigger_orm.id)
+                if factory is not None and hasattr(factory, "bound_logger"):
+                    break
+        finally:
+            trigger_runner_supervisor.kill(force=False)
+        trigger_runner_supervisor.stop_taking_output()
+        trigger_runner_supervisor.cleanup_sockets_after_kill()
+        trigger_runner_supervisor.close_trigger_log_files()
+
+    assert len(uploaded) == 1
+    (path, content) = next(iter(uploaded.items()))
+    assert path.endswith(".trigger.123456.log")
+    assert b"starting" in content
+    # Written by the runner as it stops, after kill() was called, so the upload includes the shutdown.
+    assert b"trigger completed" in content
+    assert trigger_runner_supervisor.logger_cache == {}
+
+
+def test_drain_after_kill_ends_while_a_trigger_child_keeps_writing(jobless_supervisor):
+    """A process that inherited the runner's stdout and keeps writing must not keep the drain going."""
+    read_sock, write_sock = socketpair()
+    selector = selectors.DefaultSelector()
+    jobless_supervisor.selector = selector
+    first_lines: list[bytes] = []
+
+    def collect():
+        while True:
+            line = yield
+            if not first_lines:
+                first_lines.append(bytes(line))
+
+    def on_close(sock):
+        selector.unregister(sock)
+        jobless_supervisor._open_sockets.pop(sock, None)
+
+    read, on_close = supervisor.make_buffered_socket_reader(collect(), on_close=on_close)
+
+    def slow_read(sock):
+        # Handling a chunk takes longer than writing one, so the writer refills the socket before it empties.
+        time.sleep(0.001)
+        return read(sock)
+
+    jobless_supervisor._open_sockets[read_sock] = "stdout"
+    selector.register(read_sock, selectors.EVENT_READ, (slow_read, on_close))
+    write_sock.sendall(b"written before the kill\n")
+    writer = subprocess.Popen(
+        [sys.executable, "-c", "import os\nwhile True:\n    os.write(1, b'still writing\\n' * 4096)"],
+        stdout=write_sock.fileno(),
+        stderr=subprocess.DEVNULL,
+    )
+    write_sock.close()
+
+    def drain():
+        jobless_supervisor.stop_taking_output()
+        jobless_supervisor.cleanup_sockets_after_kill()
+
+    drainer = threading.Thread(target=drain, daemon=True)
+    try:
+        # Start only once the writer is running, or the drain finds the socket empty and stops.
+        deadline = time.monotonic() + 10
+        while b"still writing" not in read_sock.recv(4096, MSG_PEEK):
+            assert time.monotonic() < deadline, "the writer never started"
+            time.sleep(0.01)
+
+        drainer.start()
+        drainer.join(timeout=5)
+
+        assert not drainer.is_alive(), "the drain is still reading from a socket that never runs empty"
+        assert not jobless_supervisor._open_sockets
+        if sys.platform != "darwin":  # macOS discards what is queued on shutdown(SHUT_RD)
+            assert first_lines == [b"written before the kill\n"]
+    finally:
+        writer.kill()
+        writer.wait()
+        drainer.join(timeout=10)
+        selector.close()
+
+
 class TestWatcherLogFile(WatcherLogFileHelpers):
     @staticmethod
     def _watcher_trigger(mocker, trigger_id):
@@ -1715,16 +1817,20 @@ class TestWatcherLogFile(WatcherLogFileHelpers):
         factory.close.assert_called()
         assert 42 not in jobless_supervisor.logger_cache
 
-    def test_close_trigger_log_files_uploads_only_watcher_logs(self, jobless_supervisor, mocker):
+    def test_close_trigger_log_files_uploads_every_trigger_log(self, jobless_supervisor, mocker):
+        # The task log of a trigger still running at shutdown is never uploaded by a "finished" message.
         own_file = mocker.MagicMock(spec=WatcherLoggingFactory)
         task_log = mocker.MagicMock(spec=TriggerLoggingFactory)
-        jobless_supervisor.logger_cache.update({2: own_file, 3: task_log})
+        failing = mocker.MagicMock(spec=TriggerLoggingFactory)
+        failing.upload_to_remote.side_effect = RuntimeError("simulated remote-logging failure")
+        jobless_supervisor.logger_cache.update({2: own_file, 3: failing, 4: task_log})
 
         jobless_supervisor.close_trigger_log_files()
 
-        own_file.upload_to_remote.assert_called_once()
-        task_log.upload_to_remote.assert_not_called()
-        assert jobless_supervisor.logger_cache == {3: task_log}
+        for factory in (own_file, failing, task_log):
+            factory.upload_to_remote.assert_called_once()
+            factory.close.assert_called()
+        assert jobless_supervisor.logger_cache == {}
 
     def test_with_remote_logging_every_rotated_file_is_uploaded(self, jobless_supervisor, mocker, tmp_path):
         # A watcher stays on one triggerer for days: a rotated file replaced before it is uploaded is lost.
@@ -2202,8 +2308,11 @@ class TestWatcherLogFile(WatcherLogFileHelpers):
 
         job_runner._execute()
 
-        assert [c[0] for c in supervisor.method_calls if c[0] in ("kill", "close_trigger_log_files")] == [
+        # Uploading before kill() and the socket drain would miss the lines the runner writes while it stops.
+        assert [c[0] for c in supervisor.method_calls if c[0] != "run"] == [
             "kill",
+            "stop_taking_output",
+            "cleanup_sockets_after_kill",
             "close_trigger_log_files",
         ]
 
