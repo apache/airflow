@@ -140,6 +140,40 @@ def test_clean_unused_callback_lookup_uses_callback_trigger_index(session):
     assert any("callback" in row and "idx_callback_trigger_id" in row for row in plan), plan
 
 
+@pytest.mark.backend("sqlite")
+def test_delete_unused_batch_reads_only_task_instances_holding_a_trigger(session):
+    with capture_orm_selects("trigger") as statements:
+        Trigger._delete_unused_batch(500, session=session)
+    plan = [
+        row[-1]
+        for statement in statements
+        for row in session.execute(text(f"EXPLAIN QUERY PLAN {statement.removesuffix(' FOR UPDATE')}")).all()
+    ]
+
+    assert statements
+    assert "SEARCH task_instance USING COVERING INDEX ti_trigger_id (trigger_id>?)" in plan, plan
+    assert not any(" asset " in f" {row} " for row in plan), plan
+
+
+def test_delete_unused_batch_keeps_trigger_held_by_archived_attempt(session, create_task_instance):
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger)
+    session.flush()
+    trigger_id = trigger.id
+    ti_table = TaskInstance.__table__
+    ti_id = create_task_instance(session=session, logical_date=timezone.utcnow(), state=State.FAILED).id
+    session.execute(
+        update(ti_table).where(ti_table.c.id == ti_id).values(working_set=None, trigger_id=trigger_id)
+    )
+    session.commit()
+
+    Trigger._delete_unused_batch(500, session=session)
+    session.commit()
+
+    assert session.scalar(select(func.count()).select_from(Trigger).where(Trigger.id == trigger_id)) == 1
+    assert session.scalar(select(func.count()).select_from(ti_table).where(ti_table.c.id == ti_id)) == 1
+
+
 def test_fetch_assignments_maps_surviving_rows_to_their_triggerer(session):
     owned = Trigger(classpath="airflow.triggers.testing.SuccessTrigger1", kwargs={})
     owned.triggerer_id = 42
