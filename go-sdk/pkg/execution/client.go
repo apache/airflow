@@ -543,8 +543,9 @@ func encodeJSONValue(value any) (encoded msgpack.RawMessage, isNull bool, err er
 	}
 	var buf bytes.Buffer
 	enc := newFrameEncoder(&buf)
-	// The task state store keeps the value as text, so an unsorted Go map would
-	// store the same value with its keys in a different order on each write.
+	// Go iterates a map in random order. Sorting makes the same value encode
+	// to the same bytes, so a store that keeps the value as text stores it the
+	// same way on each write.
 	enc.SetSortMapKeys(true)
 	if err := enc.Encode(decoded); err != nil {
 		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)

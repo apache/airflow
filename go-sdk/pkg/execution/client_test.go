@@ -501,9 +501,6 @@ type roundTripMarshaler struct {
 	Status roundTripStatus `json:"status"`
 }
 
-// A value a task returns must decode into the same Go type in a downstream
-// task. Argument binding decodes with encoding/json, so the pushed value has to
-// follow encoding/json's rules, not only its field names.
 func TestCoordinatorClientPushXComRoundTripsThroughBinding(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -545,8 +542,6 @@ func TestCoordinatorClientPushXComRoundTripsThroughBinding(t *testing.T) {
 	}
 }
 
-// JSON text does not say whether a number was a float, so a float64 with no
-// fractional part is read back as an integer.
 func TestEncodeJSONValueStoresWholeFloatAsInteger(t *testing.T) {
 	encoded, isNull, err := encodeJSONValue(5.0)
 	require.NoError(t, err)

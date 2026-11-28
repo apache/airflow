@@ -76,8 +76,7 @@ func encodeRequest(id int64, body any) ([]byte, error) {
 }
 
 // newFrameEncoder builds the encoder every outbound frame is written with.
-// A field without a msgpack tag takes its name from its json tag. XCom
-// and task state values do not reach it as structs: see encodeJSONValue.
+// A field without a msgpack tag takes its name from its json tag.
 func newFrameEncoder(w io.Writer) *msgpack.Encoder {
 	enc := msgpack.NewEncoder(w)
 	enc.UseCompactInts(true)
