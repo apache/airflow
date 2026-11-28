@@ -57,12 +57,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
-from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
+from airflow.providers.common.ai.tools._from_toolset import bound_detail, close_stream, tool_call_scope
 from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterable, AsyncIterator, Awaitable, Callable, Iterator, MutableMapping
+    from collections.abc import AsyncIterator, Awaitable, Callable, Iterator, MutableMapping
 
     from mcp.server.context import ServerRequestContext
     from openai_codex import AsyncTurnHandle
@@ -77,7 +77,6 @@ __all__ = ["AirflowTools"]
 _MCP_HINT = "Add the server to Codex's mcp_servers config instead."
 
 
-_MAX_ERROR_DETAIL_CHARS = 500
 # Every constant below was observed with openai-codex 0.163.0, not a documented guarantee.
 #
 # The ceiling on a tool result this adapter lets through. It is our own choice: unlike the Claude
@@ -123,11 +122,6 @@ def _truncate_result_text(text: str) -> str:
         "the LIMIT, to get a smaller result.]"
     )
     return text[: _MAX_INLINE_RESULT_CHARS - len(notice)] + notice
-
-
-def _bound_detail(text: str) -> str:
-    omitted = len(text) - _MAX_ERROR_DETAIL_CHARS
-    return text if omitted <= 0 else f"{text[:_MAX_ERROR_DETAIL_CHARS]}...(+{omitted} chars)"
 
 
 def _to_toml_string(value: str) -> str:
@@ -206,13 +200,6 @@ def _find_final_response(items: list[ThreadItem]) -> str | None:
         if message.phase is None and last_unphased is None:
             last_unphased = message.text
     return last_unphased
-
-
-async def _close_stream(events: AsyncIterable[Any]) -> None:
-    # ``AsyncIterable`` does not guarantee ``aclose``; the stream ``AsyncTurnHandle.stream()`` returns does.
-    aclose = getattr(events, "aclose", None)
-    if aclose is not None:
-        await aclose()
 
 
 class _Run:
@@ -522,7 +509,7 @@ class AirflowTools:
                 raise RuntimeError("The Codex turn stream ended without a turn/completed notification.")
             finished = completed.turn
             if finished.status != TurnStatus.completed:
-                detail = f": {_bound_detail(finished.error.message)}" if finished.error else ""
+                detail = f": {bound_detail(finished.error.message)}" if finished.error else ""
                 raise RuntimeError(f"The Codex turn ended with status {finished.status.value}{detail}")
             raised = False
             return TurnResult(
@@ -546,7 +533,7 @@ class AirflowTools:
             raise
         finally:
             try:
-                await _close_stream(events)
+                await close_stream(events)
             except Exception as e:
                 if not raised:
                     raise
