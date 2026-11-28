@@ -370,8 +370,25 @@ class Trigger(Base):
 
     @classmethod
     def _delete_unused_batch(cls, batch_size: int, *, session: Session) -> None:
-        unreferenced = (~cls.assets.any(), ~cls.callback.has(), ~cls.task_instance.has())
-        ids = select(cls.id).where(*unreferenced).order_by(cls.id).limit(batch_size)
+        from airflow.models.callback import Callback  # to avoid circular import: Callback -> Trigger
+
+        # Uncorrelated NOT IN over only the non-NULL trigger_ids: MySQL materializes the correlated NOT EXISTS
+        # from ``.has()`` by scanning every row of ti_trigger_id, NULLs included, on each cleanup. The
+        # IS NOT NULL filters are also required for correctness: a single NULL makes NOT IN match nothing.
+        # Archived attempts still count as references (the FK would cascade-delete them with the trigger), so
+        # both statements opt out of the session's ``working_set`` filter, as ``.has()`` was never subject to it.
+        unreferenced = (
+            cls.id.not_in(select(AssetWatcherModel.trigger_id)),
+            cls.id.not_in(select(Callback.trigger_id).where(Callback.trigger_id.is_not(None))),
+            cls.id.not_in(select(TaskInstance.trigger_id).where(TaskInstance.trigger_id.is_not(None))),
+        )
+        ids = (
+            select(cls.id)
+            .where(*unreferenced)
+            .order_by(cls.id)
+            .limit(batch_size)
+            .execution_options(include_all_attempts=True)
+        )
         ids = with_row_locks(ids, session, of=cls, skip_locked=True, key_share=False)
         ids_list = list(session.scalars(ids))
         if not ids_list:
@@ -380,7 +397,7 @@ class Trigger(Base):
         session.execute(
             delete(cls)
             .where(cls.id.in_(ids_list), *unreferenced)
-            .execution_options(synchronize_session=False)
+            .execution_options(synchronize_session=False, include_all_attempts=True)
         )
 
     @classmethod
