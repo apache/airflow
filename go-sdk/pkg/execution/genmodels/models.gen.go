@@ -1162,6 +1162,42 @@ type GetXCom struct {
 	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
 	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
 
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
+	// RunID corresponds to the JSON schema field "run_id".
+	RunID string `msgpack:"run_id"`
+
+	// TaskID corresponds to the JSON schema field "task_id".
+	TaskID string `msgpack:"task_id"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `msgpack:"type,omitempty"`
+}
+
+// Fetch multiple XCom values by key list in a single round-trip.
+type GetXComByKeys struct {
+	// DagID corresponds to the JSON schema field "dag_id".
+	DagID string `msgpack:"dag_id"`
+
+	// Keys corresponds to the JSON schema field "keys".
+	Keys []string `msgpack:"keys"`
+
+	// MapIndex corresponds to the JSON schema field "map_index".
+	MapIndex *int `msgpack:"map_index,omitempty"`
+
+	// PreviousIteration corresponds to the JSON schema field "previous_iteration".
+	PreviousIteration bool `msgpack:"previous_iteration,omitempty"`
+
+	// RegionID corresponds to the JSON schema field "region_id".
+	RegionID interface{} `msgpack:"region_id,omitempty"`
+
+	// RegionIndex corresponds to the JSON schema field "region_index".
+	RegionIndex interface{} `msgpack:"region_index,omitempty"`
+
 	// RunID corresponds to the JSON schema field "run_id".
 	RunID string `msgpack:"run_id"`
 
@@ -1892,23 +1928,13 @@ type VersionData map[string]interface{}
 
 type TaskInstanceState string
 
-const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
-const TaskInstanceStateDeferred TaskInstanceState = "deferred"
-const TaskInstanceStateSkipped TaskInstanceState = "skipped"
-const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
-const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
-const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
-
-const TaskInstanceStateFailed TaskInstanceState = "failed"
-const TaskInstanceStateRestarting TaskInstanceState = "restarting"
-const TaskInstanceStateSuccess TaskInstanceState = "success"
-const TaskInstanceStateRunning TaskInstanceState = "running"
-
-type TaskOutlets []AssetProfile
-
-const TaskInstanceStateQueued TaskInstanceState = "queued"
-const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
 const TaskInstanceStateRemoved TaskInstanceState = "removed"
+const TaskInstanceStateScheduled TaskInstanceState = "scheduled"
+const TaskInstanceStateQueued TaskInstanceState = "queued"
+const TaskInstanceStateRunning TaskInstanceState = "running"
+const TaskInstanceStateSuccess TaskInstanceState = "success"
+
+const TaskInstanceStateRestarting TaskInstanceState = "restarting"
 
 // Variable schema for responses with fields that are needed for Runtime.
 type VariableResponse struct {
@@ -1918,6 +1944,18 @@ type VariableResponse struct {
 	// Value corresponds to the JSON schema field "value".
 	Value string `msgpack:"value"`
 }
+
+const TaskInstanceStateFailed TaskInstanceState = "failed"
+const TaskInstanceStateUpForRetry TaskInstanceState = "up_for_retry"
+
+type TaskOutlets []AssetProfile
+
+const TaskInstanceStateUpForReschedule TaskInstanceState = "up_for_reschedule"
+const TaskInstanceStateUpstreamFailed TaskInstanceState = "upstream_failed"
+const TaskInstanceStateSkipped TaskInstanceState = "skipped"
+const TaskInstanceStateDeferred TaskInstanceState = "deferred"
+
+const TaskInstanceStateAwaitingInput TaskInstanceState = "awaiting_input"
 
 // Response containing the first reschedule date for a task instance.
 type TaskRescheduleStartDate struct {

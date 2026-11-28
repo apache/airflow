@@ -42,8 +42,10 @@ def get_bundle() -> VersionBundle:
         AddDagDefinitionsToDagFileParsingResult,
         AddExpandedTICountToSupervisorTIRunContext,
         AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
+        AddGetXComByKeys,
         AddLoopRuntime,
         AddRegionCoordinatesToSupervisorTaskInstance,
+        AddRegionToGetXCom,
         AddRetryReasonToTaskState,
     )
     from airflow.sdk.execution_time.schema.versions.v2026_12_01 import RemoveStringTriggerKwargsFromDeferTask
@@ -72,7 +74,9 @@ def get_bundle() -> VersionBundle:
             AddDagDefinitionsToDagFileParsingResult,
             AddRegionCoordinatesToSupervisorTaskInstance,
             AddFirstTaskRescheduleStartDateToSupervisorTIRunContext,
+            AddRegionToGetXCom,
             AddExpandedTICountToSupervisorTIRunContext,
+            AddGetXComByKeys,
         ),
         Version("2026-06-16"),
     )

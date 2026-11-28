@@ -50,3 +50,29 @@ class TestOmittedMapIndexVersioning:
 
         assert response.status_code == 307
         assert response.headers["location"] == f"{XCOM_RETURN_KEY}/slice"
+
+
+class TestXComKeysEndpointVersioning:
+    """The POST xcoms/{dag_id}/{run_id}/{task_id} endpoint didn't exist before the 2027-02-28 API version."""
+
+    def test_old_version_does_not_route_to_endpoint(self, client, create_task_instance):
+        ti = create_task_instance()
+        client.headers["Airflow-API-Version"] = "2026-10-30"
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}", json={"keys": ["return_value"]}
+        )
+
+        # Without the endpoint the path falls to ``set_xcom``, which rejects the empty key.
+        assert response.status_code == 422
+        assert response.json()["detail"][0]["loc"] == ["path", "key"]
+
+    def test_head_version_routes_to_endpoint(self, client, create_task_instance):
+        ti = create_task_instance()
+
+        response = client.post(
+            f"/execution/xcoms/{ti.dag_id}/{ti.run_id}/{ti.task_id}", json={"keys": ["return_value"]}
+        )
+
+        assert response.status_code == 200
+        assert response.json() == [None]

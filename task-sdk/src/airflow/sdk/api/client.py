@@ -675,6 +675,8 @@ class XComOperations:
         include_prior_dates: bool = False,
         *,
         previous_iteration: bool = False,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
     ) -> XComResponse | XComSequenceSliceResponse:
         """
         Get a XCom value from the API server.
@@ -687,6 +689,11 @@ class XComOperations:
         params: dict[str, str | int] = {}
         if previous_iteration:
             params["previous_iteration"] = True
+        # Sent only when set, so a read without them works with servers older than the parameters.
+        if region_id is not None:
+            params["region_id"] = str(region_id)
+        if region_index is not None:
+            params["region_index"] = region_index
         if map_index is not None:
             params["map_index"] = map_index
         if include_prior_dates:
@@ -696,18 +703,20 @@ class XComOperations:
         except ServerResponseError as e:
             if e.response.status_code != HTTPStatus.NOT_FOUND:
                 raise
-            mapped = self._get_mapped_slice_or_none(
-                dag_id,
-                run_id,
-                task_id,
-                key,
-                map_index,
-                include_prior_dates=include_prior_dates,
-                previous_iteration=previous_iteration,
-                server_version=e.response.headers.get("Airflow-API-Version", API_VERSION),
-            )
-            if mapped is not None:
-                return mapped
+            # The slice endpoint takes no region, so inside a loop region it would mix iterations.
+            if region_id is None and region_index is None:
+                mapped = self._get_mapped_slice_or_none(
+                    dag_id,
+                    run_id,
+                    task_id,
+                    key,
+                    map_index,
+                    include_prior_dates=include_prior_dates,
+                    previous_iteration=previous_iteration,
+                    server_version=e.response.headers.get("Airflow-API-Version", API_VERSION),
+                )
+                if mapped is not None:
+                    return mapped
             log.debug(
                 "XCom not found",
                 dag_id=dag_id,
@@ -880,6 +889,31 @@ class XComOperations:
             _build_xcom_slice_path(_path("xcoms", dag_id, run_id, task_id, tail=key)),
             params=params,
         )
+        return XComSequenceSliceResponse.model_validate_json(resp.read())
+
+    def get_by_keys(
+        self,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        keys: list[str],
+        map_index: int = -1,
+        *,
+        previous_iteration: bool = False,
+        region_id: uuid.UUID | None = None,
+        region_index: int | None = None,
+    ) -> XComSequenceSliceResponse:
+        """Fetch multiple XCom values by key list in a single round-trip."""
+        # Sent as given, -1 included, as XComOperations.get does.
+        params: dict[str, str | int | bool] = {"map_index": map_index}
+        if previous_iteration:
+            params["previous_iteration"] = True
+        # Sent only when set, as for a single read.
+        if region_id is not None:
+            params["region_id"] = str(region_id)
+        if region_index is not None:
+            params["region_index"] = region_index
+        resp = self.client.post(f"xcoms/{dag_id}/{run_id}/{task_id}", params=params, json={"keys": keys})
         return XComSequenceSliceResponse.model_validate_json(resp.read())
 
 
