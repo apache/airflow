@@ -21,7 +21,8 @@ FTP Filesystem
 Use ``ObjectStoragePath`` with FTP servers through the FTP implementation that ships with
 `fsspec <https://filesystem-spec.readthedocs.io/>`__. No extra package is needed.
 
-URL format: ``ftp://connection_id@hostname/path/to/file``.
+URL format: ``ftp://connection_id@/path/to/file``. The host and port come from the connection, and
+a host in the URL is not used.
 
 Configuration
 -------------
@@ -32,7 +33,8 @@ extras are supported:
 * ``passive`` - set to ``false`` to use active mode. Passive mode is on by default.
 * ``encoding`` - encoding of the file names on the server, for example ``cp1251``.
 
-FTPS is not supported.
+FTPS is not supported. A copy between two paths of the same connection is not supported either,
+since FTP has no server-side copy. A move within the connection works, as it is a rename.
 
 See :doc:`/connections/ftp` for details.
 
@@ -43,7 +45,7 @@ Example
 
     from airflow.sdk import ObjectStoragePath
 
-    path = ObjectStoragePath("ftp://my_conn@myserver/data/file.csv")
+    path = ObjectStoragePath("ftp://my_conn@/data/file.csv")
 
     # read
     with path.open() as f:

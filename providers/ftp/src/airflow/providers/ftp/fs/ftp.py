@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import ftplib
 from typing import TYPE_CHECKING, Any
 
 from fsspec.implementations.ftp import FTPFileSystem
@@ -29,22 +30,42 @@ if TYPE_CHECKING:
 schemes = ["ftp"]
 
 
-class _ActiveModeFTPFileSystem(FTPFileSystem):
+class _AirflowFTPFileSystem(FTPFileSystem):
     """
-    ``FTPFileSystem`` that turns passive mode off on every connection.
+    ``FTPFileSystem`` that honors the ``passive`` extra and survives a closed control connection.
 
-    fsspec has no option for it and keeps the ``ftplib`` default (passive), while ``FTPHook``
-    honors the ``passive`` connection extra. ``_connect`` also runs when a read reconnects.
+    fsspec has no option for passive mode, so it is applied on every ``_connect``. The filesystem
+    is cached for the life of the process, while fsspec reconnects only after a failed read, and
+    ``ls`` on a connection the server has closed returns an empty list instead of failing. So
+    ``ls`` and ``_open`` check the connection first and reconnect when it is gone.
     """
+
+    def __init__(self, *args: Any, passive: bool = True, **kwargs: Any) -> None:
+        self.passive = passive
+        super().__init__(*args, **kwargs)
 
     def _connect(self) -> None:
         super()._connect()
-        self.ftp.set_pasv(False)
+        self.ftp.set_pasv(self.passive)
+
+    def _ensure_connected(self) -> None:
+        try:
+            self.ftp.voidcmd("NOOP")
+        except ftplib.all_errors:
+            self._connect()
+
+    def ls(self, path, detail=True, **kwargs):
+        self._ensure_connected()
+        return super().ls(path, detail=detail, **kwargs)
+
+    def _open(self, path, mode="rb", **kwargs):
+        self._ensure_connected()
+        return super()._open(path, mode=mode, **kwargs)
 
 
 def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -> AbstractFileSystem:
     if conn_id is None:
-        return FTPFileSystem(**(storage_options or {}))
+        return _AirflowFTPFileSystem(**(storage_options or {}))
 
     conn = BaseHook.get_connection(conn_id)
     extras = conn.extra_dejson
@@ -59,6 +80,4 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         options["encoding"] = encoding
 
     options.update(storage_options or {})
-    if _get_passive_mode(extras):
-        return FTPFileSystem(**options)
-    return _ActiveModeFTPFileSystem(**options)
+    return _AirflowFTPFileSystem(passive=_get_passive_mode(extras), **options)
