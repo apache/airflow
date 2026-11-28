@@ -26,7 +26,7 @@ import subprocess
 import sys
 import tempfile
 from copy import deepcopy
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from shutil import copyfile
 from time import time
@@ -103,7 +103,7 @@ Initial version of the provider.
 SHORT_HASH_TO_TYPE_DICT: dict[str, TypeOfChange] = {}
 
 
-class TypeOfChange(Enum):
+class TypeOfChange(StrEnum):
     DOCUMENTATION = "d"
     BUGFIX = "b"
     FEATURE = "f"
@@ -558,12 +558,11 @@ def _ask_the_user_for_the_type_of_changes(non_interactive: bool) -> TypeOfChange
 
     :return: Type of change.
     """
-    # have to do that while waiting for Python 3.11+ StrEnum [*TypeOfChange] :(
-    type_of_changes_array = [t.value for t in TypeOfChange]
+    type_of_changes_array = list(TypeOfChange)
     if non_interactive:
         # Simulate all possible non-terminal answers - this is useful for running on CI where we want to
         # Test all possibilities.
-        return TypeOfChange(random.choice(type_of_changes_array))
+        return random.choice(type_of_changes_array)
     display_answers = "/".join(type_of_changes_array) + "/q"
     while True:
         console_print(

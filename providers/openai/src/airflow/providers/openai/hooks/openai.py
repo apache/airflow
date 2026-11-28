@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import time
-from enum import Enum
+from enum import Enum, StrEnum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal, TypeVar, overload
 
@@ -70,7 +70,7 @@ from airflow.providers.openai.exceptions import (
 _TextFormatT = TypeVar("_TextFormatT", bound="BaseModel")
 
 
-class BatchStatus(str, Enum):
+class BatchStatus(StrEnum):
     """Enum for the status of a batch."""
 
     VALIDATING = "validating"
@@ -81,9 +81,6 @@ class BatchStatus(str, Enum):
     EXPIRED = "expired"
     CANCELLING = "cancelling"
     CANCELLED = "cancelled"
-
-    def __str__(self) -> str:
-        return str(self.value)
 
     @classmethod
     def is_in_progress(cls, status: str) -> bool:
