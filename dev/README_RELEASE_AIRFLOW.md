@@ -379,13 +379,15 @@ and mark those as well. You can accomplish this by running the following command
 ./dev/airflow-github needs-categorization 2.3.2 HEAD
 ```
 
-You are likely want to cherry-pick some of the latest doc changes in order to bring clarification and
-explanations added to the documentation. Usually you can see the list of such changes via:
+To find documentation changes to consider for backporting, run these commands from
+the repository root. Replace `vX-Y-test` in both commands with your target release
+test branch.
 
 ```shell
 git fetch upstream
-git log --oneline upstream/v3-2-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
-git log --oneline --decorate upstream/v2-2-stable..upstream/main -- docs/apache-airflow docs/docker-stack/ | grep -vf /tmp/merged
+git log --oneline upstream/vX-Y-test | sed -n 's/.*\((#[0-9]*)\)$/\1/p' > /tmp/merged
+git log --oneline --decorate upstream/vX-Y-test..upstream/main -- \
+  airflow-core/docs/ docker-stack-docs/ task-sdk/docs/ | grep -vf /tmp/merged
 ```
 
 Those changes that are "doc-only" changes should be marked with `type:doc-only` label so that they
