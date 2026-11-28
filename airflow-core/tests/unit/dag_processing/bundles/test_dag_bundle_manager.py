@@ -2434,6 +2434,26 @@ def test_sync_existing_bundle_skips_construction_and_preserves_template(mock_get
 
 
 @pytest.mark.db_test
+@pytest.mark.parametrize("constructed", [False, True])
+def test_periodic_sync_adds_a_new_bundle_only_once_constructed(clear_db, session, constructed):
+    with conf_vars(
+        {
+            ("core", "load_examples"): "False",
+            ("dag_processor", "dag_bundle_config_list"): json.dumps(BASIC_BUNDLE_CONFIG),
+        }
+    ):
+        manager = DagBundlesManager()
+        instances = {"my-test-bundle": manager.get_bundle("my-test-bundle")} if constructed else {}
+        manager.sync_bundles_to_db(bundle_instances=instances, session=session)
+    session.flush()
+    bundle = session.get(DagBundleModel, "my-test-bundle")
+    if constructed:
+        assert bundle.active is True
+    else:
+        assert bundle is None
+
+
+@pytest.mark.db_test
 @mock.patch.object(DagBundlesManager, "get_bundle", autospec=True, side_effect=RuntimeError("unavailable"))
 def test_sync_load_failure_keeps_existing_bundle_active(mock_get_bundle, clear_db, session):
     existing = DagBundleModel(name="my-test-bundle")

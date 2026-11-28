@@ -754,7 +754,8 @@ class DagBundlesManager(LoggingMixin):
 
             bundle = stored.pop(name, None)
             if bundle is None:
-                if bundle_instances is None and name not in templates:
+                # A bundle that could not be constructed is not parsed, so it must not appear active.
+                if name not in templates and name not in (bundle_instances or {}):
                     continue
                 bundle = DagBundleModel(name=name)
                 session.add(bundle)

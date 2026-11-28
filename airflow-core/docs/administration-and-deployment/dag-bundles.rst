@@ -82,9 +82,10 @@ repeatedly overwrite each other's bundle active state.
 
 Publish complete lists atomically; a valid list that accidentally omits a bundle is treated as
 an intentional removal. Commands must report failures with a nonzero exit status, rather than
-returning ``[]``. Unchanged bundle instances are reused. Failed bundle construction is retried
-without treating that bundle as removed. Database synchronization is retried before applying
-changes to the runtime list.
+returning ``[]``. Unchanged bundle instances are reused. A new bundle whose construction fails is
+retried with the same definition and is not marked active until it is constructed. Correcting its
+definition is a configuration change, so publish the corrected bundle under a new name. Database
+synchronization is retried before applying changes to the runtime list.
 
 Unfiltered Dag processors reconcile bundle active state in the database on every check. Removed
 bundles are marked inactive, and the existing stale-Dag scan marks their Dags stale. For supported
