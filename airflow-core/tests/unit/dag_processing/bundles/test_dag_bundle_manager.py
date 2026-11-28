@@ -2435,7 +2435,7 @@ def test_sync_existing_bundle_skips_construction_and_preserves_template(mock_get
 
 @pytest.mark.db_test
 @pytest.mark.parametrize("constructed", [False, True])
-def test_periodic_sync_adds_a_new_bundle_only_once_constructed(clear_db, session, constructed):
+def test_periodic_sync_stores_a_new_bundle_whether_or_not_constructed(clear_db, session, constructed):
     with conf_vars(
         {
             ("core", "load_examples"): "False",
@@ -2446,11 +2446,7 @@ def test_periodic_sync_adds_a_new_bundle_only_once_constructed(clear_db, session
         instances = {"my-test-bundle": manager.get_bundle("my-test-bundle")} if constructed else {}
         manager.sync_bundles_to_db(bundle_instances=instances, session=session)
     session.flush()
-    bundle = session.get(DagBundleModel, "my-test-bundle")
-    if constructed:
-        assert bundle.active is True
-    else:
-        assert bundle is None
+    assert session.get(DagBundleModel, "my-test-bundle").active is True
 
 
 @pytest.mark.db_test
