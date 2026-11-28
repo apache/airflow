@@ -421,6 +421,11 @@ func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
 			value:   new(big.Int).Lsh(big.NewInt(1), 64),
 			wantErr: "the integer at value is 18446744073709551616, which does not fit in 64 bits",
 		},
+		{
+			name:    "nested deeper than encoding/json decodes",
+			value:   buildNestedValue(10001),
+			wantErr: "[]interface {} is not JSON representable",
+		},
 	}
 
 	for _, tc := range tests {
@@ -438,6 +443,14 @@ func TestCoordinatorClientPushXComRejectsNonJSONValues(t *testing.T) {
 			assert.Zero(t, requestBuf.Len(), "a rejected value must not reach the supervisor")
 		})
 	}
+}
+
+func buildNestedValue(depth int) any {
+	var v any = "x"
+	for range depth {
+		v = []any{v}
+	}
+	return v
 }
 
 // A task that returns a nil slice or a nil any pushes null, so PushXCom must not

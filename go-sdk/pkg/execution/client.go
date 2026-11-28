@@ -536,6 +536,8 @@ func encodeJSONValue(value any) (encoded msgpack.RawMessage, isNull bool, err er
 	dec.UseNumber()
 	var decoded any
 	if err := dec.Decode(&decoded); err != nil {
+		// The v1 encoding/json writes a value of any depth but reads back at most 10000
+		// levels, so a value nested deeper fails here instead of in json.Marshal.
 		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
 	}
 	if decoded, err = jsonvalue.ResolveNumbers(decoded, "value"); err != nil {
@@ -548,7 +550,11 @@ func encodeJSONValue(value any) (encoded msgpack.RawMessage, isNull bool, err er
 	// same way on each write.
 	enc.SetSortMapKeys(true)
 	if err := enc.Encode(decoded); err != nil {
-		return nil, false, fmt.Errorf("%T is not JSON representable: %w", value, err)
+		return nil, false, fmt.Errorf(
+			"internal error: packing the decoded JSON of %T as msgpack: %w",
+			value,
+			err,
+		)
 	}
 	return buf.Bytes(), decoded == nil, nil
 }
