@@ -847,6 +847,25 @@ class TestDataFusionEngine:
         mock_table.schema.assert_called_once()
         assert result == "id: int64, name: string"
 
+    def test_get_schema_columns_success(self):
+        engine = DataFusionEngine()
+        engine.df_ctx = MagicMock(spec=SessionContext)
+        mock_table = MagicMock()
+        field_id = MagicMock()
+        field_id.name = "id"
+        field_id.type = "int64"
+        field_name = MagicMock()
+        field_name.name = "name"
+        field_name.type = "string"
+        mock_table.schema.return_value = [field_id, field_name]
+        engine.df_ctx.table.return_value = mock_table
+
+        result = engine.get_schema_columns("test_table")
+
+        engine.df_ctx.table.assert_called_once_with("test_table")
+        mock_table.schema.assert_called_once()
+        assert result == [{"name": "id", "type": "int64"}, {"name": "name", "type": "string"}]
+
     @patch.object(DataFusionEngine, "_get_connection_config")
     def test_get_schema_with_local_csv(self, mock_get_conn):
         mock_get_conn.return_value = None

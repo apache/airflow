@@ -63,6 +63,9 @@ def _make_mock_engine(
         arrow_fields.append(field)
     for tname in tables:
         mock.session_context.table(tname).schema.return_value = arrow_fields
+    mock.get_schema_columns.side_effect = lambda tname: [
+        {"name": f.name, "type": str(f.type)} for f in mock.session_context.table(tname).schema()
+    ]
 
     mock.session_context.sql.return_value.limit.return_value.to_pydict.return_value = (
         query_result
@@ -317,6 +320,43 @@ class TestDataFusionToolsetGetSchema:
         assert kwargs["max_columns"] == 7
         assert kwargs["max_result_bytes"] == 123
         assert kwargs["name_contains"] == "id"
+
+    def test_get_schema_uses_engine_get_schema_columns(self):
+        """Uses engine.get_schema_columns when available on DataFusionEngine."""
+        ts = DataFusionToolset([_make_mock_datasource_config()])
+        engine = _make_mock_engine(schema_fields=[("id", "Int64"), ("name", "Utf8")])
+        ts._engine = engine
+
+        result = asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "sales_data"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+        engine.get_schema_columns.assert_called_once_with("sales_data")
+        assert json.loads(result)["columns"] == [
+            {"name": "id", "type": "Int64"},
+            {"name": "name", "type": "Utf8"},
+        ]
+
+    def test_get_schema_falls_back_when_get_schema_columns_missing(self):
+        """Falls back to session_context.table().schema() for older common-sql versions."""
+        ts = DataFusionToolset([_make_mock_datasource_config()])
+        engine = _make_mock_engine(schema_fields=[("id", "Int64")])
+        del engine.get_schema_columns
+        ts._engine = engine
+
+        result = asyncio.run(
+            ts.call_tool(
+                "get_schema",
+                {"table_name": "sales_data"},
+                ctx=MagicMock(spec=RunContext),
+                tool=MagicMock(spec=ToolsetTool),
+            )
+        )
+        assert json.loads(result)["columns"] == [{"name": "id", "type": "Int64"}]
 
 
 class TestDataFusionToolsetQuery:
