@@ -11009,6 +11009,51 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def test_timeout_triggers_is_bounded_per_tick(self, dag_maker):
+        """
+        One tick fails at most a bounded batch of timed-out tasks, and later ticks take the rest.
+
+        A triggerer outage expires every deferred task at once, and the sweep runs in the
+        scheduler's main loop, so a tick that took the whole backlog would hold row locks on
+        ``task_instance`` for all of it while scheduling waits.
+        """
+        # Has to exceed the per-tick bound for the batching to be observable at all.
+        task_count = 101
+        session = settings.Session()
+        with dag_maker(
+            dag_id="test_timeout_triggers_bounded",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            session=session,
+        ):
+            for index in range(task_count):
+                EmptyOperator(task_id=f"dummy{index}")
+
+        dr = dag_maker.create_dagrun()
+        for ti in dr.get_task_instances(session=session):
+            ti.state = State.DEFERRED
+            ti.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+        session.flush()
+
+        self.job_runner = SchedulerJobRunner(job=Job())
+
+        def count_deferred() -> int:
+            session.expire_all()
+
+            return sum(ti.state == State.DEFERRED for ti in dr.get_task_instances(session=session))
+
+        self.job_runner.check_trigger_timeouts(session=session)
+        remaining = count_deferred()
+        assert remaining > 0, "one tick failed the whole backlog instead of a bounded batch"
+        assert remaining < task_count, "the tick made no progress"
+
+        # Draining the remainder takes no more ticks than the backlog needs.
+        for _ in range(task_count):
+            if count_deferred() == 0:
+                break
+            self.job_runner.check_trigger_timeouts(session=session)
+        assert count_deferred() == 0
+
     def test_awaiting_input_timeout_with_defaults_resumes(self, dag_maker):
         """
         A parked ``awaiting_input`` task past its deadline with defaults is resumed to SCHEDULED by

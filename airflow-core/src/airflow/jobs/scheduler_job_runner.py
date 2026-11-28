@@ -194,6 +194,12 @@ _ADRQ_DELETE_CHUNK_SIZE = 500
 # others (TaskInstance._reset_orphaned_attempts), each task instance binding one parameter in the IN list.
 _ADOPTED_TI_UPDATE_CHUNK_SIZE = 250
 
+# Max number of timed-out deferred task instances failed per tick, matching the bound
+# check_awaiting_input_timeouts puts on its own sweep. A triggerer outage expires every deferred task
+# at once, so without a bound one tick would lock that whole backlog in a single transaction while the
+# scheduler's main loop waits on it. The remainder follows on later ticks.
+_TRIGGER_TIMEOUT_UPDATE_CHUNK_SIZE = 100
+
 # Caps how many dag_ids the cap log lists and how many per-Dag audit rows
 # are written per callback run. The backlog's distinct dag_id count is unbounded, so
 # writing it straight into a log field or one DB row per Dag without a cap risks
@@ -4673,23 +4679,39 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
         for attempt in run_with_db_retries(max_retries, logger=self.log):
             with attempt:
-                result = session.execute(
-                    update(TI)
+                now = timezone.utcnow()
+                # Picking the ids first is what bounds the write. MySQL cannot select from the table
+                # it updates, so this cannot be one statement, and the predicates are repeated below
+                # so the update still stands on its own if a row moves on in between.
+                timed_out_ids = session.scalars(
+                    select(TI.id)
                     .where(
                         TI.state == TaskInstanceState.DEFERRED,
-                        TI.trigger_timeout < timezone.utcnow(),
+                        TI.trigger_timeout < now,
                     )
-                    .values(
-                        state=TaskInstanceState.SCHEDULED,
-                        next_method=TRIGGER_FAIL_REPR,
-                        next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
-                        scheduled_dttm=timezone.utcnow(),
-                        trigger_id=None,
+                    .limit(_TRIGGER_TIMEOUT_UPDATE_CHUNK_SIZE)
+                ).all()
+                if timed_out_ids:
+                    result = session.execute(
+                        update(TI)
+                        .where(
+                            TI.id.in_(timed_out_ids),
+                            TI.state == TaskInstanceState.DEFERRED,
+                            TI.trigger_timeout < now,
+                        )
+                        .values(
+                            state=TaskInstanceState.SCHEDULED,
+                            next_method=TRIGGER_FAIL_REPR,
+                            next_kwargs={"error": TriggerFailureReason.TRIGGER_TIMEOUT},
+                            scheduled_dttm=now,
+                            trigger_id=None,
+                        )
                     )
-                )
-                num_timed_out_tasks = getattr(result, "rowcount", 0)
-                if num_timed_out_tasks:
-                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+                    num_timed_out_tasks = getattr(result, "rowcount", 0)
+                    if num_timed_out_tasks:
+                        self.log.info(
+                            "Timed out %i deferred tasks without fired triggers", num_timed_out_tasks
+                        )
 
     @provide_session
     def check_awaiting_input_timeouts(
