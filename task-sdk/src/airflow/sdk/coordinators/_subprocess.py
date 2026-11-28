@@ -68,7 +68,7 @@ from airflow.sdk.coordinators._xcom_backend import (
     send_unless_exited,
 )
 from airflow.sdk.exceptions import AirflowConfigException, ErrorType
-from airflow.sdk.execution_time.bundles import initialize_pinned_bundle
+from airflow.sdk.execution_time.bundles import get_bundle_importer_registry, initialize_pinned_bundle
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     ErrorResponse,
@@ -1161,7 +1161,8 @@ class SubprocessCoordinator(BaseCoordinator):
             this coordinator does not run. None of these retries.
         """
         try:
-            importer = find_claiming_importer(rel_path, bundle_name)
+            registry = get_bundle_importer_registry(bundle_name)
+            importer = find_claiming_importer(rel_path, bundle_name, registry=registry)
         except Exception as e:
             raise TaskLaunchError(
                 f"Cannot tell whether {rel_path!r} is a native Dag file, because the Dag importers of "

@@ -36,6 +36,7 @@ from airflow_shared.configuration.parser import (
     AirflowConfigParser as _SharedAirflowConfigParser,
     base_section_name,
     configure_parser_from_configuration_description,
+    get_dynamic_option_reader,
 )
 
 
@@ -1331,3 +1332,145 @@ existing_list = one,two,three
             test_conf.load_providers_configuration()
         assert test_conf._use_providers_configuration is True
         assert "configuration_description" not in test_conf.__dict__
+
+    @pytest.mark.parametrize(
+        ("env", "cfg", "sensitive", "expected"),
+        [
+            pytest.param(
+                {
+                    "AIRFLOW__TEST__SENSITIVE_KEY": "literal",
+                    "AIRFLOW__TEST__SENSITIVE_KEY_CMD": "env-cmd",
+                },
+                {"sensitive_key_cmd": "cfg-cmd"},
+                True,
+                None,
+                id="env-literal-overrides-cmd",
+            ),
+            pytest.param(
+                {
+                    "AIRFLOW__TEST__SENSITIVE_KEY_CMD": "env-cmd",
+                    "AIRFLOW__TEST__SENSITIVE_KEY_SECRET": "env-secret",
+                },
+                {"sensitive_key": "cfg-literal", "sensitive_key_cmd": "cfg-cmd"},
+                True,
+                ("cmd", "env-cmd"),
+                id="env-cmd-overrides-secret-and-cfg",
+            ),
+            pytest.param(
+                {"AIRFLOW__TEST__SENSITIVE_KEY_SECRET": "env-secret"},
+                {"sensitive_key": "cfg-literal", "sensitive_key_cmd": "cfg-cmd"},
+                True,
+                ("secret", "env-secret"),
+                id="env-secret-overrides-cfg",
+            ),
+            pytest.param(
+                {},
+                {"sensitive_key": "cfg-literal", "sensitive_key_cmd": "cfg-cmd"},
+                True,
+                None,
+                id="cfg-literal-overrides-cmd",
+            ),
+            pytest.param(
+                {},
+                {"sensitive_key_cmd": "cfg-cmd", "sensitive_key_secret": "cfg-secret"},
+                True,
+                ("cmd", "cfg-cmd"),
+                id="cfg-cmd-overrides-secret",
+            ),
+            pytest.param(
+                {},
+                {"sensitive_key_secret": "cfg-secret"},
+                True,
+                ("secret", "cfg-secret"),
+                id="cfg-secret",
+            ),
+            pytest.param(
+                {},
+                {},
+                True,
+                None,
+                id="unset-sensitive",
+            ),
+            pytest.param(
+                {"AIRFLOW__TEST__KEY1_CMD": "env-cmd"},
+                {"key1_secret": "cfg-secret"},
+                False,
+                None,
+                id="non-sensitive-ignored",
+            ),
+        ],
+    )
+    @patch.object(_SharedAirflowConfigParser, "_get_config_value_from_secret_backend", autospec=True)
+    @patch("airflow_shared.configuration.parser.run_command", autospec=True)
+    def test_get_dynamic_option_reader_precedence(
+        self, mock_run_command, mock_secret_backend, monkeypatch, env, cfg, sensitive, expected
+    ):
+        """get_dynamic_option_reader matches get() precedence without reading the backend."""
+        test_conf = AirflowConfigParser()
+        key = "sensitive_key" if sensitive else "key1"
+        if sensitive:
+            test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+            test_conf._default_values.set("test", "sensitive_key", "default_sensitive")
+        for opt, val in cfg.items():
+            if not test_conf.has_section("test"):
+                test_conf.add_section("test")
+            test_conf.set("test", opt, val)
+        for env_key, env_val in env.items():
+            monkeypatch.setenv(env_key, env_val)
+
+        reader = get_dynamic_option_reader(test_conf, "test", key)
+
+        mock_run_command.assert_not_called()
+        mock_secret_backend.assert_not_called()
+        if expected is None:
+            assert reader is None
+            return
+
+        assert reader is not None
+        kind, value = expected
+        if kind == "cmd":
+            mock_run_command.return_value = "from-cmd"
+            assert reader() == "from-cmd"
+            mock_run_command.assert_called_once_with(value, redact=True)
+            mock_secret_backend.assert_not_called()
+        else:
+            mock_secret_backend.return_value = None
+            assert reader() is None
+            mock_secret_backend.assert_called_once_with(test_conf, value)
+            mock_run_command.assert_not_called()
+
+    @pytest.mark.parametrize("location", ["environment", "config"])
+    def test_dynamic_option_reader_reports_only_the_command_exit_status(self, monkeypatch, location):
+        test_conf = AirflowConfigParser()
+        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+        command = "sh -c 'echo SENSITIVE-OUTPUT; echo SENSITIVE-ERROR >&2; exit 7'"
+        if location == "environment":
+            monkeypatch.setenv("AIRFLOW__TEST__SENSITIVE_KEY_CMD", command)
+        else:
+            test_conf.add_section("test")
+            test_conf.set("test", "sensitive_key_cmd", command)
+        reader = get_dynamic_option_reader(test_conf, "test", "sensitive_key")
+        with pytest.raises(AirflowConfigException, match=r"^The configured command exited with status 7$"):
+            reader()
+
+    @pytest.mark.parametrize("location", ["environment", "config"])
+    @patch.object(
+        _SharedAirflowConfigParser,
+        "_get_config_value_from_secret_backend",
+        autospec=True,
+        side_effect=AirflowConfigException("backend failed with SENSITIVE-VALUE"),
+    )
+    def test_dynamic_option_reader_hides_secrets_backend_errors(self, _, monkeypatch, location):
+        test_conf = AirflowConfigParser()
+        test_conf.sensitive_config_values.add(("test", "sensitive_key"))
+        if location == "environment":
+            monkeypatch.setenv("AIRFLOW__TEST__SENSITIVE_KEY_SECRET", "path")
+        else:
+            test_conf.add_section("test")
+            test_conf.set("test", "sensitive_key_secret", "path")
+        reader = get_dynamic_option_reader(test_conf, "test", "sensitive_key")
+        with pytest.raises(AirflowConfigException) as exc_info:
+            reader()
+        assert str(exc_info.value) == "Could not read the value from the secrets backend"
+        assert exc_info.value.__cause__ is None
+        assert exc_info.value.__suppress_context__

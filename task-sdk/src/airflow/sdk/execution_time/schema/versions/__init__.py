@@ -48,6 +48,7 @@ def get_bundle() -> VersionBundle:
     )
     from airflow.sdk.execution_time.schema.versions.v2026_12_01 import RemoveStringTriggerKwargsFromDeferTask
     from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
+        AddBundleConfigToDagFileParseRequest,
         AddExecutionTimeoutToSupervisorTIRunContext,
         AddExternalClearTargetToSucceedTask,
         AddXComBackendErrorType,
@@ -58,6 +59,7 @@ def get_bundle() -> VersionBundle:
         HeadVersion(),
         Version(
             "2027-02-28",
+            AddBundleConfigToDagFileParseRequest,
             AddExecutionTimeoutToSupervisorTIRunContext,
             AddExternalClearTargetToSucceedTask,
             MakeSupervisorVariableValueNonNullable,

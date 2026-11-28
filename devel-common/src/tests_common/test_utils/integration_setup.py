@@ -33,7 +33,7 @@ from typing import Any
 
 from sqlalchemy import func, select, tuple_, update
 
-from airflow.dag_processing.bundles.manager import DagBundlesManager, _load_bundle_config_snapshot
+from airflow.dag_processing.bundles.manager import DagBundlesManager
 from airflow.dag_processing.dagbag import DagBag
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
@@ -43,6 +43,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
+from tests_common.test_utils.config import _clear_dag_bundle_config_cache
 from tests_common.test_utils.dag import create_scheduler_dag
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_1_PLUS
 
@@ -215,7 +216,7 @@ def serialize_and_get_dags(dag_folder) -> dict[str, SerializedDAG]:
     # The manager caches the bundle config per process, and the pytest plugin already loaded it with
     # the default list; without this the sync below deactivates the "testing" bundle just added, and
     # the scheduler marks its Dags stale a minute later.
-    _load_bundle_config_snapshot.cache_clear()
+    _clear_dag_bundle_config_cache()
     manager = DagBundlesManager()
     manager.sync_bundles_to_db()
 

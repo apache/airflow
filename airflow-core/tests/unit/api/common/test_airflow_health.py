@@ -42,7 +42,9 @@ from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job, JobState, health_check_threshold
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.utils.session import provide_session
+from airflow.models.dagbundle import DagBundleModel
+from airflow.models.team import Team
+from airflow.utils.session import create_session, provide_session
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_jobs
@@ -58,6 +60,26 @@ def _patch_bundles(bundle_teams: dict[str, str | None]):
         "airflow.api.common.airflow_health._configured_bundle_teams",
         return_value=bundle_teams,
     )
+
+
+@patch("airflow._shared.configuration.parser.run_command", autospec=True)
+@conf_vars(
+    {
+        ("dag_processor", "dag_bundle_config_list"): None,
+        ("dag_processor", "dag_bundle_config_list_cmd"): "read-bundles",
+    }
+)
+def test_reload_health_uses_reconciled_bundles_without_reading_source(
+    command, clean_dags_dagruns_and_dagbundles
+):
+    with create_session() as session:
+        active = DagBundleModel(name="health-reload-active")
+        active.teams = [Team(name="health-reload-team")]
+        inactive = DagBundleModel(name="health-reload-inactive")
+        inactive.active = False
+        session.add_all([active, inactive])
+    assert _configured_bundle_teams() == {"health-reload-active": "health-reload-team"}
+    command.assert_not_called()
 
 
 def _mock_job(

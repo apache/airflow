@@ -36,6 +36,7 @@ from cadwyn import (
     schema,
 )
 
+from airflow.dag_processing.processor import DagFileParseRequest  # noqa: SDK002
 from airflow.sdk.api.datamodels._generated import TIRunContext, TISuccessStatePayload, VariableResponse
 from airflow.sdk.exceptions import ErrorType
 from airflow.sdk.execution_time.comms import ErrorResponse, PutVariable
@@ -107,3 +108,13 @@ class AddXComBackendErrorType(VersionChange):
         """Report the failure as a generic one to a runtime whose version has no type for it."""
         if response.body.get("error") == ErrorType.XCOM_BACKEND_ERROR.value:
             response.body["error"] = ErrorType.GENERIC_ERROR.value
+
+
+class AddBundleConfigToDagFileParseRequest(VersionChange):
+    """Carry accepted importer settings and team ownership to the parsing process."""
+
+    description = __doc__
+
+    instructions_to_migrate_to_previous_version = (
+        schema(DagFileParseRequest).field("bundle_config").didnt_exist,
+    )

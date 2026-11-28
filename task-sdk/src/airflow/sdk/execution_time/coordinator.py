@@ -38,7 +38,10 @@ import attrs
 import pydantic
 import structlog
 
-from airflow.dag_processing.bundles.manager import DagBundlesManager  # noqa: SDK002
+from airflow.dag_processing.bundles.manager import (  # noqa: SDK002
+    DagBundlesManager,
+    _get_bundle_config_source,
+)
 from airflow.sdk._shared.module_loading import import_string
 from airflow.sdk.configuration import conf
 from airflow.sdk.exceptions import AirflowConfigException
@@ -225,13 +228,13 @@ class CoordinatorManager:
     _dag_bundle_to_coordinator: dict[str, str] | None = attrs.field(init=False, default=None)
 
     @classmethod
-    def from_config(cls) -> Self:
+    def from_config(cls, *, validate_handler_bundles: bool = True) -> Self:
         """
         Load coordinator specs from configuration without initialization.
 
         Every ``queue_to_coordinator`` key and the ``task_handler_bundle_name`` of
-        every routed coordinator are validated here, so a typo fails at config load
-        rather than on the first task routed to the coordinator.
+        every routed coordinator are validated here. A parser using accepted bundle configuration
+        can skip checking the existence of task-handler bundles, which it never uses.
         """
         coordinator_specs = {
             k: _CoordinatorSpec.model_validate(v)
@@ -243,7 +246,8 @@ class CoordinatorManager:
                 raise ValueError(f"[sdk] queue_to_coordinator references invalid coordinator key: {key!r}")
             bundle_name = spec.kwargs.get("task_handler_bundle_name")
             if bundle_name is not None and (
-                not isinstance(bundle_name, str) or not DagBundlesManager.is_bundle_configured(bundle_name)
+                not isinstance(bundle_name, str)
+                or (validate_handler_bundles and not DagBundlesManager.is_bundle_configured(bundle_name))
             ):
                 raise InvalidCoordinatorError(
                     f"[sdk] coordinators {key!r} sets task_handler_bundle_name={bundle_name!r}, "
@@ -401,9 +405,16 @@ class CoordinatorManager:
 
 
 @functools.cache
-def get_coordinator_manager() -> CoordinatorManager:
+def get_coordinator_manager(*, validate_handler_bundles: bool = True) -> CoordinatorManager:
     """Return the process-wide :class:`CoordinatorManager`, loaded from config on first use."""
-    return CoordinatorManager.from_config()
+    return CoordinatorManager.from_config(validate_handler_bundles=validate_handler_bundles)
+
+
+def _get_coordinator_manager_for_parsing() -> CoordinatorManager:
+    if _get_bundle_config_source().checks_bundle_names_when_parsing:
+        # Called without arguments to share the cached manager with every other caller.
+        return get_coordinator_manager()
+    return get_coordinator_manager(validate_handler_bundles=False)
 
 
 def reset_coordinator_manager() -> None:

@@ -26,7 +26,7 @@ from sqlalchemy import select
 
 from airflow._shared.timezones import timezone
 from airflow.configuration import conf
-from airflow.dag_processing.bundles.manager import get_configured_bundle_team_names
+from airflow.dag_processing.bundles.manager import _get_bundle_config_source
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.dag_processor_job_runner import DagProcessorJobRunner
 from airflow.jobs.job import EXECUTOR_JOB_TYPE, HealthCheckResult, Job
@@ -171,16 +171,16 @@ def _live_executor_jobs(jobs: list[Job], live_scheduler_ids: set[int]) -> list[J
 # behind forever and a restarted replica adds a second one. The denominator is therefore taken from
 # the declared work partition instead, which is unaffected by how replicas come and go:
 #
-# * Dag processor -- the bundles in ``[dag_processor] dag_bundle_config_list``.
+# * Dag processor -- the declared bundles, or the reconciled active bundles when reload is enabled.
 # * Triggerer -- the team scopes those bundles declare, since a triggerer only picks up triggers for
 #   its own team (see ``Trigger.ids_for_triggerer``).
 # * Scheduler -- schedulers are symmetric, so there is no partition and no partial state to report.
 
 
 def _configured_bundle_teams() -> dict[str, str | None]:
-    """Map every configured Dag bundle to the team owning it, empty when the config is unreadable."""
+    """Get bundle coverage without running a deployment command or secrets lookup on a health request."""
     try:
-        return get_configured_bundle_team_names()
+        return _get_bundle_config_source().get_bundle_teams()
     except Exception:
         # A health probe must not fail on malformed bundle config; callers fall back to liveness only.
         log.warning("Could not read the Dag bundle configuration", exc_info=True)
