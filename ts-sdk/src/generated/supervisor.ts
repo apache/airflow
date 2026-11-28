@@ -325,12 +325,9 @@ export type Type18 = "DagRunResult";
 export type Type19 = "DagRunStateResult";
 export type State2 = "deferred";
 export type Classpath = string;
-export type TriggerKwargs =
-  | {
-      [k: string]: JsonValue | null;
-    }
-  | string
-  | null;
+export type TriggerKwargs = {
+  [k: string]: JsonValue | null;
+} | null;
 export type TriggerTimeout = string | null;
 export type Queue1 = string | null;
 export type NextMethod2 = string;
@@ -2048,4 +2045,4 @@ export interface XComSequenceSliceResult {
  *  (e.g. bundle metadata) and runs the migrator accordingly.
  *  Exposed so the SDK author / operator can confirm which schema
  *  version their build is pinned to. */
-export const SUPERVISOR_API_VERSION = "2026-10-30" as const;
+export const SUPERVISOR_API_VERSION = "2026-12-01" as const;

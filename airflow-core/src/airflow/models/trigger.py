@@ -173,9 +173,8 @@ class Trigger(Base):
         from airflow.models.crypto import get_fernet
         from airflow.sdk.serde import deserialize
 
-        # We weren't able to encrypt the kwargs in all migration paths,
-        # so we need to handle the case where they are not encrypted.
-        # Triggers aren't long lasting, so we can skip encrypting them now.
+        # Plaintext JSON comes from running without a fernet key, the offline 2.9 migration,
+        # or task deferrals in older Airflow 3 releases.
         if encrypted_kwargs.startswith("{"):
             decrypted_kwargs = json.loads(encrypted_kwargs)
         else:
@@ -198,7 +197,11 @@ class Trigger(Base):
         """Encrypts data with a new key. See: :ref:`security/fernet`."""
         from airflow.models.crypto import get_fernet
 
-        self.encrypted_kwargs = get_fernet().rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
+        fernet = get_fernet()
+        if self.encrypted_kwargs.startswith("{"):
+            self.encrypted_kwargs = fernet.encrypt(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
+        else:
+            self.encrypted_kwargs = fernet.rotate(self.encrypted_kwargs.encode("utf-8")).decode("utf-8")
 
     @classmethod
     def from_object(cls, trigger: BaseTrigger) -> Trigger:
@@ -208,15 +211,19 @@ class Trigger(Base):
 
     @classmethod
     def from_serialized_kwargs(
-        cls, classpath: str, serialized_kwargs: dict[str, Any], queue: str | None = None
+        cls,
+        classpath: str,
+        serialized_kwargs: dict[str, Any],
+        queue: str | None = None,
+        team_name: str | None = None,
     ) -> Trigger:
         """
         Create a trigger row from kwargs that are already in their serde-encoded form.
 
-        The kwargs are stored exactly as given and decoded by the triggerer when it creates
-        the trigger, the same as kwargs stored by :meth:`from_object`.
+        The kwargs are encrypted without being re-serialized and decoded by the triggerer when it
+        creates the trigger, the same as kwargs stored by :meth:`from_object`.
         """
-        trigger = cls(classpath=classpath, kwargs={}, queue=queue)
+        trigger = cls(classpath=classpath, kwargs={}, queue=queue, team_name=team_name)
         trigger.encrypted_kwargs = cls._encrypt_serialized_kwargs(serialized_kwargs)
         return trigger
 

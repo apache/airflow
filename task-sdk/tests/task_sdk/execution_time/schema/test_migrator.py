@@ -42,9 +42,10 @@ from cadwyn import (
     VersionBundle,
     VersionChange,
     convert_request_to_next_version_for,
+    generate_versioned_models,
     schema,
 )
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from task_sdk.execution_time.schema._mock_version_bundle import (
     MOCK_REGISTRY,
     _LangSdkRequest,
@@ -63,6 +64,7 @@ from airflow.sdk.api.datamodels._generated import (
     TIRunContext,
 )
 from airflow.sdk.execution_time.comms import (
+    DeferTask,
     GetXCom,
     GetXComCount,
     GetXComSequenceItem,
@@ -125,6 +127,40 @@ def test_loop_selectors_follow_supervisor_version(model, extra, field):
 
     assert field not in migrator.downgrade(message, "2026-06-16").model_dump()
     assert migrator.downgrade(message, "2026-10-30").model_dump()[field] is True
+
+
+@pytest.mark.parametrize(
+    ("trigger_kwargs", "accepted"),
+    [
+        pytest.param({"key": "value"}, True, id="dict"),
+        pytest.param('{"key": "value"}', False, id="string"),
+    ],
+)
+def test_defer_task_trigger_kwargs_from_older_runtime(trigger_kwargs, accepted):
+    body = {
+        "type": "DeferTask",
+        "classpath": "my-classpath",
+        "trigger_kwargs": trigger_kwargs,
+        "next_method": "execute_callback",
+    }
+
+    if accepted:
+        upgraded = get_schema_version_migrator().upgrade(body, DeferTask, "2026-10-30")
+        assert upgraded["trigger_kwargs"] == trigger_kwargs
+    else:
+        with pytest.raises(ValidationError):
+            get_schema_version_migrator().upgrade(body, DeferTask, "2026-10-30")
+
+
+def test_defer_task_trigger_kwargs_is_string_only_before_2026_12_01():
+    from airflow.sdk.execution_time.schema.versions import bundle
+
+    versioned = generate_versioned_models(bundle)
+    fields = {"classpath": "my-classpath", "trigger_kwargs": "{}", "next_method": "execute_callback"}
+
+    assert versioned["2026-10-30"][DeferTask](**fields).trigger_kwargs == "{}"
+    with pytest.raises(ValidationError):
+        versioned["2026-12-01"][DeferTask](**fields)
 
 
 class _IntroduceQueueCapacity(VersionChange):
@@ -550,22 +586,21 @@ class TestRealBundleArgBindingsDowngrade:
             assert ti["region_id"] == startup_details.ti.region_id
             assert ti["region_index"] == 7
 
-    def test_head_version_keeps_arg_bindings(self, real_migrator, startup_details):
-        from airflow.sdk.api.datamodels._generated import LiteralArgBinding, XComArgBinding
-
-        out = real_migrator.downgrade(startup_details, "2026-10-30")
+    @pytest.mark.parametrize("version", ["2026-10-30", "2026-12-01"])
+    def test_arg_bindings_kept_from_version_that_added_them(self, real_migrator, startup_details, version):
+        out = real_migrator.downgrade(startup_details, version)
         assert out.ti_context.arg_bindings is not None
         literal, xcom, defaulted = (a.root for a in out.ti_context.arg_bindings)
-        assert isinstance(literal, LiteralArgBinding)
+        assert literal.kind == "literal"
         assert literal.value == "uk"
         assert literal.name == "country"
         assert literal.from_default is False
         assert literal.value_schema is None
-        assert isinstance(xcom, XComArgBinding)
+        assert xcom.kind == "xcom"
         assert xcom.task_id == "extract"
         assert xcom.name == "extracted"
         assert xcom.value_schema.root == {"type": "object"}
-        assert isinstance(defaulted, LiteralArgBinding)
+        assert defaulted.kind == "literal"
         assert defaulted.from_default is True
         assert defaulted.value_schema.root == {"type": "integer", "format": "int64"}
 

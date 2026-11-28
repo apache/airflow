@@ -740,7 +740,7 @@ model — Airflow does not enforce these natively.
         - Asset manager credentials
         - Dag File Processor
       * - ``AIRFLOW__CORE__FERNET_KEY``
-        - Fernet encryption key for connections/variables at rest
+        - Fernet encryption key for connections, variables and trigger kwargs at rest
         - API Server, Scheduler, Workers, Dag File Processor, Triggerer
       * - ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``
         - Metadata database connection string
