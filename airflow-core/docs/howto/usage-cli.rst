@@ -483,6 +483,13 @@ Testing for Dag Import Errors
 The CLI can be used to check whether any discovered Dags have import errors via the ``list-import-errors`` subcommand. It is possible to create an automation step which fails if any Dags cannot be imported by checking the command output, particularly when used with ``--output`` to generate a standard file format.
 For example, the default output when there are no errors is ``No data found``, and the json output is ``[]``. The check can then be run in CI or as prek hook to speed up the review process and testing.
 
+Use ``--dag-path`` to check a specific local Dag file or directory. The option selects local parsing automatically.
+Choose either ``--dag-path`` or ``--bundle-name``.
+
+.. code-block:: bash
+
+    airflow dags list-import-errors --dag-path ./dags/reporting --output json
+
 Example command that fails if there are any errors, using `jq <https://jqlang.github.io/jq/>`__ to parse the output:
 
 .. code-block:: bash
