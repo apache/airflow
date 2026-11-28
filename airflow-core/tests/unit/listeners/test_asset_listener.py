@@ -17,10 +17,13 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
+from sqlalchemy import select
 
 from airflow.listeners.types import AssetEvent
-from airflow.models.asset import AssetModel
+from airflow.models.asset import AssetEvent as AssetEventModel, AssetModel
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.sdk import Asset
 from airflow.serialization.encoders import ensure_serialized_asset
@@ -31,7 +34,8 @@ from unit.listeners import asset_listener
 
 @pytest.fixture(autouse=True)
 def clean_listener_state():
-    """Clear listener state after each test."""
+    """Clear listener state before and after each test; tests in other modules may leave it populated."""
+    asset_listener.clear()
     yield
     asset_listener.clear()
 
@@ -68,9 +72,10 @@ def test_asset_listener_on_asset_changed(asset, ti, listener_manager):
 
 
 @pytest.mark.db_test
-def test_asset_listener_on_asset_event_emitted(asset, ti, listener_manager):
+def test_asset_listener_on_asset_event_emitted(asset, ti, listener_manager, session):
     listener_manager(asset_listener)
     ti.run()
+    asset_event = session.scalars(select(AssetEventModel)).one()
     assert asset_listener.emitted == [
         AssetEvent(
             asset=ensure_serialized_asset(asset),
@@ -81,5 +86,27 @@ def test_asset_listener_on_asset_event_emitted(asset, ti, listener_manager):
             source_map_index=ti.map_index,
             source_aliases=[],
             partition_key=None,
+            id=asset_event.id,
+            timestamp=asset_event.timestamp,
+            asset_id=asset_event.asset_id,
         )
     ]
+
+
+def test_asset_event_keeps_positional_order_of_pre_existing_fields():
+    asset = ensure_serialized_asset(Asset(uri="test://asset/", name="test_asset"))
+    timestamp = datetime(2026, 1, 1, tzinfo=UTC)
+
+    event = AssetEvent(
+        asset, {"k": "v"}, "dag", "task", "run", -1, [], "pk", id=1, timestamp=timestamp, asset_id=2
+    )
+
+    assert (event.asset, event.extra, event.source_dag_id, event.partition_key) == (
+        asset,
+        {"k": "v"},
+        "dag",
+        "pk",
+    )
+    assert (event.id, event.timestamp, event.asset_id) == (1, timestamp, 2)
+    with pytest.raises(TypeError):
+        AssetEvent(1, timestamp, 2, asset, {}, "dag", "task", "run", -1, [], "pk")
