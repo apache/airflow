@@ -540,6 +540,11 @@ def test_invalid_type_for_args(attr: str, value: Any):
         pytest.param(["a normal tag"], True, id="one tag"),
         pytest.param(["a normal tag", "another normal tag"], True, id="two tags"),
         pytest.param(["a" * 100], True, id="a tag that's of just length 100"),
+        pytest.param(
+            ["a" * 100, "b" * 100, "c" * 100],
+            True,
+            id="multiple tags whose combined length exceeds 100 chars",
+        ),
         pytest.param(["a normal tag", "a" * 101], False, id="two tags and one of them is of length > 100"),
     ],
 )
@@ -547,8 +552,22 @@ def test__tags_length(tags: list[str], should_pass: bool):
     if should_pass:
         DAG("test-dag", schedule=None, tags=tags)
     else:
-        with pytest.raises(ValueError, match="tag cannot be longer than 100 characters"):
+        with pytest.raises(ValueError, match="maximum length of a single DAG tag is 100 characters"):
             DAG("test-dag", schedule=None, tags=tags)
+
+
+def test__tags_length_error_includes_offending_tag_and_length():
+    long_tag = "x" * 150
+    with pytest.raises(ValueError, match="maximum length of a single DAG tag") as exc_info:
+        DAG("test-dag", schedule=None, tags=["team-data", long_tag])
+    message = str(exc_info.value)
+    # the offending tag is identified in the message, truncated so it stays readable
+    truncated = "x" * 30 + "..."
+    assert f"'{truncated}'" in message
+    # the actual length of the offending tag is stated
+    assert "150" in message
+    # and so is the per-tag limit
+    assert "100" in message
 
 
 @pytest.mark.parametrize(
