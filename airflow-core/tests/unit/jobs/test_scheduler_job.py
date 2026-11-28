@@ -25,7 +25,7 @@ import re
 import threading
 import time
 from collections import Counter, deque
-from collections.abc import Callable, Generator, Iterator
+from collections.abc import Callable, Generator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from contextlib import ExitStack, contextmanager
 from datetime import timedelta
@@ -186,7 +186,6 @@ from tests_common.test_utils.asserts import assert_queries_count, capture_orm_se
 from tests_common.test_utils.config import conf_vars, env_vars
 from tests_common.test_utils.dag import create_scheduler_dag, sync_dag_to_db, sync_dags_to_db
 from tests_common.test_utils.db import (
-    clear_db_apdr,
     clear_db_assets,
     clear_db_backfills,
     clear_db_callbacks,
@@ -195,8 +194,6 @@ from tests_common.test_utils.db import (
     clear_db_deadline,
     clear_db_import_errors,
     clear_db_jobs,
-    clear_db_logs,
-    clear_db_pakl,
     clear_db_pools,
     clear_db_runs,
     clear_db_teams,
@@ -15775,33 +15772,6 @@ def custom_partition_mapper_patch() -> Callable[[], ExitStack]:
         return stack
 
     return _patch
-
-
-@pytest.fixture
-def clear_asset_partition_rows() -> Iterator:
-    clear_db_apdr()
-    clear_db_pakl()
-
-    yield
-
-    clear_db_apdr()
-    clear_db_pakl()
-
-
-@pytest.fixture
-def clear_audit_log_rows() -> Iterator:
-    """
-    Isolate ``Log`` rows for tests that assert on audit entries.
-
-    The partition-cap audit rows are written through an independent, self-committing session, so
-    they escape the test session's rollback in both directions: leftovers from earlier tests
-    would be counted here, and rows written here would leak into later ones.
-    """
-    clear_db_logs()
-
-    yield
-
-    clear_db_logs()
 
 
 def _produce_and_register_asset_event(
