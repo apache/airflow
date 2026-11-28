@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import re
 import threading
 from http.cookies import SimpleCookie
@@ -28,6 +29,7 @@ from fastapi.responses import PlainTextResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.testclient import TestClient
 from jwt import InvalidTokenError
+from keycloak import KeycloakConnectionError, KeycloakPostError
 
 from airflow.api_fastapi import app as api_fastapi_app
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
@@ -408,6 +410,86 @@ class TestKeycloakJWTMiddleware:
             not any(refreshed_token in header for header in response.headers.get_list("set-cookie"))
             for refreshed_token in ["new_token", "new_refresh_token", access_token]
         )
+
+    @pytest.mark.parametrize(
+        ("refresh_token", "expected_calls"),
+        [
+            pytest.param("refresh_token", [call("refresh_token")], id="with_refresh_token"),
+            pytest.param(None, [], id="without_refresh_token"),
+        ],
+    )
+    @patch(f"{MODULE}.KeycloakAuthManager.get_keycloak_client", autospec=True)
+    def test_logout_ends_keycloak_session(
+        self, mock_get_keycloak_client, mock_auth_manager, refresh_token, expected_calls
+    ):
+        cookies = {COOKIE_NAME_JWT_TOKEN: "valid_token", COOKIE_NAME_ACCESS_TOKEN: keycloak_token("user_id")}
+        if refresh_token:
+            cookies[COOKIE_NAME_REFRESH_TOKEN] = refresh_token
+        app, _ = _build_app()
+        app.state.auth_manager = mock_auth_manager
+
+        TestClient(app, cookies=cookies).get("/api/v2/auth/logout", follow_redirects=False)
+
+        assert mock_get_keycloak_client.return_value.logout.call_args_list == expected_calls
+        if expected_calls:
+            mock_get_keycloak_client.assert_called_once_with(timeout=5, max_retries=0)
+
+    @pytest.mark.parametrize(
+        ("error", "expected_event", "expected_log_level"),
+        [
+            pytest.param(
+                KeycloakPostError(error_message="invalid_grant", response_code=400),
+                "Could not end the Keycloak session on logout (KeycloakPostError, response code 400)",
+                "debug",
+                id="session_already_expired",
+            ),
+            pytest.param(
+                KeycloakPostError(error_message="server error", response_code=503),
+                "Could not end the Keycloak session on logout (KeycloakPostError, response code 503)",
+                "warning",
+                id="keycloak_server_error",
+            ),
+            pytest.param(
+                KeycloakConnectionError(error_message="connection refused"),
+                "Could not end the Keycloak session on logout (KeycloakConnectionError, response code None)",
+                "warning",
+                id="keycloak_unreachable",
+            ),
+        ],
+    )
+    @patch(f"{MODULE}.KeycloakAuthManager.get_keycloak_client", autospec=True)
+    def test_logout_completes_when_keycloak_cannot_end_the_session(
+        self,
+        mock_get_keycloak_client,
+        mock_auth_manager,
+        caplog,
+        error,
+        expected_event,
+        expected_log_level,
+    ):
+        mock_get_keycloak_client.return_value.logout.side_effect = error
+        caplog.set_level(
+            logging.DEBUG, logger="airflow.providers.keycloak.auth_manager.keycloak_auth_manager"
+        )
+        app, _ = _build_app()
+        app.state.auth_manager = mock_auth_manager
+
+        response = TestClient(
+            app,
+            cookies={
+                COOKIE_NAME_JWT_TOKEN: "valid_token",
+                COOKIE_NAME_ACCESS_TOKEN: keycloak_token("user_id"),
+                COOKIE_NAME_REFRESH_TOKEN: "refresh_token",
+            },
+        ).get("/api/v2/auth/logout", follow_redirects=False)
+
+        assert response.status_code == 307
+        assert _get_browser_cookies(response) == {
+            (COOKIE_NAME_JWT_TOKEN, "/"): None,
+            (COOKIE_NAME_ACCESS_TOKEN, "/"): None,
+            (COOKIE_NAME_REFRESH_TOKEN, "/"): None,
+        }
+        assert {"event": expected_event, "log_level": expected_log_level} in caplog
 
     def test_root_cookie_cleared_when_route_sets_token(self, mock_get_cookie_path, mock_auth_manager):
         mock_auth_manager.get_user_from_token.side_effect = InvalidTokenError
@@ -883,6 +965,7 @@ class TestKeycloakJWTMiddlewareInTheApiServer:
                 "airflow.providers.keycloak.auth_manager.middleware.get_auth_manager", mock_get_auth_manager
             ),
             patch.object(KeycloakAuthManager, "_get_token_validator", return_value=token_validator),
+            patch.object(KeycloakAuthManager, "get_keycloak_client", autospec=True),
             patch.object(
                 KeycloakAuthManager,
                 "refresh_tokens",

@@ -1253,6 +1253,19 @@ class TestKeycloakAuthManager:
         )
         assert client == mock_keycloak_openid.return_value
 
+    @patch("airflow.providers.keycloak.auth_manager.keycloak_auth_manager.KeycloakOpenID")
+    def test_get_keycloak_client_with_connection_settings(self, mock_keycloak_openid, auth_manager):
+        auth_manager.get_keycloak_client(timeout=5, max_retries=0)
+
+        mock_keycloak_openid.assert_called_once_with(
+            server_url="server_url",
+            realm_name="realm",
+            client_id="client_id",
+            client_secret_key="client_secret",
+            timeout=5,
+            max_retries=0,
+        )
+
     @pytest.mark.parametrize(
         ("client_id", "permission", "attributes", "expected_claims"),
         [

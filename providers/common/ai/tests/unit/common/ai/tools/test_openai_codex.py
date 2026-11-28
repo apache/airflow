@@ -548,7 +548,7 @@ class TestRun:
         mock_log.warning.assert_called_once()
 
     @pytest.mark.asyncio
-    @mock.patch(f"{MODULE}._close_stream", autospec=True)
+    @mock.patch(f"{MODULE}.close_stream", autospec=True)
     async def test_cancelling_a_run_interrupts_the_turn_before_it_ends(self, mock_close_stream, ok_tools):
         gate = asyncio.Event()
         order: list[Any] = []

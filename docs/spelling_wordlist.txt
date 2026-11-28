@@ -158,6 +158,7 @@ avro
 awaitable
 aws
 awslogs
+Backblaze
 backcompat
 Backend
 backend
@@ -279,6 +280,7 @@ cloudant
 CloudantV
 cloudbuild
 CloudBuildClient
+Cloudflare
 cloudformation
 cloudpickle
 CloudTasksClient

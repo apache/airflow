@@ -293,6 +293,9 @@ class KeycloakJWTMiddleware(JWTRefreshMiddleware):
         except InvalidTokenError:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid JWT token")
         if KeycloakJWTMiddleware._is_logout(request):
+            # Last request that carries the refresh token cookie.
+            if user.refresh_token:
+                await run_in_threadpool(KeycloakAuthManager._end_keycloak_session, user.refresh_token)
             # On logout return the user as new_user without refreshing to allow the Keycloak
             # Cookies to be cleared by get_extra_cookies().
             return user, user

@@ -256,8 +256,8 @@ The loop is the SDK's, so what ``AgentOperator`` builds on top of Pydantic AI do
 apply:
 
 - A task retry runs the loop again from the start. Tools that change data must be safe
-  to repeat, because there is no step-level replay as with
-  ``AgentOperator(durable=True)``.
+  to repeat, because there is no step-level replay as with durable execution in
+  ``AgentOperator``.
 - There is no human review step like ``AgentOperator(enable_hitl_review=True)``.
 - A toolset's connection ID is used as written. It is not rendered as a template, so
   pass the value rather than a Jinja expression.

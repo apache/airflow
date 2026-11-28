@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import timedelta
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -26,12 +27,19 @@ from unittest.mock import MagicMock, patch
 import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, CallDeferred, Tool
+from pydantic_ai.capabilities import SelectModel
+from pydantic_ai.exceptions import UserError
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, UserPromptPart
 from pydantic_ai.models.function import AgentInfo, FunctionModel
 from pydantic_ai.toolsets import FunctionToolset
 
 from airflow.providers.common.ai.durable.base import DURABLE_KEY_PREFIX, build_step_key
-from airflow.providers.common.ai.exceptions import HITLMaxIterationsError, UnsupportedToolDeferralError
+from airflow.providers.common.ai.durable.journal import DurableJournal
+from airflow.providers.common.ai.exceptions import (
+    DurableJournalError,
+    HITLMaxIterationsError,
+    UnsupportedToolDeferralError,
+)
 from airflow.providers.common.ai.mixins.hitl_review import HITLReviewMixin
 from airflow.providers.common.ai.operators.agent import _HITL_REVIEW_ANSWERS_KEY, AgentOperator
 from airflow.providers.common.ai.utils.hitl_review import (
@@ -44,6 +52,7 @@ from airflow.providers.common.ai.utils.usage_budget import USAGE_BUDGET_KEY, Tas
 from airflow.providers.standard.exceptions import HITLRejectException, HITLTimeoutError
 
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS, AIRFLOW_V_3_3_PLUS
+from unit.common.ai.durable.capabilities import BuiltForRun, IdlessLedger
 from unit.common.ai.durable.memory_storage import MemoryStorage
 from unit.common.ai.tool_parts import is_tool_result
 
@@ -226,7 +235,13 @@ class _Writer:
 
 @parks
 class TestDurable:
-    """With ``durable=True`` every round's agent run is journaled, so a retry replays the review."""
+    """Under durable execution every round's agent run is journaled, so a retry replays the review."""
+
+    @pytest.fixture(
+        autouse=True, params=[{"durable": True}, {"retries": 2}], ids=["durable-true", "default-with-retries"]
+    )
+    def durable_kwargs(self, request) -> None:
+        self._durable_kwargs = request.param
 
     @pytest.fixture
     def ctx(self, review_context) -> Any:
@@ -236,10 +251,9 @@ class TestDurable:
         store.set.side_effect = lambda key, value, retention=None: set_(key, json.loads(json.dumps(value)))
         return review_context
 
-    @staticmethod
-    def _operator(writer: _Writer, *, live: bool = False, **kwargs) -> AgentOperator:
+    def _operator(self, writer: _Writer, *, live: bool = False, **kwargs) -> AgentOperator:
         return _operator(
-            writer, output_type=str, durable=True, toolsets=[writer.toolset(live=live)], **kwargs
+            writer, output_type=str, toolsets=[writer.toolset(live=live)], **self._durable_kwargs, **kwargs
         )
 
     @staticmethod
@@ -452,12 +466,232 @@ class TestDurable:
 
         def operator() -> AgentOperator:
             toolset = FunctionToolset(tools=[Tool(send_summary, requires_approval=requires_approval)])
-            return _operator(model, output_type=str, durable=True, toolsets=[toolset])
+            return _operator(model, output_type=str, toolsets=[toolset], **self._durable_kwargs)
 
         first = park(lambda: operator().execute(ctx))
 
         with pytest.raises(UnsupportedToolDeferralError, match=match):
             operator().resume_hitl_review(ctx, **first.kwargs, event=_changes("Send it"))
+
+
+@parks
+def test_a_resume_the_default_cannot_run_durably_stores_nothing_durable(park, ctx):
+    """pydantic-ai refuses to build the durable agent; the resume must decide that before it writes anything."""
+    writer = _Writer()
+
+    def operator() -> AgentOperator:
+        return _operator(
+            writer, output_type=str, retries=2, toolsets=[writer.toolset()], capabilities=[IdlessLedger()]
+        )
+
+    first = park(lambda: operator().execute(ctx))
+    resumed = operator()
+    with patch(
+        "airflow.providers.common.ai.operators.agent.stamp_identity_on_agent_spans", autospec=True
+    ) as stamp:
+        park(lambda: resumed.resume_hitl_review(ctx, **first.kwargs, event=_changes("Shorter")))
+
+    assert resumed._is_durable_run is False
+    assert stamp.call_args.args[1]["airflow.common_ai.durable"] is False
+    # The refused durable build, then the non-durable one the regeneration runs.
+    assert resumed.llm_hook.create_agent.call_count == 2
+    store = ctx["task_state_store"].data
+    assert _HITL_REVIEW_ANSWERS_KEY not in store
+    assert [key for key in store if key.startswith(DURABLE_KEY_PREFIX)] == []
+
+
+@parks
+def test_a_resume_pydantic_ai_refuses_regenerates_and_keeps_the_first_run_for_a_retry(park, ctx, caplog):
+    """The Dag changed while the review waited; the regeneration repeats none of the first run's steps."""
+    writer = _Writer()
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+    store = ctx["task_state_store"].data
+    journal = {key: value for key, value in store.items() if key.startswith(DURABLE_KEY_PREFIX)}
+
+    with caplog.at_level(logging.INFO):
+        second = park(
+            lambda: build_operator(capabilities=[IdlessLedger()]).resume_hitl_review(
+                ctx, **first.kwargs, event=_changes("Shorter")
+            )
+        )
+
+    assert (writer.requests, writer.fetches) == (3, 1)
+    assert "Durable execution is off for this task: Capability 'IdlessLedger'" in caplog.text
+    # Kept, so a retry of the Dag changed back replays the first run; under this Dag the retry fails.
+    assert {key: value for key, value in store.items() if key.startswith(DURABLE_KEY_PREFIX)} == journal
+
+    build_operator(capabilities=[IdlessLedger()]).resume_hitl_review(ctx, **second.kwargs, event=APPROVE)
+
+    assert [key for key in store if key.startswith(DURABLE_KEY_PREFIX)] == []
+
+
+@parks
+def test_a_retry_pydantic_ai_refuses_after_a_review_round_fails_without_calling_the_tool_again(
+    park, ctx, caplog
+):
+    """The regeneration ran without durable execution and failed; the retry would run the first run live."""
+    writer = _Writer(fail_on="Shorter")
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+    with pytest.raises(RuntimeError, match="model unavailable"):
+        build_operator(capabilities=[IdlessLedger()]).resume_hitl_review(
+            ctx, **first.kwargs, event=_changes("Shorter")
+        )
+    TestDurable._retry(ctx)
+
+    with (
+        caplog.at_level(logging.INFO),
+        pytest.raises(UserError, match="contributes durable operations and needs an explicit"),
+    ):
+        build_operator(capabilities=[IdlessLedger()]).execute(ctx)
+
+    assert writer.fetches == 1
+    assert "could repeat, so the task fails. Pass durable=False" in caplog.text
+
+
+@parks
+def test_a_resume_the_default_now_turns_off_regenerates_and_the_retry_fails_instead(park, ctx, caplog):
+    """The regeneration repeats none of the first run's steps; a retry would run the first run live."""
+    writer = _Writer(fail_on="Shorter")
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+    switching = {"capabilities": [SelectModel(lambda selection: selection.model)]}
+
+    with pytest.raises(RuntimeError, match="model unavailable"):
+        build_operator(**switching).resume_hitl_review(ctx, **first.kwargs, event=_changes("Shorter"))
+    TestDurable._retry(ctx)
+    with caplog.at_level(logging.INFO), pytest.raises(DurableJournalError, match="durable=False"):
+        build_operator(**switching).execute(ctx)
+
+    assert writer.fetches == 1
+    assert "a SelectModel capability picks the model" in caplog.text
+
+
+@parks
+def test_approving_a_review_after_the_default_turned_off_deletes_the_first_runs_journal(park, ctx):
+    """Otherwise a later clear that keeps task state would fail on a journal of a task that succeeded."""
+    writer = _Writer()
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+    store = ctx["task_state_store"].data
+    assert [key for key in store if key.startswith(DURABLE_KEY_PREFIX)]
+
+    build_operator(capabilities=[SelectModel(lambda selection: selection.model)]).resume_hitl_review(
+        ctx, **first.kwargs, event=APPROVE
+    )
+
+    assert [key for key in store if key.startswith(DURABLE_KEY_PREFIX)] == []
+
+
+@parks
+def test_a_journal_that_cannot_be_deleted_does_not_fail_an_approved_review(park, ctx, caplog):
+    writer = _Writer()
+
+    def build_operator(**kwargs: Any) -> AgentOperator:
+        return _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()], **kwargs)
+
+    first = park(lambda: build_operator().execute(ctx))
+
+    with (
+        caplog.at_level(logging.WARNING),
+        patch.object(DurableJournal, "cleanup", autospec=True, side_effect=RuntimeError("API down")),
+    ):
+        result = build_operator(
+            capabilities=[SelectModel(lambda selection: selection.model)]
+        ).resume_hitl_review(ctx, **first.kwargs, event=APPROVE)
+
+    assert result == "summary 2 after []"
+    assert "Could not delete the journal an earlier run of this task left" in caplog.text
+
+
+@parks
+def test_a_review_task_pydantic_ai_refuses_once_running_fails_before_the_review(ctx, caplog):
+    """Run again without durable execution, it would reach the review, and a resume decides again."""
+    op = _operator(
+        retries=2, capabilities=[BuiltForRun(SelectModel(lambda selection: FunctionModel(_summarizer)))]
+    )
+
+    with caplog.at_level(logging.INFO), pytest.raises(UserError, match="was not registered"):
+        op.execute(ctx)
+
+    assert "the review's regenerations would be refused the same way, so the task fails" in caplog.text
+    assert "Durable execution is off" not in caplog.text
+
+
+@parks
+def test_a_review_task_that_switches_models_runs_each_review_round_without_durable_execution(
+    park, ctx, caplog
+):
+    """The decision is taken up front, so the review's regenerations are never refused after the reviewer answered."""
+
+    def build_operator() -> AgentOperator:
+        return _operator(retries=2, capabilities=[SelectModel(lambda selection: FunctionModel(_summarizer))])
+
+    with caplog.at_level(logging.INFO):
+        first = park(lambda: build_operator().execute(ctx))
+        resumed = build_operator()
+        park(lambda: resumed.resume_hitl_review(ctx, **first.kwargs, event=REQUEST_CHANGES))
+
+    assert resumed._is_durable_run is False
+    assert caplog.text.count("Durable execution is off for this task: a SelectModel capability") == 2
+    assert [key for key in ctx["task_state_store"].data if key.startswith(DURABLE_KEY_PREFIX)] == []
+
+
+@parks
+@pytest.mark.parametrize(
+    ("event", "max_hitl_iterations", "error"),
+    [
+        pytest.param(REJECT, 5, HITLRejectException, id="reject"),
+        pytest.param(REQUEST_CHANGES, 1, HITLMaxIterationsError, id="max-iterations"),
+    ],
+)
+def test_a_review_ending_unapproved_leaves_nothing_durable_for_a_run_that_recorded_nothing(
+    park, ctx, event, max_hitl_iterations, error
+):
+    writer = _Writer()
+
+    def operator() -> AgentOperator:
+        return _operator(
+            writer,
+            output_type=str,
+            retries=2,
+            toolsets=[writer.toolset()],
+            capabilities=[IdlessLedger()],
+            max_hitl_iterations=max_hitl_iterations,
+        )
+
+    first = park(lambda: operator().execute(ctx))
+
+    with pytest.raises(error):
+        operator().resume_hitl_review(ctx, **first.kwargs, event=event)
+
+    assert [key for key in ctx["task_state_store"].data if key.startswith(DURABLE_KEY_PREFIX)] == []
+
+
+@parks
+def test_an_approval_returns_the_output_without_building_the_agent(park, ctx):
+    writer = _Writer()
+    first = park(
+        lambda: _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()]).execute(ctx)
+    )
+    resumed = _operator(writer, output_type=str, retries=2, toolsets=[writer.toolset()])
+    resumed.llm_hook.create_agent.side_effect = RuntimeError("model unavailable")
+
+    assert resumed.resume_hitl_review(ctx, **first.kwargs, event=APPROVE) == "summary 2 after []"
+    assert resumed.llm_hook.create_agent.call_count == 0
 
 
 @patch.object(HITLReviewMixin, "_parks_between_rounds", autospec=True, return_value=False)
@@ -477,6 +711,12 @@ class TestDurablePolling:
     @pytest.fixture
     def ctx(self, xcom_backed_ti) -> Any:
         return {"task_instance": xcom_backed_ti}
+
+    @staticmethod
+    def _polling_operator(writer: _Writer) -> AgentOperator:
+        return _operator(
+            writer, output_type=str, durable=True, toolsets=[writer.toolset()], hitl_poll_interval=0
+        )
 
     @staticmethod
     def _answer(ctx, *actions: dict[str, Any]) -> None:
@@ -499,7 +739,7 @@ class TestDurablePolling:
             {"action": "approve", "iteration": 2},
         )
 
-        result = TestDurable._operator(writer, hitl_poll_interval=0).execute(ctx)
+        result = self._polling_operator(writer).execute(ctx)
 
         assert result == "summary 3 after ['Shorter']"
         assert storage.entries == {}
@@ -508,11 +748,11 @@ class TestDurablePolling:
         writer = _Writer()
         self._answer(ctx, {"action": "reject", "iteration": 1})
         with pytest.raises(HITLRejectException):
-            TestDurable._operator(writer, hitl_poll_interval=0).execute(ctx)
+            self._polling_operator(writer).execute(ctx)
         TestDurable._retry(ctx)
         self._answer(ctx, {"action": "approve", "iteration": 1})
 
-        result = TestDurable._operator(writer, hitl_poll_interval=0).execute(ctx)
+        result = self._polling_operator(writer).execute(ctx)
 
         assert result == "summary 3 after []"
         assert writer.fetches == 1
@@ -526,11 +766,11 @@ class TestDurablePolling:
         )
         self._answer(ctx, *changes)
         with pytest.raises(RuntimeError, match="model unavailable"):
-            TestDurable._operator(writer, hitl_poll_interval=0).execute(ctx)
+            self._polling_operator(writer).execute(ctx)
         TestDurable._retry(ctx)
         self._answer(ctx, *changes, {"action": "approve", "iteration": 3})
 
-        result = TestDurable._operator(writer, hitl_poll_interval=0).execute(ctx)
+        result = self._polling_operator(writer).execute(ctx)
 
         # The first regeneration ran on both tries; only the first output replayed.
         assert result == "summary 6 after ['Shorter', 'Add the margin']"

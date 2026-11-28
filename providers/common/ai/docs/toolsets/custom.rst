@@ -76,8 +76,9 @@ What a subclass implements
 --------------------------
 
 ``id``
-    A name for the toolset. With ``durable=True``, each call is recorded under it, and a
-    retry finds the calls an earlier attempt recorded by it. If the id changes between
+    A name for the toolset. Under durable execution (on by default for a task that can retry
+    on Airflow 3.3 and later; see :doc:`../durable_execution`), each call is recorded under
+    it, and a retry finds the calls an earlier attempt recorded by it. If the id changes between
     attempts, the retry stops matching the earlier attempt at the first call to this
     toolset, and that call and every step after it, model requests included, run again.
     Deriving it from the connection ID, as the example does, gives each connection's
@@ -101,10 +102,14 @@ What a subclass implements
     ``args_validator`` returned. Return the result as the tool produced it: the base
     class's ``call_tool`` masks it on the way out. Implement ``execute_tool`` rather than
     overriding ``call_tool``, since an override skips that masking and ``AgentOperator``
-    then wraps the toolset in a masking layer of its own. With ``durable=True`` a result
+    then wraps the toolset in a masking layer of its own. Under durable execution a result
     has to be JSON-serializable or bytes (on their own or as values inside dicts and
-    lists), or the task fails with ``DurableJournalError`` and is not retried. Put bytes
-    in a dict, not in a field of a dataclass or Pydantic model.
+    lists) to be recorded. Otherwise, with ``durable=True`` the task fails with
+    ``DurableJournalError`` and is not retried. Under ``AgentOperator``'s default the call is
+    logged and runs again on retry, and the calls after it may run again too; an
+    ``AirflowDurability`` capability you attach yourself fails the task as ``durable=True``
+    does. Put bytes in a dict, not in a field of a dataclass or
+    Pydantic model.
 
 Two class attributes are optional:
 
@@ -118,7 +123,7 @@ Two class attributes are optional:
     render these attributes.
 
 ``replayable``
-    ``True`` by default: with ``durable=True``, a retry reuses the result an earlier
+    ``True`` by default: under durable execution, a retry reuses the result an earlier
     attempt recorded instead of calling the system again. Set it to ``False`` when every
     attempt must make the call, as :doc:`ManagedAgentToolset <managed_agent>` does
     because a managed agent acts on systems Airflow cannot observe.

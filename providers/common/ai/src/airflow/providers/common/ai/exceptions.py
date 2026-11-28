@@ -106,9 +106,11 @@ class DurableJournalError(AirflowFailException):
 
     A step's result is not JSON-serializable, or the journal holds a result this version
     cannot replay. Or a task resumed with the answer to an approval, and the run, which
-    took a different path this time, never came back to the call the answer is for. The
-    same step fails the same way on every attempt, and an answer cannot be matched to a
-    call nobody was asked about, so the task fails without retrying.
+    took a different path this time, never came back to the call the answer is for. Or the
+    Dag changed so that the default turns durable execution off while an earlier attempt's
+    journal holds steps a live run would repeat. The same step fails the same way on every
+    attempt, and an answer cannot be matched to a call nobody was asked about, so the task
+    fails without retrying.
     """
 
 

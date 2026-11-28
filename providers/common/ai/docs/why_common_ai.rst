@@ -92,8 +92,10 @@ and a bucket of report files. What differs:
   environment. ``AgentOperator`` takes both from a connection, so moving to another vendor
   or adding a fallback is a connection change. See :doc:`model_providers`.
 - **A retry.** The plain task starts again from the beginning and pays for every call
-  again. ``durable=True`` replays the calls that finished and continues from there. Before
-  Airflow 3.3 it needs ``[common.ai] durable_cache_path`` set; see :doc:`durable_execution`.
+  again. On Airflow 3.3 and later, ``AgentOperator`` turns on durable execution for a task
+  that can retry, so the retry replays the calls that finished and continues from there.
+  Before Airflow 3.3 it needs ``durable=True`` and ``[common.ai] durable_cache_path`` set;
+  see :doc:`durable_execution`.
 - **Spend.** In the plain task, Pydantic AI's default limit of 50 model requests applies
   to each attempt on its own, so three attempts can make up to 150. With ``usage_limits``
   on Airflow 3.3 and later, one total covers all three attempts, and the task fails once
@@ -116,9 +118,10 @@ What a plain task leaves to you
       - What this provider does
       - Where it is documented
     * - The task retries after the agent has already made model and tool calls.
-      - ``durable=True`` on ``AgentOperator`` replays the calls that finished and runs
-        the rest live. If the prompt, model or tools changed since the failed attempt,
-        the affected calls run again.
+      - Durable execution on ``AgentOperator``, on by default for a task that can retry on
+        Airflow 3.3 and later, replays the calls that finished and runs the rest live. If
+        the prompt, model or tools changed since the failed attempt, the affected calls run
+        again.
       - :doc:`durable_execution`
     * - A run must not spend past a limit, retries included.
       - ``usage_limits`` counts every attempt of the task instance together on
@@ -137,8 +140,7 @@ What a plain task leaves to you
         to a production table.
       - A tool marked with Pydantic AI's approval API pauses ``AgentOperator`` before the
         call, without holding a worker slot. Airflow 3.3 and later. Not with
-        ``durable=True`` or ``enable_hitl_review=True``; with either, a tool marked for
-        approval fails the task.
+        ``enable_hitl_review=True``; with it, a tool marked for approval fails the task.
       - :doc:`tool_approval`
     * - A reviewer wants to send an agent's answer back with feedback, several times.
       - ``enable_hitl_review=True`` on ``AgentOperator`` opens a review loop with a chat

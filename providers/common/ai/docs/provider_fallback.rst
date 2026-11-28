@@ -147,7 +147,7 @@ provider's own exception. Which one depends on how the agent runs:
   ``@task.agent`` decorators raise
   :class:`~airflow.providers.common.ai.fallback_exceptions.FallbackChainExhaustedError`, a
   subclass of ``FallbackExceptionGroup``. The error each connection raised is in its
-  ``member_errors``, and with ``durable=True`` its ``replayed_steps`` and ``recorded_steps``
+  ``member_errors``, and under durable execution its ``replayed_steps`` and ``recorded_steps``
   say how far the attempt got.
 * In a plain ``@task`` that builds an agent with ``PydanticAIHook`` and runs it, the task
   raises pydantic-ai's own ``FallbackExceptionGroup``. It has no ``member_errors``,
