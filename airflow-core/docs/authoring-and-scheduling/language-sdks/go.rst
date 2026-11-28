@@ -673,6 +673,16 @@ applies to a value read with ``TaskStateStore().Get`` and to the values in ``act
   ``json.Unmarshal``. A task input from ``airflow.Inputs`` or a TaskFlow argument is already decoded into its
   parameter type.
 
+.. warning::
+
+  A value that a Go task returns or pushes is written as ``encoding/json`` writes it, and ``encoding/json``
+  writes a whole-number ``float64`` such as ``5.0`` as ``5``, without a decimal point. ``5.0`` is therefore
+  stored as the integer ``5``. A downstream Python task gets ``5`` (an ``int``), not ``5.0``, and ``GetXCom``
+  returns an ``int64``. A downstream Go task parameter or struct field is decoded into its declared type: a
+  ``float64`` gets ``5.0``, and an ``any``, including a value in a ``map[string]any`` or ``[]any``, gets a
+  ``float64`` for every number, integers included. If a downstream Python task needs a float, convert the
+  value with ``float()``.
+
 .. _go-sdk/build:
 
 Building a bundle
