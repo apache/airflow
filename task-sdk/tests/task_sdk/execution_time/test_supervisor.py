@@ -4673,18 +4673,19 @@ class TestHandleRequest:
         ("status_code", "expects_error"),
         [
             pytest.param(404, False, id="404_not_found_is_swallowed"),
-            pytest.param(410, True, id="410_propagates"),
+            pytest.param(410, False, id="410_archived_is_swallowed"),
             pytest.param(500, True, id="500_propagates"),
         ],
     )
-    def test_set_rendered_map_index_swallows_404_but_propagates_other_errors(
+    def test_set_rendered_map_index_swallows_404_and_410_but_propagates_other_errors(
         self, watched_subprocess, mocker, status_code, expects_error
     ):
-        """A stale-id map index update (404 on this endpoint) is skipped; other errors propagate.
+        """A stale-id map index update is skipped; other errors propagate.
 
-        On retry/clear the server replaces the TI id, and the rendered-map-index endpoint
-        answers a replaced id with 404, unlike the RTIF endpoint's 410. The map index is a
-        UI label, so a late update from a finishing worker must not fail the task.
+        On retry/clear the server replaces the TI id; archived attempts get 410
+        (like the RTIF endpoint) and older servers answer plain 404. The map index
+        is a UI label, so a late update from a finishing worker must not fail the
+        task either way.
         """
         watched_subprocess, read_socket = watched_subprocess
 

@@ -2209,11 +2209,10 @@ class ActivitySubprocess(WatchedSubprocess):
         except ServerResponseError as e:
             # The rendered map index is a UI label, so a late best-effort update from a
             # finishing worker must not fail the task's real outcome. On retry/clear the
-            # server replaces the TI id, and this endpoint reports a replaced id as plain
-            # 404 (unlike the RTIF endpoint there is no separate 410 "archived" response),
-            # so a stale update cannot be told from a bogus one -- and neither should
-            # fail the task.
-            if e.response.status_code != HTTPStatus.NOT_FOUND:
+            # server replaces the TI id; archived attempts get 410 (like the RTIF
+            # endpoint), and against older servers a stale id still gets plain 404.
+            # Either way the id is no longer live, and the update is just skipped.
+            if e.response.status_code not in (HTTPStatus.NOT_FOUND, HTTPStatus.GONE):
                 raise
             log.debug("Skipping rendered map index update; task instance is no longer live", ti_id=self.id)
         return None, {}
