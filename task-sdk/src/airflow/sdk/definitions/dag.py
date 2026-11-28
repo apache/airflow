@@ -88,6 +88,11 @@ log = logging.getLogger(__name__)
 
 TAG_MAX_LEN = 100
 
+# Owner names and owner links are stored in the `dag_owner_attributes` table in columns that
+# hold at most 500 characters, so longer values are rejected at DAG authoring time rather than
+# failing with a database error when the dag processor writes owner attributes.
+OWNER_LINKS_MAX_LEN = 500
+
 # The TaskGroup cycle warning becomes a DagWarning.message, a Text column (64 KB on MySQL), so its
 # length must not grow with the size or the number of the cycles.
 _MAX_LISTED_TASK_GROUP_CYCLES = 10
@@ -1245,6 +1250,20 @@ class DAG:
         wrong_links = {}
 
         for owner, link in owner_links.items():
+            if len(owner) > OWNER_LINKS_MAX_LEN:
+                # Offending names are always longer than the limit, so the preview is always truncated.
+                owner_preview = f"{owner[:30]}..."
+                raise ValueError(
+                    f"Owner {owner_preview!r} is {len(owner)} characters long; "
+                    f"the maximum length of an owner name is {OWNER_LINKS_MAX_LEN} characters"
+                )
+            if len(link) > OWNER_LINKS_MAX_LEN:
+                # Offending links are always longer than the limit, so the preview is always truncated.
+                link_preview = f"{link[:30]}..."
+                raise ValueError(
+                    f"Owner link {link_preview!r} for owner {owner!r} is {len(link)} characters long; "
+                    f"the maximum length of an owner link is {OWNER_LINKS_MAX_LEN} characters"
+                )
             result = urlsplit(link)
             if result.scheme == "mailto":
                 # netloc is not existing for 'mailto' link, so we are checking that the path is parsed
