@@ -143,3 +143,21 @@ if LLMSQLQueryOperator is not None:
     # [END howto_operator_llm_sql_approval]
 
     example_llm_sql_approval()
+
+    # [START howto_operator_llm_sql_allowed_tables]
+    @dag(tags=["example"])
+    def example_llm_sql_allowed_tables():
+        LLMSQLQueryOperator(
+            task_id="generate_sql",
+            prompt="Average customer age in days for orders placed last month",
+            llm_conn_id="pydanticai_default",
+            db_conn_id="postgres_default",
+            table_names=["orders", "customers"],
+            allowed_tables=["orders", "customers"],
+            # Postgres' age() is not a function sqlglot recognizes, so it must be allowed explicitly.
+            allowed_functions=["age"],
+        )
+
+    # [END howto_operator_llm_sql_allowed_tables]
+
+    example_llm_sql_allowed_tables()
