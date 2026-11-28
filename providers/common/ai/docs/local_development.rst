@@ -149,6 +149,46 @@ Check the answers themselves
 
 The test above scripts the model's replies, so it can't tell you whether a changed
 prompt still gives good answers. For that, run a set of cases with expected
-outcomes against the notebook agent from the first section, using a real model and
-a library such as `pydantic-evals <https://pydantic.dev/docs/ai/evals/evals/>`__,
-before you ship the change.
+outcomes against a real model, using a library such as
+`pydantic-evals <https://pydantic.dev/docs/ai/evals/evals/>`__, before you ship the
+change. A task's ``build_agent()`` returns the agent the task runs, with its
+connection, system prompt, toolsets and capabilities, so the cases check the task
+as written rather than a copy of it:
+
+.. code-block:: python
+
+    # evals/eval_orders_report.py
+    from pydantic_evals import Case, Dataset
+    from pydantic_evals.evaluators import Contains
+
+    from orders_report import orders_report  # dags/orders_report.py from above
+
+    agent = orders_report().get_task("orders_question").build_agent()
+
+    dataset = Dataset(
+        name="orders_question",
+        cases=[Case(inputs="How many orders are there?", evaluators=[Contains("3")])],
+    )
+    report = dataset.evaluate_sync(lambda question: agent.run_sync(question).output)
+    report.print()
+
+Run it from your project root with the Dags folder on the import path:
+
+.. code-block:: bash
+
+    PYTHONPATH=dags python evals/eval_orders_report.py
+
+``build_agent()`` runs outside a task, so templates aren't rendered and every
+template field (``system_prompt``, ``llm_conn_id``, ``model_id`` and the rest)
+reaches the agent as written; a templated ``llm_conn_id`` fails at connection
+lookup. Only the task's own run acts on tool approval, so if the agent calls a
+tool that requires approval, the run ends with a ``DeferredToolRequests`` as its
+output instead of an answer, and a case that checks the answer fails.
+
+These have ``build_agent()``: ``AgentOperator`` (``@task.agent``), ``LLMOperator``
+(``@task.llm``), ``LLMBranchOperator`` (``@task.llm_branch``),
+``LLMFileAnalysisOperator`` (``@task.llm_file_analysis``), ``LLMSQLQueryOperator``
+(``@task.llm_sql``) and ``LLMSchemaCompareOperator`` (``@task.llm_schema_compare``).
+For the last two it reads the table schemas, so it needs their database connections.
+Mapped tasks aren't covered: ``get_task()`` returns a ``MappedOperator`` for them,
+which has no ``build_agent()``.

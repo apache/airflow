@@ -32,6 +32,8 @@ from airflow.providers.common.ai.utils.usage import coerce_usage_limits
 from airflow.providers.common.compat.sdk import AirflowException, BaseHook
 
 if TYPE_CHECKING:
+    from pydantic_ai import Agent
+
     from airflow.providers.common.sql.config import DataSourceConfig
     from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.sdk import Context
@@ -331,6 +333,22 @@ class LLMSchemaCompareOperator(LLMOperator):
 
         return "".join(parts)
 
+    def build_agent(self) -> Agent[object, Any]:
+        """
+        Build the agent this task runs.
+
+        Reads the schemas of the tables being compared to build the system prompt, so it
+        needs the database connections, as ``execute`` does.
+        """
+        schema_context = self._build_schema_context()
+
+        self.log.info("Schema comparison context:\n%s", schema_context)
+
+        return self._create_agent(
+            output_type=SchemaCompareResult,
+            instructions=self._build_system_prompt(schema_context),
+        )
+
     def execute(self, context: Context) -> dict[str, Any]:
         if self.require_approval:
             self.validate_approval_prompt()  # type: ignore[misc]
@@ -338,16 +356,7 @@ class LLMSchemaCompareOperator(LLMOperator):
         # Coerced first so a bad rendered value fails before the expensive setup below.
         usage_limits = coerce_usage_limits(self.usage_limits)
 
-        schema_context = self._build_schema_context()
-
-        self.log.info("Schema comparison context:\n%s", schema_context)
-
-        full_system_prompt = self._build_system_prompt(schema_context)
-
-        agent = self._create_agent(
-            output_type=SchemaCompareResult,
-            instructions=full_system_prompt,
-        )
+        agent = self.build_agent()
         self.log.info("Running LLM schema comparison...")
         result = self._run_llm(context, agent, self.prompt, usage_limits=usage_limits)
         output = result.output
