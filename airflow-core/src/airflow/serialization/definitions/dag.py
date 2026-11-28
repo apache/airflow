@@ -802,7 +802,7 @@ class SerializedDAG:
         stored_alerts = [
             (alert.id, alert.name, alert.reference, alert.interval, alert.callback_def)
             for alert in deadline_alert_records
-            if alert
+            if alert and alert.is_applicable_to_run_type(orm_dagrun.run_type)
         ]
 
         for alert_id, alert_name, alert_reference, alert_interval, alert_callback_def in stored_alerts:

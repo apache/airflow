@@ -1406,7 +1406,14 @@ paths:
         This endpoint allows specifying `~` as the dag_id and dag_run_id to retrieve
         Deadlines for all
 
-        Dags and Dag runs.'
+        Dags and Dag runs.
+
+
+        For a specific run, `include_alerts` also returns its creation-version alert
+
+        definitions and their applicability to the current run type, independently
+
+        of the deadline filters and pagination.'
       operationId: get_deadlines
       security:
       - OAuth2PasswordBearer: []
@@ -1424,6 +1431,13 @@ paths:
         schema:
           type: string
           title: Dag Run Id
+      - name: include_alerts
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Include Alerts
       - name: limit
         in: query
         required: false
@@ -1577,7 +1591,7 @@ paths:
       - Deadlines
       summary: Get Dag Deadline Alerts
       description: Get deadline alerts defined on a Dag, optionally filtered by name
-        pattern.
+        pattern and version.
       operationId: get_dag_deadline_alerts
       security:
       - OAuth2PasswordBearer: []
@@ -4660,6 +4674,13 @@ components:
           - type: string
           - type: 'null'
           title: Name
+        run_type_filter:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagRunType'
+            type: array
+          - type: 'null'
+          title: Run Type Filter
         reference_type:
           type: string
           title: Reference Type
@@ -4692,6 +4713,13 @@ components:
         total_entries:
           type: integer
           title: Total Entries
+        deadline_alerts:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/RunDeadlineAlertResponse'
+            type: array
+          - type: 'null'
+          title: Deadline Alerts
       type: object
       required:
       - deadlines
@@ -6288,6 +6316,52 @@ components:
 
 
         :meta private:'
+    RunDeadlineAlertResponse:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        run_type_filter:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/DagRunType'
+            type: array
+          - type: 'null'
+          title: Run Type Filter
+        reference_type:
+          type: string
+          title: Reference Type
+        interval:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Interval
+          description: Interval in seconds between the reference time and the deadline.
+            Null for a dynamic interval (e.g. a VariableInterval) whose value is only
+            resolved at scheduler evaluation time.
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+        is_applicable:
+          type: boolean
+          title: Is Applicable
+          description: Whether the alert's run type filter matches the Dag run's current
+            type. This does not indicate whether a deadline was created or met.
+      type: object
+      required:
+      - id
+      - reference_type
+      - created_at
+      - is_applicable
+      title: RunDeadlineAlertResponse
+      description: Alert definition and applicability to the current Dag run type.
     StandardHookFields:
       properties:
         description:

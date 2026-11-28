@@ -26,6 +26,7 @@ from pydantic import AliasPath, Field, field_validator
 
 from airflow.api_fastapi.core_api.base import BaseModel
 from airflow.utils.state import CallbackState
+from airflow.utils.types import DagRunType
 
 
 class DeadlineResponse(BaseModel):
@@ -53,18 +54,12 @@ class DeadlineResponse(BaseModel):
     )
 
 
-class DeadlineCollectionResponse(BaseModel):
-    """Deadline Collection serializer for responses."""
-
-    deadlines: list[DeadlineResponse]
-    total_entries: int
-
-
 class DeadlineAlertResponse(BaseModel):
     """DeadlineAlert serializer for responses."""
 
     id: UUID
     name: str | None = None
+    run_type_filter: list[DagRunType] | None = None
     reference_type: str = Field(validation_alias=AliasPath("reference", "reference_type"))
     interval: float | None = Field(
         default=None,
@@ -94,6 +89,28 @@ class DeadlineAlertResponse(BaseModel):
             if isinstance(data, (int, float)):
                 return float(data)
         return None
+
+
+class RunDeadlineAlertResponse(DeadlineAlertResponse):
+    """Alert definition and applicability to the current Dag run type."""
+
+    is_applicable: bool = Field(
+        description=(
+            "Whether the alert's run type filter matches the Dag run's current type. "
+            "This does not indicate whether a deadline was created or met."
+        )
+    )
+
+
+class DeadlineCollectionResponse(BaseModel):
+    """Deadline Collection serializer for responses."""
+
+    deadlines: list[DeadlineResponse]
+    total_entries: int
+    deadline_alerts: list[RunDeadlineAlertResponse] | None = Field(
+        default=None,
+        exclude_if=lambda alerts: alerts is None,
+    )
 
 
 class DeadlineAlertCollectionResponse(BaseModel):
