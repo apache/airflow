@@ -364,7 +364,7 @@ class RuntimeTaskInstance(TaskInstance):
                 "task": self.task,
                 "task_instance": self,
                 "ti": self,
-                "outlet_events": OutletEventAccessors(),
+                "outlet_events": OutletEventAccessors(outlets=self.task.outlets),
                 "inlet_events": InletEventsAccessors(self.task.inlets),
                 "macros": macros_accessor,
                 "params": validated_params,

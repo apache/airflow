@@ -890,6 +890,59 @@ class TestOutletEventAccessors:
         assert outlet_event_accessor.extra == {}
 
     @pytest.mark.parametrize(
+        ("outlets", "access_key"),
+        (
+            pytest.param([Asset("test")], Asset("test"), id="asset"),
+            pytest.param([AssetAlias("test_alias")], AssetAlias("test_alias"), id="asset-alias"),
+            pytest.param(
+                [Asset.ref(name="test")], Asset(name="test", uri="test://asset"), id="asset-name-ref"
+            ),
+            pytest.param(
+                [Asset.ref(uri="test://asset/")], Asset(name="test", uri="test://asset/"), id="asset-uri-ref"
+            ),
+        ),
+    )
+    def test__get_item__declared_outlet(self, outlets, access_key):
+        outlet_event_accessors = OutletEventAccessors(outlets=outlets)
+        outlet_event_accessors[access_key].extra = {"key": "value"}
+        assert len(outlet_event_accessors) == 1
+
+    @pytest.mark.parametrize(
+        ("outlets", "access_key", "described_key"),
+        (
+            pytest.param([], Asset("test"), "Asset(name='test', uri='test')", id="no-outlets"),
+            pytest.param([Asset("other")], Asset("test"), "Asset(name='test', uri='test')", id="other-asset"),
+            pytest.param(
+                [Asset.ref(name="other")],
+                Asset("test"),
+                "Asset(name='test', uri='test')",
+                id="other-name-ref",
+            ),
+            pytest.param(
+                [Asset.ref(uri="other")], Asset("test"), "Asset(name='test', uri='test')", id="other-uri-ref"
+            ),
+            pytest.param(
+                [Asset("test")], AssetAlias("test"), "AssetAlias(name='test')", id="alias-not-asset"
+            ),
+            pytest.param(
+                [AssetAlias("test")], Asset("test"), "Asset(name='test', uri='test')", id="asset-not-alias"
+            ),
+        ),
+    )
+    def test__get_item__undeclared_outlet(self, outlets, access_key, described_key):
+        outlet_event_accessors = OutletEventAccessors(outlets=outlets)
+        with pytest.raises(KeyError, match=re.escape(f"{described_key} is not an outlet of this task")):
+            outlet_event_accessors[access_key]
+        assert len(outlet_event_accessors) == 0
+
+    def test__get_item__outlet_added_after_creation(self):
+        outlets: list = []
+        outlet_event_accessors = OutletEventAccessors(outlets=outlets)
+        outlets.append(Asset("test"))
+        outlet_event_accessors[Asset("test")].extra = {"key": "value"}
+        assert len(outlet_event_accessors) == 1
+
+    @pytest.mark.parametrize(
         ("access_key", "asset"),
         (
             (Asset.ref(name="test"), Asset(name="test")),

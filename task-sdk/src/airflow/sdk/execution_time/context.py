@@ -1427,8 +1427,11 @@ class OutletEventAccessors(
 ):
     """Lazy mapping of outlet asset event accessors."""
 
-    def __init__(self) -> None:
+    def __init__(self, outlets: list | None = None) -> None:
         self._dict: dict[BaseAssetUniqueKey, OutletEventAccessor] = {}
+        # Kept by reference, not copied: outlets can still be added while the task runs. ``None``
+        # skips the outlet check, for accessors created outside a task run.
+        self._outlets = outlets
 
     def __str__(self) -> str:
         return f"OutletEventAccessors(_dict={self._dict})"
@@ -1453,8 +1456,29 @@ class OutletEventAccessors(
             raise TypeError(f"Key should be either an asset or an asset alias, not {type(key)}")
 
         if hashable_key not in self._dict:
+            if not self._is_outlet(hashable_key):
+                if isinstance(hashable_key, AssetAliasUniqueKey):
+                    described_key = f"AssetAlias(name={hashable_key.name!r})"
+                else:
+                    described_key = f"Asset(name={hashable_key.name!r}, uri={hashable_key.uri!r})"
+                raise KeyError(
+                    f"{described_key} is not an outlet of this task, so events for it would be ignored. "
+                    "Add it to the task's outlets to emit events for it."
+                )
             self._dict[hashable_key] = OutletEventAccessor(extra={}, key=hashable_key)
         return self._dict[hashable_key]
+
+    def _is_outlet(self, key: BaseAssetUniqueKey) -> bool:
+        if self._outlets is None:
+            return True
+        if isinstance(key, AssetAliasUniqueKey):
+            return any(isinstance(outlet, AssetAlias) and outlet.name == key.name for outlet in self._outlets)
+        return any(
+            (isinstance(outlet, Asset) and AssetUniqueKey.from_asset(outlet) == key)
+            or (isinstance(outlet, AssetNameRef) and outlet.name == key.name)
+            or (isinstance(outlet, AssetUriRef) and outlet.uri == key.uri)
+            for outlet in self._outlets
+        )
 
 
 @attrs.define(init=False)

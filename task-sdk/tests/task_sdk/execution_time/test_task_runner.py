@@ -2857,6 +2857,23 @@ def test_asset_lookups_built_before_execute(
     assert expected_message in captured["messages"]
 
 
+def test_outlet_events_only_accept_task_outlets(create_runtime_ti):
+    from airflow.providers.standard.operators.bash import BashOperator
+
+    task = BashOperator(
+        outlets=[Asset(name="test", uri="test://uri")],
+        task_id="asset-outlet-task",
+        bash_command="echo 0",
+    )
+
+    ti = create_runtime_ti(task=task, dag_id="dag_with_asset_outlet_task")
+    outlet_events = ti.get_template_context()["outlet_events"]
+
+    outlet_events[Asset(name="test", uri="test://uri")].extra = {"key": "value"}
+    with pytest.raises(KeyError, match="is not an outlet of this task"):
+        outlet_events[Asset(name="no such asset in outlets")]
+
+
 @mock.patch("airflow.sdk.execution_time.task_runner.context_to_airflow_vars")
 @mock.patch.dict(os.environ, {}, clear=True)
 def test_execute_task_exports_env_vars(
