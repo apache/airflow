@@ -58,7 +58,7 @@
     "parsedAt": "解析時間："
   },
   "deadlineAlerts": {
-    "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
+    "completionRule": "必須在 {{reference}}後 {{interval}}內完成",
     "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
     "count_one": "1 個期限",
     "count_other": "{{count, number}} 個期限",
@@ -71,8 +71,8 @@
   "deadlineStatus": {
     "actual": "實際",
     "expected": "預期",
-    "finishedEarly": "提前 {{duration}} 達成期限",
-    "finishedLate": "逾期 {{duration}} 完成",
+    "finishedEarly": "提前 {{duration}}達成期限",
+    "finishedLate": "逾期 {{duration}}完成",
     "label": "期限",
     "met": "已達成",
     "missed": "已逾期",

@@ -40,15 +40,12 @@ A class, method, parameter or behaviour is deprecated before it is removed or ch
 
   .. code-block:: python
 
-      import warnings
-
-      from airflow.exceptions import AirflowProviderDeprecationWarning
+      from airflow.providers.amazon.aws.utils.deprecation import NEXT_MAJOR_VERSION, warn_deprecated
 
       if region is not None:
-          warnings.warn(
-              message="Parameter `region` is deprecated. Use the parameter `region_name` instead",
-              category=AirflowProviderDeprecationWarning,
-              stacklevel=2,
+          warn_deprecated(
+              "Parameter `region` is deprecated. Use the parameter `region_name` instead.",
+              removal_version=NEXT_MAJOR_VERSION,
           )
           kwargs["region_name"] = region
 

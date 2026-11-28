@@ -571,6 +571,9 @@ class StreamDatasetOperator(BaseOperator):
 
             message = self.commit_message or "Stream dataset from Airflow"
             push_kwargs["commit_message"] = f"{message} [{marker}]"
+            if is_hub_repo:
+                # Hub rows are published as stored; embedding the files they reference is opt-in.
+                push_kwargs.setdefault("embed_external_files", False)
             if state is not None:
                 state.set(pending_key, True)
             commit = hook.push_to_hub(stream, self.repo_id, **push_kwargs)
@@ -763,6 +766,8 @@ class PushToHubOperator(BaseOperator):
                 )
                 message = self.commit_message or "Publish dataset from Airflow"
                 kwargs["commit_message"] = f"{message} [{marker}]"
+                # Artifact rows are published as stored; embedding the files they reference is opt-in.
+                kwargs.setdefault("embed_external_files", False)
                 if state is not None:
                     state.set(pending_key, True)
                 commit = hook.push_to_hub(dataset, self.repo_id, **kwargs)

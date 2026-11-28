@@ -449,6 +449,26 @@ class TestFabAirflowSecurityManagerOverride:
         check_password.return_value = False
         assert not sm.check_password("test_user", "test_password")
 
+    @mock.patch.object(EmptySecurityManager, "update_user_auth_stat", autospec=True)
+    @mock.patch.object(EmptySecurityManager, "find_user", autospec=True)
+    @mock.patch(
+        "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash", autospec=True
+    )
+    def test_auth_user_db_fails_user_without_password_without_counting_a_failed_login(
+        self, mock_check_password_hash, mock_find_user, mock_update_user_auth_stat
+    ):
+        sm = EmptySecurityManager()
+        user = Mock(spec=User, password=None, is_active=True)
+        mock_find_user.return_value = user
+        app = Flask(__name__)
+        app.config["AUTH_DB_FAKE_PASSWORD_HASH_CHECK"] = "fake-hash"
+
+        with app.app_context():
+            assert sm.auth_user_db("test_user", "test_password") is None
+
+        mock_check_password_hash.assert_called_once_with("fake-hash", "password")
+        mock_update_user_auth_stat.assert_not_called()
+
     def test_update_user_clears_cached_permissions(self):
         sm = EmptySecurityManager()
         user = Mock(

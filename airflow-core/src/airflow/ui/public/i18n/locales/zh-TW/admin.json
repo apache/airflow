@@ -30,7 +30,7 @@
       "firstConfirmMessage_other": "您即將刪除以下連線：",
       "title": "刪除連線"
     },
-    "duplicate": "複製 $t(connections.connection_one)",
+    "duplicate": "複製$t(connections.connection_one)",
     "edit": "編輯連線",
     "form": {
       "connectionIdRequired": "連線 ID 是必填的",

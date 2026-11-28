@@ -14,7 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Expose a pydantic-ai toolset's tools as framework-neutral :class:`AirflowTool` objects."""
+"""
+Expose a pydantic-ai toolset's tools as framework-neutral :class:`AirflowTool` objects.
+
+Also hosts the helpers the framework adapters share.
+"""
 
 from __future__ import annotations
 
@@ -46,7 +50,7 @@ from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolRe
 from airflow.providers.common.ai.utils.coroutines import run_coroutine_sync
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
+    from collections.abc import AsyncIterable, Awaitable, Callable
 
     from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
@@ -455,3 +459,19 @@ def _as_airflow_tool(
         parameters=tool.tool_def.parameters_json_schema,
         function=function,
     )
+
+
+_MAX_ERROR_DETAIL_CHARS = 500
+
+
+def bound_detail(text: str) -> str:
+    omitted = len(text) - _MAX_ERROR_DETAIL_CHARS
+    return text if omitted <= 0 else f"{text[:_MAX_ERROR_DETAIL_CHARS]}...(+{omitted} chars)"
+
+
+async def close_stream(stream: AsyncIterable[Any]) -> None:
+    # ``AsyncIterable`` does not guarantee ``aclose``; the streams the adapters pass in (Claude's
+    # ``query()`` and ``receive_response()``, Codex's ``AsyncTurnHandle.stream()``) do.
+    aclose = getattr(stream, "aclose", None)
+    if aclose is not None:
+        await aclose()
