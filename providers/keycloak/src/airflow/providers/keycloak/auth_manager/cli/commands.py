@@ -25,6 +25,7 @@ from keycloak import KeycloakAdmin, KeycloakError
 from keycloak.exceptions import KeycloakGetError, KeycloakPostError, raise_error_from_response
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import ResourceMethod
+from airflow.api_fastapi.auth.managers.models.resource_details import AccessView
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.keycloak.auth_manager.cli.utils import dry_run_message_wrap, dry_run_preview
@@ -64,11 +65,9 @@ TEAM_MENU_ITEMS = {
     MenuItem.ASSETS,
     MenuItem.DOCS,
 }
-# A Dag bundle is visible to whoever can read a Dag inside it, so this entry belongs with ``DAGS``
-# in the base team set rather than the admin one: every team role that can already reach the
-# bundles through the API should be able to find the page. Guarded because this provider also runs
-# against Airflow versions predating the menu item.
-if hasattr(MenuItem, "DAG_BUNDLES"):
+# Airflow 3.4.0 has the Dag bundles menu item but not its view, and shows the bundles to anyone who
+# can read a Dag in them, so there every team role keeps the menu entry.
+if hasattr(MenuItem, "DAG_BUNDLES") and not hasattr(AccessView, "DAG_BUNDLES"):
     TEAM_MENU_ITEMS.add(MenuItem.DAG_BUNDLES)
 TEAM_ADMIN_MENU_ITEMS = TEAM_MENU_ITEMS | {
     MenuItem.CONNECTIONS,
@@ -131,6 +130,17 @@ def create_resources_command(args):
 @cli_utils.action_cli
 @providers_configuration_loaded
 @dry_run_message_wrap
+def create_roles_command(args):
+    """Create Keycloak auth manager roles in Keycloak."""
+    client = _get_client(args)
+    client_uuid = _get_client_uuid(args)
+
+    _create_roles(client, client_uuid, _dry_run=args.dry_run)
+
+
+@cli_utils.action_cli
+@providers_configuration_loaded
+@dry_run_message_wrap
 def create_permissions_command(args):
     """Create Keycloak auth manager permissions in Keycloak."""
     client = _get_client(args)
@@ -138,6 +148,12 @@ def create_permissions_command(args):
 
     teams = _parse_teams(args.teams)
     _ensure_multi_team_enabled(teams=teams, command_name="create-permissions")
+    missing_roles = _get_roles_to_create(client, client_uuid)
+    if missing_roles:
+        raise ValueError(
+            f"Roles {', '.join(missing_roles)} not found. "
+            "Run `airflow keycloak-auth-manager create-roles` first."
+        )
     if teams:
         # Role policies are only needed for team-scoped (group+role) authorization.
         for role_name in TEAM_ROLE_NAMES:
@@ -162,6 +178,7 @@ def create_all_command(args):
 
     _create_scopes(client, client_uuid, _dry_run=args.dry_run)
     _create_resources(client, client_uuid, teams=teams, _dry_run=args.dry_run)
+    _create_roles(client, client_uuid, _dry_run=args.dry_run)
     _create_group_membership_mapper(client, client_uuid, _dry_run=args.dry_run)
     if teams:
         # Role policies are only needed for team-scoped (group+role) authorization.
@@ -364,6 +381,37 @@ def _create_scopes(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = 
         client.create_client_authz_scopes(client_id=client_uuid, payload=scope)
 
     print("Scopes created successfully.")
+
+
+def _get_roles_to_create(client: KeycloakAdmin, client_uuid: str) -> list[str]:
+    """Get the names of the roles to be created, skipping those that exist as realm or client roles."""
+    existing_roles = {role["name"] for role in client.get_realm_roles()}
+    existing_roles |= {role["name"] for role in client.get_client_roles(client_uuid)}
+    return [
+        role_name
+        for role_name in (*TEAM_ROLE_NAMES, SUPER_ADMIN_ROLE_NAME)
+        if role_name not in existing_roles
+    ]
+
+
+def _preview_roles(client: KeycloakAdmin, client_uuid: str):
+    """Preview roles that would be created."""
+    roles = _get_roles_to_create(client, client_uuid)
+    print("Roles to be created:")
+    for role_name in roles:
+        print(f"  - {role_name}")
+    print()
+
+
+@dry_run_preview(_preview_roles)
+def _create_roles(client: KeycloakAdmin, client_uuid: str, *, _dry_run: bool = False):
+    """Create Keycloak client roles."""
+    roles = _get_roles_to_create(client, client_uuid)
+
+    for role_name in roles:
+        client.create_client_role(client_role_id=client_uuid, payload={"name": role_name}, skip_exists=True)
+
+    print("Roles created successfully.")
 
 
 def _get_resources_to_create(
@@ -747,7 +795,7 @@ def _update_admin_permission_resources(
         r["_id"]
         for r in resources
         if any(r["name"].startswith(f"{resource}:") for resource in TEAM_SCOPED_RESOURCE_NAMES)
-        or r["name"] in GLOBAL_SCOPED_RESOURCE_NAMES
+        or r["name"] in TEAM_SCOPED_RESOURCE_NAMES | GLOBAL_SCOPED_RESOURCE_NAMES
     ]
 
     existing_policy_ids = _get_permission_policy_ids(client, client_uuid, permission_id)
@@ -1133,6 +1181,10 @@ def _ensure_role_policy(
     if _get_policy_id(client, client_uuid, policy_name, policy_type="role"):
         return
 
+    if _dry_run:
+        print(f"Would create role policy '{policy_name}'.")
+        return
+
     role_id = _get_role_id(client, client_uuid, role_name)
     payload = {
         "name": policy_name,
@@ -1141,10 +1193,6 @@ def _ensure_role_policy(
         "decisionStrategy": "UNANIMOUS",
         "roles": [{"id": role_id}],
     }
-
-    if _dry_run:
-        print(f"Would create role policy '{policy_name}'.")
-        return
 
     try:
         client.create_client_authz_role_based_policy(client_id=client_uuid, payload=payload, skip_exists=True)

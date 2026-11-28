@@ -63,13 +63,13 @@ Tasks and Operators
 
 Example: Defining tasks and using operators
 
-Use the :func:`airflow.sdk.task` decorator to wrap Python callables as tasks and leverage dynamic task mapping with the ``.expand()`` method. Tasks communicate via :class:`airflow.sdk.XComArg`. For traditional operators and sensors, import classes like :class:`airflow.sdk.BaseOperator` or :class:`airflow.sdk.Sensor`.
+Use the :func:`airflow.sdk.task` decorator to wrap Python callables as tasks and leverage task mapping with the ``.expand()`` method. Tasks communicate via :class:`airflow.sdk.XComArg`. For traditional operators and sensors, import classes like :class:`airflow.sdk.BaseOperator` or :class:`airflow.sdk.Sensor`.
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_dynamic_task_mapping.py
    :language: python
    :start-after: [START example_dynamic_task_mapping]
    :end-before: [END example_dynamic_task_mapping]
-   :caption: Dynamic task mapping with ``expand()``
+   :caption: Task mapping with ``expand()``
 
 .. exampleinclude:: ../../airflow-core/src/airflow/example_dags/example_xcomargs.py
    :language: python

@@ -19,6 +19,8 @@
 
 package org.apache.airflow.sdk
 
+import org.apache.airflow.sdk.internal.deriveTaskId
+
 /**
  * A group of tasks in a Dag, shown in the Airflow UI as one node that expands:
  * Python's `TaskGroup`.
@@ -39,6 +41,15 @@ package org.apache.airflow.sdk
  * nothing else in the group. What the group holds is read once, rather than at
  * each edge as Python reads it, so a group's edges can be drawn before its
  * tasks are declared. The edges still resolve in the order they were drawn.
+ *
+ * The Airflow UI draws the edges into a group through one join node and the
+ * edges out of it through a second join node. For `staging`, the join nodes
+ * have the IDs `staging.upstream_join_id` and `staging.downstream_join_id`,
+ * and no task or other group in the Dag can take either ID. For example,
+ * `staging.task("upstream_join_id", Stage.class)` fails because the new
+ * task's ID would be `staging.upstream_join_id`. `dag.taskGroup("staging")`
+ * also fails if the Dag already has a task with the ID
+ * `staging.upstream_join_id`.
  *
  * @property id Group ID, including any enclosing group's prefix.
  */
@@ -75,6 +86,85 @@ class TaskGroupRef internal constructor(
   }
 
   /**
+   * Declares a task in this group that starts a run of another Dag, as
+   * [DagDef.task] does for the Dag.
+   *
+   * @param id Task ID within this group; the task's ID is `<group ID>.<id>`.
+   * @param trigger What to trigger, and how.
+   * @return The handle representing this task.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   */
+  fun task(
+    id: String,
+    trigger: TriggerDagRun,
+  ): TaskRef<Void> {
+    val def = TaskDef(qualify(id), trigger)
+    adopt(def)
+    return TaskRef(def)
+  }
+
+  /**
+   * Declares a condition in this group, as [DagDef.If] does for the Dag.
+   *
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(definition: Class<out ConditionTask>): ConditionRef = If(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a condition in this group under the task ID `<group ID>.<id>`.
+   *
+   * @param id Task ID within this group.
+   * @param definition Class that implements [ConditionTask]. Must have a
+   *    public no-arg constructor.
+   * @return The condition, to name each side on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   *
+   * @see If
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun If(
+    id: String,
+    definition: Class<out ConditionTask>,
+  ): ConditionRef = ConditionRef.of(task(id, definition))
+
+  /**
+   * Declares a switch in this group, as [DagDef.Switch] does for the Dag.
+   *
+   * @param definition Class that implements [SwitchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The switch, to list its cases on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Switch(definition: Class<out SwitchTask>): SwitchRef = Switch(deriveTaskId(definition), definition)
+
+  /**
+   * Declares a switch in this group under the task ID `<group ID>.<id>`.
+   *
+   * @param id Task ID within this group.
+   * @param definition Class that implements [SwitchTask]. Must have a public
+   *    no-arg constructor.
+   * @return The switch, to list its cases on.
+   * @throws IllegalArgumentException if the Dag already has a task or task
+   *    group with the resulting ID.
+   *
+   * @see Switch
+   */
+  @Suppress("ktlint:standard:function-naming")
+  fun Switch(
+    id: String,
+    definition: Class<out SwitchTask>,
+  ): SwitchRef = SwitchRef.of(task<Any?>(id, definition))
+
+  /**
    * Nests a task group inside this one.
    *
    * @param id Group ID within this group; the nested group's ID is
@@ -82,7 +172,9 @@ class TaskGroupRef internal constructor(
    *    underscores, or dashes.
    * @return The nested group.
    * @throws IllegalArgumentException if [id] is not a valid group ID, or the
-   *    Dag already has a task or task group with the resulting ID.
+   *    Dag already has a task or task group with the resulting ID. Also
+   *    thrown if the resulting ID is the ID of a join node of this group, or
+   *    if a task already has the ID of a join node of the nested group.
    */
   fun taskGroup(id: String): TaskGroupRef = dag.addGroup(this, id)
 

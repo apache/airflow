@@ -17,7 +17,13 @@
  * under the License.
  */
 
-import type { ConnectionResult, GetXComOpts, SetXComOpts } from "./client-types.js";
+import type {
+  ConnectionResult,
+  GetXComOpts,
+  JsonValue,
+  SetXComOpts,
+  TaskStateStoreSetOpts,
+} from "./client-types.js";
 
 /**
  * Client for reading and writing Airflow task-time data from a task handler.
@@ -29,7 +35,7 @@ export interface TaskClient {
   /**
    * Look up an Airflow Variable.
    *
-   * Returns `null` when the key is missing or stored with a null value.
+   * Returns `null` when the key is missing.
    * Throws on any other error.
    *
    * This is intentionally JS-friendly behavior. Use
@@ -66,27 +72,42 @@ export interface TaskClient {
   deleteVariable(key: string): Promise<void>;
 
   /**
-   * Pull an XCom value.
+   * Pull an XCom value pushed by a task.
    *
-   * Returns `null` when the row is missing. Locator fields default to the
-   * current task's context.
+   * Returns `null` when nothing was pushed. `key` defaults to `"return_value"`,
+   * and `dagId` and `runId` to the current task's context. See
+   * {@link GetXComOpts.mapIndex} for what the map index selects.
    *
    * The generic `T` lets callers narrow the return type when the shape is
    * known:
    *
    * ```ts
-   * const data = await client.getXCom<{ count: number }>({ key: "result" });
+   * const data = await client.getXCom<{ count: number }>({ key: "result", taskId: "extract" });
    * // data is { count: number } | null
    * ```
+   *
+   * @throws `TypeError` when `taskId` is not a string, `key`, `dagId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is an empty string, or `mapIndex` is not an integer.
    */
   getXCom<T = unknown>(opts: GetXComOpts): Promise<T | null>;
 
   /**
    * Push an XCom value.
    *
-   * Target fields default to the current task's context.
+   * Target fields default to the current task's context; see
+   * {@link SetXComOpts} for how `mapIndex` defaults.
+   *
+   * @throws `TypeError` when `key`, `dagId`, `taskId` or `runId` is set to a non-string, or `mapIndex` is not a number or `null`.
+   * @throws `RangeError` when `key`, `dagId`, `taskId` or `runId` is an empty string, or `mapIndex` is not an integer.
    */
   setXCom(opts: SetXComOpts): Promise<void>;
+
+  /**
+   * Key/value state private to this task instance.
+   *
+   * See {@link TaskStateStore}.
+   */
+  readonly taskStateStore: TaskStateStore;
 
   /**
    * Look up an Airflow Connection by ID.
@@ -107,6 +128,67 @@ export interface TaskClient {
    * @throws {@link Exceptions!ConnectionNotFoundError | ConnectionNotFoundError} when the connection does not exist.
    */
   getConnectionOrThrow(connId: string): Promise<ConnectionResult>;
+}
+
+/**
+ * Key/value state private to one task instance, kept across its retries within
+ * the same Dag run.
+ *
+ * Reach it through {@link TaskClient.taskStateStore}:
+ *
+ * ```ts
+ * const store = getClient().taskStateStore;
+ * let jobId = await store.get<string>("job_id");
+ * if (jobId == null) {
+ *   jobId = await submit();
+ *   await store.set("job_id", jobId, { retention: NEVER_EXPIRE });
+ * }
+ * ```
+ *
+ * Values are stored in the metadata database as-is; the `[workers]
+ * state_store_backend` that Python tasks can configure is not applied here.
+ */
+export interface TaskStateStore {
+  /**
+   * Look up a value.
+   *
+   * Returns `null` when the key is missing. Throws on any other error.
+   *
+   * The generic `T` lets callers narrow the return type when the shape is
+   * known.
+   *
+   * @throws `TypeError` when `key` is not a string.
+   * @throws `RangeError` when `key` is empty.
+   */
+  get<T = unknown>(key: string): Promise<T | null>;
+
+  /**
+   * Store a value, replacing any existing value for the key.
+   *
+   * `opts.retention` is how long to keep the key, in seconds.
+   *
+   * @throws `TypeError` when `key` is not a string, or `value` is null,
+   * undefined, NaN, or Infinity.
+   * @throws `RangeError` when `key` is empty; when `retention` is
+   * negative, NaN, or Infinity; when the deployment's
+   * `[state_store] default_retention_days` is invalid; or when the resolved
+   * expiry would overflow the wire timestamp (year 9999).
+   */
+  set(key: string, value: NonNullable<JsonValue>, opts?: TaskStateStoreSetOpts): Promise<void>;
+
+  /**
+   * Delete a key.
+   *
+   * Resolves even when the key does not exist — the Execution API's delete
+   * route is idempotent and does not report a missing key as an error.
+   *
+   * @throws `TypeError` when `key` is not a string.
+   * @throws `RangeError` when `key` is empty.
+   */
+  delete(key: string): Promise<void>;
+
+  /** Delete every key stored for this task instance. */
+  clear(): Promise<void>;
 }
 
 /** Error thrown by {@link TaskClient.getVariableOrThrow}. */

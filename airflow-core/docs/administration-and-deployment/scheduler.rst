@@ -109,10 +109,10 @@ calculations in memory (because having to round-trip to the DB for each TaskInst
 need to ensure that only a single scheduler is in this critical section at once - otherwise limits would not
 be correctly respected. To achieve this we use database row-level locks (using ``SELECT ... FOR UPDATE``).
 
-This critical section is where TaskInstances go from scheduled state and are enqueued to the executor, whilst
-ensuring the various concurrency and pool limits are respected. The critical section is obtained by asking for
-a row-level write lock on every row of the Pool table (roughly equivalent to ``SELECT * FROM slot_pool FOR
-UPDATE NOWAIT`` but the exact query is slightly different).
+This critical section is where TaskInstances go from scheduled to queued state, whilst ensuring the various
+concurrency and pool limits are respected; they are sent to the executor after the scheduler leaves it. The
+critical section is obtained by asking for a row-level write lock on every row of the Pool table (roughly
+equivalent to ``SELECT * FROM slot_pool FOR UPDATE NOWAIT`` but the exact query is slightly different).
 
 The following databases are fully supported and provide an "optimal" experience:
 
@@ -263,10 +263,10 @@ However, you can also look at other non-performance-related scheduler configurat
 
 - :ref:`config:scheduler__ti_metrics_interval`
 
-  How often (in seconds) should task instance (scheduled, queued, running and deferred) stats be sent to StatsD
-  (if statsd_on is enabled). This is a *relatively* expensive query to compute
-  this, so this should be set to match the same period as your StatsD roll-up
-  period.
+  How often (in seconds) should task instance (scheduled, queued, running, deferred and
+  awaiting_input) stats be sent to StatsD (if statsd_on is enabled). This is a *relatively*
+  expensive query to compute this, so this should be set to match the same period as your
+  StatsD roll-up period.
 
 - :ref:`config:scheduler__orphaned_tasks_check_interval`
 

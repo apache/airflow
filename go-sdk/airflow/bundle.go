@@ -229,8 +229,9 @@ func (m *dagMap) ListDagSourceFiles() map[string]string {
 	return files
 }
 
-// lookupTask returns the Go function of a task of a registered Dag. A task from TriggerDagRun has
-// none, because a Python worker runs it.
+// lookupTask returns the task of a registered Dag. It is the Go function of a task from DagRef.Task,
+// or a bundle.TriggerTask with the options of a task from TriggerDagRun, which the runtime runs
+// itself.
 func (m *dagMap) lookupTask(dagID, taskID string) (bundle.Task, bool) {
 	m.mu.Lock()
 	dag, ok := m.dags[dagID]
@@ -242,7 +243,13 @@ func (m *dagMap) lookupTask(dagID, taskID string) (bundle.Task, bool) {
 	dag.mu.Lock()
 	defer dag.mu.Unlock()
 	ref, ok := dag.tasksByID[taskID]
-	if !ok || ref.task == nil {
+	if !ok {
+		return nil, false
+	}
+	if ref.triggerDagRun != nil {
+		return &bundle.TriggerTask{Spec: triggerSpec(*ref.triggerDagRun)}, true
+	}
+	if ref.task == nil {
 		return nil, false
 	}
 	return ref.task, true

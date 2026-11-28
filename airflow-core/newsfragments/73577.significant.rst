@@ -1,0 +1,5 @@
+Older workers can no longer resume deferred tasks whose ``next_kwargs`` hold custom classes
+
+When a deferred task resumes on a worker with an older Task SDK, the API server no longer reconstructs arbitrary classes from the stored ``next_kwargs`` to convert them to the legacy format. Built-in value types, assets and asset aliases (including asset access control) are still converted, without constructing them. A deferred task whose ``next_kwargs`` hold any other class now fails on such a worker with an error naming the type and asking to upgrade the Task SDK, instead of crashing on a payload it cannot decode.
+
+**What to do:** if you run workers with ``apache-airflow-task-sdk`` 1.1.x or older and your deferrable operators or triggers pass instances of custom classes in ``next_kwargs`` (for example via ``self.defer(..., kwargs=...)`` or in the trigger event payload), upgrade the Task SDK on those workers to 1.2.0 or later. Newer workers receive ``next_kwargs`` unchanged and are not affected. Until all workers are upgraded, pass only built-in values, assets and asset aliases in ``next_kwargs`` of tasks that may resume on older workers.

@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-import httpx
+import httpx2
 
 from airflow.api.common import delete_dag, trigger_dag
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
@@ -30,8 +30,8 @@ from airflow.utils.types import DagRunTriggeredByType
 class Client:
     """Local API client implementation."""
 
-    def __init__(self, auth=None, session: httpx.Client | None = None):
-        self._session: httpx.Client = session or httpx.Client()
+    def __init__(self, auth=None, session: httpx2.Client | None = None):
+        self._session: httpx2.Client = session or httpx2.Client()
         if auth:
             self._session.auth = auth
 

@@ -24,6 +24,7 @@
 // used by the coordinator client.
 
 import type {
+  AwaitInputTask,
   StartupDetails,
   DagFileParseRequest,
   ErrorResponse,
@@ -72,6 +73,13 @@ export type {
   DagRunStateResult,
   GetDag,
   DagResult,
+  ClearTaskStateStore,
+  DeleteTaskStateStore,
+  GetTaskStateStore,
+  SetTaskStateStore,
+  TaskStateStoreResult,
+  CreateHITLDetailPayload,
+  HITLDetailRequestResult,
 } from "../generated/supervisor.js";
 
 // -------- Frames from supervisor --------
@@ -90,6 +98,7 @@ export type MsgFromSupervisor =
 export type RuntimeTaskState = WithRequiredType<TaskState>;
 export type RuntimeRetryTask = WithRequiredType<RetryTask>;
 export type RuntimeDeferTask = WithRequiredType<DeferTask>;
+export type RuntimeAwaitInputTask = WithRequiredType<AwaitInputTask>;
 export type RuntimeSucceedTask = WithRequiredType<SucceedTask> & {
   task_outlets: NonNullable<SucceedTask["task_outlets"]>;
   outlet_events: NonNullable<SucceedTask["outlet_events"]>;

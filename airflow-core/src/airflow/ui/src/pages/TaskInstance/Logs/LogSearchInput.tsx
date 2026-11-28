@@ -29,6 +29,7 @@ import { useShortcut } from "src/hooks/useShortcut";
 
 export type LogSearchInputProps = {
   readonly currentMatchIndex: number;
+  readonly onSearchBlur?: () => void;
   readonly onSearchChange: (query: string) => void;
   readonly onSearchNext: () => void;
   readonly onSearchPrevious: () => void;
@@ -38,6 +39,7 @@ export type LogSearchInputProps = {
 
 export const LogSearchInput = ({
   currentMatchIndex,
+  onSearchBlur,
   onSearchChange,
   onSearchNext,
   onSearchPrevious,
@@ -85,7 +87,7 @@ export const LogSearchInput = ({
                   : translate("logs.search.noMatches")}
               </Text>
               <IconButton
-                aria-label="Previous match"
+                aria-label={translate("logs.search.previousMatch")}
                 disabled={totalMatches === 0}
                 onClick={onSearchPrevious}
                 size="2xs"
@@ -93,7 +95,7 @@ export const LogSearchInput = ({
                 <FiChevronUp />
               </IconButton>
               <IconButton
-                aria-label="Next match"
+                aria-label={translate("logs.search.nextMatch")}
                 disabled={totalMatches === 0}
                 onClick={onSearchNext}
                 size="2xs"
@@ -108,6 +110,7 @@ export const LogSearchInput = ({
       >
         <Input
           data-testid="log-search-input"
+          onBlur={onSearchBlur}
           onChange={(event) => onSearchChange(event.target.value)}
           onKeyDown={handleSearchKeyDown}
           placeholder={translate("logs.search.placeholder")}

@@ -21,7 +21,9 @@ import gc
 import multiprocessing
 import os
 import signal
+import threading
 import time
+from multiprocessing.queues import SimpleQueue as SimpleQueueType
 from pathlib import Path
 from unittest import mock
 
@@ -45,6 +47,8 @@ from airflow.utils.state import State
 
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.markers import skip_if_force_lowest_dependencies_marker
+
+_ORIGINAL_THREAD_START = threading.Thread.start
 
 pytestmark = pytest.mark.db_test
 
@@ -104,6 +108,17 @@ def _write_large_results_to_queue(result_queue, activity_queue, unread_messages,
         key = LocalExecutor.get_workload_key(workload)
         result_queue.put((os.getpid(), key, workload.running_state, None))
         result_queue.put((os.getpid(), key, State.SUCCESS, payload))
+
+
+def _refill_worker(activity_queue, result_queue, barrier, count, payload_size):
+    """Stand-in worker: consume activity items and emit results over real pipes."""
+    payload = b"x" * payload_size
+    barrier.wait()
+    for _ in range(count):
+        item = activity_queue.get()
+        if item is None:
+            return
+        result_queue.put((os.getpid(), None, None, payload))
 
 
 def _make_workload(kind):
@@ -443,6 +458,303 @@ class TestLocalExecutor:
         assert not executor._worker_tasks
         assert executor._unread_messages.value == 0
 
+    @pytest.mark.parametrize("num_workloads", [1, 3])
+    def test_process_workloads_drains_results_before_put(self, num_workloads):
+        """#70545: _process_workloads must drain the result queue before each activity_queue.put."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock()
+        executor._read_results = mock.MagicMock()
+        executor._unread_messages = multiprocessing.Value("I", 0)
+        executor._check_workers = mock.MagicMock()
+
+        call_order = []
+        executor._read_results.side_effect = lambda: call_order.append("_read_results")
+        executor.activity_queue.put.side_effect = lambda *args, **kwargs: call_order.append("put")
+
+        workloads_list = []
+        for _ in range(num_workloads):
+            workload = _make_task_workload()
+            key = executor.get_workload_key(workload)
+            executor.executor_queues.setdefault(workload.type, {})[key] = workload
+            workloads_list.append(workload)
+
+        executor._process_workloads(workloads_list)
+
+        put_indices = [i for i, call in enumerate(call_order) if call == "put"]
+        assert len(put_indices) == num_workloads
+        assert all(i > 0 and call_order[i - 1] == "_read_results" for i in put_indices)
+
+    def test_put_workload_drains_results_while_put_is_blocked(self):
+        """A put blocked on a full activity pipe must not stop the result queue from being drained."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor.workers = {1: mock.Mock(spec=multiprocessing.Process, **{"is_alive.return_value": True})}
+        put_started = threading.Event()
+        drained_during_put = threading.Event()
+
+        def _put_blocked_until_drained(_workload):
+            put_started.set()
+            if not drained_during_put.wait(timeout=10):
+                raise TimeoutError("result queue was not drained while the put was blocked")
+
+        executor.activity_queue.put.side_effect = _put_blocked_until_drained
+        executor._read_results = mock.MagicMock(
+            side_effect=lambda: put_started.is_set() and drained_during_put.set()
+        )
+
+        executor._put_workload(_make_task_workload())
+
+        assert drained_during_put.is_set()
+
+    def test_put_workload_keeps_draining_until_put_completes_when_interrupted(self):
+        """An interruption during a blocked put must not abandon the writer that end() would queue behind."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor.workers = {1: mock.Mock(spec=multiprocessing.Process, **{"is_alive.return_value": True})}
+        drains = []
+        put_finished = threading.Event()
+
+        def _put_blocked_until_drained_twice(_workload):
+            deadline = time.monotonic() + 10
+            while len(drains) < 2 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            put_finished.set()
+
+        def _read_results():
+            drains.append(None)
+            if len(drains) == 1:
+                raise SystemExit(1)
+
+        executor.activity_queue.put.side_effect = _put_blocked_until_drained_twice
+        executor._read_results = mock.MagicMock(spec=executor._read_results, side_effect=_read_results)
+
+        with pytest.raises(SystemExit):
+            executor._put_workload(_make_task_workload())
+
+        assert put_finished.is_set()
+        assert len(drains) >= 2
+
+    @mock.patch.object(threading.Thread, "start", autospec=True)
+    def test_put_workload_keeps_draining_when_interrupted_while_starting_the_writer(self, mock_start):
+        """An interruption raised while the writer is starting must not skip the drain either."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor.workers = {1: mock.Mock(spec=multiprocessing.Process, **{"is_alive.return_value": True})}
+        drains = []
+        put_finished = threading.Event()
+
+        def _put_blocked_until_drained(_workload):
+            deadline = time.monotonic() + 10
+            while not drains and time.monotonic() < deadline:
+                time.sleep(0.01)
+            put_finished.set()
+
+        executor.activity_queue.put.side_effect = _put_blocked_until_drained
+        executor._read_results = mock.MagicMock(
+            spec=executor._read_results, side_effect=lambda: drains.append(None)
+        )
+
+        def _start_then_interrupt(thread):
+            _ORIGINAL_THREAD_START(thread)
+            raise SystemExit(1)
+
+        mock_start.side_effect = _start_then_interrupt
+
+        with pytest.raises(SystemExit):
+            executor._put_workload(_make_task_workload())
+
+        assert put_finished.is_set()
+        assert drains
+
+    def test_put_workload_reraises_interruption_when_no_worker_can_take_the_put(self):
+        """Without a live worker the blocked write can never complete, so the interruption is re-raised."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor.workers = {}
+        release_put = threading.Event()
+        put_done = threading.Event()
+
+        def _put_blocked_until_released(_workload):
+            release_put.wait(timeout=10)
+            put_done.set()
+
+        executor.activity_queue.put.side_effect = _put_blocked_until_released
+        executor._read_results = mock.MagicMock(
+            spec=executor._read_results, side_effect=[SystemExit(1), *[None] * 1000]
+        )
+
+        try:
+            with pytest.raises(SystemExit):
+                executor._put_workload(_make_task_workload())
+            assert not put_done.is_set()
+        finally:
+            release_put.set()
+
+    def test_put_workload_returns_put_error(self):
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        error = ValueError("unpicklable")
+        executor.activity_queue.put.side_effect = error
+
+        assert executor._put_workload(_make_task_workload()) is error
+
+    @pytest.mark.parametrize(
+        ("earlier_dispatches", "still_running"),
+        [
+            pytest.param(0, False, id="no-earlier-dispatch"),
+            pytest.param(1, True, id="earlier-dispatch-still-running"),
+        ],
+    )
+    def test_process_workloads_undoes_dispatch_when_put_fails(self, earlier_dispatches, still_running):
+        """A failed put undoes only its own dispatch, so an earlier dispatch of the same key stays running."""
+        executor = LocalExecutor(parallelism=1)
+        executor.workers = {}
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor.activity_queue.put.side_effect = ValueError("unpicklable")
+        executor._read_results = mock.MagicMock(spec=executor._read_results)
+        executor._unread_messages = multiprocessing.Value("I", 0)
+        executor._check_workers = mock.MagicMock(spec=executor._check_workers)
+        workload = _make_task_workload()
+        key = executor.get_workload_key(workload)
+        executor.executor_queues.setdefault(workload.type, {})[key] = workload
+        if earlier_dispatches:
+            # A resumed attempt reuses the key while the earlier dispatch has not reported its result yet.
+            executor.running.add(key)
+            executor._dispatch_counts[key] = earlier_dispatches
+
+        with pytest.raises(ValueError, match="unpicklable"):
+            executor._process_workloads([workload])
+
+        assert (key in executor.running) is still_running
+        assert executor._dispatch_counts.get(key, 0) == earlier_dispatches
+        assert executor.executor_queues[workload.type][key] is workload
+        assert executor._unread_messages.value == 0
+
+    def test_process_workloads_counts_workload_before_put(self):
+        """A worker decrements the count when it takes the message, so it must be counted first."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor._read_results = mock.MagicMock(spec=executor._read_results)
+        executor._unread_messages = multiprocessing.Value("I", 0)
+        executor._check_workers = mock.MagicMock(spec=executor._check_workers)
+        workload = _make_task_workload()
+        executor.executor_queues.setdefault(workload.type, {})[executor.get_workload_key(workload)] = workload
+        counted_at_put = []
+        executor.activity_queue.put.side_effect = lambda _workload: counted_at_put.append(
+            executor._unread_messages.value
+        )
+
+        executor._process_workloads([workload])
+
+        assert counted_at_put == [1]
+
+    def test_put_workload_spawns_workers_up_to_parallelism_while_one_is_busy(self):
+        """A busy worker must not stop more workers from being spawned while a put is blocked."""
+        executor = LocalExecutor(parallelism=2)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor._read_results = mock.MagicMock(spec=executor._read_results)
+        busy_worker = mock.Mock(spec=multiprocessing.Process, **{"is_alive.return_value": True})
+        executor.workers = {1: busy_worker}
+        second_worker_started = threading.Event()
+
+        def _spawn_worker():
+            executor.workers = {
+                1: busy_worker,
+                2: mock.Mock(spec=multiprocessing.Process, **{"is_alive.return_value": True}),
+            }
+            second_worker_started.set()
+
+        executor._check_workers = mock.MagicMock(spec=executor._check_workers, side_effect=_spawn_worker)
+        executor.activity_queue.put.side_effect = lambda _workload: second_worker_started.wait(timeout=10)
+
+        assert executor._put_workload(_make_task_workload()) is None
+
+        assert second_worker_started.is_set()
+
+    def test_put_workload_spawns_a_worker_when_none_is_alive(self):
+        """With no live worker the blocked put can never complete, so workers are spawned while it waits."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor._read_results = mock.MagicMock(spec=executor._read_results)
+        executor.workers = {}
+        worker_started = threading.Event()
+
+        def _spawn_worker():
+            executor.workers = {1: mock.Mock(spec=multiprocessing.Process, **{"is_alive.return_value": True})}
+            worker_started.set()
+
+        executor._check_workers = mock.MagicMock(spec=executor._check_workers, side_effect=_spawn_worker)
+        executor.activity_queue.put.side_effect = lambda _workload: worker_started.wait(timeout=10)
+
+        assert executor._put_workload(_make_task_workload()) is None
+
+        assert worker_started.is_set()
+
+    def test_process_workloads_registers_running_before_put(self):
+        """A result read while the put is in flight is dropped unless the key is already running."""
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = mock.MagicMock(spec=SimpleQueueType)
+        executor._read_results = mock.MagicMock(spec=executor._read_results)
+        executor._unread_messages = multiprocessing.Value("I", 0)
+        executor._check_workers = mock.MagicMock(spec=executor._check_workers)
+        workload = _make_task_workload()
+        key = executor.get_workload_key(workload)
+        executor.executor_queues.setdefault(workload.type, {})[key] = workload
+        running_at_put = []
+        executor.activity_queue.put.side_effect = lambda _workload: running_at_put.append(
+            key in executor.running
+        )
+
+        executor._process_workloads([workload])
+
+        assert running_at_put == [True]
+
+    def test_process_workloads_progresses_under_concurrent_result_refill(self, mocker):
+        """#70545: with real queues, _process_workloads must keep draining so a concurrently
+        refilling worker cannot deadlock the dispatch loop via a full result_queue pipe."""
+        ctx = multiprocessing.get_context("fork")
+        executor = LocalExecutor(parallelism=1)
+        executor.activity_queue = ctx.SimpleQueue()
+        executor.result_queue = ctx.SimpleQueue()
+        executor._unread_messages = multiprocessing.Value("I", 0)
+        executor._worker_tasks = {}
+        executor._dispatch_counts = {}
+        mocker.patch.object(executor, "_check_workers", autospec=True)
+
+        count = 400
+        submitted = [_make_task_workload() for _ in range(count)]
+        for workload in submitted:
+            executor.executor_queues.setdefault(workload.type, {})[executor.get_workload_key(workload)] = (
+                workload
+            )
+
+        barrier = ctx.Barrier(2)
+        # Keep results smaller than a workload, as in production: drain-before-put only guarantees progress
+        # while the worker can free a page of the activity pipe before it fills the result pipe.
+        proc = ctx.Process(
+            target=_refill_worker,
+            args=(executor.activity_queue, executor.result_queue, barrier, count, 512),
+        )
+        proc.start()
+        executor.workers = {proc.pid: proc}
+        barrier.wait(timeout=30)
+
+        completed = threading.Event()
+
+        def _run():
+            try:
+                executor._process_workloads(submitted)
+            finally:
+                completed.set()
+
+        runner = threading.Thread(target=_run, daemon=True)
+        runner.start()
+        finished = completed.wait(timeout=30)
+        proc.terminate()
+        proc.join(timeout=5)
+
+        assert finished, "dispatch did not complete within 30s (result-queue refill deadlock)"
+
     @pytest.mark.parametrize(
         ("conf_values", "expected_server"),
         [
@@ -463,6 +775,22 @@ class TestLocalExecutor:
             ({}, "http://localhost:8080/execution/"),
             ({("api", "base_url"): "/"}, "http://localhost:8080/execution/"),
             ({("api", "base_url"): "/airflow/"}, "http://localhost:8080/airflow/execution/"),
+            ({("api", "port"): "9091"}, "http://localhost:9091/execution/"),
+            (
+                {("api", "base_url"): "/airflow/", ("api", "port"): "9091"},
+                "http://localhost:9091/airflow/execution/",
+            ),
+            (
+                {("api", "base_url"): "http://test-server", ("api", "port"): "9091"},
+                "http://test-server/execution/",
+            ),
+            (
+                {
+                    ("core", "execution_api_server_url"): "http://custom-server/execution/",
+                    ("api", "port"): "not-a-port",
+                },
+                "http://custom-server/execution/",
+            ),
         ],
         ids=[
             "base_url_fallback",
@@ -470,6 +798,10 @@ class TestLocalExecutor:
             "no_base_url_no_custom",
             "base_url_no_custom",
             "relative_base_url",
+            "no_base_url_custom_port",
+            "relative_base_url_custom_port",
+            "absolute_base_url_ignores_port",
+            "custom_server_ignores_port",
         ],
     )
     @mock.patch("airflow.executors.base_executor.BaseExecutor.run_workload")
@@ -525,6 +857,18 @@ class TestLocalExecutor:
                 # Verify default server URL was used
                 assert mock_run_workload.call_count == 1
                 assert mock_run_workload.call_args.kwargs["server"] == default_server
+
+    def test_execution_api_server_url_fallback_uses_team_api_port(self):
+        """A team executor builds the fallback URL from its own ``[api] port``, not the global one."""
+        with (
+            mock.patch.dict(os.environ, {"AIRFLOW__TEAM_A___API__PORT": "9092"}),
+            conf_vars({("api", "port"): "9091"}),
+        ):
+            team_url = get_execution_api_server_url(ExecutorConf(team_name="team_a"))
+            global_url = get_execution_api_server_url(ExecutorConf(team_name=None))
+
+        assert team_url == "http://localhost:9092/execution/"
+        assert global_url == "http://localhost:9091/execution/"
 
     def test_multiple_team_executors_isolation(self):
         """Test that multiple team executors can coexist with isolated resources"""
@@ -1025,6 +1369,29 @@ class TestLocalExecutorCallbackSupport:
             token=TestLocalExecutorCallbackSupport.TEST_TOKEN,
             server=TestLocalExecutorCallbackSupport.TEST_SERVER,
         )
+
+    @mock.patch("airflow.sdk.execution_time.callback_supervisor.supervise_callback", return_value=0)
+    def test_execute_workload_passes_kwargs_encoding_to_supervise_callback(self, mock_supervise_callback):
+        encoded_kwargs = {
+            "interval": {"__classname__": "datetime.timedelta", "__version__": 2, "__data__": 1.0}
+        }
+        callback_data = CallbackDTO(
+            id=self.CALLBACK_UUID,
+            fetch_method=CallbackFetchMethod.IMPORT_PATH,
+            data={"path": "test.module.my_callback", "kwargs": encoded_kwargs, "kwargs_encoding": "serde"},
+        )
+        callback_workload = workloads.ExecuteCallback(
+            callback=callback_data,
+            dag_rel_path=Path("test.py"),
+            bundle_info=BundleInfo(name="test_bundle", version="1.0"),
+            token="test_token",
+            log_path="test.log",
+        )
+
+        BaseExecutor.run_workload(callback_workload)
+
+        assert mock_supervise_callback.call_args.kwargs["callback_kwargs"] == encoded_kwargs
+        assert mock_supervise_callback.call_args.kwargs["callback_kwargs_encoding"] == "serde"
 
     @mock.patch(
         "airflow.sdk.execution_time.callback_supervisor.supervise_callback",

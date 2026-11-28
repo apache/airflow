@@ -26,7 +26,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic_ai import Agent
 from pydantic_ai._run_context import RunContext
-from pydantic_ai.exceptions import ApprovalRequired, ModelRetry, ToolFailed
+from pydantic_ai.exceptions import ApprovalRequired, ModelRetry, ToolFailed, UnexpectedModelBehavior
 from pydantic_ai.messages import ModelResponse, TextPart, ToolCallPart, ToolReturn, ToolReturnPart
 from pydantic_ai.models.function import FunctionModel
 from pydantic_ai.models.test import TestModel
@@ -34,7 +34,12 @@ from pydantic_ai.toolsets.abstract import ToolsetTool
 from pydantic_ai.toolsets.function import FunctionToolset
 from pydantic_ai.usage import RunUsage
 
-from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, MaskingToolset, ensure_masked
+from airflow.providers.common.ai.utils.toolset_base import (
+    AirflowToolset,
+    MaskingCapability,
+    MaskingToolset,
+    ensure_masked,
+)
 
 
 class _ScriptedToolset(AirflowToolset):
@@ -146,11 +151,15 @@ class TestMasking:
     def test_masks_a_tool_return_and_keeps_it_one(self, registered_secret):
         result = _call(
             _ScriptedToolset(
-                ToolReturn(return_value=f"key={registered_secret}", content=f"for {registered_secret}")
+                ToolReturn(
+                    return_value=f"key={registered_secret}",
+                    content=f"for {registered_secret}",
+                    metadata={"raw": registered_secret},
+                )
             )
         )
 
-        assert result == ToolReturn(return_value="key=***", content="for ***")
+        assert result == ToolReturn(return_value="key=***", content="for ***", metadata={"raw": "***"})
 
     def test_an_approval_request_keeps_its_type_and_is_not_logged_as_a_failure(
         self, registered_secret, caplog
@@ -159,7 +168,7 @@ class TestMasking:
             _call(_ScriptedToolset(ApprovalRequired(metadata={"reason": registered_secret})))
 
         assert caught.value.metadata == {"reason": "***"}
-        assert "failed" not in caplog.text
+        assert not any("failed" in m for m in caplog.messages)
 
     def test_masks_the_exceptions_inside_an_exception_group(self, registered_secret):
         cause = ConnectionError(f"socket closed by {registered_secret}")
@@ -228,6 +237,31 @@ class TestMaskingToolset:
         assert asyncio.run(call()) == "api key: ***"
 
 
+@pytest.mark.enable_redact
+class TestMaskingCapability:
+    def test_running_out_of_tool_retries_is_not_logged_as_a_tool_failure(self, registered_secret, caplog):
+        """pydantic-ai raises UnexpectedModelBehavior below the capability once the retries are used up."""
+
+        def read_setting() -> str:
+            raise ModelRetry(f"bad key {registered_secret}")
+
+        def keep_calling(messages, info) -> ModelResponse:
+            return ModelResponse(
+                parts=[ToolCallPart(tool_name="read_setting", args={}, tool_call_id=f"c{len(messages)}")]
+            )
+
+        agent = Agent(
+            FunctionModel(keep_calling),
+            toolsets=[FunctionToolset([read_setting], max_retries=1)],
+            capabilities=[MaskingCapability()],
+        )
+
+        with pytest.raises(UnexpectedModelBehavior, match="exceeded max retries"):
+            agent.run_sync("hi")
+
+        assert "Tool read_setting failed" not in caplog.messages
+
+
 class _ApiToolset(FunctionToolset):
     """A Dag author's toolset whose one tool returns a connection string."""
 
@@ -276,4 +310,4 @@ class TestWithMasking:
         with pytest.raises(ValueError, match="boom"):
             _call(MaskingToolset(wrapped=_ScriptedToolset(ValueError("boom"))))
 
-        assert caplog.text.count("Tool t failed") == 1
+        assert caplog.messages.count("Tool t failed") == 1

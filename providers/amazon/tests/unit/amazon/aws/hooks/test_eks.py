@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from contextlib import AbstractContextManager
 from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -30,6 +32,8 @@ from urllib.parse import urlsplit
 import pytest
 import time_machine
 import yaml
+from boto3.session import Session
+from botocore.credentials import Credentials
 from botocore.exceptions import ClientError
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
@@ -55,6 +59,7 @@ from moto.eks.models import (
     NODEGROUP_NOT_FOUND_MSG,
 )
 
+from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
 
 from unit.amazon.aws.utils.eks_test_constants import (
@@ -1212,6 +1217,87 @@ class TestEksHooks:
 class TestEksHook:
     python_executable = f"python{sys.version_info[0]}.{sys.version_info[1]}"
 
+    @mock.patch.object(EksHook, "generate_config_file", autospec=True)
+    @mock.patch.object(EksHook, "get_session", autospec=True)
+    def test_generate_config_file_with_credentials(self, get_session, generate_config):
+        hook = EksHook(aws_conn_id=None)
+        session = mock.create_autospec(Session, instance=True)
+        session.get_credentials.return_value = Credentials("access-key", "secret-key", "session-token")
+        get_session.return_value = session
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = "/tmp/kubeconfig"
+        generate_config.return_value = config_context
+
+        with hook.generate_config_file_with_credentials("cluster", "namespace") as (config, credentials):
+            assert config == "/tmp/kubeconfig"
+            assert Path(credentials).read_text() == (
+                "export AWS_ACCESS_KEY_ID='access-key'\n"
+                "export AWS_SECRET_ACCESS_KEY='secret-key'\n"
+                "export AWS_SESSION_TOKEN='session-token'\n"
+            )
+            config_context.__exit__.assert_not_called()
+
+        credentials = generate_config.call_args.kwargs["credentials_file"]
+        generate_config.assert_called_once_with(
+            hook, eks_cluster_name="cluster", pod_namespace="namespace", credentials_file=credentials
+        )
+        assert not Path(credentials).exists()
+        config_context.__exit__.assert_called_once()
+
+    @mock.patch.object(EksHook, "generate_config_file", autospec=True)
+    @mock.patch.object(EksHook, "get_session", autospec=True)
+    def test_auth_context_cleans_up_after_caller_failure(self, get_session, generate_config):
+        hook = EksHook(aws_conn_id=None)
+        session = mock.create_autospec(Session, instance=True)
+        session.get_credentials.return_value = Credentials("access-key", "secret-key", "session-token")
+        get_session.return_value = session
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        config_context.__enter__.return_value = "/tmp/kubeconfig"
+        generate_config.return_value = config_context
+        error = ValueError("caller failed")
+
+        with pytest.raises(ValueError, match="caller failed") as raised:
+            with hook.generate_config_file_with_credentials("cluster", "namespace") as (_, credentials):
+                raise error
+
+        assert raised.value is error
+        assert not Path(credentials).exists()
+        config_context.__exit__.assert_called_once_with(ValueError, error, mock.ANY)
+
+    @mock.patch.object(EksHook, "generate_config_file", autospec=True)
+    @mock.patch.object(EksHook, "get_session", autospec=True)
+    def test_auth_context_cleans_up_after_kubeconfig_failure(self, get_session, generate_config):
+        hook = EksHook(aws_conn_id=None)
+        session = mock.create_autospec(Session, instance=True)
+        session.get_credentials.return_value = Credentials("access-key", "secret-key", "session-token")
+        get_session.return_value = session
+        config_context = mock.MagicMock(spec=AbstractContextManager)
+        error = ValueError("kubeconfig failed")
+        config_context.__enter__.side_effect = error
+        generate_config.return_value = config_context
+
+        with pytest.raises(ValueError, match="kubeconfig failed") as raised:
+            with hook.generate_config_file_with_credentials("cluster", "namespace"):
+                pytest.fail("Kubeconfig failure must prevent entering the auth context")
+
+        assert raised.value is error
+        credentials = generate_config.call_args.kwargs["credentials_file"]
+        assert not Path(credentials).exists()
+
+    @mock.patch.object(EksHook, "generate_config_file", autospec=True)
+    @mock.patch.object(EksHook, "get_session", autospec=True)
+    def test_generate_config_file_with_credentials_missing_credentials(self, get_session, generate_config):
+        hook = EksHook(aws_conn_id=None)
+        session = mock.create_autospec(Session, instance=True)
+        session.get_credentials.return_value = None
+        get_session.return_value = session
+
+        with pytest.raises(RuntimeError, match="Unable to retrieve AWS credentials"):
+            with hook.generate_config_file_with_credentials("cluster", "namespace"):
+                pytest.fail("Missing credentials must prevent kubeconfig creation")
+
+        generate_config.assert_not_called()
+
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @pytest.mark.parametrize(
         ("aws_conn_id", "region_name", "expected_region_args"),
@@ -1274,6 +1360,65 @@ class TestEksHook:
             # Verify region arguments are properly included
             if expected_region_args:
                 assert expected_region_args in command_arg
+
+    @mock.patch.object(EksHook, "conn", new_callable=PropertyMock)
+    def test_generate_config_file_uses_regional_sts_and_keeps_environment(self, mock_conn, monkeypatch):
+        """The kubeconfig gets the regional STS endpoint even with "legacy", and the environment is unchanged."""
+        monkeypatch.setenv("AWS_STS_REGIONAL_ENDPOINTS", "legacy")
+        mock_conn.return_value.describe_cluster.return_value = {
+            "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
+        }
+        hook = EksHook(aws_conn_id=None, region_name="us-west-2")
+
+        with hook.generate_config_file(
+            eks_cluster_name="test-cluster",
+            pod_namespace="ns",
+            credentials_file="/tmp/test_credentials.aws_creds",
+        ) as config_file:
+            config = yaml.safe_load(Path(config_file).read_text())
+
+        command_arg = config["users"][0]["user"]["exec"]["args"][1]
+        regional_sts_url = "https://sts.us-west-2.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15"
+        assert f"--sts-url '{regional_sts_url}'" in command_arg
+        assert os.environ["AWS_STS_REGIONAL_ENDPOINTS"] == "legacy"
+
+    @pytest.mark.parametrize(
+        ("extra", "expected_sts_endpoint"),
+        [
+            pytest.param(
+                {"service_config": {"sts": {"endpoint_url": "https://sts-fips.us-west-2.amazonaws.com"}}},
+                "https://sts-fips.us-west-2.amazonaws.com",
+                id="sts-service-config",
+            ),
+            pytest.param(
+                {"endpoint_url": "https://fips.eks.us-west-2.amazonaws.com"},
+                "https://sts.us-west-2.amazonaws.com",
+                id="connection-wide-endpoint-url-is-not-used",
+            ),
+        ],
+    )
+    @mock.patch.object(EksHook, "get_connection")
+    @mock.patch.object(EksHook, "conn", new_callable=PropertyMock)
+    def test_generate_config_file_uses_sts_endpoint_of_hook_connection(
+        self, mock_conn, mock_get_connection, extra, expected_sts_endpoint
+    ):
+        mock_get_connection.return_value = Connection(conn_id="eks_conn", conn_type="aws", extra=extra)
+        mock_conn.return_value.describe_cluster.return_value = {
+            "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
+        }
+        hook = EksHook(aws_conn_id="eks_conn", region_name="us-west-2")
+
+        with hook.generate_config_file(
+            eks_cluster_name="test-cluster",
+            pod_namespace="ns",
+            credentials_file="/tmp/test_credentials.aws_creds",
+        ) as config_file:
+            config = yaml.safe_load(Path(config_file).read_text())
+
+        command_arg = config["users"][0]["user"]["exec"]["args"][1]
+        sts_url = f"{expected_sts_endpoint}/?Action=GetCallerIdentity&Version=2011-06-15"
+        assert f"--sts-url '{sts_url}'" in command_arg
+        mock_get_connection.assert_called_with("eks_conn")
 
     def test_command_template_captures_stderr_separately(self):
         """Verify COMMAND keeps stderr out of stdout while preserving errors."""

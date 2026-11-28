@@ -29,7 +29,7 @@ dependencies {
     implementation("com.squareup:javapoet:1.13.0")
 
     testImplementation(kotlin("test"))
-    testImplementation("com.google.testing.compile:compile-testing:0.23.0")
+    testImplementation("com.google.testing.compile:compile-testing:0.24.0")
 }
 
 java {
@@ -49,7 +49,7 @@ publishing {
                 name = "Apache Airflow Java SDK — Annotation Processor"
                 description =
                     "Annotation processor for the Apache Airflow Java SDK; " +
-                    "generates *Builder classes from @Builder.Dag-annotated sources."
+                    "generates *Builder classes from @Airflow.Dag-annotated sources."
             }
         }
     }

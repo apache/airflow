@@ -37,7 +37,7 @@
 //        - StartupDetails      → run task, respond Succeed or Fail, exit
 //
 import { resolveArgs, type BoundArgs } from "./arg-binding.js";
-import { createCoordinatorClient } from "./client.js";
+import { createCoordinatorClient, XCOM_RETURN_KEY, type CoordinatorClient } from "./client.js";
 import { CommChannel } from "./comm-channel.js";
 import { LogChannel } from "./log-channel.js";
 import {
@@ -49,19 +49,19 @@ import {
   asMsgFromSupervisor,
   SUPERVISOR_API_VERSION,
   type RuntimeDagFileParsingResult,
-  type RuntimeDeferTask,
   type RuntimeRetryTask,
   type RuntimeSucceedTask,
   type RuntimeTaskState,
   type StartupDetails,
 } from "./protocol.js";
 import { getArgNames } from "../sdk/arg-names.js";
-import { bundleDags, bundleDagTaskIds, getBundleTrigger, type Bundle } from "../sdk/bundle.js";
+import { bundleDags, bundleDagTaskIds, getBundleTask, type Bundle } from "../sdk/bundle.js";
 import { finalizeDag } from "../sdk/dag.js";
 import { SERIALIZATION_VERSION } from "../generated/dag-schema-fields.js";
 import { computeRelativeFileloc, serializeDag } from "./serde.js";
-import { runTriggerDagRun } from "./trigger-runner.js";
-import { runInTaskScope, type TaskContext } from "../sdk/task.js";
+import { buildOperatorContext, runOperator } from "./operator-runner.js";
+import type { OperatorOutcome } from "../sdk/operator.js";
+import { runInTaskScope, type TaskContext, type TaskFunction } from "../sdk/task.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
 export const ABORT_GRACE_PERIOD_MS = 30_000;
@@ -199,6 +199,8 @@ export async function startCoordinator(
         runtimeLogs.info("Task succeeded", { task_id: body.ti.task_id });
       } else if (response.type === "DeferTask") {
         runtimeLogs.info("Task deferred", { task_id: body.ti.task_id });
+      } else if (response.type === "AwaitInputTask") {
+        runtimeLogs.info("Task awaiting input", { task_id: body.ti.task_id });
       }
     } else {
       const errMsg = `First frame must be DagFileParseRequest or StartupDetails, got ${body.type}`;
@@ -312,7 +314,7 @@ function handleParse(
         },
       });
     } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = errorMessage(err);
       logs.error("Dag could not be serialized", { dag_id: dag.dagId, detail });
       failures.push(`Dag "${dag.dagId}": ${detail}`);
     }
@@ -342,25 +344,11 @@ async function handleTask(
   logs: LogChannel,
   clientLogs: LogChannel,
   signal: AbortSignal,
-): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState | RuntimeDeferTask> {
+): Promise<OperatorOutcome> {
   const ti = details.ti;
-  const trigger = getBundleTrigger(bundle, ti.dag_id, ti.task_id);
-  if (trigger) {
-    const ctx = buildContext(details, signal);
-    const client = createCoordinatorClient(comm, ctx, clientLogs);
-    const fail = (message: string) => {
-      logs.error("Task failed", { task_id: ctx.taskId, error: message });
-      return buildFailureResponse(details, message);
-    };
-    try {
-      return await runTriggerDagRun(details, trigger, client, logs, ctx.signal, fail);
-    } catch (err) {
-      return fail((err as Error).message ?? String(err));
-    }
-  }
-  const handler = bundle.getTaskHandler(ti.dag_id, ti.task_id);
+  const task = getBundleTask(bundle, ti.dag_id, ti.task_id);
 
-  if (!handler) {
+  if (!task) {
     logs.warning("No handler registered for task", {
       dag_id: ti.dag_id,
       task_id: ti.task_id,
@@ -377,8 +365,39 @@ async function handleTask(
   }
 
   const ctx = buildContext(details, signal);
-  const client = createCoordinatorClient(comm, ctx, clientLogs);
+  const client = createCoordinatorClient(comm, ctx, ti.id, clientLogs);
+  if (task.kind === "handler") {
+    return runHandler(details, task.fn, ctx, client, logs);
+  }
 
+  // How an operator ends the task as a failure: log the reason, then report the task
+  // as failed (or for retry, if it has retries left). Each operator gets this, and the
+  // catch below uses it for any error an operator throws.
+  const fail = (message: string) => {
+    logs.error("Task failed", { task_id: ctx.taskId, error: message });
+    return buildFailureResponse(details, message);
+  };
+  try {
+    switch (task.kind) {
+      case "operator":
+        return await runOperator(
+          task.operator,
+          buildOperatorContext({ details, dag: task.dag, ctx, client, logs, fail }),
+        );
+    }
+  } catch (err) {
+    return fail(errorMessage(err));
+  }
+}
+
+/** Run the author's handler: bind its arguments, call it, push what it returns. */
+async function runHandler(
+  details: StartupDetails,
+  handler: TaskFunction,
+  ctx: TaskContext,
+  client: CoordinatorClient,
+  logs: LogChannel,
+): Promise<RuntimeSucceedTask | RuntimeRetryTask | RuntimeTaskState> {
   let bound: BoundArgs;
   try {
     bound = await resolveArgs(details.ti_context?.arg_bindings, {
@@ -389,7 +408,7 @@ async function handleTask(
     });
   } catch (err) {
     // Before the handler ran, so nothing it might have written is at stake.
-    const message = (err as Error).message ?? String(err);
+    const message = errorMessage(err);
     logs.error("Cannot bind this task's call arguments", {
       task_id: ctx.taskId,
       error: message,
@@ -406,7 +425,7 @@ async function handleTask(
     // `getClient()` work at any depth without the handler being handed either.
     const result = await runInTaskScope({ ctx, client }, () => handler(bound.args as never));
     if (result !== undefined) {
-      await client.setXCom({ key: "return_value", value: result as JsonValue });
+      await client.setXCom({ key: XCOM_RETURN_KEY, value: result as JsonValue });
     }
     // SucceedTask MUST include task_outlets and outlet_events as
     // empty lists, since the Execution API's TISuccessStatePayload
@@ -419,11 +438,11 @@ async function handleTask(
     };
     return response;
   } catch (err) {
-    const message = (err as Error).message ?? String(err);
+    const message = errorMessage(err);
     logs.error("Task failed", {
       task_id: ctx.taskId,
       error: message,
-      stack: (err as Error).stack ?? null,
+      stack: (err as { stack?: unknown } | null | undefined)?.stack ?? null,
       // A handler that destructured a bound argument under a name nothing
       // folds to gets no error of its own, so a failing task says what its
       // call actually delivered.
@@ -445,7 +464,7 @@ async function sendSupervisorResponse(
   } catch (err) {
     logs.error("Failed to send response to supervisor", {
       response_type: responseType(body),
-      error: (err as Error).message ?? String(err),
+      error: errorMessage(err),
     });
     throw err;
   }
@@ -470,6 +489,12 @@ function buildFailureResponse(
   };
 }
 
+// User code can throw anything, including undefined, null or an Error from another realm.
+function errorMessage(err: unknown): string {
+  const message = (err as { message?: unknown } | null | undefined)?.message;
+  return typeof message === "string" ? message : String(err);
+}
+
 function responseType(body: unknown): string {
   if (body && typeof body === "object" && "type" in body) {
     const type = (body as { type?: unknown }).type;
@@ -485,6 +510,7 @@ function buildContext(details: StartupDetails, signal: AbortSignal): TaskContext
     runId: details.ti.run_id,
     tryNumber: details.ti.try_number,
     mapIndex: details.ti.map_index ?? -1,
+    conf: (details.ti_context.dag_run?.conf ?? {}) as TaskContext["conf"],
     signal,
   };
 }

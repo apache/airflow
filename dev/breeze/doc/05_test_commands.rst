@@ -135,7 +135,7 @@ Using ``breeze testing providers-tests`` command
 The ``breeze testing providers-tests`` command is that you can run for all or specify sub-set of the tests
 for Providers.
 
-For example this will run all provider tests tests :
+For example this will run all provider tests :
 
 .. code-block:: bash
 
@@ -387,7 +387,7 @@ You can override the ``DOCKER_IMAGE`` environment variable to point to the image
 
 The Airflow E2E tests are in ``airflow-e2e-tests/`` folder in the main repo. Each suite is a
 ``--e2e-test-mode`` (``basic``, ``remote_log``, ``event_driven``, ``java_sdk``, ``go_sdk``,
-``openlineage``, ...); the mode selects a docker-compose overlay and the matching test package under
+``openlineage``, ``yaml_dag``, ...); the mode selects a docker-compose overlay and the matching test package under
 ``airflow-e2e-tests/tests/airflow_e2e_tests/<mode>_tests``. For example, the ``openlineage`` mode
 deploys a real Airflow and runs the OpenLineage provider's system-test DAGs against it, asserting the
 emitted lineage events match — run it with ``breeze testing airflow-e2e-tests --e2e-test-mode openlineage``.
@@ -591,11 +591,11 @@ Setting up the lang-SDK coordinator system test
 ...............................................
 
 ``breeze k8s setup-lang-sdk-test`` provisions a cluster for the lang-SDK coordinator
-system test: it builds the Go and Java example bundles, deploys an in-cluster localstack
-S3, uploads the artifacts and the Python stub Dag to their buckets, renders the
-coordinator pod-template image placeholders, and installs the Helm release configured for
-the ``golang`` and ``java`` queues. After it completes, run the test with
-``breeze k8s tests``.
+system tests: it builds the Go, Java and TypeScript example bundles (mixed-language and
+native), deploys an in-cluster localstack S3, uploads the artifacts and the Dag files to
+their buckets, builds and loads the shared runtime image (prod + JRE + Node), and installs
+the Helm release configured for the ``golang``, ``java``, ``java-native`` and ``typescript``
+queues. After it completes, run the tests with ``breeze k8s tests``.
 
 All parameters of the command are here:
 
@@ -703,7 +703,7 @@ The runner is overlay-agnostic. For every overlay it:
 
 * renders the overlay and substitutes ``RELEASE-NAME`` / ``NAMESPACE``,
 * **auto-preloads every ``image:`` referenced by the rendered manifest**
-  into the kind nodes via ``docker pull`` (with retry on Docker Hub
+  into the kind node via ``docker pull`` (with retry on Docker Hub
   rate limits) + ``kind load docker-image``, so the test does not flake
   on registry availability,
 * applies the overlay,
@@ -712,8 +712,29 @@ The runner is overlay-agnostic. For every overlay it:
   (``ImagePullBackOff``, ``ErrImagePull``, ``CrashLoopBackOff``,
   ``CreateContainerConfigError``, …) rather than waiting out the full
   ``timeout_seconds``,
+* checks pods in the target namespace with the Helm chart's
+  ``release=<release-name>`` label. Each pod must be ``Running`` with
+  its ``Ready`` condition true or have completed successfully
+  (``Succeeded``). Terminating pods are retried until they disappear.
+  Failed Job attempts and evicted pods are ignored unless terminating.
+  At least one pod must be ``Running`` and ``Ready`` without a deletion timestamp.
+  Failed or empty pod queries are retried. Container waiting reasons listed
+  above fail immediately. The pod-health check is skipped during ``--dry-run``.
+  The check uses the overlay's ``verify.timeout_seconds`` (default 300)
+  and prints pod diagnostics on timeout. It also runs with ``--no-pytest``,
 * runs the optional per-overlay pytest module,
 * deletes the overlay (skip with ``--skip-cleanup``).
+
+``verify.timeout_seconds`` applies to each resource check.
+The pod-health check gets a separate timeout of the same length.
+The checks run in sequence without a shared deadline.
+Two resources with a timeout of 300 seconds have a combined waiting budget
+of 900 seconds including the pod-health check. Other steps add time.
+
+The pod-health check covers the whole release rather than only workloads
+changed by the overlay. Problems that existed before the run can fail the
+check and block ``--promote-status``. A failure does not establish that the
+overlay caused the problem.
 
 See ``chart/kustomize-overlays/CONTRIBUTING.rst`` for the full
 lifecycle and how an overlay's ``STATUS`` advances from ``not-tested``

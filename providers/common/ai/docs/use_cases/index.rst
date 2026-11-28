@@ -70,6 +70,9 @@ exception: it reads a decision-model connection, ``decision_default``, instead.
    * - :doc:`research_agent_with_review`
      - Decides which tools to call to answer a research question
      - Human edits the question first, separate formatting step, approval before delivery
+   * - :doc:`refine_a_draft_within_a_budget`
+     - Writes a status page update, then scores it and gives feedback
+     - Repeats both in a task loop until the score passes or a dollar or token budget is spent
 
 More ideas
 ----------
@@ -122,3 +125,4 @@ can be built from the patterns shown on the pages above.
     Weekly status report <weekly_status_report>
     Classify reviews in bulk <classify_reviews_in_bulk>
     Research agent with review <research_agent_with_review>
+    Refine a draft within a budget <refine_a_draft_within_a_budget>

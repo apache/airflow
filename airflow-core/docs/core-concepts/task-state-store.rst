@@ -30,7 +30,9 @@ Task State Store
 
 .. versionadded:: 3.3
 
-Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
+Task store is a persistent key/value store scoped to a single task instance (``dag_id`` + ``run_id`` + ``task_id`` + ``region_id`` + ``map_index``). It survives worker crashes and task retries within the same Dag run, making it suitable for storing external job IDs, intra-task checkpoints, and progress metadata.
+
+``region_id`` is the all-zero UUID for task instances outside any dynamic region. Task instances created by dynamically expanded work, such as a loop, belong to a region, and two of them can share the same ``dag_id``, ``run_id``, ``task_id`` and ``map_index``. A custom backend must therefore include ``region_id`` in its uniqueness key.
 
 Because it outlives a worker crash and stays readable by the next attempt, the task state store is the mechanism behind :ref:`durable execution <concepts-durable-execution>`, where a task continues
 from where it stopped instead of repeating work or submitting a duplicate external job. Provider operators that advertise a ``durable`` parameter are built on the API described here.
@@ -271,6 +273,13 @@ Task store can expose in-progress metrics for observability — row counts, stat
 
 The ``progress`` key is visible through the REST API and the Airflow UI while the task is running.
 
+.. note::
+
+   Keys starting with ``__airflow_`` are written by Airflow itself, for example the record behind
+   the durable execution banner on the task logs page. The list endpoint of the REST API and the
+   Task State Store tab hide them; pass ``include_reserved=true`` to the list endpoint to include
+   them. Do not start your own keys with this prefix, or they will be hidden too.
+
 
 Sync vs. deferrable tasks
 -------------------------
@@ -293,6 +302,22 @@ Mapped tasks
 
 When a task is dynamically mapped (``task.expand(...)``), each map index has its own task state store namespace. ``clear()`` clears only the current index's store.
 
+.. warning::
+
+    The map index is positional, not an identity: index ``N`` names whatever item happens to sit at
+    position ``N`` in the expanded input, and the upstream task may return its items in a different
+    order on a rerun. If the upstream list changes between attempts
+    (an insertion, a deletion, a reordering), index ``N`` names a different item than it did before.
+
+    Clearing a task instance discards its state by default, so the next attempt starts over and this
+    does not arise. It matters when state outlives the re-expansion: if you clear with
+    ``keep_task_state``, or use one of the clear paths that still keep state unconditionally (see
+    :doc:`resumable-tasks`), index ``N`` reads the state written by whatever item was at index ``N``
+    on the previous attempt. Nothing detects the mismatch and the task still reports success. In the
+    `External job resumption`_ pattern this means reconnecting to a job submitted for a different item.
+
+    Only keep task state across a clear of a mapped task when the expanded input is unchanged.
+
 To wipe state across all map indices of a task, use the :doc:`Core API </administration-and-deployment/task-and-asset-state-store>` (e.g. via the UI or CLI) after the task group has finished.
 
 .. code-block:: python
@@ -304,14 +329,29 @@ To wipe state across all map indices of a task, use the :doc:`Core API </adminis
 Automatic cleanup (``clear_on_success``)
 ----------------------------------------
 
-Task state store entries are also removed when a task instance is cleared through the REST API, the
-UI, or ``airflowctl``: clearing discards them by default so the next attempt starts over, unless
-``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
+Task state store entries are also removed when a task instance or a Dag run is cleared: clearing
+discards them by default so the next attempt starts over, unless ``keep_task_state`` is set. See :doc:`resumable-tasks` for that behaviour.
 
 When ``[state_store] clear_on_success = True``, all task state store keys for a task instance are automatically deleted when the task moves to the ``success`` state. This is useful for reducing storage when post-success observability is not needed.
 
 .. note::
 
    ``clear_on_success`` clears **task state store only**. Asset store is scoped to the asset, not the task instance, and is never affected by this setting. Asset store persists across runs and must be cleared explicitly.
+
+.. note::
+
+   With a custom ``[workers] state_store_backend``, the worker deletes the backend's entries only
+   after the success has been reported, once the task's callbacks and listeners have run. If that
+   deletion fails the task stays successful and the failure is logged. The Dag id, run id, task id
+   and region of the entries are logged just before the deletion starts.
+
+   Those entries are then orphaned: the API server has already removed the metadata-DB references,
+   ``airflow state-store clean`` covers the metastore backend only, and
+   :meth:`~airflow.sdk.state.BaseStoreBackend.cleanup` is a no-op unless your backend implements
+   it. Because the storage scope includes the run id, the next Dag run writes elsewhere rather than
+   overwriting them. Removing them is up to your storage's own lifecycle or TTL policy, or a
+   ``cleanup()`` implementation on your backend. Nothing in Airflow calls ``cleanup()`` for a
+   worker backend, so it has to be called from your own maintenance process, as described in
+   :doc:`/administration-and-deployment/task-and-asset-state-store-cleanup`.
 
 See :doc:`/administration-and-deployment/task-and-asset-state-store` for full configuration details.

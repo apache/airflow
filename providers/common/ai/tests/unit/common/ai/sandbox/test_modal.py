@@ -20,6 +20,7 @@ import builtins
 import importlib
 import json
 import logging
+import re
 import sys
 import threading
 
@@ -143,7 +144,8 @@ class TestVendorContract:
     def test_the_calls_behind_the_tools_still_exist(self, real_modal):
         import inspect
 
-        from modal.sandbox import _SandboxFilesystem
+        # Not imported: the private module path changed in modal 1.6.2.
+        _SandboxFilesystem = inspect.signature(real_modal.Sandbox.filesystem.fget).return_annotation
 
         assert list(inspect.signature(_SandboxFilesystem.write_bytes).parameters)[1:3] == [
             "data",
@@ -510,8 +512,11 @@ class TestAddressAllowlist:
             backend, fake, SandboxSpec(allow_egress_to=["pypi.org"], allow_egress_to_cidrs=["1.1.1.1/32"])
         )
 
-        assert "port 443 is admitted to ANY address" in caplog.text
-        assert "1.1.1.1/32" in caplog.text
+        assert any(
+            r.name == "airflow.providers.common.ai.sandbox.modal"
+            and re.match(r".*port 443 is admitted to ANY address.*1\.1\.1\.1/32", r.getMessage())
+            for r in caplog.records
+        )
 
     def test_an_address_list_alone_does_not_warn(self, backend, fake, caplog):
         caplog.set_level(logging.WARNING, logger="airflow.providers.common.ai.sandbox.modal")
@@ -553,7 +558,7 @@ class TestEnvironment:
         serialization where the message would not say which entry was wrong.
         """
         with pytest.raises(SandboxTerminalError, match="strings"):
-            backend.create(spec=SandboxSpec(env=env))  # type: ignore[arg-type]
+            backend.create(spec=SandboxSpec(env=env))
         assert fake.Sandbox.created == [], "refused before anything was provisioned"
 
 
@@ -1351,7 +1356,7 @@ class TestLivenessProbe:
 
         assert result.timed_out is True
         assert result.sandbox_terminated is False
-        assert "Could not check whether Modal sandbox" in caplog.text
+        assert "Could not check whether Modal sandbox sb-0 is alive" in caplog.messages
         # The handle is still cached, so the next command needs no lookup and no create.
         fake.Sandbox.from_id_error = AssertionError("a kept handle must not be looked up again")
         sandbox.process = FakeProcess(returncode=0)
@@ -1400,7 +1405,7 @@ class TestDestroy:
 
         backend.destroy(handle)
 
-        assert "Could not terminate" in caplog.text
+        assert "Could not terminate Modal sandbox sb-0" in caplog.messages
 
     def test_can_be_called_while_a_command_is_outstanding(self, backend, fake):
         """

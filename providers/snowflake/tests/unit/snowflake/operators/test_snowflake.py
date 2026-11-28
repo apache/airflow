@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from unittest import mock
 from unittest.mock import MagicMock, call
 
@@ -32,19 +31,18 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.providers.common.compat.sdk import TaskDeferred
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.snowflake.operators.snowflake import (
-    _DURABLE_UNSET,
     SnowflakeCheckOperator,
     SnowflakeIntervalCheckOperator,
     SnowflakeNotebookOperator,
     SnowflakeSqlApiOperator,
     SnowflakeValueCheckOperator,
-    _warn_and_disable_durable_pre_3_3,
 )
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils.types import DagRunType
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.db import clear_db_dag_bundles, clear_db_dags, clear_db_runs
+from tests_common.test_utils.task_state import get_non_reserved_task_state_writes
 from tests_common.test_utils.taskinstance import create_task_instance
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_V_3_3_PLUS, timezone
 
@@ -58,7 +56,7 @@ CONN_ID = "my_snowflake_conn"
 TEST_SQL = "select * from any;"
 NOTEBOOK = "MY_DB.MY_SCHEMA.MY_NOTEBOOK"
 
-HOOK_MODULE = "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook"
+HOOK_MODULE = "airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook"
 
 SQL_MULTIPLE_STMTS = (
     "create or replace table user_test (i int); insert into user_test (i) "
@@ -435,10 +433,33 @@ class TestSnowflakeSqlApiOperator:
         assert result["running"] == {"uuid2": {"status": "running"}}
 
     @pytest.mark.parametrize(
+        "statement_status",
+        [
+            {"status": "unknown"},
+            {"status": None},
+            {},
+        ],
+    )
+    def test_poll_on_queries_rejects_unexpected_status(self, mock_get_sql_api_query_status, statement_status):
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id=CONN_ID,
+            sql=SINGLE_STMT,
+        )
+        operator.query_ids = ["uuid1"]
+        mock_get_sql_api_query_status.return_value = statement_status
+
+        with mock.patch("time.sleep") as mock_sleep:
+            with pytest.raises(RuntimeError, match="Unexpected Snowflake SQL API status for query uuid1"):
+                operator.poll_on_queries()
+
+        mock_sleep.assert_not_called()
+
+    @pytest.mark.parametrize(
         ("mock_sql", "statement_count"),
         [pytest.param(SQL_MULTIPLE_STMTS, 4, id="multi"), pytest.param(SINGLE_STMT, 1, id="single")],
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.execute_query")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.execute_query")
     def test_snowflake_sql_api_execute_operator_async(
         self, mock_execute_query, mock_sql, statement_count, mock_get_sql_api_query_status
     ):
@@ -520,7 +541,7 @@ class TestSnowflakeSqlApiOperator:
             ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
         ],
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.check_query_output")
     def test_snowflake_sql_api_execute_complete(self, mock_conn, mock_event):
         """Tests execute_complete assert with successful message"""
 
@@ -543,7 +564,7 @@ class TestSnowflakeSqlApiOperator:
             ({"status": "success", "statement_query_ids": ["uuid", "uuid"]}),
         ],
     )
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.check_query_output")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.check_query_output")
     def test_snowflake_sql_api_execute_complete_reassigns_query_ids(self, mock_conn, mock_event):
         """Tests execute_complete assert with successful message"""
 
@@ -728,7 +749,7 @@ class TestSnowflakeSqlApiOperator:
 
         context["ti"].xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.cancel_queries")
     def test_snowflake_sql_api_on_kill_cancels_queries(self, mock_cancel_queries):
         """Test that on_kill cancels running queries."""
         operator = SnowflakeSqlApiOperator(
@@ -743,7 +764,7 @@ class TestSnowflakeSqlApiOperator:
 
         mock_cancel_queries.assert_called_once_with(["uuid1", "uuid2"])
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.cancel_queries")
     def test_snowflake_sql_api_on_kill_no_queries(self, mock_cancel_queries):
         """Test that on_kill does nothing when no query ids exist."""
         operator = SnowflakeSqlApiOperator(
@@ -758,7 +779,7 @@ class TestSnowflakeSqlApiOperator:
 
         mock_cancel_queries.assert_not_called()
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.cancel_queries")
+    @mock.patch("airflow.providers.snowflake.hooks.sql_api.SnowflakeSqlApiHook.cancel_queries")
     def test_snowflake_sql_api_on_kill_respects_cancel_on_kill_false(self, mock_cancel_queries):
         """on_kill does not cancel queries when cancel_on_kill is disabled."""
         operator = SnowflakeSqlApiOperator(
@@ -809,7 +830,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_execute_query.assert_called_once()
-        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid1"])
+        assert get_non_reserved_task_state_writes(task_store) == [call("snowflake_query_ids", ["uuid1"])]
 
     def test_reconnects_to_running_query_without_resubmitting(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
@@ -823,7 +844,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_execute_query.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         # execute_query never ran on this hook instance, so nothing else would populate this --
         # OpenLineage's get_openlineage_database_specific_lineage reads hook.query_ids directly.
         assert operator._hook.query_ids == ["uuid1"]
@@ -847,7 +868,7 @@ class TestSnowflakeSqlApiOperatorDurable:
             operator.execute(self._context(task_store))
 
         mock_execute_query.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
         mock_check_query_output.assert_called_once_with(["uuid1", "uuid2"])
         assert operator._hook.query_ids == ["uuid1", "uuid2"]
 
@@ -887,6 +908,13 @@ class TestSnowflakeSqlApiOperatorDurable:
         mock_execute_query.assert_not_called()
         context["ti"].xcom_push.assert_called_once_with(key="query_ids", value=["uuid1"])
 
+    def test_submit_job_rejects_empty_query_ids(self, mock_execute_query):
+        operator = self._make_operator()
+        mock_execute_query.return_value = []
+
+        with pytest.raises(RuntimeError, match="No Snowflake SQL API query IDs returned"):
+            operator.submit_job(context={})
+
     def test_resubmits_when_stored_query_in_terminal_error(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
     ):
@@ -900,7 +928,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_execute_query.assert_called_once()
-        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid2"])
+        assert get_non_reserved_task_state_writes(task_store) == [call("snowflake_query_ids", ["uuid2"])]
 
     def test_resubmits_when_stored_query_not_found(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
@@ -920,7 +948,7 @@ class TestSnowflakeSqlApiOperatorDurable:
         operator.execute(self._context(task_store))
 
         mock_execute_query.assert_called_once()
-        task_store.set.assert_called_once_with("snowflake_query_ids", ["uuid2"])
+        assert get_non_reserved_task_state_writes(task_store) == [call("snowflake_query_ids", ["uuid2"])]
 
     def test_durable_false_never_touches_task_state_store(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
@@ -934,7 +962,7 @@ class TestSnowflakeSqlApiOperatorDurable:
 
         mock_execute_query.assert_called_once()
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     def test_deferrable_unaffected_by_durable(self, mock_execute_query, mock_get_sql_api_query_status):
         operator = self._make_operator(deferrable=True)
@@ -947,7 +975,7 @@ class TestSnowflakeSqlApiOperatorDurable:
 
         assert mock_defer.called
         task_store.get.assert_not_called()
-        task_store.set.assert_not_called()
+        assert get_non_reserved_task_state_writes(task_store) == []
 
     def test_get_job_status_error_takes_priority_over_running(self, mock_get_sql_api_query_status):
         operator = self._make_operator()
@@ -984,6 +1012,27 @@ class TestSnowflakeSqlApiOperatorDurable:
         with pytest.raises(requests.exceptions.HTTPError):
             operator.get_job_status(["uuid1"], context={})
 
+    @pytest.mark.parametrize(
+        ("statuses", "message"),
+        [
+            (["unknown"], "Unexpected Snowflake SQL API query statuses"),
+            (["success", "unknown"], "Unexpected Snowflake SQL API query statuses"),
+            (["running", "unknown"], "Unexpected Snowflake SQL API query statuses"),
+            ([], "No Snowflake SQL API query statuses returned"),
+        ],
+    )
+    def test_get_job_status_rejects_unexpected_statuses(
+        self, mock_get_sql_api_query_status, statuses, message
+    ):
+        operator = self._make_operator()
+        mock_get_sql_api_query_status.side_effect = [{"status": status} for status in statuses]
+
+        with pytest.raises(RuntimeError, match=message):
+            operator.get_job_status(
+                [f"uuid{i}" for i in range(len(statuses))],
+                context={},
+            )
+
     def test_is_job_active_and_is_job_succeeded_predicates(self):
         operator = self._make_operator()
 
@@ -995,21 +1044,6 @@ class TestSnowflakeSqlApiOperatorDurable:
     def test_default_args_durable_reaches_operator(self):
         operator = self._make_operator(default_args={"durable": False})
         assert operator.durable is False
-
-
-class TestWarnAndDisableDurableAirflowPre3_3:
-    def test_no_warning_when_unset(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            result = _warn_and_disable_durable_pre_3_3(_DURABLE_UNSET)
-        assert result is False
-        assert caught == []
-
-    @pytest.mark.parametrize("value", [True, False])
-    def test_warns_and_disables_when_explicitly_set(self, value):
-        with pytest.warns(UserWarning, match="durable.*no effect"):
-            result = _warn_and_disable_durable_pre_3_3(value)
-        assert result is False
 
 
 class TestSnowflakeNotebookOperatorSQL:
@@ -1193,6 +1227,17 @@ class TestSnowflakeNotebookOperator:
             operator.execute(create_context(operator))
 
         assert isinstance(exc.value.trigger, SnowflakeSqlApiTrigger)
+
+    def test_execute_deferrable_rejects_empty_query_ids(self, mock_execute_query):
+        operator = SnowflakeSqlApiOperator(
+            task_id="test_snowflake_sql_api",
+            sql="SELECT 1",
+            deferrable=True,
+        )
+        mock_execute_query.return_value = []
+
+        with pytest.raises(RuntimeError, match="No Snowflake SQL API query IDs returned"):
+            operator.execute(context={})
 
     def test_execute_polling_success(
         self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output

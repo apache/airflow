@@ -18,45 +18,21 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any
-from urllib.parse import urlparse
+from uuid import UUID
 
 from airflow.plugins_manager import AirflowPlugin
-from airflow.providers.common.compat.sdk import conf
-from airflow.providers.common.compat.version_compat import AIRFLOW_V_3_1_PLUS, get_base_airflow_version_tuple
-
-AIRFLOW_V_3_4_PLUS = get_base_airflow_version_tuple() >= (3, 4, 0)
+from airflow.providers.common.ai.plugins._plugin_urls import get_bundle_url
+from airflow.providers.common.compat.version_compat import (
+    AIRFLOW_V_3_1_PLUS,
+    AIRFLOW_V_3_3_PLUS,
+    AIRFLOW_V_3_4_PLUS,
+)
 
 if TYPE_CHECKING:
+    from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
     from airflow.plugins_manager import FastAPIAppDict, ReactAppDict
 
 _PLUGIN_PREFIX = "/hitl-review"
-
-
-def _get_base_url_path(path: str) -> str:
-    """Construct URL path with webserver base_url prefix for non-root deployments."""
-    base_url = conf.get("api", "base_url", fallback="/")
-    if base_url.startswith(("http://", "https://")):
-        base_path = urlparse(base_url).path
-    else:
-        base_path = base_url
-    base_path = base_path.rstrip("/")
-    return base_path + path
-
-
-def _get_bundle_url() -> str:
-    """
-    Return bundle URL for the React plugin.
-
-    Uses an absolute URL when api.base_url is a full URL so the bundle loads
-    correctly in Vite dev mode, where import() resolves relative to the script
-    origin (5173) rather than the document origin (28080).
-    """
-    path = _get_base_url_path(f"{_PLUGIN_PREFIX}/static/main.umd.cjs")
-    base_url = conf.get("api", "base_url", fallback="/")
-    if base_url.startswith(("http://", "https://")):
-        parsed = urlparse(base_url)
-        return f"{parsed.scheme}://{parsed.netloc}" + path
-    return path
 
 
 if AIRFLOW_V_3_1_PLUS:
@@ -69,11 +45,15 @@ if AIRFLOW_V_3_1_PLUS:
     from sqlalchemy.orm import Session
 
     from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity
-    from airflow.api_fastapi.core_api.security import requires_access_dag
+    from airflow.api_fastapi.core_api.security import GetUserDep, requires_access_dag
     from airflow.models.dagrun import DagRun
     from airflow.models.taskinstance import TaskInstance as TI
     from airflow.models.xcom import XComModel
     from airflow.providers.common.ai.utils.hitl_review import (
+        HITL_FEEDBACK_PARAM,
+        HITL_OPTION_APPROVE,
+        HITL_OPTION_REJECT,
+        HITL_OPTION_REQUEST_CHANGES,
         XCOM_AGENT_OUTPUT_PREFIX,
         XCOM_AGENT_SESSION,
         XCOM_HUMAN_ACTION,
@@ -81,11 +61,26 @@ if AIRFLOW_V_3_1_PLUS:
         AgentSessionData,
         HITLReviewResponse,
         HumanActionData,
+        HumanActionType,
         HumanFeedbackRequest,
         SessionStatus,
+        unwrap_review_text,
+        wrap_review_text,
     )
+    from airflow.providers.common.compat.sdk import XCom, timezone
     from airflow.sdk import TaskInstanceState
     from airflow.utils.session import create_session
+
+    if AIRFLOW_V_3_3_PLUS:
+        # A parked review is resumed the way the core Human-in-the-loop response route resumes a task.
+        from airflow.models.hitl import HITLDetail, HITLUser
+        from airflow.models.trigger import handle_event_submit
+        from airflow.triggers.base import TriggerEvent
+
+    if AIRFLOW_V_3_4_PLUS:
+        from airflow.api_fastapi.core_api.services.public.task_coordinates import resolve_task_scope
+        from airflow.models.dagbag import DBDagBag
+        from airflow.models.task_coordinates import TaskCoordinateResolver
 
     def _get_session():
         with create_session(scoped=False) as session:
@@ -93,10 +88,25 @@ if AIRFLOW_V_3_1_PLUS:
 
     SessionDep = Annotated[Session, Depends(_get_session)]
 
+    def _load_xcom_value(row: XComModel) -> Any:
+        """Resolve an XCom row through the configured XCom backend, the way workers read it."""
+        # Where it exists, ``_load`` prefers a backend's ``load_value`` over ``deserialize_value``.
+        return getattr(XCom, "_load", XCom.deserialize_value)(row)
+
     def _read_xcom(
-        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str
+        session: Session,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int = -1,
+        region_id: UUID | None,
+        key: str,
     ):
-        """Read a single XCom value from the database."""
+        """Read a single XCom value through the configured XCom backend."""
+        scope: dict[str, Any] = (
+            {"region_id": region_id, "include_node_regions": False} if AIRFLOW_V_3_4_PLUS else {}
+        )
         read = XComModel.get_many(
             run_id=run_id,
             key=key,
@@ -104,27 +114,43 @@ if AIRFLOW_V_3_1_PLUS:
             task_ids=task_id,
             map_indexes=map_index,
             limit=1,
+            **scope,
         )
         row = session.scalars(read).first()
         if row is None:
             return None
-        return row.value
+        return _load_xcom_value(row)
 
     def _read_xcom_by_prefix(
-        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, prefix: str
+        session: Session,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int = -1,
+        region_id: UUID | None,
+        prefix: str,
     ) -> dict[int, Any]:
-        """Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``)."""
+        """
+        Read all iteration-keyed XCom entries matching *prefix* (e.g. ``airflow_hitl_review_agent_output_``).
+
+        Each entry is read through the XCom backend, and its text is taken from what ``wrap_review_text``
+        wrapped for this Dag. Any other value, such as one written before entries were wrapped, is returned
+        as stored: a reference in it may point to another Dag's XCom, so what it resolves to is not shown.
+        """
         if AIRFLOW_V_3_4_PLUS:
             read = XComModel.get_many(
                 run_id=run_id,
                 dag_ids=dag_id,
                 task_ids=task_id,
                 map_indexes=map_index,
+                region_id=region_id,
+                include_node_regions=False,
             )
             entity = read.column_descriptions[0]["entity"]
-            query = read.with_only_columns(entity.key, entity.value).where(entity.key.like(f"{prefix}%"))
+            query = read.where(entity.key.like(f"{prefix}%"))
         else:
-            query = select(XComModel.key, XComModel.value).where(
+            query = select(XComModel).where(
                 XComModel.dag_id == dag_id,
                 XComModel.run_id == run_id,
                 XComModel.task_id == task_id,
@@ -132,24 +158,34 @@ if AIRFLOW_V_3_1_PLUS:
                 XComModel.key.like(f"{prefix}%"),
             )
         result: dict[int, Any] = {}
-        for key, value in session.execute(query).all():
-            suffix = key[len(prefix) :]
+        for row in session.scalars(query):
+            suffix = row.key[len(prefix) :]
             if suffix.isdigit():
-                result[int(suffix)] = value
+                text = unwrap_review_text(_load_xcom_value(row), dag_id=dag_id)
+                result[int(suffix)] = row.value if text is None else text
         return result
 
     def _write_xcom(
-        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1, key: str, value
+        session: Session,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int = -1,
+        region_id: UUID | None,
+        key: str,
+        value,
     ):
         """Write data to db."""
         if AIRFLOW_V_3_4_PLUS:
             owner = session.scalar(
-                select(TI.id).where(
-                    TI.working_set.is_(True),
-                    TI.dag_id == dag_id,
-                    TI.run_id == run_id,
-                    TI.task_id == task_id,
-                    TI.map_index == map_index,
+                _task_instance_query(
+                    TI.id,
+                    dag_id=dag_id,
+                    run_id=run_id,
+                    task_id=task_id,
+                    map_index=map_index,
+                    region_id=region_id,
                 )
             )
             if owner is None:
@@ -196,28 +232,78 @@ if AIRFLOW_V_3_1_PLUS:
             TaskInstanceState.UP_FOR_RETRY,
             TaskInstanceState.QUEUED,
             TaskInstanceState.SCHEDULED,
+            # A task waiting for the reviewer between rounds is parked, not finished.
+            *([TaskInstanceState.AWAITING_INPUT] if AIRFLOW_V_3_3_PLUS else []),
         }
     )
 
-    def _is_task_completed(
-        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1
-    ) -> bool:
-        """Return True if the task instance is no longer running."""
-        query = select(TI.state).where(
+    _STATUS_FOR_ACTION: dict[HumanActionType, SessionStatus] = {
+        "approve": SessionStatus.APPROVED,
+        "changes_requested": SessionStatus.CHANGES_REQUESTED,
+        "reject": SessionStatus.REJECTED,
+    }
+    # The option of the review request each action answers, when the task is parked on one.
+    _HITL_OPTION_FOR_ACTION: dict[HumanActionType, str] = {
+        "approve": HITL_OPTION_APPROVE,
+        "changes_requested": HITL_OPTION_REQUEST_CHANGES,
+        "reject": HITL_OPTION_REJECT,
+    }
+
+    def _task_instance_query(
+        entity: Any,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int = -1,
+        region_id: UUID | None,
+    ):
+        """Select ``entity`` (``TI`` or one of its columns) for the task instance under review."""
+        query = select(entity).where(
             TI.dag_id == dag_id,
             TI.run_id == run_id,
             TI.task_id == task_id,
-            TI.map_index == map_index,
         )
         if AIRFLOW_V_3_4_PLUS:
-            query = query.where(TI.working_set.is_(True))
-        state = session.scalar(query)
+            return query.where(
+                TI.working_set.is_(True),
+                TI.region_index == map_index,
+                TI.region_id == region_id,
+            )
+        return query.where(TI.map_index == map_index)
+
+    def _is_task_completed(
+        session: Session,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int = -1,
+        region_id: UUID | None,
+    ) -> bool:
+        """Return True if the task instance is no longer running."""
+        state = session.scalar(
+            _task_instance_query(
+                TI.state,
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                map_index=map_index,
+                region_id=region_id,
+            )
+        )
         if state is None:
             return True
         return state not in _RUNNING_TI_STATES
 
     def _build_session_response(
-        session: Session, *, dag_id: str, run_id: str, task_id: str, map_index: int = -1
+        session: Session,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int = -1,
+        region_id: UUID | None,
     ) -> HITLReviewResponse | None:
         """Build `HITLReviewResponse` from XCom entries."""
         raw = _read_xcom(
@@ -226,6 +312,7 @@ if AIRFLOW_V_3_1_PLUS:
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
+            region_id=region_id,
             key=XCOM_AGENT_SESSION,
         )
         if raw is None:
@@ -237,6 +324,7 @@ if AIRFLOW_V_3_1_PLUS:
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
+            region_id=region_id,
             prefix=XCOM_AGENT_OUTPUT_PREFIX,
         )
         human_responses = _read_xcom_by_prefix(
@@ -245,6 +333,7 @@ if AIRFLOW_V_3_1_PLUS:
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
+            region_id=region_id,
             prefix=XCOM_HUMAN_FEEDBACK_PREFIX,
         )
         completed = _is_task_completed(
@@ -253,6 +342,7 @@ if AIRFLOW_V_3_1_PLUS:
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
+            region_id=region_id,
         )
         return HITLReviewResponse.from_xcom(
             dag_id=dag_id,
@@ -273,6 +363,32 @@ if AIRFLOW_V_3_1_PLUS:
 
     MapIndexDep = Annotated[int, Depends(_get_map_index)]
 
+    def _get_task_scope(
+        db: SessionDep,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: MapIndexDep,
+        region_id: UUID | None = None,
+        region_index: Annotated[int | None, Query(ge=-1)] = None,
+    ) -> tuple[UUID | None, int]:
+        if AIRFLOW_V_3_4_PLUS:
+            scope = resolve_task_scope(
+                dag_id=dag_id,
+                run_id=run_id,
+                task_id=task_id,
+                resolver=TaskCoordinateResolver(DBDagBag(), db),
+                map_index=map_index,
+                region_id=region_id,
+                region_index=region_index,
+            )
+            return scope.region_id, scope.region_index
+        if region_id is not None or region_index is not None:
+            raise HTTPException(400, "Region selectors require Airflow 3.4 or later")
+        return None, map_index
+
+    TaskScopeDep = Annotated[tuple[UUID | None, int], Depends(_get_task_scope)]
+
     hitl_review_app = FastAPI(
         title="HITL Review",
         description=(
@@ -291,20 +407,22 @@ if AIRFLOW_V_3_1_PLUS:
         response_model=HITLReviewResponse,
         dependencies=[Depends(requires_access_dag(method="GET", access_entity=DagAccessEntity.HITL_DETAIL))],
     )
-    async def find_session(
+    def find_session(
         db: SessionDep,
         dag_id: str,
         task_id: str,
         run_id: str,
-        map_index: MapIndexDep,
+        scope: TaskScopeDep,
     ) -> HITLReviewResponse:
         """Find the feedback session for a specific task instance."""
+        region_id, map_index = scope
         resp = _build_session_response(
             db,
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
+            region_id=region_id,
         )
         if resp is None:
             task_active = not _is_task_completed(
@@ -313,6 +431,7 @@ if AIRFLOW_V_3_1_PLUS:
                 run_id=run_id,
                 task_id=task_id,
                 map_index=map_index,
+                region_id=region_id,
             )
             raise HTTPException(
                 status_code=404,
@@ -320,33 +439,74 @@ if AIRFLOW_V_3_1_PLUS:
             )
         return resp
 
-    @hitl_review_app.post(
-        "/sessions/feedback",
-        response_model=HITLReviewResponse,
-        dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
-    )
-    async def submit_feedback(
-        body: HumanFeedbackRequest,
-        db: SessionDep,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: MapIndexDep,
-    ) -> HITLReviewResponse:
-        """Request changes — provide human feedback for the LLM."""
-        if not (body.feedback and body.feedback.strip()):
+    def _answer_review_request(
+        session: Session,
+        ti: TI | None,
+        *,
+        action: HumanActionType,
+        feedback: str,
+        user: BaseUser,
+    ) -> None:
+        """
+        Answer the Human-in-the-loop request a parked review waits on, and resume the task if parked.
+
+        A task that has not parked yet finds the answer when it parks, and resumes straight away.
+        """
+        if ti is None:
+            raise HTTPException(status_code=404, detail="Task instance not found.")
+        # Running: the task is about to park, and will find the answer when it does. Any other
+        # state (cleared, failed, already resumed) would leave the answer unread.
+        if ti.state not in (TaskInstanceState.AWAITING_INPUT, TaskInstanceState.RUNNING):
             raise HTTPException(
-                status_code=400,
-                detail="Feedback is required when requesting changes.",
+                status_code=409,
+                detail=f"The task is {ti.state}, not waiting for a review answer. Reload the session.",
             )
-        raw = _read_xcom(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            key=XCOM_AGENT_SESSION,
+        detail = session.scalar(
+            select(HITLDetail).where(HITLDetail.ti_id == ti.id).with_for_update(of=HITLDetail)
         )
+        if detail is None or detail.response_received:
+            raise HTTPException(
+                status_code=409,
+                detail="This review round was already answered, for example on the Required Actions "
+                "page. Reload the session.",
+            )
+        detail.responded_by = dict(HITLUser(id=str(user.get_id()), name=user.get_name()))
+        detail.responded_at = timezone.utcnow()
+        detail.chosen_options = [_HITL_OPTION_FOR_ACTION[action]]
+        detail.params_input = {HITL_FEEDBACK_PARAM: feedback}
+        session.add(detail)
+        if ti.state == TaskInstanceState.AWAITING_INPUT:
+            handle_event_submit(
+                TriggerEvent(detail.as_resume_event_payload()), task_instance=ti, session=session
+            )
+
+    def _record_action(
+        session: Session,
+        *,
+        dag_id: str,
+        run_id: str,
+        task_id: str,
+        map_index: int,
+        region_id: UUID | None,
+        user: BaseUser,
+        action: HumanActionType,
+        feedback: str = "",
+    ) -> HITLReviewResponse:
+        """Record the reviewer's action on the round that is waiting, and resume the task if it is parked."""
+        coordinates: dict[str, Any] = {
+            "dag_id": dag_id,
+            "run_id": run_id,
+            "task_id": task_id,
+            "map_index": map_index,
+            "region_id": region_id,
+        }
+        ti = None
+        if AIRFLOW_V_3_3_PLUS:
+            # Lock the task instance before reading the session, in the order the core response route
+            # and the park transition lock (task instance, then its HITL request): two clicks cannot
+            # both answer one round, and an answer cannot deadlock against the task parking.
+            ti = session.scalar(_task_instance_query(TI, **coordinates).with_for_update(of=TI))
+        raw = _read_xcom(session, **coordinates, key=XCOM_AGENT_SESSION)
         if raw is None:
             raise HTTPException(status_code=404, detail="No matching session found.")
         sess_data = AgentSessionData.model_validate(raw)
@@ -355,177 +515,115 @@ if AIRFLOW_V_3_1_PLUS:
                 status_code=409,
                 detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
             )
+        if sess_data.parked:
+            _answer_review_request(session, ti, action=action, feedback=feedback, user=user)
 
         iteration = sess_data.iteration
-        _write_xcom(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}",
-            value=body.feedback,
-        )
+        if action == "changes_requested":
+            _write_xcom(
+                session,
+                **coordinates,
+                key=f"{XCOM_HUMAN_FEEDBACK_PREFIX}{iteration}",
+                value=wrap_review_text(feedback, dag_id=dag_id),
+            )
+        if not sess_data.parked:
+            # A polling task reads the action from this XCom; a parked one gets it on resume.
+            human_action = HumanActionData(action=action, feedback=feedback, iteration=iteration)
+            _write_xcom(
+                session, **coordinates, key=XCOM_HUMAN_ACTION, value=human_action.model_dump(mode="json")
+            )
+        sess_data.status = _STATUS_FOR_ACTION[action]
+        _write_xcom(session, **coordinates, key=XCOM_AGENT_SESSION, value=sess_data.model_dump(mode="json"))
 
-        action = HumanActionData(action="changes_requested", feedback=body.feedback, iteration=iteration)
-        _write_xcom(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            key=XCOM_HUMAN_ACTION,
-            value=action.model_dump(mode="json"),
-        )
-
-        sess_data.status = SessionStatus.CHANGES_REQUESTED
-        _write_xcom(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            key=XCOM_AGENT_SESSION,
-            value=sess_data.model_dump(mode="json"),
-        )
-
-        resp = _build_session_response(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-        )
+        resp = _build_session_response(session, **coordinates)
         if resp is None:
             raise HTTPException(status_code=500, detail="Failed to read session after update.")
         return resp
+
+    @hitl_review_app.post(
+        "/sessions/feedback",
+        response_model=HITLReviewResponse,
+        dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
+    )
+    def submit_feedback(
+        body: HumanFeedbackRequest,
+        db: SessionDep,
+        user: GetUserDep,
+        dag_id: str,
+        task_id: str,
+        run_id: str,
+        scope: TaskScopeDep,
+    ) -> HITLReviewResponse:
+        """Request changes — provide human feedback for the LLM."""
+        region_id, map_index = scope
+        if not (body.feedback and body.feedback.strip()):
+            raise HTTPException(
+                status_code=400,
+                detail="Feedback is required when requesting changes.",
+            )
+        return _record_action(
+            db,
+            dag_id=dag_id,
+            run_id=run_id,
+            task_id=task_id,
+            map_index=map_index,
+            region_id=region_id,
+            user=user,
+            action="changes_requested",
+            feedback=body.feedback,
+        )
 
     @hitl_review_app.post(
         "/sessions/approve",
         response_model=HITLReviewResponse,
         dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
     )
-    async def approve_session(
+    def approve_session(
         db: SessionDep,
+        user: GetUserDep,
         dag_id: str,
         task_id: str,
         run_id: str,
-        map_index: MapIndexDep,
+        scope: TaskScopeDep,
     ) -> HITLReviewResponse:
         """Approve the current output."""
-        raw = _read_xcom(
+        region_id, map_index = scope
+        return _record_action(
             db,
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
-            key=XCOM_AGENT_SESSION,
+            region_id=region_id,
+            user=user,
+            action="approve",
         )
-        if raw is None:
-            raise HTTPException(status_code=404, detail="No matching session found.")
-
-        sess_data = AgentSessionData.model_validate(raw)
-        if sess_data.status != SessionStatus.PENDING_REVIEW:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
-            )
-
-        action = HumanActionData(action="approve", iteration=sess_data.iteration)
-        _write_xcom(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            key=XCOM_HUMAN_ACTION,
-            value=action.model_dump(mode="json"),
-        )
-
-        sess_data.status = SessionStatus.APPROVED
-        _write_xcom(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            key=XCOM_AGENT_SESSION,
-            value=sess_data.model_dump(mode="json"),
-        )
-
-        resp = _build_session_response(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-        )
-        if resp is None:
-            raise HTTPException(status_code=500, detail="Failed to read session after update.")
-        return resp
 
     @hitl_review_app.post(
         "/sessions/reject",
         response_model=HITLReviewResponse,
         dependencies=[Depends(requires_access_dag(method="PUT", access_entity=DagAccessEntity.HITL_DETAIL))],
     )
-    async def reject_session(
+    def reject_session(
         db: SessionDep,
+        user: GetUserDep,
         dag_id: str,
         task_id: str,
         run_id: str,
-        map_index: MapIndexDep,
+        scope: TaskScopeDep,
     ) -> HITLReviewResponse:
         """Reject the output."""
-        raw = _read_xcom(
+        region_id, map_index = scope
+        return _record_action(
             db,
             dag_id=dag_id,
             run_id=run_id,
             task_id=task_id,
             map_index=map_index,
-            key=XCOM_AGENT_SESSION,
+            region_id=region_id,
+            user=user,
+            action="reject",
         )
-        if raw is None:
-            raise HTTPException(status_code=404, detail="No matching session found.")
-        sess_data = AgentSessionData.model_validate(raw)
-        if sess_data.status != SessionStatus.PENDING_REVIEW:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Session is '{sess_data.status.value}', expected 'pending_review'.",
-            )
-
-        action = HumanActionData(action="reject", iteration=sess_data.iteration)
-        _write_xcom(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            key=XCOM_HUMAN_ACTION,
-            value=action.model_dump(mode="json"),
-        )
-
-        sess_data.status = SessionStatus.REJECTED
-        _write_xcom(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-            key=XCOM_AGENT_SESSION,
-            value=sess_data.model_dump(mode="json"),
-        )
-
-        resp = _build_session_response(
-            db,
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
-        )
-        if resp is None:
-            raise HTTPException(status_code=500, detail="Failed to read session after update.")
-        return resp
 
     # Ensure proper MIME types for plugin bundle (FastAPI serves .cjs as text/plain by default)
     mimetypes.add_type("application/javascript", ".cjs")
@@ -557,7 +655,7 @@ class HITLReviewPlugin(AirflowPlugin):
         react_apps = [
             {
                 "name": "HITL Review",
-                "bundle_url": _get_bundle_url(),
+                "bundle_url": get_bundle_url(_PLUGIN_PREFIX, "main.umd.cjs"),
                 "destination": "task_instance",
                 "url_route": "hitl-review",
             }

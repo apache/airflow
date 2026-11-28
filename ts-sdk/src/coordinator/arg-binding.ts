@@ -28,7 +28,7 @@
 // Names bind by folding on both sides, so nothing has to be declared for a
 // Python `region_code` to reach a handler's `regionCode`.
 
-import type { CoordinatorClient } from "./client.js";
+import { XCOM_RETURN_KEY, type CoordinatorClient } from "./client.js";
 import type { LogChannel } from "./log-channel.js";
 import type {
   ArgBindings,
@@ -38,11 +38,10 @@ import type {
 } from "../generated/supervisor.js";
 import type { JsonValue } from "../sdk/client-types.js";
 
-/** The key an upstream task's return value is stored under, as Python `@task` does. */
-const RETURN_VALUE_KEY = "return_value";
-
 /** What Airflow stamps on an argument the Dag declared as a Python `int`. */
 const INT64_FORMAT = "int64";
+
+const PROTOCOL_PROBES = new Set(["then", "toJSON"]);
 
 /**
  * Fold a name to the token both sides are matched on.
@@ -152,17 +151,17 @@ function checkBindable(binding: TaskArgBinding): void {
   const kind: unknown = (binding as { kind?: unknown }).kind;
   throw new Error(
     `Task argument "${name}" has binding kind ${JSON.stringify(kind)}, which this version ` +
-      "of apache-airflow-ts-sdk cannot bind; upgrade it to match this Airflow release",
+      "of @apache-airflow/ts-sdk cannot bind; upgrade it to match this Airflow release",
   );
 }
 
 /** Pull the upstream task's output this argument was called with. */
 async function pullXComArg(binding: XComArgBinding, client: CoordinatorClient): Promise<JsonValue> {
-  const entry = await client.getXComEntry({ key: RETURN_VALUE_KEY, taskId: binding.task_id });
+  const entry = await client.getXComEntry({ key: XCOM_RETURN_KEY, taskId: binding.task_id });
   if (!entry.found) {
     throw new Error(
       `Task argument "${binding.name}" takes the output of upstream task "${binding.task_id}", ` +
-        `which pushed no ${RETURN_VALUE_KEY} XCom; a task that returns nothing pushes none`,
+        `which pushed no ${XCOM_RETURN_KEY} XCom; a task that returns nothing pushes none`,
     );
   }
   checkExactInteger(binding.name, entry.value, binding.value_schema);
@@ -252,6 +251,7 @@ function makeArgsProxy(
       if (typeof property !== "string") return undefined;
       const name = resolve(property);
       if (name !== undefined) return values.get(name);
+      if (PROTOCOL_PROBES.has(property)) return undefined;
       // Logged, never thrown: a destructuring default such as
       // `{ runId = "manual" }` is a legitimate miss, and nothing here can tell
       // one from a typo.

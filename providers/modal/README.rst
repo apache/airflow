@@ -23,12 +23,13 @@
 
 Package ``apache-airflow-providers-modal``
 
-Release: ``0.1.0``
+Release: ``0.2.0``
 
 
 `Modal <https://modal.com/>`__ provider for Apache Airflow.
 Owns the ``modal`` connection type and a hook that turns it into an authenticated
-Modal client, so operators, toolsets and executors share one credential path.
+Modal client, so operators, toolsets and executors share one credential path, and
+``@task.modal``, which runs a Python function in a Modal sandbox.
 
 
 Provider package
@@ -38,7 +39,7 @@ This is a provider package for ``modal`` provider. All classes for this provider
 are in ``airflow.providers.modal`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-modal/0.1.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-modal/0.2.0/>`_.
 
 Installation
 ------------
@@ -60,6 +61,5 @@ PIP package                                 Version required
 ``modal``                                   ``>=1.5.0``
 ==========================================  ==================
 
-
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-modal/0.1.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-modal/0.2.0/changelog.html>`_.

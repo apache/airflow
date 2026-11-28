@@ -41,7 +41,7 @@ from sphinx_exts.docs_build.code_utils import (
     PROCESS_TIMEOUT,
 )
 from sphinx_exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
-from sphinx_exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
+from sphinx_exts.docs_build.spelling_checks import SpellingError, load_spelling_errors
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -211,14 +211,9 @@ class AirflowDocsBuilder:
         return GENERATED_PATH / "_build" / "docs" / self.package_name
 
     @property
-    def log_spelling_filename(self) -> Path:
-        """Log from spelling job."""
-        return self._build_dir / f"output-spelling-{self.package_name}.log"
-
-    @property
-    def log_spelling_output_dir(self) -> Path:
-        """Results from spelling job."""
-        return self._build_dir / f"output-spelling-results-{self.package_name}"
+    def spelling_output_file(self) -> Path:
+        """Misspellings found while building, written by the ``airflow_spelling`` extension."""
+        return self._build_dir / f"output-spelling-{self.package_name}.json"
 
     @property
     def log_build_filename(self) -> Path:
@@ -275,85 +270,16 @@ class AirflowDocsBuilder:
         self._api_dir.mkdir(parents=True, exist_ok=True)
         self._build_dir.mkdir(parents=True, exist_ok=True)
 
-    def check_spelling(self, verbose: bool) -> tuple[list[SpellingError], list[DocBuildError]]:
+    def build_sphinx_docs(self, verbose: bool) -> tuple[list[DocBuildError], list[SpellingError]]:
         """
-        Checks spelling
+        Build Sphinx documentation, checking its spelling as it is written.
 
         :param verbose: whether to show output while running
-        :return: list of errors
-        """
-        spelling_errors = []
-        build_errors = []
-        os.makedirs(self._build_dir, exist_ok=True)
-        shutil.rmtree(self.log_spelling_output_dir, ignore_errors=True)
-        self.log_spelling_output_dir.mkdir(parents=True, exist_ok=True)
-
-        command = self.get_command()
-        build_cmd = [
-            command,
-            "-W",  # turn warnings into errors
-            "--color",  # do emit colored output
-            "-T",  # show full traceback on exception
-            "-b",  # builder to use
-            "spelling",
-            "-d",  # path for the cached environment and doctree files
-            self._doctree_dir.as_posix(),
-            # documentation source files
-            self._src_dir.as_posix(),
-            self.log_spelling_output_dir.as_posix(),
-        ]
-        if os.environ.get("CI", "") != "true" and verbose:
-            console.print("[yellow]Command to run:[/] ", " ".join([shlex.quote(arg) for arg in build_cmd]))
-        if verbose:
-            console.print(
-                f"[bright_blue]{self.package_name:60}:[/] The output is hidden until an error occurs."
-            )
-        returncode = self._run_sphinx(build_cmd, log_file=self.log_spelling_filename, verbose=verbose)
-        if returncode != 0:
-            spelling_errors.append(
-                SpellingError(
-                    file_path=None,
-                    line_no=None,
-                    spelling=None,
-                    suggestion=None,
-                    context_line=None,
-                    message=f"Sphinx spellcheck returned non-zero exit status: {returncode}.",
-                )
-            )
-            spelling_warning_text = ""
-            for filepath in self.log_spelling_output_dir.rglob("*.spelling"):
-                with open(filepath) as spelling_file:
-                    spelling_warning_text += spelling_file.read()
-            spelling_errors.extend(parse_spelling_warnings(spelling_warning_text, self._src_dir))
-            if os.path.isfile(self.log_spelling_filename):
-                with open(self.log_spelling_filename) as warning_file:
-                    warning_text = warning_file.read()
-                # Remove 7-bit C1 ANSI escape sequences
-                warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
-                build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
-            console.print(
-                f"[bright_blue]{self.package_name:60}:[/] [red]Finished spell-checking with errors[/]"
-            )
-        else:
-            if spelling_errors:
-                console.print(
-                    f"[bright_blue]{self.package_name:60}:[/] [yellow]Finished spell-checking with warnings[/]"
-                )
-            else:
-                console.print(
-                    f"[bright_blue]{self.package_name:60}:[/] [green]Finished spell-checking successfully[/]"
-                )
-        return spelling_errors, build_errors
-
-    def build_sphinx_docs(self, verbose: bool) -> list[DocBuildError]:
-        """
-        Build Sphinx documentation.
-
-        :param verbose: whether to show output while running
-        :return: list of errors
+        :return: build errors and spelling errors
         """
         build_errors = []
         os.makedirs(self._build_dir, exist_ok=True)
+        self.spelling_output_file.unlink(missing_ok=True)
         command = self.get_command()
         build_cmd = [
             command,
@@ -365,6 +291,8 @@ class AirflowDocsBuilder:
             self._doctree_dir.as_posix(),
             "-w",  # write warnings (and errors) to given file
             self.log_build_warning_filename.as_posix(),
+            "-D",
+            f"airflow_spelling_output={self.spelling_output_file.as_posix()}",
             # documentation source files
             self._src_dir.as_posix(),
             self._build_dir.as_posix(),  # path to output directory
@@ -390,7 +318,8 @@ class AirflowDocsBuilder:
             # Remove 7-bit C1 ANSI escape sequences
             warning_text = re.sub(r"\x1B[@-_][0-?]*[ -/]*[@-~]", "", warning_text)
             build_errors.extend(parse_sphinx_warnings(warning_text, self._src_dir))
-        if build_errors:
+        spelling_errors = self._read_spelling_errors(returncode)
+        if build_errors or spelling_errors:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] [red]Finished docs building with errors[/]"
             )
@@ -398,7 +327,24 @@ class AirflowDocsBuilder:
             console.print(
                 f"[bright_blue]{self.package_name:60}:[/] [green]Finished docs building successfully[/]"
             )
-        return build_errors
+        return build_errors, spelling_errors
+
+    def _read_spelling_errors(self, returncode: int) -> list[SpellingError]:
+        if self.spelling_output_file.is_file():
+            return load_spelling_errors(self.spelling_output_file)
+        if returncode != 0:
+            return []
+        return [
+            SpellingError(
+                file_path=None,
+                line_no=None,
+                spelling=None,
+                suggestion=None,
+                context_line=None,
+                message=f"Spelling was not checked: {self.spelling_output_file} was not written. "
+                "Make sure the documentation's conf.py enables the airflow_spelling extension.",
+            )
+        ]
 
     def get_command(self) -> str:
         return "sphinx-autobuild" if self.is_autobuild else "sphinx-build"

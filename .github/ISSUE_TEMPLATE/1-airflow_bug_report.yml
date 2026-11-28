@@ -130,6 +130,7 @@ body:
         - apache-livy
         - apache-pig
         - apache-pinot
+        - apache-polaris
         - apache-spark
         - apache-tinkerpop
         - apprise
@@ -166,6 +167,7 @@ body:
         - grpc
         - hashicorp
         - http
+        - huggingface
         - ibm-db2
         - ibm-mq
         - imap

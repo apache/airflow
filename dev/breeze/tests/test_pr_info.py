@@ -50,7 +50,7 @@ def test_push_info():
     assert wi.event_name == "push"
     assert wi.pr_number is None
     assert wi.get_runs_on() == '["ubuntu-22.04"]'
-    assert wi.is_canary_run() == "true"
+    assert wi.is_canary_run() == "false"
     assert wi.run_coverage() == "true"
 
 

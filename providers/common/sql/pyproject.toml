@@ -20,12 +20,12 @@
 # IF YOU WANT TO MODIFY THIS FILE EXCEPT DEPENDENCIES, YOU SHOULD MODIFY THE TEMPLATE
 # `pyproject_TEMPLATE.toml.jinja2` IN the `dev/breeze/src/airflow_breeze/templates` DIRECTORY
 [build-system]
-requires = ["flit_core==4.1.0"]
+requires = ["flit_core==4.2.0"]
 build-backend = "flit_core.buildapi"
 
 [project]
 name = "apache-airflow-providers-common-sql"
-version = "2.2.0"
+version = "3.1.0"
 description = "Provider package apache-airflow-providers-common-sql for Apache Airflow"
 readme = "README.rst"
 license = "Apache-2.0"
@@ -59,7 +59,7 @@ requires-python = ">=3.11"
 # After you modify the dependencies, and rebuild your Breeze CI image with ``breeze ci-image build``
 dependencies = [
     "apache-airflow>=2.11.0",
-    "apache-airflow-providers-common-compat>=1.14.1",
+    "apache-airflow-providers-common-compat>=1.23.0",
     "sqlparse>=0.5.1",
     "more-itertools>=9.0.0",
     # The methodtools dependency is necessary since the introduction of dialects:
@@ -86,9 +86,6 @@ dependencies = [
 "sqlalchemy" = [
     "sqlalchemy>=1.4.54,!=2.1.0",
 ]
-"amazon" = [
-    "apache-airflow-providers-amazon"
-]
 # DataFusion 52.0.0 crate is not supported at the moment with iceberg-core
 "datafusion" = [
     "datafusion>=50.0.0,<52.0.0",
@@ -99,6 +96,12 @@ dependencies = [
 "apache.iceberg" = [
     "apache-airflow-providers-apache-iceberg"
 ]
+"amazon" = [
+    "apache-airflow-providers-amazon>=9.38.0"  # use next version
+]
+"google" = [
+    "apache-airflow-providers-google>=23.1.0"  # use next version
+]
 
 [dependency-groups]
 dev = [
@@ -108,6 +111,7 @@ dev = [
     "apache-airflow-providers-amazon",
     "apache-airflow-providers-apache-iceberg",
     "apache-airflow-providers-common-compat",
+    "apache-airflow-providers-google",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
     "apache-airflow-providers-common-sql[pandas]",
@@ -147,8 +151,8 @@ apache-airflow-providers-common-sql = {workspace = true}
 apache-airflow-providers-standard = {workspace = true}
 
 [project.urls]
-"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.2.0"
-"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/2.2.0/changelog.html"
+"Documentation" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/3.1.0"
+"Changelog" = "https://airflow.apache.org/docs/apache-airflow-providers-common-sql/3.1.0/changelog.html"
 "Bug Tracker" = "https://github.com/apache/airflow/issues"
 "Source Code" = "https://github.com/apache/airflow"
 "Slack Chat" = "https://s.apache.org/airflow-slack"

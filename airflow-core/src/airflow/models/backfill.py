@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
@@ -62,6 +62,7 @@ from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql.elements import ColumnElement
 
     from airflow.models.dagrun import DagRun
     from airflow.serialization.definitions.dag import SerializedDAG
@@ -155,7 +156,7 @@ class UnknownActiveBackfills(AirflowException):
         super().__init__(f"Unable to determine the number of active backfills for DAG {dag_id}")
 
 
-class ReprocessBehavior(str, Enum):
+class ReprocessBehavior(StrEnum):
     """
     Internal enum for setting reprocess behavior in a backfill.
 
@@ -218,9 +219,9 @@ class Backfill(Base):
         return None
 
     @duration.expression  # type: ignore[no-redef]
-    def duration(cls) -> Any:
+    def duration(cls: type[Backfill]) -> ColumnElement[Any]:
         @provide_session
-        def _get_dialect(*, session: Session = NEW_SESSION) -> str:
+        def _get_dialect(*, session: Session = NEW_SESSION) -> str | None:
             return get_dialect_name(session=session)
 
         dialect_name = _get_dialect()
@@ -231,17 +232,17 @@ class Backfill(Base):
         elif dialect_name == "sqlite":
             duration_expr = (func.julianday(cls.completed_at) - func.julianday(cls.created_at)) * 86400
         else:
-            duration_expr = func.extract("epoch", cls.completed_at - cls.created_at)  # type: ignore[operator, arg-type]
+            duration_expr = func.extract("epoch", cls.completed_at - cls.created_at)
 
         when_condition = (
-            cls.completed_at.isnot(None) & cls.created_at.isnot(None),  # type: ignore[union-attr, attr-defined]
+            cls.completed_at.isnot(None) & cls.created_at.isnot(None),
             duration_expr,
         )
 
         return case(when_condition, else_=None)
 
 
-class BackfillDagRunExceptionReason(str, Enum):
+class BackfillDagRunExceptionReason(StrEnum):
     """
     Enum for storing reasons why Dag run not created.
 
@@ -353,11 +354,10 @@ def _validate_backfill_params(
                 "Dag has tasks for which depends_on_past=True. "
                 "You must set reprocess behavior to reprocess completed or reprocess failed."
             )
-    if dag_run_conf is not None:
-        try:
-            dag.params.deep_merge(dag_run_conf).validate()
-        except ValueError as e:
-            raise InvalidBackfillConf(str(e)) from e
+    try:
+        dag.params.deep_merge(dag_run_conf).validate()
+    except ValueError as e:
+        raise InvalidBackfillConf(str(e)) from e
 
 
 def _do_dry_run(

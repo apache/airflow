@@ -30,6 +30,7 @@ export const useDags = ({
   dagRunState,
   dagRunStateWithinHours,
   excludeStale = true,
+  hasImportErrors,
   isFavorite,
   lastDagRunState,
   limit,
@@ -53,6 +54,7 @@ export const useDags = ({
   dagRunState?: DagRunState;
   dagRunStateWithinHours?: number;
   excludeStale?: boolean;
+  hasImportErrors?: boolean;
   isFavorite?: boolean;
   lastDagRunState?: DagRunState;
   limit?: number;
@@ -68,9 +70,9 @@ export const useDags = ({
   teams?: Array<string>;
   timetableType?: Array<string>;
 }) => {
-  const refetchInterval = useAutoRefresh({ checkPendingRuns: true });
+  const refetchInterval = useAutoRefresh({});
 
-  const { data, error, isFetching, isLoading } = useDagServiceGetDagsUi(
+  const { data, error, isLoading } = useDagServiceGetDagsUi(
     {
       ...(advancedSearch
         ? { dagDisplayNamePattern, dagIdPattern }
@@ -80,6 +82,7 @@ export const useDags = ({
       dagRunState,
       dagRunStateWithinHours,
       excludeStale,
+      hasImportErrors,
       hasPendingActions: pendingHitl,
       isFavorite,
       lastDagRunState,
@@ -114,7 +117,6 @@ export const useDags = ({
   return {
     data,
     error,
-    isFetching,
     isLoading,
   };
 };

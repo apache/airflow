@@ -26,6 +26,8 @@ from .plugins_manager import (
     ExternalViewDict as ExternalViewDict,
     FastAPIAppDict as FastAPIAppDict,
     FastAPIRootMiddlewareDict as FastAPIRootMiddlewareDict,
+    PluginActionDestinationLiteral as PluginActionDestinationLiteral,
+    PluginActionDict as PluginActionDict,
     PluginsDirectorySource as PluginsDirectorySource,
     ReactAppDict as ReactAppDict,
     _load_entrypoint_plugins as _load_entrypoint_plugins,

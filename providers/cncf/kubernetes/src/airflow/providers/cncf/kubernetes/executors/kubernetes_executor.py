@@ -40,12 +40,11 @@ from queue import Empty, Queue
 from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID
 
-from deprecated import deprecated
 from kubernetes.client.rest import ApiException
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select
 
-from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.exceptions import PodMutationHookException, PodReconciliationError
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -84,6 +83,7 @@ if TYPE_CHECKING:
     from kubernetes import client
     from kubernetes.client import models as k8s
     from sqlalchemy.orm import Session
+    from urllib3.response import HTTPResponse
 
     from airflow._shared.logging.remote import RawLogStream, StreamingLogResponse
     from airflow.cli.cli_config import GroupCommand
@@ -115,6 +115,11 @@ class KubernetesExecutor(BaseExecutor):
 
     RUNNING_POD_LOG_LINES = 100
     supports_ad_hoc_ti_run: bool = True
+    # Import paths of the factories building a subclass's own sync and async clients, called with
+    # ``team_name``. They take precedence over [kubernetes_executor] client_factory and
+    # async_client_factory, which stay free for a KubernetesExecutor running alongside.
+    client_factory: str | None = None
+    async_client_factory: str | None = None
     supports_multi_team: bool = True
     supports_task_instance_uuid = hasattr(BaseExecutor, "get_task_key")
 
@@ -277,16 +282,24 @@ class KubernetesExecutor(BaseExecutor):
         )
         from airflow.providers.cncf.kubernetes.kube_client import _get_executor_kube_client
 
-        if (
-            self.kube_config.async_pod_creation
-            and self.conf.get("kubernetes_executor", "client_factory", fallback=None)
-            and not self.conf.get("kubernetes_executor", "async_client_factory", fallback=None)
-        ):
-            raise AirflowConfigException(
-                "In the [kubernetes_executor] Airflow config, async_client_factory is required "
-                "when client_factory is set and async_pod_creation is enabled."
-            )
-        self.kube_client = _get_executor_kube_client(team_name=self.team_name)
+        if self.kube_config.async_pod_creation:
+            if self.client_factory and not self.async_client_factory:
+                raise AirflowConfigException(
+                    f"{type(self).__name__} sets client_factory but not async_client_factory, "
+                    "which is required when async_pod_creation is enabled."
+                )
+            if (
+                not self.client_factory
+                and self.conf.get("kubernetes_executor", "client_factory", fallback=None)
+                and not self.conf.get("kubernetes_executor", "async_client_factory", fallback=None)
+            ):
+                raise AirflowConfigException(
+                    "In the [kubernetes_executor] Airflow config, async_client_factory is required "
+                    "when client_factory is set and async_pod_creation is enabled."
+                )
+        self.kube_client = _get_executor_kube_client(
+            team_name=self.team_name, executor_client_factory=self.client_factory
+        )
         self.kube_scheduler = AirflowKubernetesScheduler(
             kube_config=self.kube_config,
             result_queue=self.result_queue,
@@ -294,6 +307,8 @@ class KubernetesExecutor(BaseExecutor):
             scheduler_job_id=self.scheduler_job_id,
             team_name=self.team_name,
             supports_task_instance_uuid=self.supports_task_instance_uuid,
+            client_factory=self.client_factory,
+            async_client_factory=self.async_client_factory,
         )
 
     def _coordinator_extra(self, queue: str | None) -> dict[str, Any] | None:
@@ -434,8 +449,9 @@ class KubernetesExecutor(BaseExecutor):
                 del self.executor_queues[WorkloadType.EXECUTE_TASK][key]
             else:
                 del self.queued_tasks[key]
-            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+            # Add to running before execute_async: it may fail() the task, which must remove the key again.
             self.running.add(key)
+            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
 
     def _should_create_pod_for_job(self, task: KubernetesJob) -> bool:
         """
@@ -633,8 +649,7 @@ class KubernetesExecutor(BaseExecutor):
                     PodReconciliationError,
                     ApiException,
                     PodMutationHookException,
-                    *TRANSIENT_CONNECTION_ERRORS,
-                ) as e:
+                ) + TRANSIENT_CONNECTION_ERRORS as e:
                     if self._handle_pod_publish_error(task, e):
                         # Rate limited: stop creating further pods this loop.
                         break
@@ -1044,7 +1059,9 @@ class KubernetesExecutor(BaseExecutor):
             from airflow.providers.cncf.kubernetes.kube_client import _get_executor_kube_client
             from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
-            client = _get_executor_kube_client(team_name=self.team_name)
+            client = _get_executor_kube_client(
+                team_name=self.team_name, executor_client_factory=self.client_factory
+            )
 
             hostname_desc = f" {ti.hostname}" if ti.hostname else ""
             messages.append(f"Attempting to fetch logs from pod{hostname_desc} through kube API")
@@ -1067,8 +1084,9 @@ class KubernetesExecutor(BaseExecutor):
                 raise RuntimeError("Cannot find pod for ti %s", ti)
             if len(pod_list) > 1:
                 raise RuntimeError("Found multiple pods for ti %s: %s", ti, pod_list)
+            pod_metadata = cast("k8s.V1ObjectMeta", pod_list[0].metadata)
             res = client.read_namespaced_pod_log(
-                name=pod_list[0].metadata.name,
+                name=cast("str", pod_metadata.name),
                 namespace=namespace,
                 container="base",
                 follow=False,
@@ -1076,7 +1094,7 @@ class KubernetesExecutor(BaseExecutor):
                 _preload_content=False,
             )
 
-            log_iter = iter(res)
+            log_iter = iter(cast("HTTPResponse", res))
             first_line = next(log_iter, None)
             if first_line is not None:
                 log_streams.append(self._create_log_stream(chain([first_line], log_iter)))
@@ -1095,7 +1113,7 @@ class KubernetesExecutor(BaseExecutor):
             tis_to_flush = [ti for ti in tis if not ti.queued_by_job_id]
             scheduler_job_ids = {ti.queued_by_job_id for ti in tis}
             tis_to_flush_by_key = {ti.key: ti for ti in tis if ti.queued_by_job_id}
-            kube_client: client.CoreV1Api = self.kube_client
+            kube_client = cast("client.CoreV1Api", self.kube_client)
             for scheduler_job_id in scheduler_job_ids:
                 scheduler_job_id_safe_label = self._make_safe_label_value(str(scheduler_job_id))
                 # We will look for any pods owned by the no-longer-running scheduler,
@@ -1131,28 +1149,6 @@ class KubernetesExecutor(BaseExecutor):
 
             tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
-
-    @deprecated(
-        reason="Replaced by function `revoke_task`. Upgrade airflow core to make this go away.",
-        category=AirflowProviderDeprecationWarning,
-    )
-    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
-        """
-        Handle remnants of tasks that were failed because they were stuck in queued.
-
-        Tasks can get stuck in queued. If such a task is detected, it will be marked
-        as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
-        if it doesn't.
-
-        :param tis: List of Task Instances to clean up
-        :return: List of readable task instances for a warning message
-        """
-        reprs = []
-        for ti in tis:
-            reprs.append(repr(ti))
-            self.revoke_task(ti=ti)
-            self.fail(self.get_task_key(ti) if self.supports_task_instance_uuid else ti.key)
-        return reprs
 
     def revoke_task(self, *, ti: TaskInstance):
         """
@@ -1209,8 +1205,10 @@ class KubernetesExecutor(BaseExecutor):
             self.log.warning("Cannot find pod for ti %s", ti)
             return
 
-        self.kube_scheduler.patch_pod_revoked(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
-        self.kube_scheduler.delete_pod(pod_name=pod.metadata.name, namespace=pod.metadata.namespace)
+        metadata = cast("k8s.V1ObjectMeta", pod.metadata)
+        pod_name, namespace = cast("str", metadata.name), cast("str", metadata.namespace)
+        self.kube_scheduler.patch_pod_revoked(pod_name=pod_name, namespace=namespace)
+        self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
 
     def adopt_launched_task(
         self,
@@ -1228,8 +1226,10 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
-        self.log.info("attempting to adopt pod %s", pod.metadata.name)
-        ti_key = annotations_to_key(pod.metadata.annotations)
+        pod_metadata = cast("k8s.V1ObjectMeta", pod.metadata)
+        pod_name, namespace = cast("str", pod_metadata.name), cast("str", pod_metadata.namespace)
+        self.log.info("attempting to adopt pod %s", pod_name)
+        ti_key = annotations_to_key(cast("dict[str, str]", pod_metadata.annotations))
         if ti_key not in tis_to_flush_by_key:
             self.log.error("attempting to adopt taskinstance which was not specified by database: %s", ti_key)
             return
@@ -1240,19 +1240,17 @@ class KubernetesExecutor(BaseExecutor):
             if self.supports_task_instance_uuid:
                 task_id = self._task_instance_id_from_pod(pod, kube_client)
                 if task_id is None or task_id != tis_to_flush_by_key[ti_key].id:
-                    self.log.warning(
-                        "Cannot adopt pod %s without a matching task instance UUID", pod.metadata.name
-                    )
+                    self.log.warning("Cannot adopt pod %s without a matching task instance UUID", pod_name)
                     return
                 key = self.get_task_key(tis_to_flush_by_key[ti_key])
                 metadata["annotations"] = {TASK_INSTANCE_ID_ANNOTATION: str(key)}
             kube_client.patch_namespaced_pod(
-                name=pod.metadata.name,
-                namespace=pod.metadata.namespace,
+                name=pod_name,
+                namespace=namespace,
                 body={"metadata": metadata},
             )
         except ApiException as e:
-            self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            self.log.info("Failed to adopt pod %s. Reason: %s", pod_name, e)
             return
 
         del tis_to_flush_by_key[ti_key]

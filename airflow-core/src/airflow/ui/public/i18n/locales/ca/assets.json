@@ -18,7 +18,7 @@
     "emptyState": "El magatzem d'Asset emmagatzema valors limitats a una identitat d'Asset, compartits entre totes les execucions de Dag. Els workers poden escriure al magatzem d'Asset mitjançant el Task SDK.",
     "entry_one": "Entrada",
     "entry_other": "Entrades",
-    "lastUpdatedBy": "Last Updated By",
+    "lastUpdatedBy": "Darrera actualització feta per",
     "lastUpdatedByApi": "API",
     "lastUpdatedByWatcher": "Watcher",
     "title": "Magatzem d'Asset"
@@ -49,11 +49,21 @@
   "events": "Esdeveniments",
   "filters": {
     "groupPlaceholder": "Cercar grup",
+    "hasEvents": "Té esdeveniments",
     "lastEventDateRange": "Data del darrer esdeveniment"
   },
   "group": "Grup",
   "lastAssetEvent": "Darrer esdeveniment d'Asset",
   "name": "Nom",
+  "partitions": {
+    "consumerRuns": "Execucions consumidores",
+    "consumerRunsHelp": "Execucions de Dag que han consumit el darrer esdeveniment d'Asset de la partició",
+    "lastProducerRun": "Darrera execució productora",
+    "status": {
+      "in_progress": "En curs",
+      "materialized": "Materialitzada"
+    }
+  },
   "producingTasks": "Tasques productores",
   "scheduledDags": "Dags programats",
   "scheduling": "Programats",
@@ -61,5 +71,9 @@
   "taskDependencies": "Dependències de tasca",
   "watcher_one": "Observador",
   "watcher_other": "Observadors",
+  "watcherFailing_one": "Observador amb errors",
+  "watcherFailing_other": "Observadors amb errors",
+  "watcherOrphaned_one": "Observador orfe",
+  "watcherOrphaned_other": "Observadors orfes",
   "watchers": "Observadors"
 }

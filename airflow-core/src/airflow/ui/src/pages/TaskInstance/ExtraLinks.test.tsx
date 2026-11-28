@@ -18,7 +18,7 @@
  */
 import "@testing-library/jest-dom/vitest";
 import { render, screen } from "@testing-library/react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import * as queries from "openapi/queries";
@@ -34,12 +34,14 @@ vi.mock("react-router-dom", async () => {
   return {
     ...actual,
     useParams: vi.fn(),
+    useSearchParams: vi.fn(),
   };
 });
 
 describe("ExtraLinks Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(useSearchParams).mockReturnValue([new URLSearchParams(), vi.fn()]);
     vi.mocked(useParams).mockReturnValue({
       dagId: "test-dag",
       mapIndex: "-1",
@@ -50,6 +52,22 @@ describe("ExtraLinks Component", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+  it("fetches links for the exact selected region and try", () => {
+    vi.mocked(useSearchParams).mockReturnValue([
+      new URLSearchParams("region_id=11111111-1111-4111-8111-111111111111&region_index=3&try_number=2"),
+      vi.fn(),
+    ]);
+    vi.mocked(queries.useTaskInstanceServiceGetExtraLinks).mockReturnValue({
+      data: { extra_links: {} },
+    } as ReturnType<typeof queries.useTaskInstanceServiceGetExtraLinks>);
+    render(<ExtraLinks refetchInterval={false} />, { wrapper: Wrapper });
+    expect(vi.mocked(queries.useTaskInstanceServiceGetExtraLinks).mock.lastCall?.[0]).toMatchObject({
+      mapIndex: -1,
+      regionId: "11111111-1111-4111-8111-111111111111",
+      regionIndex: 3,
+      tryNumber: 2,
+    });
   });
 
   it("renders internal links with target='_self'", () => {

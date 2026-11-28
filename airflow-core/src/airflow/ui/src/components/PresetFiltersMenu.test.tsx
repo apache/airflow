@@ -151,7 +151,7 @@ describe("PresetFiltersMenu", () => {
     render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     await openMenu();
 
-    fireEvent.click(screen.getAllByLabelText("Delete preset filter")[0] as HTMLElement);
+    fireEvent.click(screen.getAllByLabelText("presetFilters.deleteTitle")[0] as HTMLElement);
     fireEvent.click(await screen.findByTestId("delete-confirm-button"));
 
     await waitFor(() => {
@@ -170,7 +170,7 @@ describe("PresetFiltersMenu", () => {
     render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags"]) });
     await openMenu();
 
-    fireEvent.click(screen.getByLabelText("Delete preset filter"));
+    fireEvent.click(screen.getByLabelText("presetFilters.deleteTitle"));
     fireEvent.click(await screen.findByTestId("delete-cancel-button"));
 
     await waitFor(() => {
@@ -274,7 +274,7 @@ describe("PresetFiltersMenu", () => {
     render(<PresetFiltersMenu />, { wrapper: createWrapper(["/dags?state=running"]) });
     await openMenu();
 
-    fireEvent.click(screen.getByLabelText("Delete preset filter"));
+    fireEvent.click(screen.getByLabelText("presetFilters.deleteTitle"));
     fireEvent.click(await screen.findByTestId("delete-confirm-button"));
 
     await waitFor(() => {

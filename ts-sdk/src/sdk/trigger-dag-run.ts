@@ -17,9 +17,12 @@
  * under the License.
  */
 
-import { brand, hasBrand } from "./brand.js";
-import { isPlainRecord } from "./dag.js";
 import type { JsonValue } from "./client-types.js";
+import { isPlainRecord } from "./dag.js";
+import { getBooleanEnv } from "./env.js";
+import { brandOperator, type Operator } from "./operator.js";
+import { toPlainJson } from "./plain-json.js";
+import { executeTriggerDagRun, resumeTriggerDagRun } from "./trigger-dag-run-execute.js";
 
 /** A Dag run state, as `allowedStates` and `failedStates` name one. */
 export type DagRunState = "queued" | "running" | "success" | "failed";
@@ -64,7 +67,7 @@ export interface TriggerDagRunSpec {
 }
 
 /** Internal: a trigger task's options with `TriggerDagRunOperator`'s defaults applied. */
-export interface TriggerDagRunTask {
+export interface TriggerDagRunTask extends Operator<void, void> {
   readonly dagId: string;
   readonly runId: string | undefined;
   readonly conf: Readonly<Record<string, JsonValue>> | undefined;
@@ -77,11 +80,6 @@ export interface TriggerDagRunTask {
   readonly failWhenDagIsPaused: boolean;
   readonly note: string | undefined;
   readonly deferrable: boolean;
-}
-
-/** Internal: whether `value` is a trigger task built by any copy of this package. */
-export function isTriggerDagRunTask(value: unknown): value is TriggerDagRunTask {
-  return hasBrand(value, "TriggerDagRunTask");
 }
 
 const OPTION_NAMES: ReadonlySet<string> = new Set<keyof TriggerDagRunSpec>([
@@ -119,16 +117,6 @@ function checkType(name: string, value: unknown, type: "string" | "boolean"): vo
   if (value !== undefined && typeof value !== type) {
     throw new Error(`triggerDagRun(...) option "${name}" must be a ${type}`);
   }
-}
-
-/** Internal: a boolean Airflow option from the environment, read as `conf.getboolean` does. */
-export function getBooleanEnv(name: string, fallback: boolean): boolean {
-  const raw = process.env[name];
-  if (raw === undefined) return fallback;
-  const value = raw.trim().toLowerCase();
-  if (value === "t" || value === "true" || value === "1") return true;
-  if (value === "f" || value === "false" || value === "0") return false;
-  throw new Error(`${name} is ${JSON.stringify(raw)}, which is not a boolean; use true or false`);
 }
 
 /**
@@ -186,7 +174,22 @@ export function triggerDagRun(spec: TriggerDagRunSpec): TriggerDagRunTask {
     deferrable:
       (options["deferrable"] as boolean | undefined) ??
       getBooleanEnv("AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE", false),
+    operatorName: "TriggerDagRunOperator",
+    requiresTaskId: true,
+    label: "triggerDagRun",
+    taskIdExample: 'dag.task(triggerDagRun({ dagId: "..." }), { taskId: "trigger_downstream" })',
+    takesNoInputs: true,
+    serialize: (label) => {
+      if (task.conf !== undefined) toPlainJson(task.conf, `conf of ${label}`);
+      // Makes the UI draw the task as `TriggerDagRunOperator` with its link.
+      return {
+        ui_color: "#ffefeb",
+        _operator_extra_links: { "Triggered DAG": "_link_TriggerDagRunLink" },
+      };
+    },
+    getDagDependencies: () => [{ target: task.dagId, dependencyType: "trigger" }],
+    execute: (op) => executeTriggerDagRun(task, op),
+    executeComplete: (op, event) => resumeTriggerDagRun(task, op, event),
   };
-  brand(task, "TriggerDagRunTask");
-  return Object.freeze(task);
+  return brandOperator(task);
 }

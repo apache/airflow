@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qsl, urlsplit
 
@@ -29,7 +30,10 @@ from airflow.providers.common.sql.datafusion.exceptions import (
     QueryExecutionException,
 )
 from airflow.providers.common.sql.datafusion.format_handlers import get_format_handler
-from airflow.providers.common.sql.datafusion.object_storage_provider import get_object_storage_provider
+from airflow.providers.common.sql.datafusion.object_storage_provider import (
+    EMBEDDED_PROVIDERS,
+    get_object_storage_provider,
+)
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -38,7 +42,6 @@ class DataFusionEngine(LoggingMixin):
 
     def __init__(self):
         super().__init__()
-        # TODO: session context has additional parameters via SessionConfig see what's possible we can use Possible via DataFusionHook ?
         self.df_ctx = SessionContext()
         self.registered_tables: dict[str, str] = {}
 
@@ -62,16 +65,19 @@ class DataFusionEngine(LoggingMixin):
             if datasource_config.storage_type == StorageType.LOCAL:
                 connection_config = None
             else:
-                connection_config = self._get_connection_config(datasource_config.conn_id)
+                connection_config = self._get_connection_config(
+                    datasource_config.conn_id, datasource_config.storage_type
+                )
 
-            self._register_object_store(datasource_config, connection_config)
+            canonical_uri = self._register_object_store(datasource_config, connection_config)
+            datasource_config = replace(datasource_config, uri=canonical_uri)
 
         self._register_data_source_format(datasource_config)
 
     def _register_object_store(
         self, datasource_config: DataSourceConfig, connection_config: ConnectionConfig | None
-    ):
-        """Register object stores."""
+    ) -> str:
+        """Register the object store and return the canonical URI to register the table under."""
         if TYPE_CHECKING:
             assert datasource_config.storage_type is not None
 
@@ -80,9 +86,14 @@ class DataFusionEngine(LoggingMixin):
             object_store = storage_provider.create_object_store(
                 datasource_config.uri, connection_config=connection_config
             )
+            canonical_uri = storage_provider.normalize_uri(datasource_config.uri)
             schema = storage_provider.get_scheme()
-            self.session_context.register_object_store(schema=schema, store=object_store)
-            self.log.info("Registered object store for schema: %s", schema)
+            # abfs(s) folds account+container into one host token, so the container-name host
+            # DataFusion defaults to when host is omitted would miss the registered store.
+            host = urlsplit(canonical_uri).netloc
+            self.session_context.register_object_store(schema=schema, store=object_store, host=host)
+            self.log.info("Registered object store for schema: %s host: %s", schema, host)
+            return canonical_uri
         except Exception as e:
             raise ObjectStoreCreationException(
                 f"Error while creating object store for {datasource_config.storage_type}: {e}"
@@ -129,10 +140,12 @@ class DataFusionEngine(LoggingMixin):
         except Exception as e:
             raise QueryExecutionException(f"Error while executing query: {e}")
 
-    def _get_connection_config(self, conn_id: str) -> ConnectionConfig:
+    def _get_connection_config(self, conn_id: str, storage_type: StorageType | None) -> ConnectionConfig:
+        """Build a ConnectionConfig, resolving credentials only for storage types implemented here."""
+        if storage_type not in EMBEDDED_PROVIDERS:
+            return ConnectionConfig(conn_id=conn_id)
 
         airflow_conn = BaseHook.get_connection(conn_id)
-
         credentials, extra_config = self._get_credentials(airflow_conn)
 
         return ConnectionConfig(
@@ -142,25 +155,8 @@ class DataFusionEngine(LoggingMixin):
         )
 
     def _get_credentials(self, conn: Connection) -> tuple[dict[str, Any], dict[str, Any]]:
-
-        credentials = {}
-        extra_config = {}
-
-        def _fetch_extra_configs(keys: list[str]) -> dict[str, Any]:
-            conf = {}
-            extra_dejson = conn.extra_dejson
-            for key in keys:
-                if key in extra_dejson:
-                    conf[key] = conn.extra_dejson[key]
-            return conf
-
-        def _get_gcp_extra_field(extra_dejson: dict[str, Any], field_name: str) -> Any:
-            # Older Airflow connection UIs wrote custom extra fields as
-            # extra__google_cloud_platform__<field_name> instead of the bare key; GoogleBaseHook
-            # still reads that legacy spelling as a fallback, so this must too.
-            if field_name in extra_dejson:
-                return extra_dejson[field_name]
-            return extra_dejson.get(f"extra__google_cloud_platform__{field_name}")
+        credentials: dict[str, Any] = {}
+        extra_config: dict[str, Any] = {}
 
         def _get_wasb_extra_field(extra_dejson: dict[str, Any], field_name: str) -> Any:
             # Older Airflow connection UIs wrote custom extra fields as
@@ -169,48 +165,6 @@ class DataFusionEngine(LoggingMixin):
             return extra_dejson.get(field_name, extra_dejson.get(f"extra__wasb__{field_name}"))
 
         match conn.conn_type:
-            case "aws":
-                try:
-                    from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-                except ImportError:
-                    from airflow.providers.common.compat.sdk import AirflowOptionalProviderFeatureException
-
-                    raise AirflowOptionalProviderFeatureException(
-                        "Failed to import AwsGenericHook. To use the S3 storage functionality, please install the "
-                        "apache-airflow-providers-amazon package."
-                    )
-                aws_hook: AwsGenericHook = AwsGenericHook(aws_conn_id=conn.conn_id, client_type="s3")
-                creds = aws_hook.get_credentials()
-                credentials.update(
-                    {
-                        "access_key_id": conn.login or creds.access_key,
-                        "secret_access_key": conn.password or creds.secret_key,
-                        "session_token": creds.token if creds.token else None,
-                    }
-                )
-                credentials = self._remove_none_values(credentials)
-                extra_config = _fetch_extra_configs(["region", "endpoint"])
-
-            case "google_cloud_platform":
-                extra_dejson = conn.extra_dejson
-                for unsupported_field in ("key_secret_name", "credential_config_file", "impersonation_chain"):
-                    if _get_gcp_extra_field(extra_dejson, unsupported_field):
-                        raise ValueError(
-                            f"Connection field {unsupported_field!r} is not supported for DataFusion "
-                            "GCS access; only key_path, keyfile_dict, GOOGLE_APPLICATION_CREDENTIALS, or "
-                            "ambient credentials (gcloud ADC file / metadata server) are used."
-                        )
-                key_path = _get_gcp_extra_field(extra_dejson, "key_path") or None
-                keyfile_dict = _get_gcp_extra_field(extra_dejson, "keyfile_dict") or None
-                if key_path and keyfile_dict:
-                    raise ValueError(
-                        "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
-                        "Please provide only one value."
-                    )
-                if not key_path and not keyfile_dict:
-                    key_path = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-                credentials = self._remove_none_values({"key_path": key_path, "keyfile_dict": keyfile_dict})
-
             case "wasb":
                 extra_dejson = conn.extra_dejson
                 for unsupported_field in (
@@ -240,6 +194,9 @@ class DataFusionEngine(LoggingMixin):
                     credentials.update(
                         {"client_id": conn.login, "client_secret": conn.password, "tenant_id": tenant_id}
                     )
+                    if not conn.host:
+                        # login holds the client_id here, so it cannot name the storage account.
+                        credentials["account"] = None
                     credential_tier = "client_secret"
                 elif shared_access_key := _get_wasb_extra_field(extra_dejson, "shared_access_key"):
                     # Checked ahead of sas_token to match WasbHook.get_conn's precedence.
@@ -353,7 +310,8 @@ class DataFusionEngine(LoggingMixin):
 
         From ``host`` (its netloc's first label) when set, falling back to ``login`` only when
         ``host`` is empty -- login holds the service-principal client_id otherwise, not the
-        account name. Returns ``None`` when neither is set, so the binding falls back to
+        account name (the caller drops the login-derived account for service principals).
+        Returns ``None`` when neither is set, so the binding falls back to
         ``AZURE_STORAGE_ACCOUNT_NAME`` rather than the literal string ``"None"``. Reimplemented
         locally instead of importing
         ``airflow.providers.microsoft.azure.utils.parse_blob_account_url``, to avoid pulling in

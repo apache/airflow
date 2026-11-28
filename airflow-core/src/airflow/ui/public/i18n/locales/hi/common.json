@@ -8,6 +8,7 @@
     "Variables": "वेरिएबल्स"
   },
   "allOperators": "सभी ऑपरेटर्स",
+  "allTeams": "सभी टीमें",
   "appearance": {
     "appearance": "दिखावट",
     "darkMode": "डार्क मोड",
@@ -23,8 +24,10 @@
   },
   "backfill_one": "बैकफ़िल",
   "backfill_other": "बैकफ़िल्स",
+  "breadcrumb": "ब्रेडक्रंब",
   "browse": {
     "auditLog": "ऑडिट लॉग",
+    "dagBundles": "डैग बंडल्स",
     "deadlines": "डेडलाइन",
     "jobs": "जॉब्स",
     "requiredActions": "आवश्यक क्रियाएं",
@@ -37,7 +40,10 @@
   "createdAssetEvent_other": "बनाए गए एसेट इवेंट्स",
   "dag_one": "डैग",
   "dag_other": "डैग्स",
+  "dagBundle_one": "डैग बंडल",
+  "dagBundle_other": "डैग बंडल्स",
   "dagDetails": {
+    "activeRuns": "सक्रिय रन्स",
     "catchup": "पकड़ना",
     "dagRunTimeout": "डैग रन टाइमआउट",
     "defaultArgs": "डिफ़ॉल्ट तर्क",
@@ -57,7 +63,8 @@
     "owner": "स्वामी",
     "params": "पैरामीटर",
     "schedule": "अनुसूची",
-    "tags": "टैग्स"
+    "tags": "टैग्स",
+    "team": "टीम"
   },
   "dagId": "डैग ID",
   "dagRun": {
@@ -84,9 +91,7 @@
   "dagRun_one": "डैग रन",
   "dagRun_other": "डैग रन्स",
   "dagRunId": "डैग रन ID",
-  "dagWarnings": "डैग चेतावनियां/त्रुटियां",
-  "defaultToGraphView": "ग्राफ़ व्यू को डिफ़ॉल्ट करें",
-  "defaultToGridView": "ग्रिड व्यू को डिफ़ॉल्ट करें",
+  "dagRunState": "डैग रन स्थिति",
   "delete": "हटाएं",
   "diff": "अंतर",
   "diffCompareWith": "तुलना करें",
@@ -120,6 +125,8 @@
       "title": "पहुँच अस्वीकृत"
     }
   },
+  "event_one": "इवेंट",
+  "event_other": "इवेंट्स",
   "expand": {
     "collapse": "संकुचित करें",
     "expand": "विस्तृत करें",
@@ -135,22 +142,44 @@
   },
   "filter": "फ़िल्टर",
   "filters": {
+    "addFilter": "फ़िल्टर जोड़ें",
+    "allIterations": "सभी",
+    "completedAt": "पूर्ण होने का समय",
+    "date": "तिथि",
     "durationFrom": "अवधि से",
     "durationTo": "अवधि तक",
     "endTime": "समाप्ति समय",
+    "iteration": "पुनरावृत्ति",
     "logicalDateFrom": "तार्किक तिथि से",
     "logicalDateTo": "तार्किक तिथि तक",
+    "loop": "लूप",
+    "loopAllIterations": "{{loop}} सभी",
+    "loopIteration": "{{loop}} {{index}}",
+    "loopPlaceholder": "एक लूप चुनें",
+    "maxActiveRunsFrom": "अधिकतम सक्रिय रन्स से",
+    "maxActiveRunsTo": "अधिकतम सक्रिय रन्स तक",
+    "removeFilter": "फ़िल्टर हटाएं",
     "runAfterFrom": "रन आफ़्टर से",
     "runAfterTo": "रन आफ़्टर तक",
     "searchAsset": "एसेट खोजें",
     "selectDateRange": "तिथि रेंज चुनें",
-    "startTime": "प्रारंभ समय"
+    "selectDateTime": "तिथि और समय चुनें",
+    "startTime": "प्रारंभ समय",
+    "switchIteration": "पुनरावृत्ति बदलें",
+    "time": "समय"
   },
   "fullscreen": {
     "tooltip": "फ़ुलस्क्रीन के लिए {{hotkey}} दबाएं"
   },
   "generateToken": "टोकन जनरेट करें",
+  "includedIn": "में शामिल",
   "key": "कुंजी",
+  "loading": "लोड हो रहा है…",
+  "logLevel": {
+    "hide": "लॉग स्तर छुपाएं",
+    "hotkey": "l",
+    "show": "लॉग स्तर दिखाएं"
+  },
   "logicalDate": "तार्किक तिथि",
   "logout": "लॉग आउट",
   "logoutConfirmation": "आप एप्लिकेशन से लॉग आउट करने वाले हैं।",
@@ -170,12 +199,14 @@
     "assets": "एसेट्स",
     "browse": "ब्राउज़ करें",
     "dags": "डैग्स",
+    "dashboard": "डैशबोर्ड",
     "docs": "प्रलेखन",
     "home": "मुख्य पृष्ठ",
     "legacyFabViews": "पुराने व्यू",
     "plugins": "प्लगइन",
     "security": "सुरक्षा"
   },
+  "no": "नहीं",
   "noItemsFound": "कोई {{modelName}} नहीं मिला",
   "note": {
     "add": "नोट जोड़ें",
@@ -188,13 +219,16 @@
     "write": "लिखें"
   },
   "overallStatus": "समग्र स्थिति",
+  "partition_one": "पार्टीशन",
+  "partition_other": "पार्टीशन्स",
   "partitionedDagRun_one": "विभाजित Dag रन",
   "partitionedDagRun_other": "विभाजित Dag रन",
   "partitionedDagRunDetail": {
     "receivedAssetEvents": "प्राप्त एसेट इवेंट"
   },
-  "pendingDagRun_one": "{{count}} लंबित Dag रन",
-  "pendingDagRun_other": "{{count}} लंबित Dag रन",
+  "pause": "रोकें",
+  "pendingDagRun_one": "{{count, number}} लंबित Dag रन",
+  "pendingDagRun_other": "{{count, number}} लंबित Dag रन",
   "presetFilters": {
     "deleteTitle": "प्रीसेट फ़िल्टर हटाएं",
     "deleteWarning": "प्रीसेट फ़िल्टर केवल इस ब्राउज़र में संग्रहीत होते हैं।",
@@ -243,6 +277,79 @@
   },
   "selectLanguage": "भाषा चुनें",
   "selected": "चयनित",
+  "settings": {
+    "clearing": {
+      "keepTaskState": {
+        "helper": "टास्क इंस्टेंस साफ़ करते समय टास्क स्टेट स्टोर प्रविष्टियों को हटाने के बजाय डिफ़ॉल्ट रूप से बनाए रखें।",
+        "label": "साफ़ करने पर टास्क स्टेट बनाए रखें"
+      },
+      "preventRunningTask": {
+        "helper": "टास्क इंस्टेंस साफ़ करते समय वर्तमान में चल रहे टास्क्स को छोड़ दें।",
+        "label": "चल रहे टास्क्स को साफ़ करने से रोकें"
+      },
+      "runSelection": {
+        "helper": "डैग रन साफ़ करते समय डिफ़ॉल्ट रूप से चयनित विकल्प।",
+        "label": "डिफ़ॉल्ट रन साफ़ करने का चयन"
+      },
+      "taskSelection": {
+        "helper": "टास्क इंस्टेंस साफ़ करते समय डिफ़ॉल्ट रूप से चयनित विकल्प।",
+        "label": "डिफ़ॉल्ट टास्क साफ़ करने का चयन"
+      },
+      "title": "साफ़ करना"
+    },
+    "dagsList": {
+      "recentTasks": {
+        "helper": "डैग्स सूची में प्रत्येक डैग की हाल की टास्क स्थितियां दिखाएं। उन्हें लोड करना छोड़ने के लिए इसे बंद करें, जो कई डैग्स वाले परिनियोजन पर मदद कर सकता है।",
+        "label": "हाल के टास्क्स दिखाएं"
+      },
+      "title": "डैग्स सूची"
+    },
+    "description": "ये प्राथमिकताएं केवल इस ब्राउज़र में सहेजी जाती हैं और पूरे ऐप पर लागू होती हैं।",
+    "general": {
+      "landingPage": {
+        "helper": "जब आप Airflow खोलते हैं तब दिखाया जाने वाला पेज।",
+        "label": "लैंडिंग पेज",
+        "options": {
+          "dags": "डैग्स",
+          "dashboard": "डैशबोर्ड"
+        }
+      },
+      "title": "सामान्य"
+    },
+    "graph": {
+      "defaultDirection": {
+        "helper": "डैग और एसेट ग्राफ़ के लिए लेआउट दिशा जिन्हें आपने अलग-अलग सेट नहीं किया है।",
+        "label": "डिफ़ॉल्ट ग्राफ़ दिशा"
+      },
+      "taskGroupsExpanded": {
+        "helper": "उन डैग्स में टास्क समूहों को विस्तृत करें जहां आपने समूह चयन सहेजा नहीं है। मौजूदा चयन बनाए रखे जाते हैं।",
+        "label": "डिफ़ॉल्ट रूप से टास्क समूहों को विस्तृत करें"
+      },
+      "title": "ग्राफ़"
+    },
+    "marking": {
+      "taskSelection": {
+        "helper": "टास्क इंस्टेंस की स्थिति चिह्नित करते समय डिफ़ॉल्ट रूप से चयनित विकल्प।",
+        "label": "डिफ़ॉल्ट चिह्नित करने का चयन"
+      },
+      "title": "चिह्नित करना"
+    },
+    "search": {
+      "matchAnywhere": {
+        "helper": "$t(search.advanced.description) प्रति-सर्चबार विकल्प और साझा किए गए लिंक अभी भी प्राथमिकता लेते हैं।",
+        "label": "डिफ़ॉल्ट रूप से कहीं भी मिलान करें"
+      },
+      "title": "खोज"
+    },
+    "taskInstance": {
+      "defaultTab": {
+        "helper": "जब आप टास्क इंस्टेंस खोलते हैं तब सबसे पहले दिखाया जाने वाला टैब। किसी विशिष्ट टैब के लिंक अभी भी वही टैब खोलते हैं।",
+        "label": "डिफ़ॉल्ट टास्क इंस्टेंस टैब"
+      },
+      "title": "टास्क इंस्टेंस"
+    },
+    "title": "सेटिंग्स"
+  },
   "shortcuts": {
     "categories": {
       "code": "कोड",
@@ -276,6 +383,7 @@
       "toggleExpand": "सभी ग्रुप्स को विस्तृत या संकुचित करें",
       "toggleFullscreen": "फ़ुलस्क्रीन टॉगल करें",
       "toggleGraphGrid": "ग्राफ़ / ग्रिड व्यू टॉगल करें",
+      "toggleLogLevel": "लॉग स्तर टॉगल करें",
       "toggleSource": "स्रोत टॉगल करें",
       "toggleTaskGroup": "$t(taskGroup_one) को विस्तृत या संकुचित करें",
       "toggleTimestamp": "टाइमस्टैम्प टॉगल करें",
@@ -286,6 +394,9 @@
   },
   "showDetailsPanel": "विवरण पैनल दिखाएं",
   "signedInAs": "के रूप में लॉग इन",
+  "slot": "स्लॉट",
+  "slot_one": "स्लॉट",
+  "slot_other": "स्लॉट्स",
   "source": {
     "hide": "स्रोत छुपाएं",
     "hotkey": "s",
@@ -302,6 +413,7 @@
     "no_status": "कोई स्थिति नहीं",
     "none": "कुछ नहीं",
     "open": "खुला",
+    "pending": "लंबित",
     "planned": "नियोजित",
     "queued": "कतार में",
     "removed": "हटाया गया",
@@ -314,6 +426,9 @@
     "up_for_retry": "पुनः प्रयास के लिए",
     "upstream_failed": "अपस्ट्रीम विफल"
   },
+  "switchDag": "$t(dag_one) बदलें",
+  "switchDagRun": "$t(dagRun_one) बदलें",
+  "switchMapIndex": "$t(mapIndex) बदलें",
   "table": {
     "completedAt": "पर पूर्ण",
     "createdAt": "पर बनाया",
@@ -323,7 +438,10 @@
     "filterReset_other": "फ़िल्टर रीसेट करें",
     "from": "से",
     "maxActiveRuns": "अधिकतम सक्रिय रन्स",
+    "noResultsFound": "कोई परिणाम नहीं मिला",
     "noTagsFound": "कोई टैग नहीं मिले",
+    "noTeamsFound": "कोई टीम नहीं मिली",
+    "ownerPlaceholder": "स्वामी द्वारा फ़िल्टर करें",
     "tagMode": {
       "all": "सभी",
       "any": "कोई भी"
@@ -356,6 +474,9 @@
     "executorConfig": "एक्जीक्यूटर कॉन्फ़िग",
     "hostname": "होस्टनेम",
     "id": "ID",
+    "iteration": "पुनरावृत्ति",
+    "loopDecision": "निर्णय",
+    "loopIterations": "चलाई गई पुनरावृत्तियां",
     "maxTries": "अधिकतम प्रयास",
     "pid": "PID",
     "pool": "पूल",
@@ -365,6 +486,11 @@
     "queuedWhen": "कब कतार में",
     "renderedMapIndex": "रेंडर किया गया Map Index",
     "scheduledWhen": "कब निर्धारित",
+    "stateReason": "स्थिति का कारण",
+    "stateReasonSummary": {
+      "failed": "{{totalTries}} में से प्रयास {{tryNumber}} पर रुका",
+      "upForRetry": "{{totalTries}} में से प्रयास {{tryNumber}} के बाद पुनः प्रयास कर रहा है"
+    },
     "trigger": "ट्रिगर",
     "triggerer": {
       "assigned": "निर्धारित ट्रिगरर",
@@ -379,10 +505,21 @@
   },
   "taskInstance_one": "टास्क इंस्टेंस",
   "taskInstance_other": "टास्क इंस्टेंसेज",
+  "teams": {
+    "more_one": "और {{count, number}} अधिक",
+    "more_other": "और {{count, number}} अधिक",
+    "none": "कोई टीम नहीं",
+    "title": "टीमें"
+  },
   "timeRange": {
+    "anyTime": "कभी भी",
+    "in": "में",
+    "last7Days": "पिछले 7 दिन",
     "last12Hours": "पिछले 12 घंटे",
     "last24Hours": "पिछले 24 घंटे",
+    "last30Days": "पिछले 30 दिन",
     "lastHour": "पिछला घंटा",
+    "latestRun": "नवीनतम रन",
     "pastWeek": "पिछला सप्ताह"
   },
   "timestamp": {
@@ -401,21 +538,21 @@
     "bulkClear": {
       "error": "बल्क क्लियर {{resourceName}} अनुरोध विफल",
       "success": {
-        "description": "{{count}} {{resourceName}} सफलतापूर्वक साफ़ कर दिए गए। कुंजियाँ: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} सफलतापूर्वक साफ़ कर दिए गए। कुंजियाँ: {{keys}}",
         "title": "बल्क क्लियर {{resourceName}} अनुरोध सबमिट किया गया"
       }
     },
     "bulkDelete": {
       "error": "बल्क डिलीट {{resourceName}} अनुरोध विफल",
       "success": {
-        "description": "{{count}} {{resourceName}} सफलतापूर्वक हटा दिए गए हैं। keys: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} सफलतापूर्वक हटा दिए गए हैं। keys: {{keys}}",
         "title": "बल्क डिलीट {{resourceName}} अनुरोध सबमिट किया गया"
       }
     },
     "bulkUpdate": {
       "error": "बल्क अपडेट {{resourceName}} अनुरोध विफल",
       "success": {
-        "description": "{{count}} {{resourceName}} सफलतापूर्वक अपडेट कर दिए गए। कुंजियाँ: {{keys}}",
+        "description": "{{count, number}} {{resourceName}} सफलतापूर्वक अपडेट कर दिए गए। कुंजियाँ: {{keys}}",
         "title": "बल्क अपडेट {{resourceName}} अनुरोध सबमिट किया गया"
       }
     },
@@ -436,7 +573,7 @@
     "import": {
       "error": "{{resourceName}} आयात अनुरोध विफल",
       "success": {
-        "description": "{{count}} {{resourceName}} सफलतापूर्वक आयात किए गए हैं।",
+        "description": "{{count, number}} {{resourceName}} सफलतापूर्वक आयात किए गए हैं।",
         "title": "{{resourceName}} आयात अनुरोध सबमिट किया गया"
       }
     },
@@ -463,6 +600,7 @@
   "total": "कुल {{state}}",
   "triggered": "ट्रिगर किया गया",
   "tryNumber": "प्रयास संख्या",
+  "unpause": "पुनः आरंभ करें",
   "user": "उपयोगकर्ता",
   "validation": {
     "mustBeAtLeast": "कम से कम {{min}} होना चाहिए।",
@@ -474,5 +612,6 @@
     "tooltip": "रैप को टॉगल करने के लिए {{hotkey}} दबाएं",
     "unwrap": "अनरैप",
     "wrap": "रैप"
-  }
+  },
+  "yes": "हां"
 }

@@ -57,8 +57,7 @@
     },
     "dags": {
       "type": "object",
-      "description": "Mapping of dag_id to DAG entry. Every dag_id the bundle exposes must appear here.",
-      "minProperties": 1,
+      "description": "Mapping of dag_id to the tasks the bundle runs for a Python Dag with stub TaskHandler. May be empty, for example when the bundle only declares Dag definitions.",
       "additionalProperties": {
         "$ref": "#/$defs/dagEntry"
       }

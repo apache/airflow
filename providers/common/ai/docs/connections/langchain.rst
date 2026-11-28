@@ -41,7 +41,7 @@ Configuring the Connection
 
 Chat Model (Extra field)
     Chat model identifier in ``provider:name`` format, dispatched via
-    ``langchain.chat_models.init_chat_model`` (e.g. ``openai:gpt-5``,
+    ``langchain.chat_models.init_chat_model`` (e.g. ``openai:gpt-6.1-sol``,
     ``anthropic:claude-sonnet-5``). This field appears as a dedicated input
     in the connection form (via ``conn-fields``) and stores its value in
     ``extra["model"]``.
@@ -71,11 +71,11 @@ Supported providers
 
 The hook forwards two values to LangChain: the connection's password as
 ``api_key`` and its host as ``base_url``. Any provider whose LangChain model
-class accepts those two keyword arguments works, which includes OpenAI,
-Anthropic, Groq, Mistral AI, DeepSeek, Ollama and vLLM. Providers whose
-classes expect their own credential shape (AWS Bedrock, Google Vertex AI and
-GenAI, Azure OpenAI, Cohere, HuggingFace) reject these kwargs and are not
-usable through this connection type.
+class accepts those two keyword arguments works. Providers whose classes
+expect their own credential shape (AWS Bedrock, Google Vertex AI and GenAI,
+Azure OpenAI, Cohere, HuggingFace) reject these kwargs and are not usable
+through this connection type. See :doc:`../supported_services` for the
+current list of providers this connection type reaches.
 
 Model resolution order
 -----------------------
@@ -98,7 +98,7 @@ Examples
     {
         "conn_type": "langchain",
         "password": "sk-...",
-        "extra": "{\"model\": \"openai:gpt-5\", \"embed_model\": \"openai:text-embedding-3-small\"}"
+        "extra": "{\"model\": \"openai:gpt-6.1-sol\", \"embed_model\": \"openai:text-embedding-3-small\"}"
     }
 
 **Anthropic (chat only)**

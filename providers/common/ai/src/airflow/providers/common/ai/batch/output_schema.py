@@ -25,11 +25,10 @@ response back into a validated value or an explicit failure
 
 Deliberately does **not** call
 :func:`~airflow.providers.common.ai.utils.output_type.rehydrate_pydantic_output`:
-that helper's failure mode is "validation failed -> return the raw string
-unchanged", which is correct for the HITL round-trip it was built for but
-wrong here -- a batch item that fails validation must be recorded as failed
-(``status: "invalid_output"``), never silently downgraded into a
-string that merely looks like a success.
+that helper raises when a reviewer's edit fails validation, which fails the whole
+task. That is right for the HITL round-trip it was built for but wrong here -- a
+batch item that fails validation must be recorded as failed
+(``status: "invalid_output"``) while the rest of the batch carries on.
 """
 
 from __future__ import annotations
@@ -128,10 +127,15 @@ def build_output_spec(output_type: type) -> OutputSpec:
 
     wrapped = json_schema.get("type") != "object"
     if wrapped:
+        # ``$ref``s resolve against the document root, so the definitions move up with the wrapper.
+        definitions: dict[str, Any] = {
+            key: json_schema.pop(key) for key in ("$defs", "definitions") if key in json_schema
+        }
         json_schema = {
             "type": "object",
             "properties": {"response": json_schema},
             "required": ["response"],
+            **definitions,
         }
     schema_name = _normalize_schema_name(getattr(output_type, "__name__", ""))
     return OutputSpec(

@@ -75,13 +75,18 @@ Credentials are not configured on this connection -- they come from whichever au
 method the referenced Snowflake connection uses, set the same way as for
 :ref:`SnowflakeSqlApiHook and SnowflakeCortexAgentHook <howto/connection:snowflake>`:
 
-- **OAuth**: set ``authenticator`` to ``oauth`` in the Snowflake connection's extra, and configure
+- **OAuth**: set the Snowflake connection's **Authenticator** field to ``oauth``, and configure
   a refresh token, a client credentials grant, or ``azure_conn_id``.
 - **PAT (Programmatic Access Token)**: set ``authenticator`` to ``programmatic_access_token`` and
   put the PAT value in the Snowflake connection's Password field.
-- **Key-pair JWT**: the default when neither of the above is set. Configure
+- **Key-pair JWT**: used when neither OAuth nor PAT is selected and a private key is configured,
+  taking precedence over WIF. Configure
   ``private_key_file`` or ``private_key_content`` (optionally with a passphrase in Password), and
   set Login to the Snowflake user name the key is registered to.
+- **Workload Identity Federation (WIF)**: when no private key is configured, set
+  ``authenticator`` to ``WORKLOAD_IDENTITY`` and ``workload_identity_provider`` to
+  ``AWS``, ``AZURE``, ``GCP`` or ``OIDC``. See
+  :ref:`Snowflake connection <howto/connection:snowflake>` for prerequisites and host restrictions.
 
 See the :doc:`Snowflake connection <snowflake>` page for the full field reference.
 

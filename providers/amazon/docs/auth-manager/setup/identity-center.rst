@@ -124,6 +124,16 @@ or
     export AIRFLOW__API__BASE_URL='<base_url>'
     export AIRFLOW__AWS_AUTH_MANAGER__SAML_METADATA_URL='<saml_metadata_file_url>'
 
+.. important::
+  Serve the Airflow UI over HTTPS. Identity Center sends the SAML response back to
+  ``<base_url>/auth/login_callback`` from another site, and the browser only sends the login state
+  cookie with that request when the cookie is ``SameSite=None``, which requires ``Secure``. Airflow
+  sets it that way only when the API server sees the request as HTTPS. If TLS ends at a load
+  balancer or reverse proxy in front of Airflow, run ``airflow api-server --proxy-headers`` and set
+  ``FORWARDED_ALLOW_IPS`` so the API server trusts ``X-Forwarded-Proto``, as described in
+  :doc:`apache-airflow:howto/run-behind-proxy`. Otherwise every login started from Airflow fails
+  with "No login in progress for this browser".
+
 .. _identity_center_idp_initiated_login:
 
 Logging in from the access portal (IdP-initiated SSO)

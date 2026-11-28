@@ -39,6 +39,7 @@ from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
 from airflow.models.connection import Connection
+from airflow.providers.amazon import __version__ as amazon_provider_version
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
     AwsBaseHook,
@@ -343,8 +344,55 @@ class TestSessionFactory:
             assert credentials.method == "sts-assume-role"
             assert isinstance(session, aiobotocore.session.AioSession)
 
+    @pytest.mark.parametrize(
+        ("doctype_entity", "reference"),
+        [
+            pytest.param('<!ENTITY xxe SYSTEM "file://{secret_file}">', "&xxe;", id="external-entity"),
+            pytest.param('<!ENTITY payload "INJECTED">', "&payload;", id="internal-entity"),
+        ],
+    )
+    def test_fetch_saml_assertion_does_not_resolve_doctype_entities(
+        self, tmp_path, doctype_entity, reference
+    ):
+        secret_file = tmp_path / "secret.txt"
+        secret_file.write_text("TOPSECRET")
+        idp_response = (
+            '<?xml version="1.0"?>'
+            f"<!DOCTYPE r [{doctype_entity.format(secret_file=secret_file)}]>"
+            f"<r><assertion>{reference}</assertion></r>"
+        ).encode()
+
+        saml_config = {
+            "idp_url": "https://my-idp.local.corp",
+            "idp_auth_method": "http_spegno_auth",
+            "saml_response_xpath": "//assertion/text()",
+        }
+
+        orig_import = __import__
+
+        def import_mock(name, *args, **kwargs):
+            if name == "requests_gssapi":
+                return mock.Mock()
+            return orig_import(name, *args, **kwargs)
+
+        factory = BaseSessionFactory(conn=None)
+        with (
+            mock.patch("builtins.__import__", side_effect=import_mock),
+            mock.patch.object(factory, "_get_idp_response", autospec=True) as mock_idp,
+        ):
+            mock_idp.return_value.content = idp_response
+            # With resolve_entities=False the entity stays unexpanded, so the xpath yields no
+            # text node and the hook rejects the assertion instead of returning file contents
+            # or the substituted literal.
+            with pytest.raises(ValueError, match="Invalid SAML Assertion"):
+                factory._fetch_saml_assertion_using_http_spegno_auth(saml_config)
+
 
 class TestAwsBaseHook:
+    @pytest.mark.filterwarnings("error:ProvidersManager.hooks is deprecated")
+    def test_get_provider_version_without_deprecated_hooks(self):
+        assert AwsBaseHook._get_provider_version() == amazon_provider_version
+
     @mock_aws
     def test_get_client_type_set_in_class_attribute(self):
         client = boto3.client("emr", region_name="us-east-1")
@@ -800,17 +848,19 @@ class TestAwsBaseHook:
             mock_get.assert_called_once_with(idp_url, auth=mock_auth)
             mock_xpath.assert_called_once_with(xpath)
 
-        mocked_basic_session.assert_has_calls = [
-            mock.call().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
-            mock.call()
-            .client()
-            .assume_role_with_saml(
-                DurationSeconds=duration_seconds,
-                PrincipalArn=principal_arn,
-                RoleArn=role_arn,
-                SAMLAssertion=encoded_saml_assertion,
-            ),
-        ]
+        mocked_basic_session.assert_has_calls(
+            [
+                mock.call().client("sts", config=mock.ANY, endpoint_url=sts_endpoint),
+                mock.call()
+                .client()
+                .assume_role_with_saml(
+                    DurationSeconds=duration_seconds,
+                    PrincipalArn=principal_arn,
+                    RoleArn=role_arn,
+                    SAMLAssertion=encoded_saml_assertion,
+                ),
+            ]
+        )
 
     @mock_aws
     def test_expand_role(self):
@@ -1070,7 +1120,7 @@ class TestAwsBaseHook:
             region_name=method_region_name,
             config=mock.ANY,
         )
-        assert mock_session_factory_instance.create_session.assert_called_once
+        mock_session_factory_instance.create_session.assert_called_once_with(deferrable=False)
         assert session == MOCK_BOTO3_SESSION
 
     @pytest.mark.parametrize("verify", [None, "path/to/cert/hook-bundle.pem", False])

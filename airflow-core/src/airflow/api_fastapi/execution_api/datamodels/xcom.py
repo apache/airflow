@@ -30,6 +30,35 @@ class XComResponse(BaseModel):
     """The returned XCom value in a JSON-compatible format."""
 
 
+class GetXComSliceFilterParams(BaseModel):
+    """Class to house slice params."""
+
+    start: int | None = None
+    stop: int | None = None
+    step: int | None = None
+    include_prior_dates: bool = False
+    previous_iteration: bool = False
+
+
+class GetXcomFilterParams(BaseModel):
+    """
+    Optional query params of Get XCom, selecting which value to read.
+
+    ``map_index`` reads one task instance, and ``offset`` one value of a mapped
+    task by position. Without them, the read returns the task's result: an
+    unmapped task's value, or a mapped task's values as a list, as the slice
+    endpoint returns them.
+
+    With ``include_prior_dates``, an omitted ``map_index`` reads -1 instead,
+    since the slice mixes earlier runs' values.
+    """
+
+    map_index: int | None = None
+    include_prior_dates: bool = False
+    offset: int | None = None
+    previous_iteration: bool = False
+
+
 class XComSequenceIndexResponse(RootModel):
     """XCom schema with minimal structure for index-based access."""
 

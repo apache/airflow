@@ -23,12 +23,13 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from enum import Enum
+from enum import StrEnum
 from functools import cache, cached_property
 from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from jwt import InvalidTokenError
 from sqlalchemy import select
+from starlette.concurrency import run_in_threadpool
 
 from airflow.api_fastapi.auth.managers.models.base_user import BaseUser
 from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -45,7 +46,7 @@ from airflow.api_fastapi.auth.tokens import (
     get_sig_validation_args,
     get_signing_args,
 )
-from airflow.api_fastapi.common.types import ExtraMenuItem, MenuItem
+from airflow.api_fastapi.common.types import CliLoginMethods, ExtraMenuItem, MenuItem
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow4Warning
 from airflow.models import Connection, DagModel, Pool, Variable
@@ -85,7 +86,7 @@ if TYPE_CHECKING:
 else:
     # For runtime - provides iteration and validation
 
-    class ResourceMethod(str, Enum):
+    class ResourceMethod(StrEnum):
         """HTTP methods (actions) a user can perform against a resource."""
 
         GET = "GET"
@@ -93,10 +94,7 @@ else:
         PUT = "PUT"
         DELETE = "DELETE"
 
-        def __str__(self) -> str:
-            return self.value
-
-    class ExtendedResourceMethod(str, Enum):
+    class ExtendedResourceMethod(StrEnum):
         """Extended HTTP methods including MENU for UI resource authorization."""
 
         GET = "GET"
@@ -104,9 +102,6 @@ else:
         PUT = "PUT"
         DELETE = "DELETE"
         MENU = "MENU"
-
-        def __str__(self) -> str:
-            return self.value
 
 
 log = logging.getLogger(__name__)
@@ -146,6 +141,10 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
     def deserialize_user(self, token: dict[str, Any]) -> T:
         """Create a user object from dict."""
 
+    async def deserialize_user_async(self, token: dict[str, Any]) -> T:
+        """Extension point for asynchronously creating a user object from token claims."""
+        return self.deserialize_user(token)
+
     @abstractmethod
     def serialize_user(self, user: T) -> dict[str, Any]:
         """Create a subject and extra claims dict from a user object."""
@@ -162,11 +161,12 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
             log.error("JWT token is not valid: %s", e)
             raise e
 
-        if (jti := payload.get("jti")) and RevokedToken.is_revoked(jti):
+        # A synchronous DB lookup, kept off the event loop
+        if (jti := payload.get("jti")) and await run_in_threadpool(RevokedToken.is_revoked, jti):
             raise InvalidTokenError("Token has been revoked")
 
         try:
-            return self.deserialize_user(payload)
+            return await self.deserialize_user_async(payload)
         except (ValueError, KeyError) as e:
             log.error("Couldn't deserialize user from token, JWT token is not valid: %s", e)
             raise InvalidTokenError(str(e))
@@ -182,6 +182,20 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         method.
         """
         return []
+
+    def get_jwt_refresh_middleware(self) -> list[tuple[_MiddlewareFactory[Any], dict[str, Any]]]:
+        """
+        Return the JWTRefreshMiddleware to refresh the Airflow JWT token.
+
+        Middlewares added by this method will be initialised before middleware from
+        ``get_fastapi_middlewares()``. To disable JWT refresh return an empty list.
+        To add more middleware, simply add more tuples here in the same format as
+        ``get_fastapi_middlewares()``.
+        """
+        from airflow.api_fastapi.auth.middlewares.refresh_token import JWTRefreshMiddleware
+        from airflow.api_fastapi.core_api.app import _STATIC_URL_PATH
+
+        return [(JWTRefreshMiddleware, {"skip_path_prefixes": (f"{_STATIC_URL_PATH}/",)})]
 
     def generate_jwt(
         self, user: T, *, expiration_time_in_seconds: int = conf.getint("api_auth", "jwt_expiration_time")
@@ -220,6 +234,15 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         session.
         """
         return None
+
+    def get_cli_login_methods(self) -> CliLoginMethods:
+        """
+        Return the login methods offered to command-line clients such as airflowctl.
+
+        Clients read them before logging in, so they can tell which flows the server supports.
+        By default, no method is advertised.
+        """
+        return CliLoginMethods()
 
     def refresh_user(self, *, user: T) -> T | None:
         """
@@ -786,7 +809,8 @@ class BaseAuthManager(Generic[T], LoggingMixin, metaclass=ABCMeta):
         rows = session.execute(stmt).all()
         pools_by_team: dict[str | None, set[str]] = defaultdict(set)
         for pool_name, team_name in rows:
-            pools_by_team[team_name].add(pool_name)
+            if pool_name is not None:
+                pools_by_team[team_name].add(pool_name)
 
         pool_names: set[str] = set()
         for team_name, team_pool_names in pools_by_team.items():

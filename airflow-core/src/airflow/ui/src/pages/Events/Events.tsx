@@ -36,6 +36,7 @@ import Time from "src/components/Time";
 
 import { SearchParamsKeys, type SearchParamsKeysType } from "src/constants/searchParams";
 import { useAdvancedSearchArg } from "src/hooks/useAdvancedSearch";
+import { useTaskInstanceCoordinates } from "src/hooks/useTaskInstanceCoordinates";
 import { useConfig } from "src/queries/useConfig";
 import { useDocumentTitle } from "src/utils";
 
@@ -185,6 +186,8 @@ const {
 export const Events = () => {
   const { t: translate } = useTranslation(["browse", "common"]);
   const { dagId, runId, taskId } = useParams();
+  const coordinates = useTaskInstanceCoordinates();
+  const regional = taskId !== undefined && coordinates.regionId !== undefined;
   const multiTeamEnabled = Boolean(useConfig("multi_team"));
 
   // Only the standalone audit-log page owns the tab title; nested tabs inherit their parent page's title.
@@ -192,7 +195,7 @@ export const Events = () => {
 
   const [searchParams] = useSearchParams();
   const { setTableURLState, tableURLState } = useTableURLState();
-  const { pagination, sorting } = tableURLState;
+  const { cursor, pagination, sorting } = tableURLState;
   const [sort] = sorting;
   const { onClose, onOpen, open } = useDisclosure();
 
@@ -246,20 +249,23 @@ export const Events = () => {
     value: taskIdFilter,
   });
 
-  const { data, error, isFetching, isLoading } = useEventLogServiceGetEventLogs(
+  const { data, error, isLoading } = useEventLogServiceGetEventLogs(
     {
       after: afterDate,
       before: beforeDate,
+      cursor: cursor ?? "",
       // Use exact match for URL params (dag/run/task context)
       dagId: dagId ?? undefined,
       // Use pattern search for filter inputs (partial matching)
       ...dagIdArg,
       ...eventArg,
       limit: pagination.pageSize,
-      mapIndex: mapIndexNumber,
-      offset: pagination.pageIndex * pagination.pageSize,
+      // A loop pass shares its public map index with every other pass, so its coordinates select it.
+      mapIndex: regional ? undefined : mapIndexNumber,
       orderBy,
       ...ownerArg,
+      regionId: regional ? coordinates.regionId : undefined,
+      regionIndex: regional ? coordinates.regionIndex : undefined,
       runId: runId ?? undefined,
       ...runIdArg,
       taskId: taskId ?? undefined,
@@ -268,6 +274,7 @@ export const Events = () => {
       tryNumber: tryNumberNumber,
     },
     undefined,
+    { placeholderData: (prev) => prev },
   );
 
   const eventLogs = data?.event_logs ?? [];
@@ -282,9 +289,9 @@ export const Events = () => {
         displayMode="table"
         filterActions={<EventsFilters urlDagId={dagId} urlRunId={runId} urlTaskId={taskId} />}
         initialState={tableURLState}
-        isFetching={isFetching}
         isLoading={isLoading}
         modelName="common:event"
+        nextCursor={data?.next_cursor}
         onStateChange={setTableURLState}
         presentationActions={
           eventLogs.length > 0 ? (
@@ -297,8 +304,10 @@ export const Events = () => {
             />
           ) : undefined
         }
+        previousCursor={data?.previous_cursor}
         skeletonCount={undefined}
-        total={data?.total_entries ?? 0}
+        total={data?.total_entries}
+        totalEntriesLimit={data?.total_entries_limit ?? undefined}
       />
     </>
   );

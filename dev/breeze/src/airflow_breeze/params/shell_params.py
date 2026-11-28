@@ -47,6 +47,8 @@ from airflow_breeze.global_constants import (
     CELERY_BROKER_URLS_MAP,
     CELERY_EXECUTOR,
     DEFAULT_CELERY_BROKER,
+    DEFAULT_ELASTICSEARCH_VERSION,
+    DEFAULT_OPENSEARCH_VERSION,
     DEFAULT_POSTGRES_VERSION,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
@@ -99,6 +101,7 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_INTEGRATION_KERBEROS_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_ALL_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_LOCAL_YAML_PATH,
+    SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UV_LOCK_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_MYPY_PATH,
@@ -108,6 +111,8 @@ from airflow_breeze.utils.path_utils import (
     SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH,
     SCRIPTS_CI_DOCKER_COMPOSE_TESTS_SOURCES_PATH,
     get_default_project_name,
+    get_host_id,
+    get_isolated_worktree_path,
     get_main_git_dir_for_worktree,
 )
 from airflow_breeze.utils.run_utils import commit_sha, run_command
@@ -188,10 +193,12 @@ class ShellParams:
     downgrade_sqlalchemy: bool = False
     downgrade_pendulum: bool = False
     dry_run: bool = False
+    elasticsearch_version: str = DEFAULT_ELASTICSEARCH_VERSION
     enable_coverage: bool = False
     excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
+    fail_on_pending_provider_candidates: bool = False
     force_build: bool = False
     force_sa_warnings: bool = True
     force_lowest_dependencies: bool = False
@@ -217,6 +224,7 @@ class ShellParams:
     no_db_cleanup: bool = False
     num_runs: str = ""
     only_min_version_update: bool = False
+    opensearch_version: str = DEFAULT_OPENSEARCH_VERSION
     distribution_format: str = ALLOWED_INSTALLATION_DISTRIBUTION_FORMATS[0]
     parallel_test_types_list: list[str] = field(default_factory=list)
     parallelism: int = 0
@@ -239,6 +247,7 @@ class ShellParams:
     skip_image_upgrade_check: bool = False
     skip_provider_dependencies_check: bool = False
     skip_ssh_setup: bool = os.environ.get("SKIP_SSH_SETUP", "false") == "true"
+    sphinx_airflow_theme_path: str = ""
     standalone_dag_processor: bool = False
     start_airflow: bool = False
     test_type: str | None = None
@@ -260,6 +269,8 @@ class ShellParams:
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)
         new_params.test_type = test_type
+        # The clone runs this one test type: kept, the list would make it select every test type's folders.
+        new_params.parallel_test_types_list = []
         return new_params
 
     @cached_property
@@ -440,6 +451,8 @@ class ShellParams:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_REMOVE_SOURCES_PATH)
         if self.mount_ui_dist:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_UI_DIST_PATH)
+        if self.sphinx_airflow_theme_path:
+            compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_MOUNT_SPHINX_AIRFLOW_THEME_PATH)
         if self.forward_credentials:
             compose_file_list.append(SCRIPTS_CI_DOCKER_COMPOSE_FORWARD_CREDENTIALS_PATH)
         if self.include_mypy_volume:
@@ -619,9 +632,9 @@ services:
         """
 
         _env: dict[str, str] = {}
-        _env["BREEZE_WORKTREE_PATH"] = (
-            str(AIRFLOW_ROOT_PATH.resolve()) if get_main_git_dir_for_worktree() else ""
-        )
+        worktree = get_isolated_worktree_path()
+        _env["BREEZE_WORKTREE_PATH"] = str(worktree) if worktree else ""
+        _env["BREEZE_HOST_ID"] = get_host_id()
         _set_var(_env, "AIRFLOW_CI_IMAGE", self.airflow_image_name)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_LOCATION", self.airflow_constraints_location)
         _set_var(_env, "AIRFLOW_CONSTRAINTS_MODE", self.airflow_constraints_mode)
@@ -698,10 +711,12 @@ services:
         _set_var(_env, "DOWNGRADE_SQLALCHEMY", self.downgrade_sqlalchemy)
         _set_var(_env, "DOWNGRADE_PENDULUM", self.downgrade_pendulum)
         _set_var(_env, "DRILL_HOST_PORT", None, DRILL_HOST_PORT)
+        _set_var(_env, "ELASTICSEARCH_VERSION", self.elasticsearch_version)
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
         _set_var(_env, "GREMLIN_HOST_PORT", None, GREMLIN_HOST_PORT)
         _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
+        _set_var(_env, "FAIL_ON_PENDING_PROVIDER_CANDIDATES", self.fail_on_pending_provider_candidates)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
@@ -724,6 +739,7 @@ services:
         _set_var(_env, "MOUNT_UI_DIST", self.mount_ui_dist)
         _set_var(_env, "NUM_RUNS", self.num_runs)
         _set_var(_env, "ONLY_MIN_VERSION_UPDATE", self.only_min_version_update)
+        _set_var(_env, "OPENSEARCH_VERSION", self.opensearch_version)
         _set_var(_env, "DISTRIBUTION_FORMAT", self.distribution_format)
         _set_var(_env, "POSTGRES_DATA_VOLUME_PATH", self.postgres_data_volume_path)
         _set_var(_env, "POSTGRES_DRIVER", self.postgres_driver)
@@ -753,6 +769,7 @@ services:
         _set_var(_env, "SQLITE_URL", self.sqlite_url)
         _set_var(_env, "SSH_PORT", None, SSH_PORT)
         _set_var(_env, "SKIP_ASSETS_COMPILATION", self.skip_assets_compilation)
+        _set_var(_env, "SPHINX_AIRFLOW_THEME_PATH", self.sphinx_airflow_theme_path)
         _set_var(_env, "STANDALONE_DAG_PROCESSOR", self.standalone_dag_processor)
         _set_var(_env, "START_AIRFLOW", self.start_airflow)
         _set_var(_env, "TERMINAL_MULTIPLEXER", self.terminal_multiplexer)

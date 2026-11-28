@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
@@ -24,24 +25,41 @@ from unittest import mock
 
 import pytest
 import time_machine
-from sqlalchemy import delete, func, select, update
+import uuid6
+from fastapi import HTTPException, status
+from sqlalchemy import delete, func, insert, select, update
 
 from airflow import plugins_manager
 from airflow._shared.module_loading import qualname
+from airflow._shared.state import TaskScope
 from airflow._shared.timezones import timezone
 from airflow.api_fastapi.auth.managers.models.resource_details import DagAccessEntity, DagDetails
 from airflow.api_fastapi.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.api_fastapi.common.dagbag import resolve_run_on_latest_version
+from airflow.api_fastapi.common.db.dag_runs import attach_dag_versions_to_runs
+from airflow.api_fastapi.core_api.datamodels.dag_run import (
+    BulkDAGRunBody,
+    BulkDAGRunClearBody,
+)
 from airflow.api_fastapi.core_api.datamodels.dag_versions import DagVersionResponse
+from airflow.api_fastapi.core_api.routes.public.dag_run import clear_dag_runs
+from airflow.api_fastapi.core_api.services.public.dag_run import DagRunWaiter
 from airflow.exceptions import ParamValidationError
 from airflow.models import DagModel, DagRun, DagTag, Log
 from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.dag_version import DagVersion
+from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.dynamic_region import DynamicRegion
+from airflow.models.serialized_dag import SerializedDagModel
+from airflow.models.task_state_store import TaskStateStoreModel
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import Team
 from airflow.models.xcom import XComModel
 from airflow.providers.standard.operators.empty import EmptyOperator
-from airflow.sdk import Asset, Param, result, task
+from airflow.sdk import Asset, Param, result, task, task_group
+from airflow.sdk.definitions._internal.loop import create_loop
+from airflow.state.metastore import MetastoreBackend
 from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.timetables.simple import PartitionedAssetTimetable, PartitionedAtRuntime
 from airflow.timetables.trigger import CronPartitionTimetable
@@ -66,7 +84,6 @@ from tests_common.test_utils.team import attach_dag_to_team
 from unit.listeners.class_listener import ClassBasedListener
 
 if TYPE_CHECKING:
-    from airflow.models.dag_version import DagVersion
     from airflow.timetables.base import DataInterval
 
 pytestmark = pytest.mark.db_test
@@ -136,6 +153,65 @@ DAG1_RUN1_NOTE = "test_note"
 DAG2_PARAM = {"validated_number": Param(1, minimum=1, maximum=10)}
 
 DAG_RUNS_LIST = [DAG1_RUN1_ID, DAG1_RUN2_ID, DAG2_RUN1_ID, DAG2_RUN2_ID]
+
+
+def _create_bundled_run_with_history(dag_id, dag_maker, session):
+    with dag_maker(
+        dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v1", serialized=True
+    ):
+        EmptyOperator(task_id="0")
+        EmptyOperator(task_id="1")
+    dag_run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+    old_dag_version = DagVersion.get_latest_version(dag_id)
+    for ti in dag_run.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+        session.merge(ti)
+    session.flush()
+
+    with dag_maker(
+        dag_id=dag_id, schedule=None, start_date=START_DATE1, bundle_version="v2", serialized=True
+    ):
+        EmptyOperator(task_id="0")
+        EmptyOperator(task_id="1")
+    new_dag_version = DagVersion.get_latest_version(dag_id)
+    assert old_dag_version.id != new_dag_version.id
+
+    clear_task_instances(list(dag_run.task_instances), session, run_on_latest_version=True)
+    session.commit()
+
+    archived_version_ids = set(
+        session.scalars(
+            select(TaskInstance.dag_version_id)
+            .where(
+                TaskInstance.dag_id == dag_id,
+                TaskInstance.run_id == dag_run.run_id,
+                TaskInstance.dag_version_id.is_not(None),
+            )
+            .execution_options(include_all_attempts=True)
+        )
+    )
+    assert old_dag_version.id in archived_version_ids
+    return dag_run.run_id, old_dag_version, new_dag_version
+
+
+def _dag_bag_from_serialized(session):
+    """DagBag that resolves DAGs from SerializedDagModel in the current session."""
+    dag_bag = mock.Mock(spec=DBDagBag)
+
+    def get_dag_for_run(dag_run, session=session):
+        sdm = None
+        if dag_run.created_dag_version_id is not None:
+            sdm = session.scalar(
+                select(SerializedDagModel).where(
+                    SerializedDagModel.dag_version_id == dag_run.created_dag_version_id
+                )
+            )
+        if sdm is None:
+            sdm = SerializedDagModel.get(dag_run.dag_id, session=session)
+        return None if sdm is None else sdm.dag
+
+    dag_bag.get_dag_for_run.side_effect = get_dag_for_run
+    return dag_bag
 
 
 @pytest.fixture(autouse=True)
@@ -409,6 +485,20 @@ class TestGetDagRun:
         assert response.status_code == 404
         body = response.json()
         assert body["detail"] == "The DagRun with dag_id: `test_dag1` and run_id: `invalid` was not found"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_get_dag_run_includes_archived_attempt_versions(self, test_client, dag_maker, session):
+        dag_id = "test_get_dag_run_prefetch_history"
+        run_id, old_dag_version, new_dag_version = _create_bundled_run_with_history(
+            dag_id, dag_maker, session
+        )
+
+        response = test_client.get(f"/dags/{dag_id}/dagRuns/{run_id}")
+        assert response.status_code == 200
+        assert {dv["id"] for dv in response.json()["dag_versions"]} == {
+            str(old_dag_version.id),
+            str(new_dag_version.id),
+        }
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(f"/dags/{DAG1_ID}/dagRuns/invalid")
@@ -828,6 +918,23 @@ class TestGetDagRuns:
 
         assert len(collected) == len(set(collected)), "cursor pages overlapped"
         assert set(collected) == full_ids, "cursor pagination dropped rows across the NULL boundary"
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_start_date_lower_bound_excludes_finished_runs_with_null_start_date(self, test_client, session):
+        run = session.scalar(select(DagRun).where(DagRun.run_id == DAG1_RUN2_ID))
+        run.start_date = None
+        run.end_date = START_DATE1 + timedelta(minutes=5)
+        session.commit()
+
+        response = test_client.get(
+            "/dags/~/dagRuns",
+            params={"start_date_gte": START_DATE2.isoformat(), "order_by": "dag_run_id"},
+        )
+
+        assert response.status_code == 200, response.json()
+        body = response.json()
+        assert body["total_entries"] == 2
+        assert [run["dag_run_id"] for run in body["dag_runs"]] == [DAG2_RUN1_ID, DAG2_RUN2_ID]
 
     @pytest.mark.parametrize(
         ("dag_id", "query_params", "expected_dag_id_list"),
@@ -2014,7 +2121,7 @@ class TestGetDagRunAssetTriggerEvents:
         session.commit()
         assert event.timestamp
 
-        with assert_queries_count(4):
+        with assert_queries_count(7):
             response = test_client.get(
                 "/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents",
             )
@@ -2031,6 +2138,9 @@ class TestGetDagRunAssetTriggerEvents:
                     "name": "ds1",
                     "source_dag_id": ti.dag_id,
                     "source_map_index": ti.map_index,
+                    "source_task_instance_id": None,
+                    "source_region_id": None,
+                    "source_region_index": None,
                     "source_run_id": ti.run_id,
                     "source_task_id": ti.task_id,
                     "created_dagruns": [
@@ -2096,7 +2206,7 @@ class TestGetDagRunAssetTriggerEvents:
         session.commit()
 
         # Constant regardless of the number of consumed events (parametrized 1 vs 5).
-        with assert_queries_count(4):
+        with assert_queries_count(7):
             response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
 
         assert response.status_code == 200
@@ -2109,6 +2219,144 @@ class TestGetDagRunAssetTriggerEvents:
         newest_event_id = max(event.id for event in events)
         assert triggering_by_event[newest_event_id] is True
         assert all(value is False for eid, value in triggering_by_event.items() if eid != newest_event_id)
+
+    def _create_consuming_run_with_events(self, dag_maker, session):
+        """
+        Create a run consuming three events: one per source Dag, one with no source Dag.
+
+        Returns the asset ids keyed by index and the event ids keyed by scenario.
+        """
+        asset_ids = {}
+        for index in (1, 2):
+            asset = AssetModel(name=f"ds{index}", uri=f"file:///da{index}", group="asset")
+            session.add(asset)
+            session.flush()
+            asset_ids[index] = asset.id
+        events = {
+            "dag_a": AssetEvent(asset_id=asset_ids[1], source_dag_id="source_dag_a", timestamp=START_DATE1),
+            "dag_b": AssetEvent(asset_id=asset_ids[2], source_dag_id="source_dag_b", timestamp=START_DATE1),
+            "dagless": AssetEvent(asset_id=asset_ids[1], timestamp=START_DATE1),
+        }
+        session.add_all(events.values())
+        session.flush()
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        dag_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dag_run.consumed_asset_events.extend(events.values())
+        session.commit()
+        return asset_ids, {key: event.id for key, event in events.items()}
+
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_events"),
+        [
+            pytest.param(["source_dag_a"], ["dag_a", "dagless"], id="one-readable-source-dag-plus-dagless"),
+            pytest.param(
+                ["source_dag_a", "source_dag_b"],
+                ["dag_a", "dag_b", "dagless"],
+                id="both-source-dags-readable",
+            ),
+            pytest.param([], ["dagless"], id="no-readable-source-dags-still-sees-dagless"),
+        ],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_returns_only_events_from_source_dags_the_caller_may_read(
+        self, mock_get_authorized_dag_ids, test_client, dag_maker, session, readable_dags, expected_events
+    ):
+        """Reading the consuming run must not expose events produced by Dags the caller cannot read."""
+        mock_get_authorized_dag_ids.return_value = set(readable_dags)
+        _, event_ids = self._create_consuming_run_with_events(dag_maker, session)
+        expected_ids = [event_ids[key] for key in expected_events]
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [event["id"] for event in body["asset_events"]] == expected_ids
+        # The count must be scoped too, so the existence of hidden events does not leak.
+        assert body["total_entries"] == len(expected_ids)
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.simple.simple_auth_manager.SimpleAuthManager.get_authorized_assets",
+        autospec=True,
+    )
+    def test_returns_only_events_of_assets_the_caller_may_read(
+        self, mock_get_authorized_assets, mock_get_authorized_dag_ids, test_client, dag_maker, session
+    ):
+        """An event of an asset the caller cannot read is hidden even when its source Dag is readable."""
+        asset_ids, event_ids = self._create_consuming_run_with_events(dag_maker, session)
+        mock_get_authorized_dag_ids.return_value = {"source_dag_a", "source_dag_b"}
+        mock_get_authorized_assets.return_value = {asset_ids[2]}
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [event["id"] for event in body["asset_events"]] == [event_ids["dag_b"]]
+        assert {event["uri"] for event in body["asset_events"]} == {"file:///da2"}
+        assert body["total_entries"] == 1
+
+    @pytest.mark.parametrize(
+        ("readable_dags", "expected_run_dags"),
+        [
+            pytest.param({"TEST_DAG_ID"}, ["TEST_DAG_ID"], id="other-consumer-dag-not-readable"),
+            pytest.param(
+                {"TEST_DAG_ID", "other_consumer"}, ["TEST_DAG_ID", "other_consumer"], id="both-readable"
+            ),
+        ],
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager.get_authorized_dag_ids",
+        autospec=True,
+    )
+    def test_returns_only_created_dagruns_of_readable_dags(
+        self, mock_get_authorized_dag_ids, test_client, dag_maker, session, readable_dags, expected_run_dags
+    ):
+        """An event's created Dag runs are narrowed to the Dags the caller may read."""
+        mock_get_authorized_dag_ids.return_value = readable_dags
+        asset = AssetModel(name="ds1", uri="file:///da1", group="asset")
+        session.add(asset)
+        session.flush()
+        # No source Dag, so the event itself is visible to every caller.
+        event = AssetEvent(asset_id=asset.id, timestamp=START_DATE1)
+        session.add(event)
+        session.flush()
+        with dag_maker(
+            dag_id="TEST_DAG_ID", start_date=START_DATE1, schedule=timedelta(days=1), session=session
+        ):
+            pass
+        dag_run = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.ASSET_TRIGGERED)
+        dag_run.consumed_asset_events.append(event)
+        session.merge(DagBundleModel(name="testing"))
+        session.flush()
+        session.add(DagModel(dag_id="other_consumer", bundle_name="testing"))
+        session.flush()
+        other_run = DagRun(
+            dag_id="other_consumer",
+            run_id="other_consumer_run",
+            run_type=DagRunType.ASSET_TRIGGERED,
+            logical_date=START_DATE1,
+            start_date=START_DATE1,
+            data_interval=(START_DATE1, START_DATE1),
+            state=DagRunState.SUCCESS,
+        )
+        other_run.consumed_asset_events.append(event)
+        session.add(other_run)
+        session.commit()
+
+        response = test_client.get("/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamAssetEvents")
+
+        assert response.status_code == 200
+        [returned_event] = response.json()["asset_events"]
+        assert sorted(run["dag_id"] for run in returned_event["created_dagruns"]) == expected_run_dags
 
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
@@ -2151,6 +2399,41 @@ class TestClearDagRun:
             event="clear_dag_run",
             logical_date=None,
         )
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @pytest.mark.parametrize(
+        ("url", "extra_body"),
+        [
+            pytest.param(f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/clear", {}, id="single"),
+            pytest.param(
+                f"/dags/{DAG1_ID}/clearDagRuns", {"dag_runs": [{"dag_run_id": DAG1_RUN1_ID}]}, id="bulk"
+            ),
+        ],
+    )
+    @pytest.mark.parametrize("keep_task_state", [False, True])
+    def test_clear_dag_run_task_state(self, test_client, session, url, extra_body, keep_task_state):
+        tis = session.scalars(
+            select(TaskInstance).where(TaskInstance.dag_id == DAG1_ID, TaskInstance.run_id == DAG1_RUN1_ID)
+        ).all()
+        for ti in tis:
+            MetastoreBackend().set(
+                TaskScope(dag_id=ti.dag_id, run_id=ti.run_id, task_id=ti.task_id, map_index=ti.map_index),
+                "job_id",
+                "app_1234",
+                session=session,
+            )
+        session.commit()
+
+        response = test_client.post(
+            url, json={"dry_run": False, "keep_task_state": keep_task_state, **extra_body}
+        )
+        assert response.status_code == 200
+
+        session.expire_all()
+        remaining = session.scalars(
+            select(TaskStateStoreModel.task_id).where(TaskStateStoreModel.run_id == DAG1_RUN1_ID)
+        ).all()
+        assert sorted(remaining) == (sorted(ti.task_id for ti in tis) if keep_task_state else [])
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_whose_dag_version_was_deleted(self, test_client, session):
@@ -2250,6 +2533,40 @@ class TestClearDagRun:
             .where(Log.dag_id == DAG1_ID, Log.run_id == dag_run_id, Log.event == "clear_dag_run")
         )
         assert logs == 0
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_clear_dag_run_dry_run_reports_loop_coordinates(self, test_client, dag_maker, session):
+        @task_group
+        def body():
+            EmptyOperator(task_id="work")
+
+        with dag_maker("dry_run_loop", serialized=True):
+            loop = create_loop(body, max_iterations=3)
+        run = dag_maker.create_dagrun(run_id="dry_run_loop_run")
+        region = session.scalar(select(DynamicRegion).where(DynamicRegion.node_id == loop.group_id))
+        later = TaskInstance(
+            task=dag_maker.dag.get_task("body.work"),
+            run_id=run.run_id,
+            dag_version_id=run.created_dag_version_id,
+            region_id=region.id,
+            region_index=2,
+        )
+        later.state = State.SUCCESS
+        session.add(later)
+        session.commit()
+
+        response = test_client.post(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/clear", json={"dry_run": True, "only_failed": False}
+        )
+
+        assert response.status_code == 200, response.text
+        work = [row for row in response.json()["task_instances"] if row["task_id"] == "body.work"]
+        assert {row["region_index"] for row in work} == {1, 2}
+        assert {row["map_index"] for row in work} == {-1}
+        assert all(
+            row["loop_iteration"] == {"loop_id": loop.group_id, "iteration": row["region_index"]}
+            for row in work
+        )
 
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_clear_dag_run_dry_run_response_has_full_task_instance_fields(self, test_client):
@@ -2360,6 +2677,7 @@ class TestClearDagRun:
             only_new=True,
             only_failed=False,
             run_on_latest_version=False,
+            keep_task_state=False,
             session=mock.ANY,
         )
         _check_last_log(
@@ -2379,6 +2697,45 @@ class TestClearDagRun:
 
 
 class TestBulkClearDagRuns:
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    @mock.patch(
+        "airflow.api_fastapi.core_api.routes.public.dag_run.attach_dag_versions_to_runs",
+        autospec=True,
+        wraps=attach_dag_versions_to_runs,
+    )
+    def test_clear_dag_runs_includes_archived_attempt_versions(self, mock_attach, dag_maker, session):
+        run_id_a, old_a, new_a = _create_bundled_run_with_history(
+            "test_bulk_clear_prefetch_history_a", dag_maker, session
+        )
+        run_id_b, old_b, new_b = _create_bundled_run_with_history(
+            "test_bulk_clear_prefetch_history_b", dag_maker, session
+        )
+
+        session.expire_all()
+        result = clear_dag_runs(
+            dag_id="~",
+            body=BulkDAGRunClearBody(
+                dry_run=False,
+                dag_runs=[
+                    BulkDAGRunBody(dag_id="test_bulk_clear_prefetch_history_a", dag_run_id=run_id_a),
+                    BulkDAGRunBody(dag_id="test_bulk_clear_prefetch_history_b", dag_run_id=run_id_b),
+                ],
+            ),
+            dag_bag=_dag_bag_from_serialized(session),
+            session=session,
+            user=SimpleAuthManagerUser(username="test", role="admin"),
+        )
+        assert result.total_entries == 2
+        versions_by_key = {
+            ("test_bulk_clear_prefetch_history_a", run_id_a): (old_a, new_a),
+            ("test_bulk_clear_prefetch_history_b", run_id_b): (old_b, new_b),
+        }
+        for resp in result.dag_runs:
+            old_dag_version, new_dag_version = versions_by_key[(resp.dag_id, resp.dag_run_id)]
+            assert {dv.id for dv in resp.dag_versions} == {old_dag_version.id, new_dag_version.id}
+        mock_attach.assert_called_once()
+        assert len(mock_attach.call_args.args[0]) == 2
+
     @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
     def test_bulk_clear_specific_dag(self, test_client, session):
         """Specific dag_id in URL, dag_run_id in body — clears both runs and queues them."""
@@ -3620,6 +3977,30 @@ class TestTriggerDagRun:
         assert response.status_code == 422
         assert response.json() == expected_detail
 
+    @pytest.mark.parametrize(
+        ("key", "conf"),
+        [
+            ("__classname__", {"__classname__": "builtins.dict", "__version__": 0, "__data__": {}}),
+            ("__type", {"nested": {"__type": "datetime", "__var": 0.0}}),
+        ],
+    )
+    def test_trigger_dag_run_rejects_reserved_conf_keys(self, test_client, session, key, conf):
+        count_runs = select(func.count()).select_from(DagRun).where(DagRun.dag_id == DAG1_ID)
+        runs_before = session.scalar(count_runs)
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"conf": conf, "logical_date": None})
+        assert response.status_code == 422
+        detail = str(response.json()["detail"])
+        assert "reserved serialization keys" in detail
+        assert key in detail
+        assert session.scalar(count_runs) == runs_before
+
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_trigger_dag_run_keeps_json_string_conf_value(self, test_client):
+        conf = {"nested": json.dumps({"__type": "datetime", "__var": 0.0})}
+        response = test_client.post(f"/dags/{DAG1_ID}/dagRuns", json={"conf": conf, "logical_date": None})
+        assert response.status_code == 200
+        assert response.json()["conf"] == conf
+
     def test_post_dag_runs_with_empty_payload(self, test_client):
         response = test_client.post(
             f"/dags/{DAG1_ID}/dagRuns", data={}, headers={"Content-Type": "application/json"}
@@ -4479,6 +4860,148 @@ class TestResolveRunOnLatestVersion:
 
 
 class TestWaitDagRun:
+    @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.SUCCESS])
+    @pytest.mark.parametrize("explicit", [False, True])
+    @pytest.mark.parametrize("mapped", [False, True])
+    @pytest.mark.parametrize("has_live_tis", [False, True])
+    def test_rejects_loop_results_before_streaming(
+        self, test_client, dag_maker, session, state, explicit, mapped, has_live_tis
+    ):
+        with dag_maker("wait_loop_result", session=session):
+
+            @task
+            def value(v=1):
+                return v
+
+            @task_group
+            def body():
+                output = value.expand(v=[1, 2]) if mapped else value()
+                if not explicit:
+                    # Authoring rejects this now; a Dag serialized before that still reaches the wait API.
+                    output.operator.returns_dag_result = True
+
+            create_loop(body, max_iterations=2)
+
+        run = dag_maker.create_dagrun(state=state, session=session)
+        if not has_live_tis:
+            session.execute(delete(TaskInstance).where(TaskInstance.dag_id == run.dag_id))
+        session.commit()
+        with mock.patch.object(DagRunWaiter, "wait", autospec=True, return_value=iter(())) as stream:
+            response = test_client.get(
+                f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+                params={"interval": 1, **({"result": "body.value"} if explicit else {})},
+            )
+
+        assert response.status_code == 409
+        assert "outside the loop" in response.json()["detail"]
+        stream.assert_not_called()
+
+    @pytest.mark.parametrize("explicit", [False, True])
+    def test_loop_result_preflight_uses_pinned_definition(self, test_client, dag_maker, session, explicit):
+        with dag_maker("wait_pinned_loop", session=session):
+
+            @task_group
+            def body():
+                output = EmptyOperator(task_id="value")
+                output.returns_dag_result = True
+
+            create_loop(body, max_iterations=2)
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS, session=session)
+        session.commit()
+
+        with dag_maker("wait_pinned_loop", session=session):
+            EmptyOperator(task_id="body.value")
+
+        response = test_client.get(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+            params={"interval": 1, **({"result": "body.value"} if explicit else {})},
+        )
+        assert response.status_code == 409
+
+    def test_loop_run_can_return_an_outside_result(self, test_client, dag_maker, session):
+        with dag_maker("wait_outside_result", session=session) as dag:
+
+            @task_group
+            def body():
+                EmptyOperator(task_id="value")
+
+            loop = create_loop(body, max_iterations=2)
+            outside = EmptyOperator(task_id="outside")
+            loop >> outside
+            dag.add_result(outside.output)
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS, session=session)
+        XComModel.set(
+            key="return_value",
+            value=42,
+            dag_id=run.dag_id,
+            run_id=run.run_id,
+            task_id="outside",
+            dag_result=True,
+            session=session,
+        )
+        session.commit()
+        response = test_client.get(
+            f"/dags/{run.dag_id}/dagRuns/{run.run_id}/wait",
+            params={"interval": 1},
+        )
+        assert response.status_code == 200
+        assert response.json() == {"state": "success", "results": {"outside": "42"}}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("mapped", [False, True])
+    async def test_result_rejects_ambiguous_loop_producers(self, dag_maker, session, mapped):
+        with dag_maker("ambiguous_loop_result") as dag:
+
+            @result
+            @task
+            def value(v=0):
+                return v
+
+            if mapped:
+                value.expand(v=[0])
+            else:
+                value()
+        run = dag_maker.create_dagrun(state=DagRunState.SUCCESS)
+        loop = DynamicRegion(dag_id=run.dag_id, run_id=run.run_id, node_id="loop")
+        session.add(loop)
+        session.flush()
+        original = run.task_instances[0]
+        for index in range(2):
+            region = loop
+            if mapped:
+                region = DynamicRegion(
+                    dag_id=run.dag_id,
+                    run_id=run.run_id,
+                    node_id="value",
+                    parent_region_id=loop.id,
+                    parent_region_index=index,
+                )
+                session.add(region)
+                session.flush()
+            ti = (
+                original
+                if index == 0
+                else TaskInstance(
+                    dag.get_task("value"), run_id=run.run_id, dag_version_id=original.dag_version_id
+                )
+            )
+            ti.region_id, ti.region_index = region.id, 0 if mapped else index
+            session.add(ti)
+            session.flush()
+            XComModel.set_for_attempt(
+                task_instance_id=ti.id,
+                key="return_value",
+                value=index,
+                serialize=False,
+                dag_result=True,
+                session=session,
+            )
+        session.commit()
+
+        waiter = DagRunWaiter(run.dag_id, run.run_id, 1, None)
+        with pytest.raises(ValueError, match="Ambiguous current producers for task 'value'"):
+            await waiter._serialize_xcoms()
+
     def test_should_respond_401(self, unauthenticated_test_client):
         response = unauthenticated_test_client.get(
             f"/dags/{DAG1_ID}/dagRuns/{DAG1_RUN1_ID}/wait",
@@ -4607,7 +5130,8 @@ class TestWaitDagRun:
         data = response.json()
         assert data == {"state": DagRunState.SUCCESS}
 
-    def test_collect_mapped_task_dag_result(self, test_client, dag_maker, session):
+    @pytest.mark.parametrize("explicit", [False, True])
+    def test_collect_mapped_task_dag_result(self, test_client, dag_maker, session, explicit):
         """XComs from a mapped @result task are aggregated into a list ordered by map_index."""
         with dag_maker("dag_mapped_result"):
 
@@ -4629,11 +5153,33 @@ class TestWaitDagRun:
         )
         for ti in dag_run.task_instances:
             run_task_instance(ti, mapped_op, session=session)
+        first = session.scalars(
+            select(TaskInstance).where(
+                TaskInstance.dag_id == dag_run.dag_id,
+                TaskInstance.run_id == dag_run.run_id,
+                TaskInstance.region_index == 0,
+            )
+        ).one()
+        archived = {column.name: getattr(first, column.key) for column in TaskInstance.__table__.columns} | {
+            "id": uuid6.uuid7(),
+            "working_set": None,
+            "archived_reason": "retry",
+            "try_number": 7,
+        }
+        session.execute(insert(TaskInstance.__table__).values(archived))
+        XComModel.set_for_attempt(
+            task_instance_id=archived["id"],
+            key="return_value",
+            value=-999,
+            serialize=False,
+            dag_result=True,
+            session=session,
+        )
         session.commit()
 
         response = test_client.get(
             f"/dags/dag_mapped_result/dagRuns/{dag_run.run_id}/wait",
-            params={"interval": "1"},
+            params={"interval": "1", **({"result": "a"} if explicit else {})},
         )
         assert response.status_code == 200
         assert response.json() == {"state": DagRunState.SUCCESS, "results": {"a": [2, 4]}}
@@ -4894,6 +5440,80 @@ class TestBulkDagRuns:
         )
         assert dag_run.note == "bulk note"
         assert dag_run.state == DAG1_RUN1_STATE
+
+    @pytest.mark.parametrize("state", [DagRunState.SUCCESS, DagRunState.FAILED])
+    @pytest.mark.parametrize(
+        ("existing_note", "new_note", "expected_note"),
+        [
+            pytest.param(None, "new note", "new note", id="new-note"),
+            pytest.param("old note", "new note", "new note", id="replace-stale-note"),
+            pytest.param("old note", "", None, id="empty-string-clears-note"),
+        ],
+    )
+    @pytest.mark.usefixtures("configure_git_connection_for_dag_bundle")
+    def test_bulk_update_listener_sees_note_when_note_and_state_both_updated(
+        self, test_client, listener_manager, session, state, existing_note, new_note, expected_note
+    ):
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        dag_run.state = DagRunState.RUNNING
+        if existing_note is not None:
+            dag_run.note = (existing_note, "not_test")
+        session.commit()
+        listener = ClassBasedListener()
+        listener_manager(listener)
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"dag_run_id": DAG1_RUN2_ID, "state": state, "note": new_note}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == [f"{DAG1_ID}.{DAG1_RUN2_ID}"]
+        assert body["update"]["errors"] == []
+        assert listener.state == [state]
+        assert listener.dag_run_note_at_listener == expected_note
+
+    @mock.patch("airflow.api_fastapi.core_api.services.public.dag_run.get_dag_for_run", autospec=True)
+    def test_bulk_update_dag_not_found_keeps_note_and_state(self, mock_get_dag_for_run, test_client, session):
+        mock_get_dag_for_run.side_effect = HTTPException(
+            status.HTTP_404_NOT_FOUND, f"The Dag with ID: `{DAG1_ID}` was not found"
+        )
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        dag_run.note = ("old note", "not_test")
+        session.commit()
+        response = test_client.patch(
+            self.ENDPOINT_URL,
+            json={
+                "actions": [
+                    {
+                        "action": "update",
+                        "entities": [{"dag_run_id": DAG1_RUN2_ID, "state": "success", "note": "new note"}],
+                    }
+                ]
+            },
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["update"]["success"] == []
+        assert body["update"]["errors"] == [
+            {"error": f"The Dag with ID: `{DAG1_ID}` was not found", "status_code": 404}
+        ]
+        session.expire_all()
+        dag_run = session.scalar(
+            select(DagRun).where(DagRun.dag_id == DAG1_ID, DagRun.run_id == DAG1_RUN2_ID)
+        )
+        assert dag_run.note == "old note"
+        assert dag_run.state == DAG1_RUN2_STATE
 
     def test_bulk_update_not_found_fails(self, test_client, session):
         """FAIL semantics: a single missing run fails the whole action and nothing is updated."""

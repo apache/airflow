@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import os
 from types import SimpleNamespace
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, PropertyMock, mock_open, patch
 
 import pytest
-from openai import OpenAI
+from openai import AsyncOpenAI, OpenAI
 from openai.pagination import SyncCursorPage
 from openai.types import (
     Batch,
@@ -32,13 +33,11 @@ from openai.types import (
     VectorStore,
     VectorStoreDeleted,
 )
-from openai.types.beta import Assistant, AssistantDeleted, Thread, ThreadDeleted
-from openai.types.beta.threads import Message, Run
 from openai.types.chat import ChatCompletion
+from openai.types.create_embedding_response import Usage
 from openai.types.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from pydantic import BaseModel
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.openai.exceptions import (
     OpenAIAgentSessionError,
@@ -49,16 +48,9 @@ from airflow.providers.openai.exceptions import (
 )
 from airflow.providers.openai.hooks.openai import OpenAIHook, validate_execute_complete_event
 
-ASSISTANT_ID = "test_assistant_abc123"
-ASSISTANT_NAME = "Test Assistant"
-ASSISTANT_INSTRUCTIONS = "You are a test assistant."
-THREAD_ID = "test_thread_abc123"
-MESSAGE_ID = "test_message_abc123"
-RUN_ID = "test_run_abc123"
 MODEL = "gpt-4"
 FILE_ID = "test_file_abc123"
 FILE_NAME = "test_file.pdf"
-METADATA = {"modified": "true", "user": "abc123"}
 VECTOR_STORE_ID = "test_vs_abc123"
 VECTOR_STORE_NAME = "Test Vector Store"
 VECTOR_FILE_STORE_BATCH_ID = "test_vfsb_abc123"
@@ -128,78 +120,6 @@ def mock_completion():
             }
         ],
     )
-
-
-@pytest.fixture
-def mock_assistant():
-    return Assistant(
-        id=ASSISTANT_ID,
-        name=ASSISTANT_NAME,
-        object="assistant",
-        created_at=1677652288,
-        model=MODEL,
-        instructions=ASSISTANT_INSTRUCTIONS,
-        tools=[],
-        file_ids=[],
-        metadata={},
-    )
-
-
-@pytest.fixture
-def mock_assistant_list(mock_assistant):
-    return SyncCursorPage[Assistant](data=[mock_assistant])
-
-
-@pytest.fixture
-def mock_thread():
-    return Thread(id=THREAD_ID, object="thread", created_at=1698984975, metadata={})
-
-
-@pytest.fixture
-def mock_message():
-    return Message(
-        id=MESSAGE_ID,
-        object="thread.message",
-        created_at=1698984975,
-        thread_id=THREAD_ID,
-        status="completed",
-        role="user",
-        content=[{"type": "text", "text": {"value": "Tell me something interesting.", "annotations": []}}],
-        assistant_id=ASSISTANT_ID,
-        run_id=RUN_ID,
-        file_ids=[],
-        metadata={},
-    )
-
-
-@pytest.fixture
-def mock_message_list(mock_message):
-    return SyncCursorPage[Message](data=[mock_message])
-
-
-@pytest.fixture
-def mock_run():
-    return Run(
-        id=RUN_ID,
-        object="thread.run",
-        created_at=1698107661,
-        assistant_id=ASSISTANT_ID,
-        parallel_tool_calls=False,
-        thread_id=THREAD_ID,
-        status="completed",
-        started_at=1699073476,
-        completed_at=1699073476,
-        model=MODEL,
-        instructions="You are a test assistant.",
-        tools=[],
-        file_ids=[],
-        metadata={},
-    )
-
-
-@pytest.fixture
-def mock_run_list(mock_run):
-    return SyncCursorPage[Run](data=[mock_run])
 
 
 @pytest.fixture
@@ -401,142 +321,6 @@ def test_delete_conversation(mock_openai_hook):
     result = mock_openai_hook.delete_conversation("conv_123")
     mock_openai_hook.conn.conversations.delete.assert_called_once_with("conv_123")
     assert result is expected
-
-
-def test_create_assistant(mock_openai_hook, mock_assistant):
-    mock_openai_hook.conn.beta.assistants.create.return_value = mock_assistant
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        assistant = mock_openai_hook.create_assistant(
-            name=ASSISTANT_NAME, model=MODEL, instructions=ASSISTANT_INSTRUCTIONS
-        )
-    assert assistant.name == ASSISTANT_NAME
-    assert assistant.model == MODEL
-    assert assistant.instructions == ASSISTANT_INSTRUCTIONS
-
-
-def test_get_assistant(mock_openai_hook, mock_assistant):
-    mock_openai_hook.conn.beta.assistants.retrieve.return_value = mock_assistant
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        assistant = mock_openai_hook.get_assistant(assistant_id=ASSISTANT_ID)
-    assert assistant.name == ASSISTANT_NAME
-    assert assistant.model == MODEL
-    assert assistant.instructions == ASSISTANT_INSTRUCTIONS
-
-
-def test_get_assistants(mock_openai_hook, mock_assistant_list):
-    mock_openai_hook.conn.beta.assistants.list.return_value = mock_assistant_list
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        assistants = mock_openai_hook.get_assistants()
-    assert isinstance(assistants, list)
-
-
-def test_modify_assistant(mock_openai_hook, mock_assistant):
-    new_assistant_name = "New Test Assistant"
-    mock_assistant.name = new_assistant_name
-    mock_openai_hook.conn.beta.assistants.update.return_value = mock_assistant
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        assistant = mock_openai_hook.modify_assistant(assistant_id=ASSISTANT_ID, name=new_assistant_name)
-    assert assistant.name == new_assistant_name
-
-
-def test_delete_assistant(mock_openai_hook):
-    delete_response = AssistantDeleted(id=ASSISTANT_ID, object="assistant.deleted", deleted=True)
-    mock_openai_hook.conn.beta.assistants.delete.return_value = delete_response
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        assistant_deleted = mock_openai_hook.delete_assistant(assistant_id=ASSISTANT_ID)
-    assert assistant_deleted.deleted
-
-
-def test_create_thread(mock_openai_hook, mock_thread):
-    mock_openai_hook.conn.beta.threads.create.return_value = mock_thread
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        thread = mock_openai_hook.create_thread()
-    assert thread.id == THREAD_ID
-
-
-def test_modify_thread(mock_openai_hook, mock_thread):
-    mock_thread.metadata = METADATA
-    mock_openai_hook.conn.beta.threads.update.return_value = mock_thread
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        thread = mock_openai_hook.modify_thread(thread_id=THREAD_ID, metadata=METADATA)
-    assert thread.metadata.get("modified") == "true"
-    assert thread.metadata.get("user") == "abc123"
-
-
-def test_delete_thread(mock_openai_hook):
-    delete_response = ThreadDeleted(id=THREAD_ID, object="thread.deleted", deleted=True)
-    mock_openai_hook.conn.beta.threads.delete.return_value = delete_response
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        thread_deleted = mock_openai_hook.delete_thread(thread_id=THREAD_ID)
-    assert thread_deleted.deleted
-
-
-def test_create_message(mock_openai_hook, mock_message):
-    role = "user"
-    content = "Tell me something interesting."
-    mock_openai_hook.conn.beta.threads.messages.create.return_value = mock_message
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        message = mock_openai_hook.create_message(thread_id=THREAD_ID, content=content, role=role)
-    assert message.id == MESSAGE_ID
-
-
-def test_get_messages(mock_openai_hook, mock_message_list):
-    mock_openai_hook.conn.beta.threads.messages.list.return_value = mock_message_list
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        messages = mock_openai_hook.get_messages(thread_id=THREAD_ID)
-    assert isinstance(messages, list)
-
-
-def test_modify_messages(mock_openai_hook, mock_message):
-    mock_message.metadata = METADATA
-    mock_openai_hook.conn.beta.threads.messages.update.return_value = mock_message
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        message = mock_openai_hook.modify_message(
-            thread_id=THREAD_ID, message_id=MESSAGE_ID, metadata=METADATA
-        )
-    assert message.metadata.get("modified") == "true"
-    assert message.metadata.get("user") == "abc123"
-
-
-def test_create_run(mock_openai_hook, mock_run):
-    thread_id = THREAD_ID
-    assistant_id = ASSISTANT_ID
-    mock_openai_hook.conn.beta.threads.runs.create.return_value = mock_run
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        run = mock_openai_hook.create_run(thread_id=thread_id, assistant_id=assistant_id)
-    assert run.id == RUN_ID
-
-
-def test_create_run_and_poll(mock_openai_hook, mock_run):
-    thread_id = THREAD_ID
-    assistant_id = ASSISTANT_ID
-    mock_openai_hook.conn.beta.threads.runs.create_and_poll.return_value = mock_run
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        run = mock_openai_hook.create_run_and_poll(thread_id=thread_id, assistant_id=assistant_id)
-    assert run.id == RUN_ID
-
-
-def test_get_runs(mock_openai_hook, mock_run_list):
-    mock_openai_hook.conn.beta.threads.runs.list.return_value = mock_run_list
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        runs = mock_openai_hook.get_runs(thread_id=THREAD_ID)
-    assert isinstance(runs, list)
-
-
-def test_get_run_with_run_id(mock_openai_hook, mock_run):
-    mock_openai_hook.conn.beta.threads.runs.retrieve.return_value = mock_run
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        run = mock_openai_hook.get_run(thread_id=THREAD_ID, run_id=RUN_ID)
-    assert run.id == RUN_ID
-
-
-def test_modify_run(mock_openai_hook, mock_run):
-    mock_run.metadata = METADATA
-    mock_openai_hook.conn.beta.threads.runs.update.return_value = mock_run
-    with pytest.warns(AirflowProviderDeprecationWarning):
-        message = mock_openai_hook.modify_run(thread_id=THREAD_ID, run_id=RUN_ID, metadata=METADATA)
-    assert message.metadata.get("modified") == "true"
-    assert message.metadata.get("user") == "abc123"
 
 
 def test_create_embeddings(mock_openai_hook, mock_embeddings_response):
@@ -842,6 +626,25 @@ def test_get_conn_with_openai_client_kwargs(mock_client):
     )
 
 
+def test_get_conn_async_client_builds_a_real_async_openai(create_connection_without_db):
+    """The kwargs reach the real ``AsyncOpenAI`` constructor, which validates them."""
+    create_connection_without_db(
+        Connection(
+            conn_id="openai_async_client",
+            conn_type="openai",
+            password="api_key",
+            extra={"openai_client_kwargs": {"base_url": "https://gateway.example/v1", "timeout": 7}},
+        )
+    )
+
+    client = OpenAIHook(conn_id="openai_async_client").get_conn(async_client=True)
+
+    assert isinstance(client, AsyncOpenAI)
+    assert str(client.base_url) == "https://gateway.example/v1/"
+    assert client.timeout == 7
+    assert client.api_key == "api_key"
+
+
 def _make_workload_identity_conn(conn_id, extra):
     conn = Connection(
         conn_id=conn_id,
@@ -1032,3 +835,199 @@ def test_managed_agents_reports_sdk_upgrade_without_breaking_hook():
     hook.conn = SimpleNamespace(beta=SimpleNamespace())
     with pytest.raises(OpenAIAgentSessionError, match="requires openai>=3.13.0"):
         hook.create_agent_session(input="Hello", environment={"type": "none"}, agent_id="agent")
+
+
+def _async_conn(
+    extra: dict, password: str | None = None, host: str | None = None, *, aextra_dejson: bool = True
+) -> Mock:
+    """Connection stub whose ``extra_dejson`` fails on the event loop; ``aextra_dejson=False`` mimics Airflow < 3.3.2."""
+    conn = Mock(spec=["password", "host", "extra_dejson"] + (["aextra_dejson"] if aextra_dejson else []))
+    conn.password = password
+    conn.host = host
+    if aextra_dejson:
+        conn.aextra_dejson = AsyncMock(return_value=extra)
+    type(conn).extra_dejson = PropertyMock(side_effect=lambda: _read_off_the_event_loop(extra))
+    return conn
+
+
+def _read_off_the_event_loop(extra: dict) -> dict:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return extra
+    raise AssertionError("extra_dejson sends mask_secret synchronously on the event loop")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("password", "extra", "expected_kwargs"),
+    [
+        pytest.param(
+            "api_key_in_password",
+            {},
+            {"api_key": "api_key_in_password", "base_url": "https://host/v1"},
+            id="api-key-in-password",
+        ),
+        pytest.param(
+            None,
+            {"openai_client_kwargs": {"api_key": "api_key_in_extra", "base_url": "https://other/v1"}},
+            {"api_key": "api_key_in_extra", "base_url": "https://other/v1"},
+            id="api-key-and-base-url-in-extra",
+        ),
+        pytest.param(
+            "api_key",
+            {"openai_client_kwargs": {"timeout": 30}},
+            {"api_key": "api_key", "base_url": "https://host/v1", "timeout": 30},
+            id="openai-client-kwargs",
+        ),
+    ],
+)
+async def test_aget_conn_api_key(password, extra, expected_kwargs):
+    conn = _async_conn(extra, password=password, host="https://host/v1")
+    with (
+        patch(
+            "airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)
+        ) as mock_get_async_connection,
+        patch.object(OpenAIHook, "get_connection", side_effect=AssertionError("sync get_connection")),
+        patch("airflow.providers.openai.hooks.openai.AsyncOpenAI") as mock_client,
+    ):
+        hook = OpenAIHook(conn_id="openai_async")
+        client = await hook.aget_conn()
+
+    mock_get_async_connection.assert_awaited_once_with("openai_async", hook=hook)
+    conn.aextra_dejson.assert_awaited_once_with()
+    mock_client.assert_called_once_with(**expected_kwargs)
+    assert client is mock_client.return_value
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_without_aextra_dejson_reads_extra_dejson_off_the_event_loop(mock_client):
+    conn = _async_conn({"openai_client_kwargs": {"api_key": "api_key_in_extra"}}, aextra_dejson=False)
+    with patch(
+        "airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    mock_client.assert_called_once_with(api_key="api_key_in_extra", base_url=None)
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_workload_identity(mock_client):
+    extra = {
+        "auth_type": "workload_identity",
+        "identity_provider_id": "idp",
+        "service_account_id": "sa",
+        "workload_identity_provider": "custom",
+        "token_provider": "some.module.get_token",
+        "openai_client_kwargs": {"api_key": "ignored"},
+    }
+    conn = _async_conn(extra, host="https://host/v1")
+    with (
+        patch("airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)),
+        patch.object(OpenAIHook, "_build_workload_identity", return_value={"provider": "custom"}) as build,
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    conn.aextra_dejson.assert_awaited_once_with()
+    build.assert_called_once_with(extra)
+    mock_client.assert_called_once_with(workload_identity={"provider": "custom"}, base_url="https://host/v1")
+
+
+@pytest.mark.asyncio
+@patch("airflow.providers.openai.hooks.openai.AsyncOpenAI")
+async def test_aget_conn_resolves_the_connection_through_the_hook(mock_client):
+    """A subclass overriding ``aget_connection`` supplies the connection, as ``get_connection`` does for ``get_conn``."""
+    conn = _async_conn({}, password="api_key_from_subclass")
+
+    class SubclassedOpenAIHook(OpenAIHook):
+        @classmethod
+        async def aget_connection(cls, conn_id: str):
+            assert conn_id == "openai_async"
+            return conn
+
+    with patch.object(OpenAIHook, "get_connection", side_effect=AssertionError("sync get_connection")):
+        await SubclassedOpenAIHook(conn_id="openai_async").aget_conn()
+
+    conn.aextra_dejson.assert_awaited_once_with()
+    mock_client.assert_called_once_with(api_key="api_key_from_subclass", base_url=None)
+
+
+@pytest.mark.asyncio
+async def test_aget_conn_invalid_auth_type():
+    conn = _async_conn({"auth_type": "magic"})
+    with (
+        patch("airflow.providers.openai.hooks.openai.get_async_connection", new=AsyncMock(return_value=conn)),
+        pytest.raises(ValueError, match="Unsupported auth_type 'magic'"),
+    ):
+        await OpenAIHook(conn_id="openai_async").aget_conn()
+
+    conn.aextra_dejson.assert_awaited_once_with()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("input_text", "response_items", "expected"),
+    [
+        pytest.param("Sample text", [(0, [0.1, 0.2])], [0.1, 0.2], id="text"),
+        pytest.param([1, 2, 3], [(0, [0.1, 0.2])], [0.1, 0.2], id="tokens"),
+        pytest.param(
+            ["First text", "Second text"],
+            [(1, [0.3, 0.4]), (0, [0.1, 0.2])],
+            [[0.1, 0.2], [0.3, 0.4]],
+            id="text-batch",
+        ),
+    ],
+)
+async def test_acreate_embeddings(input_text, response_items, expected):
+    client = _async_client(response_items)
+    with patch.object(OpenAIHook, "aget_conn", new=AsyncMock(return_value=client)) as mock_aget_conn:
+        assert (
+            await OpenAIHook(conn_id="openai_async").acreate_embeddings(input_text, dimensions=1024)
+            == expected
+        )
+
+    mock_aget_conn.assert_awaited_once_with()
+    client.embeddings.create.assert_awaited_once_with(
+        model="text-embedding-3-small", input=input_text, dimensions=1024
+    )
+    client.__aexit__.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_acreate_embeddings_concurrent_calls_each_close_their_own_client():
+    clients = [_async_client([(0, [0.1, 0.2])]) for _ in range(3)]
+    hook = OpenAIHook(conn_id="openai_async")
+    with (
+        patch(
+            "airflow.providers.openai.hooks.openai.get_async_connection",
+            new=AsyncMock(return_value=_async_conn({}, password="api_key")),
+        ),
+        patch("airflow.providers.openai.hooks.openai.AsyncOpenAI", side_effect=clients) as mock_client,
+    ):
+        results = await asyncio.gather(*(hook.acreate_embeddings(f"text {i}") for i in range(3)))
+
+    assert results == [[0.1, 0.2]] * 3
+    assert mock_client.call_count == 3
+    for client in clients:
+        client.embeddings.create.assert_awaited_once()
+        client.__aexit__.assert_awaited_once()
+
+
+def _async_client(response_items: list[tuple[int, list[float]]]) -> MagicMock:
+    """An ``AsyncOpenAI`` stand-in whose ``embeddings.create`` answers with the given (index, vector) items."""
+    client = MagicMock(spec=AsyncOpenAI)
+    client.__aenter__.return_value = client
+    client.embeddings.create = AsyncMock(
+        return_value=CreateEmbeddingResponse(
+            data=[
+                Embedding(embedding=vector, index=index, object="embedding")
+                for index, vector in response_items
+            ],
+            model="text-embedding-3-small",
+            object="list",
+            usage=Usage(prompt_tokens=4, total_tokens=4),
+        )
+    )
+    return client

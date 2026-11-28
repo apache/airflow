@@ -19,7 +19,10 @@
 
 package org.apache.airflow.sdk
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import com.xenomachina.argparser.ArgParser
+import com.xenomachina.argparser.MissingValueException
+import com.xenomachina.argparser.default
 import io.ktor.network.selector.SelectorManager
 import io.ktor.network.sockets.InetSocketAddress
 import io.ktor.network.sockets.aSocket
@@ -27,9 +30,12 @@ import io.ktor.network.sockets.openReadChannel
 import io.ktor.network.sockets.openWriteChannel
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
+import org.apache.airflow.sdk.execution.Cancellation
 import org.apache.airflow.sdk.execution.CoordinatorComm
 import org.apache.airflow.sdk.execution.LogSender
 import org.apache.airflow.sdk.execution.Logger
@@ -38,8 +44,25 @@ import org.apache.airflow.sdk.execution.comm.ErrorResponse
 import org.apache.airflow.sdk.execution.comm.StartupDetails
 import org.apache.airflow.sdk.execution.parseDags
 import org.apache.airflow.sdk.execution.runTask
+import java.io.File
+import java.time.Duration
 import kotlin.text.substringAfterLast
 import kotlin.text.substringBeforeLast
+
+/**
+ * Writes the queued log lines before the JVM exits, then waits up to [timeout] for the socket to close.
+ * If no line goes out for [timeout], gives up on the lines and skips that wait.
+ */
+internal fun sendQueuedLogs(
+  close: () -> Unit,
+  closed: Job,
+  timeout: Duration,
+) {
+  val written = LogSender.detachAndFlush(timeout)
+  close()
+  // Skip the wait after giving up: Ktor retries the write while nothing reads, so the socket never closes.
+  if (written) runBlocking { withTimeoutOrNull(timeout.toMillis()) { closed.join() } }
+}
 
 private class Args(
   parser: ArgParser,
@@ -50,12 +73,16 @@ private class Args(
       address.substringAfterLast(':').toInt(),
     )
 
-  val comm by parser.storing("--comm", help = "Address (host:port) to communicate with parent") {
-    parseAddress(this)
-  }
-  val logs by parser.storing("--logs", help = "Address (host:port) to send Airflow logs to") {
-    parseAddress(this)
-  }
+  val comm by parser
+    .storing("--comm", help = "Address (host:port) to communicate with parent") { parseAddress(this) }
+    .default(null)
+  val logs by parser
+    .storing("--logs", help = "Address (host:port) to send Airflow logs to") { parseAddress(this) }
+    .default(null)
+  val describeSources by parser
+    .storing("--describe-sources", help = "File to write each Dag's declaring class to, instead of serving") {
+      File(this)
+    }.default(null)
 }
 
 /**
@@ -83,33 +110,7 @@ class ApiError(
  * The process exits when the coordinator closes the connection (normally after
  * one task-instance execution).
  */
-class Server(
-  private val comm: InetSocketAddress,
-  private val logs: InetSocketAddress,
-) {
-  companion object {
-    /**
-     * Parses coordinator addresses from command-line arguments and returns a
-     * ready-to-use [Server].
-     *
-     * The arguments are supplied automatically by Airflow and are not intended
-     * to be constructed by hand:
-     *
-     * * `--comm host:port` address for task-execution messages.
-     * * `--logs host:port` address for log forwarding.
-     *
-     * @param args Command-line arguments as received by `main`.
-     * @return A configured [Server] ready to call [serve].
-     */
-    @JvmStatic
-    fun create(args: Array<String>): Server {
-      val args = ArgParser(args).parseInto(::Args)
-      return Server(args.comm, args.logs)
-    }
-  }
-
-  private val logger = Logger(Server::class)
-
+sealed class Server {
   /**
    * Blocking entry point: connects to the coordinator and serves task-execution
    * requests from the given [bundle].
@@ -118,6 +119,9 @@ class Server(
    * `main` method. Prefer [serveAsync] when calling from an existing coroutine.
    * The call returns when the coordinator closes the connection (normally after
    * one task-instance execution).
+   *
+   * A [Server] created from `--describe-sources` writes that file and returns
+   * without connecting anywhere.
    *
    * @param bundle Bundle containing all Dags this process can execute.
    *
@@ -136,6 +140,9 @@ class Server(
    * coordinator closes the connection (normally after one task-instance
    * execution). The coroutine returns once both channels have been closed.
    *
+   * A [Server] created from `--describe-sources` writes that file and returns
+   * without connecting anywhere.
+   *
    * Use this variant when calling from an existing coroutine scope; use the
    * blocking [serve] from a plain `main` method.
    *
@@ -143,7 +150,63 @@ class Server(
    *
    * @see [serve]
    */
-  suspend fun serveAsync(bundle: Bundle) =
+  abstract suspend fun serveAsync(bundle: Bundle)
+
+  companion object {
+    /**
+     * Parses coordinator addresses from command-line arguments and returns a
+     * ready-to-use [Server].
+     *
+     * The arguments are supplied automatically by Airflow and are not intended
+     * to be constructed by hand:
+     *
+     * * `--comm host:port` address for task-execution messages.
+     * * `--logs host:port` address for log forwarding.
+     * * `--describe-sources file` makes [serve] write a JSON object mapping each
+     *   Java-declared Dag ID to the binary name of its declaring class into `file`
+     *   and return without connecting anywhere; `--comm` and `--logs` are not
+     *   required then. It is for the Gradle plugin, not for users.
+     *
+     * @param args Command-line arguments as received by `main`.
+     * @return A configured [Server] ready to call [serve].
+     */
+    @JvmStatic
+    fun create(args: Array<String>): Server {
+      val args = ArgParser(args).parseInto(::Args)
+      args.describeSources?.let { return SourceDescriber(it) }
+      return CoordinatorServer(
+        args.comm ?: throw MissingValueException("--comm"),
+        args.logs ?: throw MissingValueException("--logs"),
+      )
+    }
+  }
+}
+
+/** Writes each Java-declared Dag's declaring class to [target] instead of serving. */
+internal class SourceDescriber(
+  private val target: File,
+) : Server() {
+  override suspend fun serveAsync(bundle: Bundle) {
+    bundle.finalizeRegistration()
+    val sources = linkedMapOf<String, String>()
+    bundle.dags.values.forEach { dag -> dag.declaringClass?.let { sources[dag.id] = it.name } }
+    target.absoluteFile.parentFile?.mkdirs()
+    ObjectMapper().writeValue(target, sources)
+  }
+}
+
+/** Serves task-execution requests over the coordinator's [comm] and [logs] sockets. */
+class CoordinatorServer internal constructor(
+  private val comm: InetSocketAddress,
+  private val logs: InetSocketAddress,
+  private val logFlushTimeout: Duration,
+) : Server() {
+  // Long enough to outlast a pause in the supervisor's log reads, such as a slow request to the API server.
+  constructor(comm: InetSocketAddress, logs: InetSocketAddress) : this(comm, logs, Duration.ofSeconds(30))
+
+  private val logger = Logger(CoordinatorServer::class)
+
+  override suspend fun serveAsync(bundle: Bundle) {
     coroutineScope {
       bundle.finalizeRegistration()
       val deferral = CompletableDeferred<Unit>()
@@ -170,11 +233,24 @@ class Server(
           aSocket(selector).tcp().connect(logs).use { socket ->
             logger.debug("Connected logs", mapOf("addr" to logs))
             LogSender.configure(socket.openWriteChannel(autoFlush = true))
-            deferral.await()
+            val hook = Thread({ sendQueuedLogs(socket::close, socket.socketContext, logFlushTimeout) }, "Airflow log flush")
+            Runtime.getRuntime().addShutdownHook(hook)
+            try {
+              deferral.await()
+            } finally {
+              // The use block closes the socket even when serving fails, so flush while it is still open.
+              sendQueuedLogs(socket::close, socket.socketContext, logFlushTimeout)
+              try {
+                Runtime.getRuntime().removeShutdownHook(hook)
+              } catch (e: IllegalStateException) {
+                // The JVM has started shutting down, so it has already started the hook.
+              }
+            }
           }
         }
       }
     }
+  }
 
   internal suspend fun dispatchTask(
     bundle: Bundle,
@@ -194,8 +270,16 @@ class Server(
     startup: StartupDetails,
     coordinator: CoordinatorComm,
   ) {
-    val result = runTask(bundle, startup, coordinator)
-    coordinator.communicate<Unit>(result)
+    // Keep the signal trap open until the result is sent, so a first signal cannot stop the JVM before then.
+    Cancellation().use { cancellation ->
+      val result = runTask(bundle, startup, coordinator, cancellation)
+      cancellation.finish()
+      // A leftover interrupt on this thread makes runBlocking in serve throw before the result is acknowledged.
+      if (Thread.interrupted()) {
+        logger.info("Cleared the interrupt flag that the task left on its thread, so the SDK can report the result")
+      }
+      coordinator.communicate<Unit>(result)
+    }
   }
 
   private suspend fun parseDagsAndReport(

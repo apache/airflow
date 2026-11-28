@@ -85,14 +85,19 @@ templated inside a ``Toolset`` capability the same way as in ``toolsets=``:
 A ``Toolset`` capability built from a function is resolved when the run starts, so its
 connection IDs are not templated.
 
-Tool results from a ``Toolset`` capability are masked like those from ``toolsets=``, but
-``enable_tool_logging`` only logs calls to ``toolsets=``. Pass a toolset in ``toolsets=`` unless
-you need it inside the capability list, for example to order it against a guardrail.
+Tool results from any capability whose tools run in the worker are masked like those
+from ``toolsets=``. When ``enable_tool_logging=True`` (the default), ``AgentOperator``
+logs calls to these toolsets and other tools contributed by capabilities, including MCP
+toolsets. Output tools and provider-native tools, including native MCP, are not
+covered. See :doc:`toolsets/logging` for configuration details and the complete
+limitations. Put a toolset in the capability list when you need to order it
+against another capability, such as a guardrail.
 
 With durable execution
 ----------------------
 
-With ``durable=True``, a retry replays completed steps from the cache instead of running them
+With durable execution (on by default for a task that can retry on Airflow 3.3 and later; see
+:doc:`durable_execution`), a retry replays completed steps from the journal instead of running them
 again. Whether a capability's work is replayed depends on where it runs:
 
 .. list-table::
@@ -102,21 +107,21 @@ again. Whether a capability's work is replayed depends on where it runs:
       - On retry
     * - ``Thinking``, and ``WebSearch``, ``WebFetch`` or ``ImageGeneration`` when the model's
         provider runs the tool natively
-      - Replayed with the cached model response.
+      - Replayed with the recorded model response.
     * - ``WebSearch``, ``WebFetch`` or ``ImageGeneration`` falling back to a local tool, for a
-        provider without the native one
-      - The local tool runs again.
-    * - ``Toolset`` holding a toolset
-      - Tool results are replayed.
-    * - ``MCP``, ``PrefixTools``, ``CombinedCapability``, a ``Toolset`` built from a function,
-        and capabilities from an agent spec file
-      - Tools run again. Pass tools you need replayed in ``toolsets=`` instead.
+        provider without the native one; ``Toolset``, ``MCP``, ``PrefixTools``,
+        ``CombinedCapability``, and capabilities from an agent spec file
+      - Tool results are replayed. In ``AgentOperator``, a ``FunctionToolset`` held directly by
+        a ``Toolset`` capability needs no ``id`` (:ref:`durable-toolset-ids`); any other toolset
+        they contribute needs one. Without it, ``durable=True`` refuses the Dag or pydantic-ai
+        names the toolset when the agent is built, and the default leaves durable execution
+        off for the task and logs why. An ``id`` on a ``Toolset`` capability does not reach the toolset inside it, so
+        set it on that toolset.
     * - pydantic-ai-harness ``CodeMode``
-      - Not allowed: the operator raises ``ValueError``. This includes a ``CodeMode`` inside a
-        ``CombinedCapability`` or a wrapper such as ``PrefixTools``, but not one a capability
-        function builds when the run starts.
+      - Each ``run_code`` snippet runs again, and the tool calls it makes are replayed; see
+        :ref:`durable-code-mode`.
 
-See :doc:`durable_execution` for how the cache works.
+See :doc:`durable_execution` for how replay works.
 
 Serialization
 -------------

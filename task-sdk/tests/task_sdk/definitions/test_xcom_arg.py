@@ -23,12 +23,19 @@ from unittest import mock
 import pytest
 import structlog
 
-from airflow.sdk import TaskInstanceState
+from airflow.sdk import BaseOperator, TaskInstanceState, task_group
 from airflow.sdk.bases.xcom import BaseXCom
+from airflow.sdk.definitions._internal.loop import create_loop
 from airflow.sdk.definitions.dag import DAG
 from airflow.sdk.definitions.xcom_arg import PlainXComArg
 from airflow.sdk.exceptions import AirflowSkipException
-from airflow.sdk.execution_time.comms import GetXCom, XComResult, XComSequenceSliceResult
+from airflow.sdk.execution_time.comms import (
+    GetXCom,
+    GetXComCount,
+    XComCountResponse,
+    XComResult,
+    XComSequenceSliceResult,
+)
 from airflow.sdk.execution_time.lazy_sequence import LazyXComSequence
 from airflow.sdk.serde import deserialize, serialize
 
@@ -288,6 +295,28 @@ def test_xcom_map_raise_to_skip(run_ti, mock_supervisor_comms):
     assert result == ["a", "b"]
 
 
+def test_xcom_map_dict(run_ti, mock_supervisor_comms):
+    result = set()
+    with DAG("test") as dag:
+
+        @dag.task
+        def push():
+            return {"a": 1, "b": 2}
+
+        @dag.task
+        def pull(value):
+            result.add(value)
+
+        pull.expand(value=push().map(lambda kv: f"{kv[0]}={kv[1]}"))
+
+    mock_supervisor_comms.send.return_value = XComResult(key=BaseXCom.XCOM_RETURN_KEY, value={"a": 1, "b": 2})
+
+    for map_index in range(2):
+        assert run_ti(dag, "pull", map_index) == TaskInstanceState.SUCCESS
+
+    assert result == {"a=1", "b=2"}
+
+
 def test_xcom_concat(run_ti, mock_supervisor_comms):
     from airflow.sdk.definitions.xcom_arg import _ConcatResult
 
@@ -355,6 +384,42 @@ def test_xcom_concat(run_ti, mock_supervisor_comms):
     assert agg_results == {"a", "b", "c", 1, 2}
 
 
+def test_xcom_concat_expand_with_other_argument(run_ti, mock_supervisor_comms):
+    results = set()
+
+    with DAG("test") as dag:
+
+        @dag.task
+        def push_letters():
+            return ["a", "b", "c"]
+
+        @dag.task
+        def push_numbers():
+            return [1, 2]
+
+        @dag.task
+        def pull(x, y):
+            results.add((x, y))
+
+        # The concat argument is declared last, so it is the first to divide map_index.
+        pull.expand(x=[10, 20], y=push_letters().concat(push_numbers()))
+
+    def xcom_get(msg):
+        if not isinstance(msg, GetXCom):
+            return mock.DEFAULT
+        if msg.task_id == "push_letters":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=push_letters.function())
+        if msg.task_id == "push_numbers":
+            return XComResult(key=BaseXCom.XCOM_RETURN_KEY, value=push_numbers.function())
+        return mock.DEFAULT
+
+    mock_supervisor_comms.send.side_effect = xcom_get
+
+    states = [run_ti(dag, "pull", map_index) for map_index in range(10)]
+    assert states == [TaskInstanceState.SUCCESS] * 10
+    assert results == {(x, y) for x in (10, 20) for y in ("a", "b", "c", 1, 2)}
+
+
 class TestPlainXComArgResolveMappedGroup:
     """Resolving a task inside a mapped task group from a task outside that group.
 
@@ -370,7 +435,6 @@ class TestPlainXComArgResolveMappedGroup:
     @staticmethod
     def _make_ti(*, computed):
         ti = mock.MagicMock()
-        ti._upstream_map_indexes = None
         ti._cached_template_context = {"expanded_ti_count": 1}
         ti.run_id = "run-1"
         ti.get_relevant_upstream_map_indexes.return_value = computed
@@ -416,3 +480,59 @@ class TestPlainXComArgResolveMappedGroup:
         assert resolved == "value-0"
         ti.xcom_pull.assert_called_once()
         assert ti.xcom_pull.call_args.kwargs["map_indexes"] == 0
+
+
+class TestPlainXComArgResolveUnmapped:
+    """An unmapped upstream is pulled at map index -1, sparing the server a lookup of how it is defined."""
+
+    def test_resolve_outside_a_mapped_task_group_pulls_minus_one(self):
+        operator = mock.MagicMock()
+        operator.is_mapped = False
+        operator.task_id = "upstream"
+        operator.dag_id = "test_dag"
+        operator.get_closest_mapped_task_group.return_value = None
+        ti = mock.MagicMock()
+        ti.xcom_pull.return_value = "value"
+
+        assert PlainXComArg(operator=operator, key="test").resolve({"ti": ti}) == "value"
+        assert ti.xcom_pull.call_args.kwargs["map_indexes"] == -1
+
+
+class TestPlainXComArgResolveLoopTask:
+    @pytest.fixture
+    def dag(self):
+        @task_group
+        def body():
+            BaseOperator(task_id="first") >> BaseOperator(task_id="second")
+
+        with DAG("loop_dag", schedule=None) as dag:
+            create_loop(body, max_iterations=3) >> BaseOperator(task_id="after")
+        return dag
+
+    def test_resolve_from_outside_the_loop_returns_a_sequence_of_every_iteration(
+        self, dag, create_runtime_ti, mock_supervisor_comms
+    ):
+        ti = create_runtime_ti(task=dag.get_task("after"))
+        mock_supervisor_comms.send.return_value = XComCountResponse(len=3)
+
+        resolved = PlainXComArg(dag.get_task("body.first")).resolve({"ti": ti})
+
+        assert isinstance(resolved, LazyXComSequence)
+        mock_supervisor_comms.send.assert_not_called()
+        assert len(resolved) == 3
+        sent = mock_supervisor_comms.send.call_args.args[0]
+        assert sent == GetXComCount(
+            key="return_value", dag_id=ti.dag_id, run_id=ti.run_id, task_id="body.first"
+        )
+        assert set(sent.model_dump()) == {"type", "previous_iteration", "key", "dag_id", "run_id", "task_id"}
+
+    def test_resolve_from_inside_the_loop_pulls_the_value_of_the_same_iteration(
+        self, dag, create_runtime_ti, mock_supervisor_comms
+    ):
+        ti = create_runtime_ti(task=dag.get_task("body.second"))
+        mock_supervisor_comms.send.return_value = XComResult(key="return_value", value="value")
+
+        resolved = PlainXComArg(dag.get_task("body.first")).resolve({"ti": ti})
+
+        assert resolved == "value"
+        assert isinstance(mock_supervisor_comms.send.call_args.args[0], GetXCom)

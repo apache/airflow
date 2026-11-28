@@ -34,7 +34,6 @@ from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
-    from sqlalchemy.sql import Select
 
 logger = logging.getLogger(__name__)
 
@@ -202,14 +201,15 @@ class Pool(Base):
         pools: dict[str, PoolStats] = {}
         pool_includes_deferred: dict[str, bool] = {}
 
-        # The below type annotation is acceptable on SQLA2.1, but not on 2.0
-        query: Select[str, int, bool] = select(Pool.pool, Pool.slots, Pool.include_deferred)  # type: ignore[type-arg]
+        query = select(Pool.pool, Pool.slots, Pool.include_deferred)
 
         if lock_rows:
             query = with_row_locks(query, session=session, nowait=True)
 
         pool_rows = session.execute(query)
         for pool_name, total_slots_in, include_deferred in pool_rows:
+            if pool_name is None:
+                continue
             total_slots = float("inf") if total_slots_in == -1 else total_slots_in
             pools[pool_name] = PoolStats(
                 total=total_slots, running=0, queued=0, open=0, deferred=0, scheduled=0
@@ -398,4 +398,4 @@ class Pool(Base):
         pool_names: list[str], *, session: Session = NEW_SESSION
     ) -> dict[str, str | None]:
         stmt = select(Pool.pool, Pool.team_name).where(Pool.pool.in_(pool_names))
-        return {pool: team_name for pool, team_name in session.execute(stmt)}
+        return {pool: team_name for pool, team_name in session.execute(stmt) if pool is not None}

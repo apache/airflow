@@ -17,7 +17,9 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { render } from "@testing-library/react";
+import { useEffect } from "react";
+
+import { render, screen } from "@testing-library/react";
 import type * as ReactRouterDom from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,10 +41,13 @@ const mockDagRun = { dag_id: "my_dag", dag_run_id: "run_1", state: "success" } a
 const mockTaskInstance = { dag_id: "my_dag", task_id: "my_task" } as TaskInstanceResponse;
 
 let mockParams: Record<string, string> = {};
+let mockSearch = new URLSearchParams();
+let taskQuery: unknown;
 
 vi.mock("react-router-dom", async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRouterDom>()),
   useParams: () => mockParams,
+  useSearchParams: () => [mockSearch],
 }));
 
 type QueryOptions = { enabled?: boolean };
@@ -59,9 +64,11 @@ vi.mock("openapi/queries", () => ({
   useDagServiceGetDagDetails: (_params: unknown, _key: unknown, options?: QueryOptions) => ({
     data: options?.enabled ? mockDag : undefined,
   }),
-  useTaskInstanceServiceGetMappedTaskInstance: (_params: unknown, _key: unknown, options?: QueryOptions) => ({
-    data: options?.enabled ? mockTaskInstance : undefined,
-  }),
+  useTaskInstanceServiceGetMappedTaskInstance: (params: unknown, _key: unknown, options?: QueryOptions) => {
+    taskQuery = params;
+
+    return { data: options?.enabled ? mockTaskInstance : undefined };
+  },
 }));
 
 const reactApp = {
@@ -87,6 +94,7 @@ const renderPlugin = () => {
 describe("ReactPlugin context props", () => {
   beforeEach(() => {
     mockParams = {};
+    mockSearch = new URLSearchParams();
   });
 
   afterEach(() => {
@@ -100,6 +108,22 @@ describe("ReactPlugin context props", () => {
     expect(capturedProps?.dagRun).toBeUndefined();
     expect(capturedProps?.taskInstance).toBeUndefined();
     expect(capturedProps?.asset).toBeUndefined();
+  });
+
+  it("retrieves plugin task context using the selected region instead of the public map index", () => {
+    mockParams = { dagId: "my_dag", runId: "run_1", taskId: "my_task" };
+    mockSearch = new URLSearchParams({ region_id: "region", region_index: "3" });
+    renderPlugin();
+
+    expect(taskQuery).toEqual({
+      dagId: "my_dag",
+      dagRunId: "run_1",
+      mapIndex: -1,
+      regionId: "region",
+      regionIndex: 3,
+      taskId: "my_task",
+    });
+    expect(capturedProps?.taskInstance).toStrictEqual(mockTaskInstance);
   });
 
   it("passes the cached Dag object when dagId is in the route", () => {
@@ -155,6 +179,18 @@ describe("loadPlugin", () => {
     }
   });
 
+  it("reloads once and renders nothing when the bundle cannot be fetched", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const reload = vi.spyOn(globalThis.location, "reload").mockImplementation(() => undefined);
+
+    const { default: Component } = await loadPlugin(pluginA, () => Promise.reject(new Error("network down")));
+    const { container } = render(<Component />, { wrapper: Wrapper });
+
+    expect(reload).toHaveBeenCalledOnce();
+    // An error page here would bury the page the plugin was only decorating.
+    expect(container).toBeEmptyDOMElement();
+  });
+
   it("does not let a malformed bundle inherit a previously-loaded plugin's component", async () => {
     // A well-formed bundle sets globalThis.AirflowPlugin on import; a malformed one sets nothing.
     await loadPlugin(pluginA, () => {
@@ -165,5 +201,109 @@ describe("loadPlugin", () => {
     const { default: component } = await loadPlugin(pluginB, () => Promise.resolve());
 
     expect(component).not.toBe(componentA);
+  });
+
+  it("registers plugin dependencies before importing the plugin bundle", async () => {
+    const calls: Array<string> = [];
+
+    await loadPlugin(
+      pluginA,
+      () => {
+        calls.push("bundle");
+        (globalThis as Record<string, unknown>).AirflowPlugin = componentA;
+
+        return Promise.resolve();
+      },
+      () => {
+        calls.push("dependencies");
+
+        return Promise.resolve();
+      },
+    );
+
+    expect(calls).toEqual(["dependencies", "bundle"]);
+  });
+});
+
+const loading = (destination: ReactAppResponse["destination"]) =>
+  ({ bundle_url: "http://localhost/never-loaded.js", destination, name: "Unloaded" }) as ReactAppResponse;
+
+describe("ReactPlugin loading fallback", () => {
+  it("shows a spinner while a page plugin's bundle loads", () => {
+    const { container } = render(<ReactPlugin reactApp={loading("dag")} />, { wrapper: Wrapper });
+
+    expect(container.querySelector(".chakra-spinner")).toBeInTheDocument();
+  });
+
+  it("shows nothing while a base plugin's bundle loads", () => {
+    const { container } = render(<ReactPlugin reactApp={loading("base")} />, { wrapper: Wrapper });
+
+    expect(container.querySelector(".chakra-spinner")).not.toBeInTheDocument();
+  });
+});
+
+const throwPluginError = () => {
+  throw new Error("plugin bug");
+};
+
+const ThrowsWhileRendering = () => throwPluginError();
+
+const ThrowsInEffect = () => {
+  useEffect(throwPluginError, []);
+
+  return <p>Plugin content</p>;
+};
+
+describe("ReactPlugin failures", () => {
+  afterEach(() => {
+    mockParams = {};
+    (globalThis as Record<string, unknown>)[reactApp.name] = undefined;
+  });
+
+  it.each([
+    ["while rendering", ThrowsWhileRendering],
+    ["in an effect", ThrowsInEffect],
+  ])("keeps the page and renders nothing when a plugin throws %s", (_when, component) => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    (globalThis as Record<string, unknown>)[reactApp.name] = component;
+
+    const { container } = render(
+      <>
+        <p>Page content</p>
+        <ReactPlugin reactApp={reactApp} />
+      </>,
+      { wrapper: Wrapper },
+    );
+
+    expect(screen.getByText("Page content")).toBeInTheDocument();
+    expect(screen.queryByText("Plugin content")).not.toBeInTheDocument();
+    expect(container).toHaveTextContent(/^Page content$/u);
+    expect(consoleError).toHaveBeenCalledWith(
+      `Plugin "${reactApp.name}" failed to render`,
+      expect.any(Error),
+      expect.any(String),
+    );
+  });
+
+  it("renders the plugin again after navigating away from where it failed", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockParams = { dagId: "broken_dag" };
+    (globalThis as Record<string, unknown>)[reactApp.name] = ({ dagId }: PluginProps) => {
+      if (dagId === "broken_dag") {
+        throwPluginError();
+      }
+
+      return <p>Plugin content</p>;
+    };
+
+    const { rerender } = render(<ReactPlugin reactApp={reactApp} />, { wrapper: Wrapper });
+
+    expect(screen.queryByText("Plugin content")).not.toBeInTheDocument();
+
+    mockParams = { dagId: "working_dag" };
+    rerender(<ReactPlugin reactApp={reactApp} />);
+
+    expect(screen.getByText("Plugin content")).toBeInTheDocument();
   });
 });

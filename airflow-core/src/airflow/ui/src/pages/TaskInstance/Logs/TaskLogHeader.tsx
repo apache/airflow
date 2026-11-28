@@ -31,13 +31,13 @@ import {
 } from "react-icons/md";
 import { useSearchParams } from "react-router-dom";
 
-import type { TaskInstanceResponse } from "openapi/requests/types.gen";
+import type { TaskInstanceResponse, TaskInstanceHistoryResponse } from "openapi/requests/types.gen";
 
 import { IconButton, Menu, Select, LazyClipboard } from "src/system-components";
 
 import { TaskTrySelect } from "src/components/TaskTrySelect";
 
-import { SearchParamsKeys } from "src/constants/searchParams";
+import { LOG_SEARCH_PARAMS } from "src/constants/persistentSearchParams";
 import { defaultSystem } from "src/theme";
 import { type LogLevel, logLevelColorMapping, logLevelOptions } from "src/utils/logs";
 
@@ -54,7 +54,7 @@ export type TaskLogHeaderProps = {
   readonly showSource: boolean;
   readonly showTimestamp: boolean;
   readonly sourceOptions?: Array<string>;
-  readonly taskInstance?: TaskInstanceResponse;
+  readonly taskInstance?: TaskInstanceHistoryResponse | TaskInstanceResponse;
   readonly toggleExpanded?: () => void;
   readonly toggleFullscreen: () => void;
   readonly toggleLogLevel: () => void;
@@ -88,8 +88,8 @@ export const TaskLogHeader = ({
 }: TaskLogHeaderProps) => {
   const { t: translate } = useTranslation(["common", "dag", "components"]);
   const [searchParams, setSearchParams] = useSearchParams();
-  const sources = searchParams.getAll(SearchParamsKeys.SOURCE);
-  const logLevels = searchParams.getAll(SearchParamsKeys.LOG_LEVEL);
+  const sources = searchParams.getAll(LOG_SEARCH_PARAMS.source);
+  const logLevels = searchParams.getAll(LOG_SEARCH_PARAMS.level);
   const hasLogLevels = logLevels.length > 0;
 
   // Have select zIndex greater than dialog zIndex in fullscreen so that
@@ -112,12 +112,12 @@ export const TaskLogHeader = ({
     const [val, ...rest] = value;
 
     if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
-      searchParams.delete(SearchParamsKeys.LOG_LEVEL);
+      searchParams.delete(LOG_SEARCH_PARAMS.level);
     } else {
-      searchParams.delete(SearchParamsKeys.LOG_LEVEL);
+      searchParams.delete(LOG_SEARCH_PARAMS.level);
       value
         .filter((state) => state !== "all")
-        .map((state) => searchParams.append(SearchParamsKeys.LOG_LEVEL, state));
+        .map((state) => searchParams.append(LOG_SEARCH_PARAMS.level, state));
     }
     setSearchParams(searchParams);
   };
@@ -126,19 +126,19 @@ export const TaskLogHeader = ({
     const [val, ...rest] = value;
 
     if (((val === undefined || val === "all") && rest.length === 0) || rest.includes("all")) {
-      searchParams.delete(SearchParamsKeys.SOURCE);
+      searchParams.delete(LOG_SEARCH_PARAMS.source);
     } else {
-      searchParams.delete(SearchParamsKeys.SOURCE);
+      searchParams.delete(LOG_SEARCH_PARAMS.source);
       value
         .filter((state) => state !== "all")
-        .map((state) => searchParams.append(SearchParamsKeys.SOURCE, state));
+        .map((state) => searchParams.append(LOG_SEARCH_PARAMS.source, state));
     }
     setSearchParams(searchParams);
   };
 
   return (
     <Box>
-      {taskInstance === undefined || tryNumber === undefined || taskInstance.try_number <= 1 ? undefined : (
+      {taskInstance === undefined || tryNumber === undefined ? undefined : (
         <TaskTrySelect
           onSelectTryNumber={onSelectTryNumber}
           selectedTryNumber={tryNumber}

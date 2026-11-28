@@ -39,9 +39,11 @@ import { SearchBar } from "src/components/SearchBar";
 import Time from "src/components/Time";
 
 import { useConfig } from "src/queries/useConfig";
+import { useHasMultipleDagBundles } from "src/queries/useHasMultipleDagBundles";
 import { createErrorToaster } from "src/utils";
 
 type ImportDAGErrorModalProps = {
+  readonly bundleName?: string;
   readonly onClose: () => void;
   readonly open: boolean;
 };
@@ -84,14 +86,16 @@ const ReparseButton = ({
   );
 };
 
-export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps) => {
+export const DagImportErrorsModal = ({ bundleName, onClose, open }: ImportDAGErrorModalProps) => {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [pollAfterReparse, setPollAfterReparse] = useState(false);
   const autoRefreshInterval = useConfig("auto_refresh_interval") as number | undefined;
+  const hasMultipleBundles = useHasMultipleDagBundles();
 
   const { data } = useImportErrorServiceGetImportErrors(
     {
+      bundleName,
       filenamePattern: searchQuery || undefined,
       limit: PAGE_LIMIT,
       offset: PAGE_LIMIT * (page - 1),
@@ -168,13 +172,15 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
             <HStack align="stretch" gap={0} w="100%">
               <Accordion.ItemTrigger cursor="pointer" flex="1">
                 <HStack alignItems="center" flexWrap="wrap" gap={2} w="100%">
-                  <Text display="flex" fontWeight="bold">
-                    {translate("components:versionDetails.bundleName")}
-                    {": "}
-                    {importError.bundle_name}
-                  </Text>
                   <PiFilePy />
                   {importError.filename}
+                  {hasMultipleBundles ? (
+                    <Text color="fg.muted" fontSize="sm" fontWeight="normal" ms="auto">
+                      {translate("importErrors.bundle")}
+                      {": "}
+                      {importError.bundle_name}
+                    </Text>
+                  ) : undefined}
                 </HStack>
               </Accordion.ItemTrigger>
               <Box alignItems="center" display="flex" flexShrink={0} gap={1} pr={2}>
@@ -182,8 +188,8 @@ export const DagImportErrorsModal = ({ onClose, open }: ImportDAGErrorModalProps
                   fileToken={importError.file_token}
                   onReparsed={() => setPollAfterReparse(true)}
                 />
-                <ClipboardRoot value={importError.filename}>
-                  <ClipboardIconButton variant="outline" />
+                <ClipboardRoot value={importError.stack_trace}>
+                  <ClipboardIconButton label={translate("importErrors.copyStackTrace")} variant="outline" />
                 </ClipboardRoot>
               </Box>
             </HStack>

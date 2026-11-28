@@ -217,6 +217,22 @@ describe("resolveArgs", () => {
     expect(warning).not.toHaveBeenCalled();
   });
 
+  it("does not log awaiting or stringifying the arguments as an unbound argument", async () => {
+    const { args, warning } = await bind([literal("rows", 7)]);
+
+    expect(await Promise.resolve(args)).toBe(args);
+    expect(JSON.stringify(args)).toBe('{"rows":7}');
+    expect(warning).not.toHaveBeenCalled();
+  });
+
+  it("binds arguments named then and toJSON", async () => {
+    const { args, warning } = await bind([literal("then", 1), literal("to_json", 2)]);
+
+    const { then, toJSON } = args as { then: number; toJSON: number };
+    expect([then, toJSON]).toEqual([1, 2]);
+    expect(warning).not.toHaveBeenCalled();
+  });
+
   it("folds `in` like a read", async () => {
     const { args } = await bind([literal("region_code", "uk")]);
 
@@ -442,7 +458,7 @@ describe("resolveArgs", () => {
     // destructures to `undefined` and corrupts the task's output.
     const unknownKind = [{ name: "totals", kind: "dataset" }] as unknown as ArgBindings;
     await expect(bind(unknownKind)).rejects.toThrowError(
-      /has binding kind "dataset", which this version of apache-airflow-ts-sdk cannot bind/,
+      /has binding kind "dataset", which this version of @apache-airflow\/ts-sdk cannot bind/,
     );
   });
 

@@ -28,12 +28,14 @@
         "lastParsed": "마지막 파싱 시점",
         "parseDuration": "파싱 기간"
       },
-      "file_one": "파일",
-      "file_other": "파일",
+      "importErrorForbidden": "이 가져오기 오류를 읽을 권한이 없습니다.",
       "importErrorGone": "이 가져오기 오류는 더 이상 기록되어 있지 않습니다. 재구문 분석으로 해결되었을 수 있습니다.",
       "neverParsed": "파싱된 적 없음",
+      "parsedFile_one": "파싱된 파일",
+      "parsedFile_other": "파싱된 파일",
+      "parsedFilesNote": "Dag를 정의하거나 가져오기에 실패한 파일만 표시됩니다.",
       "showImportError_one": "오류 보기",
-      "showImportError_other": "오류 {{count}}개 보기"
+      "showImportError_other": "오류 {{count, number}}개 보기"
     },
     "inactive": "비활성",
     "neverRefreshed": "새로 고침된 적 없음",
@@ -58,6 +60,48 @@
     },
     "title": "데드라인"
   },
+  "triggers": {
+    "columns": {
+      "dagsAffected": "영향받는 Dag",
+      "failures": "실패 횟수",
+      "kind": "종류",
+      "lastError": "마지막 오류",
+      "lastEvent": "마지막 이벤트",
+      "status": "상태",
+      "triggerer": "트리거러",
+      "usedBy": "사용처"
+    },
+    "detail": {
+      "firstFailedAt": "실패 시작 시점",
+      "lastFailedAt": "마지막 실패 시점",
+      "noReadableScheduledDags": "읽을 수 있는 Dag 없음",
+      "scheduledDags": "예약된 Dag"
+    },
+    "filters": {
+      "triggererHostname": "트리거러 호스트 이름"
+    },
+    "forbidden": {
+      "description": "트리거는 그 트리거가 실행되는 대상(Dag의 태스크 인스턴스나 Dag 실행, 또는 감시하는 에셋)을 볼 수 있는 사용자에게만 표시됩니다. 현재 이 중 볼 수 있는 항목이 없습니다.",
+      "title": "표시할 트리거 없음"
+    },
+    "kind": {
+      "asset_watcher": "에셋 Watcher",
+      "callback": "콜백",
+      "task": "태스크"
+    },
+    "notFound": {
+      "backToList": "트리거로 돌아가기",
+      "description": "트리거는 발동되거나 실행 대상이 완료되면 제거되므로, 이 트리거는 이미 완료되었을 가능성이 높습니다.",
+      "title": "이 트리거는 더 이상 존재하지 않습니다"
+    },
+    "status": {
+      "failing": "실패 중",
+      "orphaned": "고아 상태"
+    },
+    "statusHint": {
+      "orphaned": "트리거러가 중지되었습니다. 다른 트리거러가 이 트리거를 넘겨받기를 기다리고 있습니다."
+    }
+  },
   "xcom": {
     "add": {
       "error": "XCom 추가에 실패하였습니다.",
@@ -69,6 +113,7 @@
     "columns": {
       "dag": "Dag",
       "key": "키",
+      "timestamp": "타임스탬프",
       "value": "값"
     },
     "delete": {

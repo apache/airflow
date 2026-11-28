@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -26,7 +25,9 @@
 Package apache-airflow-providers-duckdb
 ------------------------------------------------------
 
-`DuckDB <https://duckdb.org/>`__
+`DuckDB <https://duckdb.org/>`__ provider for Apache Airflow. Runs SQL against an in-process
+DuckDB database — in memory, backed by a local file, or hosted by MotherDuck — and manages
+extension loading and resource limits so Dag authors only supply the SQL.
 
 
 This is detailed commit list of changes for versions provider package: ``duckdb``.

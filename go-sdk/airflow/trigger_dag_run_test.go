@@ -33,9 +33,9 @@ func TestTriggerDagRunIsATask(t *testing.T) {
 	gate := dag.Task(extract)
 	spec := TriggerDagRunSpec{
 		DagID:                 "downstream_etl",
-		RunID:                 "{{ run_id }}_downstream",
+		RunID:                 "etl_downstream",
 		Conf:                  map[string]any{"source": "etl"},
-		LogicalDate:           "{{ ds }}",
+		LogicalDate:           time.Date(2026, 9, 29, 0, 0, 0, 0, time.UTC),
 		RunAfter:              time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC),
 		ResetDagRun:           true,
 		WaitForCompletion:     true,
@@ -102,14 +102,29 @@ func buildNestedConf(depth int) map[string]any {
 
 func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 	tests := []struct {
-		name    string
-		trigger TriggerDagRunTask
-		want    string
+		name              string
+		trigger           TriggerDagRunTask
+		want              string
+		wantPanicContains string
 	}{
 		{
 			name:    "no DagID",
 			trigger: TriggerDagRun(TriggerDagRunSpec{WaitForCompletion: true}),
 			want:    "airflow.TriggerDagRunSpec has no DagID",
+		},
+		{
+			name:    "templated DagID",
+			trigger: TriggerDagRun(TriggerDagRunSpec{DagID: "{{ params.target }}"}),
+			want: `airflow.TriggerDagRunSpec.DagID is "{{ params.target }}"; ` +
+				"the task does not render templates",
+		},
+		{
+			name: "templated RunID",
+			trigger: TriggerDagRun(
+				TriggerDagRunSpec{DagID: "downstream_etl", RunID: "triggered_{{ run_id }}"},
+			),
+			want: `airflow.TriggerDagRunSpec.RunID is "triggered_{{ run_id }}"; ` +
+				"the task does not render templates",
 		},
 		{
 			name: "negative PokeInterval",
@@ -159,6 +174,14 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 				"Airflow takes a time only from year 1 to year 9999",
 		},
 		{
+			name: "LogicalDate before year 1 in UTC",
+			trigger: TriggerDagRun(TriggerDagRunSpec{
+				DagID: "downstream_etl", LogicalDate: time.Date(0, 12, 31, 0, 0, 0, 0, time.UTC),
+			}),
+			want: "airflow.TriggerDagRunSpec.LogicalDate is 0000-12-31T00:00:00Z in UTC; " +
+				"Airflow takes a time only from year 1 to year 9999",
+		},
+		{
 			name: "Conf with an integer that does not fit in 64 bits",
 			trigger: TriggerDagRun(TriggerDagRunSpec{
 				DagID: "downstream_etl",
@@ -184,16 +207,21 @@ func TestTriggerDagRunRejectsAnInvalidSpec(t *testing.T) {
 			trigger: TriggerDagRun(
 				TriggerDagRunSpec{DagID: "downstream_etl", Conf: buildNestedConf(10001)},
 			),
-			want: "airflow.TriggerDagRunSpec.Conf: invalid character '{' exceeded max depth",
+			wantPanicContains: "exceeded max depth",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dag := Dag("etl")
-			assert.PanicsWithValue(t,
-				`airflow.DagRef.Task: task "trigger_downstream" of Dag "etl": `+tt.want,
-				func() { dag.Task(tt.trigger, TaskSpec{TaskID: "trigger_downstream"}) },
-			)
+			panicFunc := func() { dag.Task(tt.trigger, TaskSpec{TaskID: "trigger_downstream"}) }
+			if tt.wantPanicContains != "" {
+				assert.Contains(t, panicMessage(t, panicFunc), tt.wantPanicContains)
+			} else {
+				assert.PanicsWithValue(t,
+					`airflow.DagRef.Task: task "trigger_downstream" of Dag "etl": `+tt.want,
+					panicFunc,
+				)
+			}
 			assert.NotPanics(t,
 				func() { dag.Task(extract, TaskSpec{TaskID: "trigger_downstream"}) },
 				"a rejected task does not take its task_id",

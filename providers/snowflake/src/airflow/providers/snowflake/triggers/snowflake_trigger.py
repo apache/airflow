@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from asgiref.sync import sync_to_async
 
-from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+from airflow.providers.snowflake.hooks.sql_api import SnowflakeSqlApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -75,7 +75,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Wait for the query the snowflake query to complete."""
+        """Wait for the Snowflake queries to complete."""
         hook = SnowflakeSqlApiHook(
             self.snowflake_conn_id,
             self.token_life_time,
@@ -86,12 +86,20 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             for query_id in self.query_ids:
                 while True:
                     statement_status = await self.get_query_status(query_id, hook)
-                    if statement_status["status"] not in ["running"]:
+                    status = statement_status["status"]
+
+                    if status == "running":
+                        await asyncio.sleep(self.poll_interval)
+                    elif status == "success":
                         break
-                    await asyncio.sleep(self.poll_interval)
-                if statement_status["status"] == "error":
-                    yield TriggerEvent(statement_status)
-                    return
+                    elif status == "error":
+                        yield TriggerEvent(statement_status)
+                        return
+                    else:
+                        raise RuntimeError(
+                            f"Unexpected Snowflake SQL API status for query {query_id}: {status!r}"
+                        )
+
             yield TriggerEvent(
                 {
                     "status": "success",

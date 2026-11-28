@@ -23,14 +23,21 @@ import ast
 import copy
 import hashlib
 import json as json_utils
+import re
 import time
-import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, cast
 
-from airflow.providers.common.compat.sdk import AirflowException, BaseOperator, BaseOperatorLink, XCom, conf
+from airflow.providers.common.compat.sdk import (
+    AirflowException,
+    BaseOperator,
+    BaseOperatorLink,
+    ResumableJobMixin,
+    XCom,
+    conf,
+)
 from airflow.providers.databricks.exceptions import DatabricksApiError, DatabricksOperatorPayloadError
 from airflow.providers.databricks.hooks.databricks import (
     DatabricksHook,
@@ -69,44 +76,90 @@ if TYPE_CHECKING:
     from airflow.sdk import TaskGroup
     from airflow.sdk.types import Context, Logger
 
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "databricks_run_id"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
 
 DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
 XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 XCOM_STATEMENT_ID_KEY = "statement_id"
+
+# Databricks splits run state across life_cycle_state and result_state, while the ResumableJobMixin
+# status interface is a single string. The durable operators encode both as "LIFE_CYCLE:RESULT" and
+# decode them with the predicates below, so all three share one view of which runs can be rejoined.
+RUN_NOT_FOUND_STATUS = "NOT_FOUND:"
+TERMINATING_SETTLE_TIMEOUT_SECONDS = 60
+MIN_SETTLE_POLL_SECONDS = 0.1
+ACTIVE_RUN_LIFE_CYCLE_STATES = (
+    "PENDING",
+    "QUEUED",
+    "RUNNING",
+    "TERMINATING",
+    "BLOCKED",
+    "WAITING_FOR_RETRY",
+)
+
+
+def fetch_run_status(
+    hook: DatabricksHook,
+    run_id: JsonValue,
+    *,
+    poll_interval: float = 5,
+    settle_timeout: float = TERMINATING_SETTLE_TIMEOUT_SECONDS,
+) -> str:
+    """
+    Return the encoded status of ``run_id``, or a sentinel if its run history is gone.
+
+    ``TERMINATING`` is waited out because it does not say whether the run is finishing on its own or
+    being cancelled, and ``on_kill`` cancels asynchronously without clearing the stored id. On
+    timeout it is reported as-is, which counts as active: rejoining a slow run beats duplicating it.
+    """
+    deadline = time.monotonic() + settle_timeout
+    while True:
+        try:
+            # The stored external id is always a Databricks run id; the mixin types it as JsonValue.
+            run_info = hook.get_run(cast("int", run_id))
+        except DatabricksApiError as e:
+            # The sentinel is neither active nor succeeded, so the mixin resubmits fresh instead of
+            # failing the task.
+            if _is_run_missing_error(e):
+                hook.log.warning(
+                    "Databricks has no record of run %s, so a fresh run will be submitted. "
+                    "If the workspace connection changed, the original run may still be going there. "
+                    "Databricks said: %s",
+                    run_id,
+                    e,
+                )
+                return RUN_NOT_FOUND_STATUS
+            raise
+        state = RunState(**run_info["state"])
+        remaining = deadline - time.monotonic()
+        if state.life_cycle_state != "TERMINATING" or remaining <= 0:
+            return f"{state.life_cycle_state}:{state.result_state}"
+        time.sleep(max(MIN_SETTLE_POLL_SECONDS, min(poll_interval, remaining)))
+
+
+def is_run_active(status: str) -> bool:
+    """Whether an encoded status means the run is still going and can be reconnected to."""
+    return status.split(":", 1)[0] in ACTIVE_RUN_LIFE_CYCLE_STATES
+
+
+def is_run_succeeded(status: str) -> bool:
+    """Whether an encoded status means the run finished successfully."""
+    return status == "TERMINATED:SUCCESS"
+
+
+# jobs/runs/get answers 400 INVALID_PARAMETER_VALUE for a run it no longer knows about, never 404.
+# These are the two message forms the Databricks SDK overrides to ResourceDoesNotExist; the code
+# alone also covers malformed input, which must stay an error rather than trigger a resubmit.
+_RUN_MISSING_MESSAGE_PATTERN = re.compile(r"Run .* does not exist|Run: .* in job: .* doesn't exist")
+
+
+def _is_run_missing_error(exc: DatabricksApiError) -> bool:
+    """Whether ``exc`` means Databricks has no record of the run (expired, deleted, or foreign)."""
+    if exc.error_code == "RESOURCE_DOES_NOT_EXIST":
+        return True
+    return exc.error_code == "INVALID_PARAMETER_VALUE" and bool(_RUN_MISSING_MESSAGE_PATTERN.search(str(exc)))
+
 
 # Mapping from Airflow TriggerRule to Databricks RunIf condition.
 # Only non-default rules are included; ALL_SUCCESS is the Databricks default
@@ -189,6 +242,7 @@ def _handle_databricks_operator_execution(
                         repair_json["job_parameters"] = operator._merged_json["job_parameters"]
                     hook.repair_run(repair_json)
                     _handle_databricks_operator_execution(operator, hook, log, context)
+                    return
                 raise AirflowException(error_message)
 
             log.info("%s in run state: %s", operator.task_id, run_state)
@@ -1044,33 +1098,13 @@ class DatabricksSubmitRunOperator(ResumableJobMixin, BaseOperator):
         return self.run_id
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
-        # Databricks splits run state across life_cycle_state and result_state; the mixin's status
-        # interface is a single string, so encode both as "LIFE_CYCLE:RESULT" and decode them in
-        # is_job_active / is_job_succeeded.
-        try:
-            run_info = self._hook.get_run(external_id)
-        except DatabricksApiError as e:
-            # A stored run whose history expired (or was deleted) returns 404. Report a sentinel that
-            # is neither active nor succeeded so the mixin resubmits fresh instead of failing the task.
-            if e.http_status_code == 404:
-                return "NOT_FOUND:"
-            raise
-        state = RunState(**run_info["state"])
-        return f"{state.life_cycle_state}:{state.result_state}"
+        return fetch_run_status(self._hook, external_id, poll_interval=self.polling_period_seconds)
 
     def is_job_active(self, status: str) -> bool:
-        life_cycle_state = status.split(":", 1)[0]
-        return life_cycle_state in (
-            "PENDING",
-            "QUEUED",
-            "RUNNING",
-            "TERMINATING",
-            "BLOCKED",
-            "WAITING_FOR_RETRY",
-        )
+        return is_run_active(status)
 
     def is_job_succeeded(self, status: str) -> bool:
-        return status == "TERMINATED:SUCCESS"
+        return is_run_succeeded(status)
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         # submit_job and the stored external id are always Databricks run ids (int).
@@ -1540,33 +1574,13 @@ class DatabricksRunNowOperator(ResumableJobMixin, BaseOperator):
         return self.run_id
 
     def get_job_status(self, external_id: JsonValue, context: Context) -> str:
-        # Databricks splits run state across life_cycle_state and result_state; the mixin's status
-        # interface is a single string, so encode both as "LIFE_CYCLE:RESULT" and decode them in
-        # is_job_active / is_job_succeeded.
-        try:
-            run_info = self._hook.get_run(external_id)
-        except DatabricksApiError as e:
-            # A stored run whose history expired (or was deleted) returns 404. Report a sentinel that
-            # is neither active nor succeeded so the mixin resubmits fresh instead of failing the task.
-            if e.http_status_code == 404:
-                return "NOT_FOUND:"
-            raise
-        state = RunState(**run_info["state"])
-        return f"{state.life_cycle_state}:{state.result_state}"
+        return fetch_run_status(self._hook, external_id, poll_interval=self.polling_period_seconds)
 
     def is_job_active(self, status: str) -> bool:
-        life_cycle_state = status.split(":", 1)[0]
-        return life_cycle_state in (
-            "PENDING",
-            "QUEUED",
-            "RUNNING",
-            "TERMINATING",
-            "BLOCKED",
-            "WAITING_FOR_RETRY",
-        )
+        return is_run_active(status)
 
     def is_job_succeeded(self, status: str) -> bool:
-        return status == "TERMINATED:SUCCESS"
+        return is_run_succeeded(status)
 
     def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
         # submit_job and the stored external id are always Databricks run ids (int).
@@ -1640,11 +1654,12 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:DatabricksSQLStatementsOperator`
 
-    :param statement: The SQL statement to execute. The statement can optionally be parameterized, see parameters.
+    :param statement: The SQL statement to execute. The statement can optionally be parameterized,
+        see parameters. (templated)
     :param warehouse_id: Warehouse upon which to execute a statement.
     :param catalog: Sets default catalog for statement execution, similar to USE CATALOG in SQL.
     :param schema: Sets default schema for statement execution, similar to USE SCHEMA in SQL.
-    :param parameters: A list of parameters to pass into a SQL statement containing parameter markers.
+    :param parameters: A list of parameters to pass into a SQL statement containing parameter markers. (templated)
 
         .. seealso::
             https://docs.databricks.com/api/workspace/statementexecution/executestatement#parameters
@@ -1673,7 +1688,7 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ("databricks_conn_id", "query_tags")
+    template_fields: Sequence[str] = ("databricks_conn_id", "query_tags", "statement", "parameters")
     template_ext: Sequence[str] = (".json-tpl",)
     # Databricks brand color (blue) under white text
     ui_color = "#1CB1C2"
@@ -1820,7 +1835,7 @@ class DatabricksSQLStatementsOperator(DatabricksSQLStatementsMixin, BaseOperator
         )
 
 
-class DatabricksTaskBaseOperator(BaseOperator, ABC):
+class DatabricksTaskBaseOperator(ResumableJobMixin, BaseOperator, ABC):
     """
     Base class for operators that are run as Databricks job tasks or tasks within a Databricks workflow.
 
@@ -1846,7 +1861,11 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     :param max_retries: Databricks task retry count. Use ``-1`` for unlimited retries.
     :param min_retry_interval_millis: Minimum interval between Databricks task retries.
     :param retry_on_timeout: Whether Databricks retries timed-out tasks.
+    :param durable: Whether to reconnect to an already-submitted run on retry instead of
+        submitting a new one. Only applies outside a ``DatabricksWorkflowTaskGroup``.
     """
+
+    external_id_key = "databricks_task_run_id"
 
     template_fields: Sequence[str] = ("databricks_conn_id",)
 
@@ -1868,8 +1887,13 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         max_retries: int | str | None = None,
         min_retry_interval_millis: int | str | None = None,
         retry_on_timeout: bool | str | None = None,
+        durable: bool | None = None,
         **kwargs: Any,
     ):
+        # Named here (not left to **kwargs) so default_args reaches it on every
+        # supported Airflow version.
+        if durable is not None:
+            kwargs["durable"] = durable
         self.caller = caller
         self.databricks_conn_id = databricks_conn_id
         self._databricks_task_key = databricks_task_key
@@ -1888,6 +1912,7 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         self.retry_on_timeout = retry_on_timeout
 
         self.databricks_run_id: int | None = None
+        self._run_xcoms_pushed = False
 
         super().__init__(**kwargs)
 
@@ -2046,15 +2071,24 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
     def _launch_job(self, context: Context | None = None) -> int | None:
         """Launch the job on Databricks."""
         run_json = self._get_run_json()
+        # Return as soon as the run exists. A page URL lookup or an xcom push here would run
+        # before the mixin can persist the run id, so a failure would strand the run and let the
+        # retry submit a duplicate.
         self.databricks_run_id = self._hook.submit_run(run_json)
+        self.log.info("Run submitted with run_id: %s", self.databricks_run_id)
+        return self.databricks_run_id
+
+    def _record_run_details(self, context: Context) -> None:
+        """Log the run page URL and push the run xcoms, at most once per attempt."""
+        if self._run_xcoms_pushed or self.databricks_run_id is None:
+            return
         url = self._hook.get_run_page_url(self.databricks_run_id)
         self.log.info("Check the job run in Databricks: %s", url)
-
-        if self.do_xcom_push and context is not None:
-            context["ti"].xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
-            context["ti"].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=url)
-
-        return self.databricks_run_id
+        ti = context.get("ti") if context else None
+        if self.do_xcom_push and ti is not None:
+            ti.xcom_push(key=XCOM_RUN_ID_KEY, value=self.databricks_run_id)
+            ti.xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=url)
+        self._run_xcoms_pushed = True
 
     def _handle_terminal_run_state(self, run_state: RunState, errors: list) -> None:
         """Handle the terminal state of the run."""
@@ -2301,6 +2335,32 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
         errors = extract_failed_task_errors(self._hook, run, run_state)
         self._handle_terminal_run_state(run_state, errors)
 
+    def submit_job(self, context: Context) -> int | None:
+        return self._launch_job(context=context)
+
+    def get_job_status(self, external_id: JsonValue, context: Context) -> str:
+        self.databricks_run_id = cast("int", external_id)
+        return fetch_run_status(self._hook, external_id, poll_interval=self.polling_period_seconds)
+
+    def is_job_active(self, status: str) -> bool:
+        return is_run_active(status)
+
+    def is_job_succeeded(self, status: str) -> bool:
+        return is_run_succeeded(status)
+
+    def poll_until_complete(self, external_id: JsonValue, context: Context) -> None:
+        self.databricks_run_id = cast("int", external_id)
+        # The mixin's reconnect branch returns from here without reaching get_job_result, so the
+        # xcoms must be pushed before monitoring or a crash-recovered attempt leaves them unset.
+        self._record_run_details(context)
+        if self.wait_for_termination:
+            self.monitor_databricks_job()
+
+    def get_job_result(self, external_id: JsonValue, context: Context) -> None:
+        self.databricks_run_id = cast("int", external_id)
+        self._record_run_details(context)
+        return None
+
     def execute(self, context: Context) -> None:
         """Execute the operator. Launch the job and monitor it if wait_for_termination is set to True."""
         if self._databricks_workflow_task_group:
@@ -2320,10 +2380,13 @@ class DatabricksTaskBaseOperator(BaseOperator, ABC):
                     metadata=workflow_run_metadata,
                     logger=self.log,
                 )
-        else:
-            self._launch_job(context=context)
-        if self.wait_for_termination:
-            self.monitor_databricks_job()
+            # The run id comes from the upstream launch task's xcom, so a retry already reconnects
+            # to the shared run rather than submitting anything.
+            if self.wait_for_termination:
+                self.monitor_databricks_job()
+            return
+
+        self.execute_resumable(context)
 
     def execute_complete(self, context: dict | None, event: dict) -> None:
         run_state = RunState.from_json(event["run_state"])
@@ -2393,6 +2456,8 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
     :param max_retries: Databricks task retry count. Use ``-1`` for unlimited retries.
     :param min_retry_interval_millis: Minimum interval between Databricks task retries.
     :param retry_on_timeout: Whether Databricks retries timed-out tasks.
+    :param durable: Whether to reconnect to an already-submitted run on retry instead of
+        submitting a new one. Only applies outside a ``DatabricksWorkflowTaskGroup``.
     """
 
     template_fields = (
@@ -2425,6 +2490,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
         max_retries: int | str | None = None,
         min_retry_interval_millis: int | str | None = None,
         retry_on_timeout: bool | str | None = None,
+        durable: bool | None = None,
         **kwargs: Any,
     ):
         self.notebook_path = notebook_path
@@ -2448,6 +2514,7 @@ class DatabricksNotebookOperator(DatabricksTaskBaseOperator):
             max_retries=max_retries,
             min_retry_interval_millis=min_retry_interval_millis,
             retry_on_timeout=retry_on_timeout,
+            durable=durable,
             **kwargs,
         )
 
@@ -2549,6 +2616,8 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
     :param max_retries: Databricks task retry count, overriding ``task_config`` when set.
     :param min_retry_interval_millis: Minimum retry interval, overriding ``task_config`` when set.
     :param retry_on_timeout: Whether Databricks retries timed-out tasks, overriding ``task_config`` when set.
+    :param durable: Whether to reconnect to an already-submitted run on retry instead of
+        submitting a new one. Only applies outside a ``DatabricksWorkflowTaskGroup``.
     """
 
     CALLER = "DatabricksTaskOperator"
@@ -2578,6 +2647,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
         max_retries: int | str | None = None,
         min_retry_interval_millis: int | str | None = None,
         retry_on_timeout: bool | str | None = None,
+        durable: bool | None = None,
         **kwargs,
     ):
         self.task_config = task_config
@@ -2598,6 +2668,7 @@ class DatabricksTaskOperator(DatabricksTaskBaseOperator):
             max_retries=max_retries,
             min_retry_interval_millis=min_retry_interval_millis,
             retry_on_timeout=retry_on_timeout,
+            durable=durable,
             **kwargs,
         )
 

@@ -31,7 +31,7 @@ from collections import deque
 from collections.abc import Iterator
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import requests
 
@@ -48,6 +48,7 @@ with contextlib.suppress(ImportError, NameError):
     from airflow.providers.cncf.kubernetes import kube_client
 
 if TYPE_CHECKING:
+    from kubernetes.client import V1PodStatus
     from requests.auth import AuthBase
 
 DEFAULT_SPARK_BINARY = "spark-submit"
@@ -480,6 +481,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             # fallback if connection lookup fails; overridden by rest-scheme/rest-port extras below
             "rest_scheme": "http",
             "rest_port": 6066,
+            "rest_endpoint": None,
         }
 
         try:
@@ -532,6 +534,17 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
                         base64_keytab, conn_data["principal"]
                     )
+            # Construct the Standalone Restendpoint
+            if (
+                conn.conn_type == "spark"
+                and conn_data["master"].startswith("spark://")
+                and conn_data["deploy_mode"] == "cluster"
+                and "," not in conn_data["master"]  # only consider single master, non-HA for now
+            ):
+                host = conn_data["master"].replace("spark://", "").strip()
+                conn_data["rest_endpoint"] = (
+                    f"{conn_data['rest_scheme']}://{host.rsplit(':', 1)[0]}:{conn_data['rest_port']}"
+                )
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
@@ -733,16 +746,15 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         :return: full command to be executed
         """
         curl_max_wait_time = 30
-        spark_host = self._connection["master"]
-        if spark_host.endswith(":6066"):
-            spark_host = spark_host.replace("spark://", "http://")
+        if self._connection["rest_endpoint"]:
+            spark_host = self._connection["rest_endpoint"]
             connection_cmd = [
                 "/usr/bin/curl",
                 "--max-time",
                 str(curl_max_wait_time),
                 f"{spark_host}/v1/submissions/status/{self._driver_id}",
             ]
-            self.log.info(connection_cmd)
+            self.log.debug(connection_cmd)
 
             # The driver id so we can poll for its status
             if not self._driver_id:
@@ -1291,11 +1303,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     time.sleep(poll_interval)
                     continue
 
-                phase = pod.status.phase or "Initializing"
+                status = cast("V1PodStatus", pod.status)
+                phase = status.phase or "Initializing"
                 self.log.info("Application status for %s (phase: %s)", app_id, phase)
                 if phase == "Succeeded":
-                    if pod.status.container_statuses:
-                        cs = pod.status.container_statuses[0]
+                    if status.container_statuses:
+                        cs = status.container_statuses[0]
                         if cs.state and cs.state.terminated:
                             t = cs.state.terminated
                             self.log.info(
@@ -1309,8 +1322,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     break
                 if phase == "Failed":
                     container_state = ""
-                    if pod.status.container_statuses:
-                        cs = pod.status.container_statuses[0]
+                    if status.container_statuses:
+                        cs = status.container_statuses[0]
                         if cs.state and cs.state.terminated:
                             container_state = f" exit_code={cs.state.terminated.exit_code} reason={cs.state.terminated.reason}"
                     raise RuntimeError(f"Spark application {app_id} failed (phase=Failed{container_state})")
@@ -1354,17 +1367,30 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
         :return: full command to kill a driver
         """
-        # Assume that spark-submit is present in the path to the executing user
-        connection_cmd = [self._connection["spark_binary"]]
+        curl_max_wait_time = 30
+        if self._connection["rest_endpoint"]:
+            spark_host = self._connection["rest_endpoint"]
+            connection_cmd = [
+                "/usr/bin/curl",
+                "--max-time",
+                str(curl_max_wait_time),
+                "-X",
+                "POST",
+                f"{spark_host}/v1/submissions/kill/{self._driver_id}",
+            ]
+            self.log.debug(connection_cmd)
 
-        # The url to the spark master
-        connection_cmd += ["--master", self._connection["master"]]
+        else:
+            connection_cmd = self._get_spark_binary_path()
 
-        # The actual kill command
-        if self._driver_id:
-            connection_cmd += ["--kill", self._driver_id]
+            # The url to the spark master
+            connection_cmd += ["--master", self._connection["master"]]
 
-        self.log.debug("Spark-Kill cmd: %s", connection_cmd)
+            # The actual kill command
+            if self._driver_id:
+                connection_cmd += ["--kill", self._driver_id]
+
+            self.log.debug("Spark-Kill cmd: %s", connection_cmd)
 
         return connection_cmd
 
@@ -1376,10 +1402,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         try:
             client = kube_client.get_kube_client()
             client.delete_namespaced_pod(
-                self._kubernetes_driver_pod,
+                cast("str", self._kubernetes_driver_pod),
                 self._connection["namespace"],
                 body=kubernetes.client.V1DeleteOptions(),
-                pretty=True,
+                pretty="true",
             )
             self.log.info("Deleted driver pod %s", self._kubernetes_driver_pod)
         except kube_client.ApiException:

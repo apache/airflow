@@ -50,17 +50,8 @@ class TestContainerLifecycleHooks:
             ],
         )
 
-        # Default for every service is None except for pgbouncer
-        for doc in docs[:-1]:
+        for doc in docs:
             assert jmespath.search("spec.template.spec.containers[0].lifecycle", doc) is None
-
-        pgbouncer_default_value = {
-            "exec": {"command": ["/bin/sh", "-c", "killall -INT pgbouncer && sleep 120"]}
-        }
-        assert pgbouncer_default_value == jmespath.search(
-            "spec.template.spec.containers[0].lifecycle.preStop", docs[-1]
-        )
-        assert jmespath.search("spec.template.spec.containers[0].lifecycle.postStart", docs[-1]) is None
 
     # Test Global container lifecycle hooks for the main services
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
@@ -165,7 +156,7 @@ class TestContainerLifecycleHooks:
             == LIFECYCLE_PARSED
         )
 
-    # Test container lifecycle hooks for worker-kerberos main container
+    # Test container lifecycle hooks for worker-kerberos native sidecar
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])
     def test_worker_kerberos_container_setting(self, hook_type):
         docs = render_chart(
@@ -183,9 +174,9 @@ class TestContainerLifecycleHooks:
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert jmespath.search("spec.template.spec.containers[2].lifecycle", docs[0]) == {
-            hook_type: LIFECYCLE_PARSED
-        }
+        assert jmespath.search(
+            "spec.template.spec.initContainers[?name=='worker-kerberos'] | [0].lifecycle", docs[0]
+        ) == {hook_type: LIFECYCLE_PARSED}
 
     # Test container lifecycle hooks for log-groomer-sidecar main container
     @pytest.mark.parametrize("hook_type", ["preStop", "postStart"])

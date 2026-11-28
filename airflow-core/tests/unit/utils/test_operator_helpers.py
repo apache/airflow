@@ -17,50 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
-from unittest import mock
-
 import pytest
 
+from airflow.sdk.bases.decorator import determine_kwargs
 from airflow.utils import operator_helpers
-
-
-class TestOperatorHelpers:
-    def setup_method(self):
-        self.dag_id = "dag_id"
-        self.task_id = "task_id"
-        self.try_number = 1
-        self.logical_date = "2017-05-21T00:00:00"
-        self.dag_run_id = "dag_run_id"
-        self.owner = ["owner1", "owner2"]
-        self.email = ["email1@test.com"]
-        self.context = {
-            "dag_run": mock.MagicMock(
-                name="dag_run",
-                run_id=self.dag_run_id,
-                logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
-            ),
-            "task_instance": mock.MagicMock(
-                name="task_instance",
-                task_id=self.task_id,
-                dag_id=self.dag_id,
-                try_number=self.try_number,
-                logical_date=datetime.strptime(self.logical_date, "%Y-%m-%dT%H:%M:%S"),
-            ),
-            "task": mock.MagicMock(name="task", owner=self.owner, email=self.email),
-        }
 
 
 def callable1(ds_nodash):
     return (ds_nodash,)
-
-
-def callable3(ds_nodash, *args, **kwargs):
-    return (ds_nodash, args, kwargs)
-
-
-def callable4(ds_nodash, **kwargs):
-    return (ds_nodash, kwargs)
 
 
 def callable5(**kwargs):
@@ -143,5 +107,5 @@ def test_make_kwargs_callable_conflict():
     ],
 )
 def test_args_and_kwargs_conflicts(func, args, kwargs, expected):
-    kwargs_result = operator_helpers.determine_kwargs(func, args=args, kwargs=kwargs)
+    kwargs_result = determine_kwargs(func, args=args, kwargs=kwargs)
     assert expected == kwargs_result

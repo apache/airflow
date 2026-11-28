@@ -1,4 +1,4 @@
-.. Licensed to the Apache Software Foundation (ASF) under one
+ .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
     regarding copyright ownership.  The ASF licenses this file
@@ -428,6 +428,22 @@ You can read more about executors and how to write your own in :doc:`core-concep
   You could have succeeded with implementing a custom executor before Airflow 2.6, and a number
   of people did, but there were some hard-coded behaviours that preferred in-built
   executors, and custom executors could not provide full functionality that built-in executors had.
+
+Dag Importers
+-------------
+
+|experimental|
+
+Dag importers turn the contents of a Dag bundle into Dags, which lets Airflow load Dags from formats other
+than Python files. All Dag importers derive from :class:`~airflow.sdk.importers.AbstractDagImporter`.
+
+The importer interface, as listed in the :doc:`Task SDK API reference <task-sdk:api>`, is public, but it may
+still change in a minor release while it is being stabilized.
+
+You can read more about Dag importers and how to write your own in
+:doc:`administration-and-deployment/dag-importers`.
+
+.. versionadded:: 3.4.0
 
 Secrets Backends
 ----------------

@@ -26,6 +26,9 @@ name picks the vendor. Switching vendors is a connection
 change, not a Dag change. Find your vendor below, install the extra, create the connection
 type shown, and set the model name with that prefix.
 
+For the exhaustive, generated-and-hand-written list of every service this provider
+reaches (connections and toolsets alike), see :doc:`supported_services`.
+
 .. list-table::
    :header-rows: 1
    :widths: 18 16 18 20 28
@@ -95,6 +98,18 @@ type shown, and set the model name with that prefix.
      - ``SNOWFLAKE_ACCOUNT`` and ``SNOWFLAKE_TOKEN`` in the worker environment; leave
        **Password** empty. The ``pydanticai_snowflake`` connection type instead sources
        OAuth, PAT or key-pair credentials from an existing Snowflake connection.
+   * - Databricks Model Serving
+     - ``openai-chat:``
+     - ``[openai]`` for ``pydanticai``, or
+       ``apache-airflow-providers-databricks[common.ai]`` and
+       ``apache-airflow-providers-common-ai[openai]`` for ``pydanticai_databricks``
+     - ``pydanticai``, or ``pydanticai_databricks``
+       (:doc:`apache-airflow-providers-databricks:connections/pydantic_ai_databricks`)
+     - For a personal access token with ``pydanticai``: model ``openai-chat:<endpoint>``,
+       ``https://<workspace>/serving-endpoints`` in **Host**, token in **Password**. The
+       ``pydanticai_databricks`` connection type instead sources PAT, OAuth, Azure or federated
+       credentials from an existing Databricks connection, refreshing the token on each request;
+       leave **Password** empty.
    * - TypeSafe Jev (decision model, does not write text)
      - ``typesafe:``
      - ``[typesafe]``
@@ -112,12 +127,31 @@ type shown, and set the model name with that prefix.
 name the matching ``pydantic-ai-slim`` extra instead, because this provider does not ship one
 for them. The Snowflake entry lists one install per connection type: ``pydanticai`` uses the
 ``pydantic-ai-slim`` extra, while the ``pydanticai_snowflake`` type ships with the Snowflake
-provider and is installed through its ``[common.ai]`` extra.
+provider and is installed through its ``[common.ai]`` extra. The ``pydanticai_databricks`` type
+ships with the Databricks provider and is installed through its ``[common.ai]`` extra the same way,
+together with this provider's ``[openai]`` extra.
 
 Any other vendor that `pydantic-ai supports <https://ai.pydantic.dev/models/overview/>`__
 (Cohere, OpenRouter, Hugging Face and more) works the same
 way: install the ``pydantic-ai-slim`` extra named on that vendor's pydantic-ai page, create a
 ``pydanticai`` connection, and use the prefix from that page.
+
+Hosted OpenAI-compatible services
+---------------------------------
+
+A hosted service that exposes the OpenAI-compatible API is set up like a self-hosted server:
+a ``pydanticai`` connection with the service's base URL in **Host**, its API key in
+**Password**, and the ``openai:`` prefix on the model name. For example, TrustedRouter is an
+OpenAI-compatible router:
+
+.. code-block:: json
+
+    {
+        "conn_type": "pydanticai",
+        "host": "https://api.trustedrouter.com/v1",
+        "password": "<api-key>",
+        "extra": "{\"model\": \"openai:trustedrouter/auto\"}"
+    }
 
 Where the model name goes
 -------------------------
@@ -125,8 +159,8 @@ Where the model name goes
 Set the model on the connection's **Model** field in ``provider:model`` form, for example
 ``anthropic:claude-sonnet-5``. An operator's ``model_id`` overrides it for that task, so one
 connection can serve several models from the same vendor. The generic ``pydanticai``
-connection has no vendor of its own, so a bare model name without a prefix is rejected; the
-Azure, Bedrock and Vertex connection types each supply their own prefix and accept a bare
+connection has no vendor of its own, so a bare model name without a prefix is rejected unless
+the connection sets **Default Model Provider**; the Azure, Bedrock and Vertex connection types each supply their own prefix and accept a bare
 name. :doc:`connections/pydantic_ai` has every field and the full resolution order.
 
 Reliability across vendors

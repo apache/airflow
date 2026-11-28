@@ -41,6 +41,10 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
         {
             "children": None,
             "id": "task1",
+            "is_loop": None,
+            "loop_max_iterations": None,
+            "loop_exit_task_id": None,
+            "loop_exit_criteria_doc": None,
             "is_mapped": None,
             "label": "task1",
             "tooltip": None,
@@ -49,12 +53,18 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "trigger_id": None,
+            "trigger_status": None,
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
         },
         {
             "children": None,
             "id": "task2",
+            "is_loop": None,
+            "loop_max_iterations": None,
+            "loop_exit_task_id": None,
+            "loop_exit_criteria_doc": None,
             "is_mapped": None,
             "label": "task2",
             "tooltip": None,
@@ -63,12 +73,18 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "trigger_id": None,
+            "trigger_status": None,
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
         },
         {
             "children": None,
             "id": "task3",
+            "is_loop": None,
+            "loop_max_iterations": None,
+            "loop_exit_task_id": None,
+            "loop_exit_criteria_doc": None,
             "is_mapped": None,
             "label": "task3",
             "tooltip": None,
@@ -77,6 +93,8 @@ LATEST_VERSION_DAG_RESPONSE: dict = {
             "team": None,
             "operator": "EmptyOperator",
             "asset_condition_type": None,
+            "trigger_id": None,
+            "trigger_status": None,
             "ui_color": "#e8f7e4",
             "ui_fgcolor": "#000",
         },
@@ -182,10 +200,16 @@ class TestStructureDataEndpoint:
                     "nodes": [
                         {
                             "asset_condition_type": None,
+                            "trigger_id": None,
+                            "trigger_status": None,
                             "ui_color": "#e8f7e4",
                             "ui_fgcolor": "#000",
                             "children": None,
                             "id": "task_1",
+                            "is_loop": None,
+                            "loop_max_iterations": None,
+                            "loop_exit_task_id": None,
+                            "loop_exit_criteria_doc": None,
                             "is_mapped": None,
                             "label": "task_1",
                             "tooltip": None,
@@ -196,10 +220,16 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "asset_condition_type": None,
+                            "trigger_id": None,
+                            "trigger_status": None,
                             "ui_color": "#4db7db",
                             "ui_fgcolor": "#000",
                             "children": None,
                             "id": "external_task_sensor",
+                            "is_loop": None,
+                            "loop_max_iterations": None,
+                            "loop_exit_task_id": None,
+                            "loop_exit_criteria_doc": None,
                             "is_mapped": None,
                             "label": "external_task_sensor",
                             "tooltip": None,
@@ -210,10 +240,16 @@ class TestStructureDataEndpoint:
                         },
                         {
                             "asset_condition_type": None,
+                            "trigger_id": None,
+                            "trigger_status": None,
                             "ui_color": "#e8f7e4",
                             "ui_fgcolor": "#000",
                             "children": None,
                             "id": "task_2",
+                            "is_loop": None,
+                            "loop_max_iterations": None,
+                            "loop_exit_task_id": None,
+                            "loop_exit_criteria_doc": None,
                             "is_mapped": None,
                             "label": "task_2",
                             "tooltip": None,
@@ -246,10 +282,16 @@ class TestStructureDataEndpoint:
                     "nodes": [
                         {
                             "asset_condition_type": None,
+                            "trigger_id": None,
+                            "trigger_status": None,
                             "ui_color": "#e8f7e4",
                             "ui_fgcolor": "#000",
                             "children": None,
                             "id": "task_1",
+                            "is_loop": None,
+                            "loop_max_iterations": None,
+                            "loop_exit_task_id": None,
+                            "loop_exit_criteria_doc": None,
                             "is_mapped": None,
                             "label": "task_1",
                             "operator": "EmptyOperator",
@@ -392,6 +434,28 @@ class TestStructureDataEndpoint:
         )
         assert mapped_in_group["is_mapped"] is True
         assert mapped_in_group["operator"] == "PythonOperator"
+
+    def test_filter_creating_task_group_cycle(self, dag_maker, test_client, session):
+        """Dropping ``g.guard`` makes ``g.second`` a root of ``g``, so ``g`` and ``bridge`` depend on each other."""
+        with dag_maker(dag_id="filtered_task_group_cycle", serialized=True, session=session):
+            with TaskGroup(group_id="g"):
+                first = EmptyOperator(task_id="first")
+                second = EmptyOperator(task_id="second")
+                guard = EmptyOperator(task_id="guard")
+                guard >> second
+            bridge = EmptyOperator(task_id="bridge")
+            first >> bridge >> second
+        dag_maker.sync_dagbag_to_db()
+
+        response = test_client.get(
+            "/structure/structure_data",
+            params={"dag_id": "filtered_task_group_cycle", "root": "g.first", "include_downstream": True},
+        )
+
+        assert response.status_code == 200
+        nodes = response.json()["nodes"]
+        assert [node["id"] for node in nodes] == ["bridge", "g"]
+        assert [child["id"] for child in nodes[1]["children"]] == ["g.first", "g.second"]
 
     def test_ui_colors_passed_through_to_graph(self, dag_maker, test_client, session):
         """Both raw hex colors and Chakra palette tokens reach the graph unchanged, for operators and groups."""

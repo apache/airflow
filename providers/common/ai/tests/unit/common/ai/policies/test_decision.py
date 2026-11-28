@@ -51,7 +51,7 @@ class TestDecisionPolicy:
 
     def test_is_frozen(self):
         with pytest.raises(AttributeError):
-            DecisionPolicy().min_confidence = 0.5  # type: ignore[misc]
+            DecisionPolicy().min_confidence = 0.5
 
     def test_validate_accepts_none_and_a_policy_only(self):
         assert validate_decision_policy(None) == DecisionPolicy()

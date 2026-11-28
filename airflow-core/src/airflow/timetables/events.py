@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import itertools
 from typing import TYPE_CHECKING, Any
 
@@ -137,5 +138,7 @@ class EventsTimetable(Timetable):
             presorted=True,
             description=data["description"],
         )
-        timetable._summary = data["_summary"]
+        # The Task SDK encoder does not emit _summary; keep the one computed from description.
+        with contextlib.suppress(KeyError):
+            timetable._summary = data["_summary"]
         return timetable

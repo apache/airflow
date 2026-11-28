@@ -31,9 +31,9 @@ now be available through that additional ``d12345`` prefix. Without rebuilding
 the frontend, XHR requests and static file queries should be directed to the prefixed url
 and served successfully.
 
-You will also need to update the execution API server url
-:ref:`config:core__execution_api_server_url` for tasks to be able to reach the API
-with the new prefix.
+The default execution API server url :ref:`config:core__execution_api_server_url` follows
+``base_url``, so tasks reach the API with the new prefix. If you set ``execution_api_server_url``
+explicitly, add the prefix to it as well.
 
 Separating API Servers
 -----------------------
@@ -57,6 +57,13 @@ separately. This might be useful for scaling them independently or for deploying
    airflow api-server --apps core
    # serve only the Execution API Server
    airflow api-server --apps execution
+
+Tasks call the Execution API at :ref:`config:core__execution_api_server_url`, which defaults to
+``{base_url}/execution/`` (see :ref:`config:api__base_url`). When you separate the servers, either
+have your proxy route that path to the Execution API Server, or point ``execution_api_server_url``
+at it wherever tasks run, for example ``http://airflow-execution-api:8080/execution/``. If
+``base_url`` has a path such as ``/d12345``, the Execution API Server serves under that path too,
+so include it: ``http://airflow-execution-api:8080/d12345/execution/``.
 
 Known Issues
 ------------

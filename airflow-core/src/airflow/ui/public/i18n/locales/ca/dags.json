@@ -1,10 +1,15 @@
 {
-  "assetSchedule": "Actualitzats {{count}} de {{total}} Assets",
+  "assetSchedule": "Actualitzats {{count, number}} de {{total, number}} Assets",
   "dagActions": {
     "delete": {
       "button": "Eliminar Dag",
       "warning": "Això eliminarà tota la metadada relacionada amb el Dag, incloent-hi Execucions i Tasques."
     }
+  },
+  "draining": {
+    "badgeTooltip": "Aquest Dag es pausarà quan les execucions en curs hagin finalitzat.",
+    "label": "Drenant",
+    "tooltip": "Drenatge de {{dagDisplayName}} — es posarà en pausa quan acabin les execucions del DAG que estan en curs. Feu clic per reprendre'l."
   },
   "favoriteDag": "Dag favorit",
   "filters": {
@@ -17,6 +22,7 @@
     },
     "favoriteState": "Estat de favorit",
     "favoriteStatePlaceholder": "Seleccionar l'estat de favorit…",
+    "hasImportErrors": "Té errors d'importació",
     "noTimetableTypesFound": "No s'han trobat tipus de calendari",
     "paused": {
       "active": "Actius",
@@ -27,13 +33,28 @@
     "pausedState": "Estat de pausa",
     "requiresHitlAction": "Requereix una acció HITL",
     "runIdPatternFilter": "Cerca execucions de Dag",
+    "runState": "Estat de l'execució",
+    "runStatePlaceholder": "Seleccionar l'estat de l'execució…",
     "timetableType": "Tipus de calendari"
   },
+  "folders": {
+    "all": "Tots els Dags",
+    "empty": "No hi ha carpetes",
+    "hide": "Amagar carpetes",
+    "show": "Mostrar carpetes",
+    "title": "Carpetes"
+  },
   "ownerLink": "Enllaç del propietari {{owner}}",
+  "recentTaskStateCounts": {
+    "description": "Estat de les tasques de totes les execucions actives del Dag. Si no n'hi ha cap, es mostra l'estat de les tasques de la darrera execució. Podeu desactivar aquesta opció a la configuració d'usuari.",
+    "label": "Tasques recents",
+    "loading": "S'està carregant el recompte de tasques recents per estat",
+    "tooltip": "{{state}}: {{formattedCount}} — feu clic per a filtrar les tasques"
+  },
   "runAndTaskActions": {
     "affectedTasks": {
       "noItemsFound": "No s'han trobat tasques.",
-      "title": "Tasques afectades: {{count}}"
+      "title": "Tasques afectades: {{count, number}}"
     },
     "clear": {
       "button": "Rellançar {{type}}",
@@ -69,19 +90,24 @@
         "failed": "Prem shift+f per a marcar com a fallit",
         "success": "Prem shift+s per a marcar com a exitós"
       },
+      "skippedInfo": "Marcar una instància de tasca com a saltada deixa constància que s'ha decidit no executar-la. Les tasques aigües avall continuen subjectes a les seves regles d'execució. Amb la regla predeterminada «all_success», també se saltaran. Només es poden saltar les instàncies de tasca que encara no s'han començat a executar. L'acció només afecta aquesta instància.",
       "title": "Marcar {{type}} com a {{state}}"
     },
     "options": {
       "downstream": "Aigües avall",
       "existingTasks": "Rellançar tasques existents",
       "future": "Futur",
+      "includeDependentDags": "Rellançar les tasques dels Dags dependents",
+      "keepTaskState": "Conservar l'estat de la tasca i reprendre",
+      "laterIterations": "Iteracions posteriors",
       "onlyFailed": "Rellançar només tasques fallides",
       "past": "Passat",
       "preventRunningTasks": "Evitar rellançar tasques en execució",
       "queueNew": "Afegir noves tasques a la cua",
       "runOnLatestVersion": "Executar amb la última versió de la col·lecció",
       "runOnLatestVersionForced": "Sempre utilitza la versió més recent: no hi ha cap versió anterior a la qual tornar",
-      "upstream": "Aigües amunt"
+      "upstream": "Aigües amunt",
+      "wholeExpansion": "Tota l'expansió"
     }
   },
   "runStateCounts": {
@@ -89,11 +115,23 @@
     "loading": "Carregant el recompte d'estats de les execucions",
     "tooltip": "{{state}}: {{formattedCount}} — feu clic per a filtrar les execucions"
   },
+  "schedulingActions": {
+    "cancelDrain": "Cancel·lar el drenatge",
+    "drain": "Drenar i pausar",
+    "drainPrompt": "Aquest DAG té execucions en curs. El drenatge permet que acabin abans de posar el DAG en pausa; si el poses en pausa ara, la planificació s'atura immediatament sense esperar que acabin.",
+    "pauseNow": "Pausar ara",
+    "pauseSelected": "Pausar / Drenar"
+  },
+  "schedulingBanner": {
+    "message": "Aquest DAG s'està drenant. Es posarà en pausa quan acabin les execucions del DAG que estan en curs."
+  },
   "search": {
     "advanced": "Cerca avançada",
     "clear": "Netejar cerca",
+    "dagRuns": "Cercar $t(common:dagRun_other)",
     "dags": "Cercar Dags",
     "hotkey": "+K",
+    "mapIndexes": "Cercar $t(common:mapIndex)",
     "tasks": "Cercar Tasques"
   },
   "sort": {

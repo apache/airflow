@@ -39,7 +39,7 @@ from kubernetes_asyncio.config.kube_config import FileOrData
 
 from airflow import version
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
-from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
+from airflow.providers.cncf.kubernetes.kube_client import configure_tcp_keepalive
 from airflow.providers.common.compat.sdk import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
@@ -74,9 +74,10 @@ class GKEClusterConnection:
 
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()
-        configuration.refresh_api_key_hook = self._refresh_api_key_hook
+        # Kubernetes types this public callback as None.
+        configuration.refresh_api_key_hook = self._refresh_api_key_hook  # type: ignore[assignment]
         if self.enable_tcp_keepalive:
-            _enable_tcp_keepalive()
+            configure_tcp_keepalive(configuration)
         return client.ApiClient(configuration)
 
     def _refresh_api_key_hook(self, configuration: client.configuration.Configuration):
@@ -513,7 +514,7 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
         )
 
     @contextlib.asynccontextmanager
-    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:
+    async def get_conn(self) -> AsyncGenerator[async_client.ApiClient, None]:  # type: ignore[override]
         kube_client = None
         try:
             kube_client = await self._load_config()

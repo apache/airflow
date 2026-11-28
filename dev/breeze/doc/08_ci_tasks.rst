@@ -161,6 +161,62 @@ If it cannot determine which milestone should be added, it also adds a comment t
   :width: 100%
   :alt: Milestone Tag Assistant
 
+Checking your fork CI setup
+---------------------------
+
+Pull requests from external contributors can run their CI in the contributor's fork (AIP-120).
+``breeze ci audit`` checks, read-only, whether your checkout and fork are set up for that: ``gh``
+installed and authenticated, the ``upstream`` remote pointing at ``apache/airflow`` and ``origin`` at your
+fork, whether you are a committer, collaborator, member of an exempted organisation, pilot participant or
+external contributor, whether the ``Tests (AMD)`` workflow in your fork is enabled and GitHub Actions lets it
+run, including whether GitHub has paused GitHub Actions in your fork (when your pull requests use fork CI),
+how far your fork's ``main`` is behind, the branch you are on, and which workflows in your fork only start
+runs that fork CI does not need.
+Each failing check prints the command that fixes it; ``--fix`` runs those commands after asking.
+
+These are all available flags of ``audit`` command:
+
+.. image:: ./images/output_ci_audit.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_audit.svg
+  :width: 100%
+  :alt: Breeze ci audit
+
+Reconciling pull requests gated to fork CI
+------------------------------------------
+
+Pull requests from external contributors can run their CI in the contributor's fork instead of in
+``apache/airflow`` (AIP-120). The ``fork-ci-reconcile`` command, run every 5 minutes by the
+``fork-ci-monitor.yml`` workflow, is the only place that changes those pull requests: their labels,
+draft state, state comment and commit statuses. With ``--dry-run`` it prints the changes instead of
+applying them. What it does is described in
+`Fork CI for external contributors <ci/08_fork_ci_for_external_contributors.md#reconciler>`_.
+
+These are all available flags of ``fork-ci-reconcile`` command:
+
+.. image:: ./images/output_ci_fork-ci-reconcile.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_fork-ci-reconcile.svg
+  :width: 100%
+  :alt: Breeze ci fork-ci-reconcile
+
+Approving workflow runs of external contributors
+------------------------------------------------
+
+The ``auto-approve-workflow-runs`` workflow runs ``approve-workflow-runs`` every 15 minutes. It approves
+the waiting workflow runs of external contributors' PRs that its rules allow, and labels the other PRs
+``need workflow approval``, with a pending ``Workflow approval`` commit status on their head commit
+that gives the reason. For every PR it also estimates the CI jobs selective checks will run and how
+long they take, and writes them to the job summary. Use ``--report-only`` to see the decisions without
+approving runs or changing labels or statuses. The rules, including those for PRs whose CI runs in
+the contributor's fork, are described in
+`Approval of pull request runs <ci/05_workflows.md#approval-of-pull-request-runs>`_.
+
+These are all available flags of ``approve-workflow-runs`` command:
+
+.. image:: ./images/output_ci_approve-workflow-runs.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_ci_approve-workflow-runs.svg
+  :width: 100%
+  :alt: Breeze ci approve-workflow-runs
+
 -----
 
 Next step: Follow the `Release management tasks <09_release_management_tasks.rst>`_ guide to learn how

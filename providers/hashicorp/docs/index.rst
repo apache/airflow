@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -69,7 +68,7 @@ apache-airflow-providers-hashicorp package
 Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 
-Release: 4.8.2
+Release: 4.8.5
 
 Provider package
 ----------------
@@ -130,7 +129,7 @@ Install them when installing from PyPI. For example:
 ==========  ===================================
 Extra       Dependencies
 ==========  ===================================
-``boto3``   ``boto3>=1.42.79``
+``boto3``   ``boto3>=1.43.6``
 ``google``  ``apache-airflow-providers-google``
 ==========  ===================================
 
@@ -140,5 +139,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-hashicorp 4.8.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-hashicorp 4.8.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-hashicorp 4.8.5 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.5.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.5.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.5.tar.gz.sha512>`__)
+* `The apache-airflow-providers-hashicorp 4.8.5 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.5-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.5-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_hashicorp-4.8.5-py3-none-any.whl.sha512>`__)

@@ -66,9 +66,10 @@ if hasattr(BaseExecutor, "get_task_key"):
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from kubernetes.client import Configuration, models as k8s
+    from kubernetes.client import models as k8s
 
     from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 
 
 class ResourceVersion:
@@ -92,9 +93,10 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         watcher_queue: Queue[KubernetesWatch],
         resource_version: str | None,
         scheduler_job_id: str,
-        kube_config: Configuration,
+        kube_config: KubeConfig,
         supports_task_instance_uuid: bool = False,
         team_name: str | None = None,
+        client_factory: str | None = None,
     ):
         super().__init__()
         self.namespace = namespace
@@ -103,16 +105,19 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         self.resource_version = resource_version
         self.kube_config = kube_config
         self.supports_task_instance_uuid = supports_task_instance_uuid
-        # A string survives the spawn start method, so the watcher can resolve its team's factory
-        # from configuration in its own process.
+        # Strings survive the spawn start method, so the watcher can build its team's client in its
+        # own process.
         self.team_name = team_name
+        self.client_factory = client_factory
 
     def run(self) -> None:
         """Perform watching."""
         if TYPE_CHECKING:
             assert self.scheduler_job_id
 
-        kube_client: client.CoreV1Api = _get_executor_kube_client(team_name=self.team_name)
+        kube_client: client.CoreV1Api = _get_executor_kube_client(
+            team_name=self.team_name, executor_client_factory=self.client_factory
+        )
         while True:
             try:
                 self.resource_version = self._run(
@@ -144,7 +149,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     pods = kube_client.list_pod_for_all_namespaces(watch=False)
                 else:
                     pods = kube_client.list_namespaced_pod(namespace=self.namespace, watch=False)
-                resource_version = pods.metadata.resource_version
+                resource_version = cast("client.V1ListMeta", pods.metadata).resource_version
                 query_kwargs["resource_version"] = resource_version
                 return self._pod_events(kube_client=kube_client, query_kwargs=query_kwargs)
             raise
@@ -450,6 +455,8 @@ def _analyze_containers(
 
     for cs in container_statuses:
         state_obj = cs.state
+        if state_obj is None:
+            continue
         if state_obj.terminated:
             terminated_reason = getattr(state_obj.terminated, "reason", None)
             exit_code = getattr(state_obj.terminated, "exit_code", 0)
@@ -507,6 +514,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         scheduler_job_id: str,
         team_name: str | None = None,
         supports_task_instance_uuid: bool = False,
+        client_factory: str | None = None,
+        async_client_factory: str | None = None,
     ):
         super().__init__()
         self.log.debug("Creating Kubernetes executor")
@@ -521,6 +530,8 @@ class AirflowKubernetesScheduler(LoggingMixin):
         self.scheduler_job_id = scheduler_job_id
         # Set before the watchers are built, since they are told which team they are watching for.
         self.team_name = team_name
+        self.client_factory = client_factory
+        self.async_client_factory = async_client_factory
         self.kube_watchers = self._make_kube_watchers()
         # Async pod-creation state; populated lazily, only used when async_pod_creation is enabled.
         self._async_loop: asyncio.AbstractEventLoop | None = None
@@ -531,6 +542,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def run_pod_async(self, pod: k8s.V1Pod, **kwargs):
         """Run POD asynchronously."""
+        metadata = cast("k8s.V1ObjectMeta", pod.metadata)
         sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
         json_pod = json.dumps(sanitized_pod, indent=2)
 
@@ -540,7 +552,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 "kubernetes_executor.pod_creation", tags=prune_dict({"team_name": self.team_name})
             ):
                 resp = self.kube_client.create_namespaced_pod(
-                    body=sanitized_pod, namespace=pod.metadata.namespace, **kwargs
+                    body=sanitized_pod, namespace=cast("str", metadata.namespace), **kwargs
                 )
             Stats.incr(
                 "kubernetes_executor.pod_creation_status",
@@ -573,6 +585,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             kube_config=self.kube_config,
             supports_task_instance_uuid=self.supports_task_instance_uuid,
             team_name=self.team_name,
+            client_factory=self.client_factory,
         )
         watcher.start()
         return watcher
@@ -666,19 +679,21 @@ class AirflowKubernetesScheduler(LoggingMixin):
             base_worker_pod=base_worker_pod,
             with_mutation_hook=True,
         )
+        metadata = cast("k8s.V1ObjectMeta", pod.metadata)
+        annotations = cast("dict[str, str]", metadata.annotations)
         if self.supports_task_instance_uuid and isinstance(key, TaskInstanceUuid):
-            pod.metadata.annotations[TASK_INSTANCE_ID_ANNOTATION] = str(key)
-            pod.metadata.labels[TASK_INSTANCE_ID_LABEL] = str(key)
+            annotations[TASK_INSTANCE_ID_ANNOTATION] = str(key)
+            cast("dict[str, str]", metadata.labels)[TASK_INSTANCE_ID_LABEL] = str(key)
         # Reconcile the pod generated by the Operator and the Pod
         # generated by the .cfg file
         self.log.info(
             "Creating kubernetes pod for job is %s, with pod name %s, annotations: %s",
             key,
-            pod.metadata.name,
-            annotations_for_logging_task_metadata(pod.metadata.annotations),
+            metadata.name,
+            annotations_for_logging_task_metadata(annotations),
         )
         self.log.debug("Kubernetes running for command %s", command)
-        self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
+        self.log.debug("Kubernetes launching image %s", cast("k8s.V1PodSpec", pod.spec).containers[0].image)
         return pod
 
     def run_next_batch(self, next_jobs: list[KubernetesJob]) -> list[tuple[KubernetesJob, Exception | None]]:
@@ -720,12 +735,15 @@ class AirflowKubernetesScheduler(LoggingMixin):
     ) -> list[Exception | None]:
         """Issue create_namespaced_pod calls concurrently, bounded by a semaphore; one result per pod, in order."""
         if self._async_pod_client is None:
-            self._async_pod_client = await _get_executor_async_kube_client(team_name=self.team_name)
+            self._async_pod_client = await _get_executor_async_kube_client(
+                team_name=self.team_name, executor_client_factory=self.async_client_factory
+            )
         api = self._async_pod_client
         semaphore = asyncio.Semaphore(self.pod_creation_max_concurrency)
         request_kwargs: dict[str, Any] = self.kube_config.kube_client_request_args or {}
 
         async def _create(pod: k8s.V1Pod) -> None:
+            metadata = cast("k8s.V1ObjectMeta", pod.metadata)
             # Sanitize with the sync client (identical to run_pod_async) to guarantee the
             # request body matches the sequential path exactly.
             sanitized_pod = self.kube_client.api_client.sanitize_for_serialization(pod)
@@ -733,7 +751,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 try:
                     with Stats.timer("kubernetes_executor.pod_creation"):
                         await api.create_namespaced_pod(
-                            body=sanitized_pod, namespace=pod.metadata.namespace, **request_kwargs
+                            body=sanitized_pod, namespace=cast("str", metadata.namespace), **request_kwargs
                         )
                     Stats.incr("kubernetes_executor.pod_creation_status", tags={"status": "200"})
                 except async_client.exceptions.ApiException as e:

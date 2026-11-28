@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -156,3 +157,116 @@ def test_find_sdk_modules_requires_the_selected_runtimes_sdk(skill_eval_module, 
         skill_eval_module.find_sdk_modules("codex")
 
     assert exit_info.value.code == 1
+
+
+def test_find_sdk_modules_runs_version_check_with_repo_local_config(
+    monkeypatch, skill_eval_module, promptfoo_layout
+):
+    promptfoo_layout.install(promptfoo_layout.install_root, skill_eval_module.SDK_PACKAGES["claude"])
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(stdout=f"{skill_eval_module.PROMPTFOO_VERSION}\n")
+
+    monkeypatch.setattr(skill_eval_module, "run", fake_run)
+
+    skill_eval_module.find_sdk_modules("claude")
+
+    assert calls[0]["env"]["PROMPTFOO_CONFIG_DIR"] == str(skill_eval_module.PROMPTFOO_STATE_DIR)
+
+
+@pytest.mark.parametrize(
+    ("runtime", "token_file_content", "expected"),
+    [
+        pytest.param("claude", None, {}, id="unset"),
+        pytest.param("claude", "tok-123\n", {"CLAUDE_CODE_OAUTH_TOKEN": "tok-123"}, id="claude"),
+        pytest.param("codex", "", {}, id="codex-ignores-file"),
+    ],
+)
+def test_read_claude_token_env(
+    monkeypatch, skill_eval_module, tmp_path, runtime, token_file_content, expected
+):
+    if token_file_content is None:
+        monkeypatch.delenv("SKILL_EVAL_CLAUDE_TOKEN_FILE", raising=False)
+    else:
+        token_file = tmp_path / "token"
+        token_file.write_text(token_file_content)
+        monkeypatch.setenv("SKILL_EVAL_CLAUDE_TOKEN_FILE", str(token_file))
+
+    assert skill_eval_module.read_claude_token_env(runtime) == expected
+
+
+@pytest.mark.parametrize("token_file_content", [None, "  \n"], ids=["missing", "empty"])
+def test_read_claude_token_env_rejects_unusable_file(
+    monkeypatch, skill_eval_module, tmp_path, token_file_content
+):
+    token_file = tmp_path / "token"
+    if token_file_content is not None:
+        token_file.write_text(token_file_content)
+    monkeypatch.setenv("SKILL_EVAL_CLAUDE_TOKEN_FILE", str(token_file))
+
+    with pytest.raises(SystemExit) as exit_info:
+        skill_eval_module.read_claude_token_env("claude")
+
+    assert exit_info.value.code == 1
+
+
+@pytest.fixture
+def source_repo(monkeypatch, skill_eval_module, tmp_path):
+    """A repo tracking AGENTS.md and a CLAUDE.md symlink, plus a global post-checkout hook."""
+    hooks = tmp_path / "hooks"
+    hooks.mkdir()
+    marker = tmp_path / "hook-ran"
+    hook = hooks / "post-checkout"
+    hook.write_text(f"#!/bin/sh\ntouch {marker}\n")
+    hook.chmod(0o755)
+    global_config = tmp_path / "gitconfig"
+    global_config.write_text(f"[core]\n\thooksPath = {hooks}\n")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(global_config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        return subprocess.run(
+            ["git", "-C", str(repo), *args], check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    git("init", "--quiet")
+    (repo / "AGENTS.md").write_text("main guidance\n")
+    (repo / "CLAUDE.md").symlink_to("AGENTS.md")
+    git("add", "-A")
+    git("-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "--quiet", "-m", "init")
+    monkeypatch.setattr(skill_eval_module, "REPO_ROOT", repo)
+    return SimpleNamespace(path=repo, sha=git("rev-parse", "HEAD"), marker=marker)
+
+
+def test_create_arm_checks_out_base_without_touching_source_repo(skill_eval_module, source_repo, tmp_path):
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+    agents_file = tmp_path / "working-agents.md"
+    agents_file.write_text("working guidance\n")
+
+    arm = skill_eval_module.create_arm(work_dir, "working", source_repo.sha, agents_file)
+
+    head = subprocess.run(
+        ["git", "-C", str(arm), "rev-parse", "HEAD"], check=True, capture_output=True, text=True
+    ).stdout.strip()
+    assert head == source_repo.sha
+    assert (arm / "AGENTS.md").read_text() == "working guidance\n"
+    assert not (arm / "CLAUDE.md").exists()
+    assert not (arm / "CLAUDE.md").is_symlink()
+    assert not (source_repo.path / ".git" / "worktrees").exists()
+    assert not source_repo.marker.exists()
+
+
+def test_create_arm_baseline_has_no_guidance(skill_eval_module, source_repo, tmp_path):
+    work_dir = tmp_path / "work"
+    work_dir.mkdir()
+
+    arm = skill_eval_module.create_arm(work_dir, "baseline", source_repo.sha, None)
+
+    assert not (arm / "AGENTS.md").exists()
+    assert not (arm / "CLAUDE.md").is_symlink()

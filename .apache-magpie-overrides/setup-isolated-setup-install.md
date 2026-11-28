@@ -59,7 +59,7 @@ Bash(docker info *)
 
 `breeze` is the mandated entrypoint for all local development in Apache
 Airflow — the contributor instructions forbid running `pytest` / `python` /
-`airflow` directly on the host (see this repo's `AGENTS.md` / `CLAUDE.md`).
+`airflow` directly on the host (see this repo's `AGENTS.md`).
 Without these allows, every breeze invocation prompts for Bash permission,
 which is pure friction for a command contributors run constantly.
 
@@ -73,6 +73,11 @@ docker internally, so its docker usage is covered by the single breeze call)
 plus read-only `docker ps` / `docker info`. No `docker rm`, no
 `docker network prune`, nothing that writes outside the breeze workflow —
 those stay prompt-gated.
+
+The allows only skip the permission prompt. They do not make breeze work
+behind the magpie container gateway, which refuses Docker calls breeze
+depends on (BuildKit sessions, untyped `docker inspect`) by design, so breeze
+cannot run in a session whose `DOCKER_HOST` points at the gateway.
 
 ## Scope notes
 

@@ -25,8 +25,19 @@
 // bundle's own Dag registry and schema version, never from a hand-written sidecar.
 
 import { execFileSync } from "node:child_process";
-import { readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  readSync,
+  realpathSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { readFile as readFileAsync } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import {
@@ -45,6 +56,12 @@ const BUNDLE_FILENAME = "bundle.min.mjs";
 const STAGING_FILENAME = "bundle.pack-staging.mjs";
 const MANIFEST_TIMEOUT_MS = 60_000;
 const MANIFEST_MAX_BUFFER_BYTES = 64 * 1024 * 1024;
+const STDERR_TAIL_CHARS = 2000; // stderr opens with the whole minified line
+// The stderr file has no size cap, so read no more than its end.
+const STDERR_READ_LIMIT_BYTES = 1024 * 1024;
+const ESM_REQUIRE_BANNER =
+  'import{createRequire as __airflowCreateRequire}from"node:module";' +
+  "const require=__airflowCreateRequire(import.meta.url);";
 
 const USAGE = `Usage: airflow-ts-pack <entry> [--outdir <dir> | --outfile <path>]
 
@@ -112,24 +129,50 @@ function readSdkVersion(): string {
 }
 
 function readBundleManifest(bundlePath: string): BundleManifest {
+  // On macOS Node writes a piped stderr asynchronously, so output past the 64 KiB pipe buffer is
+  // lost when the bundle exits, and Node prints the whole minified line before the error.
+  // Writes to a file are synchronous.
+  const stderrDir = mkdtempSync(path.join(tmpdir(), "airflow-ts-pack-"));
+  const stderrPath = path.join(stderrDir, "stderr");
+  let stderrFd: number;
+  try {
+    stderrFd = openSync(stderrPath, "w");
+  } catch (error) {
+    rmSync(stderrDir, { recursive: true, force: true });
+    throw error;
+  }
   let stdout: string;
   try {
-    stdout = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
-      encoding: "utf-8",
-      timeout: MANIFEST_TIMEOUT_MS,
-      maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
-    });
-  } catch (error) {
-    const stderr = (error as { stderr?: string }).stderr ?? "";
-    const reported = stderr
-      .split("\n")
-      .reverse()
-      .find((line) => /^\w*Error: /.test(line.trim()))
-      ?.trim();
-    throw new Error(
-      reported ?? `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}`,
-      { cause: error },
-    );
+    try {
+      stdout = execFileSync(process.execPath, [bundlePath, AIRFLOW_METADATA_FLAG], {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", stderrFd],
+        timeout: MANIFEST_TIMEOUT_MS,
+        maxBuffer: MANIFEST_MAX_BUFFER_BYTES,
+      });
+    } catch (error) {
+      const stderr = readEnd(stderrPath, STDERR_READ_LIMIT_BYTES).text;
+      const reported = stderr
+        .split("\n")
+        .reverse()
+        .find((line) => /^\w*Error: /.test(line.trim()))
+        ?.trim();
+      throw new Error(
+        reported ??
+          `Running the bundle with ${AIRFLOW_METADATA_FLAG} failed: ${String(error)}\n` +
+            stderr.trimEnd().slice(-STDERR_TAIL_CHARS),
+        { cause: error },
+      );
+    }
+    // Still pass on what a working bundle logs, such as warnings from user code.
+    const { text, skippedBytes } = readEnd(stderrPath, STDERR_READ_LIMIT_BYTES);
+    if (skippedBytes > 0) {
+      process.stderr.write(`[first ${skippedBytes} bytes of the bundle's stderr omitted]\n`);
+    }
+    if (text) process.stderr.write(text);
+  } finally {
+    closeSync(stderrFd);
+    rmSync(stderrDir, { recursive: true, force: true });
   }
 
   // Import-time logging from user code lands on stdout too; pick the sentinel line.
@@ -163,6 +206,19 @@ function readBundleManifest(bundlePath: string): BundleManifest {
     }
   }
   return manifest;
+}
+
+function readEnd(filePath: string, limit: number): { text: string; skippedBytes: number } {
+  const size = statSync(filePath).size;
+  const skippedBytes = Math.max(0, size - limit);
+  const fd = openSync(filePath, "r");
+  try {
+    const buffer = Buffer.alloc(size - skippedBytes);
+    const read = readSync(fd, buffer, 0, buffer.length, skippedBytes);
+    return { text: buffer.subarray(0, read).toString("utf-8"), skippedBytes };
+  } finally {
+    closeSync(fd);
+  }
 }
 
 // The document is checked before anything is read off it: JSON.parse also yields
@@ -315,6 +371,9 @@ export async function runPack(argv: readonly string[]): Promise<void> {
       // that two modules both declare, so the name the SDK reads is pinned to
       // the one the author wrote.
       keepNames: true,
+      // esbuild's require shim in an ESM bundle throws `Dynamic require of "process" is not
+      // supported` for a CommonJS dependency's Node built-in unless a `require` is in scope.
+      banner: { js: ESM_REQUIRE_BANNER },
       // Tags each author-owned file with its own path before its `new Dag(...)`
       // constructor runs, so the encoder gets one Dag-defining file per source
       // region.

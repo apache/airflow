@@ -203,11 +203,42 @@ id won't be there for the next retry, and the operator falls back to the XCom/sc
 above rather than reconnecting via task state store. Avoid running cleanup on a schedule shorter
 than your longest ``retry_delay``.
 
-Clearing a task is treated the same as a retry, which matters specifically for a task whose job
-already succeeded: clearing does not delete the stored run id, so the next attempt reads it back
-and returns immediately without submitting anything to Glue. See
-:doc:`apache-airflow:core-concepts/resumable-tasks` for why, and for the
-``[state_store] clear_on_success`` setting that restores "clearing always resubmits."
+Clearing a task instance from the UI or the REST API (so ``airflowctl`` too) deletes the stored run
+id by default from Airflow 3.4. Every other clear, such as ``airflow tasks clear`` or clearing a
+whole Dag run, does so from Airflow 3.5. To keep it, tick **Keep task state and resume** in the
+Clear dialog, or send ``"keep_task_state": true`` in the request. The **Keep task state on clear**
+UI setting ticks that box by default. From Airflow 3.5, ``airflow tasks clear --keep-task-state``
+keeps it too. The next attempt then reads the stored run id back. In synchronous mode, what the next
+attempt does depends on the state of the Glue job run at that point:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 40 40
+
+   * - Job run state
+     - Default clear
+     - Clear that keeps task state
+   * - Still running
+     - Fails with ``ConcurrentRunsExceededException`` until the first run ends, with
+       ``concurrent_run_limit=1`` (the default). With a higher limit, submits a new job run and
+       the first one keeps running.
+     - Reconnects to the running job run.
+   * - Succeeded
+     - Submits a new job run.
+     - Returns right away without starting another one.
+   * - Failed or stopped
+     - Submits a new job run.
+     - Submits a new job run.
+
+With ``deferrable=True``, ``durable=True`` and ``stop_job_run_on_kill=False`` (the default), the
+next attempt reconnects to a still-running job run on clear, whether or not task state was kept.
+With ``stop_job_run_on_kill=True`` instead, it stops the previous run before submitting a new one.
+
+With ``[state_store] clear_on_success`` on, the stored run id is deleted when the task succeeds, so
+clearing a succeeded task submits again even when task state is kept.
+
+Keep task state when a job run is still running and nothing about the code or inputs changed, so you
+don't pay for two. See :doc:`apache-airflow:core-concepts/resumable-tasks` for the ways of clearing.
 
 To opt out and always start a fresh run on retry, set ``durable=False``:
 
@@ -227,7 +258,9 @@ resubmit, and with ``concurrent_run_limit=1`` that fails with ``ConcurrentRunsEx
 against the run it can't see. To avoid that, ``durable=True`` (or, below Airflow 3.3,
 ``resume_glue_job_on_retry=True``) tags the job's arguments with this task instance's identity on
 every attempt and, on retry, scans the job's run history for that tag before submitting -- the
-same mechanism used as a fallback on the synchronous path.
+same mechanism used as a fallback on the synchronous path. This scan requires ``glue:GetJobRuns``
+in the task's IAM policy, in addition to the usual ``glue:StartJobRun`` and ``glue:GetJobRun``
+permissions.
 
 ``durable`` supersedes the deprecated ``resume_glue_job_on_retry`` parameter on Airflow 3.3+,
 where passing ``resume_glue_job_on_retry`` still works and maps its value onto ``durable``. Below

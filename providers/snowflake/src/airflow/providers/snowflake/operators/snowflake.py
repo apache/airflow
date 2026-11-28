@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import time
-import warnings
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import timedelta
 from functools import cached_property
@@ -26,48 +25,15 @@ from typing import TYPE_CHECKING, Any, ClassVar, SupportsAbs, cast
 
 import requests
 
-from airflow.providers.common.compat.sdk import conf
+from airflow.providers.common.compat.sdk import ResumableJobMixin, conf
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
     SQLExecuteQueryOperator,
     SQLIntervalCheckOperator,
     SQLValueCheckOperator,
 )
-from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+from airflow.providers.snowflake.hooks.sql_api import SnowflakeSqlApiHook
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
-
-_DURABLE_UNSET = object()
-
-
-def _warn_and_disable_durable_pre_3_3(durable: Any) -> bool:
-    """Shared by the <3.3 compat stub: durable has no effect below 3.3, warn if it was set."""
-    if durable is not _DURABLE_UNSET:
-        warnings.warn(
-            "`durable` has no effect on Airflow versions below 3.3.",
-            UserWarning,
-            stacklevel=3,
-        )
-    return False
-
-
-try:
-    from airflow.sdk import ResumableJobMixin
-except ImportError:
-
-    class ResumableJobMixin:  # type: ignore[no-redef]
-        """Airflow <3.3 stub, task_state_store unavailable, always submits fresh."""
-
-        external_id_key: str = "snowflake_query_ids"
-
-        def __init__(self, *, durable: Any = _DURABLE_UNSET, **kwargs: Any) -> None:
-            super().__init__(**kwargs)
-            self.durable = _warn_and_disable_durable_pre_3_3(durable)
-
-        def execute_resumable(self, context):
-            external_id = self.submit_job(context)
-            self.poll_until_complete(external_id, context)
-            return self.get_job_result(external_id, context)
-
 
 if TYPE_CHECKING:
     from pydantic import JsonValue
@@ -491,6 +457,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         self.query_ids = self._hook.execute_query(
             self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
         )
+
+        if not self.query_ids:
+            raise RuntimeError("No Snowflake SQL API query IDs returned")
+
         self.log.info("List of query ids %s", self.query_ids)
 
         if self.do_xcom_push:
@@ -546,6 +516,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 queries_in_progress.remove(query_id)
             elif statement_status.get("status") == "running":
                 statement_running_status[query_id] = statement_status
+            else:
+                raise RuntimeError(
+                    f"Unexpected Snowflake SQL API status for query {query_id}: {statement_status.get('status')!r}"
+                )
         # Only wait before the next poll cycle if something is still running. Sleeping
         # unconditionally after every handle would delay returning even when this cycle
         # already resolved everything (e.g. all statements finished, or one failed).
@@ -563,6 +537,10 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
         self.query_ids = self._hook.execute_query(
             self.sql, statement_count=self.statement_count, bindings=self.bindings, timeout=self.timeout
         )
+
+        if not self.query_ids:
+            raise RuntimeError("No Snowflake SQL API query IDs returned")
+
         self.log.info("List of query ids %s", self.query_ids)
         return cast("JsonValue", self.query_ids)
 
@@ -578,8 +556,15 @@ class SnowflakeSqlApiOperator(ResumableJobMixin, SQLExecuteQueryOperator):
                 raise
         if "error" in statuses:
             return "error"
+
+        # An unknown status may still represent an active query.
+        # Fail rather than risk resubmitting the SQL on reconnect.
+        if any(status not in {"success", "running"} for status in statuses):
+            raise RuntimeError(f"Unexpected Snowflake SQL API query statuses: {statuses}")
         if "running" in statuses:
             return "running"
+        if not statuses:
+            raise RuntimeError("No Snowflake SQL API query statuses returned")
         return "success"
 
     def is_job_active(self, status: str) -> bool:

@@ -222,7 +222,7 @@ class TestCreate:
             patch.object(backend, "_run_cli", autospec=True, side_effect=fake_run_cli),
         ):
             with pytest.raises(TypeError):
-                backend.create(spec=SandboxSpec(env={"PORT": 8080}, block_network=True))  # type: ignore[dict-item]
+                backend.create(spec=SandboxSpec(env={"PORT": 8080}, block_network=True))
 
         assert ["rm", "-f"] in [c[:2] for c in calls]
         assert backend._workspaces == {}

@@ -48,11 +48,20 @@ type Props = {
   readonly enableClipboard?: boolean;
   /** Replaces expanding in place — for a preview whose full value lives on another page. */
   readonly onExpand?: () => void;
+  /** Narrows the collapsed preview, for a table that carries more than one of these per row. */
+  readonly previewMaxWidth?: number;
 } & Omit<FlexProps, "content">;
 
 type EditorInstance = Parameters<OnMount>[0];
 
-const RenderedJsonField = ({ collapsed, content, enableClipboard = true, onExpand, ...rest }: Props) => {
+const RenderedJsonField = ({
+  collapsed,
+  content,
+  enableClipboard = true,
+  onExpand,
+  previewMaxWidth,
+  ...rest
+}: Props) => {
   const contentFormatted = JSON.stringify(content, undefined, 2);
   const { t: translate } = useTranslation("common");
   const { beforeMount, theme } = useMonacoTheme();
@@ -113,23 +122,36 @@ const RenderedJsonField = ({ collapsed, content, enableClipboard = true, onExpan
     return undefined;
   }
 
+  // A copy button on every row reads as chrome, so it waits for the pointer. It stays mounted
+  // rather than conditionally rendered, to keep its place in the tab order for a keyboard.
   const clipboardButton = enableClipboard ? (
-    <ClipboardRoot value={contentFormatted}>
-      <ClipboardIconButton h={7} minW={7} />
-    </ClipboardRoot>
+    <Box
+      _focusWithin={{ opacity: 1 }}
+      _groupHover={{ opacity: 1 }}
+      data-testid="json-clipboard-reveal"
+      opacity={0}
+    >
+      <ClipboardRoot value={contentFormatted}>
+        <ClipboardIconButton h={7} minW={7} />
+      </ClipboardRoot>
+    </Box>
   ) : undefined;
 
   if (showBadges) {
     return (
-      <Flex alignItems="center" flex={1} gap={1} minW={`${MIN_WIDTH}px`} {...rest}>
-        <JsonPreviewBadges entries={previewEntries} onExpand={onExpand ?? (() => setIsExpanded(true))} />
+      <Flex alignItems="center" className="group" flex={1} gap={1} minW={`${MIN_WIDTH}px`} {...rest}>
+        <JsonPreviewBadges
+          entries={previewEntries}
+          maxWidth={previewMaxWidth}
+          onExpand={onExpand ?? (() => setIsExpanded(true))}
+        />
         {clipboardButton}
       </Flex>
     );
   }
 
   return (
-    <Flex flex={1} gap={2} minW={`${MIN_WIDTH}px`} {...rest}>
+    <Flex className="group" flex={1} gap={2} minW={`${MIN_WIDTH}px`} {...rest}>
       <Box flex={1} minW={`${editorWidth}px`} ref={containerRef}>
         <Editor
           beforeMount={beforeMount}

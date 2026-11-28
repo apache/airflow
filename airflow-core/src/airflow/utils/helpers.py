@@ -22,7 +22,6 @@ import itertools
 import re
 import signal
 from collections.abc import Callable, Generator, Iterable, MutableMapping
-from functools import cache
 from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import urljoin
 
@@ -37,8 +36,6 @@ if TYPE_CHECKING:
 
     import jinja2
     from typing_extensions import TypeIs
-
-    from airflow.models.taskinstance import TaskInstance
 
     CT = TypeVar("CT", str, datetime)
 
@@ -141,26 +138,6 @@ def parse_template_string(template_string: str) -> tuple[str, None] | tuple[None
     return template_string, None
 
 
-@cache
-def log_filename_template_renderer() -> Callable[..., str]:
-    template = conf.get("logging", "log_filename_template")
-
-    if "{{" in template:
-        import jinja2
-
-        return jinja2.Template(template).render
-
-    def f_str_format(ti: TaskInstance, try_number: int | None = None):
-        return template.format(
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            logical_date=ti.logical_date.isoformat(),
-            try_number=try_number or ti.try_number,
-        )
-
-    return f_str_format
-
-
 def convert_camel_to_snake(camel_str: str) -> str:
     """Convert CamelCase to snake_case."""
     return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r"_\1", camel_str).lower()
@@ -174,8 +151,8 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
     """
     merged = dict1.copy()
     for k, v in dict2.items():
-        if k in merged and isinstance(v, dict):
-            merged[k] = merge_dicts(merged.get(k, {}), v)
+        if k in merged and isinstance(v, dict) and isinstance(merged[k], dict):
+            merged[k] = merge_dicts(merged[k], v)
         else:
             merged[k] = v
     return merged

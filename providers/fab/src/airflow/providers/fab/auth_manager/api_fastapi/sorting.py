@@ -20,7 +20,6 @@ from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
 from fastapi import HTTPException, status
-from sqlalchemy import asc, desc
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import InstrumentedAttribute
@@ -46,4 +45,4 @@ def build_ordering(
         )
 
     col = allowed[key]
-    return desc(col) if is_desc else asc(col)
+    return col.desc() if is_desc else col.asc()

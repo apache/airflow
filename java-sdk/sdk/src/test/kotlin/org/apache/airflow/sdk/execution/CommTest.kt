@@ -20,11 +20,14 @@
 package org.apache.airflow.sdk.execution
 
 import io.ktor.utils.io.ByteChannel
+import io.ktor.utils.io.exhausted
 import io.ktor.utils.io.readByteArray
 import io.ktor.utils.io.writeByteArray
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 import org.apache.airflow.sdk.ApiError
 import org.apache.airflow.sdk.TaskStateStore
 import org.apache.airflow.sdk.execution.comm.GetVariable
@@ -42,8 +45,10 @@ import java.time.Duration
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import org.apache.airflow.sdk.Client as PublicClient
 
 fun byteArrayFromHexString(hexString: String): ByteArray =
@@ -182,24 +187,30 @@ class CommsTest {
     return out.toByteArray()
   }
 
-  private fun notFoundResponseFrame(id: Int): ByteArray {
-    val out = ByteArrayOutputStream()
-    MessagePack.newDefaultPacker(out).use { packer ->
-      packer.packArrayHeader(3)
-      packer.packInt(id)
-      packer.packNil()
-      packer.packMapHeader(3)
-      packer.packString("type")
-      packer.packString("ErrorResponse")
-      packer.packString("error")
-      packer.packString("TASK_STORE_NOT_FOUND")
-      packer.packString("detail")
-      packer.packMapHeader(1)
-      packer.packString("key")
-      packer.packString("job_id")
+  // An ErrorResponse carrying a typed `error` code and a one-entry `detail`, as the supervisor sends it.
+  private fun typedErrorFrame(
+    error: String,
+    detailKey: String,
+    detailValue: String,
+  ): (Int) -> ByteArray =
+    { id ->
+      val out = ByteArrayOutputStream()
+      MessagePack.newDefaultPacker(out).use { packer ->
+        packer.packArrayHeader(3)
+        packer.packInt(id)
+        packer.packNil()
+        packer.packMapHeader(3)
+        packer.packString("type")
+        packer.packString("ErrorResponse")
+        packer.packString("error")
+        packer.packString(error)
+        packer.packString("detail")
+        packer.packMapHeader(1)
+        packer.packString(detailKey)
+        packer.packString(detailValue)
+      }
+      out.toByteArray()
     }
-    return out.toByteArray()
-  }
 
   private fun taskStateStoreResultFrame(id: Int): ByteArray {
     val out = ByteArrayOutputStream()
@@ -253,6 +264,66 @@ class CommsTest {
     return (requests.single().rawBody as Map<*, *>) to failure
   }
 
+  /**
+   * Like [roundTrip], but on the transport client, which is where the calls a
+   * trigger or a decider makes live.
+   */
+  private fun <T> transportRoundTrip(
+    response: (Int) -> ByteArray,
+    call: (CoordinatorClient) -> T,
+  ): Triple<Map<*, *>, T?, Throwable?> {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val client = CoordinatorClient(comm)
+
+    val requests = ConcurrentLinkedQueue<RawFrame>()
+    val server =
+      Thread {
+        val request = readRequest(fromClient)
+        requests.add(request)
+        runBlocking { toClient.writeFrame(response(request.id)) }
+      }
+    server.start()
+    val outcome = runCatching { call(client) }
+    server.join()
+    comm.close()
+
+    return Triple(requests.single().rawBody as Map<*, *>, outcome.getOrNull(), outcome.exceptionOrNull())
+  }
+
+  private fun dagRunStateResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(2)
+      packer.packString("type")
+      packer.packString("DagRunStateResult")
+      packer.packString("state")
+      packer.packString("running")
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
+  private fun dagResultFrame(id: Int): ByteArray {
+    val out = ByteArrayOutputStream()
+    MessagePack.newDefaultPacker(out).use { packer ->
+      packer.packArrayHeader(3)
+      packer.packInt(id)
+      packer.packMapHeader(3)
+      packer.packString("type")
+      packer.packString("DagResult")
+      packer.packString("dag_id")
+      packer.packString("downstream")
+      packer.packString("is_paused")
+      packer.packBoolean(true)
+      packer.packNil()
+    }
+    return out.toByteArray()
+  }
+
   private suspend fun ByteChannel.writeFrame(payload: ByteArray) {
     writeByteArray(Frame.lengthPrefix(payload.size.toUInt()))
     writeByteArray(payload)
@@ -261,6 +332,90 @@ class CommsTest {
   private suspend fun ByteChannel.readOneRequest() {
     val prefix = readByteArray(4)
     readByteArray(Frame.parseLengthPrefix(prefix).toInt())
+  }
+
+  @Test
+  @DisplayName("Should deliver a reply while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun deliversReplyWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    // The code that reads replies logs a warning for the stray frame below. The WARNING threshold keeps debug lines
+    // off, so the calling thread logs nothing.
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.WARNING)
+    val logs = ByteChannel(autoFlush = true)
+    val waiting = blockLogRoom(logs)
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    try {
+      val result =
+        runBlocking {
+          toClient.writeFrame(responseFrame(99, key = "stray"))
+          toClient.writeFrame(responseFrame(0, key = "return_value"))
+          withTimeoutOrNull(10_000) { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+        }
+      Assertions.assertEquals("return_value", result?.key, "the reply should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      releaseLogRoom(logs, waiting)
+      Log.namedThresholds = savedNamed
+    }
+  }
+
+  @Test
+  @DisplayName("Should deliver a reply, and log it at debug level, while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun deliversReplyWithDebugLogWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.DEBUG)
+    LogSender.reset()
+    val logs = ByteChannel(autoFlush = true)
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    var waiting: Thread? = null
+    try {
+      val result =
+        runBlocking {
+          val reply = async(Dispatchers.IO) { comm.communicate<XComResult>(GetVariable().also { it.key = "k" }) }
+          // The calling thread logs the request before LogSender has a channel, so that line needs no room.
+          fromClient.readOneRequest()
+          waiting = blockLogRoom(logs)
+          toClient.writeFrame(responseFrame(0, key = "return_value"))
+          withTimeoutOrNull(10_000) { reply.await() }.also { if (it == null) reply.cancel() }
+        }
+      Assertions.assertEquals("return_value", result?.key, "the reply should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      waiting?.let { releaseLogRoom(logs, it) }
+      Log.namedThresholds = savedNamed
+    }
+  }
+
+  @Test
+  @DisplayName("Should read the first frame, and log it at debug level, while other callers wait for room in LogSender")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
+  fun readsFirstFrameWithDebugLogWhileOtherCallersWaitForLogRoom() {
+    val savedNamed = Log.namedThresholds
+    Log.namedThresholds = mapOf(CoordinatorComm::class.java.typeName to Level.DEBUG)
+    val logs = ByteChannel(autoFlush = true)
+    val waiting = blockLogRoom(logs)
+    val toClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, ByteChannel(autoFlush = true))
+    try {
+      val frame = CompletableFuture<IncomingFrame>()
+      // A separate thread reads the frame, so that the test can fail with its own assertion message if the read waits
+      // for room.
+      thread { frame.complete(runBlocking { comm.readMessage() }) }
+      runBlocking { toClient.writeFrame(responseFrame(7, key = "first")) }
+
+      val read = runCatching { frame.get(10, TimeUnit.SECONDS) }.getOrNull()
+      Assertions.assertEquals(7, read?.id, "the first frame should arrive although other callers wait for room")
+    } finally {
+      comm.close()
+      releaseLogRoom(logs, waiting)
+      Log.namedThresholds = savedNamed
+    }
   }
 
   @Test
@@ -381,6 +536,96 @@ class CommsTest {
   }
 
   @Test
+  @DisplayName("triggerDagRun takes the OKResponse the supervisor answers a trigger with")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun triggerDagRunAcceptsOkResponse() {
+    val (body, alreadyExists, failure) =
+      transportRoundTrip(::okResponseFrame) {
+        it.triggerDagRun(
+          dagId = "downstream",
+          runId = "manual__2026-09-30T00:00:00+00:00",
+          logicalDate = OffsetDateTime.parse("2026-09-30T00:00:00Z"),
+          runAfter = null,
+          conf = mapOf("rows" to 2),
+          resetDagRun = false,
+          note = null,
+        )
+      }
+
+    Assertions.assertNull(failure, "triggerDagRun should return normally on an OKResponse, got $failure")
+    Assertions.assertEquals(false, alreadyExists)
+    Assertions.assertEquals("TriggerDagRun", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+    Assertions.assertEquals("manual__2026-09-30T00:00:00+00:00", body["run_id"])
+    // MessagePack packs a small integer as a byte, so the conf is compared by how it reads.
+    Assertions.assertEquals("{rows=2}", body["conf"].toString())
+  }
+
+  @Test
+  @DisplayName("triggerDagRun reports an existing run rather than failing")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun triggerDagRunReportsAnExistingRun() {
+    val (_, alreadyExists, failure) =
+      transportRoundTrip(typedErrorFrame("DAGRUN_ALREADY_EXISTS", "dag_id", "downstream")) {
+        it.triggerDagRun("downstream", "run", null, null, null, false, null)
+      }
+
+    Assertions.assertNull(failure, "an existing run is a value, not an error, got $failure")
+    Assertions.assertEquals(true, alreadyExists)
+  }
+
+  @Test
+  @DisplayName("getDagRunState reads the state out of a DagRunStateResult")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getDagRunStateReadsTheState() {
+    val (body, state, failure) =
+      transportRoundTrip(::dagRunStateResultFrame) { it.getDagRunState("downstream", "run") }
+
+    Assertions.assertNull(failure, "getDagRunState should return normally, got $failure")
+    Assertions.assertEquals("running", state)
+    Assertions.assertEquals("GetDagRunState", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+    Assertions.assertEquals("run", body["run_id"])
+  }
+
+  @Test
+  @DisplayName("isDagPaused reads is_paused out of a DagResult")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun isDagPausedReadsTheFlag() {
+    val (body, paused, failure) = transportRoundTrip(::dagResultFrame) { it.isDagPaused("downstream") }
+
+    Assertions.assertNull(failure, "isDagPaused should return normally, got $failure")
+    Assertions.assertEquals(true, paused)
+    Assertions.assertEquals("GetDag", body["type"])
+    Assertions.assertEquals("downstream", body["dag_id"])
+  }
+
+  @Test
+  @DisplayName("getVariable returns null on VARIABLE_NOT_FOUND instead of raising")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getVariableReturnsNullWhenNotFound() {
+    var value: Any? = "unset"
+    val (body, failure) =
+      roundTrip(typedErrorFrame("VARIABLE_NOT_FOUND", "key", "optional_setting")) {
+        value = it.getVariable("optional_setting")
+      }
+
+    Assertions.assertNull(failure, "getVariable should return normally on VARIABLE_NOT_FOUND, got $failure")
+    Assertions.assertEquals("GetVariable", body["type"])
+    Assertions.assertEquals("optional_setting", body["key"])
+    Assertions.assertNull(value)
+  }
+
+  @Test
+  @DisplayName("getVariable raises ApiError for any other error response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getVariableRaisesApiErrorOnOtherErrors() {
+    val (_, failure) = roundTrip(::errorResponseFrame) { it.getVariable("optional_setting") }
+
+    Assertions.assertInstanceOf(ApiError::class.java, failure)
+  }
+
+  @Test
   @DisplayName("setVariable keeps a null description on the wire so the supervisor accepts the request")
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun setVariableKeepsNullDescriptionOnTheWire() {
@@ -392,6 +637,28 @@ class CommsTest {
     Assertions.assertEquals("v", body["value"])
     Assertions.assertTrue(body.containsKey("description"), "description must be sent even when null: $body")
     Assertions.assertNull(body["description"])
+  }
+
+  @Test
+  @DisplayName("setXCom keeps a null value on the wire so the supervisor stores a null XCom")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComKeepsNullValueOnTheWire() {
+    val details =
+      StartupDetails().also {
+        it.ti =
+          TaskInstance().also { ti ->
+            ti.dagId = "d"
+            ti.taskId = "t"
+            ti.runId = "r"
+          }
+      }
+    val (body, failure) = roundTrip(::emptyResponseFrame, details) { it.setXCom(value = null) }
+
+    Assertions.assertNull(failure, "setXCom should return normally on an empty response, got $failure")
+    Assertions.assertEquals("SetXCom", body["type"])
+    Assertions.assertEquals("return_value", body["key"])
+    Assertions.assertTrue(body.containsKey("value"), "value must be sent even when null: $body")
+    Assertions.assertNull(body["value"])
   }
 
   @Test
@@ -424,6 +691,20 @@ class CommsTest {
     Assertions.assertInstanceOf(ApiError::class.java, failure)
   }
 
+  @Test
+  @DisplayName("getXCom sends a null map index, which the server resolves by the task's definition")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun getXComSendsNullMapIndex() {
+    val (body, failure) =
+      roundTrip({ responseFrame(it) }) {
+        it.getXCom(dagId = "dag", runId = "run", taskId = "upstream")
+      }
+
+    Assertions.assertNull(failure, "getXCom should return normally on XComResult, got $failure")
+    Assertions.assertEquals("GetXCom", body["type"])
+    Assertions.assertNull(body["map_index"])
+  }
+
   private val tiId: UUID = UUID.fromString("0199a5d6-1c2e-7c6a-9c1e-7a2f7f0d1e42")
 
   private fun currentTaskInstance() = StartupDetails().also { it.ti = TaskInstance().also { ti -> ti.id = tiId } }
@@ -447,7 +728,10 @@ class CommsTest {
   @Timeout(value = 30, unit = TimeUnit.SECONDS)
   fun taskStateStoreGetReturnsNullWhenNotFound() {
     var value: Any? = "unset"
-    val (_, failure) = roundTrip(::notFoundResponseFrame, currentTaskInstance()) { value = it.taskStateStore.get("job_id") }
+    val (_, failure) =
+      roundTrip(typedErrorFrame("TASK_STORE_NOT_FOUND", "key", "job_id"), currentTaskInstance()) {
+        value = it.taskStateStore.get("job_id")
+      }
 
     Assertions.assertNull(failure, "get should return normally on TASK_STORE_NOT_FOUND, got $failure")
     Assertions.assertNull(value)
@@ -506,6 +790,66 @@ class CommsTest {
     Assertions.assertNull(clearFailure, "clear should return normally on OKResponse, got $clearFailure")
     Assertions.assertEquals("ClearTaskStateStore", clearBody["type"])
     Assertions.assertEquals(tiId.toString(), clearBody["ti_id"])
+  }
+
+  @Test
+  @DisplayName("skipDownstreamTasks sends the task IDs to skip and accepts the supervisor's empty response")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun skipDownstreamTasksSendsTaskIds() {
+    val (body, failure) =
+      roundTrip(::emptyResponseFrame) { it.impl.skipDownstreamTasks(listOf("report_empty", "audit")) }
+
+    Assertions.assertNull(failure, "skipDownstreamTasks should return normally on an empty response, got $failure")
+    Assertions.assertEquals("SkipDownstreamTasks", body["type"])
+    Assertions.assertEquals(listOf("report_empty", "audit"), body["tasks"])
+  }
+
+  @Test
+  @DisplayName("skipDownstreamTasks sends nothing when there is nothing to skip")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun skipDownstreamTasksSendsNothingForEmptyList() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+
+    CoordinatorClient(comm).skipDownstreamTasks(emptyList())
+
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(fromClient.isClosedForRead, "no frame should have been written")
+    comm.close()
+  }
+
+  @Test
+  @DisplayName("setXCom rejects a byte array nested in the value without writing anything to the supervisor")
+  @Timeout(value = 30, unit = TimeUnit.SECONDS)
+  fun setXComRejectsByteArrayBeforeWriting() {
+    val toClient = ByteChannel(autoFlush = true)
+    val fromClient = ByteChannel(autoFlush = true)
+    val comm = CoordinatorComm(toClient, fromClient)
+    val details =
+      StartupDetails().also {
+        it.ti =
+          TaskInstance().also { ti ->
+            ti.dagId = "d"
+            ti.taskId = "t"
+            ti.runId = "r"
+          }
+      }
+    val client = PublicClient(details, CoordinatorClient(comm))
+    // Answer the first request in advance. If setXCom sent the byte array anyway,
+    // this reply would let setXCom return. Then assertThrows would fail at once
+    // instead of the test waiting for its 30-second timeout.
+    runBlocking { toClient.writeFrame(emptyResponseFrame(0)) }
+
+    val error =
+      Assertions.assertThrows(IllegalArgumentException::class.java) {
+        client.setXCom(value = mapOf("blob" to byteArrayOf(1)))
+      }
+
+    Assertions.assertTrue("Base64" in error.message.orEmpty(), "the error should suggest an encoding: $error")
+    runBlocking { fromClient.flushAndClose() }
+    Assertions.assertTrue(runBlocking { fromClient.exhausted() }, "nothing should be written to the supervisor")
+    comm.close()
   }
 
   @Test

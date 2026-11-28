@@ -253,19 +253,37 @@ class TestDogStats:
             metric="empty_key", sample_rate=1, tags=[], value=1
         )
 
-    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 100.0])
-    def test_timer(self, time_mock):
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 0.0004])
+    def test_timer_sends_duration_in_milliseconds(self, time_mock):
         with self.dogstatsd.timer("empty_timer") as timer:
             pass
-        self.dogstatsd_client.timed.assert_called_once_with("empty_timer", tags=[])
-        expected_duration = 1000.0 * 100.0
-        assert expected_duration == timer.duration
-        assert time_mock.call_count == 2
+        assert timer.duration == pytest.approx(0.4)
+        self.dogstatsd_client.timing.assert_called_once_with(
+            metric="empty_timer", value=pytest.approx(0.4), tags=[], sample_rate=None
+        )
+        self.dogstatsd_client.timed.assert_not_called()
+
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 1.0])
+    def test_timer_stop_without_send(self, time_mock):
+        timer = self.dogstatsd.timer("empty_timer").start()
+        timer.stop(send=False)
+        assert timer.duration == 1000.0
+        self.dogstatsd_client.timing.assert_not_called()
+
+    def test_timer_stop_without_start(self):
+        timer = self.dogstatsd.timer("empty_timer")
+        timer.stop()
+        assert timer.duration is None
+        self.dogstatsd_client.timing.assert_not_called()
+
+    def test_timer_rejects_unsupported_arguments_on_creation(self):
+        with pytest.raises(TypeError):
+            self.dogstatsd.timer("empty_timer", use_ms=True)
 
     def test_empty_timer(self):
         with self.dogstatsd.timer():
             pass
-        self.dogstatsd_client.timed.assert_not_called()
+        self.dogstatsd_client.timing.assert_not_called()
 
     def test_timing(self):
         import datetime
@@ -732,16 +750,17 @@ class TestLegacyExport:
             tags={"operator_name": "EmptyOperator", "dag_id": "test_dag"},
         )
 
-    def test_gauge_emits_both_when_legacy_name_exists(self, mock_backend):
+    @pytest.mark.parametrize("stat", ["ti.scheduled", "ti.awaiting_input"])
+    def test_gauge_emits_both_when_legacy_name_exists(self, mock_backend, stat):
         airflow_shared.observability.metrics.stats.gauge(
-            "ti.scheduled",
+            stat,
             42,
             tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
         )
         assert mock_backend.gauge.call_count == 2
-        mock_backend.gauge.assert_any_call("ti.scheduled.default.test_dag.test_task", 42)
+        mock_backend.gauge.assert_any_call(f"{stat}.default.test_dag.test_task", 42)
         mock_backend.gauge.assert_any_call(
-            "ti.scheduled",
+            stat,
             42,
             tags={"queue": "default", "dag_id": "test_dag", "task_id": "test_task"},
         )

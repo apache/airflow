@@ -20,6 +20,46 @@
 Changelog
 ---------
 
+1.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fail fast on permanent Anthropic batch poll errors (#70177)``
+
+Doc-only
+~~~~~~~~
+
+* ``Document Managed Agents as a first-party feature (#72306)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+   * ``Prepare providers release 2026-10-20 (#75209)``
+
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add async client to 'AnthropicHook' (#73967)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+
 1.1.0
 .....
 

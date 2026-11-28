@@ -26,7 +26,7 @@ import time
 from contextlib import suppress
 from pathlib import Path
 from socket import socket
-from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, cast, get_args
+from typing import TYPE_CHECKING, Annotated, ClassVar, Literal, cast
 
 import attrs
 import msgspec
@@ -38,11 +38,12 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.dagbag import _get_bundle_team_name, _validate_executor_fields
 from airflow.dag_processing.importer_routing import get_claiming_importer
+from airflow.dag_processing.loop_checks import normalize_loops
 from airflow.dag_processing.processor import (
     BaseDagFileProcessorProcess,
     DagFileParseRequest,
     DagFileParsingResult,
-    ToManager,
+    ToManagerMessage,
 )
 from airflow.exceptions import DeserializationError
 from airflow.models.pool import Pool
@@ -99,6 +100,9 @@ class LangSDKRuntimeSchemaVersion(BaseModel):
     import_timeout: float | None = None
     """Seconds from the start of the parse; ``None`` means no timeout."""
     type: Literal["LangSDKRuntimeSchemaVersion"] = "LangSDKRuntimeSchemaVersion"
+
+
+LangSDKToManager = Annotated[LangSDKRuntimeSchemaVersion | ToManagerMessage, Field(discriminator="type")]
 
 
 def _get_import_timeout(path: str) -> float | None:
@@ -165,9 +169,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
     ``DagFileParseRequest`` itself, so the request is sent once it has connected.
     """
 
-    decoder = TypeAdapter(
-        Annotated[LangSDKRuntimeSchemaVersion | get_args(ToManager)[0], Field(discriminator="type")]
-    )
+    decoder: ClassVar[TypeAdapter[LangSDKToManager]] = TypeAdapter[LangSDKToManager](LangSDKToManager)
 
     _listeners: dict[_Channel, socket]
     _parse_request: DagFileParseRequest
@@ -430,6 +432,7 @@ class LangSDKDagFileProcessorProcess(BaseDagFileProcessorProcess):
             try:
                 deserialized = DagSerialization.validate_serialized_dag(dag.data)
                 self._apply_team_rules(dag.data, deserialized)
+                normalize_loops(dag.data, deserialized)
             except DeserializationError as e:
                 message = f"Cannot load the serialized Dag: {e}"
             except Exception as e:

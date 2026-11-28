@@ -109,7 +109,7 @@ class Client internal constructor(
    * @return The variable value, or `null` if the variable is not set.
    * @throws ApiError if the API call fails.
    */
-  fun getVariable(key: String): Any? = impl.getVariable(key).value
+  fun getVariable(key: String): Any? = impl.getVariable(key)?.value
 
   /**
    * Stores an Airflow variable, replacing any existing value.
@@ -147,15 +147,24 @@ class Client internal constructor(
    * @param dagId Dag that owns the XCom; defaults to the current Dag.
    * @param taskId Task that pushed the XCom.
    * @param runId Run that produced the XCom; defaults to the current run.
-   * @param mapIndex Map index of the source task instance.
+   * @param mapIndex Map index of the task instance to read, or `null` to read
+   *    the task's result. See below.
    * @param includePriorDates If `true`, also search earlier Dag-run dates.
    * @return The XCom value, or `null` if none was pushed.
    * @throws ApiError if the API call fails.
    *
-   * If `map_index` is set to `null` against a mapped task, the task's
-   * "collective result" is returned. Results from all mapped instances are
-   * aggregated into a list, ordered by the map index (ascending). For a
-   * non-mapped task, setting `map_index` to `null` is equivalent to `-1`.
+   * With [mapIndex] `null`, what is read depends on whether the task is mapped,
+   * as its definition in the Dag says, not on how many instances it ran:
+   *
+   * - For a task that is not mapped, its value.
+   * - For a mapped task, its "collective result": the values of all its
+   *   instances in a list, ordered by map index. Instances that pushed nothing
+   *   are left out. If none pushed a value, including when the task expanded
+   *   to no instances, the result is `null`.
+   *
+   * A map index reads that one instance's value. One that selects no task
+   * instance of the task, such as any map index of a task that is not mapped,
+   * reads `null`.
    */
   @JvmOverloads fun getXCom(
     key: String = XCOM_RETURN_KEY,
@@ -179,12 +188,16 @@ class Client internal constructor(
    * Pushes an XCom value for downstream tasks to read.
    *
    * @param key XCom key; defaults to [XCOM_RETURN_KEY].
-   * @param value Value to push. Must be JSON-serializable.
+   * @param value Value to push. Must be JSON-serializable; `null` stores a null
+   *    XCom. The SDK rejects byte arrays, so encode binary data as a string
+   *    first, for example with Base64.
    * @throws ApiError if the API call fails.
+   * @throws IllegalArgumentException if [value] is or contains a type that the
+   *    SDK cannot send, such as a byte array.
    */
   @JvmOverloads fun setXCom(
     key: String = XCOM_RETURN_KEY,
-    value: Any,
+    value: Any?,
   ) = impl.setXCom(
     key = key,
     value = value,
@@ -294,8 +307,6 @@ class TaskStateStore internal constructor(
           )
         else -> now.plus(retention)
       }
-    // TODO: warn when the serialized value exceeds [state_store] max_value_storage_bytes once the
-    //   coordinator passes it to the JVM, as the Python accessor does.
     impl.setTaskStateStore(tiId = details.ti.id, key = key, value = value, expiresAt = expiresAt)
   }
 

@@ -217,8 +217,16 @@ export const DurationChart = ({
                     runId: entry.dag_run_id,
                     taskId: entry.task_id,
                   });
+                  const query =
+                    entry.region_id === undefined
+                      ? undefined
+                      : new URLSearchParams({
+                          region_id: entry.region_id,
+                          region_index: String(entry.region_index),
+                          try_number: String(entry.try_number),
+                        });
 
-                  void Promise.resolve(navigate(baseUrl));
+                  void Promise.resolve(navigate(query === undefined ? baseUrl : `${baseUrl}?${query}`));
                   break;
                 }
                 default:

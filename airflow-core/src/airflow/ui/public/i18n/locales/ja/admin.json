@@ -22,7 +22,7 @@
     "connection_other": "接続",
     "delete": {
       "deleteConnection_one": "1 件の接続を削除",
-      "deleteConnection_other": "{{count}} 件の接続を削除",
+      "deleteConnection_other": "{{count, number}} 件の接続を削除",
       "firstConfirmMessage_one": "以下の接続を削除します",
       "firstConfirmMessage_other": "以下の接続を削除します",
       "title": "接続を削除"
@@ -119,7 +119,7 @@
     },
     "delete": {
       "deleteVariable_one": "1 件の変数を削除",
-      "deleteVariable_other": "{{count}} 件の変数を削除",
+      "deleteVariable_other": "{{count, number}} 件の変数を削除",
       "firstConfirmMessage_one": "以下の変数を削除します",
       "firstConfirmMessage_other": "以下の変数を削除します",
       "title": "変数を削除",

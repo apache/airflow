@@ -36,6 +36,7 @@ from tempfile import gettempdir
 from typing import (
     TYPE_CHECKING,
     Any,
+    NoReturn,
     Protocol,
     TypeVar,
     overload,
@@ -67,14 +68,8 @@ _USE_PSYCOPG3: bool
 try:
     from importlib.util import find_spec
 
-    import sqlalchemy
-    from packaging.version import Version
-
     is_psycopg3 = find_spec("psycopg") is not None
-    sqlalchemy_version = Version(sqlalchemy.__version__)
-    is_sqla2 = (sqlalchemy_version.major, sqlalchemy_version.minor, sqlalchemy_version.micro) >= (2, 0, 0)
-
-    _USE_PSYCOPG3 = is_psycopg3 and is_sqla2
+    _USE_PSYCOPG3 = is_psycopg3
 except (ImportError, ModuleNotFoundError):
     _USE_PSYCOPG3 = False
 
@@ -84,7 +79,7 @@ if TYPE_CHECKING:
     from sqlalchemy.engine import Row
     from sqlalchemy.ext.asyncio import AsyncSession
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql.elements import ColumnElement, TextClause
+    from sqlalchemy.sql.elements import ColumnElement
     from sqlalchemy.sql.selectable import Select
 
     from airflow.models.connection import Connection
@@ -117,7 +112,8 @@ _REVISION_HEADS_MAP: dict[str, str] = {
     "3.1.8": "509b94a1042d",
     "3.2.0": "1d6611b6ab7c",
     "3.3.0": "d2f4e1b3c5a7",
-    "3.4.0": "e7c2a91bd540",
+    "3.4.0": "b4f1a7d2c903",
+    "3.5.0": "feb8b1e719ee",
 }
 
 # Prefix used to identify tables holding data moved during migration.
@@ -1019,7 +1015,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     from airflow.models.tasklog import LogTemplate
 
     metadata = reflect_tables([LogTemplate], session)
-    log_template_table: Table | None = metadata.tables.get(LogTemplate.__tablename__)
+    log_template_table: Table | None = metadata.tables.get(LogTemplate.__table__.key)
 
     if log_template_table is None:
         log.info("Log template table does not exist (added in 2.3.0); skipping log template sync.")
@@ -1104,11 +1100,15 @@ def reflect_tables(tables: Sequence[MappedClassProtocol | str] | None, session, 
     else:
         for tbl in tables:
             try:
-                table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
                 tbl_schema: str | None
-                tbl_schema, sep, name = table_name.partition(".")
-                if not sep:
-                    tbl_schema, name = None, table_name
+                if isinstance(tbl, str):
+                    tbl_schema, sep, name = tbl.partition(".")
+                    if not sep:
+                        tbl_schema, name = None, tbl
+                else:
+                    # Preserve the mapped class's own configured schema; see PR #70793.
+                    name = tbl.__tablename__
+                    tbl_schema = inspect(tbl, raiseerr=True).local_table.schema
                 metadata.reflect(
                     bind=bind, schema=tbl_schema, only=[name], extend_existing=True, resolve_fks=False
                 )
@@ -1628,7 +1628,12 @@ def _create_global_lock_mysql(lock: DBLocks, lock_timeout: int) -> Generator[Non
 def _create_global_lock_postgresql(
     session: Session, lock: DBLocks, lock_timeout: int
 ) -> Generator[None, None, None]:
-    """Create a global advisory lock for PostgreSQL using transactional advisory locks."""
+    """
+    Create a global advisory lock for PostgreSQL using session-level advisory locks.
+
+    The lock connection stays in an open transaction while the lock is held, which keeps it
+    on one server connection behind a transaction-pooling PgBouncer.
+    """
     bind = session.get_bind()
     if hasattr(bind, "connect"):
         conn = bind.connect()
@@ -1643,10 +1648,13 @@ def _create_global_lock_postgresql(
                 text("SELECT set_config('lock_timeout', :timeout, false)"),
                 {"timeout": str(lock_timeout)},
             )
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         else:
             conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
+        # The last statement run on this connection before the yield must have no bound parameter:
+        # under psycopg3 a parameterized statement keeps its snapshot while the connection sits idle
+        # in transaction, and CREATE INDEX CONCURRENTLY run by a migration in this process would
+        # wait on it forever.
+        conn.execute(text(f"SELECT pg_advisory_lock({int(lock.value)})"))
 
         yield
     finally:
@@ -1680,7 +1688,7 @@ def create_global_lock(
     - GET_LOCK is session-level, not transaction-level
     - DDL operations cause implicit commits that would break transaction wrappers
 
-    For PostgreSQL, uses transactional advisory locks as before.
+    For PostgreSQL, uses a session-level advisory lock, held while the connection stays in a transaction.
     """
     dialect_name = get_dialect_name(session)
 
@@ -1760,6 +1768,9 @@ def _normalize_mysql_server_default(default: Any) -> str | None:
         return None
 
     normalized = str(default).strip().strip("'\"").lower()
+    # MySQL reflects expression defaults with escaped quotes and a charset introducer,
+    # e.g. unhex(_utf8mb4\'00ff\') for a model default of UNHEX('00ff').
+    normalized = re.sub(r"\b_[a-z0-9]+(?=')", "", normalized.replace("\\'", "'"))
     while normalized.startswith("(") and normalized.endswith(")"):
         normalized = normalized[1:-1].strip()
     normalized = normalized.replace(" ", "")
@@ -1855,19 +1866,16 @@ class LazySelectSequence(Sequence[T]):
     """
     List-like interface to lazily access a database model query.
 
-    The intended use case is inside a task execution context, where we manage an
-    active SQLAlchemy session in the background.
+    Rows are fetched through the session passed to :meth:`from_select` each time
+    the sequence is accessed, so the sequence is only usable while that session is.
 
     This is an abstract base class. Each use case should subclass, and implement
-    the following static methods:
+    the ``_process_row`` static method. It is called when an item is accessed.
+    The lazy sequence uses ``session.execute()`` to fetch rows from the database,
+    and this method should know how to process each row into a value.
 
-    * ``_rebuild_select`` is called when a lazy sequence is unpickled. Since it
-      is not easy to pickle SQLAlchemy constructs, this class serializes the
-      SELECT statements into plain text to storage. This method is called on
-      deserialization to convert the textual clause back into an ORM SELECT.
-    * ``_process_row`` is called when an item is accessed. The lazy sequence
-      uses ``session.execute()`` to fetch rows from the database, and this
-      method should know how to process each row into a value.
+    A lazy sequence holds a live session, so it cannot be pickled. Convert it to
+    a list first if the values need to cross a process boundary.
 
     :meta private:
     """
@@ -1894,16 +1902,6 @@ class LazySelectSequence(Sequence[T]):
         return cls(s1, s2, session=session)
 
     @staticmethod
-    def _rebuild_select(stmt: TextClause) -> Select:
-        """
-        Rebuild a textual statement into an ORM-configured SELECT statement.
-
-        This should do something like ``select(field).from_statement(stmt)`` to
-        reconfigure ORM information to the textual SQL statement.
-        """
-        raise NotImplementedError
-
-    @staticmethod
     def _process_row(row: Row) -> T:
         """Process a SELECT-ed row into the end value."""
         raise NotImplementedError
@@ -1916,21 +1914,10 @@ class LazySelectSequence(Sequence[T]):
         counter = "item" if (length := len(self)) == 1 else "items"
         return f"LazySelectSequence([{length} {counter}])"
 
-    def __getstate__(self) -> Any:
-        # We don't want to go to the trouble of serializing SQLAlchemy objects.
-        # Converting the statement into a SQL string is the best we can get.
-        # The literal_binds compile argument inlines all the values into the SQL
-        # string to simplify cross-process commuinication as much as possible.
-        # Theoratically we can do the same for count(), but I think it should be
-        # performant enough to calculate only that eagerly.
-        s1 = str(self._select_asc.compile(self._session.get_bind(), compile_kwargs={"literal_binds": True}))
-        s2 = str(self._select_desc.compile(self._session.get_bind(), compile_kwargs={"literal_binds": True}))
-        return (s1, s2, len(self))
+    __hash__ = None  # type: ignore[assignment]  # Disable hashing.
 
-    def __setstate__(self, state: Any) -> None:
-        s1, s2, self._len = state
-        self._select_asc = self._rebuild_select(text(s1))
-        self._select_desc = self._rebuild_select(text(s2))
+    def __reduce__(self) -> NoReturn:  # Disable pickling.
+        raise TypeError(f"{type(self).__name__} cannot be pickled; convert it to a list first")
 
     def __bool__(self) -> bool:
         return check_query_exists(self._select_asc, session=self._session)
@@ -1940,9 +1927,6 @@ class LazySelectSequence(Sequence[T]):
             return NotImplemented
         z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
         return all(x == y for x, y in z)
-
-    def __hash__(self):
-        return hash(tuple(x for x in iter(self)))
 
     def __reversed__(self) -> Iterator[T]:
         return iter(self._process_row(r) for r in self._session.execute(self._select_desc))

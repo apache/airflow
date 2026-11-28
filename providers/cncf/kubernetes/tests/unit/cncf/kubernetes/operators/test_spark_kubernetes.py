@@ -121,50 +121,6 @@ def _get_expected_k8s_dict():
     }
 
 
-def _get_expected_application_dict_with_labels(task_name="default_yaml"):
-    """Create expected application dict with task context labels on-demand."""
-    task_context_labels = {
-        "dag_id": "dag",
-        "task_id": task_name,
-        "run_id": "manual__2016-01-01T0100000100-da4d1ce7b",
-        "spark_kubernetes_operator": "True",
-        "try_number": "0",
-        "version": "2.4.5",
-    }
-
-    return {
-        "apiVersion": "sparkoperator.k8s.io/v1beta2",
-        "kind": "SparkApplication",
-        "metadata": {"name": task_name, "namespace": "default"},
-        "spec": {
-            "type": "Scala",
-            "mode": "cluster",
-            "image": "gcr.io/spark-operator/spark:v2.4.5",
-            "imagePullPolicy": "Always",
-            "mainClass": "org.apache.spark.examples.SparkPi",
-            "mainApplicationFile": "local:///opt/spark/examples/jars/spark-examples_2.11-2.4.5.jar",
-            "sparkVersion": "2.4.5",
-            "restartPolicy": {"type": "Never"},
-            "volumes": [{"name": "test-volume", "hostPath": {"path": "/tmp", "type": "Directory"}}],
-            "driver": {
-                "cores": 1,
-                "coreLimit": "1200m",
-                "memory": "512m",
-                "labels": task_context_labels.copy(),
-                "serviceAccount": "spark",
-                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
-            },
-            "executor": {
-                "cores": 1,
-                "instances": 1,
-                "memory": "512m",
-                "labels": task_context_labels.copy(),
-                "volumeMounts": [{"name": "test-volume", "mountPath": "/tmp"}],
-            },
-        },
-    }
-
-
 def _get_expected_application_dict_without_task_context_labels(task_name="default_yaml", app_name=None):
     """Create expected application dict without task context labels (only original file labels)."""
     original_file_labels = {
@@ -306,7 +262,11 @@ def create_context(task):
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.client")
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
-@patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+@patch(
+    "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object",
+    autospec=True,
+    side_effect=lambda self, *, body, **kwargs: body,
+)
 class TestSparkKubernetesOperatorCreateApplication:
     @pytest.fixture(autouse=True)
     def setup_connections(self, create_connection_without_db):
@@ -393,6 +353,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -441,6 +402,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -486,6 +448,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         )
         expected_dict["metadata"]["name"] = done_op.name
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -523,6 +486,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         expected_dict["spec"]["driver"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         expected_dict["spec"]["executor"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -561,6 +525,7 @@ class TestSparkKubernetesOperatorCreateApplication:
         expected_dict["spec"]["driver"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         expected_dict["spec"]["executor"]["env"] = [{"name": "SPARK_APPLICATION_NAME", "value": done_op.name}]
         mock_create_namespaced_crd.assert_called_with(
+            mock.ANY,
             body=expected_dict,
             **self.call_commons,
         )
@@ -573,7 +538,11 @@ class TestSparkKubernetesOperatorCreateApplication:
 @patch("airflow.providers.cncf.kubernetes.operators.spark_kubernetes.SparkKubernetesOperator.create_job_name")
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
-@patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
+@patch(
+    "kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object",
+    autospec=True,
+    side_effect=lambda self, *, body, **kwargs: body,
+)
 @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute", return_value=None)
 @patch(
     "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook.is_in_cluster",
@@ -1341,7 +1310,9 @@ class TestSparkKubernetesOperator:
         context = create_context(op)
 
         mock_file = mock_open(read_data='{"a": "b"}')
-        mocker.patch("builtins.open", mock_file)
+        # Patch only the module that reads the kube config: a builtins.open patch would also feed this
+        # data to any module first imported during execute(), such as the metrics registry.
+        mocker.patch("airflow.providers.cncf.kubernetes.operators.pod.open", mock_file, create=True)
 
         with pytest.raises(TaskDeferred) as exc:
             op.execute(context)

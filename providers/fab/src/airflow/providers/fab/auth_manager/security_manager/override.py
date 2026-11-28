@@ -53,8 +53,6 @@ from flask_appbuilder.security.registerviews import (
     RegisterUserOAuthView,
 )
 from flask_appbuilder.security.views import (
-    AuthDBView,
-    AuthLDAPView,
     AuthRemoteUserView,
     AuthView,
     RegisterUserModelView,
@@ -87,6 +85,8 @@ from airflow.providers.fab.auth_manager.models import (
 )
 from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 from airflow.providers.fab.auth_manager.security_manager.constants import EXISTING_ROLES
+from airflow.providers.fab.auth_manager.security_manager.passwords import is_empty_password
+from airflow.providers.fab.auth_manager.views.auth_login import CustomAuthDBView, CustomAuthLDAPView
 from airflow.providers.fab.auth_manager.views.auth_oauth import CustomAuthOAuthView
 from airflow.providers.fab.auth_manager.views.permissions import (
     ActionModelView,
@@ -163,6 +163,10 @@ class FabException(Exception):
     """Custom exception for FAB security manager."""
 
 
+class DagAccessControlValidationError(FabException, ValueError):
+    """The Dag's access control names an invalid role, resource, or permission."""
+
+
 class AzureTenantResolutionError(FabException):
     """Raised when an Azure AD tenant identifier cannot be resolved to a canonical GUID."""
 
@@ -209,9 +213,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     permission_model = Permission
 
     """ Views """
-    authdbview = AuthDBView
+    authdbview = CustomAuthDBView
     """ Override if you want your own Authentication DB view """
-    authldapview = AuthLDAPView
+    authldapview = CustomAuthLDAPView
     """ Override if you want your own Authentication LDAP view """
     authoauthview = CustomAuthOAuthView
     """ Custom Authentication OAuth view with session commit fix for #57981 """
@@ -316,6 +320,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     # [START security_op_perms]
     OP_PERMISSIONS = [
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_ADMIN_MENU),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_BUNDLE),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_BUNDLE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
@@ -609,6 +615,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         method = current_app.config.get("FAB_PASSWORD_HASH_METHOD", "scrypt")
         return generate_password_hash(password, method=method)
 
+    def set_user_password(self, user: User, password: str) -> None:
+        """
+        Set a new password and invalidate the API tokens and Flask sessions issued under the old one.
+
+        Nothing is committed: the caller persists both changes together, normally with
+        ``update_user``.
+        """
+        user.password = None if is_empty_password(password) else self._hash_password(password)
+        # Incremented in SQL so that concurrent password changes cannot write the same value.
+        user.token_generation = self.user_model.token_generation + 1
+
     def reset_password(self, userid: int, password: str) -> bool:
         """
         Change/Reset a user's password for auth db.
@@ -621,7 +638,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.get_user_by_id(userid)
         if not user:
             return False
-        user.password = self._hash_password(password)
+        self.set_user_password(user, password)
         self.reset_user_sessions(user)
         return self.update_user(user)
 
@@ -655,17 +672,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     if session_user_id is not None and str(session_user_id) == str(user.id):
                         session.delete(s)
                 session.commit()
-        else:
-            safe_username = escape(user.username)
-            self._cli_safe_flash(
-                "Since you are using `securecookie` session backend mechanism, we cannot prevent "
-                f"some old sessions for user {safe_username} to be reused.<br> If you want to make sure "
-                "that the user is logged out from all sessions, you should consider using "
-                "`database` session backend mechanism.<br> You can also change the 'secret_key` "
-                "webserver configuration for all your webserver instances and restart the webserver. "
-                "This however will logout all users from all sessions.",
-                "warning",
-            )
 
     def load_user_jwt(self, _jwt_header, jwt_data) -> User | None:
         identity = jwt_data["sub"]
@@ -1062,10 +1068,27 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
              is a set() of action names (e.g., `{'DAG Runs': {'can_create'}, 'DAGs': {'can_read'}}`)
         :return:
         """
-        for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
-            dag_resource_name = permissions.resource_name(dag_id, resource_name)
-            for dag_action_name in resource_values["actions"]:
-                self.create_permission(dag_action_name, dag_resource_name)
+        expected = {
+            (action_name, permissions.resource_name(dag_id, resource_type))
+            for resource_type, resource_values in self.RESOURCE_DETAILS_MAP.items()
+            for action_name in resource_values["actions"]
+        }
+        existing = set(
+            self.session.execute(
+                select(self.action_model.name, self.resource_model.name)
+                .select_from(self.permission_model)
+                .join(self.permission_model.action)
+                .join(self.permission_model.resource)
+                .where(
+                    # Filtering on action names too lets SQLite use the UNIQUE (permission_id, view_menu_id)
+                    # index; with resource names alone it scans the whole ab_permission_view table.
+                    self.action_model.name.in_({action_name for action_name, _ in expected}),
+                    self.resource_model.name.in_({resource_name for _, resource_name in expected}),
+                )
+            ).all()
+        )
+        for action_name, resource_name in expected - existing:
+            self.create_permission(action_name, resource_name)
 
         if access_control is not None:
             self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_id)
@@ -1129,7 +1152,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         for rolename, resource_actions_raw in access_control.items():
             role = self.find_role(rolename)
             if not role:
-                raise FabException(
+                raise DagAccessControlValidationError(
                     f"The access_control mapping for DAG '{dag_id}' includes a role named "
                     f"'{rolename}', but that role does not exist"
                 )
@@ -1143,7 +1166,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             for resource_name, actions in resource_actions.items():
                 if resource_name not in self.RESOURCE_DETAILS_MAP:
-                    raise FabException(
+                    raise DagAccessControlValidationError(
                         f"The access_control map for DAG '{dag_id}' includes the following invalid "
                         f"resource name: '{resource_name}'; "
                         f"The set of valid resource names is: {self.RESOURCE_DETAILS_MAP.keys()}"
@@ -1155,7 +1178,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 invalid_actions = set(actions) - self.RESOURCE_DETAILS_MAP[resource_name]["actions"]
 
                 if invalid_actions:
-                    raise FabException(
+                    raise DagAccessControlValidationError(
                         f"The access_control map for DAG '{dag_resource_name}' includes "
                         f"the following invalid permissions: {invalid_actions}; "
                         f"The set of valid permissions is: {self.RESOURCE_DETAILS_MAP[resource_name]['actions']}"
@@ -1564,8 +1587,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         password: str = "",
         hashed_password: str = "",
         groups: list[Group] | None = None,
-    ) -> User:
-        """Create a user."""
+    ) -> User | None:
+        """Create a user; return ``None`` if it cannot be saved."""
         roles: list[Role] = []
         if role:
             roles = role if isinstance(role, list) else [role]
@@ -1582,6 +1605,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user.groups = groups or []
             if hashed_password:
                 user.password = hashed_password
+            elif is_empty_password(password):
+                user.password = None
             else:
                 user.password = self._hash_password(password)
             self.session.commit()
@@ -1591,7 +1616,32 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
             self.session.rollback()
-            raise FabException(const.LOGMSG_ERR_SEC_ADD_USER) from e
+            return None
+
+    def _register_user_on_login(
+        self,
+        username: str,
+        first_name: str,
+        last_name: str,
+        email: str,
+        role: list[Role] | Role | None,
+    ) -> User | None:
+        """
+        Create a user on first login; return ``None`` if no active user can be used.
+
+        A parallel first login for the same username can win the insert, so the
+        user it created is used instead of denying this login.
+        """
+        user = self.add_user(
+            username=username, first_name=first_name, last_name=last_name, email=email, role=role
+        )
+        if user is None:
+            user = self.find_user(username=username)
+            if user is not None:
+                log.info("User %s was registered by a parallel login, using that user", username)
+        if user is None or not user.is_active:
+            return None
+        return user
 
     def load_user(self, pk: int) -> User | None:
         try:
@@ -1626,6 +1676,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         register_user.last_name = last_name
         if hashed_password:
             register_user.password = hashed_password
+        elif is_empty_password(password):
+            register_user.password = None
         else:
             register_user.password = self._hash_password(password)
         register_user.registration_hash = str(uuid.uuid4())
@@ -1682,6 +1734,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error(const.LOGMSG_ERR_SEC_UPD_USER, e)
             self.session.rollback()
             return False
+        from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+
+        FabAuthManager.evict_cached_user(user.id)
         return True
 
     @staticmethod
@@ -2214,7 +2269,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
             # If the user is new, register them
             if (not user) and user_attributes and self.auth_user_registration:
-                user = self.add_user(
+                user = self._register_user_on_login(
                     username=username,
                     first_name=self.ldap_extract(user_attributes, self.auth_ldap_firstname_field, ""),
                     last_name=self.ldap_extract(user_attributes, self.auth_ldap_lastname_field, ""),
@@ -2252,6 +2307,18 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.error(e)
             return None
 
+    def _verify_password(self, user: User, password: str) -> bool:
+        """
+        Return whether the password matches the user's stored password.
+
+        An empty password, or a user without a stored password, never matches, and still runs
+        the fake hash check.
+        """
+        if user.password is None or is_empty_password(password):
+            check_password_hash(current_app.config["AUTH_DB_FAKE_PASSWORD_HASH_CHECK"], "password")
+            return False
+        return check_password_hash(user.password, password)
+
     def check_password(self, username, password) -> bool:
         """
         Check if the password is correct for the username.
@@ -2262,9 +2329,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         user = self.find_user(username=username)
         if user is None:
             user = self.find_user(email=username)
-        if user is None or user.password is None:
-            return False
-        return check_password_hash(user.password, password)
+        return user is not None and self._verify_password(user, password)
 
     def auth_user_db(self, username, password, rotate_session_id=True) -> User | None:
         """
@@ -2290,14 +2355,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             )
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
-        if user.password is None:
-            return None
-        if check_password_hash(user.password, password):
+        if self._verify_password(user, password):
             if rotate_session_id:
                 self._rotate_session_id()
             self.update_user_auth_stat(user, True)
             return user
-        self.update_user_auth_stat(user, False)
+        # A user without a local password has nothing to guess here. When auth_user_db is a
+        # fallback after another method, as in basic_auth with LDAP, that method has already
+        # counted the failure.
+        if user.password is not None:
+            self.update_user_auth_stat(user, False)
         log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
         return None
 
@@ -2373,7 +2440,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # If the user is new, register them
         if (not user) and self.auth_user_registration:
-            user = self.add_user(
+            user = self._register_user_on_login(
                 username=username,
                 first_name=userinfo.get("first_name", ""),
                 last_name=userinfo.get("last_name", ""),
@@ -2545,7 +2612,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # User does not exist, create one if auto user registration.
         if user is None and self.auth_user_registration:
-            user = self.add_user(
+            user = self._register_user_on_login(
                 # All we have is REMOTE_USER, so we set
                 # the other fields to blank.
                 username=username,
@@ -2556,8 +2623,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             )
 
         # If user does not exist on the DB and not auto user registration,
-        # or user is inactive, go away.
-        elif user is None or (not user.is_active):
+        # registration failed, or user is inactive, go away.
+        if user is None or (not user.is_active):
             log.info(LOGMSG_WAR_SEC_LOGIN_FAILED, username)
             return None
 

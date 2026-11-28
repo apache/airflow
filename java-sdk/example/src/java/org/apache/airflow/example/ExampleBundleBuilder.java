@@ -26,11 +26,21 @@ import org.apache.airflow.sdk.*;
 public class ExampleBundleBuilder {
   public static Bundle build() {
     return new Bundle()
-        .register(InterfaceExampleBuilder.build())
+        .register(
+            "java_task_handler_interface_example", "extract", InterfaceExampleBuilder.Extract.class)
+        .register(
+            "java_task_handler_interface_example",
+            "transform",
+            InterfaceExampleBuilder.Transform.class)
+        .register(
+            "java_task_handler_interface_example",
+            "summarize",
+            InterfaceExampleBuilder.Summarize.class)
         .register(AnnotationExample.class)
         .register(XComCastingExample.class)
         .register(org.apache.airflow.example.nativedag.AnnotationExample.class)
-        .register(org.apache.airflow.example.nativedag.InterfaceExample.build());
+        .register(org.apache.airflow.example.nativedag.InterfaceExample.build())
+        .register(org.apache.airflow.example.nativedag.TargetExample.build());
   }
 
   public static void main(String[] args) {

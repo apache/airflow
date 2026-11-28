@@ -395,7 +395,7 @@ After the trigger has finished executing, the task may be sent back to the worke
             start_from_trigger: bool,
             **kwargs: dict[str, Any],
         ) -> None:
-            # This whole method will be skipped during dynamic task mapping.
+            # This whole method will be skipped during task mapping.
 
             super().__init__(*args, **kwargs)
             self.start_trigger_args.trigger_kwargs = trigger_kwargs
@@ -441,7 +441,7 @@ Triggers can have two options: they can either send execution back to the worker
             )
 
 
-``TaskSuccessEvent`` and ``TaskFailureEvent`` are the two events that can be used to end the task instance directly. This marks the task with the state ``task_instance_state`` and optionally pushes xcom if applicable. Here's an example of how to use these events:
+``TaskSuccessEvent`` and ``TaskFailedEvent`` are the two events that can be used to end the task instance directly. This marks the task with the state ``task_instance_state`` and optionally pushes xcom if applicable. Here's an example of how to use these events:
 
 .. code-block:: python
 

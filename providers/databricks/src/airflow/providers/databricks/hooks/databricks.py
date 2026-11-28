@@ -845,6 +845,19 @@ class DatabricksHook(BaseDatabricksHook):
         """
         self._do_api_call(("POST", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}/stop"))
 
+    def edit_warehouse(self, warehouse_id: str, json: dict[str, Any]) -> None:
+        """
+        Update the configuration of a Databricks SQL warehouse.
+
+        See the `SQL Warehouses edit API
+        <https://docs.databricks.com/api/warehouses/v1/edit-warehouse>`_.
+
+        :param warehouse_id: ID of the SQL warehouse.
+        :param json: Request body for the SQL Warehouses edit API, forwarded as provided.
+        :return: ``None`` when the request succeeds, without waiting for configuration changes to finish.
+        """
+        self._do_api_call(("POST", f"{SQL_WAREHOUSES_ENDPOINT}/{warehouse_id}/edit"), json)
+
     def install(self, json: dict) -> None:
         """
         Install libraries on the cluster.

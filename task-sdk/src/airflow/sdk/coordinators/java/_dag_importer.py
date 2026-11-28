@@ -74,9 +74,9 @@ class JavaDagImporter(CoordinatorDagImporter):
         return not wanted or main_class == wanted
 
     def get_source_code(self, definition: DagDefinition, dag_id: str | None = None) -> DagSourceCode:
-        """Return the entrypoint source the JAR embeds, or a notice when it embeds none."""
+        """Return the source the JAR embeds for *dag_id*, else the entrypoint's, else a notice."""
         with definition.as_file() as path, zipfile.ZipFile(path) as zf:
-            info = _find_source_entry(zf)
+            info = _find_source_entry(zf, dag_id)
             if info is None:
                 return DagSourceCode(source_code=_NO_SOURCE, language="java")
             if info.file_size > _MAX_SOURCE_BYTES:

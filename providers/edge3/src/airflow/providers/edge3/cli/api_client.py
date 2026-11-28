@@ -24,7 +24,7 @@ from functools import cache
 from http import HTTPStatus
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from urllib.parse import quote, urljoin
+from urllib.parse import quote, urlencode, urljoin
 from uuid import UUID
 
 from aiohttp import ClientConnectionError, ClientResponseError, ServerTimeoutError, request
@@ -96,7 +96,9 @@ def jwt_generator() -> JWTGenerator:
     network_errors=ClientConnectionError,
     timeouts=ServerTimeoutError,
 )
-async def _make_generic_request(method: str, rest_path: str, data: str | None = None) -> Any:
+async def _make_generic_request(
+    method: str, rest_path: str, data: str | None = None, params: dict[str, str] | None = None
+) -> Any:
     authorization = jwt_generator().generate({"method": rest_path})
     api_url = conf.get("edge", "api_url")
     content_type = {"Content-Type": "application/json"} if data else {}
@@ -106,6 +108,8 @@ async def _make_generic_request(method: str, rest_path: str, data: str | None = 
         "Authorization": authorization,
     }
     api_endpoint = urljoin(api_url, rest_path)
+    if params:
+        api_endpoint = f"{api_endpoint}?{urlencode(params)}"
     async with request(method, url=api_endpoint, data=data, headers=headers) as response:
         response.raise_for_status()
         if response.status == HTTPStatus.NO_CONTENT:
@@ -206,11 +210,12 @@ async def jobs_set_state(
     )
 
 
-async def logs_logfile_path(task: TaskInstanceKey) -> Path:
+async def logs_logfile_path(task: TaskInstanceKey, *, task_instance_id: UUID | None = None) -> Path:
     """Elaborate the path and filename to expect from task execution."""
     result = await _make_generic_request(
         "GET",
         f"logs/logfile_path/{task.dag_id}/{task.task_id}/{task.run_id}/{task.try_number}/{task.map_index}",
+        params={"task_instance_id": str(task_instance_id)} if task_instance_id else None,
     )
     base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
     return Path(base_log_folder, result)
@@ -220,12 +225,14 @@ async def logs_push(
     task: TaskInstanceKey,
     log_chunk_time: datetime,
     log_chunk_data: str,
+    *,
+    task_instance_id: UUID | None = None,
 ) -> None:
     """Push an incremental log chunk from Edge Worker to central site."""
     await _make_generic_request(
         "POST",
         f"logs/push/{task.dag_id}/{task.task_id}/{task.run_id}/{task.try_number}/{task.map_index}",
-        PushLogsBody(log_chunk_time=log_chunk_time, log_chunk_data=log_chunk_data).model_dump_json(
-            exclude_unset=True
-        ),
+        PushLogsBody(
+            log_chunk_time=log_chunk_time, log_chunk_data=log_chunk_data, task_instance_id=task_instance_id
+        ).model_dump_json(exclude_unset=True),
     )

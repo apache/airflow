@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
 import attrs
-from azure.core.exceptions import HttpResponseError
+from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 
 from airflow.providers.common.compat.sdk import conf
 from airflow.providers.microsoft.azure.version_compat import AIRFLOW_V_3_0_PLUS
@@ -153,7 +153,7 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
 
         return self._build_legacy_url(blob_name)
 
-    def read(self, relative_path, ti: RuntimeTI) -> tuple[LogSourceInfo, LogMessages | None]:
+    def read(self, relative_path, ti: RuntimeTI | None) -> tuple[LogSourceInfo, LogMessages | None]:
         messages = []
         logs = []
         # TODO: fix this - "relative path" i.e currently REMOTE_BASE_LOG_FOLDER should start with "wasb"
@@ -229,10 +229,24 @@ class WasbRemoteLogIO(LoggingMixin):  # noqa: D101
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage
         :param append: if False, any existing log file is overwritten. If True,
-            the new log is appended to any existing logs.
+            the new log is appended to any existing logs; if the existing log cannot be
+            read, nothing is written and ``False`` is returned.
         """
-        if append and self.wasb_log_exists(remote_log_location):
-            old_log = self.wasb_read(remote_log_location)
+        if append:
+            try:
+                old_log = self.hook.read_file(self.wasb_container, remote_log_location)
+            except ResourceNotFoundError:
+                old_log = ""
+            except Exception as e:
+                # Uploading only the new content here would replace the existing blob and lose the
+                # log history already stored in it. Keep the local log and let the next upload retry.
+                self.log.warning(
+                    "Refusing to overwrite remote log %s: could not read existing content (%s). "
+                    "Keeping local logs for later retry.",
+                    remote_log_location,
+                    e,
+                )
+                return False
             if old_log:
                 sep = "" if old_log.endswith("\n") else "\n"
                 log = f"{old_log}{sep}{log}"

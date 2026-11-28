@@ -165,19 +165,20 @@ describe("HITLTaskInstances – mapIndex URL param handling (#66428)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// State filter: pending required-action rows park in either "deferred" (pre-3.3)
-// or "awaiting_input" (from 3.3). Filtering on unreceived responses must request
-// both states, otherwise awaiting_input rows are hidden from the listing.
+// State filter: pending required-action rows park in "deferred" (pre-3.3) or
+// "awaiting_input" (from 3.3), or are still "running" while the task checks for the
+// response before parking. Filtering on unreceived responses must request all three,
+// otherwise those rows are hidden from the listing.
 // ---------------------------------------------------------------------------
 describe("HITLTaskInstances – pending state filter", () => {
-  it("requests both deferred and awaiting_input when filtering for unreceived responses", () => {
+  it("requests deferred, awaiting_input and running when filtering for unreceived responses", () => {
     mockSearchParams = new URLSearchParams("response_received=false");
 
     render(<HITLTaskInstances />, { wrapper: Wrapper });
 
     const args = lastListingCall()?.[0] as { state?: Array<string> } | undefined;
 
-    expect(args?.state).toEqual(["deferred", "awaiting_input"]);
+    expect(args?.state).toEqual(["deferred", "awaiting_input", "running"]);
   });
 
   it("does not send a state filter when not filtering for unreceived responses", () => {

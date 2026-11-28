@@ -59,6 +59,7 @@ from airflow.sdk.exceptions import (
     NodeNotFound,
     ParamValidationError,
     RemovedInAirflow4Warning,
+    TaskGroupCycleDeprecationWarning,
     TaskNotFound,
 )
 
@@ -86,6 +87,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 TAG_MAX_LEN = 100
+
+# The TaskGroup cycle warning becomes a DagWarning.message, a Text column (64 KB on MySQL), so its
+# length must not grow with the size or the number of the cycles.
+_MAX_LISTED_TASK_GROUP_CYCLES = 10
+_MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS = 5
 
 __all__ = [
     "DAG",
@@ -195,8 +201,10 @@ def _convert_str_to_tuple(val: str | Iterable[str] | None) -> Iterable[str] | No
     return val
 
 
-def _convert_tags(tags: Collection[str] | None) -> MutableSet[str]:
-    return set(tags or [])
+def _convert_tags(tags: str | Collection[str] | None) -> MutableSet[str]:
+    if not tags:
+        return set()
+    return {tags} if isinstance(tags, str) else set(tags)
 
 
 def _convert_access_control(access_control):
@@ -214,14 +222,14 @@ def _convert_access_control(access_control):
 
 
 def _convert_allowed_run_types(
-    val: DagRunType | Collection[DagRunType] | None,
+    val: DagRunType | str | Collection[DagRunType | str] | None,
 ) -> frozenset[DagRunType] | None:
     """Convert allowed_run_types parameter to a frozenset of DagRunType values."""
-    if val is None:
+    if not val:
         return None
     from airflow.sdk.api.datamodels._generated import DagRunType
 
-    if isinstance(val, enum.Enum):
+    if isinstance(val, str | enum.Enum):
         val = [val]
     return frozenset(DagRunType(v) if not isinstance(v, DagRunType) else v for v in val)
 
@@ -303,6 +311,13 @@ def _default_task_group(instance: DAG) -> TaskGroup:
     from airflow.sdk.definitions.taskgroup import TaskGroup
 
     return TaskGroup.create_root(dag=instance)
+
+
+def _format_cycle_members(node_ids: list[str]) -> str:
+    if len(node_ids) > _MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS:
+        unlisted = len(node_ids) - _MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS
+        return f"{', '.join(node_ids[:_MAX_LISTED_TASK_GROUP_CYCLE_MEMBERS])} and {unlisted} more"
+    return f"{', '.join(node_ids[:-1])} and {node_ids[-1]}"
 
 
 def _is_valid_dag_result(value: Any) -> TypeIs[PlainXComArg]:
@@ -418,7 +433,7 @@ class DAG:
     :param render_template_as_native_obj: If True, uses a Jinja ``NativeEnvironment``
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
-    :param tags: List of tags to help filtering Dags in the UI.
+    :param tags: List of tags to help filtering Dags in the UI. A single string is treated as one tag.
     :param owner_links: Dict of owners and their links, that will be clickable on the Dags view UI.
         Can be used as an HTTP link (for example the link to your Slack channel), or a mailto link.
         e.g: ``{"dag_owner": "https://airflow.apache.org/"}``
@@ -428,6 +443,8 @@ class DAG:
         An exception will be thrown if any task in a fail stop dag has a non default trigger rule.
     :param allowed_run_types: An optional list or single DagRunType specifying which run types are
         permitted for this dag. When set, the scheduler and API will only allow runs of the specified types.
+        Each run type can also be given as its string value, such as ``"manual"``. An empty value means
+        no restriction, the same as ``None``.
     :param dag_display_name: The display name of the Dag which appears on the UI.
     :param rerun_with_latest_version: If True, cleared or rerun tasks will use the latest
         available bundle version. If False, they use the original bundle version. If None
@@ -538,7 +555,7 @@ class DAG:
     owner_links: dict[str, str] = attrs.field(factory=dict)
     auto_register: bool = attrs.field(default=True, converter=bool)
     fail_fast: bool = attrs.field(default=False, converter=bool)
-    allowed_run_types: DagRunType | Collection[DagRunType] | None = attrs.field(
+    allowed_run_types: DagRunType | str | Collection[DagRunType | str] | None = attrs.field(
         default=None, converter=_convert_allowed_run_types
     )
     dag_display_name: str = attrs.field(
@@ -768,8 +785,12 @@ class DAG:
 
         This is called by the Dag bag before bagging the Dag.
         """
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_expansions_over_loop_tasks
+
         self.timetable.validate()
         self.validate_setup_teardown()
+        check_expansions_over_loop_tasks(self)
 
         # We validate owner links on set, but since it's a dict it could be mutated without calling the
         # setter. Validate again here
@@ -1134,12 +1155,19 @@ class DAG:
     def add_result(self, xcom_arg: X) -> X:
         if not _is_valid_dag_result(xcom_arg):
             raise ValueError("Only plain return value can be used as dag result")
+        # Imported here because taskgroup imports this module.
+        from airflow.sdk.definitions._internal.loop import check_dag_result_outside_loop
+
+        check_dag_result_outside_loop(xcom_arg.operator)
         xcom_arg.operator.returns_dag_result = True
         return xcom_arg
 
     def check_cycle(self) -> None:
         """
         Check to see if there are any cycles in the Dag.
+
+        Also warns with ``TaskGroupCycleDeprecationWarning`` when TaskGroups depend on each
+        other in a cycle, which is deprecated.
 
         :raises AirflowDagCycleException: If cycle is found in the Dag.
         """
@@ -1150,6 +1178,35 @@ class DAG:
                 f"Cycle detected in Dag: {self.dag_id}. Faulty task: {faulty_task_id}"
             )
 
+        self._warn_task_group_cycles()
+
+    def _warn_task_group_cycles(self) -> None:
+        task_group_dict = self.task_group.get_task_group_dict()
+        # With only the root group, the projection is the task graph, which is acyclic here.
+        if len(task_group_dict) == 1:
+            return
+        cycles = [
+            cycle
+            for task_group in task_group_dict.values()
+            for cycle in task_group._find_dependency_cycles(group_dict=task_group_dict)
+        ]
+        if not cycles:
+            return
+        listed = "; ".join(_format_cycle_members(cycle) for cycle in cycles[:_MAX_LISTED_TASK_GROUP_CYCLES])
+        unlisted = len(cycles) - _MAX_LISTED_TASK_GROUP_CYCLES
+        unlisted_note = (
+            f" ({unlisted} more cycle{'s' if unlisted > 1 else ''} not listed)" if unlisted > 0 else ""
+        )
+        # Airflow 3.5 raises AirflowDagCycleException here instead; tracked at
+        # https://github.com/apache/airflow/issues/73678
+        warnings.warn(
+            f"Dag '{self.dag_id}': {listed} depend on each other in a cycle{unlisted_note}. Cyclic TaskGroup "
+            "dependencies are deprecated and will fail Dag parsing in Airflow 3.5. See "
+            '"Cyclic TaskGroup dependencies" in the docs.',
+            TaskGroupCycleDeprecationWarning,
+            stacklevel=3,
+        )
+
     def cli(self):
         """Exposes a CLI specific to this Dag."""
         self.check_cycle()
@@ -1158,6 +1215,9 @@ class DAG:
 
         parser = cli_parser.get_parser(dag_parser=True)
         args = parser.parse_args()
+        # This parser drops ``dag_id``, but the audit log is written from the namespace before the
+        # command runs, so a handler back-filling it later is already too late.
+        args.dag_id = self.dag_id
         args.func(args, self)
 
     @classmethod
@@ -1480,7 +1540,8 @@ def _run_task(
     from airflow.utils.session import create_session
 
     taskrun_result: TaskRunResult | None
-    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    map_index = ti.region_index if task.get_needs_expansion() else -1
+    log.info("[DAG TEST] starting task_id=%s map_index=%s", ti.task_id, map_index)
     while True:
         try:
             log.info("[DAG TEST] running task %s", ti)
@@ -1499,7 +1560,9 @@ def _run_task(
                 dag_id=ti.dag_id,
                 run_id=ti.run_id,
                 try_number=ti.try_number,
-                map_index=ti.map_index,
+                map_index=map_index,
+                region_id=ti.region_id,
+                region_index=ti.region_index,
                 dag_version_id=UUID(str(ti.dag_version_id)),
             )
 
@@ -1516,9 +1579,7 @@ def _run_task(
                 log.info("[DAG TEST] running trigger in line")
                 # trigger_kwargs need to be deserialized before passing to the
                 # trigger class since they are in serde encoded format.
-                # Ignore needed to convince mypy that trigger_kwargs is a dict
-                # or a str because its unable to infer JsonValue.
-                kwargs = deserialize(msg.trigger_kwargs)  # type: ignore[type-var]
+                kwargs = deserialize(msg.trigger_kwargs)
                 if TYPE_CHECKING:
                     assert isinstance(kwargs, dict)
                 trigger = import_string(msg.classpath)(**kwargs)
@@ -1551,7 +1612,7 @@ def _run_task(
                 break
             raise
 
-    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, ti.map_index)
+    log.info("[DAG TEST] end task task_id=%s map_index=%s", ti.task_id, map_index)
     return taskrun_result
 
 
@@ -1622,7 +1683,7 @@ if TYPE_CHECKING:
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_fast: bool = False,
-        allowed_run_types: DagRunType | Collection[DagRunType] | None = None,
+        allowed_run_types: DagRunType | str | Collection[DagRunType | str] | None = None,
         dag_display_name: str | None = None,
         disable_bundle_versioning: bool = False,
         rerun_with_latest_version: bool | None = None,

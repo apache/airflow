@@ -25,10 +25,12 @@ results, and with Airflow's secret masker applied to every tool result.
 
 Before running:
 
-1. Install ADK: ``pip install "google-adk>=2.9.1"``, without Airflow's constraints file.
+1. Install ADK and this provider's ``anthropic`` and ``sql`` extras, without Airflow's
+   constraints file:
+   ``pip install "google-adk>=2.9.1" "apache-airflow-providers-common-ai[anthropic,sql]"``.
    ADK caps OpenTelemetry at 1.42.1, below the version that file pins; Airflow itself
-   accepts it. The Anthropic model below also needs ``anthropic``, which the
-   ``anthropic`` extra of this provider installs.
+   accepts it. The Anthropic model below needs ``anthropic`` and ``SQLToolset`` needs
+   ``sqlglot``.
 2. Create a connection (``LLM_CONN_ID``, default ``anthropic_default``) whose
    password is an Anthropic API key. Set its host only to route through a gateway.
 3. Create a database connection (``DB_CONN_ID``, default ``sql_default``) whose

@@ -97,8 +97,8 @@ func NewPositionalTaskFunction(fn any) (Task, error) {
 
 // DecideFunc takes the result of the function of a task from NewPositionalBranchFunction. It
 // returns value, which the task pushes as its return_value XCom, and the task_ids of the tasks to
-// skip. When value is a nil pointer, the task does not push the return_value XCom. A non-nil error
-// fails the task.
+// skip. value is always pushed: a nil pointer or nil interface stores null, and a nil slice or map
+// is pushed as an empty one. A non-nil error fails the task.
 type DecideFunc func(result any) (value any, skipped []string, err error)
 
 // NewPositionalBranchFunction is like NewPositionalTaskFunction, but the Task also skips tasks
@@ -183,28 +183,25 @@ func (f *taskFunction) call(
 			)
 		}
 	}
+	if err != nil {
+		return err
+	}
 	if branch != nil {
-		// The task pushes the value that decide returns, and decide runs only on a result that fn
-		// returned without an error. So the task pushes no XCom when fn or decide fails.
-		if err != nil {
-			return err
-		}
+		// The task pushes the value that decide returns.
 		value, skipped, err := f.decide(retValues[0].Interface())
 		if err != nil {
 			return err
 		}
-		rv := reflect.ValueOf(value)
-		if rv.Kind() != reflect.Ptr || !rv.IsNil() {
-			f.sendXcom(ctx, value, sdkClient, logger)
+		if err := pushReturnValue(ctx, value, sdkClient); err != nil {
+			return err
 		}
 		return branch.skipDownstream(ctx, sdkClient, skipped, logger)
 	}
-	// If there are two results, convert the first only if it's not a nil pointer
-	if len(retValues) > 1 && (retValues[0].Kind() != reflect.Ptr || !retValues[0].IsNil()) {
-		res := retValues[0].Interface()
-		f.sendXcom(ctx, res, sdkClient, logger)
+	// A function that returns only an error has no result to push.
+	if len(retValues) > 1 {
+		return pushReturnValue(ctx, retValues[0].Interface(), sdkClient)
 	}
-	return err
+	return nil
 }
 
 // skipMixinXComKey is the key of the XCom that lists the tasks a task skipped. When one of those
@@ -240,11 +237,19 @@ func startBranch(ctx context.Context) (*branchRun, error) {
 	if !ok {
 		return nil, errors.New("the task runtime cannot skip downstream tasks")
 	}
+	ti, err := taskInstanceFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &branchRun{skip: skip, ti: ti}, nil
+}
+
+func taskInstanceFrom(ctx context.Context) (sdk.TaskInstance, error) {
 	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
 	if !ok {
-		return nil, errors.New("task runtime context is missing")
+		return sdk.TaskInstance{}, errors.New("task runtime context is missing")
 	}
-	return &branchRun{skip: skip, ti: runtimeContext.TaskInstance()}, nil
+	return runtimeContext.TaskInstance(), nil
 }
 
 // skipDownstream records taskIDs in the skipmixin_key XCom, and then skips those tasks.
@@ -268,27 +273,31 @@ func (b *branchRun) skipDownstream(
 	return nil
 }
 
-func (f *taskFunction) sendXcom(
-	ctx context.Context,
-	value any,
-	c sdk.XComClient,
-	logger *slog.Logger,
-) {
-	runtimeContext, ok := ctx.Value(sdkcontext.RuntimeContextKey).(sdk.TIRunContext)
-	if !ok {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", "task runtime context is missing")
-		return
-	}
-	ti := runtimeContext.TaskInstance()
-	err := c.PushXCom(ctx, sdk.TaskInstance{
-		DagID:    ti.DagID,
-		RunID:    ti.RunID,
-		TaskID:   ti.TaskID,
-		MapIndex: ti.MapIndex,
-	}, sdk.XComReturnValueKey, value)
+// pushReturnValue pushes the task's return value. A failure fails the task: leaving it successful
+// would only move the error to the downstream tasks, which fail later on the XCom that is not there.
+func pushReturnValue(ctx context.Context, value any, c sdk.XComClient) error {
+	ti, err := taskInstanceFrom(ctx)
 	if err != nil {
-		logger.ErrorContext(ctx, "Unable to set XCom", "err", err)
+		return fmt.Errorf("setting the return value XCom: %w", err)
 	}
+	if err := c.PushXCom(ctx, ti, sdk.XComReturnValueKey, emptyIfNilCollection(value)); err != nil {
+		return fmt.Errorf("setting the return value XCom: %w", err)
+	}
+	return nil
+}
+
+// emptyIfNilCollection replaces a nil slice or map with an empty one. Go code
+// uses a nil slice as its empty slice, so a task that, say, filters out every
+// row means an empty list, not null.
+func emptyIfNilCollection(value any) any {
+	rv := reflect.ValueOf(value)
+	switch {
+	case rv.Kind() == reflect.Slice && rv.IsNil():
+		return reflect.MakeSlice(rv.Type(), 0, 0).Interface()
+	case rv.Kind() == reflect.Map && rv.IsNil():
+		return reflect.MakeMap(rv.Type()).Interface()
+	}
+	return value
 }
 
 func (f *taskFunction) validateFn(

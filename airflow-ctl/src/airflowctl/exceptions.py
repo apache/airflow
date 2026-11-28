@@ -38,9 +38,17 @@ class AirflowCtlCredentialNotFoundException(AirflowCtlNotFoundException):
     """Raise when a credential couldn't be found while performing an operation."""
 
 
+class AirflowCtlCredentialInvalidException(AirflowCtlException):
+    """Raise when a credentials file exists but cannot be used."""
+
+
 class AirflowCtlConnectionException(AirflowCtlException):
     """Raise when a connection error occurs while performing an operation."""
 
 
 class AirflowCtlKeyringException(AirflowCtlException):
     """Raise when a keyring error occurs while performing an operation."""
+
+
+class AirflowCtlBrowserLoginException(AirflowCtlException):
+    """Raise when the browser login of ``auth login --sso`` cannot complete."""

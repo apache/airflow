@@ -18,18 +18,16 @@
  */
 import { FilterBar } from "src/components/FilterBar";
 
-import { SearchParamsKeys } from "src/constants/searchParams";
-import { useFiltersHandler, type FilterableSearchParamsKeys } from "src/utils";
+import { GANTT_DATE_FILTER_KEYS, GRID_FILTER_KEYS } from "src/constants/persistentSearchParams";
+import { useFiltersHandler } from "src/utils";
 
-const searchParamKeys: Array<FilterableSearchParamsKeys> = [
-  SearchParamsKeys.RUN_ID_PATTERN,
-  SearchParamsKeys.STATE,
-  SearchParamsKeys.RUN_TYPE,
-  SearchParamsKeys.TRIGGERING_USER_NAME_PATTERN,
-  SearchParamsKeys.RUN_AFTER_RANGE,
-];
+type Props = {
+  readonly showGanttDateFilters?: boolean;
+};
 
-export const GridFilters = () => {
+export const GridFilters = ({ showGanttDateFilters = false }: Props) => {
+  const searchParamKeys = [...GRID_FILTER_KEYS, ...(showGanttDateFilters ? GANTT_DATE_FILTER_KEYS : [])];
+
   const { filterConfigs, handleFiltersChange, initialValues } = useFiltersHandler(searchParamKeys);
 
   return (

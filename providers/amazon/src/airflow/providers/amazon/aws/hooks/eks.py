@@ -32,7 +32,6 @@ from functools import partial
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.utils import yaml
 
 DEFAULT_PAGINATION_TOKEN = ""
@@ -609,6 +608,38 @@ class EksHook(AwsBaseHook):
                     os.unlink(temp_path)
 
     @contextmanager
+    def generate_config_file_with_credentials(
+        self, eks_cluster_name: str, pod_namespace: str | None
+    ) -> Generator[tuple[str, str], None, None]:
+        """
+        Create temporary kubeconfig and credential files using this hook's AWS session.
+
+        Both files remain available until the context exits and are then removed, including
+        when the caller raises an exception. The credential file can be refreshed in place
+        while the context is active without regenerating the kubeconfig.
+
+        :param eks_cluster_name: Name of the EKS cluster.
+        :param pod_namespace: Kubernetes namespace, or ``None`` for the client default.
+        :return: Tuple of kubeconfig path and credential file path.
+        """
+        credentials = self.get_session().get_credentials()
+        if credentials is None:
+            raise RuntimeError(
+                "Unable to retrieve AWS credentials. Credentials may have expired or not been configured. "
+                "Please check your AWS connection configuration."
+            )
+        frozen_credentials = credentials.get_frozen_credentials()
+        with self._secure_credential_context(
+            frozen_credentials.access_key, frozen_credentials.secret_key, frozen_credentials.token
+        ) as credentials_file:
+            with self.generate_config_file(
+                eks_cluster_name=eks_cluster_name,
+                pod_namespace=pod_namespace,
+                credentials_file=credentials_file,
+            ) as config_file:
+                yield config_file, credentials_file
+
+    @contextmanager
     def generate_config_file(
         self,
         eks_cluster_name: str,
@@ -637,11 +668,19 @@ class EksHook(AwsBaseHook):
         cluster_cert = cluster["cluster"]["certificateAuthority"]["data"]
         cluster_ep = cluster["cluster"]["endpoint"]
 
-        os.environ["AWS_STS_REGIONAL_ENDPOINTS"] = "regional"
-        try:
-            sts_url = f"{StsHook(region_name=session.region_name).conn_client_meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
-        finally:
-            del os.environ["AWS_STS_REGIONAL_ENDPOINTS"]
+        # eks_get_token signs the URL with the cluster region, which the global STS endpoint rejects outside
+        # us-east-1, so force the regional endpoint on this session even if the user configured "legacy".
+        # Not through the environment variable: the environment is shared by every trigger in the triggerer.
+        session._session.set_config_variable("sts_regional_endpoints", "regional")
+        sts_client = session.client(
+            "sts",
+            # sts_connection_assume skips the connection-wide endpoint_url, which on an EKS connection is
+            # an EKS endpoint, and EKS rejects tokens signed for a non-STS host.
+            endpoint_url=self.conn_config.get_service_endpoint_url("sts", sts_connection_assume=True),
+            config=self.config,
+            verify=self.verify,
+        )
+        sts_url = f"{sts_client.meta.endpoint_url}/?Action=GetCallerIdentity&Version=2011-06-15"
 
         cluster_config = {
             "apiVersion": "v1",

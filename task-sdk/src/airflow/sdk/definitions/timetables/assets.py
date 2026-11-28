@@ -24,6 +24,7 @@ import attrs
 from airflow.sdk.bases.timetable import BaseTimetable
 from airflow.sdk.definitions.asset import AssetAll, BaseAsset
 from airflow.sdk.definitions.partition_mappers.identity import IdentityMapper
+from airflow.sdk.exceptions import AirflowTimetableInvalid
 
 if TYPE_CHECKING:
     from collections.abc import Collection
@@ -32,27 +33,63 @@ if TYPE_CHECKING:
     from airflow.sdk.definitions.partition_mappers.base import PartitionMapper
 
 
+def _get_default_batch_asset_events(timetable: AssetTriggeredTimetable) -> bool:
+    from airflow.sdk.configuration import conf
+
+    return (
+        conf.getboolean("scheduler", "batch_asset_events", fallback=False)
+        or timetable.get_batching_requirement() is not None
+    )
+
+
 @attrs.define
 class AssetTriggeredTimetable(BaseTimetable):
     """
-    Timetable that never schedules anything.
+    Schedule a Dag when its asset condition is satisfied.
 
-    This should not be directly used anywhere, but only set if a DAG is triggered by assets.
-
-    :meta private:
+    :param assets: The asset expression that triggers the Dag.
+    :param batch_asset_events: Consume queued events together in one Dag run. Defaults
+        to ``[scheduler] batch_asset_events``, which is false, except that conditions
+        combining multiple assets with ``&`` and ``RollupMapper`` partition mappers always
+        default to batching. Passing ``False`` explicitly for those is rejected.
     """
 
     asset_triggered = True
     asset_condition: BaseAsset = attrs.field(alias="assets")
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True), kw_only=True
+    )
+
+    def get_batching_requirement(self) -> str | None:
+        """Return why this timetable cannot run without event batching, or ``None``."""
+        if self.asset_condition.requires_batching:
+            return "Asset AND conditions require batch_asset_events=True"
+        return None
+
+    def validate(self) -> None:
+        if not self.batch_asset_events and (reason := self.get_batching_requirement()):
+            raise AirflowTimetableInvalid(reason)
 
 
 @attrs.define
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
     """Asset-driven timetable that listens for partitioned assets."""
 
-    asset_condition: BaseAsset = attrs.field(alias="assets")
     partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
     default_partition_mapper: PartitionMapper = IdentityMapper()
+
+    # The factory needs the partition mappers to be initialized first.
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True), kw_only=True
+    )
+
+    def get_batching_requirement(self) -> str | None:
+        if any(
+            mapper.is_rollup
+            for mapper in (self.default_partition_mapper, *self.partition_mapper_config.values())
+        ):
+            return "Partition rollups require batch_asset_events=True"
+        return super().get_batching_requirement()
 
 
 class PartitionedAtRuntime(BaseTimetable):
@@ -81,6 +118,10 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
 
     asset_condition: BaseAsset = attrs.field(alias="assets", converter=_coerce_assets)
     timetable: BaseTimetable
+
+    batch_asset_events: bool = attrs.field(
+        default=attrs.Factory(_get_default_batch_asset_events, takes_self=True), kw_only=True
+    )
 
     def __attrs_post_init__(self) -> None:
         self.active_runs_limit = self.timetable.active_runs_limit

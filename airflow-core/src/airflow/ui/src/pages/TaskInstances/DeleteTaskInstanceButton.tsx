@@ -67,6 +67,9 @@ const DeleteTaskInstanceButton = ({ taskInstance }: DeleteTaskInstanceButtonProp
             dagRunId: taskInstance.dag_run_id,
             mapIndex: taskInstance.map_index,
             taskId: taskInstance.task_id,
+            ...(taskInstance.region_id === undefined
+              ? {}
+              : { regionId: taskInstance.region_id, regionIndex: taskInstance.region_index }),
           });
         }}
         open={open}

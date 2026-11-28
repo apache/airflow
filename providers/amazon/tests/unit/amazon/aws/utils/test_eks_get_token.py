@@ -17,9 +17,11 @@
 from __future__ import annotations
 
 import contextlib
+import os
 from io import StringIO
 from unittest import mock
 
+import boto3
 import pytest
 import time_machine
 
@@ -76,11 +78,17 @@ class TestGetEksToken:
         ) as mock_fetch_token:
             mock_fetch_token.return_value = "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
 
-            with mock.patch("sys.argv", args), contextlib.redirect_stdout(StringIO()) as temp_stdout:
+            with (
+                mock.patch("sys.argv", args),
+                mock.patch.dict(os.environ),
+                contextlib.redirect_stdout(StringIO()) as temp_stdout,
+            ):
+                os.environ.pop("AWS_STS_REGIONAL_ENDPOINTS", None)
                 # Import and directly call the main function rather than using runpy
                 from airflow.providers.amazon.aws.utils.eks_get_token import main
 
                 main()
+                assert os.environ["AWS_STS_REGIONAL_ENDPOINTS"] == "regional"
 
                 output = temp_stdout.getvalue()
                 token = "token: k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
@@ -152,3 +160,46 @@ class TestGetEksToken:
 
         # Verify the token format
         assert result == "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
+
+    @mock.patch("airflow.providers.amazon.aws.utils.eks_get_token.RequestSigner")
+    @mock.patch("boto3.Session")
+    def test_fetch_access_token_for_cluster_uses_provided_session(self, mock_session, mock_signer):
+        from airflow.providers.amazon.aws.utils.eks_get_token import fetch_access_token_for_cluster
+
+        mock_signer.return_value.generate_presigned_url.return_value = "http://example.com"
+        # boto3.Session is patched, so spec against the real class.
+        session = mock.MagicMock(spec=boto3.session.Session)
+
+        fetch_access_token_for_cluster(
+            "test-cluster", "https://sts.us-east-1.amazonaws.com", region_name="us-east-1", session=session
+        )
+
+        mock_session.assert_not_called()
+        session.client.assert_called_once_with("eks")
+
+
+def test_fetch_access_token_for_cluster_never_writes_env(monkeypatch):
+    from airflow.providers.amazon.aws.utils.eks_get_token import fetch_access_token_for_cluster
+
+    monkeypatch.setenv("AWS_STS_REGIONAL_ENDPOINTS", "legacy")
+    env_writes = []
+    environ_cls = type(os.environ)
+    for method in ("__setitem__", "__delitem__"):
+        real = getattr(environ_cls, method)
+        monkeypatch.setattr(
+            environ_cls,
+            method,
+            lambda self, key, *args, _real=real: env_writes.append(key) or _real(self, key, *args),
+        )
+    session = boto3.Session(
+        aws_access_key_id="testing", aws_secret_access_key="testing", region_name="eu-west-1"
+    )
+
+    fetch_access_token_for_cluster(
+        "test-cluster",
+        "https://sts.eu-west-1.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15",
+        region_name="eu-west-1",
+        session=session,
+    )
+
+    assert env_writes == []

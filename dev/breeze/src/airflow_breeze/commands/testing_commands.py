@@ -47,6 +47,7 @@ from airflow_breeze.commands.common_options import (
     option_e2e_reporter,
     option_e2e_timeout,
     option_e2e_workers,
+    option_elasticsearch_version,
     option_excluded_providers,
     option_force_lowest_dependencies,
     option_force_reinstall_deps,
@@ -60,6 +61,7 @@ from airflow_breeze.commands.common_options import (
     option_mount_sources,
     option_mysql_version,
     option_no_db_cleanup,
+    option_opensearch_version,
     option_parallelism,
     option_postgres_version,
     option_project_name,
@@ -90,9 +92,11 @@ from airflow_breeze.global_constants import (
     ALL_TEST_TYPE,
     ALLOWED_KUBERNETES_VERSIONS,
     ALLOWED_TEST_TYPE_CHOICES,
+    PROVIDER_TEST_SPLITS,
     TESTCONTAINERS_IMAGES_BY_PROVIDER,
     GroupOfTests,
     all_selective_core_test_types,
+    get_provider_split_test_types,
     providers_test_type,
 )
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -127,6 +131,8 @@ from airflow_breeze.utils.run_tests import (
     are_all_test_paths_excluded,
     file_name_from_test_type,
     generate_args_for_pytest,
+    get_selected_test_paths,
+    is_path_under_any,
     is_provider_selected_in_test_types,
     run_docker_compose_tests,
 )
@@ -270,13 +276,21 @@ def _run_test(
         integration=shell_params.integration,
     )
     pytest_args.extend(extra_pytest_args)
-    # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
-    # Which might be the case if we are ignoring some providers during compatibility checks
-    pytest_args_before_skip = pytest_args
-    pytest_args = [arg for arg in pytest_args if f"--ignore={arg}" not in pytest_args]
-    # If no test directory is left (all positional args were excluded/ignored), skip
-    if pytest_args_before_skip != pytest_args and pytest_args[0].startswith("--"):
+    # Drop the test paths the test type selects under an "--ignore=FOLDER" argument, which is the case when
+    # some providers are skipped during compatibility checks: pytest runs an explicitly selected path even
+    # when it or an ancestor is ignored. Paths the user passes explicitly go to pytest as they are.
+    ignored_folders = [arg.removeprefix("--ignore=") for arg in pytest_args if arg.startswith("--ignore=")]
+    selected_paths = get_selected_test_paths(
+        test_group=shell_params.test_group,
+        test_type=shell_params.test_type,
+        skip_db_tests=shell_params.skip_db_tests,
+        parallel_test_types_list=shell_params.parallel_test_types_list,
+        integration=shell_params.integration,
+    )
+    ignored_selections = {path for path in selected_paths if is_path_under_any(path, ignored_folders)}
+    if selected_paths and ignored_selections == set(selected_paths):
         return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
+    pytest_args = [arg for arg in pytest_args if arg not in ignored_selections]
     run_cmd.extend(pytest_args)
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
@@ -391,6 +405,11 @@ def _run_tests_in_pool(
     # tests are still running. We are only adding here test types that take more than 2 minutes to run
     # on a fast machine in parallel
     sorting_order = [
+        *(
+            test_type
+            for provider_id in PROVIDER_TEST_SPLITS
+            for test_type in get_provider_split_test_types(provider_id)
+        ),
         "Providers[standard]",
         "Providers[amazon]",
         "Providers[google]",
@@ -1140,12 +1159,14 @@ def core_integration_tests(
 @option_enable_coverage
 @option_force_sa_warnings
 @option_forward_credentials
+@option_elasticsearch_version
 @option_github_repository
 @option_providers_integration
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
+@option_opensearch_version
 @option_postgres_version
 @option_python
 @option_skip_docker_compose_down
@@ -1157,6 +1178,7 @@ def integration_providers_tests(
     collect_only: bool,
     custom_db_url: str | None,
     db_reset: bool,
+    elasticsearch_version: str,
     enable_coverage: bool,
     extra_pytest_args: tuple,
     force_sa_warnings: bool,
@@ -1167,6 +1189,7 @@ def integration_providers_tests(
     mount_sources: str,
     mysql_version: str,
     no_db_cleanup: bool,
+    opensearch_version: str,
     postgres_version: str,
     python: str,
     skip_docker_compose_down: bool,
@@ -1177,6 +1200,7 @@ def integration_providers_tests(
         backend=backend,
         collect_only=collect_only,
         custom_db_url=custom_db_url or "",
+        elasticsearch_version=elasticsearch_version,
         enable_coverage=enable_coverage,
         forward_credentials=forward_credentials,
         forward_ports=False,
@@ -1186,6 +1210,7 @@ def integration_providers_tests(
         mount_sources=mount_sources,
         mysql_version=mysql_version,
         no_db_cleanup=no_db_cleanup,
+        opensearch_version=opensearch_version,
         postgres_version=postgres_version,
         python=python,
         test_type="All",
@@ -1535,6 +1560,8 @@ option_e2e_test_mode = click.option(
             "go_sdk",
             "openlineage",
             "ts_sdk",
+            "yaml_dag",
+            "lang_sdk_xcom_object_storage",
         ],
         case_sensitive=False,
     ),

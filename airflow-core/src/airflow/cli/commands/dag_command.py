@@ -45,7 +45,7 @@ from airflow.jobs.job import Job
 from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import clear_task_instances
+from airflow.models.taskinstance import clear_task_instances_for_runs
 from airflow.timetables.base import TimeRestriction
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
@@ -205,6 +205,7 @@ def dag_clear(args, *, session: Session = NEW_SESSION) -> None:
         run_ids,
         only_failed=args.only_failed,
         only_running=args.only_running,
+        keep_task_state=args.keep_task_state,
         session=session,
     )
     print(f"Cleared {cleared} task instance(s) across {len(run_ids)} Dag run(s).")
@@ -216,6 +217,7 @@ def _bulk_clear_runs(
     only_failed: bool,
     only_running: bool,
     session: Session,
+    keep_task_state: bool = False,
 ) -> int:
     """Clear task instances for the given run_ids in chunks instead of one transaction per run."""
     state_filter: list[TaskInstanceState] = []
@@ -235,7 +237,13 @@ def _bulk_clear_runs(
         tis = session.scalars(ti_query).all()
         if not tis:
             continue
-        clear_task_instances(list(tis), session=session)
+        clear_task_instances_for_runs(
+            tis,
+            session=session,
+            later_loop_iterations=not state_filter,
+            keep_task_state=keep_task_state,
+            whole_task_keys=() if state_filter else {(ti.dag_id, ti.run_id, ti.task_id) for ti in tis},
+        )
         session.flush()
         cleared += len(tis)
 
@@ -572,6 +580,7 @@ def dag_list_dags(args, *, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
+                    bundle.initialize()
                     bundle_dagbag = BundleDagBag(
                         bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
                     )
@@ -676,6 +685,7 @@ def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
 
             for bundle in all_bundles:
                 if bundle.name in bundles_to_search:
+                    bundle.initialize()
                     bundle_dagbag = BundleDagBag(
                         bundle.path, bundle_path=bundle.path, bundle_name=bundle.name
                     )

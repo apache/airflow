@@ -134,6 +134,7 @@ class TestKubernetesJobOperator:
     def setup_tests(self):
         self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
         self._default_client_mock = self._default_client_patch.start()
+        patch("kubernetes.client.CoreV1Api.read_namespaced_pod", autospec=True).start()
 
         yield
 
@@ -232,9 +233,28 @@ class TestKubernetesJobOperator:
         job = KubernetesJobOperator.deserialize_job_template_file(template.as_posix())
 
         assert isinstance(job, k8s.V1Job)
-        pickle.dumps(job)
-        assert job.local_vars_configuration.refresh_api_key_hook is None
-        assert job.spec.template.spec.containers[0].local_vars_configuration.refresh_api_key_hook is None
+        restored = pickle.loads(pickle.dumps(job))
+        assert restored.metadata.name == "test-job"
+        assert restored.spec.template.spec.containers[0].image == "airflow:3"
+
+    @pytest.mark.parametrize("template_contents", [None, ""], ids=["missing", "empty"])
+    def test_build_job_with_missing_or_empty_template(self, tmp_path, template_contents):
+        template = tmp_path / "job.yaml"
+        if template_contents is not None:
+            template.write_text(template_contents)
+        operator = KubernetesJobOperator(
+            task_id="task",
+            name="test-job",
+            namespace="default",
+            image="busybox",
+            random_name_suffix=False,
+            job_template_file=str(template),
+        )
+
+        job = operator.build_job_request_obj(dry_run=True)
+
+        assert job.metadata.name == "job-test-job"
+        assert job.spec.template.spec.containers[0].image == "busybox"
 
     def test_completion_mode_correctly_set(self, clean_dags_dagruns_and_dagbundles):
         k = KubernetesJobOperator(
@@ -514,6 +534,37 @@ class TestKubernetesJobOperator:
             "foo": "bar",
             "hello": "world",
         }
+
+    @patch(HOOK_CLASS)
+    def test_build_job_request_obj_dry_run_skips_live_kube_client(self, hook_mock):
+        """dry_run must not require a live Kubernetes API client (e.g. no kube config available)."""
+        type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
+            side_effect=RuntimeError("kube config not available")
+        )
+        hook_mock.return_value.get_namespace.return_value = "default"
+        k = KubernetesJobOperator(
+            name="test",
+            task_id="task",
+        )
+        job = k.build_job_request_obj(dry_run=True)
+        assert "airflow_kpo_in_cluster" not in job.spec.template.metadata.labels
+
+        with pytest.raises(RuntimeError, match="kube config not available"):
+            k.build_job_request_obj()
+
+    @patch(HOOK_CLASS)
+    def test_dry_run_method_prints_job_without_live_kube_client(self, hook_mock, capsys):
+        type(hook_mock.return_value).is_in_cluster = mock.PropertyMock(
+            side_effect=RuntimeError("kube config not available")
+        )
+        hook_mock.return_value.get_namespace.return_value = "default"
+        k = KubernetesJobOperator(
+            name="test",
+            task_id="task",
+        )
+        k.dry_run()
+
+        assert "kind: Job" in capsys.readouterr().out
 
     def test_task_id_as_name(self):
         k = KubernetesJobOperator(
@@ -1091,9 +1142,7 @@ class TestKubernetesJobOperator:
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
     def test_on_kill(self, mock_client):
-        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
-        mock_job.metadata.name = JOB_NAME
-        mock_job.metadata.namespace = JOB_NAMESPACE
+        mock_job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=JOB_NAMESPACE))
 
         op = KubernetesJobOperator(task_id="test_task_id")
         op.job = mock_job
@@ -1109,9 +1158,7 @@ class TestKubernetesJobOperator:
     @pytest.mark.non_db_test_override
     @patch(JOB_OPERATORS_PATH.format("KubernetesJobOperator.job_client"))
     def test_on_kill_termination_grace_period(self, mock_client):
-        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
-        mock_job.metadata.name = JOB_NAME
-        mock_job.metadata.namespace = JOB_NAMESPACE
+        mock_job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=JOB_NAMESPACE))
         mock_termination_grace_period = mock.MagicMock()
 
         op = KubernetesJobOperator(
@@ -1146,9 +1193,7 @@ class TestKubernetesJobOperator:
         """With ``on_kill_action="keep_pod"`` the job is deleted but monitoring pods survive."""
         pm = _recording_pod_manager()
         mock_pod_manager_prop.return_value = pm
-        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
-        mock_job.metadata.name = JOB_NAME
-        mock_job.metadata.namespace = JOB_NAMESPACE
+        mock_job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=JOB_NAMESPACE))
         pod = _pod(POD_NAME)
 
         op = KubernetesJobOperator(task_id="test_task_id", on_kill_action="keep_pod")
@@ -1231,10 +1276,10 @@ class TestKubernetesJobOperator:
             "run_id": "fakerun",
             "kubernetes_pod_operator": "True",
         }
-        mock_pod_1 = mock.MagicMock()
+        mock_pod_1 = _pod("pod-1")
         return_value = [mock_pod_1]
         if parallelism == 2:
-            mock_pod_2 = mock.MagicMock()
+            mock_pod_2 = _pod("pod-2")
             return_value.append(mock_pod_2)
         side_effects = []
         for _i in range(retries):
@@ -1269,7 +1314,7 @@ class TestKubernetesJobOperator:
             "kubernetes_pod_operator": "True",
         }
 
-        mock_pod_1 = mock.MagicMock()
+        mock_pod_1 = _pod("pod-1")
         return_value = [mock_pod_1]
 
         side_effects = []
@@ -1621,9 +1666,7 @@ class TestKubernetesJobOperator:
         """``on_kill`` deletes the job and every monitoring pod owned by the operator."""
         pm = _recording_pod_manager()
         mock_pod_manager_prop.return_value = pm
-        mock_job = mock.create_autospec(k8s.V1Job, instance=True)
-        mock_job.metadata.name = JOB_NAME
-        mock_job.metadata.namespace = JOB_NAMESPACE
+        mock_job = k8s.V1Job(metadata=k8s.V1ObjectMeta(name=JOB_NAME, namespace=JOB_NAMESPACE))
         pod_1 = _pod("pod-1")
         pod_2 = _pod("pod-2")
 
@@ -1642,6 +1685,7 @@ class TestKubernetesDeleteJobOperator:
     def setup_tests(self):
         self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
         self._default_client_mock = self._default_client_patch.start()
+        patch("kubernetes.client.CoreV1Api.read_namespaced_pod", autospec=True).start()
 
         yield
 
@@ -1769,6 +1813,7 @@ class TestKubernetesPatchJobOperator:
     def setup_tests(self):
         self._default_client_patch = patch(f"{HOOK_CLASS}._get_default_client")
         self._default_client_mock = self._default_client_patch.start()
+        patch("kubernetes.client.CoreV1Api.read_namespaced_pod", autospec=True).start()
 
         yield
 

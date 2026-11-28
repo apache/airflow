@@ -46,6 +46,7 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.pool import Pool
+from airflow.sdk.exceptions import AirflowDagCycleException, TaskGroupCycleDeprecationWarning
 from airflow.sdk.importers import DagImportError, get_importer_registry
 from airflow.serialization.definitions.dag import SerializedDAG
 from airflow.serialization.definitions.notset import NOTSET, ArgNotSet, is_arg_set
@@ -213,6 +214,7 @@ class DagBag(LoggingMixin):
         self.import_errors: dict[str, str] = {}
         self.captured_warnings: dict[str, tuple[str, ...]] = {}
         self._import_warnings: dict[str, list[DagImportWarning]] = {}
+        self.task_group_cycle_warnings: dict[str, str] = {}
         # The source code of each definition that produced Dags, keyed by its fileloc
         self.dag_source_codes: dict[str, DagSourceCode] = {}
         # Only used by SchedulerJob to compare the dag_hash to identify change in DAGs
@@ -446,7 +448,11 @@ class DagBag(LoggingMixin):
         """Get the set of DagWarnings for the bagged dags."""
         from airflow.models.dagwarning import DagWarning, DagWarningType
 
-        dag_warnings: set[DagWarning] = set()
+        dag_warnings: set[DagWarning] = {
+            DagWarning(dag_id, DagWarningType.TASK_GROUP_CYCLE, message)
+            for dag_id, message in self.task_group_cycle_warnings.items()
+            if dag_id in self.dags
+        }
         for dag in self.dags.values():
             for import_warning in self._import_warnings.get(dag.fileloc, ()):
                 # Only importer-namespaced types (``yaml:deprecated_field``) are Dag warnings;
@@ -491,7 +497,21 @@ class DagBag(LoggingMixin):
         :raises: AirflowDagCycleException if a cycle is detected.
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        dag.check_cycle()
+        task_group_cycle_warning = None
+        with warnings.catch_warnings(record=True) as captured_warnings:
+            # DeprecationWarning is ignored by default outside __main__, which would hide it here too.
+            warnings.simplefilter("always", TaskGroupCycleDeprecationWarning)
+            dag.check_cycle()
+        for captured in captured_warnings:
+            if issubclass(captured.category, TaskGroupCycleDeprecationWarning):
+                task_group_cycle_warning = str(captured.message)
+            warnings.warn_explicit(
+                message=captured.message,
+                category=captured.category,
+                filename=captured.filename,
+                lineno=captured.lineno,
+                source=captured.source,
+            )
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
@@ -515,6 +535,11 @@ class DagBag(LoggingMixin):
             self.log.exception(e)
             raise AirflowClusterPolicyError(e)
         self._add_to_bag(dag)
+        # Only once bagged: a rejected duplicate must not touch the warning of the Dag it lost to.
+        if task_group_cycle_warning is None:
+            self.task_group_cycle_warnings.pop(dag.dag_id, None)
+        else:
+            self.task_group_cycle_warnings[dag.dag_id] = task_group_cycle_warning
 
     def _add_to_bag(self, dag: BaggedDAG) -> None:
         """
@@ -522,8 +547,6 @@ class DagBag(LoggingMixin):
 
         :raises: AirflowDagDuplicatedIdException if this dag already exists in the bag.
         """
-        from airflow.sdk.exceptions import AirflowDagCycleException
-
         try:
             prev_dag = self.dags.get(dag.dag_id)
             if prev_dag and prev_dag.fileloc != dag.fileloc:

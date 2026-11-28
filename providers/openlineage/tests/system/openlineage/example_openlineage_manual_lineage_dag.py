@@ -28,7 +28,7 @@ It checks:
     - failed query (is_successful=False) produces a FAIL event with error message run facet
     - counter resets to .1 in a new task (no cross-task spill)
     - explicit job_name= bypasses the counter
-    - explicit task_instance= bypasses context resolution inside the helper
+    - explicit task_instance= bypasses context resolution inside the helper (query_maximal)
 """
 
 from __future__ import annotations
@@ -192,17 +192,6 @@ def openlineage_manual_lineage_dag():
             job_name="custom_job_name_set_by_caller",
         )
 
-    @task
-    def query_with_explicit_task_instance() -> None:
-        """Explicit task_instance= bypasses context resolution inside the helper."""
-        ti = get_current_context()["task_instance"]
-        emit_query_lineage(
-            query_id="qid-explicit-ti",
-            query_source_namespace="snowflake://example-acct",
-            query_text="SELECT now()",
-            task_instance=ti,
-        )
-
     check_events = OpenLineageTestOperator(
         task_id="check_events",
         file_path=get_expected_event_file_path(DAG_ID),
@@ -229,9 +218,6 @@ def openlineage_manual_lineage_dag():
             # explicit job_name bypasses counter
             "custom_job_name_set_by_caller.event.start": "==1",
             "custom_job_name_set_by_caller.event.complete": "==1",
-            # explicit task_instance
-            f"{DAG_ID}.query_with_explicit_task_instance.manual_query.1.event.start": "==1",
-            f"{DAG_ID}.query_with_explicit_task_instance.manual_query.1.event.complete": "==1",
         },
     )
 
@@ -243,7 +229,6 @@ def openlineage_manual_lineage_dag():
         >> query_multiple_in_one_task()
         >> query_isolated_task()
         >> query_with_explicit_job_name()
-        >> query_with_explicit_task_instance()
         >> check_events
     )
 

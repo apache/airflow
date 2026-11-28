@@ -17,23 +17,14 @@
  * under the License.
  */
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { delay, http, HttpResponse } from "msw";
-import { setupServer, type SetupServer } from "msw/node";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
-import { handlers } from "src/mocks/handlers";
-import { AppWrapper } from "src/utils/AppWrapper";
+import { server } from "src/mocks/server";
+import { AppWrapper, preloadAppRoutes } from "src/utils/AppWrapper";
 
-let server: SetupServer;
-
-beforeAll(() => {
-  server = setupServer(...handlers);
-  server.listen({ onUnhandledFrame: "bypass" });
-});
-
-afterEach(() => server.resetHandlers());
-afterAll(() => server.close());
+beforeAll(() => preloadAppRoutes(["/assets"]));
 
 // The assets mock handler (see src/mocks/handlers/assets.ts) returns a single asset
 // with one consuming task, one alias and one watcher.
@@ -73,16 +64,14 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: ["consumer_dag"], hasEvents }));
 
-    const dagIdPill = await screen.findByTestId("dag_id-pill");
+    await screen.findByTestId("dag_id-pill");
 
-    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+    fireEvent.click(screen.getByTestId("dag_id-pill-remove"));
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents }));
     expect(screen.getByTestId("has_events-pill")).toBeInTheDocument();
 
-    fireEvent.click(
-      within(screen.getByTestId("has_events-pill")).getByRole("button", { name: /Remove .* filter/u }),
-    );
+    fireEvent.click(screen.getByTestId("has_events-pill-remove"));
 
     await waitFor(() => expect(requests.at(-1)).toEqual({ dagIds: [], hasEvents: null }));
   });
@@ -120,8 +109,11 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument());
 
+    let refetchStarted = false;
+
     server.use(
       http.get("/ui/assets", async () => {
+        refetchStarted = true;
         await delay("infinite");
 
         return HttpResponse.json({ assets: [], total_entries: 0 });
@@ -130,7 +122,7 @@ describe("AssetsList filtering", () => {
 
     fireEvent.change(screen.getByTestId("search-dags"), { target: { value: "plain" } });
 
-    await waitFor(() => expect(screen.getByRole("progressbar")).toBeVisible());
+    await waitFor(() => expect(refetchStarted).toBe(true));
 
     expect(screen.getByText("asset_with_dependencies")).toBeInTheDocument();
     expect(screen.queryAllByTestId("skeleton")).toHaveLength(0);
@@ -163,9 +155,9 @@ describe("AssetsList filtering", () => {
 
     await waitFor(() => expect(requestedDagIds.at(-1)).toEqual(["consumer_dag"]));
 
-    const dagIdPill = await screen.findByTestId("dag_id-pill");
+    await screen.findByTestId("dag_id-pill");
 
-    fireEvent.click(within(dagIdPill).getByRole("button", { name: /Remove .* filter/u }));
+    fireEvent.click(screen.getByTestId("dag_id-pill-remove"));
 
     await waitFor(() => expect(requestedDagIds.at(-1)).toEqual([]));
     expect(screen.queryByTestId("dag_id-pill")).not.toBeInTheDocument();

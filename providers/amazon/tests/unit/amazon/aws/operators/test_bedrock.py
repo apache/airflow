@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 from unittest import mock
 
 import pytest
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, WaiterError
 from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.bedrock import (
@@ -53,8 +53,13 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockRaGOperator,
     BedrockUpdateGuardrailOperator,
 )
-from airflow.providers.amazon.aws.triggers.bedrock import BedrockAgentRuntimeDeletedTrigger
+from airflow.providers.amazon.aws.triggers.bedrock import (
+    BedrockAgentRuntimeDeletedTrigger,
+    BedrockBatchInferenceCompletedTrigger,
+    BedrockBatchInferenceScheduledTrigger,
+)
 
+from unit.amazon.aws.utils.test_deferral import expect_deferral_warning
 from unit.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
@@ -117,7 +122,7 @@ class TestBedrockCreateAgentRuntimeOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
             pytest.param(True, True, id="defer_takes_precedence"),
         ],
     )
@@ -141,7 +146,8 @@ class TestBedrockCreateAgentRuntimeOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.AGENT_RUNTIME_ARN
         mock_client.create_agent_runtime.assert_called_once_with(
@@ -315,7 +321,7 @@ class TestBedrockDeleteAgentRuntimeOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
             pytest.param(True, True, id="defer_takes_precedence"),
         ],
     )
@@ -339,7 +345,8 @@ class TestBedrockDeleteAgentRuntimeOperator:
         )
         operator.defer = mock.MagicMock()
 
-        operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            operator.execute({})
 
         mock_client.delete_agent_runtime.assert_called_once_with(agentRuntimeId=self.AGENT_RUNTIME_ID)
         assert operator.defer.call_count == deferrable
@@ -442,7 +449,7 @@ class TestBedrockCustomizeModelOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(BedrockHook, "get_waiter")
@@ -452,7 +459,8 @@ class TestBedrockCustomizeModelOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.CUSTOMIZE_JOB_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
@@ -537,7 +545,7 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(BedrockHook, "get_waiter")
@@ -547,7 +555,8 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.MODEL_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
@@ -600,7 +609,7 @@ class TestBedrockCreateKnowledgeBaseOperator:
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(BedrockAgentHook, "get_waiter")
@@ -610,7 +619,8 @@ class TestBedrockCreateKnowledgeBaseOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.KNOWLEDGE_BASE_ID
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
@@ -764,6 +774,27 @@ class TestBedrockIngestDataOperator:
         result = self.operator.execute({})
 
         assert result == self.INGESTION_JOB_ID
+
+    @pytest.mark.parametrize(
+        ("wait_for_completion", "deferrable"),
+        [
+            pytest.param(False, False, id="no_wait"),
+            pytest.param(True, False, id="wait"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
+        ],
+    )
+    @mock.patch.object(BedrockAgentHook, "get_waiter")
+    def test_ingest_data_wait_combinations(self, mock_get_waiter, wait_for_completion, deferrable, mock_conn):
+        self.operator.wait_for_completion = wait_for_completion
+        self.operator.deferrable = deferrable
+        self.operator.defer = mock.MagicMock()
+
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
+
+        assert response == self.INGESTION_JOB_ID
+        assert mock_get_waiter.call_count == wait_for_completion
+        assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
@@ -1093,8 +1124,8 @@ class TestBedrockBatchInferenceOperator:
             hook = BedrockHook(aws_conn_id="aws_default")
             yield hook
 
-    def setup_method(self):
-        self.operator = BedrockBatchInferenceOperator(
+    def _create_operator(self, **kwargs):
+        operator = BedrockBatchInferenceOperator(
             task_id="test_task",
             job_name=self.JOB_NAME,
             role_arn=self.ROLE_ARN,
@@ -1102,15 +1133,20 @@ class TestBedrockBatchInferenceOperator:
             input_uri=self.INPUT_URI,
             output_uri=self.OUTPUT_URI,
             invoke_kwargs=self.INVOKE_KWARGS,
+            **kwargs,
         )
-        self.operator.defer = mock.MagicMock()
+        operator.defer = mock.MagicMock()
+        return operator
+
+    def setup_method(self):
+        self.operator = self._create_operator()
 
     @pytest.mark.parametrize(
         ("wait_for_completion", "deferrable"),
         [
             pytest.param(False, False, id="no_wait"),
             pytest.param(True, False, id="wait"),
-            pytest.param(False, True, id="defer"),
+            pytest.param(False, True, id="defer_overrides_no_wait"),
         ],
     )
     @mock.patch.object(BedrockHook, "get_waiter")
@@ -1120,11 +1156,43 @@ class TestBedrockBatchInferenceOperator:
         self.operator.wait_for_completion = wait_for_completion
         self.operator.deferrable = deferrable
 
-        response = self.operator.execute({})
+        with expect_deferral_warning(deferrable=deferrable, wait_for_completion=wait_for_completion):
+            response = self.operator.execute({})
 
         assert response == self.JOB_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
+
+    @pytest.mark.parametrize(
+        ("success_state", "waiter_name"),
+        [
+            pytest.param("completed", "batch_inference_complete", id="completed"),
+            pytest.param("scheduled", "batch_inference_scheduled", id="scheduled"),
+        ],
+    )
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
+    def test_wait_for_success_state(self, mock_get_waiter, success_state, waiter_name, mock_conn):
+        self._create_operator(success_state=success_state).execute({})
+
+        assert mock_get_waiter.call_args.kwargs["waiter_name"] == waiter_name
+
+    @pytest.mark.parametrize(
+        ("success_state", "trigger_class"),
+        [
+            pytest.param("completed", BedrockBatchInferenceCompletedTrigger, id="completed"),
+            pytest.param("scheduled", BedrockBatchInferenceScheduledTrigger, id="scheduled"),
+        ],
+    )
+    def test_defer_for_success_state(self, success_state, trigger_class, mock_conn):
+        operator = self._create_operator(success_state=success_state, deferrable=True)
+
+        operator.execute({})
+
+        assert isinstance(operator.defer.call_args.kwargs["trigger"], trigger_class)
+
+    def test_invalid_success_state(self):
+        with pytest.raises(ValueError, match="success_state must be one of"):
+            self._create_operator(success_state="running")
 
     def test_template_fields(self):
         validate_template_fields(self.operator)
@@ -1132,6 +1200,26 @@ class TestBedrockBatchInferenceOperator:
 
 GUARDRAIL_NAME = "test-guardrail"
 GUARDRAIL_ID = "abc123"
+GUARDRAIL_WAIT_CASES = [
+    pytest.param({}, {"Delay": 2, "MaxAttempts": 60}, id="default_wait"),
+    pytest.param(
+        {"waiter_delay": 1, "waiter_max_attempts": 3}, {"Delay": 1, "MaxAttempts": 3}, id="custom_wait"
+    ),
+    pytest.param({"wait_for_completion": False}, None, id="no_wait"),
+]
+
+
+def _assert_guardrail_waiter_called(mock_get_waiter, expected_waiter_config, call_count=1):
+    if expected_waiter_config is None:
+        mock_get_waiter.assert_not_called()
+    else:
+        wait_call = mock.call(
+            guardrailIdentifier=GUARDRAIL_ID,
+            guardrailVersion="DRAFT",
+            WaiterConfig=expected_waiter_config,
+        )
+        assert mock_get_waiter.call_args_list == [mock.call(mock.ANY, "guardrail_ready")] * call_count
+        assert mock_get_waiter.return_value.wait.call_args_list == [wait_call] * call_count
 
 
 class TestBedrockCreateGuardrailOperator:
@@ -1143,8 +1231,17 @@ class TestBedrockCreateGuardrailOperator:
             blocked_outputs_messaging="Output blocked.",
         )
 
+    @pytest.mark.parametrize(("wait_kwargs", "expected_waiter_config"), GUARDRAIL_WAIT_CASES)
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
     @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute(self, mock_conn):
+    def test_execute(self, mock_conn, mock_get_waiter, wait_kwargs, expected_waiter_config):
+        op = BedrockCreateGuardrailOperator(
+            task_id="create_guardrail",
+            guardrail_name=GUARDRAIL_NAME,
+            blocked_input_messaging="Input blocked.",
+            blocked_outputs_messaging="Output blocked.",
+            **wait_kwargs,
+        )
         mock_client = mock.MagicMock()
         mock_client.create_guardrail.return_value = {
             "guardrailId": GUARDRAIL_ID,
@@ -1153,7 +1250,7 @@ class TestBedrockCreateGuardrailOperator:
         }
         mock_conn.return_value = mock_client
 
-        result = self.operator.execute({})
+        result = op.execute({})
 
         mock_client.create_guardrail.assert_called_once_with(
             name=GUARDRAIL_NAME,
@@ -1161,9 +1258,11 @@ class TestBedrockCreateGuardrailOperator:
             blockedOutputsMessaging="Output blocked.",
         )
         assert result == GUARDRAIL_ID
+        _assert_guardrail_waiter_called(mock_get_waiter, expected_waiter_config)
 
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
     @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute_with_policies(self, mock_conn):
+    def test_execute_with_policies(self, mock_conn, _):
         op = BedrockCreateGuardrailOperator(
             task_id="create_guardrail",
             guardrail_name=GUARDRAIL_NAME,
@@ -1186,9 +1285,10 @@ class TestBedrockCreateGuardrailOperator:
         assert "contentPolicyConfig" in call_kwargs
         assert result == GUARDRAIL_ID
 
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
     @mock.patch.object(BedrockHook, "get_guardrail_id_by_name", return_value=GUARDRAIL_ID)
     @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute_skip_existing(self, mock_conn, mock_get_id):
+    def test_execute_skip_existing(self, mock_conn, mock_get_id, mock_get_waiter):
         mock_client = mock.MagicMock()
         mock_client.create_guardrail.side_effect = ClientError(
             {"Error": {"Code": "ConflictException", "Message": "Already exists"}},
@@ -1200,6 +1300,7 @@ class TestBedrockCreateGuardrailOperator:
 
         assert result == GUARDRAIL_ID
         mock_get_id.assert_called_once_with(GUARDRAIL_NAME)
+        _assert_guardrail_waiter_called(mock_get_waiter, {"Delay": 2, "MaxAttempts": 60})
 
     @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
     def test_execute_fail_on_conflict(self, mock_conn):
@@ -1240,7 +1341,24 @@ class TestBedrockCreateGuardrailOperator:
 GUARDRAIL_ID = "abc123"
 
 
+def _build_guardrail_in_transition_error(operation_name: str) -> ClientError:
+    return ClientError(
+        {
+            "Error": {
+                "Code": "ValidationException",
+                "Message": "This guardrail can't be modified at this time.",
+            }
+        },
+        operation_name,
+    )
+
+
 class TestBedrockDeleteGuardrailOperator:
+    IN_TRANSITION_ERROR = _build_guardrail_in_transition_error("DeleteGuardrail")
+    CONFLICT_ERROR = ClientError(
+        {"Error": {"Code": "ConflictException", "Message": "Conflict"}}, "DeleteGuardrail"
+    )
+
     def setup_method(self):
         self.operator = BedrockDeleteGuardrailOperator(
             task_id="delete_guardrail",
@@ -1272,6 +1390,69 @@ class TestBedrockDeleteGuardrailOperator:
             guardrailIdentifier=GUARDRAIL_ID, guardrailVersion="1"
         )
 
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(IN_TRANSITION_ERROR, id="in_transition"),
+            pytest.param(CONFLICT_ERROR, id="conflict"),
+        ],
+    )
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_retries_while_guardrail_is_in_transition(self, mock_conn, mock_sleep, error):
+        mock_client = mock.MagicMock()
+        mock_client.delete_guardrail.side_effect = [error, error, {}]
+        mock_conn.return_value = mock_client
+
+        self.operator.execute({})
+
+        assert mock_client.delete_guardrail.call_count == 3
+        assert mock_sleep.call_args_list == [mock.call(2), mock.call(2)]
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_stops_retrying_after_max_attempts(self, mock_conn, mock_sleep):
+        op = BedrockDeleteGuardrailOperator(
+            task_id="delete_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            waiter_delay=7,
+            waiter_max_attempts=2,
+        )
+        mock_client = mock.MagicMock()
+        mock_client.delete_guardrail.side_effect = self.IN_TRANSITION_ERROR
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError):
+            op.execute({})
+
+        assert mock_client.delete_guardrail.call_count == 2
+        mock_sleep.assert_called_once_with(7)
+
+    @pytest.mark.parametrize(
+        ("code", "message"),
+        [
+            pytest.param("ValidationException", "Invalid guardrail identifier", id="other_message"),
+            pytest.param(
+                "AccessDeniedException", "This guardrail can't be modified at this time.", id="other_code"
+            ),
+        ],
+    )
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_does_not_retry_other_errors(self, mock_conn, mock_sleep, code, message):
+        mock_client = mock.MagicMock()
+        mock_client.delete_guardrail.side_effect = [
+            self.IN_TRANSITION_ERROR,
+            ClientError({"Error": {"Code": code, "Message": message}}, "DeleteGuardrail"),
+        ]
+        mock_conn.return_value = mock_client
+
+        with pytest.raises(ClientError, match=message):
+            self.operator.execute({})
+
+        assert mock_client.delete_guardrail.call_count == 2
+        mock_sleep.assert_called_once_with(2)
+
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
@@ -1283,8 +1464,15 @@ class TestBedrockCreateGuardrailVersionOperator:
             guardrail_identifier=GUARDRAIL_ID,
         )
 
+    @pytest.mark.parametrize(("wait_kwargs", "expected_waiter_config"), GUARDRAIL_WAIT_CASES)
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
     @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute(self, mock_conn):
+    def test_execute(self, mock_conn, mock_get_waiter, wait_kwargs, expected_waiter_config):
+        op = BedrockCreateGuardrailVersionOperator(
+            task_id="create_guardrail_version",
+            guardrail_identifier=GUARDRAIL_ID,
+            **wait_kwargs,
+        )
         mock_client = mock.MagicMock()
         mock_client.create_guardrail_version.return_value = {
             "guardrailId": GUARDRAIL_ID,
@@ -1292,13 +1480,27 @@ class TestBedrockCreateGuardrailVersionOperator:
         }
         mock_conn.return_value = mock_client
 
-        result = self.operator.execute({})
+        result = op.execute({})
 
         mock_client.create_guardrail_version.assert_called_once_with(guardrailIdentifier=GUARDRAIL_ID)
         assert result == "1"
+        _assert_guardrail_waiter_called(mock_get_waiter, expected_waiter_config, call_count=2)
 
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
     @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute_with_description(self, mock_conn):
+    def test_execute_creates_no_version_when_wait_before_fails(self, mock_conn, mock_get_waiter):
+        mock_get_waiter.return_value.wait.side_effect = WaiterError(
+            name="guardrail_ready", reason="AccessDeniedException", last_response={}
+        )
+
+        with pytest.raises(WaiterError):
+            self.operator.execute({})
+
+        mock_conn.return_value.create_guardrail_version.assert_not_called()
+
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_with_description(self, mock_conn, _):
         op = BedrockCreateGuardrailVersionOperator(
             task_id="create_guardrail_version",
             guardrail_identifier=GUARDRAIL_ID,
@@ -1318,6 +1520,30 @@ class TestBedrockCreateGuardrailVersionOperator:
         )
         assert result == "2"
 
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_retries_while_guardrail_is_in_transition(self, mock_conn, mock_sleep):
+        op = BedrockCreateGuardrailVersionOperator(
+            task_id="create_guardrail_version",
+            guardrail_identifier=GUARDRAIL_ID,
+            wait_for_completion=False,
+            waiter_delay=7,
+        )
+        error = _build_guardrail_in_transition_error("CreateGuardrailVersion")
+        mock_client = mock.MagicMock()
+        mock_client.create_guardrail_version.side_effect = [
+            error,
+            error,
+            {"guardrailId": GUARDRAIL_ID, "version": "1"},
+        ]
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        assert result == "1"
+        assert mock_client.create_guardrail_version.call_count == 3
+        assert mock_sleep.call_args_list == [mock.call(7), mock.call(7)]
+
     def test_template_fields(self):
         validate_template_fields(self.operator)
 
@@ -1332,8 +1558,18 @@ class TestBedrockUpdateGuardrailOperator:
             blocked_outputs_messaging="Blocked.",
         )
 
+    @pytest.mark.parametrize(("wait_kwargs", "expected_waiter_config"), GUARDRAIL_WAIT_CASES)
+    @mock.patch.object(BedrockHook, "get_waiter", autospec=True)
     @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
-    def test_execute(self, mock_conn):
+    def test_execute(self, mock_conn, mock_get_waiter, wait_kwargs, expected_waiter_config):
+        op = BedrockUpdateGuardrailOperator(
+            task_id="update_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            guardrail_name="updated-guardrail",
+            blocked_input_messaging="Blocked.",
+            blocked_outputs_messaging="Blocked.",
+            **wait_kwargs,
+        )
         mock_client = mock.MagicMock()
         mock_client.update_guardrail.return_value = {
             "guardrailId": GUARDRAIL_ID,
@@ -1343,10 +1579,38 @@ class TestBedrockUpdateGuardrailOperator:
         }
         mock_conn.return_value = mock_client
 
-        result = self.operator.execute({})
+        result = op.execute({})
 
         assert result == GUARDRAIL_ID
         mock_client.update_guardrail.assert_called_once()
+        _assert_guardrail_waiter_called(mock_get_waiter, expected_waiter_config)
+
+    @mock.patch("time.sleep", return_value=None)
+    @mock.patch.object(BedrockHook, "conn", new_callable=mock.PropertyMock)
+    def test_execute_retries_while_guardrail_is_in_transition(self, mock_conn, mock_sleep):
+        op = BedrockUpdateGuardrailOperator(
+            task_id="update_guardrail",
+            guardrail_identifier=GUARDRAIL_ID,
+            guardrail_name="updated-guardrail",
+            blocked_input_messaging="Blocked.",
+            blocked_outputs_messaging="Blocked.",
+            wait_for_completion=False,
+            waiter_delay=7,
+        )
+        error = _build_guardrail_in_transition_error("UpdateGuardrail")
+        mock_client = mock.MagicMock()
+        mock_client.update_guardrail.side_effect = [
+            error,
+            error,
+            {"guardrailId": GUARDRAIL_ID, "version": "DRAFT"},
+        ]
+        mock_conn.return_value = mock_client
+
+        result = op.execute({})
+
+        assert result == GUARDRAIL_ID
+        assert mock_client.update_guardrail.call_count == 3
+        assert mock_sleep.call_args_list == [mock.call(7), mock.call(7)]
 
     def test_template_fields(self):
         validate_template_fields(self.operator)

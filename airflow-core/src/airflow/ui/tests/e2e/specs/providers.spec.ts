@@ -23,10 +23,6 @@ test.describe("Providers Page", () => {
     await providersPage.navigate();
   });
 
-  test("verify providers page heading", async ({ providersPage }) => {
-    await expect(providersPage.heading).toBeVisible();
-  });
-
   test("Verify Providers page is accessible via Admin menu", async ({ page, providersPage }) => {
     await page.goto("/");
 
@@ -42,11 +38,12 @@ test.describe("Providers Page", () => {
     expect(await providersPage.getRowCount()).toBeGreaterThan(0);
   });
 
-  test("Verify the providers list displays", async ({ providersPage }) => {
-    await expect(providersPage.table).toBeVisible();
-  });
+  test("Verify the providers list displays package name, version, and description", async ({
+    providersPage,
+  }) => {
+    await expect.soft(providersPage.heading).toBeVisible();
+    await expect.soft(providersPage.table).toBeVisible();
 
-  test("Verify package name, version, and description are not blank", async ({ providersPage }) => {
     const count = await providersPage.getRowCount();
 
     expect(count).toBeGreaterThan(0);
@@ -54,9 +51,9 @@ test.describe("Providers Page", () => {
     for (let i = 0; i < 2; i++) {
       const { description, packageName, version } = await providersPage.getRowDetails(i);
 
-      expect(packageName).not.toEqual("");
-      expect(version).not.toEqual("");
-      expect(description).not.toEqual("");
+      expect.soft(packageName).not.toEqual("");
+      expect.soft(version).not.toEqual("");
+      expect.soft(description).not.toEqual("");
     }
   });
 });

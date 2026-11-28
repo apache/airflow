@@ -20,6 +20,13 @@ name: Integration and system tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
+      merge-with:
+        description: >-
+          The base branch commit and merge base to merge the pushed commit with, space-separated;
+          empty outside fork CI runs.
+        required: false
+        default: ""
+        type: string
       runners:
         description: "The array of labels (in json form) determining public runners."
         required: true
@@ -34,6 +41,10 @@ on:  # yamllint disable-line rule:truthy
         type: string
       testable-providers-integrations:
         description: "The list of testable providers integrations as JSON array."
+        required: true
+        type: string
+      testable-providers-integrations-matrix:
+        description: "Matrix include entries for the providers integration jobs as JSON array."
         required: true
         type: string
       run-system-tests:
@@ -75,10 +86,12 @@ jobs:
     timeout-minutes: 30
     if: inputs.testable-core-integrations != '[]'
     name: "Integration core ${{ matrix.integration }}"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 20 keeps runs on GitHub-hosted runners within the ASF limit of 20 concurrent jobs. The RunsOn
+      # runners are the project's own capacity, so a run there starts the whole matrix at once.
+      max-parallel: ${{ contains(inputs.runners, 'runs-on=') && 256 || 20 }}
       matrix:
         integration: ${{ fromJSON(inputs.testable-core-integrations) }}
     env:
@@ -101,6 +114,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -125,18 +143,20 @@ jobs:
   tests-providers-integration:
     timeout-minutes: 30
     if: inputs.testable-providers-integrations != '[]' && inputs.skip-providers-tests != 'true'
-    name: "Integration: providers ${{ matrix.integration }}"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    name: "Integration: providers ${{ matrix.id }}"
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '8+16', '32+64') }}
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 20 keeps runs on GitHub-hosted runners within the ASF limit of 20 concurrent jobs. The RunsOn
+      # runners are the project's own capacity, so a run there starts the whole matrix at once.
+      max-parallel: ${{ contains(inputs.runners, 'runs-on=') && 256 || 20 }}
       matrix:
-        integration: ${{ fromJSON(inputs.testable-providers-integrations) }}
+        include: ${{ fromJSON(inputs.testable-providers-integrations-matrix) }}
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
-      JOB_ID: "integration-providers-${{ matrix.integration }}"
+      JOB_ID: "integration-providers-${{ matrix.id }}"
       SKIP_PROVIDERS_TESTS: "${{ inputs.skip-providers-tests }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage}}"
       DEBUG_RESOURCES: "${{ inputs.debug-resources }}"
@@ -152,6 +172,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:
@@ -159,9 +184,11 @@ jobs:
           python: "${{ inputs.default-python-version }}"
           use-uv: ${{ inputs.use-uv }}
           make-mnt-writeable-and-cleanup: true
-      - name: "Integration: providers ${{ matrix.integration }}"
+      - name: "Integration: providers ${{ matrix.id }}"
         env:
           INTEGRATION: "${{ matrix.integration }}"
+          ELASTICSEARCH_VERSION: "${{ matrix.elasticsearch-version }}"
+          OPENSEARCH_VERSION: "${{ matrix.opensearch-version }}"
         run: ./scripts/ci/testing/run_integration_tests_with_retry.sh providers "${INTEGRATION}"
       - name: "Post Tests success"
         uses: ./.github/actions/post_tests_success
@@ -176,7 +203,7 @@ jobs:
     timeout-minutes: 30
     if: inputs.run-system-tests == 'true'
     name: "System Tests"
-    runs-on: ${{ fromJSON(inputs.runners) }}
+    runs-on: ${{ format(fromJSON(inputs.runners)[0], '4+8', '16+32') }}
     env:
       BACKEND: "postgres"
       BACKEND_VERSION: ${{ inputs.default-postgres-version }}
@@ -197,6 +224,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: "Merge with the base branch"
+        if: inputs.merge-with != ''
+        uses: ./.github/actions/merge-with-base
+        with:
+          merge-with: ${{ inputs.merge-with }}
       - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}"
         uses: ./.github/actions/prepare_breeze_and_image
         with:

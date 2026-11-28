@@ -25,11 +25,9 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 from urllib.parse import quote_plus, urlencode
 
 import trino
-from deprecated import deprecated
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import (
     AirflowException,
     AirflowOptionalProviderFeatureException,
@@ -347,14 +345,6 @@ class TrinoHook(DbApiHook):
             df = pl.DataFrame(**kwargs)
         return df
 
-    @deprecated(
-        reason="Replaced by function `get_df`.",
-        category=AirflowProviderDeprecationWarning,
-        action="ignore",
-    )
-    def get_pandas_df(self, sql: str = "", parameters=None, **kwargs):
-        return self._get_pandas_df(sql, parameters, **kwargs)
-
     def insert_rows(
         self,
         table: str,
@@ -420,9 +410,9 @@ class TrinoHook(DbApiHook):
         """Return Trino dialect."""
         return "trino"
 
-    def get_openlineage_default_schema(self):
-        """Return Trino default schema."""
-        return trino.constants.DEFAULT_SCHEMA
+    def get_openlineage_default_schema(self) -> str | None:
+        """Return the connection schema, which ``get_conn`` uses as the Trino session schema."""
+        return self.connection.schema or None
 
     def get_uri(self) -> str:
         """Return the Trino URI for the connection."""

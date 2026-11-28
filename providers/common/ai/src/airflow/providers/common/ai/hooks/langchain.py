@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.compat.sdk import BaseHook
 
 if TYPE_CHECKING:
@@ -46,7 +48,7 @@ class LangChainHook(BaseHook):
       embedding-model vendor based on the model identifier.
 
     Both identifiers use the ``provider:name`` format
-    (e.g. ``"openai:gpt-5"``, ``"openai:text-embedding-3-small"``). The hook
+    (e.g. ``"openai:gpt-6.1-sol"``, ``"openai:text-embedding-3-small"``). The hook
     forwards the connection's password as ``api_key`` and its host as
     ``base_url``, so any provider whose LangChain class accepts those two
     keyword arguments works (OpenAI, Anthropic, Groq, Mistral AI, Ollama,
@@ -57,7 +59,7 @@ class LangChainHook(BaseHook):
 
     * **password**: API key passed as ``api_key=`` to the model constructor.
     * **host**: Optional base URL passed as ``base_url=`` (custom endpoints, Ollama, vLLM).
-    * **extra** JSON: ``{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}``
+    * **extra** JSON: ``{"model": "openai:gpt-6.1-sol", "embed_model": "openai:text-embedding-3-small"}``
       -- default chat and embedding model identifiers.
 
     :param llm_conn_id: Airflow connection ID for the LLM provider. Falls back
@@ -67,13 +69,14 @@ class LangChainHook(BaseHook):
         the common case of one provider for both chat and embeddings stays a
         single hook instance.
     :param llm_model: Chat model identifier in ``provider:name`` format
-        (e.g. ``"openai:gpt-5"``, ``"anthropic:claude-sonnet-5"``).
-        Overrides ``extra["model"]`` on the connection.
+        (e.g. ``"openai:gpt-6.1-sol"``, ``"anthropic:claude-sonnet-5"``).
+        Overrides ``extra["model"]`` on the connection. Passing it positionally
+        (1.0.0 order: ``llm_model, embed_model``) is deprecated.
     :param embed_model: Embedding model identifier in ``provider:name`` format
         (e.g. ``"openai:text-embedding-3-small"``). Overrides
         ``extra["embed_model"]`` on the connection. When ``embedding_kwargs``
         supplies ``provider`` explicitly, use a model name without the provider
-        prefix.
+        prefix. Passing it positionally (1.0.0 order: ``llm_model, embed_model``) is deprecated.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
         model constructor without filtering. Values can override hook-provided
         settings, including the endpoint and credentials. In particular,
@@ -96,12 +99,32 @@ class LangChainHook(BaseHook):
         self,
         llm_conn_id: str | None = None,
         embed_conn_id: str | None = None,
+        *args: Any,
         llm_model: str | None = None,
         embed_model: str | None = None,
-        *,
         embedding_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
+        # ``*args`` only exists to keep the 1.0.0 positional order working: ``llm_model``, ``embed_model``.
+        if len(args) > 2:
+            raise TypeError(
+                f"{type(self).__name__}.__init__() takes from 1 to 5 positional arguments "
+                f"but {3 + len(args)} were given"
+            )
+        legacy_values = dict(zip(("llm_model", "embed_model"), args))
+        keyword_values = {"llm_model": llm_model, "embed_model": embed_model}
+        for name in legacy_values:
+            # A keyword of None counts as not provided, so ``name=None`` plus a positional keeps the positional.
+            if keyword_values[name] is not None:
+                raise TypeError(f"{type(self).__name__}.__init__() got multiple values for argument '{name}'")
+            warnings.warn(
+                f"Parameter `{name}` passed positionally is deprecated. Use `{name}=...` instead; "
+                f"positional support will be removed in a future release.",
+                category=AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        llm_model = legacy_values.get("llm_model", llm_model)
+        embed_model = legacy_values.get("embed_model", embed_model)
         super().__init__(**kwargs)
         # Resolve at runtime so a future subclass with its own
         # `default_conn_name` is honoured. A bare `llm_conn_id: str =
@@ -121,7 +144,7 @@ class LangChainHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for custom endpoints / Ollama)",
-                "extra": '{"model": "openai:gpt-5", "embed_model": "openai:text-embedding-3-small"}',
+                "extra": '{"model": "openai:gpt-6.1-sol", "embed_model": "openai:text-embedding-3-small"}',
             },
         }
 

@@ -2151,6 +2151,130 @@ class TestGCSToBigQueryOperator:
 
         assert operator.schema_fields == SCHEMA_FIELDS
 
+    @pytest.mark.parametrize(
+        ("operator_kwargs", "expects_warning"),
+        [
+            pytest.param({"ignore_unknown_values": True}, True, id="autodetect_defaults_to_true"),
+            pytest.param({"ignore_unknown_values": True, "autodetect": True}, True, id="autodetect_true"),
+            pytest.param({"ignore_unknown_values": True, "autodetect": None}, False, id="autodetect_none"),
+            pytest.param(
+                {"ignore_unknown_values": True, "autodetect": False, "schema_fields": SCHEMA_FIELDS},
+                False,
+                id="autodetect_false",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_fields": SCHEMA_FIELDS},
+                False,
+                id="schema_fields_supplied",
+            ),
+            pytest.param({"ignore_unknown_values": False}, False, id="ignore_unknown_values_off"),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"autodetect": None}},
+                False,
+                id="autodetect_cleared_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"schema": {"fields": SCHEMA_FIELDS}}},
+                False,
+                id="schema_supplied_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": False, "extra_config": {"ignoreUnknownValues": True}},
+                True,
+                id="ignore_unknown_values_set_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "source_format": "NEWLINE_DELIMITED_JSON"},
+                True,
+                id="json_source",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "source_format": "PARQUET"}, False, id="parquet_source"
+            ),
+            pytest.param({"ignore_unknown_values": True, "source_format": "AVRO"}, False, id="avro_source"),
+            pytest.param({"ignore_unknown_values": True, "source_format": "ORC"}, False, id="orc_source"),
+            pytest.param(
+                {"ignore_unknown_values": True, "extra_config": {"sourceFormat": "PARQUET"}},
+                False,
+                id="source_format_set_by_extra_config",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_update_options": ["ALLOW_FIELD_ADDITION"]},
+                False,
+                id="field_addition_allowed",
+            ),
+            pytest.param(
+                {"ignore_unknown_values": True, "schema_update_options": ["ALLOW_FIELD_RELAXATION"]},
+                True,
+                id="only_field_relaxation_allowed",
+            ),
+        ],
+    )
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_ignore_unknown_values_autodetect_warning(self, bq_hook, operator_kwargs, expects_warning):
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            **operator_kwargs,
+        )
+
+        with mock.patch.object(operator.log, "warning", autospec=True) as mock_warning:
+            operator.execute(context=MagicMock())
+
+        if expects_warning:
+            mock_warning.assert_called_once()
+        else:
+            mock_warning.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("force_delete", "expected_fix", "unexpected_fix"),
+        [
+            pytest.param(False, "autodetect=None", None, id="existing_table"),
+            pytest.param(True, "schema_fields", "autodetect=None", id="force_delete"),
+        ],
+    )
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_ignore_unknown_values_autodetect_warning_names_the_fix(
+        self, bq_hook, force_delete, expected_fix, unexpected_fix
+    ):
+        bq_hook.return_value.insert_job.side_effect = [
+            MagicMock(job_id=REAL_JOB_ID, error_result=False),
+            REAL_JOB_ID,
+        ]
+        bq_hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        bq_hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            project_id=JOB_PROJECT_ID,
+            ignore_unknown_values=True,
+            force_delete=force_delete,
+        )
+
+        with mock.patch.object(operator.log, "warning", autospec=True) as mock_warning:
+            operator.execute(context=MagicMock())
+
+        mock_warning.assert_called_once()
+        message = mock_warning.call_args.args[0] % mock_warning.call_args.args[1:]
+        assert expected_fix in message
+        if unexpected_fix:
+            assert unexpected_fix not in message
+
 
 @pytest.fixture
 def create_task_instance(create_task_instance_of_operator, session):
@@ -2199,6 +2323,35 @@ class TestAsyncGCSToBigQueryOperator:
         assert ti.state == TaskInstanceState.DEFERRED
         trigger_cls = session.scalar(select(Trigger.classpath).where(Trigger.id == ti.trigger_id))
         assert trigger_cls == "airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger"
+
+    @pytest.mark.parametrize("cancel_on_kill", [True, False])
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryInsertJobTrigger"))
+    @mock.patch(GCS_TO_BQ_PATH.format("GCSToBigQueryOperator.defer"))
+    @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
+    def test_execute_deferrable_hands_cancel_on_kill_to_the_trigger(
+        self, hook, mock_defer, trigger, cancel_on_kill
+    ):
+        hook.return_value.insert_job.return_value = MagicMock(job_id=REAL_JOB_ID, error_result=False)
+        hook.return_value.generate_job_id.return_value = REAL_JOB_ID
+        hook.return_value.split_tablename.return_value = (PROJECT_ID, DATASET, TABLE)
+
+        operator = GCSToBigQueryOperator(
+            task_id=TASK_ID,
+            bucket=TEST_BUCKET,
+            source_objects=TEST_SOURCE_OBJECTS,
+            destination_project_dataset_table=TEST_EXPLICIT_DEST,
+            write_disposition=WRITE_DISPOSITION,
+            schema_fields=SCHEMA_FIELDS,
+            external_table=False,
+            autodetect=True,
+            deferrable=True,
+            cancel_on_kill=cancel_on_kill,
+            project_id=JOB_PROJECT_ID,
+        )
+
+        operator.execute(context=MagicMock())
+
+        assert trigger.call_args.kwargs["cancel_on_kill"] is cancel_on_kill
 
     @pytest.mark.db_test
     def test_execute_without_external_table_async_should_throw_ex_when_event_status_error(

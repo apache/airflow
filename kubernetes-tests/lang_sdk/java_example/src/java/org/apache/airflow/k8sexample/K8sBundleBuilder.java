@@ -21,11 +21,11 @@ package org.apache.airflow.k8sexample;
 
 import org.apache.airflow.sdk.*;
 
-// The bundle holds task handlers only: the "lang_sdk_combined" Dag is the Python
+// The bundle holds task handlers only: the "lang_sdk_mixed_language" Dag is the Python
 // file's, so nothing here declares a Dag.
 public class K8sBundleBuilder {
   public static Bundle build() {
-    return new Bundle().register(CombinedExample.class);
+    return new Bundle().register(MixedLanguageExample.class);
   }
 
   public static void main(String[] args) {

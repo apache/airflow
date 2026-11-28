@@ -22,6 +22,8 @@ Reliability and operations
 
 An AI task fails in more ways than a SQL task, and it costs money each time it runs.
 
+- :doc:`recovery` keeps an agent run going through a provider outage, and replays the
+  steps it completed when every provider fails or the worker dies.
 - :doc:`durable_execution` replays the model and tool calls an agent already completed, so a
   retry pays only for the steps that did not finish.
 - :doc:`retry_policies` lets a model classify a failure and decide whether a retry is worth
@@ -38,6 +40,7 @@ An AI task fails in more ways than a SQL task, and it costs money each time it r
     :hidden:
     :titlesonly:
 
+    Recovering from failures <recovery>
     Durable execution <durable_execution>
     Retry policies <retry_policies>
     Observability <observability>

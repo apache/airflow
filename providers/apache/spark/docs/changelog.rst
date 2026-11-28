@@ -28,6 +28,62 @@
 Changelog
 ---------
 
+6.3.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SparkConnectHook unsupported-path error message (#74847)``
+* ``Template conn_id and config_kwargs in @task.pyspark (#75764)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
+6.3.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Spark submit standalone status polling to use correct REST endpoint (#71949)``
+
+Misc
+~~~~
+
+* ``Use one ResumableJobMixin fallback from common.compat in providers (#74673)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'SparkSubmitHook': Mask '_mask_cmd' secrets in linear time (#71711)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+* ``Document durable Spark execution across cluster managers (#72325)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
+   * ``Revert "[main] Upgrade important CI environment (#73308)" (#73621)``
+   * ``[main] Upgrade important CI environment (#73308)``
+   * ``Remove real sleeps from slow provider unit tests (#73478)``
+   * ``Prepare providers release 2026-09-09 (#72834)``
+
 6.3.2
 .....
 

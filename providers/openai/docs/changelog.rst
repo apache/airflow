@@ -21,6 +21,53 @@ Changelog
 ---------
 
 .. warning::
+    The Assistants and Threads methods of ``OpenAIHook`` are removed. OpenAI shut down the
+    Assistants API on 2026-08-26, so these methods, deprecated since 1.8.0, could only fail.
+    Calling one now raises ``AttributeError``. Use the Responses and Conversations methods instead
+    (see OpenAI's `migration guide <https://developers.openai.com/api/docs/assistants/migration>`__):
+
+    * ``create_assistant``, ``get_assistant``, ``get_assistants``, ``modify_assistant`` and
+      ``delete_assistant``: there is no stored assistant object any more. Pass ``model``,
+      ``instructions`` and ``tools`` to ``create_response`` on each call.
+    * ``create_thread``: use ``create_conversation``.
+    * ``modify_thread``: use ``update_conversation``.
+    * ``delete_thread``: use ``delete_conversation``.
+    * ``create_message``: to add a message without running the model, use
+      ``hook.conn.conversations.items.create(conversation_id, items=[{"role": ..., "content": ...}])``.
+      To add a message and get the model's reply in one call (the old ``create_message`` followed by
+      ``create_run``), pass it as ``input`` to ``create_response`` together with
+      ``conversation=<conversation id>``.
+    * ``get_messages``: use ``hook.conn.conversations.items.list(conversation_id)``.
+    * ``modify_message``: no replacement. Conversation items can be created, read and deleted,
+      but not modified.
+    * ``create_run`` and ``create_run_and_poll``: use ``create_response``, which returns once the
+      response is complete. For long-running work pass ``background=True`` and poll
+      ``get_response``.
+    * ``get_run``: use ``get_response``.
+    * ``get_runs``: no replacement. The Responses API cannot list responses; read a conversation's
+      history with ``hook.conn.conversations.items.list(conversation_id)``.
+    * ``modify_run``: no replacement. A response cannot be modified after it is created.
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add async aget_conn and acreate_embeddings to OpenAIHook (#74149)``
+
+Misc
+~~~~
+
+* ``Require common.compat 1.21.0 for asynchronous OpenAI hook helpers (#74933)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.0
+.....
+
+.. warning::
     A deferred ``OpenAITriggerBatchOperator`` that times out now raises ``OpenAIBatchTimeout``
     instead of ``OpenAIBatchJobException``, which is what 1.8.2 and earlier raised for the same
     condition. ``OpenAIBatchTimeout`` is not a subclass of ``OpenAIBatchJobException``, so an
@@ -38,6 +85,30 @@ Changelog
     task and left the batch running (and billing) on OpenAI's side. Cancellation on OpenAI's
     side is asynchronous, so the batch reports ``cancelling`` for a while before it settles as
     ``cancelled``.
+
+Features
+~~~~~~~~
+
+* ``Support Pydantic structured outputs in 'OpenAIResponseOperator' (#69812)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Distinguish OpenAI batch timeout and cancellation in deferrable tasks (#72149)``
+
+Misc
+~~~~
+
+* ``Drop support for Python 3.10 (#74157)``
+
+Doc-only
+~~~~~~~~
+
+* ``Update provider READMEs for the Python 3.11 baseline (#74158)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#73629)``
 
 2.0.0
 .....

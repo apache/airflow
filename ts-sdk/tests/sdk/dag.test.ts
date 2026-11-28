@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import {
   Dag,
@@ -25,11 +28,15 @@ import {
   getDagTaskGroups,
   getDagTaskInputs,
   getDagTaskRecords,
+  Label,
+  TRIGGER_RULES,
+  WEIGHT_RULES,
   type DagSpec,
   type TaskRef,
   type TaskSpec,
 } from "../../src/sdk/dag.js";
 import { Bundle, finalizeBundleDags } from "../../src/sdk/bundle.js";
+import { brandOperator, type Operator } from "../../src/sdk/operator.js";
 
 describe("Dag", () => {
   it("returns a factory whose call yields a frozen TaskRef with the Dag and task identity", () => {
@@ -401,6 +408,65 @@ describe("Dag", () => {
     expect(dag.taskIds).toEqual([]);
   });
 
+  it.each(["", " "])("rejects the blank queue %j in the Dag spec", (queue) => {
+    expect(() => new Dag("example_dag", { queue })).toThrowError(
+      'queue in the spec for Dag "example_dag" must not be blank',
+    );
+  });
+
+  it.each(["", " "])("rejects the blank queue %j in the task spec", (queue) => {
+    const dag = new Dag("example_dag", { queue: "typescript" });
+    expect(() => dag.task("transform", async () => undefined, { queue })).toThrowError(
+      'queue in the spec for Dag "example_dag" task "transform" must not be blank',
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it.each(["all_sucess", "ALL_SUCCESS", ""])(
+    "rejects the unknown trigger rule %j",
+    (triggerRule) => {
+      const dag = new Dag("example_dag");
+      expect(() => dag.task("transform", async () => undefined, { triggerRule })).toThrowError(
+        `triggerRule in the spec for Dag "example_dag" task "transform" is ${JSON.stringify(triggerRule)}; ` +
+          "use one of all_success,",
+      );
+      expect(dag.taskIds).toEqual([]);
+    },
+  );
+
+  it.each(["upwards", "Upstream", "", "my_plugin.strategies.DecreasingPriorityStrategy"])(
+    "rejects the unknown weight rule %j",
+    (weightRule) => {
+      const dag = new Dag("example_dag");
+      expect(() => dag.task("transform", async () => undefined, { weightRule })).toThrowError(
+        `weightRule in the spec for Dag "example_dag" task "transform" is ${JSON.stringify(weightRule)}; ` +
+          "use one of downstream, upstream, absolute",
+      );
+      expect(dag.taskIds).toEqual([]);
+    },
+  );
+
+  it("accepts every trigger rule and weight rule", () => {
+    const dag = new Dag("example_dag");
+    for (const triggerRule of TRIGGER_RULES)
+      dag.task(`t_${triggerRule}`, async () => undefined, { triggerRule });
+    for (const weightRule of WEIGHT_RULES)
+      dag.task(`w_${weightRule}`, async () => undefined, { weightRule });
+    expect(dag.taskIds).toHaveLength(TRIGGER_RULES.size + WEIGHT_RULES.size);
+  });
+
+  const coreDir = join(dirname(fileURLToPath(import.meta.url)), "../../../airflow-core");
+
+  // Skipped outside the monorepo, such as in an extracted source release.
+  it.skipIf(!existsSync(coreDir)).each([
+    ["trigger_rule.py", TRIGGER_RULES],
+    ["weight_rule.py", WEIGHT_RULES],
+  ])("matches the values of Airflow's %s", (file, rules) => {
+    const source = readFileSync(join(coreDir, "src/airflow/task", file), "utf8");
+    const values = [...source.matchAll(/^ {4}[A-Z_]+ = "([a-z_]+)"$/gm)].map((match) => match[1]);
+    expect(new Set(values)).toEqual(rules);
+  });
+
   it.each([
     ["null", null],
     ["an array", []],
@@ -559,6 +625,198 @@ describe("Dag", () => {
         { upstream: "load", downstream: "cleanup" },
         { upstream: "transform", downstream: "cleanup" },
       ]);
+    });
+
+    it("labels each edge of a fan-out from its own endpoint", () => {
+      const { dag, refs } = placedDag("d", "check", "process", "notify");
+
+      refs.check!.before(
+        Label.of("rows found").on(refs.process!),
+        Label.of("no rows").on(refs.notify!),
+      );
+      refs.notify!.after(Label.of("after processing").on(refs.process!));
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "check", downstream: "process", label: "rows found" },
+        { upstream: "check", downstream: "notify", label: "no rows" },
+        { upstream: "process", downstream: "notify", label: "after processing" },
+      ]);
+    });
+
+    it("puts one label on the edge to or from each node it is on", () => {
+      const { dag, refs } = placedDag("d", "load", "report_empty", "notify", "audit");
+      const staging = dag.taskGroup("staging");
+      staging.task("stage", async () => undefined)();
+
+      refs.load!.before(Label.of("forks").on(refs.report_empty!, staging));
+      refs.audit!.after(Label.of("done").on(refs.report_empty!, refs.notify!));
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "report_empty", label: "forks" },
+        { upstream: "load", downstream: "staging", label: "forks" },
+        { upstream: "report_empty", downstream: "audit", label: "done" },
+        { upstream: "notify", downstream: "audit", label: "done" },
+      ]);
+    });
+
+    it("gives a labelled node that is labelled again the outer label", () => {
+      const { dag, refs } = placedDag("d", "left", "middle", "right", "join");
+
+      refs.join!.after(
+        Label.of("done").on(
+          Label.of("inner").on(refs.left!),
+          Label.of("inner").on(refs.middle!, refs.right!),
+        ),
+      );
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "left", downstream: "join", label: "done" },
+        { upstream: "middle", downstream: "join", label: "done" },
+        { upstream: "right", downstream: "join", label: "done" },
+      ]);
+    });
+
+    it("replaces a label on a redrawn edge, and keeps it on an unlabelled redraw", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(Label.of("first").on(refs.cleanup!));
+      refs.load!.before(Label.of("second").on(refs.cleanup!));
+      refs.cleanup!.after(refs.load!);
+
+      expect(getDagOrderEdges(dag)).toEqual([
+        { upstream: "load", downstream: "cleanup", label: "second" },
+      ]);
+    });
+
+    it("leaves the label out of an unlabelled edge", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      refs.load!.before(refs.cleanup!);
+
+      expect(getDagOrderEdges(dag)).toStrictEqual([{ upstream: "load", downstream: "cleanup" }]);
+    });
+
+    it.each(["before", "after"] as const)("rejects %s() called on a label", (verb) => {
+      const { refs } = placedDag("d", "load", "audit", "cleanup");
+
+      expect(() => Label.of("rows").on(refs.load!)[verb](refs.cleanup!)).toThrowError(
+        `Label.of("rows") on "load" of Dag "d" labels edges, ` +
+          `so pass it to before() or after() rather than calling ${verb}() on it`,
+      );
+      expect(() => Label.of("rows").on(refs.load!, refs.audit!)[verb](refs.cleanup!)).toThrowError(
+        `Label.of("rows") on "load", "audit" of Dag "d" labels edges, ` +
+          `so pass it to before() or after() rather than calling ${verb}() on it`,
+      );
+    });
+
+    it("rejects a label on nodes of two Dags", () => {
+      const { refs } = placedDag("d", "load");
+      const other = placedDag("e", "cleanup").refs;
+
+      expect(() => Label.of("rows").on(refs.load!, other.cleanup!)).toThrowError(
+        'Label.of("rows").on() takes nodes of one Dag, but "load" is in Dag "d" and "cleanup" ' +
+          'is in Dag "e"',
+      );
+    });
+
+    it("draws none of a label's edges when one of them cannot be drawn", () => {
+      const { dag, refs } = placedDag("d", "load", "cleanup");
+
+      expect(() => refs.load!.before(Label.of("rows").on(refs.cleanup!, refs.load!))).toThrowError(
+        /cannot draw an edge from node "load" of Dag "d" to itself/,
+      );
+      expect(getDagOrderEdges(dag)).toEqual([]);
+    });
+
+    it.each([
+      ["undefined", undefined],
+      ["an object", { dagId: "d", taskId: "load" }],
+    ])("rejects a label on %s", (described, node) => {
+      const { refs } = placedDag("d", "load");
+      const expected = `Label.of("rows").on() takes a task or task group reference, not ${described}`;
+
+      expect(() => Label.of("rows").on(node as never)).toThrowError(expected);
+      expect(() => Label.of("rows").on(refs.load!, node as never)).toThrowError(expected);
+    });
+
+    it("rejects a label on no node", () => {
+      // @ts-expect-error on() needs a node, but plain JavaScript can call on() with no node.
+      expect(() => Label.of("rows").on()).toThrowError(
+        'Label.of("rows").on() takes a task or task group reference, not undefined',
+      );
+    });
+
+    it.each([
+      ["an empty string", ""],
+      ["a blank string", " \t\n"],
+    ])("rejects %s as a label", (described, text) => {
+      expect(() => Label.of(text)).toThrowError(
+        `Label.of() takes the text to put on the edge, not ${described}`,
+      );
+    });
+
+    it("rejects an empty label made with new, which plain JavaScript can call", () => {
+      // @ts-expect-error the constructor is private, so TypeScript code must use Label.of.
+      expect(() => new Label("")).toThrowError(
+        "Label.of() takes the text to put on the edge, not an empty string",
+      );
+    });
+
+    it("rejects a label given as a task input", () => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+      const load = dag.task("load", async (_: { rows: unknown }) => undefined);
+
+      expect(() => load({ rows: Label.of("rows").on(extracted) as never })).toThrowError(
+        'Input "rows" of task "load" was given Label.of(...).on(...), which only goes into ' +
+          "before() or after(); pass the reference itself",
+      );
+    });
+
+    it.each([
+      ["the task", false],
+      ["a group and then the task", true],
+    ])("rejects a label on %s nested in a literal task input", (_label, withGroup) => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+      const staging = dag.taskGroup("staging");
+      const load = dag.task("load", async (_: { rows: unknown }) => undefined);
+      const labelled = withGroup
+        ? Label.of("rows").on(staging, extracted)
+        : Label.of("rows").on(extracted);
+
+      expect(() => load({ rows: [labelled] as never })).toThrowError(
+        /Input "rows" of task "load" holds a reference to "extract" inside a literal value/,
+      );
+    });
+
+    it("rejects a label given as a decider input", () => {
+      const dag = new Dag("d");
+      const extracted = dag.task("extract", async () => undefined)();
+
+      expect(() =>
+        dag.if(
+          async (_: { rows: unknown }) => true,
+          { rows: Label.of("rows").on(extracted) as never },
+          { taskId: "has_rows" },
+        ),
+      ).toThrowError('Input "rows" of task "has_rows" was given Label.of(...).on(...)');
+    });
+
+    it("rejects a label that is not a string", () => {
+      expect(() => Label.of(42 as never)).toThrowError(
+        "Label.of() takes a string to name the edge with, not the number 42",
+      );
+    });
+
+    it("rejects a label from another copy of the SDK", () => {
+      const { refs } = placedDag("d", "load", "cleanup");
+      const foreign = { dagId: "d", before: () => foreign, after: () => foreign };
+      Object.defineProperty(foreign, Symbol.for("airflow.ts-sdk.LabelledNode"), { value: true });
+
+      expect(() => refs.load!.before(foreign)).toThrowError(
+        /before\(\) on Dag "d" was given Label\.of\(\.\.\.\)\.on\(\.\.\.\), which comes from a different copy/,
+      );
     });
 
     it.each([
@@ -863,6 +1121,22 @@ describe("Dag", () => {
       },
     );
 
+    it.each(["upstream_join_id", "downstream_join_id"])(
+      "rejects a task or group taking the %s of its group",
+      (joinId) => {
+        const dag = new Dag("grouped");
+        const staging = dag.taskGroup("staging");
+
+        expect(() => staging.task(joinId, async () => undefined)).toThrowError(
+          `Task "staging.${joinId}" of Dag "grouped" takes the ID of a join node of task group ` +
+            '"staging"; pick another ID',
+        );
+        expect(() => staging.taskGroup(joinId)).toThrowError(
+          `Task group "staging.${joinId}" of Dag "grouped" takes the ID of a join node`,
+        );
+      },
+    );
+
     it("allows the same group ID under different parents", () => {
       const dag = new Dag("grouped");
       dag
@@ -1080,5 +1354,39 @@ describe("Dag", () => {
     // And not the prefix or the leaf on its own.
     expect(bundle.getTaskHandler("example_dag", "transforms")).toBeUndefined();
     expect(bundle.getTaskHandler("example_dag", "normalize")).toBeUndefined();
+  });
+});
+
+describe("an operator that does not enforce executionTimeout", () => {
+  const waiter = (alternative?: string) =>
+    brandOperator<Operator<void, void>>({
+      operatorName: "WaitOperator",
+      label: "wait",
+      ...(alternative !== undefined && { executionTimeoutAlternative: alternative }),
+      execute: async () => {
+        throw new Error("not run");
+      },
+    });
+
+  it("is rejected with an executionTimeout, naming the option that bounds it", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter("pollTimeout"), { executionTimeout: 60 })).toThrowError(
+      'Task "wait" of Dag "d" is a wait task, which does not enforce executionTimeout; use ' +
+        "pollTimeout instead",
+    );
+    expect(dag.taskIds).toEqual([]);
+  });
+
+  it("takes the other options, and no executionTimeout", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter("pollTimeout"), { retries: 1 })).not.toThrow();
+  });
+
+  it("leaves an operator that does not name one free to take an executionTimeout", () => {
+    const dag = new Dag("d");
+
+    expect(() => dag.task("wait", waiter(), { executionTimeout: 60 })).not.toThrow();
   });
 });

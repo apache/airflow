@@ -1,4 +1,5 @@
 {
+  "allMapIndexes": "Tots els Map Index",
   "allRuns": "Totes les execucions",
   "blockingDeps": {
     "dependency": "Dependència",
@@ -6,6 +7,7 @@
     "title": "Dependències que bloquegen la programació de la tasca"
   },
   "calendar": {
+    "backfill": "Reompliment",
     "daily": "Diari",
     "hourly": "Horari",
     "legend": {
@@ -34,6 +36,21 @@
       "wednesday": "DC"
     }
   },
+  "callbacks": {
+    "callback_one": "Callback",
+    "callback_other": "Callbacks",
+    "columns": {
+      "alertName": "Alerta de termini",
+      "callback": "Callback",
+      "deadlineTime": "Hora del termini",
+      "missedBy": "Retard",
+      "type": "Tipus"
+    },
+    "types": {
+      "executor": "Síncron",
+      "triggerer": "Asíncron"
+    }
+  },
   "code": {
     "bundleUrl": "Url de la col·lecció",
     "noCode": "No s'ha trobat codi",
@@ -43,8 +60,8 @@
   "deadlineAlerts": {
     "completionRule": "Ha de completar-se dins de {{interval}} de {{reference}}",
     "completionRuleDynamic": "Ha de completar-se dins d'un interval variable mesurat des de {{reference}}",
-    "count_one": "{{count}} termini",
-    "count_other": "{{count}} terminis",
+    "count_one": "{{count, number}} termini",
+    "count_other": "{{count, number}} terminis",
     "referenceType": {
       "AverageRuntimeDeadline": "durada mitjana d'execució",
       "DagRunLogicalDateDeadline": "data lògica",
@@ -59,15 +76,17 @@
     "label": "Termini",
     "met": "Complert",
     "missed": "No complert",
-    "missedCount_one": "{{count}} Termini no complert",
-    "missedCount_other": "{{count}} Terminis no complerts",
-    "mixedCount": "{{missedCount}} No complerts, {{upcomingCount}} Propers",
+    "missedCount_one": "{{count, number}} Termini no complert",
+    "missedCount_other": "{{count, number}} Terminis no complerts",
+    "mixedCount": "{{missedCount, number}} No complerts, {{upcomingCount, number}} Propers",
     "stillRunning": "Encara s'està executant",
     "upcoming": "Propers",
-    "upcomingCount_one": "{{count}} Termini proper",
-    "upcomingCount_other": "{{count}} Terminis propers"
+    "upcomingCount_one": "{{count, number}} Termini proper",
+    "upcomingCount_other": "{{count, number}} Terminis propers"
   },
   "extraLinks": "Enllaços addicionals",
+  "failingWatcherTriggers_one": "{{count, number}} trigger d'observador amb errors",
+  "failingWatcherTriggers_other": "{{count, number}} triggers d'observadors amb errors",
   "grid": {
     "buttons": {
       "newerRuns": "Execucions més recents",
@@ -91,17 +110,72 @@
     "allSources": "Totes les fonts",
     "critical": "CRÍTIC",
     "debug": "DEPURACIÓ",
+    "durable": {
+      "detail": {
+        "already_succeeded": "El procés ja havia acabat i no ha calgut tornar-lo a executar.",
+        "reconnected": "S'ha evitat tornar a executar un procés d'uns {{duration}}.",
+        "reconnectedFailed": "S'ha esperat que acabés el procés existent sense iniciar-ne cap altra còpia, però el procés ha fallat.",
+        "reconnectedNoDuration": "S'ha aprofitat el procés existent sense iniciar-ne cap altra còpia.",
+        "reconnectedRunning": "S'està esperant que acabi el procés en curs sense tornar-lo a iniciar."
+      },
+      "job": {
+        "id": "ID del procés: {{id}}",
+        "runTime": "Durada de l'execució: {{duration}}",
+        "submittedAt": "Enviat:"
+      },
+      "title": {
+        "already_succeeded": "S'ha reutilitzat el resultat d'un procés ja finalitzat",
+        "reconnected": "S'ha restablert la connexió amb el procés existent"
+      }
+    },
     "error": "ERROR",
     "info": "INFO",
     "noTryNumber": "Sense número d'intent",
     "search": {
-      "matchCount": "{{current}} de {{total}}",
+      "matchCount": "{{current, number}} de {{total, number}}",
+      "nextMatch": "Coincidència següent",
       "noMatches": "Sense resultats",
-      "placeholder": "Cercar registres..."
+      "placeholder": "Cercar registres...",
+      "previousMatch": "Coincidència anterior"
     },
     "settings": "Configuració dels registres",
+    "tryNotStarted": "Aquest intent encara no ha començat.",
+    "viewFailedTry": "Veure els registres de l'intent fallit {{tryNumber}}",
     "viewInExternal": "Veure els registres a {{name}} (intent {{attempt}})",
+    "viewPreviousTry": "Veure els registres de l'intent anterior {{tryNumber}}",
+    "waitingToRetry": "L'intent {{tryNumber}} està pendent de reintentar-se.",
     "warning": "ADVERTIMENT"
+  },
+  "loop": {
+    "history": {
+      "capLabel": "Límit: {{max}}",
+      "iterationsAxis": "Iteracions",
+      "stats": {
+        "capHits": "Vegades que s'ha assolit el límit",
+        "medianIterations": "Mediana d'iteracions"
+      },
+      "title": "Iteracions per execució"
+    },
+    "iterationLabel": "Iteració {{index}}",
+    "iterations": "Iteracions",
+    "outcome": "Resultat",
+    "reason": {
+      "cap_reached": "S'ha assolit el límit d'iteracions ({{max}})",
+      "failed": "Ha fallat a la iteració {{index}}",
+      "iteration_failed": "La iteració {{index}} ha fallat a {{taskId}}",
+      "ran_to_cap": "S'han executat totes les {{max}} iteracions permeses",
+      "removed": "Eliminat",
+      "running": "Executant-se",
+      "skipped": "Saltat",
+      "stopped_early": "S'ha aturat abans d'hora a la iteració {{index}}"
+    },
+    "rules": {
+      "behaviour": "Comportament",
+      "boundedFor": "Executa un nombre fix d'iteracions",
+      "exitCriteria": "Criteris de sortida",
+      "maxIterations": "Màxim d'iteracions",
+      "whileUntil": "Es repeteix fins que es compleix {{criteria}}"
+    }
   },
   "notFound": {
     "back": "Enrere",
@@ -207,11 +281,12 @@
     "auditLog": "Registre d'auditoria",
     "backfills": "Reompliments",
     "calendar": "Calendari",
+    "callbacks": "Callbacks",
     "code": "Codi",
     "details": "Detalls",
     "logs": "Registres",
-    "mappedTaskInstances_one": "Instància de tasca [{{count}}]",
-    "mappedTaskInstances_other": "Instàncies de tasca [{{count}}]",
+    "mappedTaskInstances_one": "Instància de tasca [{{count, number}}]",
+    "mappedTaskInstances_other": "Instàncies de tasca [{{count, number}}]",
     "overview": "Visió general",
     "renderedTemplates": "Plantilles renderitzades",
     "requiredActions": "Accions requerides",
@@ -219,6 +294,7 @@
     "taskInstances": "Instàncies de tasca",
     "taskStateStore": "Magatzem de tasca",
     "tasks": "Tasques",
+    "versions": "Versions",
     "xcom": "XCom"
   },
   "taskGroups": {
@@ -230,7 +306,7 @@
     "clearAll": {
       "resource": "tot el magatzem de tasca",
       "title": "Netejar tot el magatzem de tasca",
-      "warning": "S'esborrarà tot el magatzem de tasca. Les tasques que utilitzen aquest magatzem per fer seguiment de feina externa no podran reprendre-la sense tornar a executar-se des de zero."
+      "warning": "S'esborrarà tot el magatzem de tasca, inclòs l'historial d'execucions duradores que es mostra a la pàgina de registres de la tasca. Les tasques que utilitzen aquest magatzem per fer seguiment de feina externa no podran reprendre-la sense tornar a executar-se des de zero."
     },
     "delete": "Eliminar magatzem de tasca",
     "deleteWarning": "La tasca perdrà aquesta memòria persistent. Si la tasca utilitza aquesta clau per fer seguiment de feina externa (p. ex., un ID de treball extern), no podrà reprendre-la.",
@@ -246,5 +322,70 @@
       "never": "Mai"
     },
     "title": "Magatzem de tasca"
+  },
+  "versions": {
+    "base": "Comparar des de",
+    "categories": {
+      "asset": "Asset",
+      "authorization": "Autorització",
+      "callback": "Callback",
+      "deadline": "Termini",
+      "dependency": "Dependència",
+      "metadata": "Metadades",
+      "param": "Paràmetre",
+      "provenance": "Procedència",
+      "schedule": "Programació",
+      "task": "Tasca",
+      "unknown": "Desconeguda"
+    },
+    "codeAccess": "Cal tenir accés al codi del Dag per veure els valors",
+    "columns": {
+      "after": "Després",
+      "before": "Abans",
+      "category": "Categoria",
+      "impact": "Impacte",
+      "operation": "Operació",
+      "path": "Ruta"
+    },
+    "heading": "Versió {{base}} → Versió {{target}}",
+    "impacts": {
+      "authorization": "Autorització",
+      "execution": "Execució",
+      "metadata": "Metadades",
+      "provenance": "Procedència",
+      "unknown": "Desconegut"
+    },
+    "limitReached": {
+      "description": "Hi ha més canvis dels que permet el límit «Màxim de canvis». Augmenteu el límit per veure la resta.",
+      "descriptionDefault": "Hi ha més canvis dels que permet el límit per defecte. Augmenteu el valor de «Màxim de canvis» per a veure la resta.",
+      "title": "Es mostren només els primers {{limit, number}} canvis"
+    },
+    "maxChanges": "Màxim de canvis",
+    "maxChangesDefault": "Per defecte",
+    "noChanges": "Aquestes versions contenen el mateix estat.",
+    "operations": {
+      "added": "Afegit",
+      "changed": "Modificat",
+      "removed": "Eliminat"
+    },
+    "pathOccurrences_one": "{{count, number}} canvi comparteix aquest camí",
+    "pathOccurrences_other": "{{count, number}} canvis comparteixen aquest camí",
+    "pathOccurrencesAtLeast_one": "Com a mínim {{count, number}} canvi comparteix aquest camí",
+    "pathOccurrencesAtLeast_other": "Com a mínim {{count, number}} canvis comparteixen aquest camí",
+    "record_one": "Registre",
+    "record_other": "Registres",
+    "schemaChange": "Esquema serialitzat {{baseSchema}} → {{targetSchema}}",
+    "selectPrompt": "Seleccioneu dues versions per veure què ha canviat entre elles.",
+    "summary_one": "{{count, number}} canvi",
+    "summary_other": "{{count, number}} canvis",
+    "summaryAtLeast_one": "Com a mínim {{count, number}} canvi",
+    "summaryAtLeast_other": "Com a mínim {{count, number}} canvis",
+    "target": "Comparar amb",
+    "unavailable": {
+      "description": "No s'han pogut comparar aquestes versions. Motiu:",
+      "title": "Comparació no disponible",
+      "withoutReason": "No s'han pogut comparar aquestes versions."
+    },
+    "valuesHidden": "Valors ocults"
   }
 }

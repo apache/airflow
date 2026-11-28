@@ -23,7 +23,7 @@ Cross-attempt ``pydantic_ai.usage.RunUsage`` accounting, backed by the task stat
 pydantic-ai field is carried through automatically. This module has no
 top-level import of any Airflow >= 3.3-only symbol: it must stay importable on
 older Airflow versions, even though :class:`TaskStateStoreUsageBudget` is only
-constructed on 3.3+ (see ``AgentOperator._build_usage_budget``).
+constructed on 3.3+ (see ``UsageBudgetMixin._build_usage_budget``).
 """
 
 from __future__ import annotations
@@ -165,6 +165,14 @@ def subtract_run_usage(total: RunUsage, base: RunUsage) -> RunUsage:
     return RunUsage(**kwargs)
 
 
+def delete_usage_record(accessor: TaskStateStoreAccessor) -> None:
+    """Best-effort delete of the persisted usage record; a failure is logged, never raised."""
+    try:
+        accessor.delete(USAGE_BUDGET_KEY)
+    except Exception:
+        log.warning("Usage budget: failed to delete cumulative usage key", exc_info=True)
+
+
 class TaskStateStoreUsageBudget:
     """
     Persists cumulative ``RunUsage`` across task attempts in the AIP-103 task state store.
@@ -219,7 +227,4 @@ class TaskStateStoreUsageBudget:
 
     def clear(self) -> None:
         """Best-effort delete, called once the whole execute succeeds."""
-        try:
-            self._store.delete(USAGE_BUDGET_KEY)
-        except Exception:
-            log.warning("Usage budget: failed to delete cumulative usage key", exc_info=True)
+        delete_usage_record(self._store)
