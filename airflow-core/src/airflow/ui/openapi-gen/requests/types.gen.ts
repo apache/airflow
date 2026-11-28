@@ -1027,6 +1027,10 @@ export type DAGDetailsResponse = {
     team_name?: string | null;
     latest_dag_version: DagVersionResponse | null;
     /**
+     * Partition key suggested for a manual trigger of this Dag. Computed only by the Dag details endpoint; null when the timetable offers no suggestion.
+     */
+    suggested_partition_key?: string | null;
+    /**
      * Whether this Dag's schedule supports backfilling.
      */
     readonly is_backfillable: boolean;

@@ -26,9 +26,16 @@ import type { DagRunTriggerParams } from "./types";
 type TriggerDAGAdvancedOptionsProps = {
   readonly control: Control<DagRunTriggerParams>;
   readonly isPartitioned: boolean;
+  readonly isSuggestedValue: boolean;
+  readonly onPartitionKeyEdit: () => void;
 };
 
-const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvancedOptionsProps) => {
+const TriggerDAGAdvancedOptions = ({
+  control,
+  isPartitioned,
+  isSuggestedValue,
+  onPartitionKeyEdit,
+}: TriggerDAGAdvancedOptionsProps) => {
   const { t: translate } = useTranslation(["common", "components"]);
   const { t: rootTranslate } = useTranslation();
 
@@ -64,8 +71,21 @@ const TriggerDAGAdvancedOptions = ({ control, isPartitioned }: TriggerDAGAdvance
                 </Field.Label>
               </Stack>
               <Stack css={{ flexBasis: "70%" }}>
-                <Input {...field} size="sm" />
-                <Field.HelperText>{translate("components:triggerDag.partitionKeyHelp")}</Field.HelperText>
+                <Input
+                  {...field}
+                  onChange={(event) => {
+                    onPartitionKeyEdit();
+                    field.onChange(event);
+                  }}
+                  size="sm"
+                />
+                <Field.HelperText>
+                  {translate(
+                    isSuggestedValue
+                      ? "components:triggerDag.partitionKeySuggestedHelp"
+                      : "components:triggerDag.partitionKeyHelp",
+                  )}
+                </Field.HelperText>
               </Stack>
             </Field.Root>
           )}

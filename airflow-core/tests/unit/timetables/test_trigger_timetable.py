@@ -1081,6 +1081,79 @@ def test_iter_partition_dagrun_infos_inclusive_endpoint_pair() -> None:
     assert not any(i.partition_key == "2026-02-20T00:00:00" for i in infos_two)
 
 
+@pytest.mark.parametrize(
+    ("timetable", "now", "expected"),
+    [
+        pytest.param(
+            CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0),
+            pendulum.datetime(2026, 2, 18, 12, tz="Asia/Taipei"),
+            "2026-02-18T00:00:00",
+            id="after-tick-suggests-most-recently-elapsed",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=0),
+            pendulum.datetime(2026, 2, 18, tz="Asia/Taipei"),
+            "2026-02-18T00:00:00",
+            id="exactly-on-tick-suggests-that-tick",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei", run_offset=-1),
+            pendulum.datetime(2026, 2, 18, 12, tz="Asia/Taipei"),
+            "2026-02-17T00:00:00",
+            id="run-offset-shifts-the-suggestion",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 0 * * *", timezone="Asia/Taipei"),
+            # 17:00 UTC is 01:00 the next day in Taipei (UTC+8), so the Taipei date is the 18th.
+            pendulum.datetime(2026, 2, 17, 17, tz="UTC"),
+            "2026-02-18T00:00:00",
+            id="utc-now-is-converted-to-timetable-timezone",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 0 * * *", timezone="America/New_York"),
+            # US DST began 2026-03-08, so New York is EDT (UTC-4): 04:30 UTC on the 9th is 00:30 local,
+            # tick = 03-09. Wrongly using standard time (UTC-5) gives 23:30 on the 8th, i.e. 03-08.
+            pendulum.datetime(2026, 3, 9, 4, 30, tz="UTC"),
+            "2026-03-09T00:00:00",
+            id="after-spring-forward-uses-dst-offset",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 * * * *", timezone="Asia/Kolkata"),
+            # Kolkata is UTC+5:30, so 06:45 UTC is 12:15 local and the hourly tick is 12:00 local
+            # (06:30 UTC), not the UTC-aligned 06:00 (11:30 local).
+            pendulum.datetime(2026, 2, 18, 6, 45, tz="UTC"),
+            "2026-02-18T12:00:00",
+            id="half-hour-offset-zone-ticks-on-local-hour",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 0 * * *", timezone="Australia/Lord_Howe"),
+            # Lord Howe moves from UTC+10:30 to UTC+11 on 2026-10-04: 13:15 UTC on the 4th is 00:15 on
+            # the 5th local, tick = 10-05. Using the standard +10:30 gives 23:45 on the 4th, i.e. 10-04.
+            pendulum.datetime(2026, 10, 4, 13, 15, tz="UTC"),
+            "2026-10-05T00:00:00",
+            id="half-hour-dst-zone-uses-dst-offset",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 * * * *", timezone="America/New_York"),
+            # US DST ended 2026-11-01: 06:30 UTC is 01:30 EST, the second pass through the repeated
+            # 01:00 hour; the hourly tick is 01:00.
+            pendulum.datetime(2026, 11, 1, 6, 30, tz="UTC"),
+            "2026-11-01T01:00:00",
+            id="inside-fall-back-repeated-hour",
+        ),
+        pytest.param(
+            CoreCronPartitionTimetable("0 * * * *", timezone="America/New_York"),
+            # 07:30 UTC is 02:30 EST, after the repeated hour; the hourly tick is 02:00.
+            pendulum.datetime(2026, 11, 1, 7, 30, tz="UTC"),
+            "2026-11-01T02:00:00",
+            id="after-fall-back-uses-standard-offset",
+        ),
+    ],
+)
+def test_suggest_partition_key(timetable, now, expected) -> None:
+    assert timetable.suggest_partition_key(now) == expected
+
+
 def test_iter_partition_dagrun_infos_subday_window_does_not_expand_to_whole_day() -> None:
     """A sub-day window of an hourly timetable yields only the ticks inside it — not the whole day.
 

@@ -23,15 +23,16 @@ import "@testing-library/jest-dom/vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { UseDagServiceGetDagKeyFn } from "openapi/queries";
+import { UseDagServiceGetDagDetailsKeyFn } from "openapi/queries";
 import { CancelablePromise } from "openapi/requests/core/CancelablePromise";
 import { BackfillService, DagRunService, DagService } from "openapi/requests/services.gen";
-import type { DAGResponse, TriggerDagRunResponse } from "openapi/requests/types.gen";
+import type { DAGDetailsResponse, TriggerDagRunResponse } from "openapi/requests/types.gen";
 
 import type * as Ui from "src/system-components";
 
 import { Wrapper } from "src/utils/Wrapper";
 
+import { getPartitionKeyInput } from "./TriggerDAGForm.testUtils";
 import TriggerDAGModal from "./TriggerDAGModal";
 
 vi.mock("src/system-components", async (importOriginal) => {
@@ -57,7 +58,9 @@ vi.mock("src/queries/useDagParams", () => ({
 vi.mock("src/queries/useParamStore", () => ({
   useParamStore: () => ({ conf: "{}", initialParamDict: {}, setConf: vi.fn(), setInitialParamDict: vi.fn() }),
 }));
-vi.mock("../ConfigForm", () => ({ default: () => <div /> }));
+vi.mock("../ConfigForm", () => ({
+  default: ({ children }: { readonly children?: ReactNode }) => <div>{children}</div>,
+}));
 vi.mock("../DateTimeInput", () => ({
   DateTimeInput: ({ value }: { readonly value?: string }) => (
     <input aria-label="Logical Date" readOnly value={value} />
@@ -78,7 +81,7 @@ const dag = {
   is_paused: true,
   timetable_partitioned: false,
   timetable_summary: null,
-} as DAGResponse;
+} as DAGDetailsResponse;
 
 const renderModal = (queryClient: QueryClient, onClose = vi.fn()) =>
   render(
@@ -95,7 +98,7 @@ const createQueryClient = () =>
 
 describe("TriggerDAGModal", () => {
   beforeEach(() => {
-    vi.spyOn(DagService, "getDag").mockResolvedValue(dag);
+    vi.spyOn(DagService, "getDagDetails").mockResolvedValue(dag);
     vi.spyOn(BackfillService, "listBackfillsUi").mockResolvedValue({ backfills: [], total_entries: 0 });
     vi.spyOn(DagRunService, "getDagRuns").mockResolvedValue({ dag_runs: [], total_entries: 0 });
     vi.spyOn(DagRunService, "triggerDagRun").mockResolvedValue({
@@ -108,22 +111,22 @@ describe("TriggerDAGModal", () => {
   it("passes the paused state it fetches on open to the form", async () => {
     renderModal(createQueryClient());
     expect(await screen.findByText("pausedDag.title")).toBeVisible();
-    expect(DagService.getDag).toHaveBeenCalledWith({ dagId: DAG_ID });
+    expect(DagService.getDagDetails).toHaveBeenCalledWith({ dagId: DAG_ID });
   });
 
   it.each([false, true])(
     "blocks submission until the cached paused=%s state is refreshed",
     async (cachedPaused) => {
-      let resolveDag: ((value: DAGResponse) => void) | undefined;
+      let resolveDag: ((value: DAGDetailsResponse) => void) | undefined;
 
-      vi.mocked(DagService.getDag).mockReturnValue(
+      vi.mocked(DagService.getDagDetails).mockReturnValue(
         new CancelablePromise((resolve) => {
           resolveDag = resolve;
         }),
       );
       const queryClient = createQueryClient();
 
-      queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), {
+      queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }), {
         ...dag,
         is_paused: cachedPaused,
       });
@@ -159,16 +162,16 @@ describe("TriggerDAGModal", () => {
   );
 
   it("also blocks backfill submission while refreshing the Dag", async () => {
-    let resolveDag: ((value: DAGResponse) => void) | undefined;
+    let resolveDag: ((value: DAGDetailsResponse) => void) | undefined;
 
-    vi.mocked(DagService.getDag).mockReturnValue(
+    vi.mocked(DagService.getDagDetails).mockReturnValue(
       new CancelablePromise((resolve) => {
         resolveDag = resolve;
       }),
     );
     const queryClient = createQueryClient();
 
-    queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), dag);
+    queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }), dag);
     renderModal(queryClient);
     fireEvent.click(screen.getByText("backfill.selectLabel"));
     expect(await screen.findByText("submit backfill")).toBeDisabled();
@@ -179,10 +182,10 @@ describe("TriggerDAGModal", () => {
   });
 
   it("does not allow a cached Dag to be submitted after its refresh fails", async () => {
-    vi.mocked(DagService.getDag).mockRejectedValue(new Error("Unavailable"));
+    vi.mocked(DagService.getDagDetails).mockRejectedValue(new Error("Unavailable"));
     const queryClient = createQueryClient();
 
-    queryClient.setQueryData(UseDagServiceGetDagKeyFn({ dagId: DAG_ID }), dag);
+    queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }), dag);
     renderModal(queryClient);
     expect(await screen.findByText("triggerDag.loadingFailed")).toBeVisible();
     expect(screen.queryByTestId("trigger-dag-submit")).not.toBeInTheDocument();
@@ -234,5 +237,75 @@ describe("TriggerDAGModal", () => {
     expect(DagRunService.triggerDagRun).toHaveBeenLastCalledWith(
       expect.objectContaining({ requestBody: expect.objectContaining({ drain_dag: false }) as unknown }),
     );
+  });
+
+  it.each([
+    { expected: "2026-02-18T00:00:00", suggested: "2026-02-18T00:00:00" },
+    { expected: "", suggested: null },
+  ])(
+    "shows $expected as the partition key for a suggestion of $suggested",
+    async ({ expected, suggested }) => {
+      vi.mocked(DagService.getDagDetails).mockResolvedValue({
+        ...dag,
+        suggested_partition_key: suggested,
+        timetable_partitioned: true,
+      });
+      const { container } = renderModal(createQueryClient());
+
+      await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue(expected));
+    },
+  );
+
+  it("clears the partition key when a refetch reports that there is no suggestion any more", async () => {
+    const queryClient = createQueryClient();
+
+    queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: DAG_ID }), {
+      ...dag,
+      suggested_partition_key: "2026-02-18T00:00:00",
+      timetable_partitioned: true,
+    });
+    vi.mocked(DagService.getDagDetails).mockResolvedValue({
+      ...dag,
+      suggested_partition_key: null,
+      timetable_partitioned: true,
+    });
+    const { container } = renderModal(queryClient);
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue(""));
+  });
+
+  it("does not keep a partition key typed for the previous Dag when the Dag changes", async () => {
+    const queryClient = createQueryClient();
+    const partitionedDag = { ...dag, timetable_partitioned: true };
+
+    vi.mocked(DagService.getDagDetails).mockImplementation(
+      ({ dagId }) =>
+        new CancelablePromise<DAGDetailsResponse>((resolve) => {
+          resolve({ ...partitionedDag, dag_id: dagId, suggested_partition_key: `${dagId}-suggested` });
+        }),
+    );
+    queryClient.setQueryData(UseDagServiceGetDagDetailsKeyFn({ dagId: "dag_b" }), {
+      ...partitionedDag,
+      dag_id: "dag_b",
+      suggested_partition_key: "dag_b-suggested",
+    });
+    const { container, rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <TriggerDAGModal dagDisplayName="a" dagId="dag_a" onClose={vi.fn()} open />
+      </QueryClientProvider>,
+      { wrapper: Wrapper },
+    );
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("dag_a-suggested"));
+    fireEvent.change(getPartitionKeyInput(container), { target: { value: "mine" } });
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("mine"));
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <TriggerDAGModal dagDisplayName="b" dagId="dag_b" onClose={vi.fn()} open />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(getPartitionKeyInput(container)).toHaveValue("dag_b-suggested"));
   });
 });

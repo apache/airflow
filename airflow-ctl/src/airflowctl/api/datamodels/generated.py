@@ -3797,6 +3797,13 @@ class DAGDetailsResponse(BaseModel):
     active_runs_count: Annotated[int | None, Field(title="Active Runs Count")] = 0
     team_name: Annotated[str | None, Field(title="Team Name")] = None
     latest_dag_version: DagVersionResponse | None
+    suggested_partition_key: Annotated[
+        str | None,
+        Field(
+            description="Partition key suggested for a manual trigger of this Dag. Computed only by the Dag details endpoint; null when the timetable offers no suggestion.",
+            title="Suggested Partition Key",
+        ),
+    ] = None
     is_backfillable: Annotated[
         bool, Field(description="Whether this Dag's schedule supports backfilling.", title="Is Backfillable")
     ]

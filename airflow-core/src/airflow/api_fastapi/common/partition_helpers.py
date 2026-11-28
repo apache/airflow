@@ -25,10 +25,29 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.timetables.simple import PartitionedAssetTimetable
 
 if TYPE_CHECKING:
+    from pendulum import DateTime
     from sqlalchemy.orm import Session
+
+    from airflow.timetables.base import Timetable
 
 
 log = structlog.get_logger(logger_name=__name__)
+
+
+def suggest_partition_key_for_dag(*, dag_id: str, timetable: Timetable, now: DateTime) -> str | None:
+    """
+    Return the partition key to suggest for a manual trigger of *dag_id*, or ``None``.
+
+    This is the API-layer entry point for suggestions. A failure while computing
+    the suggestion never propagates to the caller: it is logged and ``None`` is returned.
+    """
+    try:
+        return timetable.suggest_partition_key(now)
+    except Exception:
+        # Only the timetable call is guarded: it may be a plugin class, and the suggestion is
+        # optional, so it must not turn the Dag details response into a 500.
+        log.warning("Failed to compute suggested partition key", dag_id=dag_id, exc_info=True)
+        return None
 
 
 def _extract_partitioned_timetable(serdag: SerializedDagModel) -> PartitionedAssetTimetable | None:

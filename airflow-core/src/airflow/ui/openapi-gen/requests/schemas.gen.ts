@@ -3688,6 +3688,18 @@ export const $DAGDetailsResponse = {
                 }
             ]
         },
+        suggested_partition_key: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Suggested Partition Key',
+            description: 'Partition key suggested for a manual trigger of this Dag. Computed only by the Dag details endpoint; null when the timetable offers no suggestion.'
+        },
         is_backfillable: {
             type: 'boolean',
             title: 'Is Backfillable',
