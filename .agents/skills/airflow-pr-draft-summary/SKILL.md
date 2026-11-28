@@ -24,7 +24,7 @@ text for a drafting request; drafting alone does not authorize posting.
 Write commit messages focused on user impact, not implementation details.
 
 - **Good:** `Fix airflow dags test command failure without serialized Dags`
-- **Good:** `UI: Fix Grid view not refreshing after task actions`
+- **Good:** `Fix Grid view not refreshing after task actions`
 - **Good:** `Update foo function`
 - **Bad:** `Initialize Dag bundles in CLI get_dag function`
 - **Bad:** `Update foo function (#12345)`
@@ -40,8 +40,8 @@ it to pick up the new hook type.
 
 Use the **imperative mood** and a plain message — do **not** use Conventional Commits prefixes
 (`fix:`, `feat:`, `chore:`, `docs:`, `refactor:`, …). apache/airflow does not follow that
-convention. (Area tags the project already uses, like `UI:` / `API:` / `Helm:`, are fine;
-Conventional-Commit `type:` tokens are not.) The same rule applies to PR titles.
+convention. Leave out area tags such as `UI:` or `API:` too, since the PR's `area:*` labels
+already show the area. The same rule applies to PR titles.
 
 Do not include an issue or PR number in the PR title. GitHub already appends
 the actual PR number automatically when a PR is squash-merged (this is why

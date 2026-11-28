@@ -88,7 +88,7 @@ def report(subject: str) -> None:
         "Airflow does not use Conventional Commits (feat:, fix:, chore: ...).\n"
         "Write the subject as plain prose focused on user impact, for example:\n\n"
         "    Fix airflow dags test command failure without serialized Dags\n"
-        "    UI: Fix Grid view not refreshing after task actions\n\n"
+        "    Fix Grid view not refreshing after task actions\n\n"
         "See contributing-docs/05_pull_requests.rst for commit message guidance."
     )
 

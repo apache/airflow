@@ -121,6 +121,10 @@ these guidelines:
     history for easier review, but if you need to, you can also squash all commits to reduce the
     maintenance burden during rebase.
 
+-   Do not put an issue or PR number in the PR title. **Squash and Merge** appends the PR number to
+    the title, so an extra number duplicates it, and readers cannot tell whether it refers to an issue
+    or a PR. Reference the issue in the PR description instead, for example ``closes: #12345``.
+
 -   Add an `Apache License <http://www.apache.org/legal/src-headers.html>`_ header to all new files. If you
     have ``prek`` installed, prek will do it automatically for you. If you hesitate to install
     prek for your local repository - for example because it takes a few seconds to commit your changes,
