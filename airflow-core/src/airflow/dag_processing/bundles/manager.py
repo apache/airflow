@@ -413,7 +413,7 @@ class _ReloadingBundleConfigSource(_BaseBundleConfigSource):
     def get_bundle_teams(self) -> dict[str, str | None]:
         # Unfiltered Dag processors reconcile the active bundles with the accepted list.
         with create_session() as session:
-            return dict(
+            teams: dict[str, str | None] = dict(
                 session.execute(
                     select(DagBundleModel.name, Team.name)
                     .outerjoin(DagBundleModel.teams)
@@ -422,6 +422,12 @@ class _ReloadingBundleConfigSource(_BaseBundleConfigSource):
                 .tuples()
                 .all()
             )
+        if conf.getboolean("core", "LOAD_EXAMPLES"):
+            # Like a static list, count only the bundles the deployment declares.
+            providers = ProvidersManager().providers
+            for name in (_example_dag_bundle_name, *map(_get_provider_example_bundle_name, providers)):
+                teams.pop(name, None)
+        return teams
 
 
 @functools.cache
@@ -462,8 +468,8 @@ def _read_bundle_config_list(
         # Normal config lookup can silently fall back to defaults when a secret is missing.
         try:
             raw = read_raw()
-        except Exception:
-            raise _bundle_item_exc("Could not read the configured command or secret") from None
+        except Exception as e:
+            raise _bundle_item_exc("Could not read the configured command or secret") from e
         if not raw or not raw.strip():
             raise _bundle_item_exc("The configured command or secret returned no value")
         try:
@@ -563,16 +569,19 @@ def _add_provider_example_dags_to_bundle(bundle_config_list: list[_ExternalBundl
             if example_dag_folder in seen:
                 continue
             seen.add(example_dag_folder)
-            bundle_name = f"{package_name}-example-dags"
             bundle_config_list.append(
                 _ExternalBundleConfig(
-                    name=bundle_name,
+                    name=_get_provider_example_bundle_name(package_name),
                     classpath="airflow.dag_processing.bundles.local.LocalDagBundle",
                     kwargs={
                         "path": example_dag_folder,
                     },
                 )
             )
+
+
+def _get_provider_example_bundle_name(package_name: str) -> str:
+    return f"{package_name}-example-dags"
 
 
 def _is_safe_bundle_url(url: str) -> bool:

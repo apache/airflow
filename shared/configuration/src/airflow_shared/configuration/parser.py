@@ -152,14 +152,21 @@ def expand_env_var(env_var: str | None) -> str | None:
         env_var = interpolated
 
 
-def run_command(command: str) -> str:
-    """Run command and returns stdout."""
+def run_command(command: str, *, redact: bool = False) -> str:
+    """
+    Run command and returns stdout.
+
+    :param redact: report only the exit status of a failed command, because the command, its
+        output or its errors can contain the sensitive value.
+    """
     process = subprocess.Popen(
         shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True
     )
     output, stderr = (stream.decode(sys.getdefaultencoding(), "ignore") for stream in process.communicate())
 
     if process.returncode != 0:
+        if redact:
+            raise AirflowConfigException(f"The configured command exited with status {process.returncode}")
         raise AirflowConfigException(
             f"Cannot execute {command}. Error code is: {process.returncode}. "
             f"Output: {output}, Stderr: {stderr}"
@@ -244,21 +251,30 @@ def get_dynamic_option_reader(
     Select the configured command or secret for a canonical, unaliased option without reading it.
 
     A selected reader returns its own result, including an empty or missing value. Reload callers
-    must distinguish a failed read from the defaults that ``get()`` could otherwise return.
+    must distinguish a failed read from the defaults that ``get()`` could otherwise return. Read
+    errors are safe to log: a failed command reports only its exit status, and secrets backend
+    errors are not included.
     """
+
+    def read_secret(path: str) -> str | None:
+        try:
+            return parser._get_config_value_from_secret_backend(path)
+        except Exception:
+            raise AirflowConfigException("Could not read the value from the secrets backend") from None
+
     env_var = parser._env_var_name(section, key)
     if env_var in os.environ or (section, key) not in parser.sensitive_config_values:
         return None
     if (command := os.environ.get(f"{env_var}_CMD")) is not None:
-        return lambda: run_command(command)
+        return lambda: run_command(command, redact=True)
     if (secret := os.environ.get(f"{env_var}_SECRET")) is not None:
-        return lambda: parser._get_config_value_from_secret_backend(secret)
+        return lambda: read_secret(secret)
     if ConfigParser.has_option(parser, section, key):
         return None
     if ConfigParser.has_option(parser, section, f"{key}_cmd"):
-        return lambda: parser._get_cmd_option(section, key)
+        return lambda: run_command(ConfigParser.get(parser, section, f"{key}_cmd"), redact=True)
     if ConfigParser.has_option(parser, section, f"{key}_secret"):
-        return lambda: parser._get_secret_option(section, key)
+        return lambda: read_secret(ConfigParser.get(parser, section, f"{key}_secret"))
     return None
 
 

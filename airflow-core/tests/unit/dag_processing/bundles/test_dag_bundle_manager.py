@@ -29,6 +29,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy import event, func, select, update
 
+from airflow._shared.configuration.parser import run_command
 from airflow.configuration import conf
 from airflow.dag_processing.bundles.base import BaseDagBundle, BundleParseContext
 from airflow.dag_processing.bundles.manager import (
@@ -2366,7 +2367,7 @@ def test_dynamic_source_preserves_command_and_secret_values(
             conf.set("dag_processor", f"dag_bundle_config_list_{source_kind}", value)
         assert get_configured_bundle_names() == {"my-test-bundle"}
     if source_kind == "cmd":
-        mock_command.assert_called_once_with(value)
+        mock_command.assert_called_once_with(value, redact=True)
         mock_secret.assert_not_called()
     else:
         mock_secret.assert_called_once_with(conf, value)
@@ -2472,6 +2473,21 @@ def test_dynamic_startup_requires_valid_list(dynamic_bundle_config, payload):
     dynamic_bundle_config.write_text(payload)
     with pytest.raises(AirflowConfigException):
         DagBundlesManager()
+
+
+@pytest.mark.db_test
+@mock.patch("airflow.dag_processing.bundles.manager.ProvidersManager", autospec=True)
+def test_reloaded_bundle_teams_exclude_example_bundles(
+    mock_providers_manager, dynamic_bundle_config, clear_db
+):
+    mock_providers_manager.return_value.providers = {"apache-airflow-providers-demo": mock.ANY}
+    with create_session() as session:
+        session.add_all(
+            DagBundleModel(name=name)
+            for name in ("my-test-bundle", "example_dags", "apache-airflow-providers-demo-example-dags")
+        )
+    with conf_vars({("core", "load_examples"): "True"}):
+        assert _get_bundle_config_source().get_bundle_teams() == {"my-test-bundle": None}
 
 
 @pytest.mark.db_test
@@ -2590,7 +2606,8 @@ def test_reload_error_does_not_log_sensitive_config(
     manager = DagBundlesManager()
     value = "fake-reload-credential"
     if command_failed:
-        mock_command.side_effect = AirflowConfigException(f"Command stdout: {value}")
+        failing = f"sh -c 'echo {value}; echo {value} >&2; exit 3'"
+        mock_command.side_effect = lambda command, **kwargs: run_command(failing, **kwargs)
     else:
         mock_command.return_value = json.dumps([{"name": "broken", "kwargs": {"password": value}}])
     _expire_bundle_config_snapshot()
@@ -2602,7 +2619,10 @@ def test_reload_error_does_not_log_sensitive_config(
         for event in caplog
         if event["event"] == "Could not reload Dag bundle configuration; keeping the last accepted list"
     )
-    assert value not in "".join(format_exception(error))
+    logged = "".join(format_exception(error))
+    assert value not in logged
+    if command_failed:
+        assert "The configured command exited with status 3" in logged
 
 
 @pytest.mark.parametrize("poll_due", [False, True])
