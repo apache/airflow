@@ -73,6 +73,7 @@ from airflow.executors.executor_utils import ExecutorName
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.workloads import ExecuteTask, WorkloadType
 from airflow.executors.workloads.types import TaskInstanceUuid
+from airflow.jobs import scheduler_job_runner
 from airflow.jobs.job import EXECUTOR_JOB_TYPE, Job, JobState, run_job
 from airflow.jobs.scheduler_job_runner import (
     CANDIDATE_BATCHES,
@@ -1600,6 +1601,112 @@ class TestSchedulerJob:
             "event": "Could not handle task instance failure",
             "task_instance_key": failed_keys[0],
         } in caplog
+
+    @pytest.mark.db_test
+    @pytest.mark.parametrize("source", ["executor", "heartbeat"])
+    @pytest.mark.parametrize("failure_stage", ["callback_context", "email", "handle_failure"])
+    def test_task_failure_rolls_back_retry_notifications(
+        self, dag_maker, session, mocker, source, failure_stage
+    ):
+        with dag_maker(session=session, fileloc="/test_path1/"):
+            for task_id in ("first", "second"):
+                EmptyOperator(
+                    task_id=task_id,
+                    retries=1,
+                    on_retry_callback=lambda context: None,
+                    email="test@example.com",
+                )
+        dag_run = dag_maker.create_dagrun()
+        task_instances = list(dag_run.task_instances)
+        executor = MockExecutor(do_update=False)
+        executor.callback_sink = DatabaseCallbackSink()
+        job = Job()
+        session.add(job)
+        session.flush()
+        self.job_runner = SchedulerJobRunner(job, executors=[executor])
+        for ti in task_instances:
+            ti.state = TaskInstanceState.RUNNING
+            ti.try_number = 1
+            ti.max_tries = 1
+            ti.queued_by_job_id = job.id
+            executor.event_buffer[TaskInstanceUuid(ti.id)] = TaskInstanceState.FAILED, None
+        session.flush()
+        transaction = session.get_transaction()
+        task_instance_ids = [ti.id for ti in task_instances]
+
+        if failure_stage == "callback_context":
+            target = "airflow.jobs.scheduler_job_runner.task_instance_to_runtime"
+            original = scheduler_job_runner.task_instance_to_runtime
+        elif failure_stage == "email":
+            target = "airflow.callbacks.database_callback_sink.DatabaseCallbackSink.send"
+            original = DatabaseCallbackSink.send
+        else:
+            target = "airflow.models.taskinstance.TaskInstance.handle_failure"
+            original = TaskInstance.handle_failure
+        failed_task_ids = []
+
+        def fail_first(*args, **kwargs):
+            if failed_task_ids:
+                return original(*args, **kwargs)
+            if failure_stage == "email":
+                original(*args, **kwargs)
+                request = args[1]
+                if not isinstance(request, EmailRequest):
+                    return
+                failed_task_ids.append(request.ti.task_id)
+            else:
+                failed_task_ids.append(args[0].task_id)
+            session.flush()
+            raise RuntimeError("Failure notification could not be completed")
+
+        mocker.patch(target, autospec=True, side_effect=fail_first)
+        if source == "heartbeat":
+            self.job_runner._purge_task_instances_without_heartbeats(task_instances, session=session)
+        else:
+            self.job_runner._process_executor_events(executor=executor, session=session)
+
+        assert session.get_transaction() is transaction
+        session.expire_all()
+        live_tasks = list(session.scalars(select(TaskInstance).where(TaskInstance.working_set.is_(True))))
+        failed_task_id = failed_task_ids[0]
+        assert len(live_tasks) == 2
+        assert {ti.task_id: ti.state for ti in live_tasks} == {
+            ti.task_id: TaskInstanceState.FAILED
+            if ti.task_id == failed_task_id
+            else TaskInstanceState.UP_FOR_RETRY
+            for ti in task_instances
+        }
+        requests = [row.get_callback_request() for row in session.scalars(select(DbCallbackRequest))]
+        assert len(requests) == 2
+        assert all(request.ti.task_id != failed_task_id for request in requests)
+        assert {type(request) for request in requests} == {TaskCallbackRequest, EmailRequest}
+        for request in requests:
+            if isinstance(request, TaskCallbackRequest):
+                assert request.task_callback_type == TaskInstanceState.UP_FOR_RETRY
+            else:
+                assert request.email_type == "retry"
+        audit_event = "heartbeat timeout" if source == "heartbeat" else "state mismatch"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Log)
+                .where(Log.event == audit_event, Log.task_instance_id.in_(task_instance_ids))
+            )
+            == 2
+        )
+
+    @pytest.mark.parametrize("session_active", [False, True])
+    def test_failure_isolation_propagates_unusable_transactions(self, session_active):
+        session = mock.create_autospec(Session, instance=True)
+        session.is_active = session_active
+        ti = mock.create_autospec(TaskInstance, instance=True)
+        error = OperationalError("SELECT 1", {}, RuntimeError("connection lost"), connection_invalidated=True)
+
+        with pytest.raises(OperationalError, match="connection lost"):
+            with SchedulerJobRunner._isolate_failure_handling(ti, session=session):
+                raise error
+
+        ti.set_state.assert_not_called()
 
     @mock.patch("airflow.jobs.scheduler_job_runner.TaskCallbackRequest")
     def test_process_executor_events_callback_for_removed_mapped_task(

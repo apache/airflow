@@ -28,7 +28,7 @@ import threading
 import time
 from collections import Counter, defaultdict, deque
 from collections.abc import Callable, Collection, Iterable, Iterator, Sequence
-from contextlib import ExitStack, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from datetime import datetime, timedelta
 from functools import lru_cache, partial
 from itertools import groupby
@@ -2072,13 +2072,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         stats.incr("scheduler.executor_events.processed", num_events)
 
     @classmethod
-    def _handle_task_failure(cls, ti: TI, *, error: str, session: Session) -> None:
+    @contextmanager
+    def _isolate_failure_handling(cls, ti: TI, *, session: Session) -> Iterator[None]:
         task_instance_key = ti.key
         # begin_nested flushes pending batch changes before opening the savepoint.
         savepoint = session.begin_nested()
         try:
             with savepoint:
-                ti.handle_failure(error=error, session=session)
+                yield
         except Exception as exc:
             if not session.is_active or (isinstance(exc, DBAPIError) and exc.connection_invalidated):
                 raise
@@ -2382,94 +2383,95 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
                 session.add(Log(event="state mismatch", extra=msg, task_instance=ti))
 
-                # Get task from the Serialized DAG
-                try:
-                    dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-                    if not dag:
-                        cls.logger().error(
-                            "DAG '%s' for task instance %s not found in serialized_dag table",
-                            ti.dag_id,
+                with cls._isolate_failure_handling(ti, session=session):
+                    # Get task from the Serialized DAG
+                    try:
+                        dag = scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                        if not dag:
+                            cls.logger().error(
+                                "DAG '%s' for task instance %s not found in serialized_dag table",
+                                ti.dag_id,
+                                ti,
+                            )
+                            raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+
+                        task = dag.get_task(ti.task_id)
+                    except Exception:
+                        if state == TaskInstanceState.SUCCESS and ti.operator == LOOP_GATE_OPERATOR:
+                            cls.logger().exception("Failing loop gate %s: %s", ti, msg)
+                            ti.task = None
+                            ti.handle_failure(error=msg, session=session)
+                            continue
+                        cls.logger().exception("Marking task instance %s as %s", ti, state)
+                        ti.set_state(state, session=session)
+                        continue
+                    ti.task = task
+                    if task.has_on_retry_callback or task.has_on_failure_callback:
+                        # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
+                        # too, which would lead to double logging
+                        cls.logger().error(msg)
+                        _bundle_name, _bundle_version, _version_data = _resolve_ti_callback_bundle_info(ti)
+                        # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                        if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
+                            continue
+                        request = TaskCallbackRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=_bundle_name,
+                            bundle_version=_bundle_version,
+                            version_data=_version_data,
+                            ti=task_instance_to_runtime(
+                                ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
+                            ),
+                            msg=msg,
+                            task_callback_type=(
+                                TaskInstanceState.UP_FOR_RETRY
+                                if ti.is_eligible_to_retry()
+                                else TaskInstanceState.FAILED
+                            ),
+                            context_from_server=TIRunContext(
+                                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                                max_tries=ti.max_tries,
+                                variables=[],
+                                connections=[],
+                                xcom_keys_to_clear=[],
+                            ),
+                        )
+                        executor.send_callback(request)
+
+                    # Send email notification request to DAG processor via DB
+                    if task.email and (task.email_on_failure or task.email_on_retry):
+                        cls.logger().info(
+                            "Sending email request for task %s to DAG Processor",
                             ti,
                         )
-                        raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+                        _email_bundle_name, _email_bundle_version, _email_version_data = (
+                            _resolve_ti_callback_bundle_info(ti)
+                        )
+                        # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
+                        if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
+                            continue
+                        email_request = EmailRequest(
+                            filepath=ti.dag_model.relative_fileloc or "",
+                            bundle_name=_email_bundle_name,
+                            bundle_version=_email_bundle_version,
+                            version_data=_email_version_data,
+                            ti=task_instance_to_runtime(
+                                ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
+                            ),
+                            msg=msg,
+                            email_type="retry" if ti.is_eligible_to_retry() else "failure",
+                            context_from_server=TIRunContext(
+                                dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                                max_tries=ti.max_tries,
+                                variables=[],
+                                connections=[],
+                                xcom_keys_to_clear=[],
+                            ),
+                        )
+                        executor.send_callback(email_request)
 
-                    task = dag.get_task(ti.task_id)
-                except Exception:
-                    if state == TaskInstanceState.SUCCESS and ti.operator == LOOP_GATE_OPERATOR:
-                        cls.logger().exception("Failing loop gate %s: %s", ti, msg)
-                        ti.task = None
-                        cls._handle_task_failure(ti, error=msg, session=session)
-                        continue
-                    cls.logger().exception("Marking task instance %s as %s", ti, state)
-                    ti.set_state(state, session=session)
-                    continue
-                ti.task = task
-                if task.has_on_retry_callback or task.has_on_failure_callback:
-                    # Only log the error/extra info here, since the `ti.handle_failure()` path will log it
-                    # too, which would lead to double logging
-                    cls.logger().error(msg)
-                    _bundle_name, _bundle_version, _version_data = _resolve_ti_callback_bundle_info(ti)
-                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
-                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
-                        continue
-                    request = TaskCallbackRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=_bundle_name,
-                        bundle_version=_bundle_version,
-                        version_data=_version_data,
-                        ti=task_instance_to_runtime(
-                            ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
-                        ),
-                        msg=msg,
-                        task_callback_type=(
-                            TaskInstanceState.UP_FOR_RETRY
-                            if ti.is_eligible_to_retry()
-                            else TaskInstanceState.FAILED
-                        ),
-                        context_from_server=TIRunContext(
-                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
-                    )
-                    executor.send_callback(request)
-
-                # Send email notification request to DAG processor via DB
-                if task.email and (task.email_on_failure or task.email_on_retry):
-                    cls.logger().info(
-                        "Sending email request for task %s to DAG Processor",
-                        ti,
-                    )
-                    _email_bundle_name, _email_bundle_version, _email_version_data = (
-                        _resolve_ti_callback_bundle_info(ti)
-                    )
-                    # Backfill dag_version_id for legacy tasks (Pydantic requires uuid.UUID).
-                    if not _ensure_ti_has_dag_version_id(ti, session, cls.logger()):
-                        continue
-                    email_request = EmailRequest(
-                        filepath=ti.dag_model.relative_fileloc or "",
-                        bundle_name=_email_bundle_name,
-                        bundle_version=_email_bundle_version,
-                        version_data=_email_version_data,
-                        ti=task_instance_to_runtime(
-                            ti, model=TIDataModel, map_index=coordinates.public_map_index(ti)
-                        ),
-                        msg=msg,
-                        email_type="retry" if ti.is_eligible_to_retry() else "failure",
-                        context_from_server=TIRunContext(
-                            dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                            max_tries=ti.max_tries,
-                            variables=[],
-                            connections=[],
-                            xcom_keys_to_clear=[],
-                        ),
-                    )
-                    executor.send_callback(email_request)
-
-                # Update task state - emails are handled by DAG processor now
-                cls._handle_task_failure(ti, error=msg, session=session)
+                    # Update task state - emails are handled by DAG processor now
+                    ti.handle_failure(error=msg, session=session)
 
         unprocessed_keys = [key for key in tis_with_right_state if key in event_buffer]
         if unprocessed_keys:
@@ -4913,25 +4915,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
             msg = str(task_instance_heartbeat_timeout_message_details)
 
-            # Load the serialized task, mirroring how process_executor_events' external-kill path
-            # loads it, so handle_failure() below can see fail_fast (ti.task.dag.fail_fast) instead
-            # of silently skipping it, and so email/callback gating below can check the real task
-            # definition. Unlike that path, there's no executor-reported state to fall back to here,
-            # so a load failure still falls through to fail the TI below, just without task context.
-            try:
-                dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
-                if not dag:
-                    raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
-                task = dag.get_task(ti.task_id)
-            except Exception:
-                self.log.exception(
-                    "Could not load task for heartbeat-timed-out task instance %s; "
-                    "continuing without fail_fast/email context",
-                    ti,
-                )
-                task = None
-            ti.task = task
-
             session.add(
                 Log(
                     event="heartbeat timeout",
@@ -4950,72 +4933,98 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "stable/core-concepts/tasks.html#task-instance-heartbeat-timeout)",
                 ti,
             )
-            task_callback_type = (
-                TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
-            )
-
-            bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
-            # Missing callback metadata must not prevent a cleared attempt from being released.
-            has_callback_version = _ensure_ti_has_dag_version_id(ti, session, self.log)
-            if not has_callback_version and ti.state != TaskInstanceState.RESTARTING:
-                continue
-            callback_map_index = None
-            if has_callback_version:
-                try:
-                    # public_map_index falls back to stored region data, so only get_task can tell
-                    # that the pinned definition is gone.
-                    coordinates.get_task(ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id)
-                except (TaskNotFound, ValueError):
-                    self.log.warning(
-                        "Skipping heartbeat callback for %s: pinned task definition is missing", ti
-                    )
-                else:
-                    callback_map_index = coordinates.public_map_index(ti)
-            if callback_map_index is not None:
-                context_from_server = TIRunContext(
-                    dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
-                    max_tries=ti.max_tries,
-                    variables=[],
-                    connections=[],
-                    xcom_keys_to_clear=[],
-                )
-                request = TaskCallbackRequest(
-                    filepath=ti.dag_model.relative_fileloc or "",
-                    bundle_name=bundle_name,
-                    bundle_version=bundle_version,
-                    version_data=version_data,
-                    ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=callback_map_index),
-                    msg=msg,
-                    task_callback_type=task_callback_type,
-                    context_from_server=context_from_server,
-                )
-                self.executor.send_callback(request)
-
-                # This purge path leaves the executor's own "task finished but TI still looked queued"
-                # handling in process_executor_events unreachable for this TI once handle_failure() below
-                # moves it out of RUNNING, so the email notification has to be sent from here directly.
-                if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
-                    self.executor.send_callback(
-                        EmailRequest(
-                            filepath=ti.dag_model.relative_fileloc or "",
-                            bundle_name=bundle_name,
-                            bundle_version=bundle_version,
-                            version_data=version_data,
-                            ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=callback_map_index),
-                            msg=msg,
-                            email_type=(
-                                "retry" if task_callback_type == TaskInstanceState.UP_FOR_RETRY else "failure"
-                            ),
-                            context_from_server=context_from_server,
-                        )
-                    )
-
             failed_id, failed_coordinates = ti.id, ti.key
-            if ti.state == TaskInstanceState.RESTARTING:
-                ti.notify_failure(error=msg)
-                ti.complete_restart(session=session)
-            else:
-                self._handle_task_failure(ti, error=msg, session=session)
+            with self._isolate_failure_handling(ti, session=session):
+                # Load the serialized task, mirroring how process_executor_events' external-kill path
+                # loads it, so handle_failure() below can see fail_fast (ti.task.dag.fail_fast) instead
+                # of silently skipping it, and so email/callback gating below can check the real task
+                # definition. Unlike that path, there's no executor-reported state to fall back to here,
+                # so a load failure still falls through to fail the TI below, just without task context.
+                try:
+                    dag = self.scheduler_dag_bag.get_dag_for_run(dag_run=ti.dag_run, session=session)
+                    if not dag:
+                        raise DagNotFound(f"DAG '{ti.dag_id}' not found in serialized_dag table")
+                    task = dag.get_task(ti.task_id)
+                except Exception:
+                    self.log.exception(
+                        "Could not load task for heartbeat-timed-out task instance %s; "
+                        "continuing without fail_fast/email context",
+                        ti,
+                    )
+                    task = None
+                ti.task = task
+
+                task_callback_type = (
+                    TaskInstanceState.UP_FOR_RETRY if ti.is_eligible_to_retry() else TaskInstanceState.FAILED
+                )
+
+                bundle_name, bundle_version, version_data = _resolve_ti_callback_bundle_info(ti)
+                # Missing callback metadata must not prevent a cleared attempt from being released.
+                has_callback_version = _ensure_ti_has_dag_version_id(ti, session, self.log)
+                if not has_callback_version and ti.state != TaskInstanceState.RESTARTING:
+                    continue
+                callback_map_index = None
+                if has_callback_version:
+                    try:
+                        # public_map_index falls back to stored region data, so only get_task can tell
+                        # that the pinned definition is gone.
+                        coordinates.get_task(
+                            ti.dag_id, ti.run_id, ti.task_id, dag_version_id=ti.dag_version_id
+                        )
+                    except (TaskNotFound, ValueError):
+                        self.log.warning(
+                            "Skipping heartbeat callback for %s: pinned task definition is missing", ti
+                        )
+                    else:
+                        callback_map_index = coordinates.public_map_index(ti)
+                if callback_map_index is not None:
+                    context_from_server = TIRunContext(
+                        dag_run=DRDataModel.model_validate(ti.dag_run, from_attributes=True),
+                        max_tries=ti.max_tries,
+                        variables=[],
+                        connections=[],
+                        xcom_keys_to_clear=[],
+                    )
+                    request = TaskCallbackRequest(
+                        filepath=ti.dag_model.relative_fileloc or "",
+                        bundle_name=bundle_name,
+                        bundle_version=bundle_version,
+                        version_data=version_data,
+                        ti=task_instance_to_runtime(ti, model=TIDataModel, map_index=callback_map_index),
+                        msg=msg,
+                        task_callback_type=task_callback_type,
+                        context_from_server=context_from_server,
+                    )
+                    self.executor.send_callback(request)
+
+                    # This purge path leaves the executor's own "task finished but TI still looked queued"
+                    # handling in process_executor_events unreachable for this TI once handle_failure() below
+                    # moves it out of RUNNING, so the email notification has to be sent from here directly.
+                    if task is not None and task.email and (task.email_on_failure or task.email_on_retry):
+                        self.executor.send_callback(
+                            EmailRequest(
+                                filepath=ti.dag_model.relative_fileloc or "",
+                                bundle_name=bundle_name,
+                                bundle_version=bundle_version,
+                                version_data=version_data,
+                                ti=task_instance_to_runtime(
+                                    ti, model=TIDataModel, map_index=callback_map_index
+                                ),
+                                msg=msg,
+                                email_type=(
+                                    "retry"
+                                    if task_callback_type == TaskInstanceState.UP_FOR_RETRY
+                                    else "failure"
+                                ),
+                                context_from_server=context_from_server,
+                            )
+                        )
+
+                if ti.state == TaskInstanceState.RESTARTING:
+                    ti.notify_failure(error=msg)
+                    ti.complete_restart(session=session)
+                else:
+                    ti.handle_failure(error=msg, session=session)
             executor = self._try_to_load_executor(
                 ti, session, team_name=dag_id_to_team_name.get(ti.dag_id, NOTSET)
             )
