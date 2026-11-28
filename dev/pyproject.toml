@@ -19,7 +19,7 @@
 [build-system]
 requires = [
     "hatchling==1.33.0",
-    "packaging==26.3",
+    "packaging==26.4",
     "pathspec==1.1.1",
     "pluggy==1.7.0",
     "tomlkit==0.15.2",
@@ -53,7 +53,7 @@ dependencies = [
     "jsonpath_ng>=1.5.3",
     "jsonschema>=4.19.1",
     'pendulum>=3.1.0',
-    "pyyaml>=6.0.3",
+    "pyyaml>=6.0.4",
     "packaging>=25.0",
     "requests>=2.31.0",
     "rich>=13.6.0",

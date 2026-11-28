@@ -18,7 +18,7 @@
 # /// script
 # requires-python = ">=3.11,<3.12"
 # dependencies = [
-#   "pyyaml>=6.0.3",
+#   "pyyaml>=6.0.4",
 # ]
 # ///
 """Check that the ``CI passed`` gate job in ``ci-amd.yml`` needs every other job.

@@ -20,7 +20,7 @@ requires = [
     "gitdb==4.0.12",
     "GitPython==3.2.1",
     "hatchling==1.33.0",
-    "packaging==26.3",
+    "packaging==26.4",
     "pathspec==1.1.1",
     "pluggy==1.7.0",
     "smmap==5.0.3",
@@ -163,7 +163,7 @@ dependencies = [
     "structlog>=26.1.0",
     # End of shared logging dependencies
     # Start of shared configuration dependencies
-    "pyyaml>=6.0.3",
+    "pyyaml>=6.0.4",
     # End of shared configuration dependencies
     # Start of shared listeners dependencies
     "pluggy>=1.5.0",

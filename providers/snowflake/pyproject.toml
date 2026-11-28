@@ -114,7 +114,7 @@ dev = [
     "apache-airflow-providers-microsoft-azure",
     "apache-airflow-providers-openlineage",
     # Additional devel dependencies (do not remove this line and add extra development dependencies)
-    "boto3>=1.41.0",
+    "boto3>=1.43.18",
     "responses>=0.25.0",
 ]
 
