@@ -20,7 +20,7 @@
 # requires-python = ">=3.11,<3.12"
 # dependencies = [
 #   "packaging>=25",
-#   "pyyaml>=6.0.3",
+#   "pyyaml>=6.0.4",
 #   "rich>=13.6.0",
 # ]
 # ///

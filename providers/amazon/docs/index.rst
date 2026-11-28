@@ -117,8 +117,8 @@ PIP package                                 Version required
 ``apache-airflow-providers-common-compat``  ``>=1.23.0``
 ``apache-airflow-providers-common-sql``     ``>=1.32.0``
 ``apache-airflow-providers-http``
-``boto3``                                   ``>=1.43.6``
-``botocore``                                ``>=1.43.6``
+``boto3``                                   ``>=1.43.18``
+``botocore``                                ``>=1.43.18``
 ``inflection``                              ``>=0.5.1``
 ``watchtower``                              ``>=3.3.1,<4``
 ``jsonpath_ng``                             ``>=1.5.3``

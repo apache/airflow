@@ -18,7 +18,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "pyyaml>=6.0.3",
+#   "pyyaml>=6.0.4",
 # ]
 # ///
 """Fail when a hook of the root prek config sets a priority that is not allowed.

@@ -18,7 +18,7 @@
 # /// script
 # requires-python = ">=3.11"
 # dependencies = [
-#   "pyyaml>=6.0.3",
+#   "pyyaml>=6.0.4",
 # ]
 # ///
 """Fail when a prek hook does not redirect Python bytecode out of the source tree.

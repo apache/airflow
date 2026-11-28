@@ -18,7 +18,7 @@
 [build-system]
 requires = [
     "hatchling==1.33.0",
-    "packaging==26.3",
+    "packaging==26.4",
     "pathspec==1.1.1",
     "pluggy==1.7.0",
     "tomlkit==0.15.2",
@@ -593,7 +593,7 @@ apache-airflow = "airflow.__main__:main"
     "apache-airflow-providers-amazon[s3fs]",
 ]
 "uv" = [
-    "uv>=0.13.7",
+    "uv>=0.13.10",
 ]
 
 [project.urls]

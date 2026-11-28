@@ -18,7 +18,7 @@
 # /// script
 # requires-python = ">=3.11,<3.12"
 # dependencies = [
-#   "pyyaml>=6.0.3",
+#   "pyyaml>=6.0.4",
 #   "termcolor==2.5.0",
 #   "wcmatch==8.2",
 # ]
