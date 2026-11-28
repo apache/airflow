@@ -184,9 +184,9 @@ def should_show_package(releases, latest_version, constraints_date, mode, is_lat
         if is_yanked_release(version_info):
             continue
         try:
-            release_date = datetime.fromisoformat(
-                version_info[0]["upload_time_iso_8601"].replace("Z", "+00:00")
-            ).replace(tzinfo=None)
+            release_date = datetime.fromisoformat(version_info[0]["upload_time_iso_8601"]).replace(
+                tzinfo=None
+            )
             if release_date > constraints_date:
                 return False
         except (KeyError, IndexError, ValueError):
@@ -215,9 +215,9 @@ def get_latest_version_with_cooldown(releases: dict[str, Any], cutoff: datetime 
         if parsed_v.is_prerelease or parsed_v.is_devrelease:
             continue
         try:
-            upload_time = datetime.fromisoformat(
-                release_files[0]["upload_time_iso_8601"].replace("Z", "+00:00")
-            ).replace(tzinfo=None)
+            upload_time = datetime.fromisoformat(release_files[0]["upload_time_iso_8601"]).replace(
+                tzinfo=None
+            )
         except (KeyError, IndexError, ValueError):
             continue
         if cutoff is None or upload_time <= cutoff:
@@ -262,7 +262,7 @@ def get_release_cutoff(pkg: str, cooldown_days: int, overrides: dict[str, bool |
             amount, unit = float(match.group(1)), match.group(2)
             return datetime.now() - timedelta(**{f"{unit}s": amount})
         try:
-            return datetime.fromisoformat(override.replace("Z", "+00:00")).replace(tzinfo=None)
+            return datetime.fromisoformat(override).replace(tzinfo=None)
         except ValueError:
             console_print(f"[yellow]Ignoring unparsable exclude-newer-package value for {pkg}: {override}[/]")
     return datetime.now() - timedelta(days=cooldown_days)
@@ -293,7 +293,7 @@ def get_first_newer_release_date_str(releases, current_version):
         # Get the immediate next version
         first_newer_version = str(min(newer_versions))
         upload_time_str = releases[first_newer_version][0]["upload_time_iso_8601"]
-        return datetime.fromisoformat(upload_time_str.replace("Z", "+00:00")).strftime("%Y-%m-%d")
+        return datetime.fromisoformat(upload_time_str).strftime("%Y-%m-%d")
 
     except version.InvalidVersion as e:
         console_print(
@@ -538,7 +538,7 @@ def process_packages(
     def get_release_dates(releases: dict, version: str) -> str:
         if releases.get(version):
             return (
-                datetime.fromisoformat(releases[version][0]["upload_time_iso_8601"].replace("Z", "+00:00"))
+                datetime.fromisoformat(releases[version][0]["upload_time_iso_8601"])
                 .replace(tzinfo=None)
                 .strftime("%Y-%m-%d")
             )

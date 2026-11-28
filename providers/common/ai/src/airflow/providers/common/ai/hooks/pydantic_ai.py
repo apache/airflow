@@ -24,7 +24,7 @@ import math
 import re
 import time
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar, overload
+from typing import TYPE_CHECKING, Any, ParamSpec, Protocol, TypeVar, overload
 
 import pydantic_ai
 from pydantic_ai import Agent
@@ -32,7 +32,6 @@ from pydantic_ai.exceptions import ModelAPIError
 from pydantic_ai.models import infer_model
 from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider_class
-from typing_extensions import ParamSpec
 
 from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
 from airflow.providers.common.ai.hooks.ollama import OllamaBackend

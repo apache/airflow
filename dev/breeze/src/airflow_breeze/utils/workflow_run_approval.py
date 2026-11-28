@@ -385,7 +385,7 @@ def decide_approval(
 
 
 def parse_github_time(value: str) -> datetime:
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return datetime.fromisoformat(value)
 
 
 class GitHubApi:
