@@ -498,9 +498,12 @@ class TestCliDags:
             ("selected/broken_a.py", ["broken_a.py"]),
             ("selected", ["broken_a.py", "broken_b.py"]),
             ("selected/healthy.py", []),
+            ("selected/no_dags.py", []),
         ],
     )
-    def test_cli_list_import_errors_dag_path(self, tmp_path, stdout_capture, selection, expected):
+    def test_cli_list_import_errors_dag_path(
+        self, tmp_path, stdout_capture, stderr_capture, selection, expected
+    ):
         selected = tmp_path / "selected"
         selected.mkdir()
         for path in (selected / "broken_a.py", selected / "broken_b.py", tmp_path / "unselected.py"):
@@ -509,11 +512,12 @@ class TestCliDags:
             'from airflow.sdk import DAG\nwith DAG("healthy", schedule=None):\n    pass\n',
             encoding="utf-8",
         )
+        (selected / "no_dags.py").write_text("# airflow Dag\nvalue = 42\n", encoding="utf-8")
         args = self.parser.parse_args(
             ["dags", "list-import-errors", "--output", "json", "--dag-path", str(tmp_path / selection)]
         )
 
-        with stdout_capture as output:
+        with stdout_capture as output, stderr_capture as stderr:
             if expected:
                 with pytest.raises(SystemExit) as exc_info:
                     dag_command.dag_list_import_errors(args)
@@ -522,7 +526,35 @@ class TestCliDags:
                 dag_command.dag_list_import_errors(args)
 
         errors = json.loads(output.getvalue())
+        assert stderr.getvalue() == ""
         assert sorted(row["filepath"] for row in errors) == [str(selected / name) for name in expected]
+        assert all(row["bundle_name"] == "" for row in errors)
+
+    @pytest.mark.parametrize(
+        ("filename", "source", "select_file"),
+        [
+            ("skipped.py", 'raise RuntimeError("skipped by discovery")\n', True),
+            ("unsupported.txt", '# airflow Dag\nraise RuntimeError("unsupported file")\n', True),
+            ("skipped.py", 'raise RuntimeError("skipped by discovery")\n', False),
+        ],
+        ids=["safe-mode-file", "unsupported-file", "directory"],
+    )
+    @conf_vars({("core", "dag_discovery_safe_mode"): "true"})
+    def test_cli_list_import_errors_dag_path_warns_for_skipped_file(
+        self, tmp_path, stdout_capture, stderr_capture, filename, source, select_file
+    ):
+        path = tmp_path / filename
+        path.write_text(source, encoding="utf-8")
+        selection = path if select_file else tmp_path
+        args = self.parser.parse_args(
+            ["dags", "list-import-errors", "--output", "json", "--dag-path", str(selection)]
+        )
+
+        with stdout_capture as output, stderr_capture as stderr:
+            dag_command.dag_list_import_errors(args)
+
+        assert json.loads(output.getvalue()) == []
+        assert stderr.getvalue() == (f"Warning: Dag discovery skipped {path}.\n" if select_file else "")
 
     @pytest.mark.parametrize(
         ("with_bundle", "message"),

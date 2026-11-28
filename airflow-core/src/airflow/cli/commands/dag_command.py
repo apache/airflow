@@ -680,7 +680,8 @@ def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
             raise SystemExit("--dag-path cannot be used with --bundle-name")
 
         path = Path(args.dag_path).resolve()
-        if path.is_file():
+        is_file = path.is_file()
+        if is_file:
             bundle_path = path.parent
         elif path.is_dir():
             bundle_path = path
@@ -688,8 +689,11 @@ def dag_list_import_errors(args, *, session: Session = NEW_SESSION) -> None:
             raise SystemExit(f"Dag path {path} does not exist or is not a file or directory.")
 
         path_dagbag = BundleDagBag(path, bundle_path=bundle_path)
+        if is_file and not path_dagbag.dagbag_stats and not path_dagbag.import_errors:
+            print(f"Warning: Dag discovery skipped {path}.", file=sys.stderr)
+
         data.extend(
-            {"filepath": str(bundle_path / filename), "error": error}
+            {"bundle_name": "", "filepath": str(bundle_path / filename), "error": error}
             for filename, error in path_dagbag.import_errors.items()
         )
     elif args.local:
