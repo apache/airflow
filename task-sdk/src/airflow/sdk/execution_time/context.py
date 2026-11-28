@@ -57,6 +57,7 @@ from airflow.sdk.exceptions import (
     AirflowNotFoundException,
     AirflowRuntimeError,
     AirflowSecretsBackendAccessDenied,
+    AirflowSupervisorCommsOutOfSync,
     DeprecatedVariableNoneValueWarning,
     ErrorType,
 )
@@ -287,8 +288,9 @@ def _get_connection(conn_id: str) -> Connection:
                 SecretCache.save_connection_uri(conn_id, conn.get_uri(), team_name=_current_team_name)
                 _mask_connection_secrets(conn)
                 return conn
-        except AirflowSecretsBackendAccessDenied:
-            # Authoritative deny — must NOT fall through to a less-restrictive backend.
+        except (AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync):
+            # An authoritative deny must NOT fall through to a less-restrictive backend, and an
+            # out-of-sync supervisor connection would only make every later backend look empty.
             raise
         except Exception:
             log.debug(
@@ -357,8 +359,9 @@ async def _async_get_connection(conn_id: str) -> Connection:
                 SecretCache.save_connection_uri(conn_id, uri, team_name=_current_team_name)
                 await _amask_connection_secrets(conn)
                 return conn
-        except AirflowSecretsBackendAccessDenied:
-            # Authoritative deny — must NOT fall through to a less-restrictive backend.
+        except (AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync):
+            # An authoritative deny must NOT fall through to a less-restrictive backend, and an
+            # out-of-sync supervisor connection would only make every later backend look empty.
             raise
         except Exception:
             # If one backend fails, try the next one
@@ -432,8 +435,9 @@ def _get_variable(key: str, deserialize_json: bool) -> Any:
                 # Save raw value before deserialization to maintain cache consistency
                 SecretCache.save_variable(key, var_val, team_name=_current_team_name)
                 return _mask_and_deserialize_variable(var_val, key, deserialize_json)
-        except AirflowSecretsBackendAccessDenied:
-            # Authoritative deny — must NOT fall through to a less-restrictive backend.
+        except (AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync):
+            # An authoritative deny must NOT fall through to a less-restrictive backend, and an
+            # out-of-sync supervisor connection would only make every later backend look empty.
             raise
         except Exception:
             log.exception(
@@ -482,8 +486,9 @@ async def _async_get_variable(key: str, deserialize_json: bool) -> Any:
                 # Save raw value before deserialization to maintain cache consistency
                 SecretCache.save_variable(key, var_val, team_name=_current_team_name)
                 return await _async_mask_and_deserialize_variable(var_val, key, deserialize_json)
-        except AirflowSecretsBackendAccessDenied:
-            # Authoritative deny — must NOT fall through to a less-restrictive backend.
+        except (AirflowSecretsBackendAccessDenied, AirflowSupervisorCommsOutOfSync):
+            # An authoritative deny must NOT fall through to a less-restrictive backend, and an
+            # out-of-sync supervisor connection would only make every later backend look empty.
             raise
         except Exception:
             log.exception(
