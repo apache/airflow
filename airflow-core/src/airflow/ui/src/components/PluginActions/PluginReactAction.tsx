@@ -24,7 +24,8 @@ import { IconButton } from "src/system-components";
 
 import { loadPlugin, type PluginProps } from "src/pages/ReactPlugin";
 
-import { PluginActionBoundary } from "./PluginActionBoundary";
+import { PluginBoundary } from "src/components/PluginBoundary";
+
 import { PluginActionIcon } from "./PluginActionIcon";
 import type { PluginActionButtonProps, PluginActionProps } from "./types";
 
@@ -89,9 +90,9 @@ export const PluginReactAction = ({
         <PluginActionIcon action={action} />
       </IconButton>
       {Plugin === undefined ? undefined : (
-        <PluginActionBoundary name={action.name}>
+        <PluginBoundary name={action.name}>
           <Plugin {...pluginProps} onClose={() => setOpen(false)} open={open} triggerRef={triggerRef} />
-        </PluginActionBoundary>
+        </PluginBoundary>
       )}
     </>
   );

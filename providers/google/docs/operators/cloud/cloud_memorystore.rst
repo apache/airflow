@@ -271,5 +271,5 @@ Reference
 
 For further information, look at:
 
-* `Client Library Documentation <https://googleapis.github.io/google-cloud-python/latest/redis/index.html>`__
+* `Client Library Documentation <https://cloud.google.com/python/docs/reference/redis/latest>`__
 * `Product Documentation <https://cloud.google.com/memorystore/docs/redis/>`__

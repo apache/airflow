@@ -38,15 +38,16 @@ Proposed.
 ## Decision
 
 1. **Iteration creation stays in core for every language.** Regions, instance creation, rerun trajectories and the scope of every XCom read are core's. An SDK emits a loop group and runs one callable; it never creates an instance and never decides which iteration a read belongs to.
-2. **A loop is a task group with four more serialized fields** — `max_iterations`, `has_until`, `terminal_task_id` and `gate_task_id`. The gate is found by `gate_task_id` and never by an operator class name, which [ADR-0007](0007-taskflow-across-language-boundary.md) decision B already rejected: a gate emitted by another SDK cannot honestly claim `LoopGateOperator`.
-3. **Loop validation and normalization belong to the Dag processor**, so every language gets the same errors: one terminal task, no nested loop, no loop inside a mapped task group, no `expand` over a body task from outside, and every body-to-outside edge rewired to leave from the gate. An SDK may repeat any check for earlier feedback; core's answer is the one that counts.
-4. **A fixed-count loop runs no user code.** With `has_until: false` the scheduler completes the gate itself, so counting needs no worker in any language. A gate carrying a callback, an inlet or an outlet still goes to a worker, by the rule `TaskInstance.is_task_schedulable` already applies to `EmptyOperator`. Only a Python Dag reaches that case, since no SDK emits task callbacks.
+2. **A loop is a task group with four more serialized fields**: `max_iterations`, `has_until`, `terminal_task_id` and `gate_task_id`. Core finds the gate by its task type, `LoopGateOperator`, as it finds Python's, so every SDK serializes its gate with `task_type: "LoopGateOperator"` and core's gate handling stays as it is. This is the one exception to [ADR-0007](0007-taskflow-across-language-boundary.md) decision B: the name says what core does with the task, not which class runs it.
+3. **Loop validation and normalization belong to the Dag processor**, so every language gets the same errors. It refuses a loop without exactly one terminal task, a nested loop, a loop inside a mapped task group, an `expand` over a body task from outside, a Dag result inside a loop, a `gate_task_id` that is not a task of the loop, and a `LoopGateOperator` task that is no loop's gate. A gate is refused as well when it is not typed `LoopGateOperator`, is mapped, empty or started from a trigger, or sits anywhere but directly in its loop group, such as inside a mapped task group. Last, the Dag processor rewires every body-to-outside edge to leave from the gate and refuses the Dag if that makes a cycle. An SDK may repeat any check for earlier feedback; core's answer is the one that counts.
+4. **A fixed-count loop's gate runs on a worker**, as Python's does. With `has_until: false` the SDK runs no callable and sends `stop` as `index >= max_iterations`, so the scheduler keeps no loop logic of its own.
 5. **The decision travels on `SucceedTask.loop_decision`**, which the supervisor schema already carries. An SDK sends `{stop, reason}`; core revalidates it and fails the gate when `stop` is false at `max_iterations`.
 6. **The loop context arrives on `TIRunContext.loop`** — `index`, `max_iterations`, `terminal_task_id`, `terminal_is_mapped` and the region fields. No SDK counts iterations or resolves a trajectory.
 7. **Loops add no XCom call of their own.** Reading the previous iteration is the existing call with `previous_iteration: true`; reading every iteration is ADR-0016 decision 8's lazy sequence, ordered iteration first, then map index.
-8. **The reason is masked in the supervisor**, once for every language. Python redacts it in the task
-   process today, but the supervisor already holds whatever a task added through `MaskSecret`, so
-   moving the redaction there leaves each SDK one existing call rather than a masker of its own.
+8. **The reason is masked in the supervisor**, for every language. The supervisor already holds
+   whatever a task added through `MaskSecret`, so an SDK needs one existing call and no masker of its
+   own. Python also masks the reason in the task process, so its callbacks and listeners see the
+   masked text.
 
 ## Context
 
@@ -66,10 +67,10 @@ SDK's own, and is recorded in that SDK's own ADR directory.
 | Process | Language | Its share of a loop |
 |---|---|---|
 | Dag processor | Python | Validates the loop and rewires the edges out of the body. |
-| Scheduler | Python | Creates iteration 1, and completes a fixed-count gate with no worker. |
+| Scheduler | Python | Creates iteration 1. |
 | API server, Execution API | Python | Sends `TIRunContext.loop`; on the gate's success, validates the decision and creates the next iteration in the same transaction. |
-| Supervisor | Python, in the worker process | Masks the reason; forwards every XCom request with the caller's iteration already pinned by its token. |
-| SDK runtime | the SDK's own language | Runs the body handlers and the `until` callable, and returns the decision. |
+| Supervisor | Python, in the worker process | Masks the reason and cuts it to the byte limit; forwards every XCom request with the caller's iteration already pinned by its token. |
+| SDK runtime | the SDK's own language | Runs the body handlers and the gate, and returns the decision: `until`'s, or `index >= max_iterations` for a fixed-count loop. |
 
 ## Authoring interface
 
@@ -102,7 +103,7 @@ declares, so it is injected. Each follows its own SDK, and none invents a rule f
 ## What an SDK emits
 
 A loop group is an ordinary serialized task group with one more key. The gate is an ordinary task
-of that group.
+of that group, serialized with `task_type: "LoopGateOperator"` (decision 2).
 
 ```jsonc
 "refine": {
@@ -121,7 +122,7 @@ of that group.
 }
 ```
 
-`has_until` is the only thing that says whether a worker runs the gate. The callable itself is never
+`has_until` says whether the gate runs `until` or only counts. The callable itself is never
 serialized: the gate re-enters the SDK's own bundle to find it, the way a `map()` callable is found
 by ADR-0016 decision 6.
 
@@ -133,21 +134,21 @@ mirrors it. An SDK implements this ADR against the protocol as it stands.
 | Where | What | Means |
 |---|---|---|
 | `TIRunContext.loop` | `node_id`, `index`, `max_iterations`, `terminal_task_id`, `terminal_is_mapped`, `region_id`, `trajectory`, `forked_from_region_id`, `resumes_from_index` | The iteration this task runs in. Absent when the task is not in a loop. |
-| `SucceedTask.loop_decision`, `TaskState.loop_decision` | `LoopDecisionPayload {stop, reason}` | What the gate decided. `reason` is at most 512 bytes of UTF-8 and holds no NUL; the payload model rejects the rest. |
+| `SucceedTask.loop_decision`, `TaskState.loop_decision` | `LoopDecisionPayload {stop, reason}` | What the gate decided. `reason` is at most 512 bytes of UTF-8 and holds no NUL. The supervisor masks the reason, then cuts a longer one and warns in the task log, so an SDK does not have to enforce the limit; the payload model rejects a NUL. A Python gate masks the reason and checks the limit itself, and fails the task on a longer one. |
 | `GetXCom`, `GetXComCount`, `GetXComSequenceItem`, `GetXComSequenceSlice` | `previous_iteration: bool` | Reads the iteration before this one instead of this one. |
 | `MaskSecret` | `value`, `name` | Already how a task process tells the supervisor what to redact. |
 | Serialized Dag, `task_group.loop` | `max_iterations`, `has_until`, `terminal_task_id`, `gate_task_id` | Declared in `serialization/schema.json`, so an SDK's Dag validates with no schema change. |
+| Serialized Dag, the gate task | `task_type: "LoopGateOperator"` | How core finds the gate, as it finds Python's. |
 
 ### What changes
 
-No field is added or removed, so **no new Execution API version is needed**. The decisions above are
-core-internal, and two of them subtract from the wire rather than add to it.
+No field is added or removed, so **no new Execution API version is needed**. Decision 3 changes core,
+decision 8 changes the Task SDK supervisor, and the rest need no change.
 
 | Decision | Change |
 |---|---|
-| 2 | Gate identification stops reading `task_instance.operator == "LoopGateOperator"` and resolves `gate_task_id` off the serialized group instead. Five modules: the two task-instance route modules, `jobs/scheduler_job_runner.py`, `serialization/definitions/dag.py` and `models/taskinstance.py`. |
-| 4 | A gate with `has_until: false` and no callback, inlet or outlet completes in the scheduler, so it sends no `ti_run` and no `SucceedTask` at all. |
-| 8 | `redact(reason)` moves out of the task process (`execution_time/loop.py`) into the supervisor, beside the redaction it already does for logs. |
+| 3 | The Dag processor runs the loop checks and rewires the edges out of the body for a Dag a language SDK serialized. A Python Dag is already checked and rewired by the Task SDK. |
+| 8 | The supervisor masks the reason and cuts it to the byte limit, beside the redaction it already does for logs. Python's task process keeps masking it (`execution_time/loop.py`). |
 
 ## One loop, end to end
 
@@ -173,7 +174,7 @@ Three iterations of `refine` — `improve` and `evaluate` in the body, `accurate
     │
     └─ gate (L,1) ────────▶ binding: the terminal result of (L,1)
                             until(result) → { stop: false, reason }
-                            supervisor redacts reason
+                            supervisor masks and cuts reason
                             SucceedTask{loop_decision} ──────────▶ lock DagRun + gate
                                                                    validate_loop_decision
                                                                    store the reason XCom
@@ -203,8 +204,8 @@ Three things the picture fixes:
   decision 3 rewired that edge at parse time.
 - **The next iteration is created by the API server**, inside the transaction that accepts the
   decision, not by the SDK and not by a second call.
-- **A fixed-count loop skips the whole middle column.** With `has_until: false` the scheduler
-  completes each gate itself (decision 4), so no worker is involved in deciding anything.
+- **A fixed-count loop runs the same columns.** Its gate binds nothing and runs no callable; it sends
+  `stop` once `index` reaches `max_iterations` (decision 4).
 
 ## What an SDK runtime does
 
@@ -215,20 +216,23 @@ Nothing here is language-specific.
    `previous` is the existing XCom call with `previous_iteration: true`, and is absent at `index` 1.
    It is one accessor, not two: a mapped terminal makes it ADR-0016's sequence rather than a plain
    value, which is what Python's single `loop.previous` property does.
-3. On the gate, read this iteration's terminal result — one value, or ADR-0016's sequence when
-   `terminal_is_mapped` is true — and run `until`.
+3. On the gate, read this iteration's terminal result (one value, or ADR-0016's sequence when
+   `terminal_is_mapped` is true) and run `until`. A fixed-count gate reads nothing and decides
+   `stop` as `index >= max_iterations`.
 4. Send the result on `SucceedTask.loop_decision`. A `stop` of false at `max_iterations` is core's to
    reject, so the SDK sends what the callable returned. A secret the reason might carry is registered
-   with `MaskSecret` as it would be for a log line; the SDK does not redact.
+   with `MaskSecret` as it would be for a log line. The supervisor masks the reason (decision 8), so
+   the SDK does not have to redact it.
 5. A callable that throws fails the gate like any other task body, and the loop stops there.
 
 ## Consequences
 
 - **A loop costs an SDK one context object, one wire field and one callable.** Everything else is
   reuse: the group it is built on, the XCom calls, and the sequence ADR-0016 already defines.
-- **A fixed-count loop is available before an SDK implements anything, once decision 4 lands.** It
-  leaves no code to run, so `has_until: false` then works as soon as the SDK can emit the group.
-  Until it lands, such a gate is still sent to a worker.
+- **A fixed-count loop still needs a runtime gate.** It is the smallest gate an SDK can run: no
+  binding and no callable, only `index >= max_iterations`.
+- **An SDK's gate carries a Python class name.** Decision 2 keeps core's gate handling, and so the
+  Python path, unchanged. The UI shows the gate as `LoopGateOperator` in every language.
 - **A gate's decision is advice, not authority.** Core revalidates, so a buggy or malicious SDK
   cannot run past `max_iterations`.
 - **Edges out of the body are rewired, not rejected.** Decision 3 keeps Python's behaviour, so a Dag
@@ -238,15 +242,10 @@ Nothing here is language-specific.
   where an author first sees it; the Task SDK's parse-time checks stay as the faster feedback.
 - **Mapping inside a loop needs no further decision.** The terminal task may be mapped, and
   `terminal_is_mapped` is the only thing a runtime reads to know it.
-- **No new Execution API version, but core goes first.** Every field a loop needs shipped with
-  `2026-10-30`, so nothing here waits on a protocol change. Decision 2 still has to land before any
-  SDK's loop runs at all: while a gate is found by `LoopGateOperator`, an SDK-emitted gate's success
-  creates no next iteration. Decision 4 has to land before a fixed-count loop skips the worker. The
-  rest are independent and can land in any order.
-- **A Python fixed-count gate stops behaving like a task.** Decision 4 completes it in the scheduler,
-  so it takes no pool slot, ignores its `queue` and never retries. A gate with `until`, or one
-  carrying a callback, an inlet or an outlet, is unaffected.
-- **Python's reason is redacted one process later.** Decision 8 moves `redact` from the task process
-  to the supervisor, which is a behaviour change for Python tasks even though no field moves: a task
-  that masks a value and then puts it in a reason is covered by the `MaskSecret` it already sends, but
-  one that redacts by hand before returning is unaffected either way.
+- **No new Execution API version.** Every field a loop needs shipped with `2026-10-30`, and core
+  already drives a gate named `LoopGateOperator`. Decision 3 changes core and decision 8 changes the
+  supervisor. They are independent and can land in any order.
+- **A Python gate fails an over-long reason, and the supervisor cuts one from any other language.**
+  Python masks the reason, then fails the task when more than 512 bytes remain, so an author sees the
+  error at once. Another runtime does not need to know the limit: the supervisor masks the reason,
+  cuts it to 512 bytes and warns in the task log.

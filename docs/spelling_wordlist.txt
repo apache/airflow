@@ -158,6 +158,7 @@ avro
 awaitable
 aws
 awslogs
+Backblaze
 backcompat
 Backend
 backend
@@ -279,6 +280,7 @@ cloudant
 CloudantV
 cloudbuild
 CloudBuildClient
+Cloudflare
 cloudformation
 cloudpickle
 CloudTasksClient
@@ -895,6 +897,7 @@ ini
 init
 initdb
 initialisation
+initialised
 initialiser
 initialising
 initializer
@@ -1251,6 +1254,7 @@ ol
 Ollama
 onboarded
 onboarding
+OneLake
 OnFailure
 Oozie
 OPA
@@ -1345,6 +1349,8 @@ PodManager
 PodSpec
 podSpec
 podspec
+Polaris
+polaris
 polars
 poller
 polyfill
@@ -1550,6 +1556,7 @@ rowid
 rpc
 rsa
 rshift
+rss
 rst
 rtype
 ru
@@ -1709,6 +1716,7 @@ sslkey
 sslmode
 sslrootcert
 ssm
+sso
 Stackdriver
 stackdriver
 stacklevel
@@ -1772,6 +1780,8 @@ subprocess
 subprocesses
 subqueries
 subquery
+subresource
+subresources
 SubscriberClient
 subscriptionId
 substring

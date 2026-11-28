@@ -51,6 +51,7 @@ from pydantic_ai.exceptions import (
     UnexpectedModelBehavior,
 )
 from pydantic_ai.messages import ModelResponse, ToolReturn
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.tools import AgentDepsT, DeferredToolRequests
 from pydantic_ai.toolsets import AbstractToolset, DynamicToolset, FunctionToolset, ToolsetTool
 from pydantic_ai.toolsets.wrapper import WrapperToolset
@@ -62,7 +63,12 @@ from airflow.providers.common.ai.durable.fingerprint import (
     fingerprint_model_request,
     fingerprint_tool_call,
 )
-from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal
+from airflow.providers.common.ai.durable.journal import Unrecordable, current_journal, get_executing_step
+from airflow.providers.common.ai.durable.member_stamp import (
+    MemberStampingModel,
+    get_member_conn_id,
+    get_member_model_id,
+)
 from airflow.providers.common.ai.durable.replay_usage import ReplayUsageLedger, is_successful_tool_payload
 from airflow.providers.common.ai.exceptions import DurableJournalError, DurableToolMetadataError
 from airflow.providers.common.ai.utils.masking import mask_secrets
@@ -207,6 +213,9 @@ def _lacks_id(leaf: AbstractToolset[Any]) -> TypeGuard[FunctionToolset[Any] | Dy
 # Why a recorded step that matched is run live anyway: it was written by a version whose
 # types have changed since, so replaying it would fail on every retry.
 _UNLOADABLE = "the recorded result no longer loads, so it was written by another version"
+# A chain replays a step only if its answering member is still in the chain; a response without
+# a stamp cannot say who answered, so the step runs live.
+_UNSTAMPED_ANSWERER = "the recorded response does not say which fallback chain member answered it"
 
 # How an operation's step is run: looked up in the journal and recorded, or always run live.
 _StepMode: TypeAlias = Literal["journal", "live"]
@@ -373,15 +382,16 @@ class AirflowDurability(BaseDurabilityCapability[AgentDepsT]):
     no second model call, no second tool side effect, no second charge against a spend
     limit. See :ref:`durable-execution` for how replay is verified.
 
-    ``AgentOperator(durable=True)`` and ``@task.agent(durable=True)`` attach it for you.
-    In a plain ``@task``, attach it yourself:
+    ``AgentOperator`` and ``@task.agent`` attach it for you when their run is durable, which
+    on Airflow 3.3 and later is the default for a task that can retry. In a plain ``@task``,
+    attach it yourself:
 
     .. code-block:: python
 
         @task(retries=3)
         def research(question: str) -> str:
             agent = Agent(
-                "anthropic:claude-sonnet-4-5",
+                "anthropic:claude-sonnet-5-5",
                 name="researcher",
                 toolsets=[SQLToolset("warehouse")],
                 capabilities=[AirflowDurability()],
@@ -615,6 +625,13 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
                 # Local validation of the arguments the recorded call was made with: nothing to
                 # save by replaying it, and it is the same on every attempt, so it takes no position.
                 return await body()
+            case CapabilityOperationId() if (parent := get_executing_step()) is not None and (
+                parent.durable_run is active.durable_run
+            ):
+                # Called from inside one of this run's steps, such as a tool: it runs whenever that
+                # step runs. A position of its own would be missing when the step replays, and every
+                # step after it would run again.
+                return await body()
             case CapabilityOperationId():
                 step = self._claim(
                     active,
@@ -655,11 +672,15 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
         step = self._claim(active, operation_id, name, kind="model", fingerprint=fingerprint)
         if step.replayed:
             response = _load_model_response(step.payload, streaming=streaming)
-            ledger.record_model_replay(response, continuation=continuation)
-            ledger.track_chain(response, parameters)
-            if response.state != "suspended":
-                ledger.credit_successors(active.durable_run, step.position)
-            return step.payload
+            model = await self._durability._model_for_fingerprint(model_id, run_context)
+            if reason := _find_unusable_answerer(response, model):
+                active.durable_run.reject(step, reason=reason)
+            else:
+                ledger.record_model_replay(response, continuation=continuation)
+                ledger.track_chain(response, parameters)
+                if response.state != "suspended":
+                    ledger.credit_successors(active.durable_run, step.position)
+                return step.payload
         ledger.record_live_model_request(had_request_credit=had_request_credit)
         payload = await step.run(body)
         if isinstance(payload, Unrecordable):
@@ -686,8 +707,17 @@ class _AirflowOperationBackend(CallableOperationBackend[_StepMode]):
         # here as well as in the request itself is safe.
         model = await self._durability._model_for_fingerprint(model_id, run_context)
         prepared_settings, prepared_parameters = model.prepare_request(model_settings, parameters)
+        # A chain whose members all stamp their answers is fingerprinted by a fixed name, not its
+        # members: editing the chain must not invalidate steps a surviving member answered.
+        # ``_find_unusable_answerer`` rejects the replay of a step whose answering member left
+        # the chain. Any other chain cannot say who answered, so it keeps the member-listing name.
+        # The agent writes the chain's own id (``fallback:a,b``) on every response it puts in the
+        # history, replayed ones too, so a replayed response carries the edited chain's id and
+        # that field has to stay out of the fingerprint.
+        stamped = _get_stamped_members(model) is not None
+        identity = "fallback" if stamped else f"{model.system}:{model.model_name}"
         return fingerprint_model_request(
-            f"{model.system}:{model.model_name}", messages, prepared_settings, prepared_parameters
+            identity, messages, prepared_settings, prepared_parameters, exclude_response_model_id=stamped
         )
 
 
@@ -806,6 +836,34 @@ def _decode_tool_payload(payload: Any) -> Any:
         case "call_deferred":
             raise CallDeferred(metadata=payload.get("metadata"))
     raise DurableJournalError(f"durable execution found a tool result it cannot replay: {kind!r}")
+
+
+def _get_stamped_members(model: Model) -> list[MemberStampingModel] | None:
+    if not isinstance(model, FallbackModel):
+        return None
+    members = [member for member in model.models if isinstance(member, MemberStampingModel)]
+    return members if len(members) == len(model.models) else None
+
+
+def _find_unusable_answerer(response: ModelResponse, model: Model) -> str | None:
+    """Return why a recorded response cannot replay into ``model``'s chain, or ``None`` if it can."""
+    if (members := _get_stamped_members(model)) is None:
+        return None
+    if (member_model_id := get_member_model_id(response)) is None:
+        return _UNSTAMPED_ANSWERER
+    member_conn_id = get_member_conn_id(response)
+    answerers = {(member.conn_id, member.model_id) for member in members}
+    if (member_conn_id, member_model_id) not in answerers:
+        answerer = (
+            member_model_id if member_conn_id is None else f"{member_model_id} on connection {member_conn_id}"
+        )
+        if any(model_id == member_model_id for _, model_id in answerers):
+            return (
+                f"the model that answered this step, {answerer}, "
+                "is in the fallback chain only under a different connection"
+            )
+        return f"the model that answered this step, {answerer}, is no longer in the fallback chain"
+    return None
 
 
 def _load_model_response(payload: object, *, streaming: bool) -> ModelResponse:

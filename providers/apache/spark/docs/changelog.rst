@@ -28,6 +28,19 @@
 Changelog
 ---------
 
+6.3.5
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SparkConnectHook unsupported-path error message (#74847)``
+* ``Template conn_id and config_kwargs in @task.pyspark (#75764)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``[main] Upgrade important CI environment (#76278)``
+
 6.3.4
 .....
 

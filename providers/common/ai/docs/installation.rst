@@ -81,7 +81,7 @@ The provider runs on Airflow 2.11, but some features need a newer Airflow versio
    * - :doc:`Approval gates <approval_gates>` and :doc:`HITL review <hitl_review>`
      - Airflow 3.1
    * - The **Model** field in the connection form; on older Airflow versions put the model in
-       **Extra**, for example ``{"model": "openai:gpt-5"}``
+       **Extra**, for example ``{"model": "openai:gpt-6.1-sol"}``
      - Airflow 3.2
    * - :doc:`Retry policies <retry_policies>`
      - Airflow 3.3

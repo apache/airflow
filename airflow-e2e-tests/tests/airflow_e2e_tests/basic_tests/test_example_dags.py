@@ -33,7 +33,8 @@ DAG_IDS = [
     "example_branch_python_operator_decorator",
     "example_complex",
     "example_custom_weight",
-    "example_dag_decorator",
+    # example_dag_decorator is left out: it fetches https://httpbingo.org/get, and an e2e run
+    # must not fail because a third-party site is slow or down.
     "example_dynamic_task_mapping",
     "example_dynamic_task_mapping_with_no_taskflow_operators",
     "example_external_task_marker_parent",

@@ -33,7 +33,7 @@ Model and connection errors
 
 ``Connection '...' has no default model provider, so the bare model name '...' cannot be resolved``
     The generic ``pydanticai`` connection type needs a ``provider:`` prefix on the model
-    name, for example ``openai:gpt-5`` rather than ``gpt-5``. Add the prefix, set
+    name, for example ``openai:gpt-6.1-sol`` rather than ``gpt-6.1-sol``. Add the prefix, set
     **Default Model Provider** (``extra["model_provider"]``, e.g. ``openai-chat``) on the connection,
     or use a vendor connection type (:doc:`connections/pydantic_ai_azure`,
     :doc:`connections/pydantic_ai_bedrock`, :doc:`connections/pydantic_ai_vertex`), which
@@ -86,7 +86,7 @@ An ``ImportError`` for ``pydantic_ai.models.<vendor>``, the vendor SDK, or ``pyd
     The connection named by ``llm_conn_id`` is not a ``pydanticai`` connection type. This
     is easy to hit by picking a similarly named type such as ``openai`` when the OpenAI
     provider is installed. Change the connection type to ``pydanticai``, put the API key
-    in the **API Key** field (the password) and the model, for example ``openai:gpt-5``,
+    in the **API Key** field (the password) and the model, for example ``openai:gpt-6.1-sol``,
     in **Model**. For Azure, Bedrock or Vertex use the matching ``pydanticai_azure``,
     ``pydanticai_bedrock`` or ``pydanticai_vertex`` type instead; see :doc:`model_providers`.
 
@@ -127,18 +127,22 @@ as a task failure.
     or later. Upgrade Airflow, or use ``on_uncertain="fail"`` and drop the review flags
     on an older Airflow version. See :doc:`approval_gates` and :doc:`hitl_review`.
 
-``durable=True needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather')``
+``durable execution needs a unique id on every MCPToolset, such as MCPToolset(..., id='weather')``
     Durable replay records each call of a pydantic-ai ``MCPToolset`` under the toolset's
     id, and none is derived from the server's URL or command. Set ``id=`` on the toolset
     itself; an id on a ``Toolset`` capability around it does not reach it. See
-    :ref:`durable-toolset-ids`.
+    :ref:`durable-toolset-ids`. Only ``durable=True`` raises this error and the three below;
+    under the default, the operator turns durable execution off for that task and logs why
+    (``Durable execution is off for this task: ...``). With an ``AirflowDurability``
+    capability you attach yourself, the default leaves the journal to it and makes none of
+    these checks, so give your toolsets ids yourself.
 
-``durable=True names the steps of a toolset built per run after the function that builds it, but ... has no __qualname__``
+``durable execution names the steps of a toolset built per run after the function that builds it, but ... has no __qualname__``
     A function that builds a toolset is named by its module and qualified name, and a
     ``functools.partial`` or a callable object has none. Pass it as
     ``DynamicToolset(function, id=...)``. See :ref:`durable-toolset-ids`.
 
-``durable=True needs a unique id on each toolset, but more than one toolset has the id 'orders'``
+``durable execution needs a unique id on each toolset, but more than one toolset has the id 'orders'``
     Two different toolset objects share an id, or two functions that build toolsets share
     a module and qualified name (two lambdas in one Dag file), so durable replay could not
     tell their recorded calls apart. Give each its own ``id=``, or wrap a function in
@@ -177,7 +181,10 @@ Run-time errors
     form or a dataclass holding bytes that are not UTF-8 text. It would fail the same way
     on every attempt, so the task fails without retrying. Return text, numbers, bytes,
     lists, dicts or a Pydantic model without bytes fields; put bytes in a dict rather than
-    a field of your own class. See :doc:`durable_execution`.
+    a field of your own class. In ``AgentOperator`` and ``@task.agent``, ``durable=True`` and an
+    ``AirflowDurability`` capability you attach yourself fail the task here; under the
+    default the step is logged and runs again on retry, and the steps after it may run
+    again too. See :doc:`durable_execution`.
 
 Durable execution on Airflow below 3.3 fails with a ``ValueError`` about ``durable_cache_path``
     On Airflow versions older than 3.3 the step cache lives in object storage and

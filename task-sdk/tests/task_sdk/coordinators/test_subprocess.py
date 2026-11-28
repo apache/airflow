@@ -66,7 +66,7 @@ from airflow.sdk.coordinators._xcom_backend import (
     XComBackendResult,
     _HookRunner,
 )
-from airflow.sdk.exceptions import ErrorType
+from airflow.sdk.exceptions import AirflowConfigException, ErrorType
 from airflow.sdk.execution_time.comms import (
     DeleteXCom,
     GetXCom,
@@ -783,6 +783,31 @@ class TestSubprocessCoordinatorExecuteTask:
         assert popen_calls, "subprocess.Popen was not called"
         return popen_calls[0], cls_kwargs.get("subprocess_schema_version")
 
+    @pytest.mark.parametrize(
+        ("worker_default", "expected"),
+        [
+            pytest.param("", None, id="unset"),
+            pytest.param("10", 10.0, id="seconds"),
+            pytest.param("1_000", 1000.0, id="as-python-reads-it"),
+        ],
+    )
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_passes_the_worker_default_execution_timeout(
+        self, mock_start, mock_client, worker_default, expected
+    ):
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"])
+
+        with conf_vars({("core", "default_task_execution_timeout"): worker_default}):
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert mock_start.call_args.kwargs["default_execution_timeout"] == expected
+
     def test_command_prefix_preserved(self, mock_client):
         cmd, _ = self._captured_popen_cmd(mock_client, command=["/path/to/runtime", "arg1"])
         assert cmd[:2] == ["/path/to/runtime", "arg1"]
@@ -1349,13 +1374,17 @@ class TestPopenActivitySubprocessProcessGroup:
 
 class TestPopenActivitySubprocessExecutionTimeout:
     @pytest.mark.parametrize(
-        ("execution_timeout", "elapsed", "killed"),
+        ("execution_timeout", "worker_default", "elapsed", "sent", "killed"),
         [
-            pytest.param(30.0, 35, True, id="with-timeout"),
-            pytest.param(None, 35, False, id="without-timeout"),
-            pytest.param(0.0, 35, False, id="zero-means-no-timeout"),
-            pytest.param(-30.0, 3, False, id="negative-keeps-grace-period"),
-            pytest.param(-30.0, 6, True, id="negative-has-elapsed"),
+            pytest.param(30.0, None, 35, 30.0, True, id="with-timeout"),
+            pytest.param(None, None, 35, None, False, id="without-timeout"),
+            pytest.param(0.0, None, 35, 0.0, False, id="zero-means-no-timeout"),
+            pytest.param(-30.0, None, 3, -30.0, False, id="negative-keeps-grace-period"),
+            pytest.param(-30.0, None, 6, -30.0, True, id="negative-has-elapsed"),
+            pytest.param(None, 10.0, 14, 10.0, False, id="worker-default-keeps-grace-period"),
+            pytest.param(None, 10.0, 16, 10.0, True, id="worker-default-has-elapsed"),
+            pytest.param(30.0, 10.0, 16, 30.0, False, id="run-context-over-worker-default"),
+            pytest.param(0.0, 10.0, 35, 0.0, False, id="zero-does-not-fall-back"),
         ],
     )
     @patch("airflow.sdk.execution_time.supervisor.KILLED_TASK_CLEANUP_TIME", 5.0)
@@ -1363,7 +1392,15 @@ class TestPopenActivitySubprocessExecutionTimeout:
     @patch.object(_PopenActivitySubprocess, "send_msg", autospec=True)
     @patch("time.monotonic", autospec=True, return_value=1.0)
     def test_arms_execution_timeout_from_run_context(
-        self, mock_monotonic, mock_send_msg, mock_kill, execution_timeout, elapsed, killed
+        self,
+        mock_monotonic,
+        mock_send_msg,
+        mock_kill,
+        execution_timeout,
+        worker_default,
+        elapsed,
+        sent,
+        killed,
     ):
         client = MagicMock()
         client.task_instances.start.return_value = TIRunContext.model_construct(
@@ -1378,6 +1415,7 @@ class TestPopenActivitySubprocessExecutionTimeout:
             client=client,
             comm_server=MagicMock(spec=socket.socket),
             logs_server=MagicMock(spec=socket.socket),
+            default_execution_timeout=worker_default,
         )
 
         proc._on_child_started(
@@ -1387,6 +1425,8 @@ class TestPopenActivitySubprocessExecutionTimeout:
             sentry_integration="",
         )
 
+        startup = mock_send_msg.call_args.args[1]
+        assert startup.ti_context.execution_timeout == sent
         mock_monotonic.return_value += elapsed
         proc._handle_execution_timeout_if_needed()
         assert mock_kill.called is killed
@@ -1475,15 +1515,17 @@ class _FakeApi:
 
     responses: dict[tuple[str, str], tuple[int, Any]] = attrs.field(factory=dict)
     requests: list[tuple[str, str, Any]] = attrs.field(factory=list)
+    api_version: str | None = None
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         body = json.loads(request.content) if request.content else None
         self.requests.append((request.method, request.url.path, body))
         status, content = self.responses.get((request.method, request.url.path), (200, {}))
         # json=None would send an empty body, but a null XCom item is the body "null".
-        return httpx2.Response(
-            status, content=json.dumps(content), headers={"content-type": "application/json"}
-        )
+        headers = {"content-type": "application/json"}
+        if self.api_version is not None:
+            headers["Airflow-API-Version"] = self.api_version
+        return httpx2.Response(status, content=json.dumps(content), headers=headers)
 
 
 def _sent_body(proc: _PopenActivitySubprocess) -> Any:
@@ -1498,6 +1540,7 @@ def _sent_error(proc: _PopenActivitySubprocess) -> Any:
 
 
 _XCOM_PATH = "/xcoms/tutorial_dag/run_1/task_1/summary"
+_MAP_INDEX_UNRESOLVED_API_VERSION = "2026-10-30"
 
 
 _STORED_SUMMARY = {("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})}
@@ -1682,7 +1725,6 @@ class TestPopenActivitySubprocessXComBackend:
                 "ref://task_1/None/summary",
                 id="default-backend",
             ),
-            pytest.param(_RefXCom, (404, {"detail": "not found"}), None, id="missing"),
         ],
     )
     def test_get_xcom_loads_the_value_through_the_backend(self, make_proc, xcom, response, expected):
@@ -1694,6 +1736,47 @@ class TestPopenActivitySubprocessXComBackend:
         )
 
         assert _sent_body(proc).get("value") == expected
+
+    def test_get_xcom_missing_reads_the_slice_and_sends_none(self, make_proc):
+        """With no map index, a missing value is looked for in the slice too, as a mapped task's values."""
+        api = _FakeApi(
+            {("GET", _XCOM_PATH): (404, {"detail": "not found"}), ("GET", f"{_XCOM_PATH}/slice"): (200, [])},
+            api_version=_MAP_INDEX_UNRESOLVED_API_VERSION,
+        )
+        proc = make_proc(_RefXCom, api)
+        proc._handle_request(
+            GetXCom(key="summary", dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+        assert [(method, path) for method, path, _ in api.requests] == [
+            ("GET", _XCOM_PATH),
+            ("GET", f"{_XCOM_PATH}/slice"),
+        ]
+        assert _sent_body(proc).get("value") is None
+
+    @pytest.mark.parametrize(
+        ("xcom", "expected"),
+        [
+            pytest.param(_RefXCom, [serialize((12, 3402.0)), 5], id="loaded"),
+            pytest.param(BaseXCom, ["ref://task_1/None/summary", 5], id="default-backend"),
+        ],
+    )
+    def test_get_xcom_of_a_mapped_task_loads_each_value_through_the_backend(self, make_proc, xcom, expected):
+        _RefXCom.stored["ref://task_1/None/summary"] = (12, 3402.0)
+        api = _FakeApi(
+            {
+                ("GET", _XCOM_PATH): (404, {"detail": "not found"}),
+                ("GET", f"{_XCOM_PATH}/slice"): (200, ["ref://task_1/None/summary", 5]),
+            },
+            api_version=_MAP_INDEX_UNRESOLVED_API_VERSION,
+        )
+        proc = make_proc(xcom, api)
+
+        proc._handle_request(
+            GetXCom(key="summary", dag_id="tutorial_dag", run_id="run_1", task_id="task_1"), log, 1
+        )
+
+        # The lang SDK gets the values as one XCom.
+        assert _sent_body(proc) == {"key": "summary", "value": expected, "type": "XComResult"}
 
     @pytest.mark.parametrize(
         ("item", "expected"),
@@ -2297,6 +2380,28 @@ class TestExecuteTaskLaunchFailure:
             "does not support."
         )
         assert raised.value.retryable is False
+        mock_client.task_instances.start.assert_not_called()
+
+    @pytest.mark.usefixtures("artifact_bundle")
+    @conf_vars({("core", "default_task_execution_timeout"): "abc"})
+    @patch.object(_PopenActivitySubprocess, "start", autospec=True)
+    def test_fails_without_a_retry_for_a_worker_default_execution_timeout_that_is_not_a_number(
+        self, mock_start, mock_client
+    ):
+        coordinator = _StubSubprocessCoordinator(command=["/runtime"])
+
+        with pytest.raises(TaskLaunchError, match="default_task_execution_timeout") as raised:
+            coordinator.execute_task(
+                what=_make_ti(),
+                dag_rel_path="dag.py",
+                bundle_info=BundleInfo(name="dags"),
+                client=mock_client,
+                subprocess_logs_to_stdout=False,
+            )
+
+        assert raised.value.retryable is False
+        assert isinstance(raised.value.__cause__, AirflowConfigException)
+        mock_start.assert_not_called()
         mock_client.task_instances.start.assert_not_called()
 
     @pytest.mark.usefixtures("artifact_bundle")

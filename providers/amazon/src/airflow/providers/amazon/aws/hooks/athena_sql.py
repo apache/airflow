@@ -19,13 +19,15 @@ from __future__ import annotations
 import json
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl, urlsplit
 
 import pyathena
 
 try:
-    from sqlalchemy.engine.url import URL
+    from sqlalchemy.engine.url import URL, make_url
 except ImportError:
     URL = None  # type: ignore[assignment,misc]
+    make_url = None  # type: ignore[assignment]
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -219,6 +221,7 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             )
         conn_params = self._get_conn_params()
         creds = self.get_credentials(region_name=conn_params["region_name"])
+        session_token = {"aws_session_token": creds.token} if creds.token else {}
         return URL.create(
             f"awsathena+{conn_params['driver']}",
             username=creds.access_key,
@@ -226,8 +229,27 @@ class AthenaSQLHook(AwsBaseHook, DbApiHook):
             host=f"athena.{conn_params['region_name']}.{conn_params['aws_domain']}",
             port=443,
             database=conn_params["schema_name"],
-            query={"aws_session_token": creds.token, **self.conn.extra_dejson},
+            query={**session_token, **self.conn.extra_dejson},
         ).render_as_string(hide_password=False)
+
+    @property
+    def sqlalchemy_url(self) -> URL:
+        """
+        Return the URI from ``get_uri`` as a ``sqlalchemy.engine.URL`` object.
+
+        ``get_sqlalchemy_engine`` uses this object instead of the ``get_uri`` string, because
+        SQLAlchemy drops query parameters with empty values when it parses a string. An empty
+        ``s3_staging_dir`` is added back here when the URI has no other value for it, because it
+        tells PyAthena not to fall back to the ``AWS_ATHENA_S3_STAGING_DIR`` environment variable.
+        Other empty parameters stay dropped.
+        """
+        uri = self.get_uri()
+        url = make_url(uri)
+        if "s3_staging_dir" not in url.query and ("s3_staging_dir", "") in parse_qsl(
+            urlsplit(uri, allow_fragments=False).query, keep_blank_values=True
+        ):
+            url = url.update_query_dict({"s3_staging_dir": ""})
+        return url
 
     def get_conn(self) -> AthenaConnection:
         """Get a ``pyathena.Connection`` object."""

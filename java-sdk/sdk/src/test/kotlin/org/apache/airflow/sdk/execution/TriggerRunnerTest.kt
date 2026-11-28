@@ -56,7 +56,7 @@ private class FakeTrigger(
   private val states: List<String> = emptyList(),
 ) : org.apache.airflow.sdk.execution.Client {
   val triggered = mutableListOf<TriggerCall>()
-  val xComs = mutableListOf<Pair<String, Any>>()
+  val xComs = mutableListOf<Pair<String, Any?>>()
   var polls = 0
 
   override fun triggerDagRun(
@@ -86,7 +86,7 @@ private class FakeTrigger(
 
   override fun setXCom(
     key: String,
-    value: Any,
+    value: Any?,
     dagId: String,
     taskId: String,
     runId: String,

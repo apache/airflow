@@ -31,6 +31,7 @@
     "deadlines": "截止期限",
     "jobs": "工作",
     "requiredActions": "待回應的任務實例",
+    "triggers": "觸發器",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "收合所有額外 JSON",
@@ -118,6 +119,7 @@
     "home": "首頁",
     "invalidUrl": "找不到頁面。請檢查 URL 並重試。",
     "notFound": "找不到頁面",
+    "reload": "重新載入頁面",
     "title": "錯誤"
   },
   "errors": {
@@ -196,6 +198,7 @@
     },
     "save": "儲存"
   },
+  "moreTabs": "更多",
   "nav": {
     "admin": "管理者",
     "assets": "資源",
@@ -259,6 +262,7 @@
     "asset_triggered": "資源觸發",
     "backfill": "回填",
     "manual": "手動觸發",
+    "operator_triggered": "任務操作器觸發",
     "scheduled": "已排程"
   },
   "scroll": {
@@ -343,7 +347,7 @@
     },
     "search": {
       "matchAnywhere": {
-        "helper": "$t(search.advanced.description) 各搜尋列的個別選擇與分享連結仍具有較高優先權。",
+        "helper": "$t(search.advanced.description)各搜尋列的個別選擇與分享連結仍具有較高優先權。",
         "label": "預設比對任意位置"
       },
       "title": "搜尋"
@@ -370,28 +374,28 @@
     },
     "descriptions": {
       "clearRun": "清除 $t(dagRun_one)",
-      "clearTaskInstance": "清除 $t(taskInstance_one)",
+      "clearTaskInstance": "清除$t(taskInstance_one)",
       "downloadLogs": "下載日誌",
       "focusFilterSearch": "聚焦篩選搜尋",
       "focusLogSearch": "搜尋日誌",
       "focusSearch": "聚焦搜尋",
-      "markRunFailed": "標記 $t(dagRun_one) 為失敗",
-      "markRunSuccess": "標記 $t(dagRun_one) 為成功",
-      "markTaskFailed": "標記 $t(task_one) 為失敗",
-      "markTaskGroupFailed": "標記 $t(taskGroup_one) 為失敗",
-      "markTaskGroupSuccess": "標記 $t(taskGroup_one) 為成功",
-      "markTaskSuccess": "標記 $t(task_one) 為成功",
+      "markRunFailed": "標記 $t(dagRun_one)為失敗",
+      "markRunSuccess": "標記 $t(dagRun_one)為成功",
+      "markTaskFailed": "標記$t(task_one)為失敗",
+      "markTaskGroupFailed": "標記$t(taskGroup_one)為失敗",
+      "markTaskGroupSuccess": "標記$t(taskGroup_one)為成功",
+      "markTaskSuccess": "標記$t(task_one)為成功",
       "navigateTasks": "導覽$t(task_other)",
       "openGraphFilters": "開啟圖形篩選條件",
       "scrollBottom": "捲動至最下方",
       "scrollTop": "捲動至最上方",
       "searchDags": "搜尋 $t(dag_other)",
-      "selectGridCellRange": "選取範圍 $t(taskInstance_other) 或 $t(taskGroup_other)",
+      "selectGridCellRange": "選取範圍$t(taskInstance_other)或$t(taskGroup_other)",
       "showHelp": "顯示$t(shortcuts.title)",
       "toggleExpand": "展開或收合所有群組",
       "toggleFullscreen": "切換全螢幕",
       "toggleGraphGrid": "切換圖形／網格檢視",
-      "toggleGridCellSelection": "選取或取消選取 $t(taskInstance_one) 或 $t(taskGroup_one)",
+      "toggleGridCellSelection": "選取或取消選取$t(taskInstance_one)或$t(taskGroup_one)",
       "toggleLogLevel": "切換日誌層級",
       "toggleSource": "切換來源",
       "toggleTaskGroup": "展開或收合$t(taskGroup_one)",
@@ -437,7 +441,8 @@
   },
   "switchDag": "切換 $t(dag_one)",
   "switchDagRun": "切換 $t(dagRun_one)",
-  "switchMapIndex": "切換 $t(mapIndex)",
+  "switchMapIndex": "切換$t(mapIndex)",
+  "switchTask": "切換$t(task_one)",
   "table": {
     "completedAt": "完成時間",
     "createdAt": "建立時間",
@@ -607,7 +612,9 @@
     "tokenGenerated": "您的權杖已產生。",
     "tokenShownOnce": "此權杖僅會顯示一次，請立即複製。"
   },
-  "total": "總計 {{state}}",
+  "total": "總計{{state}}",
+  "trigger_one": "觸發器",
+  "trigger_other": "觸發器",
   "triggered": "已觸發",
   "tryNumber": "嘗試次數",
   "unpause": "取消暫停",

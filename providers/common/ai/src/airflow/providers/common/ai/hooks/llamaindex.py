@@ -88,7 +88,7 @@ class LlamaIndexHook(BaseHook):
       (e.g. an internal gateway) -- not Ollama or vLLM, whose model
       catalogs are rejected regardless of ``host`` (see note above).
     * **extra** JSON: ``{"embed_model": "text-embedding-3-small",
-      "llm_model": "gpt-5"}`` -- default model identifiers stored on the
+      "llm_model": "gpt-6.1-sol"}`` -- default model identifiers stored on the
       connection.
 
     :param llm_conn_id: Airflow connection ID for the LLM provider. Falls
@@ -99,7 +99,7 @@ class LlamaIndexHook(BaseHook):
     :param embed_model: Embedding model name (e.g.
         ``"text-embedding-3-small"``). Overrides ``extra["embed_model"]``
         on the connection. Passing it positionally (1.0.0 order: ``embed_model, llm_model``) is deprecated.
-    :param llm_model: LLM model name (e.g. ``"gpt-5"``). Overrides
+    :param llm_model: LLM model name (e.g. ``"gpt-6.1-sol"``). Overrides
         ``extra["llm_model"]`` on the connection. Required when calling
         :meth:`get_llm`. Passing it positionally (1.0.0 order: ``embed_model, llm_model``) is deprecated.
     :param embedding_kwargs: Additional keyword arguments to pass to the embedding
@@ -161,7 +161,7 @@ class LlamaIndexHook(BaseHook):
             "relabeling": {"password": "API Key"},
             "placeholders": {
                 "host": "https://api.openai.com/v1 (optional, for an OpenAI-compatible proxy)",
-                "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-5"}',
+                "extra": '{"embed_model": "text-embedding-3-small", "llm_model": "gpt-6.1-sol"}',
             },
         }
 

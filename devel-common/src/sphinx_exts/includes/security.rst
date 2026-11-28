@@ -21,6 +21,9 @@ Releasing security patches
 Airflow providers are released independently from Airflow itself and the information about vulnerabilities
 is published separately. You can upgrade providers independently from Airflow itself, following the
 instructions found in :doc:`apache-airflow:installation/installing-from-pypi`.
+The published vulnerabilities of each provider are listed on the
+`providers security page <https://airflow.apache.org/security/providers/>`_, where you can also
+see which of them affect the provider version you run.
 
 When we release Provider version, the development is always done from the ``main`` branch where we prepare
 the next version. The provider uses strict `SemVer <https://semver.org>`_ versioning policy. Depending on

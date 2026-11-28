@@ -16,6 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from unittest.mock import MagicMock
 from uuid import uuid4
@@ -24,6 +27,7 @@ import pytest
 from pydantic_ai.messages import ModelResponse
 from pydantic_ai.usage import RunUsage
 
+from airflow.providers.common.ai.utils.coroutines import run_coroutine_on_thread_loop
 from airflow.providers.common.ai.utils.logging import MODEL_NAME_XCOM_KEY
 from airflow.providers.common.ai.utils.usage_budget import TaskStateStoreUsageBudget
 
@@ -258,3 +262,39 @@ def park():
         return exc.value
 
     return _park
+
+
+@pytest.fixture
+def close_thread_event_loop():
+    """Close the event loop run_coroutine_on_thread_loop keeps open on this thread, after the test."""
+    yield
+
+    async def get_running_loop():
+        return asyncio.get_running_loop()
+
+    run_coroutine_on_thread_loop(get_running_loop()).close()
+    asyncio.set_event_loop(None)
+
+
+class _KeepAliveHandler(BaseHTTPRequestHandler):
+    # HTTP/1.1 keeps the connection open, so a client pools it for its next request.
+    protocol_version = "HTTP/1.1"
+
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Length", "2")
+        self.end_headers()
+        self.wfile.write(b"ok")
+
+    def log_message(self, format, *args):
+        pass
+
+
+@pytest.fixture
+def keep_alive_url():
+    """URL of a local server that answers ``ok`` and keeps the connection open."""
+    server = ThreadingHTTPServer(("127.0.0.1", 0), _KeepAliveHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{server.server_port}/"
+    server.shutdown()
+    server.server_close()

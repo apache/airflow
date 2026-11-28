@@ -27,6 +27,7 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
     UserResponse,
 )
 from airflow.providers.fab.auth_manager.api_fastapi.sorting import build_ordering
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.utils import get_fab_auth_manager
@@ -149,20 +150,6 @@ class FABAuthManagerUsers:
                 detail=f"The User with username `{username}` was not found",
             )
 
-        if body.username is not None and body.username != username:
-            if security_manager.find_user(username=body.username):
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"The username `{body.username}` already exists",
-                )
-
-        if body.email is not None and body.email != user.email:
-            if security_manager.find_user(email=body.email):
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"The email `{body.email}` already exists",
-                )
-
         all_fields = {"username", "email", "first_name", "last_name", "roles", "password"}
 
         if update_mask is not None:
@@ -176,6 +163,18 @@ class FABAuthManagerUsers:
         else:
             fields_to_update = all_fields
 
+        # The lookups can return this user itself, e.g. usernames match case-insensitively,
+        # so only a different user is a conflict.
+        for field in ("username", "email"):
+            value = getattr(body, field)
+            if field in fields_to_update and value is not None:
+                existing = security_manager.find_user(**{field: value})
+                if existing is not None and existing.id != user.id:
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail=f"The {field} `{value}` already exists",
+                    )
+
         if "roles" in fields_to_update and body.roles is not None:
             roles_to_update, missing_role_names = cls._resolve_roles(security_manager, body.roles)
             if missing_role_names:
@@ -187,7 +186,7 @@ class FABAuthManagerUsers:
 
         password_changed = False
         if "password" in fields_to_update and body.password is not None:
-            user.password = security_manager._hash_password(body.password.get_secret_value())
+            security_manager.set_user_password(user, body.password.get_secret_value())
             password_changed = True
 
         if "username" in fields_to_update and body.username is not None:
@@ -237,3 +236,4 @@ class FABAuthManagerUsers:
         user.roles = []
         security_manager.session.delete(user)
         security_manager.session.commit()
+        FabAuthManager.evict_cached_user(user.id)

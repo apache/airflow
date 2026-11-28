@@ -500,6 +500,10 @@ export type BulkDAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
     dag_runs?: Array<BulkDAGRunBody>;
 };
@@ -711,6 +715,11 @@ export type BulkUpdateAction_VariableBody_ = {
     update_mask?: Array<(string)> | null;
     action_on_non_existence?: BulkActionNotOnExistence;
 };
+
+/**
+ * All possible states of callbacks.
+ */
+export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
 
 /**
  * Request body for the clearPartitions endpoint (column-reset: set partition fields to None).
@@ -1099,6 +1108,10 @@ export type DAGRunClearBody = {
      * (Experimental) Run on the latest bundle version of the Dag after clearing. If not specified, falls back to the DAG-level ``rerun_with_latest_version`` parameter, then the ``[core] rerun_with_latest_version`` config option, and finally ``False``.
      */
     run_on_latest_version?: boolean | null;
+    /**
+     * Keep the task state store entries of the cleared task instances so the next attempt resumes from them. By default they are discarded, so the task starts over.
+     */
+    keep_task_state?: boolean;
     note?: string | null;
 };
 
@@ -1608,11 +1621,26 @@ export type DryRunBackfillResponse = {
 };
 
 /**
- * Event Log Collection Response.
+ * Event Log collection response supporting both offset and cursor pagination.
  */
 export type EventLogCollectionResponse = {
     event_logs: Array<EventLogResponse>;
+    /**
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
+     */
     total_entries: number;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -1635,6 +1663,27 @@ export type EventLogResponse = {
     dag_display_name?: string | null;
     task_display_name?: string | null;
     team_name?: string | null;
+};
+
+/**
+ * Executor info serializer for responses.
+ */
+export type ExecutorInfoResponse = {
+    status: HealthStatus | null;
+    latest_executor_heartbeat: string | null;
+    detailed_status: DetailedHealthStatus | null;
+    instances?: Array<ExecutorInstanceInfoResponse> | null;
+};
+
+/**
+ * Executor instance info serializer for responses.
+ */
+export type ExecutorInstanceInfoResponse = {
+    hostname: string | null;
+    executor: string | null;
+    latest_executor_heartbeat: string | null;
+    team_names: Array<(string)>;
+    health_check_result: HealthCheckResult | null;
 };
 
 /**
@@ -1782,6 +1831,17 @@ export type HTTPValidationError = {
 };
 
 /**
+ * Explicit outcome of a component's own last health check.
+ *
+ * Separate from whether the Job row itself is alive: a row can be alive (recent heartbeat) while
+ * this stays UNKNOWN because the check hasn't completed yet, raised, or was never implemented.
+ * Collapsing all of that into "no heartbeat means unhealthy" makes a real failure indistinguishable
+ * from "never checked" or "check is hanging", which is why this is a value of its own rather than
+ * being inferred from heartbeat recency.
+ */
+export type HealthCheckResult = 'healthy' | 'unhealthy' | 'unknown';
+
+/**
  * Health serializer for responses.
  */
 export type HealthInfoResponse = {
@@ -1789,6 +1849,7 @@ export type HealthInfoResponse = {
     scheduler: SchedulerInfoResponse;
     triggerer: TriggererInfoResponse;
     dag_processor?: DagProcessorInfoResponse | null;
+    executor?: ExecutorInfoResponse | null;
 };
 
 /**
@@ -2179,6 +2240,7 @@ export type ProviderInfoResponse = {
     bundles?: Array<ProviderIntegrationModulesInfo> | null;
     asset_uris?: Array<ProviderAssetUriInfo> | null;
     dialects?: Array<ProviderDialectInfo> | null;
+    object_storage_providers?: Array<ProviderObjectStorageProviderInfo> | null;
     transfers?: Array<ProviderTransferInfo> | null;
     connection_types?: Array<ProviderConnectionTypeInfo> | null;
     extra_links?: Array<(string)> | null;
@@ -2217,6 +2279,14 @@ export type ProviderIntegrationInfo = {
 export type ProviderIntegrationModulesInfo = {
     integration_name: string;
     python_modules: Array<(string)>;
+};
+
+/**
+ * DataFusion object storage provider provided by a provider.
+ */
+export type ProviderObjectStorageProviderInfo = {
+    storage_type?: string | null;
+    provider_class_name?: string | null;
 };
 
 /**
@@ -2664,6 +2734,10 @@ export type TriggerAssetWatcherReferenceResponse = {
     asset_name: string;
     asset_uri: string;
     watcher_name: string;
+    /**
+     * The Dags scheduled on the asset (directly or by an asset name or URI reference), which the watcher's events run; only those the caller can read.
+     */
+    scheduled_dag_ids: Array<(string)>;
 };
 
 /**
@@ -2673,7 +2747,7 @@ export type TriggerCallbackReferenceResponse = {
     id: string;
     dag_id: string | null;
     dag_run_id: string | null;
-    state: string | null;
+    state: CallbackState | null;
 };
 
 /**
@@ -2756,7 +2830,7 @@ export type TriggerDetailResponse = {
 };
 
 /**
- * What a trigger runs for, worked out from its owner rather than stored.
+ * What a trigger runs for, worked out from what it is used by rather than stored.
  */
 export type TriggerKind = 'task' | 'callback' | 'asset_watcher';
 
@@ -2789,7 +2863,7 @@ export type TriggerTaskInstanceReferenceResponse = {
     task_id: string;
     map_index: number;
     try_number: number;
-    state: string | null;
+    state: TaskInstanceState | null;
 };
 
 /**
@@ -2961,6 +3035,49 @@ export type XComUpdateBody = {
 };
 
 /**
+ * Partition keys of an asset with their status.
+ */
+export type AssetPartitionCollectionResponse = {
+    partitions: Array<AssetPartitionResponse>;
+    total_entries: number;
+    status_counts: AssetPartitionStatusCounts;
+};
+
+/**
+ * The latest run of a producing Dag for one partition key.
+ */
+export type AssetPartitionProducerRunResponse = {
+    dag_id: string;
+    run_id: string;
+    state: DagRunState;
+    start_date: string | null;
+    end_date: string | null;
+};
+
+/**
+ * Status of one partition key of an asset.
+ */
+export type AssetPartitionResponse = {
+    partition_key: string;
+    status: 'materialized' | 'in_progress' | 'failed';
+    last_event_id: number | null;
+    last_event_timestamp: string | null;
+    last_producer_run: AssetPartitionProducerRunResponse | null;
+    consumer_runs: Array<DagRunAssetReference>;
+};
+
+export type status = 'materialized' | 'in_progress' | 'failed';
+
+/**
+ * Number of partition keys per status.
+ */
+export type AssetPartitionStatusCounts = {
+    materialized?: number;
+    in_progress?: number;
+    failed?: number;
+};
+
+/**
  * Authenticated user information serializer for responses.
  */
 export type AuthenticatedMeResponse = {
@@ -2994,12 +3111,14 @@ export type BaseGraphResponse = {
 export type BaseNodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
 };
 
-export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+export type type = 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
 
 /**
  * Response model for calendar deadline aggregation results.
@@ -3037,11 +3156,6 @@ export type CalendarTimeRangeResponse = {
 };
 
 export type state = 'queued' | 'running' | 'success' | 'failed' | 'planned';
-
-/**
- * All possible states of callbacks.
- */
-export type CallbackState = 'scheduled' | 'pending' | 'queued' | 'running' | 'success' | 'failed';
 
 /**
  * configuration serializer.
@@ -3315,7 +3429,33 @@ export type DeadlineResponse = {
     callback_type: string;
     callback_state?: CallbackState | null;
     callback_path?: string | null;
+    /**
+     * The trigger running a triggerer callback, while it runs; see `GET /api/v2/triggers`.
+     */
+    callback_trigger_id?: number | null;
 };
+
+/**
+ * Durable execution history of a task instance, read by the logs banner.
+ */
+export type DurableExecutionResponse = {
+    tries: Array<DurableTryResponse>;
+};
+
+/**
+ * What one try did with the external job.
+ */
+export type DurableTryResponse = {
+    try_number: number | null;
+    decision: 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
+    external_id: JsonValue;
+    status: TaskInstanceState | null;
+    submitted_at?: string | null;
+    saved_seconds: number | null;
+    previous_external_id?: JsonValue;
+};
+
+export type decision = 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
 
 /**
  * Duration statistics for a DAG across historical runs.
@@ -3554,7 +3694,7 @@ export type LoopRunSummary = {
     loop_region_id?: string | null;
 };
 
-export type status = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
+export type status2 = 'running' | 'stopped_early' | 'ran_to_cap' | 'failed' | 'skipped' | 'removed';
 
 /**
  * Runtime state of one loop invocation.
@@ -3623,9 +3763,11 @@ export type NextRunAssetsResponse = {
 export type NodeResponse = {
     id: string;
     label: string;
-    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'dag' | 'sensor' | 'trigger';
+    type: 'join' | 'task' | 'asset-condition' | 'asset' | 'asset-alias' | 'asset-name-ref' | 'asset-uri-ref' | 'asset-watcher' | 'dag' | 'sensor' | 'trigger';
     team?: string | null;
     asset_condition_type?: 'or-gate' | 'and-gate' | null;
+    trigger_id?: number | null;
+    trigger_status?: TriggerStatus | null;
     children?: Array<NodeResponse> | null;
     is_mapped?: boolean | null;
     is_loop?: boolean | null;
@@ -3826,6 +3968,10 @@ export type GetAssetsData = {
      */
     orderBy?: Array<(string)>;
     /**
+     * Return only the assets this trigger's watchers watch.
+     */
+    triggerId?: number | null;
+    /**
      * Exact-match filter on the full asset URI. Compiles to an indexed equality comparison (``uri = ...``). Repeat the parameter (``?uri=a&uri=b``) to match multiple assets.
      */
     uri?: Array<(string)>;
@@ -3900,6 +4046,10 @@ export type GetAssetEventsData = {
     timestampGte?: string | null;
     timestampLt?: string | null;
     timestampLte?: string | null;
+    /**
+     * Return only the events of the assets this trigger's watchers watch.
+     */
+    triggerId?: number | null;
 };
 
 export type GetAssetEventsResponse = AssetEventCollectionResponse;
@@ -4033,6 +4183,17 @@ export type NextRunAssetsData = {
 };
 
 export type NextRunAssetsResponse2 = NextRunAssetsResponse;
+
+export type GetAssetPartitionsData = {
+    assetId: number;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    partitionKeyPattern?: string | null;
+    status?: Array<('materialized' | 'in_progress' | 'failed')> | null;
+};
+
+export type GetAssetPartitionsResponse = AssetPartitionCollectionResponse;
 
 export type ListBackfillsData = {
     dagId: string;
@@ -4747,6 +4908,10 @@ export type GetEventLogResponse = EventLogResponse;
 export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -5512,6 +5677,10 @@ export type DeleteAssetStateStoreResponse = void;
 export type ListTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
+    /**
+     * Include keys starting with ``__airflow_``, which Airflow writes.
+     */
+    includeReserved?: boolean;
     limit?: number;
     mapIndex?: number;
     offset?: number;
@@ -5728,6 +5897,10 @@ export type GetTriggersData = {
      */
     orderBy?: Array<(string)>;
     /**
+     * Return only the triggers of watchers on assets this Dag is scheduled on, directly or by an asset name or URI reference.
+     */
+    scheduledDagId?: string | null;
+    /**
      * Return only triggers with one of these statuses.
      */
     status?: Array<TriggerStatus>;
@@ -5933,6 +6106,17 @@ export type GetCallbackLogsData = {
 };
 
 export type GetCallbackLogsResponse = TaskInstancesLogResponse;
+
+export type GetDurableExecutionData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
+    taskId: string;
+};
+
+export type GetDurableExecutionResponse = DurableExecutionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -6476,6 +6660,29 @@ export type $OpenApiTs = {
                  * Successful Response
                  */
                 200: NextRunAssetsResponse;
+                /**
+                 * Not Found
+                 */
+                404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/assets/{asset_id}/partitions': {
+        get: {
+            req: GetAssetPartitionsData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: AssetPartitionCollectionResponse;
+                /**
+                 * Bad Request
+                 */
+                400: HTTPExceptionResponse;
                 /**
                  * Not Found
                  */
@@ -10435,6 +10642,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/durable': {
+        get: {
+            req: GetDurableExecutionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DurableExecutionResponse;
                 /**
                  * Validation Error
                  */

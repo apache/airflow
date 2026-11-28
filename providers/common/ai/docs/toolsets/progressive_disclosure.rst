@@ -124,8 +124,9 @@ A tool the model found is the same tool, called the same way:
 - Its result passes through Airflow's secret masker before the model sees it, as every
   tool result does (see :doc:`../agent_security`).
 - Its calls are logged like any other tool's (see :doc:`logging`).
-- With ``durable=True``, a retry replays the model requests and tool calls that came
-  after a search; only the step that failed runs again (see :doc:`../durable_execution`).
+- Under durable execution (on by default for a task that can retry on Airflow 3.3 and
+  later), a retry replays the model requests and tool calls that came after a search; only
+  the step that failed runs again (see :doc:`../durable_execution`).
 - A templated connection ID on the toolset is rendered for each task instance, as it is
   without ``.defer_loading()``.
 
@@ -138,7 +139,8 @@ When it does not help
 answer almost anything, so hiding them saves a few definitions and adds a search request
 to nearly every run. On a warehouse with hundreds of tables, ``list_tables``
 output grows with the table count; limit it with ``allowed_tables`` (see
-:ref:`sql-toolset-restricted`).
+:ref:`sql-toolset-restricted`), or pass a ``search_backend`` so the agent finds tables with
+``search_tables`` instead of reading the whole list (see :ref:`sql-toolset-table-search`).
 
 ``AgentSkillsToolset`` has four tools, and its list of skills goes into the agent's
 instructions, which ``.defer_loading()`` does not touch, so the part of its cost that grows

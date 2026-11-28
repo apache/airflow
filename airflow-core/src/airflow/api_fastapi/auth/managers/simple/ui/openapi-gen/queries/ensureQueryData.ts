@@ -1,4 +1,4 @@
-// generated with @7nohe/openapi-react-query-codegen@3.0.2
+// generated with @7nohe/openapi-react-query-codegen@3.2.1
 import { type EnsureQueryDataOptions, type QueryClient } from "@tanstack/react-query";
 
 import { createTokenAllAdmins, loginAllAdmins, type Options } from "../requests/sdk.gen";

@@ -58,7 +58,9 @@ Password (optional)
     It can be left out to fall back on DefaultAzureCredential_.
 
 Host (optional)
-    Specify the account url for anonymous public read, Active Directory, shared access key authentication.
+    Specify the storage account name, for example ``mystorageaccount``, rather than a full URL.
+    For a private endpoint or custom domain, set ``account_url`` in Extra for the hook, or
+    ``account_host`` for the ADLS filesystem used by ``ObjectStoragePath``.
     It can be left out to fall back on DefaultAzureCredential_.
 
 Extra (optional)
@@ -67,7 +69,8 @@ Extra (optional)
 
     * ``tenant_id``: Specify the tenant to use. Needed for Active Directory (token) authentication. It can be left out to fall back on DefaultAzureCredential_.
     * ``connection_string``: Connection string for use with connection string authentication. It can be left out to fall back on DefaultAzureCredential_.
-    * ``account_host``: Override for the default Azure Blob endpoint domain. Use this to specify a custom or private domain (e.g., `myaccount.blob.core.customdomain.io`) instead of the default `core.windows.net`.
+    * ``account_url``: Full account URL for the hook to use instead of ``https://<host>.dfs.core.windows.net``, for example for a private endpoint or custom domain. The ADLS filesystem used by ``ObjectStoragePath`` does not read it; use ``account_host`` there.
+    * ``account_host``: Override for the default Azure Blob endpoint domain. Use this to specify a custom or private domain (e.g., `myaccount.blob.core.customdomain.io`) instead of the default `core.windows.net`. Read by the ADLS filesystem used by ``ObjectStoragePath``; the hook uses ``account_url`` instead.
 
 
 When specifying the connection in environment variable you should specify

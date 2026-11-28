@@ -19,9 +19,10 @@
 from __future__ import annotations
 
 import asyncio
+import sys
 import threading
 import weakref
-from contextlib import AsyncExitStack
+from contextlib import AsyncExitStack, nullcontext
 from functools import cached_property
 from typing import TYPE_CHECKING, cast
 
@@ -94,13 +95,21 @@ def _configure_in_process_auth(app: FastAPI, *, triggerer_id: int | None = None)
 
 
 class _RequestScopedServerContextApp:
-    """Wrap an ASGI app so in-process requests behave like server-side API handling."""
+    """
+    Wrap an ASGI app so in-process requests behave like server-side API handling.
+
+    ``force_server_context`` covers airflow-core's readers and the Task SDK's ``hide_supervisor_comms``
+    its own; the event loop task and the worker threads of sync routes inherit both.
+    """
 
     def __init__(self, app: FastAPI) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        with force_server_context():
+        task_runner = sys.modules.get("airflow.sdk.execution_time.task_runner")
+        # No task runs in this process, or a Task SDK from before the flag: nothing to hide.
+        hide_supervisor_comms = getattr(task_runner, "hide_supervisor_comms", nullcontext)
+        with force_server_context(), hide_supervisor_comms():
             await self.app(scope, receive, send)
 
 
@@ -119,6 +128,7 @@ class InProcessExecutionAPI:
 
     _app: FastAPI | None = None
     triggerer_id: int | None = None
+    serve_while_debugger_paused: bool = False
 
     @cached_property
     def app(self):
@@ -148,12 +158,33 @@ class InProcessExecutionAPI:
         # Own the event loop and thread so the transport controls their lifecycle.
         loop = asyncio.new_event_loop()
         thread = threading.Thread(target=loop.run_forever, name="InProcessExecutionAPI-loop", daemon=True)
+        if self.serve_while_debugger_paused:
+            # pydevd (debugpy, PyCharm) suspends every other thread at a breakpoint, so code paused in
+            # this process could not reach the API. The attribute also stops tracing in this thread:
+            # breakpoints in route code don't stop for requests this instance serves.
+            thread.pydev_do_not_trace = True  # type: ignore[attr-defined]
         thread.start()
+
+        class PEP3333PathMiddleware(ASGIMiddleware):
+            """
+            Pass ``PATH_INFO`` and ``SCRIPT_NAME`` on to a2wsgi in PEP 3333 form.
+
+            ``httpx2.WSGITransport`` puts the percent-decoded URL path into the environ as a regular ``str``,
+            whereas PEP 3333 (and ``a2wsgi``, which follows it) expects UTF-8 bytes decoded as latin-1.
+            Without this, any non-ASCII character in the path, such as a non-ASCII ``task_id``, fails with a
+            ``UnicodeDecodeError`` or ``UnicodeEncodeError``.
+            """
+
+            def __call__(self, environ, start_response):
+                for key in ("PATH_INFO", "SCRIPT_NAME"):
+                    if key in environ:
+                        environ[key] = environ[key].encode("utf-8").decode("latin-1")
+                return super().__call__(environ, start_response)
 
         app = self.app
         # a2wsgi types ASGI scopes and messages as TypedDict unions and Starlette as mutable mappings,
         # so no app typed against Starlette matches a2wsgi's ``ASGIApp``.
-        middleware = ASGIMiddleware(cast("ASGIApp", _RequestScopedServerContextApp(app)), loop=loop)
+        middleware = PEP3333PathMiddleware(cast("ASGIApp", _RequestScopedServerContextApp(app)), loop=loop)
 
         # https://github.com/abersheeran/a2wsgi/discussions/64
         async def start_lifespan(cm: AsyncExitStack, app: FastAPI):

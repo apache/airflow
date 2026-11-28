@@ -23,7 +23,7 @@
 
 Package ``apache-airflow-providers-amazon``
 
-Release: ``9.40.0``
+Release: ``9.41.0``
 
 
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
@@ -36,7 +36,7 @@ This is a provider package for ``amazon`` provider. All classes for this provide
 are in ``airflow.providers.amazon`` python package.
 
 You can find package information and changelog for the provider
-in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.40.0/>`_.
+in the `documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.41.0/>`_.
 
 Installation
 ------------
@@ -66,7 +66,7 @@ PIP package                                 Version required
 ``redshift_connector``                      ``>=2.1.13; python_version >= "3.14"``
 ``asgiref``                                 ``>=2.3.0; python_version < "3.14"``
 ``asgiref``                                 ``>=3.11.1; python_version >= "3.14"``
-``PyAthena``                                ``>=3.10.0``
+``PyAthena``                                ``>=3.28.0``
 ``jmespath``                                ``>=0.7.0``
 ``sagemaker-studio``                        ``>=1.0.25,<1.1.0``
 ``marshmallow``                             ``>=3``
@@ -132,8 +132,8 @@ Extra                 Dependencies
 ``common.ai``         ``apache-airflow-providers-common-ai>=0.11.0``
 ``common.messaging``  ``apache-airflow-providers-common-messaging>=2.0.0``
 ``duckdb``            ``apache-airflow-providers-duckdb>=0.1.0``, ``duckdb>=1.2.2``
-``sqlalchemy``        ``sqlalchemy>=1.4.54,!=2.1.0``
+``sqlalchemy``        ``PyAthena[sqlalchemy]>=3.28.0``, ``sqlalchemy>=1.4.54,!=2.1.0``
 ====================  ======================================================================================================================================================================
 
 The changelog for the provider package can be found in the
-`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.40.0/changelog.html>`_.
+`changelog <https://airflow.apache.org/docs/apache-airflow-providers-amazon/9.41.0/changelog.html>`_.

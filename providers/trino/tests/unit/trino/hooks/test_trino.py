@@ -558,6 +558,54 @@ def test_execute_openlineage_events():
     ]
 
 
+@patch(HOOK_GET_CONNECTION)
+def test_get_openlineage_default_schema(mock_get_connection):
+    mock_get_connection.return_value = Connection(
+        conn_id=TRINO_DEFAULT, conn_type="trino", host="trino", port=8080, schema="sales"
+    )
+    assert TrinoHook().get_openlineage_default_schema() == "sales"
+
+
+def test_execute_openlineage_events_resolves_unqualified_table_to_connection_schema():
+    class TrinoHookForTests(TrinoHook):
+        get_conn = mock.MagicMock(name="conn")
+        get_connection = mock.MagicMock()
+
+    dbapi_hook = TrinoHookForTests()
+    dbapi_hook.get_connection.return_value = Connection(
+        conn_id=TRINO_DEFAULT,
+        conn_type="trino",
+        host="trino",
+        port=8080,
+        schema="sf1",
+        extra=json.dumps({"catalog": "tpch"}),
+    )
+    # The tpch catalog has a customer table in every schema (tiny, sf1, sf100, ...).
+    dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [
+        [
+            ("sf1", "customer", "name", 1, "varchar(25)", "tpch"),
+            ("tiny", "customer", "name", 1, "varchar(25)", "tpch"),
+        ],
+        [],
+    ]
+
+    op = SQLExecuteQueryOperator(task_id="trino_test", sql="SELECT name FROM customer", conn_id=TRINO_DEFAULT)
+    op._hook = dbapi_hook
+    lineage = op.get_openlineage_facets_on_start()
+
+    assert lineage.inputs == [
+        Dataset(
+            namespace="trino://trino:8080",
+            name="tpch.sf1.customer",
+            facets={
+                "schema": SchemaDatasetFacet(
+                    fields=[SchemaDatasetFacetFields(name="name", type="varchar(25)")]
+                )
+            },
+        )
+    ]
+
+
 @pytest.mark.parametrize(
     ("conn_params", "expected_uri"),
     [

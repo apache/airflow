@@ -37,7 +37,7 @@ The following is an example YAML file defining a Dag:
 
 .. code-block:: yaml
 
-    $schema: https://airflow.apache.org/schemas/dag/2026-10-30.json
+    $schema: https://airflow.apache.org/schemas/dag/2027-02-28.json
     dag_id: daily_report
     schedule: "0 3 * * *"
     start_date: 2024-01-01
@@ -103,7 +103,9 @@ The shape of a document
     Dags. By default (see :ref:`config:core__dag_discovery_safe_mode`), a file
     that does not carry the canonical ``$schema`` URL is skipped, so a mistyped
     URL makes the file disappear the same way. An editor that understands
-    ``$schema`` can offer validation and completion from it.
+    ``$schema`` can offer validation and completion from it. A file pinned to
+    an older published version keeps working; it is migrated to the current
+    format when it is loaded.
 
 Dag-level keys
     Dag attributes sit at the top level, such as ``dag_id``, ``schedule``,
@@ -185,8 +187,8 @@ Values are literal by default
 -----------------------------
 
 A value under ``with:`` (or ``run:``, with the restrictions in `Code tasks`_) is
-taken literally, unless it is a single-key object whose key is a reserved
-``$``-marker. For example, ``"echo foo.sh"`` and ``"{{ not rendered }}"`` are
+taken literally, unless it is an object with a reserved ``$``-marker key. For
+example, ``"echo foo.sh"`` and ``"{{ not rendered }}"`` are
 taken as exactly that string, not a template, even if ``bash_command`` is listed
 on the operator as a template field.
 
@@ -200,10 +202,11 @@ Four markers opt a value into special handling:
 
 ``{$x: id}`` references an upstream output
     The XCom output of an upstream task. ``{$x: extract}`` references
-    ``extract``'s return value, and ``{$x: {task: extract, key: rows}}`` a
-    specific key. Binding a value this way also creates the dependency edge
-    implicitly, so a task that consumes another's output does not need to also
-    list it in ``needs:``. The long form is ``{$xcom: ...}``.
+    ``extract``'s return value, and ``{$x: extract, key: rows}`` a specific
+    key (``key`` defaults to ``return_value``). Binding a value this way also
+    creates the dependency edge implicitly, so a task that consumes another's
+    output does not need to also list it in ``needs:``. The long form is
+    ``{$xcom: ...}``.
 
 ``{$f: path}`` reads a file's contents
     The contents of a file are read and used. The path is resolved against the
@@ -223,6 +226,10 @@ the operator as template-able (listed in ``template_fields``). Using them on any
 other field causes an error. ``$const`` and plain values may be used anywhere.
 For an operator you write yourself, the operator decides which fields may accept
 markers; see `Using your own operators`_.
+
+A marker object has exactly one ``$`` key, whose value is the marker's operand.
+Any options the marker takes are plain keys beside it, like ``key`` on ``$x``.
+A key that is not one of that marker's options causes a parse error.
 
 The ``$`` prefix in mapping keys is reserved for these markers. Prefixing any
 other key with ``$`` causes a parse error. To include a key that must start with

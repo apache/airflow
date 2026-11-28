@@ -27,7 +27,7 @@ import asyncio
 import base64
 import dataclasses
 import functools
-from collections.abc import Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from typing import TYPE_CHECKING, Any
 from unittest import mock
 
@@ -35,7 +35,7 @@ import pytest
 from pydantic import BaseModel
 from pydantic_ai import Agent, CancellationToken, RunContext
 from pydantic_ai.capabilities import AbstractCapability, SetToolMetadata, durable_operation
-from pydantic_ai.exceptions import ModelRetry, UnexpectedModelBehavior
+from pydantic_ai.exceptions import ModelAPIError, ModelHTTPError, ModelRetry, UnexpectedModelBehavior
 from pydantic_ai.mcp import MCPToolset
 from pydantic_ai.messages import (
     ModelMessage,
@@ -46,7 +46,9 @@ from pydantic_ai.messages import (
     ToolReturn,
     ToolReturnPart,
 )
+from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.models.function import AgentInfo, FunctionModel
+from pydantic_ai.settings import ModelSettings
 from pydantic_ai.toolsets import DynamicToolset, FunctionToolset
 from pydantic_ai.toolsets.wrapper import WrapperToolset
 from pydantic_ai.usage import RequestUsage, RunUsage, UsageLimits
@@ -59,7 +61,14 @@ from airflow.providers.common.ai.durable.capability import (
     _GivenIds,
     _JournalCodec,
 )
-from airflow.providers.common.ai.durable.journal import DurableJournal, Unrecordable, journal_scope
+from airflow.providers.common.ai.durable.fingerprint import fingerprint_model_request
+from airflow.providers.common.ai.durable.journal import (
+    DurableJournal,
+    DurableRun,
+    Unrecordable,
+    journal_scope,
+)
+from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
 from airflow.providers.common.ai.exceptions import DurableJournalError, SQLToolsetConnectionError
 from airflow.providers.common.ai.toolsets.sql import SQLToolset
 from airflow.providers.common.ai.utils.toolset_base import AirflowToolset, ensure_masked
@@ -70,7 +79,8 @@ from unit.common.ai.sqlite_connection import create_orders_table, run_sql, sqlit
 from unit.common.ai.tool_parts import is_tool_result, is_tool_retry
 
 if TYPE_CHECKING:
-    from pydantic_ai.toolsets.abstract import ToolsetTool
+    from pydantic_ai.models import Model
+    from pydantic_ai.toolsets.abstract import AbstractToolset, ToolsetTool
 
 PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
 
@@ -1744,6 +1754,151 @@ class TestCapabilityOperations:
         assert calls["accrue"] == 1
 
 
+class _NestingToolset(_WarehouseToolset):
+    """A warehouse toolset whose ``query`` tool runs ``work`` inside its own step."""
+
+    def __init__(
+        self, calls: Calls, work: Callable[[RunContext[Any]], Awaitable[None]], *, replayable: bool = True
+    ) -> None:
+        super().__init__(calls, replayable=replayable)
+        self._work = work
+
+    async def execute_tool(self, name, tool_args, *, ctx, tool) -> Any:
+        self._calls.bump("query")
+        await self._work(ctx)
+        return "3 rows"
+
+
+class TestNestedOperationsInToolSteps:
+    """
+    A durable operation or an agent run started inside a tool's step belongs to that step.
+
+    On retry the step replays and the work inside it does not run, so it must not have taken
+    positions of its own in the outer run: the steps after the tool would move and run again.
+    """
+
+    @pytest.mark.parametrize("toolset_kind", ["airflow", "function"])
+    @pytest.mark.parametrize("nested", ["durable_operation", "agent"])
+    @pytest.mark.asyncio
+    async def test_steps_after_the_tool_replay(self, memory_storage, toolset_kind, nested):
+        calls = await self._fail_then_retry(memory_storage, toolset_kind, nested)
+
+        assert calls["query"] == 1
+        assert calls["notify"] == 1
+        # One accrual per model response, the last of them live on the retry, plus the tool's
+        # own; the replayed ones do not run again.
+        assert calls["accrue"] == (4 if nested == "durable_operation" else 3)
+        assert calls["sub_model"] == (1 if nested == "agent" else 0)
+
+    @pytest.mark.asyncio
+    async def test_an_operation_inside_a_tool_that_runs_on_every_attempt_runs_with_it(self, memory_storage):
+        """The tool runs again on retry, and so does the operation it calls; the steps after it replay."""
+        calls = await self._fail_then_retry(memory_storage, "airflow", "durable_operation", replayable=False)
+
+        assert calls["query"] == 2
+        assert calls["notify"] == 1
+        # Three accruals on the first attempt; on the retry the tool's own and the last model response's.
+        assert calls["accrue"] == 5
+
+    @pytest.mark.asyncio
+    async def test_an_agent_a_tool_runs_records_its_own_operations(self, memory_storage):
+        """The inner agent's operations are steps of the inner run, so a tool that runs again replays them."""
+        calls = Calls()
+        fail_after_sub = [True]
+
+        def sub_model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("sub_model")
+            return ModelResponse(parts=[TextPart("sub done")])
+
+        async def work(ctx: RunContext[Any]) -> None:
+            sub = Agent(
+                FunctionModel(sub_model), name="sub", capabilities=[AirflowDurability(), _Ledger(calls)]
+            )
+            await sub.run("go")
+            if fail_after_sub[0]:
+                fail_after_sub[0] = False
+                raise RuntimeError("worker died after the inner agent finished")
+
+        def build() -> Agent[None, str]:
+            return Agent(
+                FunctionModel(tool_then_answer(Calls(), "query", fail_final=[False])),
+                name="outer",
+                toolsets=[_NestingToolset(calls, work)],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build())
+        await attempt(memory_storage, build())
+
+        # The tool ran twice; the inner agent's model request and its accrual replayed the second time.
+        assert (calls["query"], calls["sub_model"], calls["accrue"]) == (2, 1, 1)
+
+    @staticmethod
+    async def _fail_then_retry(
+        memory_storage, toolset_kind: str, nested: str, *, replayable: bool = True
+    ) -> Calls:
+        calls = Calls()
+        fail_final = [True]
+        ledger = _Ledger(calls)
+
+        def sub_model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            calls.bump("sub_model")
+            return ModelResponse(parts=[TextPart("sub done")])
+
+        async def work(ctx: RunContext[Any]) -> None:
+            if nested == "durable_operation":
+                await ledger.accrue(ctx, 5)
+            else:
+                sub = Agent(FunctionModel(sub_model), name="sub", capabilities=[AirflowDurability()])
+                await sub.run("go")
+
+        def outer_model(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+            match responses_so_far(messages):
+                case 0:
+                    return ModelResponse(parts=[ToolCallPart("query", {"sql": "select 1"})])
+                case 1:
+                    return ModelResponse(parts=[ToolCallPart("notify", {})])
+            if fail_final[0]:
+                raise RuntimeError("worker died")
+            return ModelResponse(parts=[TextPart("done")])
+
+        def build() -> Agent[None, str]:
+            alerts = FunctionToolset(id="alerts")
+
+            @alerts.tool_plain
+            def notify() -> str:
+                calls.bump("notify")
+                return "sent"
+
+            warehouse: AbstractToolset[Any]
+            if toolset_kind == "airflow":
+                warehouse = _NestingToolset(calls, work, replayable=replayable)
+            else:
+                function_toolset = FunctionToolset(id="warehouse")
+
+                @function_toolset.tool
+                async def query(ctx: RunContext[Any], sql: str) -> str:
+                    calls.bump("query")
+                    await work(ctx)
+                    return "3 rows"
+
+                warehouse = function_toolset
+
+            return Agent(
+                FunctionModel(outer_model),
+                name="analyst",
+                toolsets=[warehouse, alerts],
+                capabilities=[AirflowDurability(), ledger],
+            )
+
+        with pytest.raises(RuntimeError):
+            await attempt(memory_storage, build())
+        fail_final[0] = False
+        assert (await attempt(memory_storage, build())).output == "done"
+        return calls
+
+
 class TestRuns:
     @pytest.mark.asyncio
     async def test_each_run_of_an_attempt_replays_on_its_own(self, memory_storage):
@@ -1928,3 +2083,415 @@ class TestReplayUsage:
 
         assert result.output == "done"
         assert usage.requests == 3
+
+
+class TestFallbackChainEdits:
+    """Editing a fallback chain between attempts keeps the steps a surviving member answered."""
+
+    @staticmethod
+    def build_chain(
+        calls: Calls,
+        members: list[tuple[str, float | None]],
+        *,
+        up: set[str],
+        stamped: bool = True,
+    ) -> FallbackModel:
+        def build_member(name: str, temperature: float | None) -> Model:
+            def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                calls.bump(name)
+                if name not in up:
+                    raise ModelHTTPError(500, name)
+                return ModelResponse(parts=[TextPart(f"{name} answered")])
+
+            model = FunctionModel(
+                respond,
+                model_name=name,
+                settings=ModelSettings(temperature=temperature) if temperature is not None else None,
+            )
+            return MemberStampingModel(model) if stamped else model
+
+        return FallbackModel(
+            *(build_member(name, temperature) for name, temperature in members),
+            fallback_on=(ModelAPIError,),
+        )
+
+    @staticmethod
+    def build_agent(chain: FallbackModel) -> Agent[None, str]:
+        return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+    @pytest.mark.parametrize(
+        ("members", "up", "output", "replayed", "calls_by_member"),
+        [
+            pytest.param(
+                [("c", None), ("b", None)], {"c"}, "b answered", 1, {"b": 1, "c": 0}, id="member added before"
+            ),
+            pytest.param(
+                [("b", None), ("a", None)], {"a"}, "b answered", 1, {"b": 1, "a": 1}, id="members reordered"
+            ),
+            pytest.param(
+                [("a", None), ("b", 0.9)], set(), "b answered", 1, {"b": 1}, id="member settings changed"
+            ),
+            pytest.param(
+                [("a", None)], {"a"}, "a answered", 0, {"a": 2, "b": 1}, id="answering member removed"
+            ),
+            pytest.param(
+                [("a", None), ("b2", None)],
+                {"b2"},
+                "b2 answered",
+                0,
+                {"a": 2, "b": 1, "b2": 1},
+                id="answering member's model changed",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_step_replays_only_while_its_answering_member_is_in_the_chain(
+        self, memory_storage, members, up, output, replayed, calls_by_member
+    ):
+        calls = Calls()
+        first = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
+        await attempt(memory_storage, self.build_agent(first))
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            result = await self.build_agent(self.build_chain(calls, members, up=up)).run("go")
+
+        assert result.output == output
+        assert journal.stats.replayed["model"] == replayed
+        assert {name: calls[name] for name in calls_by_member} == calls_by_member
+        reason = "the model that answered this step, function:b, is no longer in the fallback chain"
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == (
+            [reason] if replayed == 0 else []
+        )
+
+    @pytest.mark.parametrize(
+        ("second_attempt", "replayed", "calls_by_member"),
+        [
+            pytest.param([("a", None), ("b", None)], 1, {"a": 1, "b": 1}, id="chain unchanged"),
+            pytest.param([("b", None), ("c", None)], 0, {"a": 1, "b": 2, "c": 0}, id="chain edited"),
+        ],
+    )
+    @pytest.mark.parametrize("stamped_members", [0, 1], ids=["unstamped chain", "mixed chain"])
+    @pytest.mark.asyncio
+    async def test_a_chain_with_an_unstamped_member_replays_only_while_unchanged(
+        self, memory_storage, stamped_members, second_attempt, replayed, calls_by_member
+    ):
+        calls = Calls()
+
+        def build(members: list[tuple[str, float | None]]) -> FallbackModel:
+            chain = self.build_chain(calls, members, up={"b"}, stamped=False)
+            chain.models[:stamped_members] = [MemberStampingModel(m) for m in chain.models[:stamped_members]]
+            return chain
+
+        await attempt(memory_storage, self.build_agent(build([("a", None), ("b", None)])))
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            await self.build_agent(build(second_attempt)).run("go")
+
+        assert journal.stats.replayed["model"] == replayed
+        assert {name: calls[name] for name in calls_by_member} == calls_by_member
+
+    @pytest.mark.parametrize(
+        ("second_attempt", "output", "replayed", "calls_by_conn"),
+        [
+            pytest.param(
+                [("primary", True)],
+                "primary answered",
+                0,
+                {"primary": 2, "gateway": 1},
+                id="answering connection removed",
+            ),
+            pytest.param(
+                [("primary", False), ("gateway2", True)],
+                "gateway2 answered",
+                0,
+                {"primary": 2, "gateway": 1, "gateway2": 1},
+                id="answering connection renamed",
+            ),
+            pytest.param(
+                [("gateway", True)],
+                "gateway answered",
+                1,
+                {"primary": 1, "gateway": 1},
+                id="other connection removed",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_step_replays_only_while_its_answering_connection_is_in_the_chain(
+        self, memory_storage, second_attempt, output, replayed, calls_by_conn
+    ):
+        calls = Calls()
+
+        def build(members: list[tuple[str, bool]]) -> Agent[None, str]:
+            def member(conn_id: str, up: bool) -> MemberStampingModel:
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(conn_id)
+                    if not up:
+                        raise ModelHTTPError(500, conn_id)
+                    return ModelResponse(parts=[TextPart(f"{conn_id} answered")])
+
+                return MemberStampingModel(FunctionModel(respond, model_name="m"), conn_id=conn_id)
+
+            return self.build_agent(
+                FallbackModel(*(member(*entry) for entry in members), fallback_on=(ModelAPIError,))
+            )
+
+        await attempt(memory_storage, build([("primary", False), ("gateway", True)]))
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            result = await build(second_attempt).run("go")
+
+        assert result.output == output
+        assert journal.stats.replayed["model"] == replayed
+        assert {conn_id: calls[conn_id] for conn_id in calls_by_conn} == calls_by_conn
+        reason = (
+            "the model that answered this step, function:m on connection gateway, "
+            "is in the fallback chain only under a different connection"
+        )
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == (
+            [reason] if replayed == 0 else []
+        )
+
+    @pytest.mark.parametrize(
+        ("first_conn_id", "second_conn_id", "answerer"),
+        [
+            pytest.param(None, "gateway", "function:m", id="connection added"),
+            pytest.param("gateway", None, "function:m on connection gateway", id="connection dropped"),
+        ],
+    )
+    @pytest.mark.asyncio
+    async def test_a_member_without_a_connection_id_matches_only_one_without(
+        self, memory_storage, first_conn_id, second_conn_id, answerer
+    ):
+        calls = Calls()
+
+        def build(members: list[tuple[str, str | None, bool]]) -> Agent[None, str]:
+            def member(name: str, conn_id: str | None, up: bool) -> MemberStampingModel:
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    if not up:
+                        raise ModelHTTPError(500, name)
+                    return ModelResponse(parts=[TextPart(f"{name} answered")])
+
+                return MemberStampingModel(FunctionModel(respond, model_name="m"), conn_id=conn_id)
+
+            return self.build_agent(
+                FallbackModel(*(member(*entry) for entry in members), fallback_on=(ModelAPIError,))
+            )
+
+        await attempt(memory_storage, build([("down", "down", False), ("first", first_conn_id, True)]))
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            result = await build([("second", second_conn_id, True)]).run("go")
+
+        assert result.output == "second answered"
+        assert journal.stats.replayed["model"] == 0
+        assert {name: calls[name] for name in ("down", "first", "second")} == {
+            "down": 1,
+            "first": 1,
+            "second": 1,
+        }
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == [
+            f"the model that answered this step, {answerer}, "
+            "is in the fallback chain only under a different connection"
+        ]
+
+    @pytest.mark.parametrize(
+        ("second_attempt", "calls_of_c"),
+        [
+            pytest.param(["a", "c"], 0, id="member after the answerer replaced"),
+            pytest.param(["c", "a"], 1, id="member added before the answerer"),
+        ],
+    )
+    @pytest.mark.parametrize("with_conn_ids", [False, True], ids=["no conn ids", "conn ids"])
+    @pytest.mark.asyncio
+    async def test_a_chain_edit_keeps_replaying_after_the_first_model_step(
+        self, memory_storage, second_attempt, calls_of_c, with_conn_ids
+    ):
+        calls = Calls()
+        fail_final = [True]
+
+        def build(names: list[str]) -> Agent[None, str]:
+            def down(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                raise ModelHTTPError(500, "down")
+
+            def member(name: str) -> MemberStampingModel:
+                conn_id = f"conn_{name}" if with_conn_ids else None
+                if name == "a":
+                    return MemberStampingModel(
+                        FunctionModel(clock_then_lookup(calls, fail_final=fail_final), model_name="a"),
+                        conn_id=conn_id,
+                    )
+
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    return down(messages, info)
+
+                return MemberStampingModel(FunctionModel(respond, model_name=name), conn_id=conn_id)
+
+            chain = FallbackModel(*(member(name) for name in names), fallback_on=(ModelAPIError,))
+            return Agent(
+                chain,
+                name="chained",
+                toolsets=[_build_ops_toolset(calls)],
+                capabilities=[AirflowDurability()],
+            )
+
+        with pytest.raises(RuntimeError, match="worker died"):
+            await attempt(memory_storage, build(["a", "b"]))
+        fail_final[0] = False
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            result = await build(second_attempt).run("go")
+
+        assert result.output == "done"
+        assert journal.stats.replayed["model"] == 2
+        assert (calls["clock"], calls["lookup"], calls["model"]) == (1, 1, 4)
+        assert calls["c"] == calls_of_c
+
+    @pytest.mark.asyncio
+    async def test_a_stamped_chain_rejects_a_response_without_a_stamp(self, memory_storage):
+        calls = Calls()
+        chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
+        await attempt(memory_storage, self.build_agent(chain))
+        for entry in memory_storage.steps():
+            if entry["kind"] == "model":
+                entry["payload"]["metadata"] = None
+
+        journal = DurableJournal(memory_storage)
+        with (
+            journal_scope(journal),
+            mock.patch.object(DurableRun, "reject", autospec=True, side_effect=DurableRun.reject) as reject,
+        ):
+            chain = self.build_chain(calls, [("a", None), ("b", None)], up={"b"})
+            await self.build_agent(chain).run("go")
+
+        assert journal.stats.replayed["model"] == 0
+        assert calls["b"] == 2
+        reason = "the recorded response does not say which fallback chain member answered it"
+        assert [call.kwargs["reason"] for call in reject.call_args_list] == [reason]
+
+    @pytest.mark.asyncio
+    async def test_a_streamed_step_replays_while_its_answering_member_is_in_the_chain(self, memory_storage):
+        calls = Calls()
+
+        def build(names: list[str]) -> Agent[None, str]:
+            def stream_as(name: str):
+                async def stream(messages: list[ModelMessage], info: AgentInfo):
+                    calls.bump(name)
+                    if name == "a":
+                        raise ModelHTTPError(500, name)
+                    yield f"{name} answered"
+                    return
+
+                return stream
+
+            chain = FallbackModel(
+                *(
+                    MemberStampingModel(FunctionModel(stream_function=stream_as(name), model_name=name))
+                    for name in names
+                ),
+                fallback_on=(ModelAPIError,),
+            )
+            return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+        async def run_streamed(names: list[str]) -> str:
+            async with build(names).run_stream("go") as streamed:
+                return await streamed.get_output()
+
+        with journal_scope(DurableJournal(memory_storage)):
+            assert await run_streamed(["a", "b"]) == "b answered"
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            assert await run_streamed(["b", "a"]) == "b answered"
+
+        assert journal.stats.replayed["model"] == 1
+        assert calls["b"] == 1
+
+    @pytest.mark.asyncio
+    async def test_a_suspended_response_of_a_removed_member_is_not_continued(self, memory_storage):
+        calls = Calls()
+        histories: list[list[ModelMessage]] = []
+
+        def build(members: list[str]) -> Agent[None, str]:
+            def respond_as(name: str):
+                def respond(messages: list[ModelMessage], info: AgentInfo) -> ModelResponse:
+                    calls.bump(name)
+                    histories.append(messages)
+                    if name == "a" and "b" in members:
+                        raise ModelHTTPError(500, "a")
+                    suspended = name == "b" and calls["b"] == 1
+                    return ModelResponse(
+                        parts=[TextPart(f"{name} segment")],
+                        state="suspended" if suspended else "complete",
+                    )
+
+                return respond
+
+            chain = FallbackModel(
+                *(MemberStampingModel(FunctionModel(respond_as(name), model_name=name)) for name in members),
+                fallback_on=(ModelAPIError,),
+            )
+            return Agent(chain, name="chained", capabilities=[AirflowDurability()])
+
+        await attempt(memory_storage, build(["a", "b"]))
+        assert calls["b"] == 2
+        histories.clear()
+
+        journal = DurableJournal(memory_storage)
+        with journal_scope(journal):
+            await build(["a"]).run("go")
+
+        assert journal.stats.replayed["model"] == 0
+        [history] = histories
+        assert [message for message in history if isinstance(message, ModelResponse)] == []
+
+    @pytest.mark.parametrize(
+        ("build_model", "expected"),
+        [
+            pytest.param(
+                lambda: FunctionModel(
+                    lambda messages, info: ModelResponse(parts=[TextPart("hi")]), model_name="solo"
+                ),
+                [("function:solo", False)],
+                id="single model",
+            ),
+            pytest.param(
+                lambda: TestFallbackChainEdits.build_chain(
+                    Calls(), [("a", None), ("b", None)], up={"a", "b"}, stamped=False
+                ),
+                [("fallback:function,function:fallback:a,b", False)],
+                id="chain of unstamped members",
+            ),
+        ],
+    )
+    @pytest.mark.asyncio
+    @mock.patch(
+        "airflow.providers.common.ai.durable.capability.fingerprint_model_request",
+        autospec=True,
+        side_effect=fingerprint_model_request,
+    )
+    async def test_a_model_without_a_stamped_chain_keeps_its_fingerprint(
+        self, mock_fingerprint_model_request, memory_storage, build_model, expected
+    ):
+        agent = Agent(build_model(), name="solo", capabilities=[AirflowDurability()])
+
+        await attempt(memory_storage, agent)
+
+        assert [
+            (call.args[0], call.kwargs["exclude_response_model_id"])
+            for call in mock_fingerprint_model_request.call_args_list
+        ] == expected

@@ -18,7 +18,8 @@
 Cadwyn ``VersionBundle`` for the YAML Dag format keyed by ``$schema``.
 
 The ``cadwyn`` import is deferred, so importing this package does not pull in
-FastAPI/Starlette. Versions are newest-first.
+FastAPI/Starlette. Versions are newest-first. Each version's changes live in
+its own ``vYYYY_MM_DD`` module.
 """
 
 from __future__ import annotations
@@ -35,4 +36,10 @@ def get_bundle() -> VersionBundle:
     """Build the format's ``VersionBundle`` lazily (newest-to-oldest)."""
     from cadwyn import HeadVersion, Version, VersionBundle
 
-    return VersionBundle(HeadVersion(), Version("2026-10-30"))
+    from airflow.sdk.importers.yaml_importer.versions.v2027_02_28 import FlattenKeyedXComReference
+
+    return VersionBundle(
+        HeadVersion(),
+        Version("2027-02-28", FlattenKeyedXComReference),
+        Version("2026-10-30"),
+    )

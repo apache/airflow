@@ -176,10 +176,11 @@ navigate to
 With durable execution
 ----------------------
 
-With ``durable=True`` (see :doc:`durable_execution`), the first output and every
+With durable execution (on by default for a task that can retry on Airflow 3.3 and later; see
+:doc:`durable_execution`), the first output and every
 regeneration are agent runs in the task's journal, so a retry replays them instead of
 calling the model and the tools again (on Airflow 3.1 and 3.2, only the first output; see the
-end of this section). Each regeneration logs its own ``Durable:`` line in the task log, after
+end of this section). Each regeneration logs its own ``Durable (...)`` summary line in the task log, after
 the first run's.
 
 On Airflow 3.3 and later, each request for changes is also kept in the task state store
@@ -220,8 +221,8 @@ The attempt that ended logs:
 When the reviewer approves, the task deletes the journal and the recorded feedback. A clear
 that deletes the task's state (:ref:`durable-clear`) starts the agent and the review over.
 
-On Airflow 3.1 and 3.2, where the review polls instead of parking, feedback is not recorded:
-a retry replays the first output and asks the reviewer about every round again, and each
+On Airflow 3.1 and 3.2, where the review polls instead of parking and durable execution
+needs ``durable=True``, feedback is not recorded: a retry replays the first output and asks the reviewer about every round again, and each
 regeneration after an answer runs again, its model requests and tool calls included.
 
 REST API
@@ -318,10 +319,28 @@ All keys use the prefix ``airflow_hitl_review_``.
        feedback, iteration
    * - ``airflow_hitl_review_agent_output_1``, ``_2``, …
      - Worker
-     - Per-iteration AI output (string or JSON)
+     - Per-iteration AI output (string or JSON), as ``{"text": ..., "dag_id": ...}``
    * - ``airflow_hitl_review_human_feedback_1``, ``_2``, …
      - Plugin, and the worker when it resumes
-     - Per-iteration human feedback text
+     - Per-iteration human feedback text, as ``{"text": ..., "dag_id": ...}``
+
+The plugin reads these XComs through the configured ``[core] xcom_backend``, as the
+worker does. A custom backend that keeps values outside the metadata database, such as
+``XComObjectStorageBackend`` from the ``common.io`` provider, must therefore also be
+installed and configured on the API server, with access to its storage. The plugin
+writes its own entries straight to the metadata database, all of them dictionaries, so the
+backend must return a dictionary it did not store itself unchanged, as
+``XComObjectStorageBackend`` does.
+
+Outputs and feedback are stored as ``{"text": ..., "dag_id": ...}`` rather than as bare
+strings because their text comes from the model and the reviewer: a bare string that is a
+path under ``xcom_objectstorage_path`` would be opened by the backend on the API server,
+with its storage credentials, even when it holds another Dag's XCom. The plugin shows only
+the ``text`` of such a dictionary written for the Dag under review. Any other value under
+these keys, such as one written before this format, is shown as stored, never what a
+reference in it points to. An output or feedback written by an earlier version of the
+provider is therefore shown as the reference, not the text, when the backend kept it in its
+storage.
 
 Session lifecycle
 ^^^^^^^^^^^^^^^^^

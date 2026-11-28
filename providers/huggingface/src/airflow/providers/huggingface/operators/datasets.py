@@ -354,6 +354,7 @@ class LoadDatasetOperator(BaseOperator):
         durable: bool = True,
         **kwargs: Any,
     ) -> None:
+        """Configure the source dataset and Parquet artifact destination."""
         super().__init__(**kwargs)
         self.path = path
         self.output_uri = output_uri
@@ -368,6 +369,7 @@ class LoadDatasetOperator(BaseOperator):
         self.durable = durable
 
     def execute(self, context: Context) -> dict[str, Any]:
+        """Load the requested dataset revision and write its artifact manifest."""
         hook = HuggingFaceHook(self.huggingface_conn_id)
         requested_revision = self.revision
         is_hub_repo = _is_hub_repo(self.path)
@@ -420,6 +422,7 @@ class StreamDatasetOperator(BaseOperator):
 
     @classmethod
     def partial(cls, **kwargs: Any) -> Any:
+        """Declare the publication asset when constructing a mapped operator."""
         repo_id = kwargs.get("repo_id")
         if not isinstance(repo_id, str):
             raise ValueError(
@@ -453,6 +456,7 @@ class StreamDatasetOperator(BaseOperator):
         durable: bool = True,
         **kwargs: Any,
     ) -> None:
+        """Configure a streamed source, its transformations, and Hub destination."""
         if "{{" in repo_id:
             raise ValueError(
                 "repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on."
@@ -480,6 +484,7 @@ class StreamDatasetOperator(BaseOperator):
         super().__init__(outlets=declared_outlets, **kwargs)
 
     def execute(self, context: Context) -> dict[str, Any]:
+        """Stream, transform, and publish the dataset, then return commit metadata."""
         hook = HuggingFaceHook(self.huggingface_conn_id)
         is_hub_repo = _is_hub_repo(self.path)
         requested_revision = self.revision
@@ -566,6 +571,9 @@ class StreamDatasetOperator(BaseOperator):
 
             message = self.commit_message or "Stream dataset from Airflow"
             push_kwargs["commit_message"] = f"{message} [{marker}]"
+            if is_hub_repo:
+                # Hub rows are published as stored; embedding the files they reference is opt-in.
+                push_kwargs.setdefault("embed_external_files", False)
             if state is not None:
                 state.set(pending_key, True)
             commit = hook.push_to_hub(stream, self.repo_id, **push_kwargs)
@@ -588,6 +596,7 @@ class StreamDatasetOperator(BaseOperator):
         return result
 
     def _emit_asset_event(self, context: Context, publication: dict[str, Any]) -> None:
+        """Attach publication metadata to the successful outlet event."""
         events = context.get("outlet_events")
         if events is not None and self.published_asset is not None:
             events[self.published_asset].extra = {
@@ -615,6 +624,7 @@ class MapDatasetOperator(BaseOperator):
         storage_conn_id: str | None = None,
         **kwargs: Any,
     ) -> None:
+        """Configure an artifact transform and its output location."""
         super().__init__(**kwargs)
         if not callable(transform):
             raise TypeError("transform must be a callable")
@@ -627,6 +637,7 @@ class MapDatasetOperator(BaseOperator):
         self.storage_conn_id = storage_conn_id
 
     def execute(self, context: Context) -> dict[str, Any]:
+        """Apply the transform to the input artifact and save the result."""
         with tempfile.TemporaryDirectory(prefix="airflow-hf-cache-") as cache_dir:
             dataset = _load_artifact(
                 self.input_uri,
@@ -651,6 +662,7 @@ class PushToHubOperator(BaseOperator):
 
     @classmethod
     def partial(cls, **kwargs: Any) -> Any:
+        """Declare the publication asset when constructing a mapped operator."""
         repo_id = kwargs.get("repo_id")
         if not isinstance(repo_id, str):
             raise ValueError(
@@ -679,6 +691,7 @@ class PushToHubOperator(BaseOperator):
         durable: bool = True,
         **kwargs: Any,
     ) -> None:
+        """Configure the artifact, Hub repository, and publication options."""
         if "{{" in repo_id:
             raise ValueError(
                 "repo_id cannot be templated: it defines the Asset that downstream DAGs schedule on."
@@ -698,6 +711,7 @@ class PushToHubOperator(BaseOperator):
         super().__init__(outlets=declared_outlets, **kwargs)
 
     def execute(self, context: Context) -> dict[str, Any]:
+        """Publish the input artifact and return the resulting commit metadata."""
         source = self.input_uri if isinstance(self.input_uri, dict) else {}
         fingerprint = source.get("fingerprint")
         if not fingerprint:
@@ -752,6 +766,8 @@ class PushToHubOperator(BaseOperator):
                 )
                 message = self.commit_message or "Publish dataset from Airflow"
                 kwargs["commit_message"] = f"{message} [{marker}]"
+                # Artifact rows are published as stored; embedding the files they reference is opt-in.
+                kwargs.setdefault("embed_external_files", False)
                 if state is not None:
                     state.set(pending_key, True)
                 commit = hook.push_to_hub(dataset, self.repo_id, **kwargs)
@@ -772,6 +788,7 @@ class PushToHubOperator(BaseOperator):
         return result
 
     def _emit_asset_event(self, context: Context, publication: dict[str, Any]) -> None:
+        """Attach publication metadata to the successful outlet event."""
         events = context.get("outlet_events")
         if events is not None and self.published_asset is not None:
             events[self.published_asset].extra = {
