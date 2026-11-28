@@ -1800,7 +1800,10 @@ def _run_task_and_map_outcome(
         error = e
     except (AirflowTaskTimeout, AirflowException, AirflowRuntimeError) as e:
         # We should allow retries if the task has defined it.
-        log.exception("Task failed with exception")
+        if _will_be_retried(ti, e, context):
+            log.warning("Task failed with exception, will retry", exc_info=True)
+        else:
+            log.exception("Task failed with exception")
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
@@ -1820,12 +1823,18 @@ def _run_task_and_map_outcome(
         error = e
     except SystemExit as e:
         # SystemExit needs to be retried if they are eligible.
-        log.error("Task exited", exit_code=e.code)
+        if _will_be_retried(ti, e, context):
+            log.warning("Task exited, will retry", exit_code=e.code)
+        else:
+            log.error("Task exited", exit_code=e.code)
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
     except BaseException as e:
-        log.exception("Task failed with exception")
+        if _will_be_retried(ti, e, context):
+            log.warning("Task failed with exception, will retry", exc_info=True)
+        else:
+            log.exception("Task failed with exception")
         log.info("::group::Post Execute")
         msg, state = _handle_current_task_failed(ti, e, log, context)
         error = e
@@ -2009,6 +2018,40 @@ def _evaluate_retry_policy(
         return None
 
 
+def _will_be_retried(
+    ti: RuntimeTaskInstance, exception: BaseException, context: Context | None = None
+) -> bool:
+    """
+    Whether the standard failure handling will follow this try with another attempt.
+
+    Mirrors the decision ``_handle_current_task_failed`` will make, without its logging
+    side effects, so failure logging can pick the matching severity up front: failures
+    on a non-final try are logged as warnings, and only the final attempt logs as an
+    error.
+    """
+    from airflow.sdk.definitions.retry_policy import RetryAction
+
+    policy = getattr(ti.task, "retry_policy", None)
+    if policy is not None:
+        try:
+            max_tries = ti._ti_context_from_server.max_tries if ti._ti_context_from_server else 0
+            decision = policy.evaluate(
+                exception=exception, try_number=ti.try_number, max_tries=max_tries, context=context
+            )
+            if decision.action == RetryAction.FAIL:
+                return False
+            if (
+                decision.action == RetryAction.RESCHEDULE
+                and _reschedule_limit_reached(ti, decision, context) is None
+            ):
+                return True
+        except Exception:
+            # A policy that raises falls back to the standard retry-count logic below,
+            # exactly like ``_evaluate_retry_policy`` does for the real decision.
+            pass
+    return bool(ti._ti_context_from_server and ti._ti_context_from_server.should_retry)
+
+
 def _handle_handler_failure(
     ti: RuntimeTaskInstance, exception: Exception, log: Logger, context: Context
 ) -> tuple[RetryTask | RescheduleTask | TaskState, TaskInstanceState, Exception]:
@@ -2024,10 +2067,21 @@ def _handle_handler_failure(
     The handler chain's own classifications are preserved rather than routing everything
     through the retry-count check, so an exception that means "do not retry" still means
     that when it surfaces from a handler.
+
+    Like the main failure paths, a handler failure is logged as a warning while a retry
+    remains and as an error on the final attempt. The terminal classifications take
+    precedence over the retry decision, so they always log as errors.
     """
-    log.exception("Task failed with exception")
     if isinstance(exception, (AirflowFailException, AirflowSensorTimeout, AirflowTaskTerminated)):
+        log.exception("Task failed with exception")
         return _terminal_failure(ti), TaskInstanceState.FAILED, exception
+    if _will_be_retried(ti, exception, context):
+        # Not lexically inside an except block here, so pass the in-flight exception
+        # explicitly: at runtime this only runs while run() is handling the handler
+        # exception, which is what the warning must show.
+        log.warning("Task failed with exception, will retry", exc_info=sys.exc_info())
+    else:
+        log.exception("Task failed with exception")
     try:
         msg, state = _handle_current_task_failed(ti, exception, log, context)
     except Exception:
