@@ -207,8 +207,8 @@ Parameters
   temporary directory the worker has moved, ``HTTP_PROXY``, ``HTTPS_PROXY`` and ``NO_PROXY`` behind a
   proxy, ``SSL_CERT_FILE`` and ``REQUESTS_CA_BUNDLE`` for a private certificate authority, and
   ``PYTHONPATH`` or ``VIRTUAL_ENV`` for a Python environment the script expects.
-  Whatever a script prints is returned to the model, which is sent to the LLM provider, and with
-  ``durable=True`` it is stored in the journal as well. A variable named in ``inherit_env`` leaves the
+  Whatever a script prints is returned to the model, which is sent to the LLM provider, and when
+  the agent is durable it is stored in the journal as well. A variable named in ``inherit_env`` leaves the
   worker if the script prints it. Default: none.
 - ``max_retries``: How many times the model may correct failed calls to one of the two tools.
   Default ``None``, the agent's ``retries``. See :ref:`toolset-retry-budget`.
@@ -219,7 +219,8 @@ with the id ``airflow_skills``. With ``durable=True``, another toolset with that
 catch fails when the run starts: one on an agent that is not ``durable``, or nested inside another
 capability, or built by a capability function.
 
-With ``durable=True``, a script that has run is replayed from the journal on a retry instead of
+When the agent is durable, which is the default for a task that can retry on Airflow 3.3 and later
+(:ref:`durable-execution`), a script that has run is replayed from the journal on a retry instead of
 running again.
 
 When a run cannot start

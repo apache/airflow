@@ -329,8 +329,8 @@ class AirflowSkills(AbstractCapability[AgentDepsT]):
         when the script runs and are not stored in the Dag; a name the worker has not set is skipped, and
         its name is logged as a warning when the run starts. The ones a script most often needs are ``TZ``,
         ``TMPDIR``, ``HTTP_PROXY``, ``HTTPS_PROXY``, ``NO_PROXY``, ``SSL_CERT_FILE``, ``REQUESTS_CA_BUNDLE``,
-        ``PYTHONPATH`` and ``VIRTUAL_ENV``. What a script prints goes to the model and, with ``durable=True``,
-        to the journal, so a variable named here leaves the worker if the script prints it.
+        ``PYTHONPATH`` and ``VIRTUAL_ENV``. What a script prints goes to the model and, when the agent is
+        durable, to the journal, so a variable named here leaves the worker if the script prints it.
     :param max_retries: Correction attempts the model gets per tool call. Defaults to the agent's.
     """
 
