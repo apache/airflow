@@ -475,3 +475,64 @@ class TestRenderedTaskInstanceFields:
         ti.state = None
         # rerun the old run. this shouldn't fail
         dag_maker.run_ti(task.task_id, dr)
+
+    @pytest.mark.asyncio
+    async def test_write_async_upserts_existing_record(self, dag_maker, session):
+        with dag_maker("test_write_async"):
+            task = BashOperator(task_id="test", bash_command="echo test")
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+        ti.task = task
+        session.commit()
+
+        async with settings.AsyncSession() as async_session:
+            await RTIF.set_for_attempt_async(
+                task_instance_id=ti.id,
+                rendered_fields={"field1": "original"},
+                session=async_session,
+            )
+            await async_session.commit()
+
+            await RTIF.set_for_attempt_async(
+                task_instance_id=ti.id,
+                rendered_fields={"field1": "updated"},
+                session=async_session,
+            )
+            await async_session.commit()
+
+        session.expire_all()
+        records = session.scalars(select(RTIF).where(RTIF.task_instance_id == ti.id)).all()
+
+        assert len(records) == 1
+        assert records[0].rendered_fields == {"field1": "updated"}
+
+    @pytest.mark.asyncio
+    async def test_delete_old_records_async(self, dag_maker, session):
+        with dag_maker("test_delete_old_async") as dag:
+            task = BashOperator(task_id="test", bash_command="echo test")
+
+        for num in range(3):
+            dr = dag_maker.create_dagrun(
+                run_id=f"async_run_{num}",
+                logical_date=dag.start_date + timedelta(days=num),
+            )
+            ti = dr.task_instances[0]
+            ti.task = task
+            session.add(RTIF(ti, render_templates=False))
+
+        session.commit()
+
+        async with settings.AsyncSession() as async_session:
+            await RTIF.delete_old_records_async(
+                task_id=task.task_id,
+                dag_id=dag.dag_id,
+                num_to_keep=1,
+                session=async_session,
+            )
+            await async_session.commit()
+
+        session.expire_all()
+        remaining = session.scalars(select_rtifs(RTIF, dag_id=dag.dag_id, task_id=task.task_id)).all()
+
+        assert len(remaining) == 1
