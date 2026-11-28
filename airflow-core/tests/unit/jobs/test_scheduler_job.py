@@ -13171,6 +13171,35 @@ class TestSchedulerJob:
         mock_executors[0].send_callback.assert_not_called()
         mock_executors[0].fail.assert_called_once()
 
+    def test_stuck_in_queued_tries_exceeded_still_fails_when_callback_request_raises(
+        self, dag_maker, session, mock_executors
+    ):
+        """A callback request that can't be built must not leave the TI stuck in queued."""
+        with dag_maker(dag_id="stuck_callback_raises", serialized=True):
+            EmptyOperator(task_id="op", retries=0, on_failure_callback=TestSchedulerJob.mock_failure_callback)
+        dr = dag_maker.create_dagrun(state=DagRunState.RUNNING)
+        ti = dr.get_task_instance("op", session=session)
+        ti.state = TaskInstanceState.QUEUED
+        ti.queued_dttm = timezone.utcnow()
+        session.commit()
+
+        scheduler = SchedulerJobRunner(job=Job(), num_runs=0)
+        scheduler._task_queued_timeout = -300
+        scheduler._num_stuck_queued_retries = 0
+        with (
+            _loader_mock(mock_executors),
+            mock.patch(
+                "airflow.jobs.scheduler_job_runner._send_task_failure_requests",
+                autospec=True,
+                side_effect=RuntimeError("boom"),
+            ),
+        ):
+            scheduler._handle_tasks_stuck_in_queued()
+
+        session.expire_all()
+        assert dr.get_task_instance("op", session=session).state == TaskInstanceState.FAILED
+        mock_executors[0].fail.assert_called_once()
+
     @pytest.mark.parametrize("dag_run_locked", [False, True], ids=["dag_run_free", "dag_run_locked"])
     def test_stuck_in_queued_locks_dag_run_before_regional_ti(
         self, dag_maker, session, mock_executors, dag_run_locked

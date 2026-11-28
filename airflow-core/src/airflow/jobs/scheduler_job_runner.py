@@ -4376,16 +4376,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             needs_callback = task is not None and (task.has_on_failure_callback or task.has_on_retry_callback)
             # Unlike process_executor_events, a missing dag_version_id only drops the requests here; the TI
             # is still failed so it doesn't sit in queued.
-            _send_task_failure_requests(
-                ti,
-                task=task,
-                executor=executor,
-                msg=msg,
-                needs_callback=needs_callback,
-                coordinates=coordinates,
-                session=session,
-                log=self.log,
-            )
+            try:
+                _send_task_failure_requests(
+                    ti,
+                    task=task,
+                    executor=executor,
+                    msg=msg,
+                    needs_callback=needs_callback,
+                    coordinates=coordinates,
+                    session=session,
+                    log=self.log,
+                )
+            except Exception:
+                # A request that can't be built must not leave the TI queued, or every scan hits it again.
+                self.log.exception("Could not send failure requests for %s; failing it anyway", ti)
             failed_key = executor.get_task_key(ti)
             ti.handle_failure(error=msg, session=session)
             executor.fail(failed_key)
