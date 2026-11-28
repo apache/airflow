@@ -99,6 +99,11 @@
         "securityContexts": {
             "description": "Default security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
             "type": "object",
+            "default": {
+                "pod": {},
+                "containers": {},
+                "disableDefaults": false
+            },
             "x-docsSection": "Kubernetes",
             "properties": {
                 "pod": {
@@ -272,6 +277,52 @@
         "ingress": {
             "description": "Ingress configuration.",
             "type": "object",
+            "default": {
+                "apiServer": {
+                    "enabled": false,
+                    "annotations": {},
+                    "path": "/",
+                    "pathType": "ImplementationSpecific",
+                    "hosts": [],
+                    "ingressClassName": "",
+                    "precedingPaths": [],
+                    "succeedingPaths": []
+                },
+                "web": {
+                    "enabled": false,
+                    "annotations": {},
+                    "path": "/",
+                    "pathType": "ImplementationSpecific",
+                    "hosts": [],
+                    "ingressClassName": "",
+                    "precedingPaths": [],
+                    "succeedingPaths": []
+                },
+                "flower": {
+                    "enabled": false,
+                    "annotations": {},
+                    "path": "/",
+                    "pathType": "ImplementationSpecific",
+                    "hosts": [],
+                    "ingressClassName": ""
+                },
+                "statsd": {
+                    "enabled": false,
+                    "annotations": {},
+                    "path": "/metrics",
+                    "pathType": "ImplementationSpecific",
+                    "hosts": [],
+                    "ingressClassName": ""
+                },
+                "pgbouncer": {
+                    "enabled": false,
+                    "annotations": {},
+                    "path": "/metrics",
+                    "pathType": "ImplementationSpecific",
+                    "hosts": [],
+                    "ingressClassName": ""
+                }
+            },
             "x-docsSection": "Ingress",
             "properties": {
                 "apiServer": {
@@ -654,6 +705,9 @@
         "networkPolicies": {
             "description": "Network policy configuration.",
             "type": "object",
+            "default": {
+                "enabled": false
+            },
             "x-docsSection": "Kubernetes",
             "additionalProperties": false,
             "properties": {
@@ -700,6 +754,10 @@
         "rbac": {
             "description": "Enable RBAC (default on most clusters these days).",
             "type": "object",
+            "default": {
+                "create": true,
+                "createSCCRoleBinding": false
+            },
             "x-docsSection": "Kubernetes",
             "properties": {
                 "create": {
@@ -736,6 +794,57 @@
         "images": {
             "description": "Images.",
             "type": "object",
+            "default": {
+                "airflow": {
+                    "repository": null,
+                    "tag": null,
+                    "digest": null,
+                    "pullPolicy": "IfNotPresent"
+                },
+                "useDefaultImageForMigration": false,
+                "migrationsWaitTimeout": 60,
+                "pod_template": {
+                    "repository": null,
+                    "tag": null,
+                    "digest": null,
+                    "pullPolicy": "IfNotPresent"
+                },
+                "flower": {
+                    "repository": null,
+                    "tag": null,
+                    "pullPolicy": "IfNotPresent"
+                },
+                "statsd": {
+                    "repository": "quay.io/prometheus/statsd-exporter",
+                    "tag": "v0.31.0",
+                    "pullPolicy": "IfNotPresent"
+                },
+                "redis": {
+                    "repository": "redis",
+                    "tag": "7.2-bookworm",
+                    "pullPolicy": "IfNotPresent"
+                },
+                "pgbouncer": {
+                    "repository": "apache/airflow",
+                    "tag": "airflow-pgbouncer-2026.10.13-1.25.2",
+                    "pullPolicy": "IfNotPresent"
+                },
+                "pgbouncerExporter": {
+                    "repository": "apache/airflow",
+                    "tag": "airflow-pgbouncer-exporter-2026.10.13-0.21.0",
+                    "pullPolicy": "IfNotPresent"
+                },
+                "gitSync": {
+                    "repository": "registry.k8s.io/git-sync/git-sync",
+                    "tag": "v4.4.2",
+                    "pullPolicy": "IfNotPresent"
+                },
+                "otelCollector": {
+                    "repository": "otel/opentelemetry-collector-contrib",
+                    "tag": "0.70.0",
+                    "pullPolicy": "IfNotPresent"
+                }
+            },
             "x-docsSection": "Images",
             "additionalProperties": false,
             "properties": {
@@ -1002,16 +1111,22 @@
                     }
                 },
                 "otelCollector": {
+                    "description": "Configuration of the OpenTelemetry Collector image.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "repository": {
+                            "description": "The OpenTelemetry Collector image repository.",
+                            "default": "otel/opentelemetry-collector-contrib",
                             "type": "string"
                         },
                         "tag": {
+                            "description": "The OpenTelemetry Collector image tag.",
+                            "default": "0.70.0",
                             "type": "string"
                         },
                         "pullPolicy": {
+                            "description": "The OpenTelemetry Collector image pull policy.",
                             "type": "string",
                             "enum": [
                                 "Always",
@@ -1020,8 +1135,7 @@
                             ],
                             "default": "IfNotPresent"
                         }
-                    },
-                    "description": "Configuration of the OTel Collector image."
+                    }
                 }
             }
         },
@@ -1109,6 +1223,17 @@
         "enableBuiltInSecretEnvVars": {
             "description": "Uses built-in secret values set as environment variables passed to Airflow. You should supply corresponding environment variables as ``extraEnv`` variables if you disable them here.",
             "type": "object",
+            "default": {
+                "AIRFLOW__CORE__FERNET_KEY": true,
+                "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": true,
+                "AIRFLOW_CONN_AIRFLOW_DB": true,
+                "AIRFLOW__API__SECRET_KEY": true,
+                "AIRFLOW__API_AUTH__JWT_SECRET": true,
+                "AIRFLOW__CELERY__RESULT_BACKEND": true,
+                "AIRFLOW__CELERY__BROKER_URL": true,
+                "AIRFLOW__ELASTICSEARCH__HOST": true,
+                "AIRFLOW__OPENSEARCH__HOST": true
+            },
             "additionalProperties": false,
             "x-docsSection": "Airflow",
             "properties": {
@@ -1330,6 +1455,28 @@
         "data": {
             "description": "Airflow database & redis configuration.",
             "type": "object",
+            "default": {
+                "metadataSecretName": null,
+                "metadataSecretKey": null,
+                "resultBackendSecretName": null,
+                "resultBackendSecretKey": null,
+                "brokerUrlSecretName": null,
+                "brokerUrlSecretKey": null,
+                "metadataConnection": {
+                    "user": "postgres",
+                    "pass": "postgres",
+                    "protocol": "postgresql",
+                    "host": null,
+                    "port": 5432,
+                    "db": "postgres",
+                    "sslmode": "disable",
+                    "secretAnnotations": {}
+                },
+                "resultBackendConnection": null,
+                "resultBackendConnectionSecretAnnotations": {},
+                "brokerUrl": null,
+                "brokerUrlSecretAnnotations": {}
+            },
             "x-docsSection": "Database",
             "additionalProperties": false,
             "properties": {
@@ -1605,6 +1752,17 @@
         "kerberos": {
             "description": "Kerberos configurations for airflow",
             "type": "object",
+            "default": {
+                "enabled": false,
+                "ccacheMountPath": "/var/kerberos-ccache",
+                "ccacheFileName": "cache",
+                "configPath": "/etc/krb5.conf",
+                "keytabBase64Content": null,
+                "keytabPath": "/etc/airflow.keytab",
+                "principal": "airflow@FOO.COM",
+                "reinitFrequency": 3600,
+                "config": "# This is an example config showing how you can use templating and how \"example\" config\n# might look like. It works with the test kerberos server that we are using during integration\n# testing at Apache Airflow (see 'scripts/ci/docker-compose/integration-kerberos.yml' but in\n# order to make it production-ready you must replace it with your own configuration that\n# Matches your kerberos deployment. Administrators of your Kerberos instance should\n# provide the right configuration.\n\n[logging]\ndefault = \"FILE:{{ template \"airflow_logs_no_quote\" . }}/kerberos_libs.log\"\nkdc = \"FILE:{{ template \"airflow_logs_no_quote\" . }}/kerberos_kdc.log\"\nadmin_server = \"FILE:{{ template \"airflow_logs_no_quote\" . }}/kadmind.log\"\n\n[libdefaults]\ndefault_realm = FOO.COM\nticket_lifetime = 10h\nrenew_lifetime = 7d\nforwardable = true\n\n[realms]\nFOO.COM = {\n  kdc = kdc-server.foo.com\n  admin_server = admin_server.foo.com\n}\n"
+            },
             "x-docsSection": "Kerberos",
             "properties": {
                 "enabled": {
@@ -1660,6 +1818,206 @@
         "workers": {
             "description": "Airflow Worker configuration.",
             "type": "object",
+            "default": {
+                "celery": {
+                    "replicas": 1,
+                    "revisionHistoryLimit": null,
+                    "command": null,
+                    "args": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow celery worker\n{{- if and .Values.workers.celery.queue (ne .Values.workers.celery.queue \"default\") }}\n{{- \" -q \" }}{{ .Values.workers.celery.queue }}\n{{- end }}"
+                    ],
+                    "livenessProbe": {
+                        "enabled": true,
+                        "initialDelaySeconds": 10,
+                        "timeoutSeconds": 20,
+                        "failureThreshold": 5,
+                        "periodSeconds": 60,
+                        "command": null,
+                        "terminationGracePeriodSeconds": null
+                    },
+                    "enableDefault": true,
+                    "queue": "default",
+                    "sets": [],
+                    "updateStrategy": null,
+                    "strategy": {
+                        "rollingUpdate": {
+                            "maxSurge": "100%",
+                            "maxUnavailable": "50%"
+                        }
+                    },
+                    "securityContexts": {
+                        "pod": {},
+                        "container": {}
+                    },
+                    "containerLifecycleHooks": {},
+                    "podDisruptionBudget": {
+                        "enabled": false,
+                        "config": {
+                            "maxUnavailable": 1
+                        }
+                    },
+                    "serviceAccount": {
+                        "automountServiceAccountToken": true,
+                        "create": true,
+                        "name": null,
+                        "annotations": {}
+                    },
+                    "keda": {
+                        "enabled": false,
+                        "namespaceLabels": {},
+                        "pollingInterval": 5,
+                        "cooldownPeriod": 30,
+                        "minReplicaCount": 0,
+                        "maxReplicaCount": 10,
+                        "advanced": {},
+                        "query": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') AND queue IN ( {{- range $i, $q := splitList \",\" .Values.workers.celery.queue -}} {{- if $i }},{{ end }}'{{ $q | trim }}' {{- end -}} ) {{- if contains \"KubernetesExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'KubernetesExecutor' {{- else if contains \"airflow.providers.edge3.executors.EdgeExecutor\" .Values.executor }} AND executor IS DISTINCT FROM 'EdgeExecutor' {{- end }}",
+                        "usePgbouncer": true,
+                        "authenticationRef": null
+                    },
+                    "hpa": {
+                        "enabled": false,
+                        "minReplicaCount": 0,
+                        "maxReplicaCount": 5,
+                        "metrics": [
+                            {
+                                "type": "Resource",
+                                "resource": {
+                                    "name": "cpu",
+                                    "target": {
+                                        "type": "Utilization",
+                                        "averageUtilization": 80
+                                    }
+                                }
+                            }
+                        ],
+                        "behavior": {}
+                    },
+                    "persistence": {
+                        "enabled": true,
+                        "persistentVolumeClaimRetentionPolicy": null,
+                        "size": "100Gi",
+                        "storageClassName": null,
+                        "fixPermissions": false,
+                        "annotations": {},
+                        "securityContexts": {
+                            "container": {}
+                        }
+                    },
+                    "kerberosSidecar": {
+                        "enabled": false,
+                        "resources": {},
+                        "securityContexts": {
+                            "container": {}
+                        },
+                        "containerLifecycleHooks": {},
+                        "startupProbe": {
+                            "enabled": true,
+                            "timeoutSeconds": 5,
+                            "initialDelaySeconds": 0,
+                            "periodSeconds": 10,
+                            "failureThreshold": 6
+                        }
+                    },
+                    "readonlyKerberosCache": true,
+                    "resources": {},
+                    "terminationGracePeriodSeconds": 600,
+                    "safeToEvict": false,
+                    "extraContainers": [],
+                    "extraInitContainers": [],
+                    "extraVolumes": [],
+                    "extraVolumeMounts": [],
+                    "extraPorts": [],
+                    "nodeSelector": {},
+                    "runtimeClassName": null,
+                    "priorityClassName": null,
+                    "affinity": {},
+                    "tolerations": [],
+                    "topologySpreadConstraints": [],
+                    "hostAliases": [],
+                    "annotations": {},
+                    "podAnnotations": {},
+                    "labels": {},
+                    "logGroomerSidecar": {
+                        "enabled": true,
+                        "command": null,
+                        "args": [
+                            "bash",
+                            "/clean-logs"
+                        ],
+                        "retentionDays": 15,
+                        "retentionMinutes": 0,
+                        "frequencyMinutes": 15,
+                        "maxSizeBytes": 0,
+                        "maxSizePercent": 0,
+                        "resources": {},
+                        "securityContexts": {
+                            "container": {}
+                        },
+                        "env": [],
+                        "containerLifecycleHooks": {}
+                    },
+                    "waitForMigrations": {
+                        "enabled": true,
+                        "env": [],
+                        "securityContexts": {
+                            "container": {}
+                        }
+                    },
+                    "env": [],
+                    "volumeClaimTemplates": [],
+                    "schedulerName": null
+                },
+                "kubernetes": {
+                    "command": null,
+                    "securityContexts": {
+                        "pod": {},
+                        "container": {}
+                    },
+                    "containerLifecycleHooks": {},
+                    "serviceAccount": {
+                        "automountServiceAccountToken": true,
+                        "create": true,
+                        "name": null,
+                        "annotations": {}
+                    },
+                    "kerberosSidecar": {
+                        "enabled": false,
+                        "resources": {},
+                        "securityContexts": {
+                            "container": {}
+                        },
+                        "containerLifecycleHooks": {},
+                        "startupProbe": {
+                            "enabled": true,
+                            "timeoutSeconds": 5,
+                            "initialDelaySeconds": 0,
+                            "periodSeconds": 10,
+                            "failureThreshold": 6
+                        }
+                    },
+                    "readonlyKerberosCache": true,
+                    "resources": {},
+                    "terminationGracePeriodSeconds": 600,
+                    "safeToEvict": false,
+                    "extraContainers": [],
+                    "extraInitContainers": [],
+                    "extraVolumes": [],
+                    "extraVolumeMounts": [],
+                    "nodeSelector": {},
+                    "runtimeClassName": null,
+                    "priorityClassName": null,
+                    "affinity": {},
+                    "tolerations": [],
+                    "topologySpreadConstraints": [],
+                    "hostAliases": [],
+                    "podAnnotations": {},
+                    "labels": {},
+                    "env": [],
+                    "schedulerName": null
+                }
+            },
             "x-docsSection": "Workers",
             "additionalProperties": false,
             "properties": {
@@ -2032,11 +2390,13 @@
                                     "properties": {
                                         "name": {
                                             "description": "Name of the TriggerAuthentication or ClusterTriggerAuthentication.",
-                                            "type": "string"
+                                            "type": "string",
+                                            "default": "airflow-keda-db"
                                         },
                                         "kind": {
                                             "description": "Kind of the referenced object.",
                                             "type": "string",
+                                            "default": "TriggerAuthentication",
                                             "enum": [
                                                 "TriggerAuthentication",
                                                 "ClusterTriggerAuthentication"
@@ -3211,6 +3571,100 @@
         "scheduler": {
             "description": "Airflow scheduler settings.",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "hostAliases": [],
+                "livenessProbe": {
+                    "initialDelaySeconds": 10,
+                    "timeoutSeconds": 20,
+                    "failureThreshold": 5,
+                    "periodSeconds": 60,
+                    "command": null
+                },
+                "startupProbe": {
+                    "initialDelaySeconds": 0,
+                    "failureThreshold": 6,
+                    "periodSeconds": 10,
+                    "timeoutSeconds": 20,
+                    "command": null
+                },
+                "replicas": 1,
+                "revisionHistoryLimit": null,
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec airflow scheduler"
+                ],
+                "updateStrategy": null,
+                "strategy": null,
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "terminationGracePeriodSeconds": 10,
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {},
+                    "serviceAccountTokenVolume": {
+                        "enabled": false,
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "volumeName": "kube-api-access",
+                        "expirationSeconds": 3600,
+                        "audience": null
+                    }
+                },
+                "podDisruptionBudget": {
+                    "enabled": false,
+                    "config": {
+                        "maxUnavailable": 1
+                    }
+                },
+                "resources": {},
+                "safeToEvict": true,
+                "extraContainers": [],
+                "extraInitContainers": [],
+                "extraVolumes": [],
+                "extraVolumeMounts": [],
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "annotations": {},
+                "podAnnotations": {},
+                "labels": {},
+                "logGroomerSidecar": {
+                    "enabled": true,
+                    "command": null,
+                    "args": [
+                        "bash",
+                        "/clean-logs"
+                    ],
+                    "retentionDays": 15,
+                    "retentionMinutes": 0,
+                    "frequencyMinutes": 15,
+                    "maxSizeBytes": 0,
+                    "maxSizePercent": 0,
+                    "resources": {},
+                    "securityContexts": {
+                        "container": {}
+                    },
+                    "containerLifecycleHooks": {},
+                    "env": []
+                },
+                "waitForMigrations": {
+                    "enabled": true,
+                    "env": [],
+                    "securityContexts": {
+                        "container": {}
+                    }
+                },
+                "env": []
+            },
             "x-docsSection": "Scheduler",
             "additionalProperties": false,
             "properties": {
@@ -3797,6 +4251,110 @@
         "triggerer": {
             "description": "Airflow triggerer settings.",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "replicas": 1,
+                "revisionHistoryLimit": null,
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec airflow triggerer"
+                ],
+                "updateStrategy": null,
+                "strategy": {
+                    "rollingUpdate": {
+                        "maxSurge": "100%",
+                        "maxUnavailable": "50%"
+                    }
+                },
+                "livenessProbe": {
+                    "initialDelaySeconds": 10,
+                    "timeoutSeconds": 20,
+                    "failureThreshold": 5,
+                    "periodSeconds": 60,
+                    "command": null
+                },
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "persistence": {
+                    "enabled": true,
+                    "persistentVolumeClaimRetentionPolicy": null,
+                    "size": "100Gi",
+                    "storageClassName": null,
+                    "fixPermissions": false,
+                    "annotations": {}
+                },
+                "podDisruptionBudget": {
+                    "enabled": false,
+                    "config": {
+                        "maxUnavailable": 1
+                    }
+                },
+                "resources": {},
+                "terminationGracePeriodSeconds": 60,
+                "safeToEvict": true,
+                "extraContainers": [],
+                "extraInitContainers": [],
+                "extraVolumes": [],
+                "extraVolumeMounts": [],
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "hostAliases": [],
+                "priorityClassName": null,
+                "annotations": {},
+                "podAnnotations": {},
+                "labels": {},
+                "logGroomerSidecar": {
+                    "enabled": true,
+                    "command": null,
+                    "args": [
+                        "bash",
+                        "/clean-logs"
+                    ],
+                    "retentionDays": 15,
+                    "retentionMinutes": 0,
+                    "frequencyMinutes": 15,
+                    "maxSizeBytes": 0,
+                    "maxSizePercent": 0,
+                    "resources": {},
+                    "securityContexts": {
+                        "container": {}
+                    },
+                    "containerLifecycleHooks": {},
+                    "env": []
+                },
+                "waitForMigrations": {
+                    "enabled": true,
+                    "env": [],
+                    "securityContexts": {
+                        "container": {}
+                    }
+                },
+                "env": [],
+                "keda": {
+                    "enabled": false,
+                    "namespaceLabels": {},
+                    "pollingInterval": 5,
+                    "cooldownPeriod": 30,
+                    "minReplicaCount": 0,
+                    "maxReplicaCount": 10,
+                    "advanced": {},
+                    "query": "SELECT ceil(COUNT(*)::decimal / {{ include \"triggerer.capacity\" . }}) FROM trigger",
+                    "usePgbouncer": false
+                }
+            },
             "x-docsSection": "Triggerer",
             "additionalProperties": false,
             "properties": {
@@ -4424,6 +4982,97 @@
         "dagProcessor": {
             "description": "Airflow dag processor settings.",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "dagBundleConfigList": [
+                    {
+                        "name": "dags-folder",
+                        "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle",
+                        "kwargs": {}
+                    }
+                ],
+                "replicas": 1,
+                "revisionHistoryLimit": null,
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec airflow dag-processor"
+                ],
+                "strategy": {
+                    "rollingUpdate": {
+                        "maxSurge": "100%",
+                        "maxUnavailable": "50%"
+                    }
+                },
+                "livenessProbe": {
+                    "initialDelaySeconds": 10,
+                    "timeoutSeconds": 20,
+                    "failureThreshold": 5,
+                    "periodSeconds": 60,
+                    "command": null
+                },
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "podDisruptionBudget": {
+                    "enabled": false,
+                    "config": {
+                        "maxUnavailable": 1
+                    }
+                },
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "resources": {},
+                "terminationGracePeriodSeconds": 60,
+                "safeToEvict": true,
+                "hostAliases": [],
+                "extraContainers": [],
+                "extraInitContainers": [],
+                "extraVolumes": [],
+                "extraVolumeMounts": [],
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "annotations": {},
+                "podAnnotations": {},
+                "logGroomerSidecar": {
+                    "enabled": true,
+                    "command": null,
+                    "args": [
+                        "bash",
+                        "/clean-logs"
+                    ],
+                    "retentionDays": 15,
+                    "retentionMinutes": 0,
+                    "frequencyMinutes": 15,
+                    "maxSizeBytes": 0,
+                    "maxSizePercent": 0,
+                    "resources": {},
+                    "securityContexts": {
+                        "container": {}
+                    },
+                    "containerLifecycleHooks": {},
+                    "env": []
+                },
+                "waitForMigrations": {
+                    "enabled": true,
+                    "env": [],
+                    "securityContexts": {
+                        "container": {}
+                    }
+                },
+                "labels": {},
+                "env": []
+            },
             "x-docsSection": "DagProcessor",
             "additionalProperties": false,
             "properties": {
@@ -4976,6 +5625,65 @@
         "createUserJob": {
             "description": "Airflow job to create a user settings.",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "defaultUser": {
+                    "role": "Admin",
+                    "username": "admin",
+                    "email": "admin@example.com",
+                    "firstName": "admin",
+                    "lastName": "user",
+                    "password": "admin"
+                },
+                "ttlSecondsAfterFinished": 300,
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec \\\nairflow users create \"$@\"",
+                    "--",
+                    "-r",
+                    "{{ .Values.createUserJob.defaultUser.role }}",
+                    "-u",
+                    "{{ .Values.createUserJob.defaultUser.username }}",
+                    "-e",
+                    "{{ .Values.createUserJob.defaultUser.email }}",
+                    "-f",
+                    "{{ .Values.createUserJob.defaultUser.firstName }}",
+                    "-l",
+                    "{{ .Values.createUserJob.defaultUser.lastName }}",
+                    "-p",
+                    "{{ .Values.createUserJob.defaultUser.password }}"
+                ],
+                "annotations": {},
+                "jobAnnotations": {},
+                "restartPolicy": "OnFailure",
+                "labels": {},
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "extraContainers": [],
+                "extraInitContainers": [],
+                "extraVolumes": [],
+                "extraVolumeMounts": [],
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "useHelmHooks": true,
+                "applyCustomEnv": true,
+                "env": [],
+                "resources": {}
+            },
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
@@ -5369,6 +6077,44 @@
         "migrateDatabaseJob": {
             "description": "Airflow job to migrate databases settings.",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "ttlSecondsAfterFinished": 300,
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec \\\nairflow db migrate"
+                ],
+                "annotations": {},
+                "jobAnnotations": {},
+                "restartPolicy": "OnFailure",
+                "labels": {},
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "resources": {},
+                "extraContainers": [],
+                "extraInitContainers": [],
+                "extraVolumes": [],
+                "extraVolumeMounts": [],
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "useHelmHooks": true,
+                "applyCustomEnv": true,
+                "env": []
+            },
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
@@ -5658,6 +6404,133 @@
         "apiServer": {
             "description": "Airflow API server settings. Airflow 3+ only.",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "httpRoute": {
+                    "enabled": false,
+                    "labels": {},
+                    "annotations": {},
+                    "parentRefs": null,
+                    "hostnames": [],
+                    "path": "/",
+                    "pathType": "PathPrefix",
+                    "rules": []
+                },
+                "replicas": 1,
+                "revisionHistoryLimit": null,
+                "labels": {},
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec airflow api-server"
+                ],
+                "allowPodLogReading": true,
+                "env": [],
+                "hpa": {
+                    "enabled": false,
+                    "minReplicaCount": 1,
+                    "maxReplicaCount": 5,
+                    "metrics": [
+                        {
+                            "type": "Resource",
+                            "resource": {
+                                "name": "cpu",
+                                "target": {
+                                    "type": "Utilization",
+                                    "averageUtilization": 50
+                                }
+                            }
+                        }
+                    ],
+                    "behavior": {}
+                },
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "service": {
+                    "type": "ClusterIP",
+                    "annotations": {},
+                    "ports": [
+                        {
+                            "name": "api-server",
+                            "port": "{{ .Values.ports.apiServer }}"
+                        }
+                    ],
+                    "loadBalancerIP": null,
+                    "loadBalancerSourceRanges": []
+                },
+                "podDisruptionBudget": {
+                    "enabled": false,
+                    "config": {
+                        "maxUnavailable": 1
+                    }
+                },
+                "strategy": null,
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "waitForMigrations": {
+                    "enabled": true,
+                    "env": [],
+                    "securityContexts": {
+                        "container": {}
+                    }
+                },
+                "extraContainers": [],
+                "extraInitContainers": [],
+                "extraVolumes": [],
+                "extraVolumeMounts": [],
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "hostAliases": [],
+                "annotations": {},
+                "podAnnotations": {},
+                "networkPolicy": {
+                    "ingress": {
+                        "from": [],
+                        "ports": [
+                            {
+                                "port": "{{ .Values.ports.apiServer }}"
+                            }
+                        ]
+                    }
+                },
+                "resources": {},
+                "terminationGracePeriodSeconds": 30,
+                "configMapAnnotations": {},
+                "apiServerConfig": null,
+                "apiServerConfigConfigMapName": null,
+                "livenessProbe": {
+                    "initialDelaySeconds": 15,
+                    "timeoutSeconds": 5,
+                    "failureThreshold": 5,
+                    "periodSeconds": 10,
+                    "scheme": "HTTP"
+                },
+                "readinessProbe": {
+                    "initialDelaySeconds": 15,
+                    "timeoutSeconds": 5,
+                    "failureThreshold": 5,
+                    "periodSeconds": 10,
+                    "scheme": "HTTP"
+                },
+                "startupProbe": {
+                    "initialDelaySeconds": 0,
+                    "timeoutSeconds": 20,
+                    "failureThreshold": 6,
+                    "periodSeconds": 10,
+                    "scheme": "HTTP"
+                }
+            },
             "x-docsSection": "API Server",
             "additionalProperties": false,
             "properties": {
@@ -6439,6 +7312,95 @@
         "flower": {
             "description": "Flower settings.",
             "type": "object",
+            "default": {
+                "enabled": false,
+                "httpRoute": {
+                    "enabled": false,
+                    "labels": {},
+                    "annotations": {},
+                    "parentRefs": null,
+                    "hostnames": [],
+                    "path": "/",
+                    "pathType": "PathPrefix",
+                    "rules": []
+                },
+                "livenessProbe": {
+                    "initialDelaySeconds": 10,
+                    "timeoutSeconds": 5,
+                    "failureThreshold": 10,
+                    "periodSeconds": 5
+                },
+                "readinessProbe": {
+                    "initialDelaySeconds": 10,
+                    "timeoutSeconds": 5,
+                    "failureThreshold": 10,
+                    "periodSeconds": 5
+                },
+                "startupProbe": {
+                    "initialDelaySeconds": 0,
+                    "timeoutSeconds": 20,
+                    "failureThreshold": 6,
+                    "periodSeconds": 10
+                },
+                "revisionHistoryLimit": null,
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec \\\nairflow celery flower"
+                ],
+                "extraNetworkPolicies": [],
+                "networkPolicy": {
+                    "ingress": {
+                        "from": [],
+                        "ports": [
+                            {
+                                "port": "{{ .Values.ports.flowerUI }}"
+                            }
+                        ]
+                    }
+                },
+                "resources": {},
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "secretName": null,
+                "secretAnnotations": {},
+                "username": null,
+                "password": null,
+                "service": {
+                    "type": "ClusterIP",
+                    "annotations": {},
+                    "ports": [
+                        {
+                            "name": "flower-ui",
+                            "port": "{{ .Values.ports.flowerUI }}"
+                        }
+                    ],
+                    "loadBalancerIP": null,
+                    "loadBalancerSourceRanges": []
+                },
+                "extraContainers": [],
+                "extraVolumes": [],
+                "extraVolumeMounts": [],
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "annotations": {},
+                "podAnnotations": {},
+                "labels": {},
+                "env": []
+            },
             "x-docsSection": "Flower",
             "additionalProperties": false,
             "properties": {
@@ -6994,6 +7956,48 @@
         "statsd": {
             "description": "StatsD settings.",
             "type": "object",
+            "default": {
+                "configMapAnnotations": {},
+                "enabled": true,
+                "revisionHistoryLimit": null,
+                "args": [
+                    "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
+                ],
+                "cache": {
+                    "size": 1000,
+                    "type": "lru",
+                    "ttl": "0s"
+                },
+                "annotations": {},
+                "terminationGracePeriodSeconds": 30,
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "uid": 65534,
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "extraNetworkPolicies": [],
+                "resources": {},
+                "service": {
+                    "extraAnnotations": {}
+                },
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "extraMappings": [],
+                "overrideMappings": [],
+                "podAnnotations": {},
+                "labels": {},
+                "env": []
+            },
             "x-docsSection": "StatsD",
             "additionalProperties": false,
             "properties": {
@@ -7305,6 +8309,48 @@
         "otelCollector": {
             "description": "OpenTelemetry Collector settings.",
             "type": "object",
+            "default": {
+                "tracesEnabled": false,
+                "metricsEnabled": false,
+                "metricExportIntervalMs": 30000,
+                "config": null,
+                "args": [
+                    "--config=/etc/otel-collector/config.yml"
+                ],
+                "revisionHistoryLimit": null,
+                "annotations": {},
+                "terminationGracePeriodSeconds": 30,
+                "livenessProbe": {
+                    "initialDelaySeconds": 10,
+                    "periodSeconds": 15
+                },
+                "readinessProbe": {
+                    "initialDelaySeconds": 10,
+                    "periodSeconds": 15
+                },
+                "resources": {},
+                "service": {
+                    "annotations": {}
+                },
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "labels": {},
+                "podAnnotations": {},
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "extraNetworkPolicies": [],
+                "serviceAccount": {
+                    "automountServiceAccountToken": false,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                }
+            },
             "x-docsSection": "OpenTelemetry",
             "additionalProperties": false,
             "properties": {
@@ -7562,6 +8608,100 @@
         "pgbouncer": {
             "description": "PgBouncer settings.",
             "type": "object",
+            "default": {
+                "enabled": false,
+                "replicas": 1,
+                "revisionHistoryLimit": null,
+                "command": [
+                    "pgbouncer",
+                    "-u",
+                    "nobody",
+                    "/etc/pgbouncer/pgbouncer.ini"
+                ],
+                "args": null,
+                "auth_type": "scram-sha-256",
+                "auth_file": "/etc/pgbouncer/users.txt",
+                "mountConfigSecret": true,
+                "annotations": {},
+                "podAnnotations": {},
+                "certificatesSecretAnnotations": {},
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "extraNetworkPolicies": [],
+                "metadataPoolSize": 10,
+                "resultBackendPoolSize": 5,
+                "maxClientConn": 100,
+                "configSecretName": null,
+                "configSecretAnnotations": {},
+                "podDisruptionBudget": {
+                    "enabled": false,
+                    "config": {
+                        "maxUnavailable": 1
+                    }
+                },
+                "resources": {},
+                "service": {
+                    "extraAnnotations": {},
+                    "clusterIp": null
+                },
+                "verbose": 0,
+                "logDisconnections": 0,
+                "logConnections": 0,
+                "sslmode": "prefer",
+                "ciphers": "normal",
+                "ssl": {
+                    "ca": null,
+                    "cert": null,
+                    "key": null
+                },
+                "extraIniMetadata": null,
+                "extraIniResultBackend": null,
+                "extraIni": null,
+                "extraVolumes": [],
+                "extraVolumeMounts": [],
+                "extraContainers": [],
+                "extraInitContainers": [],
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "uid": 65534,
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "terminationGracePeriodSeconds": 120,
+                "metricsExporterSidecar": {
+                    "resources": {},
+                    "sslmode": "disable",
+                    "statsSecretName": null,
+                    "statsSecretKey": null,
+                    "statsSecretAnnotations": {},
+                    "securityContexts": {
+                        "container": {}
+                    },
+                    "containerLifecycleHooks": {},
+                    "livenessProbe": {
+                        "initialDelaySeconds": 10,
+                        "periodSeconds": 10,
+                        "timeoutSeconds": 1
+                    },
+                    "readinessProbe": {
+                        "initialDelaySeconds": 10,
+                        "periodSeconds": 10,
+                        "timeoutSeconds": 1
+                    },
+                    "extraVolumeMounts": []
+                },
+                "labels": {},
+                "env": []
+            },
             "x-docsSection": "PgBouncer",
             "additionalProperties": false,
             "properties": {
@@ -8238,6 +9378,48 @@
         "redis": {
             "description": "Configuration for the Redis provisioned by the chart.",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "terminationGracePeriodSeconds": 600,
+                "annotations": {},
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "service": {
+                    "type": "ClusterIP",
+                    "clusterIP": null,
+                    "nodePort": null
+                },
+                "persistence": {
+                    "enabled": true,
+                    "size": "1Gi",
+                    "storageClassName": null,
+                    "annotations": {},
+                    "existingClaim": null,
+                    "persistentVolumeClaimRetentionPolicy": null
+                },
+                "resources": {},
+                "passwordSecretName": null,
+                "password": null,
+                "passwordSecretAnnotations": {},
+                "safeToEvict": true,
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "uid": 0,
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "labels": {},
+                "podAnnotations": {}
+            },
             "x-docsSection": "Redis",
             "additionalProperties": false,
             "properties": {
@@ -8555,6 +9737,10 @@
         "registry": {
             "description": "Auth secret for a private registry. This is used if pulling Airflow images from a private registry.",
             "type": "object",
+            "default": {
+                "secretName": null,
+                "connection": {}
+            },
             "x-docsSection": "Kubernetes",
             "additionalProperties": false,
             "properties": {
@@ -8607,6 +9793,12 @@
         "elasticsearch": {
             "description": "Elasticsearch logging configuration.",
             "type": "object",
+            "default": {
+                "enabled": false,
+                "secretName": null,
+                "connection": {},
+                "secretAnnotations": {}
+            },
             "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
@@ -8678,6 +9870,11 @@
         "opensearch": {
             "description": "OpenSearch logging configuration.",
             "type": "object",
+            "default": {
+                "enabled": false,
+                "secretName": null,
+                "connection": {}
+            },
             "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
@@ -8741,6 +9938,20 @@
         "ports": {
             "description": "All ports used by chart.",
             "type": "object",
+            "default": {
+                "flowerUI": 5555,
+                "airflowUI": 8080,
+                "workerLogs": 8793,
+                "triggererLogs": 8794,
+                "redisDB": 6379,
+                "statsdIngest": 9125,
+                "statsdScrape": 9102,
+                "otelCollectorOtlpHttp": 4318,
+                "otelCollectorOtlpGrpc": 4317,
+                "pgbouncer": 6543,
+                "pgbouncerScrape": 9127,
+                "apiServer": 8080
+            },
             "x-docsSection": "Ports",
             "additionalProperties": false,
             "properties": {
@@ -8833,6 +10044,46 @@
         "cleanup": {
             "description": "This runs as a CronJob to cleanup old pods.",
             "type": "object",
+            "default": {
+                "enabled": false,
+                "schedule": "*/15 * * * *",
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "exec airflow kubernetes cleanup-pods --namespace={{ .Release.Namespace }}"
+                ],
+                "jobAnnotations": {},
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "podAnnotations": {},
+                "labels": {},
+                "resources": {},
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {},
+                    "serviceAccountTokenVolume": {
+                        "enabled": false,
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "volumeName": "kube-api-access",
+                        "expirationSeconds": 3600,
+                        "audience": null
+                    }
+                },
+                "env": [],
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "failedJobsHistoryLimit": null,
+                "successfulJobsHistoryLimit": null
+            },
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
@@ -9171,6 +10422,46 @@
         "databaseCleanup": {
             "description": "This runs as a CronJob to cleanup the database after the retention period.",
             "type": "object",
+            "default": {
+                "enabled": false,
+                "applyCustomEnv": true,
+                "schedule": "0 0 * * 0",
+                "command": null,
+                "args": [
+                    "bash",
+                    "-c",
+                    "CLEAN_TS=$(date -d \"-{{ .Values.databaseCleanup.retentionDays }} days\" +\"%Y-%m-%dT%H:%M:%S\"); echo \"Cleaning up metadata DB entries older than ${CLEAN_TS}\"; exec airflow db clean --clean-before-timestamp \"${CLEAN_TS}\" --yes {{- if .Values.databaseCleanup.skipArchive }} --skip-archive{{ end }} {{- if .Values.databaseCleanup.verbose }} --verbose{{ end }} {{- with .Values.databaseCleanup.batchSize }} --batch-size {{ . }}{{ end }} {{- with .Values.databaseCleanup.tables }} --tables {{ . | join \",\" }}{{ end }}"
+                ],
+                "retentionDays": 90,
+                "skipArchive": false,
+                "tables": [],
+                "batchSize": null,
+                "verbose": true,
+                "jobAnnotations": {},
+                "nodeSelector": {},
+                "affinity": {},
+                "tolerations": [],
+                "topologySpreadConstraints": [],
+                "priorityClassName": null,
+                "podAnnotations": {},
+                "labels": {},
+                "resources": {},
+                "serviceAccount": {
+                    "automountServiceAccountToken": true,
+                    "create": true,
+                    "name": null,
+                    "annotations": {}
+                },
+                "env": [],
+                "securityContexts": {
+                    "pod": {},
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "failedJobsHistoryLimit": 1,
+                "successfulJobsHistoryLimit": 1,
+                "ttlSecondsAfterFinished": null
+            },
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
@@ -9519,6 +10810,19 @@
         "postgresql": {
             "description": "Configuration for PostgreSQL subchart.",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "image": {
+                    "repository": "bitnamilegacy/postgresql",
+                    "tag": "16.1.0-debian-11-r15"
+                },
+                "auth": {
+                    "enablePostgresUser": true,
+                    "postgresPassword": "postgres",
+                    "username": "",
+                    "password": ""
+                }
+            },
             "x-docsSection": "Database",
             "properties": {
                 "enabled": {
@@ -9619,6 +10923,51 @@
         "dags": {
             "description": "Dags settings.",
             "type": "object",
+            "default": {
+                "mountPath": null,
+                "persistence": {
+                    "annotations": {},
+                    "enabled": false,
+                    "size": "1Gi",
+                    "storageClassName": null,
+                    "accessMode": "ReadWriteOnce",
+                    "existingClaim": null,
+                    "subPath": null
+                },
+                "gitSync": {
+                    "enabled": false,
+                    "repo": "https://github.com/apache/airflow.git",
+                    "branch": "v2-2-stable",
+                    "rev": "HEAD",
+                    "ref": "v2-2-stable",
+                    "depth": 1,
+                    "maxFailures": 0,
+                    "subPath": "tests/dags",
+                    "period": "5s",
+                    "wait": null,
+                    "envFrom": null,
+                    "containerName": "git-sync",
+                    "uid": 65533,
+                    "securityContexts": {
+                        "container": {}
+                    },
+                    "containerLifecycleHooks": {},
+                    "httpPort": 1234,
+                    "recommendedProbeSetting": false,
+                    "startupProbe": {
+                        "enabled": true,
+                        "timeoutSeconds": 1,
+                        "initialDelaySeconds": 0,
+                        "periodSeconds": 5,
+                        "failureThreshold": 10
+                    },
+                    "readinessProbe": {},
+                    "livenessProbe": {},
+                    "extraVolumeMounts": [],
+                    "env": [],
+                    "resources": {}
+                }
+            },
             "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
@@ -9829,6 +11178,7 @@
                         "readinessProbe": {
                             "description": "Readiness probe configuration for git sync container. As Git-Sync is not service-type object, the usage of the section was removed. Section itself will be removed in future release as to not break setups during upgrades.",
                             "type": "object",
+                            "default": {},
                             "$ref": "#/definitions/io.k8s.api.core.v1.Probe"
                         },
                         "emptyDirConfig": {
@@ -9999,6 +11349,16 @@
         "logs": {
             "description": "Logs settings.",
             "type": "object",
+            "default": {
+                "persistence": {
+                    "enabled": false,
+                    "size": "100Gi",
+                    "annotations": {},
+                    "storageClassName": null,
+                    "existingClaim": null,
+                    "subPath": null
+                }
+            },
             "x-docsSection": "Airflow",
             "additionalProperties": false,
             "properties": {
@@ -10063,6 +11423,16 @@
     "definitions": {
         "httpRoute": {
             "type": "object",
+            "default": {
+                "enabled": false,
+                "labels": {},
+                "annotations": {},
+                "parentRefs": null,
+                "hostnames": [],
+                "path": "/",
+                "pathType": "PathPrefix",
+                "rules": []
+            },
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -13426,6 +14796,25 @@
         "logGroomerConfigType": {
             "description": "Configuration for log groomer sidecar",
             "type": "object",
+            "default": {
+                "enabled": true,
+                "command": null,
+                "args": [
+                    "bash",
+                    "/clean-logs"
+                ],
+                "retentionDays": 15,
+                "retentionMinutes": 0,
+                "frequencyMinutes": 15,
+                "maxSizeBytes": 0,
+                "maxSizePercent": 0,
+                "resources": {},
+                "securityContexts": {
+                    "container": {}
+                },
+                "containerLifecycleHooks": {},
+                "env": []
+            },
             "additionalProperties": false,
             "properties": {
                 "enabled": {
