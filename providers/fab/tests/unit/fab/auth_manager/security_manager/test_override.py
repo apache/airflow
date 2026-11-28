@@ -24,11 +24,14 @@ import pytest
 import requests
 from authlib.jose import JsonWebKey, jwt as authlib_jwt
 from authlib.jose.errors import InvalidClaimError
+from cachetools import TTLCache
 from flask import Flask
 from flask_appbuilder import const
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from airflow.api_fastapi.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Group,
@@ -446,6 +449,26 @@ class TestFabAirflowSecurityManagerOverride:
         check_password.return_value = False
         assert not sm.check_password("test_user", "test_password")
 
+    @mock.patch.object(EmptySecurityManager, "update_user_auth_stat", autospec=True)
+    @mock.patch.object(EmptySecurityManager, "find_user", autospec=True)
+    @mock.patch(
+        "airflow.providers.fab.auth_manager.security_manager.override.check_password_hash", autospec=True
+    )
+    def test_auth_user_db_fails_user_without_password_without_counting_a_failed_login(
+        self, mock_check_password_hash, mock_find_user, mock_update_user_auth_stat
+    ):
+        sm = EmptySecurityManager()
+        user = Mock(spec=User, password=None, is_active=True)
+        mock_find_user.return_value = user
+        app = Flask(__name__)
+        app.config["AUTH_DB_FAKE_PASSWORD_HASH_CHECK"] = "fake-hash"
+
+        with app.app_context():
+            assert sm.auth_user_db("test_user", "test_password") is None
+
+        mock_check_password_hash.assert_called_once_with("fake-hash", "password")
+        mock_update_user_auth_stat.assert_not_called()
+
     def test_update_user_clears_cached_permissions(self):
         sm = EmptySecurityManager()
         user = Mock(
@@ -467,6 +490,25 @@ class TestFabAirflowSecurityManagerOverride:
         assert user._perms == {("can_read", "DAG")}
         assert mock_merged_user._perms is None
         mock_session.commit.assert_called_once_with()
+
+    @mock.patch("airflow.providers.fab.www.utils.get_auth_manager", autospec=True)
+    @mock.patch.object(FabAuthManager, "cache", new_callable=lambda: TTLCache(maxsize=1, ttl=60))
+    @mock.patch.object(EmptySecurityManager, "session", new_callable=lambda: Mock(spec=Session))
+    def test_update_user_drops_cached_user_without_needing_fab_auth_manager(
+        self, mock_session, cache, mock_get_auth_manager
+    ):
+        """
+        ``update_user`` drops the user from ``FabAuthManager.cache`` even when the configured auth
+        manager is not a ``FabAuthManager``, instead of failing after the change is committed.
+        """
+        mock_get_auth_manager.return_value = Mock(spec=BaseAuthManager)
+        mock_session.get.return_value = None
+        user = Mock(spec=User, id=1, roles=[], groups=[])
+        cache[user.id] = Mock(spec=User)
+
+        assert EmptySecurityManager().update_user(user)
+
+        assert user.id not in cache
 
     @pytest.mark.parametrize(
         ("provider", "resp", "user_info"),

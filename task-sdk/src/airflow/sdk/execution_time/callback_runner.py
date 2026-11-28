@@ -21,9 +21,7 @@ from __future__ import annotations
 import inspect
 import logging
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import TYPE_CHECKING, Any, Generic, Protocol, TypeVar, cast
-
-from typing_extensions import ParamSpec
+from typing import TYPE_CHECKING, Any, Generic, ParamSpec, Protocol, TypeVar, cast
 
 if TYPE_CHECKING:
     from structlog.typing import FilteringBoundLogger as Logger

@@ -30,7 +30,11 @@ Several endpoints exist to create tokens depending on the authentication method 
 If a user or service needs to interact with the Airflow public API, they can create a token using their credentials.
 
 - ``/auth/token``: Create token using username and password, client credentials, or a Keycloak-issued JWT assertion, with a ``[config][api_auth]jwt_expiration_time`` expiration time.
-- ``/auth/token/cli``: Create token for Airflow CLI using username and password with a ``[config][api_auth]jwt_cli_expiration_time`` expiration time.
+- ``/auth/token/cli``: Create token for command-line clients such as ``airflowctl``, with a ``[config][api_auth]jwt_cli_expiration_time`` expiration time.
+  Besides username and password, it supports token refresh and browser login, see :ref:`keycloak-cli-browser-login`.
+
+Both endpoints return ``503`` when Keycloak cannot be reached or answers with a server error. The client can try again
+later.
 
 
 Example
@@ -135,3 +139,104 @@ token for subsequent public API calls:
 
     curl -s "${ENDPOINT_URL}/api/v2/dags" \
         -H "Authorization: Bearer ${AIRFLOW_TOKEN}"
+
+
+.. _keycloak-cli-browser-login:
+
+Command-line clients
+''''''''''''''''''''
+
+Command-line clients such as ``airflowctl`` get their token from ``/auth/token/cli``. Besides username and password,
+this endpoint offers three more ways to get a token:
+
+- **Refresh**: get fresh Keycloak tokens without logging in again.
+- **Browser login**: log in through Keycloak in the browser. It is turned off by default.
+- **Device code login**: log in through Keycloak on another device, for example when the client runs over SSH. It is
+  turned off by default.
+
+Clients find out which of these the server offers by calling ``GET /api/v2/auth/cli/metadata``.
+
+.. note::
+    The metadata route exists on Airflow 3.5 and later. On earlier versions, refresh, browser and device code login
+    still work when called directly, but clients such as ``airflowctl`` cannot discover them, so they cannot offer
+    browser or device code login.
+
+Refresh
+~~~~~~~
+
+A CLI token contains a Keycloak access token, which usually expires after a few minutes. To keep calling the API, the
+client exchanges its current CLI token for a new one:
+
+.. code-block:: bash
+
+    curl -X 'POST' \
+        "${ENDPOINT_URL}/auth/token/cli" \
+        -H 'Content-Type: application/json' \
+        -d '{"grant_type": "refresh_token", "token": "<current CLI token>"}'
+
+The new token:
+
+- never expires later than the current one, so refreshing never extends a session.
+- lasts at most ``[api_auth] jwt_cli_expiration_time``, so refreshing a longer-lived token from ``/auth/token``
+  shortens it.
+- can expire up to a minute earlier than the current one, because its lifetime is rounded down to the minute. These
+  minutes add up, so frequent refreshes end the session sooner.
+
+On Airflow 3.2 and later, the current token is revoked once the new one is issued. Airflow 3.0 and 3.1 cannot revoke
+tokens, so there the current token keeps working until it expires, even after logging out.
+
+A refresh fails with:
+
+- ``403`` when the token is expired or revoked, or the Keycloak session has ended. The user has to log in again.
+- ``400`` when Keycloak issued the token without a refresh token, which happens when "Use Refresh Tokens" is turned
+  off in the Keycloak client. The user has to log in again.
+- ``503`` when Keycloak cannot be reached or answers with a server error. The client can try again later. Before
+  Airflow 3.1.7, a server error returns ``403`` instead.
+
+Browser login
+~~~~~~~~~~~~~
+
+Browser login uses the OAuth 2.0 authorization code flow with PKCE. To turn it on:
+
+1. Set ``[keycloak_auth_manager] cli_authorization_code_enabled = True``.
+2. In the Keycloak client, add ``http://127.0.0.1/callback`` and ``http://[::1]/callback`` to the valid redirect
+   URIs. Keycloak ignores the port of loopback redirect URIs, as RFC 8252 requires, so the client can listen on any
+   port.
+3. Leave PKCE turned off in the Keycloak client. Airflow requires it for command-line clients, and turning it on in
+   Keycloak would break the web login, which does not use it.
+
+A login then goes like this:
+
+1. The client listens on ``http://127.0.0.1:<port>/callback`` (or ``[::1]``) and opens ``/auth/login/cli`` in the
+   browser, with ``redirect_uri``, ``state``, ``code_challenge`` and ``code_challenge_method=S256``.
+2. The user logs in to Keycloak, which redirects the browser to the client's callback with ``code`` and ``state``.
+3. The client sends ``grant_type=authorization_code``, ``code``, ``code_verifier`` and ``redirect_uri`` to
+   ``/auth/token/cli``, and gets its CLI token.
+
+Airflow refuses any challenge method other than ``S256``, and any ``redirect_uri`` that is not a loopback callback
+like the one above.
+
+Device code login
+~~~~~~~~~~~~~~~~~
+
+Device code login uses the OAuth 2.0 device authorization grant (RFC 8628). To turn it on:
+
+1. Set ``[keycloak_auth_manager] cli_device_code_enabled = True``.
+2. In the Keycloak client, turn on "OAuth 2.0 Device Authorization Grant".
+
+A login then goes like this:
+
+1. The client calls ``POST /auth/token/cli/device``, with no body, and gets ``device_code``, ``user_code``,
+   ``verification_uri``, ``verification_uri_complete``, ``expires_in`` and ``interval``.
+2. The user opens ``verification_uri`` on any device, enters ``user_code`` and logs in to Keycloak.
+3. Every ``interval`` seconds, the client sends ``grant_type=urn:ietf:params:oauth:grant-type:device_code`` and
+   ``device_code`` to ``/auth/token/cli``, until it gets its CLI token.
+
+Until then, ``/auth/token/cli`` answers ``400`` with the RFC 8628 error code as ``detail``:
+``authorization_pending`` while the user has not approved the login yet, ``slow_down`` when the client polls too
+often, ``access_denied`` when the user refuses it and ``expired_token`` when the code expired. It answers ``403``
+for an unknown or already used device code, and ``503`` when Keycloak cannot be reached.
+
+.. warning::
+    Anyone can start a device code login and send the code to someone else, who would log them in by approving it.
+    Users should only approve codes they started themselves.

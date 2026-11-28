@@ -45,6 +45,7 @@ class HuggingFaceHook(BaseHook):
     hook_name = "Hugging Face"
 
     def __init__(self, huggingface_conn_id: str | None = default_conn_name) -> None:
+        """Initialize the hook with the Airflow connection used for Hub access."""
         super().__init__()
         self.huggingface_conn_id = huggingface_conn_id
         self._allow_ambient_fallback = huggingface_conn_id in (None, self.default_conn_name)
@@ -64,6 +65,7 @@ class HuggingFaceHook(BaseHook):
         }
 
     def get_token(self) -> str | bool | None:
+        """Return the connection token, ``False`` to disable authentication, or ``None`` for SDK fallback."""
         if not self.huggingface_conn_id:
             return None
         try:
@@ -75,11 +77,13 @@ class HuggingFaceHook(BaseHook):
         return connection.password or False
 
     def get_conn(self) -> HfApi:
+        """Return the lazily initialized Hugging Face Hub API client."""
         if self._client is None:
             self._client = HfApi(token=self.get_token())
         return self._client
 
     def test_connection(self) -> tuple[bool, str]:
+        """Check the configured credentials by requesting the authenticated user."""
         try:
             self.get_conn().whoami()
             return True, "Connection successfully tested"
@@ -87,6 +91,7 @@ class HuggingFaceHook(BaseHook):
             return False, str(exc)
 
     def load_dataset(self, path: str, **kwargs: Any) -> Any:
+        """Load a dataset with the connection token unless ``token`` is explicitly provided."""
         from datasets import load_dataset
 
         token = self.get_token()
@@ -95,6 +100,7 @@ class HuggingFaceHook(BaseHook):
         return load_dataset(path, **kwargs)
 
     def get_dataset_info(self, repo_id: str, revision: str | None = None) -> Any:
+        """Return Hub metadata for a dataset repository at the requested revision."""
         return self.get_conn().dataset_info(repo_id, revision=revision)
 
     @staticmethod
@@ -150,6 +156,7 @@ class HuggingFaceHook(BaseHook):
         return None
 
     def push_to_hub(self, dataset: Any, repo_id: str, **kwargs: Any) -> Any:
+        """Publish a dataset to the Hub, using the connection token by default."""
         token = self.get_token()
         if token is not None and "token" not in kwargs:
             kwargs["token"] = token

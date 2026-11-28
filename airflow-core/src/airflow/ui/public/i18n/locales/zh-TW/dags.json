@@ -97,6 +97,7 @@
       "downstream": "下游",
       "existingTasks": "清除現有任務",
       "future": "未來",
+      "includeDependentDags": "清除相依的 Dags 中的任務",
       "keepTaskState": "保留任務狀態並繼續",
       "laterIterations": "後續迭代",
       "onlyFailed": "只清除失敗任務",
@@ -130,7 +131,7 @@
     "dagRuns": "搜尋 $t(common:dagRun_other)",
     "dags": "搜尋 Dags",
     "hotkey": "+K",
-    "mapIndexes": "搜尋 $t(common:mapIndex)",
+    "mapIndexes": "搜尋$t(common:mapIndex)",
     "tasks": "搜尋任務"
   },
   "sort": {

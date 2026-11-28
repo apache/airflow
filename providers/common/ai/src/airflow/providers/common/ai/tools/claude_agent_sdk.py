@@ -43,7 +43,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, _collect_tools
-from airflow.providers.common.ai.tools._from_toolset import tool_call_scope
+from airflow.providers.common.ai.tools._from_toolset import bound_detail, close_stream, tool_call_scope
 from airflow.providers.common.ai.utils.tool_definition import serialize_for_llm
 from airflow.providers.common.ai.utils.tool_metrics import calling_framework
 
@@ -62,7 +62,6 @@ _MCP_HINT = (
 )
 
 
-_MAX_ERROR_DETAIL_CHARS = 500
 _MAX_ERROR_ENTRIES = 5
 # The bundled CLI clamps ``maxResultSizeChars`` to 500_000 (observed on CLI 2.1.286; other
 # versions may differ), so a larger value is a no-op. With ``tools=[]`` the model has no Read
@@ -99,11 +98,6 @@ def _truncate_result_text(text: str) -> str:
     return units.decode("utf-16-le", errors="surrogatepass") + notice
 
 
-def _bound_detail(text: str) -> str:
-    omitted = len(text) - _MAX_ERROR_DETAIL_CHARS
-    return text if omitted <= 0 else f"{text[:_MAX_ERROR_DETAIL_CHARS]}...(+{omitted} chars)"
-
-
 def _describe_error_result(result: ResultMessage) -> str:
     errors = result.errors or []
     omitted_errors = len(errors) - _MAX_ERROR_ENTRIES
@@ -119,18 +113,11 @@ def _describe_error_result(result: ResultMessage) -> str:
     for name, value in fields.items():
         if not value:
             continue
-        text = _bound_detail(repr(value)) if name in ("result", "errors") else repr(value)
+        text = bound_detail(repr(value)) if name in ("result", "errors") else repr(value)
         if name == "errors" and omitted_errors > 0:
             text = f"{text} (+{omitted_errors} more)"
         details.append(f"{name}={text}")
     return f"The Claude Agent SDK run ended with an error result ({', '.join(details)})."
-
-
-async def _close_stream(messages: AsyncIterable[Message]) -> None:
-    # ``AsyncIterable`` does not guarantee ``aclose``; ``query()`` and ``receive_response()`` do.
-    aclose = getattr(messages, "aclose", None)
-    if aclose is not None:
-        await aclose()
 
 
 class _Run:
@@ -315,7 +302,7 @@ class AirflowTools:
             return result
         finally:
             try:
-                await _close_stream(messages)
+                await close_stream(messages)
             except Exception as e:
                 if not raised:
                     raise

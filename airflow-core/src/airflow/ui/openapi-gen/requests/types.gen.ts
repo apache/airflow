@@ -1621,11 +1621,26 @@ export type DryRunBackfillResponse = {
 };
 
 /**
- * Event Log Collection Response.
+ * Event Log collection response supporting both offset and cursor pagination.
  */
 export type EventLogCollectionResponse = {
     event_logs: Array<EventLogResponse>;
+    /**
+     * Number of matching items. For offset pagination this is the exact total. For cursor pagination it is capped at ``total_entries_limit``; a value equal to that limit means at least that many items match.
+     */
     total_entries: number;
+    /**
+     * Cap applied to ``total_entries`` under cursor pagination. ``null`` for offset pagination, where ``total_entries`` is exact.
+     */
+    total_entries_limit?: number | null;
+    /**
+     * Token pointing to the next page. Populated for cursor pagination, ``null`` when using offset pagination or when there is no next page.
+     */
+    next_cursor?: string | null;
+    /**
+     * Token pointing to the previous page. Populated for cursor pagination, ``null`` when using offset pagination or when on the first page.
+     */
+    previous_cursor?: string | null;
 };
 
 /**
@@ -1648,6 +1663,27 @@ export type EventLogResponse = {
     dag_display_name?: string | null;
     task_display_name?: string | null;
     team_name?: string | null;
+};
+
+/**
+ * Executor info serializer for responses.
+ */
+export type ExecutorInfoResponse = {
+    status: HealthStatus | null;
+    latest_executor_heartbeat: string | null;
+    detailed_status: DetailedHealthStatus | null;
+    instances?: Array<ExecutorInstanceInfoResponse> | null;
+};
+
+/**
+ * Executor instance info serializer for responses.
+ */
+export type ExecutorInstanceInfoResponse = {
+    hostname: string | null;
+    executor: string | null;
+    latest_executor_heartbeat: string | null;
+    team_names: Array<(string)>;
+    health_check_result: HealthCheckResult | null;
 };
 
 /**
@@ -1795,6 +1831,17 @@ export type HTTPValidationError = {
 };
 
 /**
+ * Explicit outcome of a component's own last health check.
+ *
+ * Separate from whether the Job row itself is alive: a row can be alive (recent heartbeat) while
+ * this stays UNKNOWN because the check hasn't completed yet, raised, or was never implemented.
+ * Collapsing all of that into "no heartbeat means unhealthy" makes a real failure indistinguishable
+ * from "never checked" or "check is hanging", which is why this is a value of its own rather than
+ * being inferred from heartbeat recency.
+ */
+export type HealthCheckResult = 'healthy' | 'unhealthy' | 'unknown';
+
+/**
  * Health serializer for responses.
  */
 export type HealthInfoResponse = {
@@ -1802,6 +1849,7 @@ export type HealthInfoResponse = {
     scheduler: SchedulerInfoResponse;
     triggerer: TriggererInfoResponse;
     dag_processor?: DagProcessorInfoResponse | null;
+    executor?: ExecutorInfoResponse | null;
 };
 
 /**
@@ -2192,6 +2240,7 @@ export type ProviderInfoResponse = {
     bundles?: Array<ProviderIntegrationModulesInfo> | null;
     asset_uris?: Array<ProviderAssetUriInfo> | null;
     dialects?: Array<ProviderDialectInfo> | null;
+    object_storage_providers?: Array<ProviderObjectStorageProviderInfo> | null;
     transfers?: Array<ProviderTransferInfo> | null;
     connection_types?: Array<ProviderConnectionTypeInfo> | null;
     extra_links?: Array<(string)> | null;
@@ -2230,6 +2279,14 @@ export type ProviderIntegrationInfo = {
 export type ProviderIntegrationModulesInfo = {
     integration_name: string;
     python_modules: Array<(string)>;
+};
+
+/**
+ * DataFusion object storage provider provided by a provider.
+ */
+export type ProviderObjectStorageProviderInfo = {
+    storage_type?: string | null;
+    provider_class_name?: string | null;
 };
 
 /**
@@ -3377,6 +3434,28 @@ export type DeadlineResponse = {
      */
     callback_trigger_id?: number | null;
 };
+
+/**
+ * Durable execution history of a task instance, read by the logs banner.
+ */
+export type DurableExecutionResponse = {
+    tries: Array<DurableTryResponse>;
+};
+
+/**
+ * What one try did with the external job.
+ */
+export type DurableTryResponse = {
+    try_number: number | null;
+    decision: 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
+    external_id: JsonValue;
+    status: TaskInstanceState | null;
+    submitted_at?: string | null;
+    saved_seconds: number | null;
+    previous_external_id?: JsonValue;
+};
+
+export type decision = 'submitted' | 'resubmitted' | 'reconnected' | 'already_succeeded';
 
 /**
  * Duration statistics for a DAG across historical runs.
@@ -4829,6 +4908,10 @@ export type GetEventLogResponse = EventLogResponse;
 export type GetEventLogsData = {
     after?: string | null;
     before?: string | null;
+    /**
+     * Cursor for keyset-based pagination. Pass an empty string for the first page, then use ``next_cursor`` from the response. When ``cursor`` is provided, ``offset`` is ignored.
+     */
+    cursor?: string | null;
     dagId?: string | null;
     /**
      * Case-insensitive substring match (SQL `ILIKE`). Slower than `dag_id_prefix_pattern` on large tables — see "Filtering with pattern parameters".
@@ -5594,6 +5677,10 @@ export type DeleteAssetStateStoreResponse = void;
 export type ListTaskStateStoreData = {
     dagId: string;
     dagRunId: string;
+    /**
+     * Include keys starting with ``__airflow_``, which Airflow writes.
+     */
+    includeReserved?: boolean;
     limit?: number;
     mapIndex?: number;
     offset?: number;
@@ -6019,6 +6106,17 @@ export type GetCallbackLogsData = {
 };
 
 export type GetCallbackLogsResponse = TaskInstancesLogResponse;
+
+export type GetDurableExecutionData = {
+    dagId: string;
+    dagRunId: string;
+    mapIndex?: number;
+    regionId?: string | null;
+    regionIndex?: number | null;
+    taskId: string;
+};
+
+export type GetDurableExecutionResponse = DurableExecutionResponse;
 
 export type StructureDataData = {
     dagId: string;
@@ -10544,6 +10642,21 @@ export type $OpenApiTs = {
                  * Not Found
                  */
                 404: HTTPExceptionResponse;
+                /**
+                 * Validation Error
+                 */
+                422: HTTPValidationError;
+            };
+        };
+    };
+    '/ui/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/durable': {
+        get: {
+            req: GetDurableExecutionData;
+            res: {
+                /**
+                 * Successful Response
+                 */
+                200: DurableExecutionResponse;
                 /**
                  * Validation Error
                  */

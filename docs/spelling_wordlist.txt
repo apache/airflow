@@ -158,6 +158,7 @@ avro
 awaitable
 aws
 awslogs
+Backblaze
 backcompat
 Backend
 backend
@@ -279,6 +280,7 @@ cloudant
 CloudantV
 cloudbuild
 CloudBuildClient
+Cloudflare
 cloudformation
 cloudpickle
 CloudTasksClient
@@ -895,6 +897,7 @@ ini
 init
 initdb
 initialisation
+initialised
 initialiser
 initialising
 initializer
@@ -1251,6 +1254,7 @@ ol
 Ollama
 onboarded
 onboarding
+OneLake
 OnFailure
 Oozie
 OPA
@@ -1345,6 +1349,8 @@ PodManager
 PodSpec
 podSpec
 podspec
+Polaris
+polaris
 polars
 poller
 polyfill

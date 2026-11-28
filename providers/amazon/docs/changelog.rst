@@ -26,6 +26,20 @@
 Changelog
 ---------
 
+.. warning::
+  ``BedrockCreateGuardrailOperator``, ``BedrockUpdateGuardrailOperator`` and
+  ``BedrockCreateGuardrailVersionOperator`` now wait for the guardrail to reach ``READY`` before
+  returning, so the task role needs the ``bedrock:GetGuardrail`` permission. Pass
+  ``wait_for_completion=False`` to restore the previous behaviour.
+
+.. note::
+
+    ``BatchOperator`` supports durable execution and ``durable`` defaults to ``True``. A retry now
+    reconnects to the Batch job the previous try submitted instead of submitting a new one. This
+    applies to the synchronous path only. Pass ``durable=False`` to keep the old behaviour.
+    Reconnecting needs Airflow 3.3 or later. On Airflow 3.3 and 3.4 most clears keep the stored job
+    id, so a cleared task whose job already succeeded returns without submitting a new one.
+
 9.41.0
 ......
 

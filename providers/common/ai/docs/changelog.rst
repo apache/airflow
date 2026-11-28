@@ -25,6 +25,135 @@
 Changelog
 ---------
 
+.. warning::
+  **Durable execution is on by default for** ``AgentOperator`` **and** ``@task.agent``
+
+  On Airflow 3.3 and later, an agent task that can retry (``retries`` above 0, or from
+  Airflow 3.4 a ``retry_policy``) now records each model response and tool call it completes, and a retry
+  replays them instead of running them again. ``durable`` defaults to ``None`` instead of
+  ``False``. What changes on a retry:
+
+  * A tool call the failed attempt completed is not run again; its recorded result is
+    returned to the model. A tool whose effect does not outlive the attempt, such as a file in
+    a temporary directory, or whose answer has to be current, needs the metadata
+    ``{"airflow": False}`` to run on every attempt (:ref:`durable-tool-opt-out`).
+  * The agent's ``run_id``, and its ``conversation_id`` when there is no message history,
+    stay those of the first attempt on every retry, in the ``run_id`` XCom and the
+    ``gen_ai.agent.call.id`` span attribute too.
+  * Each step is one write to the task state store, which keeps model responses and masked
+    tool results in the metadata database until the agent run succeeds. A task that fails its
+    last retry keeps them, with no expiry, until its Dag run is purged or the entries are
+    deleted (:ref:`durable-journal-storage`).
+
+  On Airflow 3.3, a clear does not delete the journal, so a cleared task that failed now
+  replays what its failed attempts recorded instead of starting over; from Airflow 3.4 a
+  clear starts over unless it keeps the task state (:ref:`durable-clear`).
+
+  Where durable execution cannot apply (a ``SandboxToolset``, an ``MCPToolset`` without an
+  ``id``, a toolset in a capability the operator cannot give an id to), it stays off and the
+  task log says why; so does a ``ModelFallback`` capability, or one that selects the model for
+  each request such as ``SelectModel``, since pydantic-ai refuses a request moved to a model
+  under durable execution. A ``fallback_conn_ids`` chain keeps it. A sandbox a function or
+  ``DynamicToolset`` builds per run cannot be seen before the run, so pass ``durable=False`` to
+  that task. When the Dag changes between attempts so that the default turns it off, such as
+  a ``SelectModel`` added or ``retries`` lowered to 0, and an earlier attempt started an agent run,
+  the task fails instead of running the agent live and repeating its tool calls
+  (:ref:`durable-not-journaled`). An agent pydantic-ai refuses only once its durable run has started, such as one a
+  capability whose ``for_run`` builds it when the run starts moves to a model instance the agent
+  was not built with, runs again without durable execution. The task
+  fails instead when a step a live run would repeat already ran, such as a tool call, or when it
+  has a HITL review, so pass ``durable=False`` to that task too (:ref:`durable-not-journaled`).
+  On by default, a step result the journal cannot hold is logged and runs again on retry;
+  ``durable=True`` still fails the task on it.
+
+  To keep the previous behaviour, pass ``durable=False`` to the task.
+  ``default_args={"durable": False}`` works too, but also turns off ``durable`` on every
+  resumable operator in the Dag, such as ``KubernetesPodOperator`` (:ref:`durable-opt-out`).
+
+  A task that used ``durable=True`` on 1.0.0 or 1.1.0 and failed is retried after the upgrade
+  with its recorded steps replayed, except when that attempt's write of the list of its agent
+  runs failed: then the retry runs those steps live once.
+
+.. note::
+  **Durable replay of a fallback chain**
+
+  A recorded model step through a ``fallback_conn_ids`` chain now replays after the chain is
+  edited, as long as the connection that answered it is still in the chain and at least one
+  fallback connection remains; with a single connection the hook passes the bare model
+  instead of a chain, so every step runs live. A step answered by a connection that was
+  removed from the chain, or whose ``model`` changed, runs live. The step also needs the
+  connection that answered it to remain in the chain under the same ID, so two connections
+  serving the same model are told apart; renaming a connection runs its steps live, while
+  changing its host or credentials does not. A response the model left suspended is resumed
+  by pydantic-ai on the first connection in the chain that serves its model, which need not
+  be the one that answered it. The fingerprint of a chain request no longer lists the
+  connections, so the first retry after upgrading a task whose durable journal holds steps
+  recorded through a chain by an earlier version runs every step live, tools included. A
+  ``FallbackModel`` built outside the hook keeps the earlier behaviour: its steps replay
+  while the chain is unchanged, and run live once it is edited.
+  See :doc:`recovery`.
+
+.. note::
+  ``@task.llm_batch`` now runs OpenAI and Anthropic batches through pydantic-ai's ``Model.batch_*``
+  methods and adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex
+  ``google-cloud:`` model id is refused with the fix in the message). This raises the
+  ``pydantic-ai-slim`` floor to 2.66.0, the ``openai`` extra's ``openai`` floor to 3.31.0 and the
+  ``anthropic`` extra's ``anthropic`` floor to 1.15.0, and adds ``google-genai`` to the ``google``
+  extra.
+
+  What changes for an existing task:
+
+  - ``request_params`` and a request's ``params`` keep working. The sampling settings (``temperature``,
+    ``top_p``, ...) and the provider-prefixed settings (``openai_*``,
+    ``anthropic_*``) are typed, and every other key is still sent as a request field. A setting the
+    model would silently drop (``seed`` on Anthropic; ``seed``, ``top_k``, ``frequency_penalty``,
+    ``presence_penalty``, ``logit_bias`` and ``stop_sequences`` on OpenAI) now fails before
+    submission, and a key the operator manages (``model``, ``messages``, ``input``, ...) is ignored
+    with a warning. A Chat Completions key has to be written the Responses way on OpenAI, for example
+    ``openai_reasoning_effort`` instead of ``reasoning_effort``; ``reasoning_effort``, ``verbosity``
+    and ``logprobs`` fail before submission with the setting to use.
+  - OpenAI batches run on the Responses API (``/v1/responses``) instead of Chat Completions, because
+    pydantic-ai batches only its Responses model. An ``openai-chat:`` model id is built as
+    ``openai:`` and logged. A gateway that implements batches only for ``/v1/chat/completions`` stops
+    working; whether LiteLLM implements them for ``/v1/responses`` has not been verified. Azure OpenAI
+    still has no adapter.
+  - Structured output uses the model's native JSON-schema output instead of a forced tool call or
+    ``response_format``, except for models without it and, on Anthropic, for schemas its strict mode
+    refuses (more than 24 optional fields, more than 16 union-typed fields, or a recursive type), which
+    still go through a forced tool call.
+  - Creating a batch is not retried by the SDK: pydantic-ai sends it with ``max_retries=0`` because
+    creating a batch is not idempotent, where the earlier adapters used the SDK's default of two retries.
+    A 429 or 529 on create now fails the attempt, so it costs an Airflow task retry, or raises
+    ``LLMBatchOrphanedIntentError`` with ``on_orphaned_intent='fail'``.
+  - A cancelled batch is recognized from its landed results, because Anthropic reports it as ended.
+  - OpenAI no longer recovers a batch whose submit response was never recorded by reading the batch's
+    metadata. Like Anthropic and Gemini, it falls through to ``on_orphaned_intent``, whose default
+    ``"resubmit"`` submits a new batch.
+  - ``completion_window`` is ignored by every built-in adapter, and a value other than ``"24h"`` now logs
+    a warning.
+  - The state file records pydantic-ai's batch handle (state version 2). An Anthropic batch that an
+    earlier version of this provider submitted and is still running is re-attached; its state file is
+    left as it is. An OpenAI batch from an earlier version cannot be: it was created against Chat
+    Completions and its results cannot be read. The task fails with ``LLMBatchStateReadError``
+    naming the batch; let it finish or cancel it at OpenAI, delete the task's state file and retry.
+    An outdated batch from an earlier version that was recorded under a different connection cannot
+    be cancelled automatically; the task log says so, and the batch can be cancelled at the provider.
+  - Anthropic and OpenAI results are streamed, so landing a batch holds only a small buffer of
+    responses in memory. Gemini results are still read through pydantic-ai, which downloads a batch's
+    results in one call, so a Gemini batch holds all of its response bodies in memory at once. Rows are still written one at a time. For a large
+    Gemini batch, size workers for it or split the input across mapped task instances with ``.expand()``.
+  - A task that was deferred by an earlier version of this provider and is still waiting when you
+    upgrade cannot poll its batch: the trigger reports an error naming the cause, and the task's retry
+    re-attaches to the batch.
+
+  A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
+
+.. note::
+  The HITL review XComs ``airflow_hitl_review_agent_output_<n>`` and
+  ``airflow_hitl_review_human_feedback_<n>`` now hold ``{"text": ..., "dag_id": ...}``; in
+  1.2.0 they held the text itself. A task that pulls them reads the text from ``["text"]``.
+  See :doc:`hitl_review`.
+
 1.2.0
 .....
 
@@ -36,6 +165,17 @@ Changelog
   group the chain raised. ``LLMRetryPolicy`` and ``ClassifierRetryPolicy`` now also match their
   ``fallback_rules`` against the last connection's error, and show the model each connection's error
   and how many durable journal steps the attempt replayed and recorded.
+
+.. note::
+  **Significant change: durable journal failures**
+
+  On Airflow < 3.3, a durable journal that cannot be read or is corrupt now
+  fails the task attempt instead of treating the journal as absent and running
+  completed LLM calls or tool operations again. Before upgrading, S3 roles for
+  durable ObjectStorage journals must grant ``s3:ListBucket`` on the bucket, in
+  addition to permissions to read, write and delete journal objects. A storage
+  read failure follows the task's retry policy; a corrupt journal is not retried
+  and must be repaired or deleted before the task is run again.
 
 .. note::
   ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,

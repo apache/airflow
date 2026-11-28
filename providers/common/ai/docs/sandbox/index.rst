@@ -451,7 +451,9 @@ task, a script the model writes, runs, and fixes from its own traceback.
 - **A credential handed to the code inside the sandbox comes from a connection
   only when a task provisions the sandbox**, which needs Modal; the toolset's own spec
   is fixed at parse time, and anything injected is readable by the model. :ref:`Credentials <sandbox-credentials>`.
-- **It cannot be combined with** ``durable=True``. ``enable_hitl_review=True`` and
+- **It cannot be combined with durable execution.** ``durable=True`` raises, and by
+  default the operator turns durable execution off for that task and logs why.
+  ``enable_hitl_review=True`` and
   per-tool approval work only when the sandbox is task-owned: ``AgentOperator`` refuses
   HITL review beside a sandbox the toolset provisions itself, and a tool that requires
   approval there fails the task. :ref:`Lifecycle <sandbox-lifecycle>`.

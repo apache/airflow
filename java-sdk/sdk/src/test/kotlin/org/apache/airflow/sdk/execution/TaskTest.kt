@@ -82,6 +82,18 @@ class TaskTest {
     }
 
   @Test
+  @DisplayName("Should push a null result as a null XCom")
+  fun shouldPushNullResult() {
+    val transport = RecordingTransport()
+
+    val details = startupDetails(taskId = "null_result")
+    val result = runTask(bundleWith("null_result", NullResultTask::class.java), details, Client(details, transport))
+
+    Assertions.assertInstanceOf(SucceedTask::class.java, result)
+    Assertions.assertEquals(listOf("return_value" to null), transport.xComs)
+  }
+
+  @Test
   @DisplayName("Should return removed when task is missing")
   fun shouldReturnRemovedWhenTaskIsMissing() {
     val result = runTask(bundleWith("other", SuccessTask::class.java), startupDetails(taskId = "missing"), noOpClient())
@@ -449,7 +461,7 @@ class TaskTest {
 
         override fun setXCom(
           key: String,
-          value: Any,
+          value: Any?,
           dagId: String,
           taskId: String,
           runId: String,
@@ -551,7 +563,7 @@ class TaskTest {
 
   /** Records what a deciding task pushed and asked to skip, and the order of the two. */
   private class RecordingTransport : org.apache.airflow.sdk.execution.Client {
-    val xComs = mutableListOf<Pair<String, Any>>()
+    val xComs = mutableListOf<Pair<String, Any?>>()
     val skipped = mutableListOf<String>()
     val events = mutableListOf<String>()
     val triggered = mutableListOf<String>()
@@ -559,7 +571,7 @@ class TaskTest {
 
     override fun setXCom(
       key: String,
-      value: Any,
+      value: Any?,
       dagId: String,
       taskId: String,
       runId: String,
@@ -659,6 +671,16 @@ class TaskTest {
       context: Context,
       client: Client,
     ): Unit = throw CancellationException("the future this task waits for was cancelled")
+  }
+
+  /** What the processor generates for a task method that returns a reference type and returns null. */
+  class NullResultTask : Task {
+    override fun execute(
+      context: Context,
+      client: Client,
+    ) {
+      client.setXCom(value = null)
+    }
   }
 
   class FailingTask : Task {

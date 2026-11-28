@@ -31,6 +31,7 @@
     "deadlines": "데드라인",
     "jobs": "잡",
     "requiredActions": "필수 작업",
+    "triggers": "트리거",
     "xcoms": "XComs"
   },
   "collapseAllExtra": "모든 추가 JSON 접기",
@@ -261,6 +262,7 @@
     "asset_triggered": "에셋 트리거",
     "backfill": "백필",
     "manual": "수동",
+    "operator_triggered": "오퍼레이터 트리거",
     "scheduled": "예정됨"
   },
   "scroll": {
@@ -611,6 +613,8 @@
     "tokenShownOnce": "이 토큰은 한 번만 표시됩니다. 지금 복사하세요."
   },
   "total": "총 {{state}} 수",
+  "trigger_one": "트리거",
+  "trigger_other": "트리거",
   "triggered": "트리거됨",
   "tryNumber": "시도 횟수",
   "unpause": "일시 중지 해제",

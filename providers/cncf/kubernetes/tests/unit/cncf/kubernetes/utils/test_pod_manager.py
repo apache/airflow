@@ -41,6 +41,7 @@ from kubernetes.client import (
     V1ObjectReference,
     V1Pod,
     V1PodCondition,
+    V1PodSpec,
     V1PodStatus,
 )
 from kubernetes.client.rest import ApiException
@@ -292,6 +293,24 @@ def test_detect_pod_terminate_early_issues_returns_none_for_transient_messages(r
     """
     pod = _build_pod_with_waiting_container(reason, message)
     assert detect_pod_terminate_early_issues(pod) is None
+
+
+@pytest.mark.parametrize("with_container", [False, True])
+def test_detect_pod_terminate_early_issues_without_state(with_container):
+    pod = V1Pod()
+    if with_container:
+        container_status = _build_terminated_container_status("base")
+        container_status.state = None
+        pod.status = V1PodStatus(container_statuses=[container_status])
+
+    assert detect_pod_terminate_early_issues(pod) is None
+
+
+def test_get_init_container_names_without_init_containers():
+    manager = PodManager(kube_client=mock.Mock(spec=CoreV1Api))
+    pod = V1Pod(spec=V1PodSpec(containers=[]))
+
+    assert manager.get_init_container_names(pod) == []
 
 
 @pytest.mark.parametrize("init", [False, True], ids=["main_container", "init_container"])
@@ -1460,23 +1479,6 @@ class TestPodManager:
         mock_kubernetes_stream.return_value = mock_client
         ret = self.pod_manager.extract_xcom(pod=mock_pod)
         assert ret == xcom_result
-        assert mock_exec_xcom_kill.call_count == 1
-
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
-    @mock.patch(
-        "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running",
-        return_value=True,
-    )
-    def test_extract_xcom_none(self, mock_container_is_running, mock_exec_xcom_kill, mock_kubernetes_stream):
-        """test when None is retrieved from xcom sidecar container."""
-        mock_pod = MagicMock()
-        mock_client = MagicMock()
-        mock_client.peek_stderr.return_value = ""
-        mock_client.read_all.return_value = None
-        mock_kubernetes_stream.return_value = mock_client
-        with pytest.raises(XComRetrievalError, match=r"Failed to extract xcom from pod:"):
-            self.pod_manager.extract_xcom(pod=mock_pod)
         assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch(

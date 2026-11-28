@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import pytest
+from werkzeug.security import generate_password_hash
 
 from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN
 from airflow.providers.fab.www import app as application
@@ -30,6 +31,7 @@ from unit.fab.utils import client_with_login
 pytestmark = pytest.mark.db_test
 
 USERNAME = "test_login_next"
+USERNAME_WITHOUT_PASSWORD = "test_login_without_password"
 
 
 @pytest.fixture
@@ -88,3 +90,35 @@ class TestLoginWhenAuthenticated:
 
         assert response.status_code == 302
         assert "evil.example.com" not in response.location
+
+
+class TestLoginWithoutPassword:
+    @pytest.mark.parametrize(
+        "hashed_password",
+        [
+            pytest.param("", id="added-without-password"),
+            pytest.param(generate_password_hash(""), id="stored-hash-of-empty-password"),
+        ],
+    )
+    def test_nul_password_does_not_sign_in(self, app, hashed_password):
+        with app.app_context():
+            delete_user(app, USERNAME_WITHOUT_PASSWORD)
+            app.appbuilder.sm.add_user(
+                username=USERNAME_WITHOUT_PASSWORD,
+                first_name=USERNAME_WITHOUT_PASSWORD,
+                last_name=USERNAME_WITHOUT_PASSWORD,
+                email=f"{USERNAME_WITHOUT_PASSWORD}@example.org",
+                hashed_password=hashed_password,
+            )
+            try:
+                client = app.test_client()
+                response = client.post(
+                    "/login/", data={"username": USERNAME_WITHOUT_PASSWORD, "password": "\x00"}
+                )
+                with client.session_transaction() as session:
+                    signed_in = "_user_id" in session
+            finally:
+                delete_user(app, USERNAME_WITHOUT_PASSWORD)
+
+        assert not signed_in
+        assert not _sets_token_cookie(response)

@@ -16,22 +16,28 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 import time
-from contextlib import ExitStack, contextmanager, suppress
-from itertools import chain
+from contextlib import ExitStack, asynccontextmanager, contextmanager, nullcontext, suppress
+from itertools import chain, count
 from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 from urllib.parse import urlencode
 
 import pytest
+from cachetools import TTLCache
 from flask import g
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_REMOTE_USER
+from pydantic import SecretStr
+from sqlalchemy import event, select, update
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError, PendingRollbackError
 from sqlalchemy.orm import Session
 
 from airflow import settings
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX
+from airflow.api_fastapi.auth.managers.base_auth_manager import COOKIE_NAME_JWT_TOKEN, BaseAuthManager
 from airflow.api_fastapi.common.types import MenuItem
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.providers.fab.www.app import create_app
@@ -41,7 +47,8 @@ from airflow.utils.db import resetdb
 
 from tests_common.test_utils.asserts import assert_queries_count
 from tests_common.test_utils.config import conf_vars
-from unit.fab.auth_manager.test_utils import create_user, delete_user
+from unit.fab.auth_manager.test_utils import create_role, create_user, delete_role, delete_user
+from unit.fab.utils import client_with_login
 
 with suppress(ImportError):
     from airflow.api_fastapi.auth.managers.models.resource_details import (
@@ -55,7 +62,11 @@ from airflow.providers.common.compat.security.permissions import (
     RESOURCE_ASSET_ALIAS,
     RESOURCE_BACKFILL,
 )
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.roles import Role as RoleRef
+from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import UserPatchBody
+from airflow.providers.fab.auth_manager.api_fastapi.services.users import FABAuthManagerUsers
 from airflow.providers.fab.auth_manager.fab_auth_manager import DAG_BUNDLES_ACCESS_VIEW, FabAuthManager
+from airflow.providers.fab.auth_manager.models import User
 from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 from airflow.providers.fab.www.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
@@ -78,6 +89,7 @@ from airflow.providers.fab.www.security.permissions import (
     RESOURCE_VARIABLE,
     RESOURCE_WEBSITE,
 )
+from airflow.utils.session import create_session, create_session_async
 
 from tests_common.test_utils.dag import sync_dag_to_db
 from tests_common.test_utils.version_compat import AIRFLOW_V_3_1_PLUS
@@ -179,6 +191,64 @@ def auth_manager():
     return FabAuthManager(None)
 
 
+ISSUED_BEFORE_PASSWORD_CHANGE = "was issued before their last password change"
+
+
+def _set_stored_token_generation(user_id: int, token_generation: int) -> None:
+    """Write ``token_generation`` to the database only, leaving any cached ``User`` as it is."""
+    with create_session() as session:
+        session.execute(update(User).where(User.id == user_id).values(token_generation=token_generation))
+
+
+def _get_stored_token_generation(user_id: int) -> int | None:
+    with create_session() as session:
+        return session.scalar(select(User.token_generation).where(User.id == user_id))
+
+
+# Reading a user runs two queries: the user row, then its roles (``lazy="selectin"``).
+QUERIES_PER_USER_READ = 2
+
+
+class _LockCheckingCache(TTLCache):
+    """A ``TTLCache`` that fails any read or write made without holding ``FabAuthManager.cache_lock``."""
+
+    def __init__(self):
+        super().__init__(maxsize=1024, ttl=60)
+
+    def __getitem__(self, key):
+        assert FabAuthManager.cache_lock.locked()
+        return super().__getitem__(key)
+
+    def __setitem__(self, key, value):
+        assert FabAuthManager.cache_lock.locked()
+        super().__setitem__(key, value)
+
+    def __delitem__(self, key):
+        assert FabAuthManager.cache_lock.locked()
+        super().__delitem__(key)
+
+
+def _change_password(auth_manager: FabAuthManager, username: str) -> None:
+    FABAuthManagerUsers.update_user(
+        username, UserPatchBody(password=SecretStr("new-password")), update_mask="password"
+    )
+
+
+def _reset_password(auth_manager: FabAuthManager, username: str) -> None:
+    security_manager = auth_manager.security_manager
+    user = security_manager.find_user(username=username)
+    assert user is not None
+    assert security_manager.reset_password(user.id, "new-password")
+
+
+def _get_issued_api_token(response) -> str | None:
+    for cookie in response.headers.getlist("Set-Cookie"):
+        name, _, value = cookie.partition(";")[0].partition("=")
+        if name == COOKIE_NAME_JWT_TOKEN and value:
+            return value
+    return None
+
+
 @pytest.fixture
 def flask_app():
     with conf_vars(
@@ -197,6 +267,18 @@ def flask_app():
 @pytest.fixture
 def auth_manager_with_appbuilder(flask_app):
     return get_fab_auth_manager()
+
+
+@pytest.fixture(params=["sync", "async"])
+def deserialize(request, auth_manager_with_appbuilder):
+    """Both ways a token becomes a user: older Airflow cores call the synchronous method."""
+    if request.param == "async":
+        return auth_manager_with_appbuilder.deserialize_user_async
+
+    async def deserialize_user(token):
+        return auth_manager_with_appbuilder.deserialize_user(token)
+
+    return deserialize_user
 
 
 @pytest.mark.db_test
@@ -240,6 +322,153 @@ class TestFabAuthManager:
             result = auth_manager_with_appbuilder.deserialize_user({"sub": str(user.id)})
 
         assert user.get_id() == result.get_id()
+
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async(self, flask_app, auth_manager_with_appbuilder):
+        user = create_user(flask_app, "async-test")
+        auth_manager_with_appbuilder.cache.clear()
+
+        result = await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
+
+        assert result.get_id() == user.get_id()
+        with assert_queries_count(0):
+            result = await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
+
+        assert result.get_id() == user.get_id()
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_session_async", autospec=True)
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async_coalesces_concurrent_cache_misses(
+        self, mock_create_session_async, auth_manager_with_appbuilder
+    ):
+        user_id = 99996
+        user = Mock(spec=["id", "is_active", "token_generation"])
+        user.id = user_id
+        user.is_active = True
+        user.token_generation = 0
+        query_result = Mock(spec=["one_or_none"])
+        query_result.one_or_none.return_value = user
+        query_started = asyncio.Event()
+        release_query = asyncio.Event()
+        session = MagicMock(spec=["scalars"])
+
+        async def scalars(*args, **kwargs):
+            query_started.set()
+            await release_query.wait()
+            return query_result
+
+        session.scalars = mock.AsyncMock(side_effect=scalars)
+        auth_manager_with_appbuilder.cache.pop(user_id, None)
+
+        @asynccontextmanager
+        async def create_session():
+            yield session
+
+        mock_create_session_async.side_effect = create_session
+        first_request = asyncio.create_task(
+            auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
+        )
+        await query_started.wait()
+        second_request = asyncio.create_task(
+            auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
+        )
+        await asyncio.sleep(0)
+
+        session.scalars.assert_awaited_once()
+        release_query.set()
+
+        first_result, second_result = await asyncio.gather(first_request, second_request)
+
+        assert first_result is user
+        assert second_result is user
+        mock_create_session_async.assert_called_once_with()
+
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async_rejects_unknown_user(self, auth_manager_with_appbuilder):
+        with pytest.raises(ValueError, match="User with id 99999 not found"):
+            await auth_manager_with_appbuilder.deserialize_user_async({"sub": "99999"})
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("active", [False, None])
+    async def test_deserialize_user_async_rejects_inactive_user(
+        self, flask_app, auth_manager_with_appbuilder, active
+    ):
+        user = create_user(flask_app, f"async-inactive-{active}")
+        user.active = active
+        auth_manager_with_appbuilder.session.commit()
+        auth_manager_with_appbuilder.cache.clear()
+
+        with pytest.raises(ValueError, match=f"User with id {user.id} is not active"):
+            await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user.id)})
+
+    @pytest.mark.skipif(
+        not hasattr(BaseAuthManager, "deserialize_user_async"),
+        reason="This Airflow version has no async user deserialization hook",
+    )
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @mock.patch.object(FabAuthManager, "deserialize_user")
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_uses_async_deserialization(
+        self, mock_deserialize_user, mock_get_token_validator, flask_app, auth_manager_with_appbuilder
+    ):
+        user = create_user(flask_app, "jwt-async-test")
+        auth_manager_with_appbuilder.cache.clear()
+        mock_get_token_validator.return_value.avalidated_claims = mock.AsyncMock(
+            return_value={"sub": str(user.id)}
+        )
+
+        result = await auth_manager_with_appbuilder.get_user_from_token("token")
+
+        assert result.get_id() == user.get_id()
+        mock_deserialize_user.assert_not_called()
+
+    @mock.patch(
+        "airflow.api_fastapi.auth.managers.base_auth_manager.BaseAuthManager._get_token_validator",
+        autospec=True,
+    )
+    @pytest.mark.asyncio
+    async def test_get_user_from_token_uses_synchronous_deserialization_override(
+        self, mock_get_token_validator
+    ):
+        user = mock.sentinel.user
+
+        class CustomFabAuthManager(FabAuthManager):
+            def deserialize_user(self, token):
+                assert token == {"sub": "42"}
+                return user
+
+        mock_get_token_validator.return_value.avalidated_claims = mock.AsyncMock(return_value={"sub": "42"})
+
+        result = await CustomFabAuthManager(None).get_user_from_token("token")
+
+        assert result is user
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_session_async")
+    @pytest.mark.asyncio
+    async def test_deserialize_user_async_propagates_db_error_without_retry(
+        self, mock_create_session_async, auth_manager_with_appbuilder
+    ):
+        user_id = 99996
+        failed_session = MagicMock()
+        failed_session.scalars = mock.AsyncMock(
+            side_effect=OperationalError("connection dropped", None, Exception())
+        )
+        auth_manager_with_appbuilder.cache.pop(user_id, None)
+
+        @asynccontextmanager
+        async def create_session():
+            yield failed_session
+
+        mock_create_session_async.side_effect = create_session
+        with pytest.raises(OperationalError):
+            await auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id)})
+
+        assert user_id not in auth_manager_with_appbuilder.cache
+        failed_session.scalars.assert_awaited_once()
+        mock_create_session_async.assert_called_once_with()
 
     def test_deserialize_user_rejects_inactive_user(self, flask_app, auth_manager_with_appbuilder):
         """A token naming a deactivated account must not resolve to a user."""
@@ -292,9 +521,11 @@ class TestFabAuthManager:
         assert user.get_id() == result.get_id()
 
     def test_serialize_user(self, flask_app, auth_manager_with_appbuilder):
-        user = create_user(flask_app, "test")
+        user_id = create_user(flask_app, "test").id
+        _set_stored_token_generation(user_id, 3)
+        user = auth_manager_with_appbuilder.security_manager.get_user_by_id(user_id)
         result = auth_manager_with_appbuilder.serialize_user(user)
-        assert result == {"sub": str(user.id)}
+        assert result == {"sub": str(user_id), "token_generation": 3}
 
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager_with_appbuilder):
@@ -340,25 +571,27 @@ class TestFabAuthManager:
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
-    def test_build_public_user_returns_none_when_not_configured(
+    @pytest.mark.asyncio
+    async def test_build_public_user_returns_none_when_not_configured(
         self, flask_app, auth_manager_with_appbuilder
     ):
         """Without ``AUTH_ROLE_PUBLIC`` set on the Flask app, there is no public user."""
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = None
         try:
-            assert auth_manager_with_appbuilder.build_public_user() is None
+            assert await auth_manager_with_appbuilder.build_public_user() is None
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
-    def test_build_public_user_returns_anonymous_user(self, flask_app, auth_manager_with_appbuilder):
+    @pytest.mark.asyncio
+    async def test_build_public_user_returns_anonymous_user(self, flask_app, auth_manager_with_appbuilder):
         """``AUTH_ROLE_PUBLIC`` yields an :class:`AnonymousUser` with the role resolved from the DB."""
         from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = "Admin"
         try:
-            user = auth_manager_with_appbuilder.build_public_user()
+            user = await auth_manager_with_appbuilder.build_public_user()
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
@@ -369,7 +602,8 @@ class TestFabAuthManager:
         # Flask request/app context.
         assert user._perms, "Expected permissions to be pre-populated on the public user"
 
-    def test_build_public_user_with_unknown_role_returns_user_with_empty_perms(
+    @pytest.mark.asyncio
+    async def test_build_public_user_with_unknown_role_returns_user_with_empty_perms(
         self, flask_app, auth_manager_with_appbuilder
     ):
         """A misconfigured role name still yields an :class:`AnonymousUser` with empty perms."""
@@ -378,13 +612,32 @@ class TestFabAuthManager:
         previous = flask_app.config.get("AUTH_ROLE_PUBLIC")
         flask_app.config["AUTH_ROLE_PUBLIC"] = "DoesNotExist"
         try:
-            user = auth_manager_with_appbuilder.build_public_user()
+            user = await auth_manager_with_appbuilder.build_public_user()
         finally:
             flask_app.config["AUTH_ROLE_PUBLIC"] = previous
 
         assert isinstance(user, AnonymousUser)
         # Role not found in the DB, so no pre-populated perms.
         assert user._perms == set()
+
+    @pytest.mark.asyncio
+    async def test_build_public_user_does_not_use_sync_engine(self, auth_manager_with_appbuilder):
+        """The public role lookup must not run on a sync engine (it would block the event loop)."""
+        sync_statements = []
+
+        def record_sync_statement(conn, cursor, statement, parameters, context, executemany):
+            if not conn.dialect.is_async:
+                sync_statements.append(statement)
+
+        event.listen(Engine, "before_cursor_execute", record_sync_statement)
+        try:
+            with conf_vars({("fab", "auth_role_public"): "Admin"}):
+                user = await auth_manager_with_appbuilder.build_public_user()
+        finally:
+            event.remove(Engine, "before_cursor_execute", record_sync_statement)
+
+        assert sync_statements == []
+        assert user._perms
 
     def test_get_fastapi_middlewares_disabled(self, flask_app, auth_manager_with_appbuilder):
         """No middleware is registered when public access is not configured."""
@@ -1056,8 +1309,17 @@ class TestFabAuthManager:
             ),
         ],
     )
-    def test_get_authorized_dag_ids(
-        self, method, user_permissions, expected_results, auth_manager_with_appbuilder, flask_app, dag_maker
+    @pytest.mark.parametrize("as_public_user", [False, True], ids=["db-user", "public-user"])
+    @pytest.mark.asyncio
+    async def test_get_authorized_dag_ids(
+        self,
+        method,
+        user_permissions,
+        expected_results,
+        as_public_user,
+        auth_manager_with_appbuilder,
+        flask_app,
+        dag_maker,
     ):
         with dag_maker("test_dag1"):
             EmptyOperator(task_id="task1")
@@ -1074,20 +1336,64 @@ class TestFabAuthManager:
         dag_maker.session.commit()
         dag_maker.session.close()
 
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
+        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+
+        if as_public_user:
+            delete_role(flask_app, "test")
+            create_role(flask_app, "test", user_permissions)
+            with conf_vars({("fab", "auth_role_public"): "test"}):
+                user = await auth_manager_with_appbuilder.build_public_user()
+        else:
+            user = create_user(
+                flask_app,
+                username="username",
+                role_name="test",
+                permissions=user_permissions,
+            )
+
+        try:
+            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
+        finally:
+            delete_user(flask_app, "username")
+            delete_role(flask_app, "test")
+
+        assert results == expected_results
+
+    def test_get_authorized_dag_ids_reads_cached_user_permissions(
+        self, auth_manager_with_appbuilder, flask_app, dag_maker
+    ):
+        for dag_id in ("test_dag1", "test_dag2"):
+            with dag_maker(dag_id):
+                EmptyOperator(task_id="task")
+            if AIRFLOW_V_3_1_PLUS:
+                sync_dag_to_db(dag_maker.dag)
+        dag_maker.session.commit()
+        dag_maker.session.close()
+
+        security_manager = auth_manager_with_appbuilder.security_manager
+        security_manager.sync_perm_for_dag("test_dag1")
+        security_manager.sync_perm_for_dag("test_dag2")
         user = create_user(
             flask_app,
             username="username",
             role_name="test",
-            permissions=user_permissions,
+            permissions=[(ACTION_CAN_READ, "DAG:test_dag1")],
         )
+        try:
+            # Load the permissions as deserialize_user's cached user would hold them.
+            assert user.perms == {(ACTION_CAN_READ, "DAG:test_dag1")}
+            security_manager.add_permission_to_role(
+                security_manager.find_role("test"),
+                security_manager.get_permission(ACTION_CAN_READ, "DAG:test_dag2"),
+            )
 
-        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag1")
-        auth_manager_with_appbuilder.security_manager.sync_perm_for_dag("test_dag2")
+            results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method="GET")
+        finally:
+            delete_user(flask_app, "username")
+            delete_role(flask_app, "test")
 
-        results = auth_manager_with_appbuilder.get_authorized_dag_ids(user=user, method=method)
-        assert results == expected_results
-
-        delete_user(flask_app, "username")
+        assert results == {"test_dag1"}
 
     def test_get_authorized_pools(self, auth_manager):
         session = Mock()
@@ -1197,6 +1503,321 @@ def test_resetdb(
 
 
 @pytest.mark.db_test
+class TestTokenGeneration:
+    """
+    A token carries the ``token_generation`` its user had when it was issued, and is accepted only
+    while it still matches. Password changes and resets increment it.
+    """
+
+    # Issuing
+
+    @mock.patch.object(
+        FabAirflowSecurityManagerOverride,
+        "update_user_auth_stat",
+        autospec=True,
+        side_effect=FabAirflowSecurityManagerOverride.update_user_auth_stat,
+    )
+    def test_login_racing_password_change_issues_token_for_the_generation_it_read(
+        self, mock_update_user_auth_stat, flask_app, auth_manager_with_appbuilder
+    ):
+        """
+        A login that checked the old password issues a token for the generation it read, so a
+        password change committed before the token is issued still ends it.
+        """
+        user_id = create_user(flask_app, "test_login_race").id
+        security_manager = auth_manager_with_appbuilder.security_manager
+        record_login = mock_update_user_auth_stat.side_effect
+
+        def change_password_then_record_login(sm, user, success=True):
+            with settings.engine.begin() as connection:
+                connection.execute(
+                    update(User).where(User.id == user_id).values(token_generation=User.token_generation + 1)
+                )
+            record_login(sm, user, success)
+
+        mock_update_user_auth_stat.side_effect = change_password_then_record_login
+        user = security_manager.auth_user_db("test_login_race", "test_login_race", rotate_session_id=False)
+        token = auth_manager_with_appbuilder.serialize_user(user)
+        auth_manager_with_appbuilder.cache.clear()
+
+        assert _get_stored_token_generation(user_id) == 1
+        with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
+            auth_manager_with_appbuilder.deserialize_user(token)
+
+    def test_concurrent_password_updates_both_increment_token_generation(
+        self, flask_app, auth_manager_with_appbuilder
+    ):
+        """
+        Two password changes made on copies of the user loaded before either commits both count.
+
+        Otherwise the second change would write the value the first one did, and a token issued
+        between the two changes would survive the second.
+        """
+        user_id = create_user(flask_app, "test_concurrent_password_updates").id
+        security_manager = auth_manager_with_appbuilder.security_manager
+
+        with Session(settings.engine) as first, Session(settings.engine) as second:
+            first_copy, second_copy = first.get(User, user_id), second.get(User, user_id)
+            security_manager.set_user_password(first_copy, "first-password")
+            security_manager.set_user_password(second_copy, "second-password")
+            first.commit()
+            second.commit()
+
+        assert _get_stored_token_generation(user_id) == 2
+
+    # Checking, on both the synchronous and the asynchronous path
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("cached", "stored", "token_generation", "accepted", "user_reads"),
+        [
+            pytest.param(1, 1, 1, True, 0, id="same-as-cached-user"),
+            pytest.param(1, 1, 0, False, 0, id="older-than-cached-user"),
+            pytest.param(1, 2, 2, True, 1, id="newer-than-cached-user"),
+            pytest.param(1, 1, 2, False, 1, id="newer-than-stored-user"),
+            pytest.param(0, 0, None, True, 0, id="no-claim-before-any-password-change"),
+            pytest.param(1, 1, None, False, 0, id="no-claim-after-a-password-change"),
+        ],
+    )
+    async def test_compares_token_generation(
+        self,
+        flask_app,
+        auth_manager_with_appbuilder,
+        deserialize,
+        cached,
+        stored,
+        token_generation,
+        accepted,
+        user_reads,
+    ):
+        """
+        Tokens are compared with the cached user, which is re-read only when the token is newer.
+
+        ``cached`` and ``stored`` are the user's ``token_generation`` in the cache and in the
+        database. A token without the claim was issued before it existed and counts as 0.
+        """
+        user_id = create_user(flask_app, "test_token_generation").id
+        _set_stored_token_generation(user_id, cached)
+        auth_manager_with_appbuilder.cache.clear()
+        await deserialize({"sub": str(user_id), "token_generation": cached})
+        _set_stored_token_generation(user_id, stored)
+        token = {"sub": str(user_id)}
+        if token_generation is not None:
+            token["token_generation"] = token_generation
+
+        outcome = (
+            nullcontext() if accepted else pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE)
+        )
+        with assert_queries_count(user_reads * QUERIES_PER_USER_READ), outcome:
+            assert (await deserialize(token)).id == user_id
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("token_generation", ["0", 0.0, True, None], ids=["str", "float", "bool", "null"])
+    async def test_rejects_non_integer_token_generation(self, flask_app, deserialize, token_generation):
+        """A claim that is not an integer fails as an invalid token rather than a server error."""
+        user_id = create_user(flask_app, "test_invalid_token_generation").id
+
+        with pytest.raises(ValueError, match="has an invalid token_generation claim"):
+            await deserialize({"sub": str(user_id), "token_generation": token_generation})
+
+    @pytest.mark.asyncio
+    async def test_token_issued_after_password_change_ends_earlier_tokens_at_once(
+        self, flask_app, auth_manager_with_appbuilder, deserialize
+    ):
+        """
+        A token issued after a password change works right away, even where the cached user predates
+        the change, and from then on earlier tokens fail without waiting for the cache to expire.
+
+        The change is written to the database only: a change made by another process, such as the
+        CLI or another API server, leaves this process's cache as it was.
+        """
+        user_id = create_user(flask_app, "test_stale_cache").id
+        old_token = {"sub": str(user_id), "token_generation": 0}
+        new_token = {"sub": str(user_id), "token_generation": 1}
+        auth_manager_with_appbuilder.cache.clear()
+        await deserialize(old_token)
+        _set_stored_token_generation(user_id, 1)
+
+        with assert_queries_count(QUERIES_PER_USER_READ):
+            assert (await deserialize(new_token)).id == user_id
+            with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
+                await deserialize(old_token)
+
+    @pytest.mark.asyncio
+    async def test_failed_reload_does_not_keep_outdated_cached_user(
+        self, flask_app, auth_manager_with_appbuilder, deserialize
+    ):
+        """
+        When re-reading the user for a newer token fails, the outdated cached user is dropped too.
+
+        Here the user was deactivated after a password change made by another process, so earlier
+        tokens must fail as well instead of matching the user cached before the change.
+        """
+        user_id = create_user(flask_app, "test_failed_reload").id
+        old_token = {"sub": str(user_id), "token_generation": 0}
+        auth_manager_with_appbuilder.cache.clear()
+        await deserialize(old_token)
+        with create_session() as session:
+            session.execute(update(User).where(User.id == user_id).values(token_generation=1, active=False))
+
+        with pytest.raises(ValueError, match="is not active"):
+            await deserialize({"sub": str(user_id), "token_generation": 1})
+        with pytest.raises(ValueError, match="is not active"):
+            await deserialize(old_token)
+
+    @mock.patch.object(
+        FabAuthManager,
+        "cache",
+        new_callable=lambda: TTLCache(maxsize=1024, ttl=10, timer=count(step=6).__next__),
+    )
+    @pytest.mark.asyncio
+    async def test_newer_token_accepted_when_cached_user_expires_as_it_is_dropped(
+        self, _, flask_app, deserialize
+    ):
+        """
+        A cached user that expires between being read and being dropped as outdated does not turn a
+        newer token into a failure.
+
+        Every read of the cache's clock moves it forward by more than half the TTL, so the cached
+        user is still valid when it is read and has expired by the time it is dropped.
+        """
+        user_id = create_user(flask_app, "test_expiring_cached_user").id
+        await deserialize({"sub": str(user_id), "token_generation": 0})
+        _set_stored_token_generation(user_id, 1)
+
+        user = await deserialize({"sub": str(user_id), "token_generation": 1})
+
+        assert user.token_generation == 1
+
+    # The user cache: updates made by this process, and concurrent requests
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "update_password",
+        [pytest.param(_change_password, id="change"), pytest.param(_reset_password, id="reset")],
+    )
+    async def test_password_update_ends_earlier_tokens_at_once(
+        self, flask_app, auth_manager_with_appbuilder, update_password
+    ):
+        """After a password change or reset, earlier tokens fail at once on the API server that made it."""
+        user = create_user(flask_app, "test_password_update")
+        old_token = auth_manager_with_appbuilder.serialize_user(user)
+        auth_manager_with_appbuilder.cache.clear()
+        await auth_manager_with_appbuilder.deserialize_user_async(old_token)
+
+        update_password(auth_manager_with_appbuilder, "test_password_update")
+
+        with pytest.raises(ValueError, match=ISSUED_BEFORE_PASSWORD_CHANGE):
+            await auth_manager_with_appbuilder.deserialize_user_async(old_token)
+
+    @pytest.mark.asyncio
+    async def test_role_update_applies_at_once(self, flask_app, auth_manager_with_appbuilder):
+        """Roles changed through the users API apply to the next request, not after the cache expires."""
+        user = create_user(flask_app, "test_role_update", role_name="test_role_update_before")
+        create_role(flask_app, "test_role_update_after")
+        token = auth_manager_with_appbuilder.serialize_user(user)
+        auth_manager_with_appbuilder.cache.clear()
+        await auth_manager_with_appbuilder.deserialize_user_async(token)
+
+        FABAuthManagerUsers.update_user(
+            "test_role_update",
+            UserPatchBody(roles=[RoleRef(name="test_role_update_after")]),
+            update_mask="roles",
+        )
+
+        roles = (await auth_manager_with_appbuilder.deserialize_user_async(token)).roles
+        assert [role.name for role in roles] == ["test_role_update_after"]
+
+    @mock.patch.object(FabAuthManager, "cache", new_callable=_LockCheckingCache)
+    @pytest.mark.asyncio
+    async def test_cache_is_accessed_only_under_cache_lock(
+        self, cache, flask_app, auth_manager_with_appbuilder
+    ):
+        """
+        Every read and write of the user cache holds ``cache_lock``: caching a user on either path,
+        dropping it for a newer token, and dropping it after a user update.
+        """
+        user_id = create_user(flask_app, "test_cache_lock").id
+
+        auth_manager_with_appbuilder.deserialize_user({"sub": str(user_id), "token_generation": 0})
+        _set_stored_token_generation(user_id, 1)
+        await auth_manager_with_appbuilder.deserialize_user_async(
+            {"sub": str(user_id), "token_generation": 1}
+        )
+        assert user_id in cache
+        _change_password(auth_manager_with_appbuilder, "test_cache_lock")
+
+        assert user_id not in cache
+
+    @mock.patch("airflow.providers.fab.auth_manager.fab_auth_manager.create_session_async", autospec=True)
+    @pytest.mark.asyncio
+    async def test_newer_token_waiting_for_outdated_load_reloads(
+        self, mock_create_session_async, flask_app, auth_manager_with_appbuilder
+    ):
+        """
+        A token that waits for another request to load its user does not take what that load cached
+        when the load read the user from before a password change the token was issued after.
+        """
+        user_id = create_user(flask_app, "test_outdated_load").id
+        auth_manager_with_appbuilder.cache.clear()
+        first_load_read = asyncio.Event()
+        release_first_load = asyncio.Event()
+
+        @asynccontextmanager
+        async def create_session_then_hold_first_load():
+            async with create_session_async() as session:
+                yield session
+            if not first_load_read.is_set():
+                first_load_read.set()
+                await release_first_load.wait()
+
+        mock_create_session_async.side_effect = create_session_then_hold_first_load
+        old_request = asyncio.create_task(
+            auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id), "token_generation": 0})
+        )
+        await first_load_read.wait()
+        _set_stored_token_generation(user_id, 1)
+        new_request = asyncio.create_task(
+            auth_manager_with_appbuilder.deserialize_user_async({"sub": str(user_id), "token_generation": 1})
+        )
+        # Lets the new request run until it waits for the old request's load.
+        await asyncio.sleep(0)
+        release_first_load.set()
+        old_user, new_user = await asyncio.gather(old_request, new_request)
+
+        assert (old_user.token_generation, new_user.token_generation) == (0, 1)
+
+    # Flask sessions
+
+    @conf_vars(
+        {
+            ("core", "auth_manager"): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            ("fab", "session_backend"): "securecookie",
+        }
+    )
+    def test_session_from_before_password_reset_no_longer_issues_api_tokens(self):
+        """
+        The login page issues API tokens from a Flask session only while the session matches the
+        user's ``token_generation``, so a ``securecookie`` session cannot outlive a password reset.
+        """
+        app = create_app(enable_plugins=False)
+        app.config["WTF_CSRF_ENABLED"] = False
+        # Requests run outside this test's app context: a request reuses an active app context,
+        # and with it the user Flask-Login cached in ``g`` by an earlier request.
+        with app.app_context():
+            user_id = create_user(app, "test_session_reset").id
+        old_session = client_with_login(app, username="test_session_reset", password="test_session_reset")
+        assert _get_issued_api_token(old_session.get("/login/"))
+
+        with app.app_context():
+            assert app.appbuilder.sm.reset_password(user_id, "new-password")
+
+        assert _get_issued_api_token(old_session.get("/login/")) is None
+        new_session = client_with_login(app, username="test_session_reset", password="new-password")
+        assert _get_issued_api_token(new_session.get("/login/"))
+
+
+@pytest.mark.db_test
 @pytest.mark.skipif(
     not AIRFLOW_V_3_1_PLUS,
     reason="Compat matrix against Airflow < 3.1 uses NullPool, which does not track checked-out connections.",
@@ -1293,9 +1914,10 @@ class TestDeserializeUserSessionCleanup:
         """A transient DB disconnect is recovered by removing session and retrying once."""
         user = Mock()
         user.id = 99996
+        user.token_generation = 0
         original_exc = OperationalError("connection dropped", None, Exception())
         retry_query_result = Mock()
-        retry_query_result.one.return_value = user
+        retry_query_result.one_or_none.return_value = user
 
         mock_session = MagicMock(spec=["scalars", "remove"])
         mock_session.scalars.side_effect = [original_exc, retry_query_result]

@@ -56,6 +56,36 @@ see the `Sample Dag <https://github.com/apache/airflow/blob/|version|/providers/
     :dedent: 4
     :end-before: [END howto_operator_athena]
 
+.. _howto/operator:AthenaOperator:managed-query-results:
+
+Run a query in a workgroup that uses managed query results
+==========================================================
+
+With `managed query results <https://docs.aws.amazon.com/athena/latest/ug/managed-results.html>`__,
+Athena stores the query results for you, keeps them for 24 hours, and returns them through the
+Athena API. To run a query in such a workgroup, pass the workgroup and leave ``output_location``
+unset:
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_managed_query_results.py
+    :language: python
+    :start-after: [START howto_operator_athena_managed_query_results]
+    :dedent: 4
+    :end-before: [END howto_operator_athena_managed_query_results]
+
+Read the results with
+:meth:`~airflow.providers.amazon.aws.hooks.athena.AthenaHook.get_query_results` or
+:meth:`~airflow.providers.amazon.aws.hooks.athena.AthenaHook.get_query_results_paginator`.
+These queries have no S3 output location, so
+:meth:`~airflow.providers.amazon.aws.hooks.athena.AthenaHook.get_output_location` returns
+``None`` for them.
+
+.. exampleinclude:: /../../amazon/tests/system/amazon/aws/example_athena_managed_query_results.py
+    :language: python
+    :start-after: [START howto_athena_managed_query_results_read]
+    :end-before: [END howto_athena_managed_query_results_read]
+
+Managed query results do not support query result reuse.
+
 Sensors
 -------
 

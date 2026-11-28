@@ -16,98 +16,18 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import os
 import re
-import tempfile
-from pathlib import Path
+import warnings
+from typing import Any
 
-from datafusion.object_store import AmazonS3, GoogleCloud, LocalFileSystem, MicrosoftAzure
+from datafusion.object_store import LocalFileSystem, MicrosoftAzure
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.common.compat.module_loading import import_string
 from airflow.providers.common.sql.config import ConnectionConfig, StorageType
 from airflow.providers.common.sql.datafusion.base import ObjectStorageProvider
 from airflow.providers.common.sql.datafusion.exceptions import ObjectStoreCreationException
-
-
-class S3ObjectStorageProvider(ObjectStorageProvider):
-    """S3 Object Storage Provider using DataFusion's AmazonS3."""
-
-    @property
-    def get_storage_type(self) -> StorageType:
-        """Return the storage type."""
-        return StorageType.S3
-
-    def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
-        """Create an S3 object store using DataFusion's AmazonS3."""
-        if connection_config is None:
-            raise ValueError(f"connection_config must be provided for {self.get_storage_type.value}")
-
-        try:
-            credentials = connection_config.credentials
-            bucket = self.get_bucket(path)
-
-            s3_store = AmazonS3(**credentials, **connection_config.extra_config, bucket_name=bucket)
-            self.log.info("Created S3 object store for bucket %s", bucket)
-
-            return s3_store
-
-        except Exception as e:
-            raise ObjectStoreCreationException(f"Failed to create S3 object store: {e}")
-
-    def get_scheme(self) -> str:
-        """Return the scheme for S3."""
-        return "s3://"
-
-
-class GCSObjectStorageProvider(ObjectStorageProvider):
-    """GCS Object Storage Provider using DataFusion's GoogleCloud."""
-
-    @property
-    def get_storage_type(self) -> StorageType:
-        """Return the storage type."""
-        return StorageType.GCS
-
-    def create_object_store(self, path: str, connection_config: ConnectionConfig | None = None):
-        """Create a GCS object store using DataFusion's GoogleCloud."""
-        if connection_config is None:
-            raise ValueError(f"connection_config must be provided for {self.get_storage_type.value}")
-
-        credentials = connection_config.credentials
-        key_path = credentials.get("key_path")
-        keyfile_dict = credentials.get("keyfile_dict")
-        temp_key_path: str | None = None
-
-        try:
-            bucket = self.get_bucket(path)
-
-            if not key_path and keyfile_dict:
-                # GoogleCloud only accepts a file path, not inline JSON; safe to delete once
-                # constructed since the credentials are read only at construction time.
-                key_content = keyfile_dict if isinstance(keyfile_dict, str) else json.dumps(keyfile_dict)
-                with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as key_file:
-                    key_file.write(key_content)
-                temp_key_path = key_path = key_file.name
-
-            if key_path is not None and not Path(key_path).is_file():
-                raise FileNotFoundError(f"Service account key file not found: {key_path}")
-
-            gcs_store = GoogleCloud(bucket_name=bucket, service_account_path=key_path)
-            self.log.info("Created GCS object store for bucket %s", bucket)
-
-            return gcs_store
-
-        except BaseException as e:
-            # A bad key file panics as pyo3_runtime.PanicException, not a plain Exception.
-            raise ObjectStoreCreationException(f"Failed to create GCS object store: {e}")
-
-        finally:
-            if temp_key_path is not None:
-                Path(temp_key_path).unlink(missing_ok=True)
-
-    def get_scheme(self) -> str:
-        """Return the scheme for GCS."""
-        return "gs://"
-
 
 _ABFS_URI_RE = re.compile(
     r"^abfss?://(?P<container>[^@/]+)@(?P<account>[^./]+)\.(?P<host>[^/]+)(?P<path>/.*)?$"
@@ -223,20 +143,81 @@ class LocalObjectStorageProvider(ObjectStorageProvider):
         return "file://"
 
 
+# Storage types still implemented here rather than contributed by a provider package.
+# TODO: Add support for HTTP: https://datafusion.apache.org/python/autoapi/datafusion/object_store/index.html
+EMBEDDED_PROVIDERS: dict[StorageType, type[ObjectStorageProvider]] = {
+    StorageType.LOCAL: LocalObjectStorageProvider,
+    StorageType.AZURE: AzureObjectStorageProvider,
+}
+
+_STORAGE_TYPE_PROVIDER_HINTS: dict[str, str] = {
+    "s3": "apache-airflow-providers-amazon[datafusion]",
+    "gcs": "apache-airflow-providers-google[datafusion]",
+}
+
+
+def _missing_provider_message(type_key: str) -> str:
+    hint = _STORAGE_TYPE_PROVIDER_HINTS.get(type_key, "the appropriate provider package")
+    return f"No ObjectStorageProvider registered for storage type '{type_key}'. Install or upgrade {hint}."
+
+
+def _get_legacy_object_storage_provider(type_key: str) -> ObjectStorageProvider:
+    if type_key == StorageType.S3.value:
+        try:
+            from airflow.providers.amazon.aws.datafusion.object_storage import S3ObjectStorageProvider
+        except ImportError as err:
+            raise ValueError(_missing_provider_message(type_key)) from err
+        return S3ObjectStorageProvider()
+
+    if type_key == StorageType.GCS.value:
+        try:
+            from airflow.providers.google.cloud.datafusion.object_storage import GCSObjectStorageProvider
+        except ImportError as err:
+            raise ValueError(_missing_provider_message(type_key)) from err
+        return GCSObjectStorageProvider()
+
+    raise ValueError(_missing_provider_message(type_key))
+
+
 def get_object_storage_provider(storage_type: StorageType) -> ObjectStorageProvider:
     """Get an object storage provider based on the storage type."""
-    # TODO: Add support for HTTP: https://datafusion.apache.org/python/autoapi/datafusion/object_store/index.html
-    providers: dict[StorageType, type] = {
-        StorageType.S3: S3ObjectStorageProvider,
-        StorageType.GCS: GCSObjectStorageProvider,
-        StorageType.AZURE: AzureObjectStorageProvider,
-        StorageType.LOCAL: LocalObjectStorageProvider,
-    }
+    storage_type = StorageType(storage_type)
+    if provider_cls := EMBEDDED_PROVIDERS.get(storage_type):
+        return provider_cls()
 
-    if storage_type not in providers:
-        raise ValueError(
-            f"Unsupported storage type: {storage_type}. Supported types: {list(providers.keys())}"
+    type_key = storage_type.value
+
+    from airflow.providers_manager import ProvidersManager
+
+    manager = ProvidersManager()
+    if not hasattr(manager, "object_storage_providers"):
+        return _get_legacy_object_storage_provider(type_key)
+
+    registry = manager.object_storage_providers
+    if type_key in registry:
+        try:
+            provider_cls = import_string(registry[type_key].provider_class_name)
+        except ImportError as err:
+            raise ValueError(_missing_provider_message(type_key)) from err
+        return provider_cls()
+
+    raise ValueError(_missing_provider_message(type_key))
+
+
+_MOVED_PROVIDER_MODULES: dict[str, str] = {
+    "S3ObjectStorageProvider": "airflow.providers.amazon.aws.datafusion.object_storage",
+    "GCSObjectStorageProvider": "airflow.providers.google.cloud.datafusion.object_storage",
+}
+
+
+def __getattr__(name: str) -> Any:
+    if module_path := _MOVED_PROVIDER_MODULES.get(name):
+        warnings.warn(
+            f"Importing {name} from "
+            "airflow.providers.common.sql.datafusion.object_storage_provider is deprecated. "
+            f"Import it from {module_path} instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
         )
-
-    provider_class = providers[storage_type]
-    return provider_class()
+        return import_string(f"{module_path}.{name}")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

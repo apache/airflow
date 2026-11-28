@@ -27,6 +27,7 @@ from collections.abc import Container
 from typing import Any
 from unittest import mock
 
+import httpx2
 import pytest
 import structlog
 
@@ -70,6 +71,7 @@ from airflow.providers.common.ai.exceptions import DurableJournalError, Unsuppor
 from airflow.providers.common.ai.tools import AirflowTool, ToolCallError, ToolResult
 from airflow.providers.common.ai.tools._from_toolset import airflow_tools_from_toolset
 from airflow.providers.common.ai.tools.openai_agents import AirflowTools
+from airflow.providers.common.ai.utils.coroutines import run_coroutine_on_thread_loop
 from airflow.providers.standard.operators.hitl import request_input
 from airflow.sdk import DAG, BaseOperator, task
 from airflow.sdk.execution_time.comms import AwaitInputTask, CreateHITLDetailPayload, SetXCom
@@ -78,6 +80,9 @@ from airflow.sdk.serde import deserialize, serialize
 from airflow.utils.state import TaskInstanceState
 
 from unit.common.ai.durable.memory_storage import MemoryStorage
+
+# run_durably_sync keeps the thread's event loop open; close it after each test.
+pytestmark = pytest.mark.usefixtures("close_thread_event_loop")
 
 # Tracing off, so no test exports spans to OpenAI.
 NO_TRACING = RunConfig(tracing_disabled=True)
@@ -868,6 +873,33 @@ class TestRunDurably:
         with pytest.raises(ToolCallError, match="lookup kept failing after 1 correction"):
             _attempt(storage, _TurnsModel([["a", "b"], ["d"]]), tool)
         assert tool.calls == 2
+
+    def test_two_runs_in_a_task_can_share_one_pooled_client(self, keep_alive_url):
+        # The SDK sends every request on one shared HTTP client, so the second run reuses the
+        # connection the first run pooled, which belongs to the first run's event loop. Each run
+        # builds its tools as a task builds its agent, which runs asyncio.run() in between.
+        client = httpx2.AsyncClient()
+
+        class _PooledClientModel(_ScriptedModel):
+            async def get_response(self, *args: Any, **kwargs: Any) -> ModelResponse:
+                await client.get(keep_alive_url)
+                return await super().get_response(*args, **kwargs)
+
+        lookup = _ToolsetLookup(max_retries=1, retry=())
+        try:
+            with journal_scope(DurableJournal(MemoryStorage(), clean_up_after_run=True)):
+                answers = [
+                    run_durably_sync(
+                        Agent(name="a", model=_PooledClientModel(), tools=AirflowTools(lookup.tool())),
+                        prompt,
+                        run_config=NO_TRACING,
+                    ).final_output
+                    for prompt in ("1", "2")
+                ]
+        finally:
+            run_coroutine_on_thread_loop(client.aclose())
+
+        assert answers == ["answer: k0=42", "answer: k0=42"]
 
     def test_each_agent_run_in_a_task_restores_its_own_count(self):
         """A second run_durably call in the task replays its count after a first one ran live."""

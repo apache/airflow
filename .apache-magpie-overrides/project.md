@@ -49,7 +49,7 @@ defaults, or asks.
 | `upstream_repo` | `apache/airflow` | The public codebase — this repository |
 | `upstream_repo_url` | `https://github.com/apache/airflow` | |
 | `upstream_default_branch` | `main` | What `<default-branch>` resolves to |
-| `upstream_agents_md_url` | `https://github.com/apache/airflow/blob/main/AGENTS.md` | Contribution conventions every agent follows. `CLAUDE.md` is a symlink to it |
+| `upstream_agents_md_url` | `https://github.com/apache/airflow/blob/main/AGENTS.md` | Contribution conventions every agent follows |
 | `upstream_contributing_docs_url` | `https://github.com/apache/airflow/tree/main/contributing-docs` | |
 | `upstream_genai_disclosure_anchor` | `https://github.com/apache/airflow/blob/main/contributing-docs/05_pull_requests.rst#gen-ai-assisted-contributions` | Required in the body of any AI-assisted PR |
 | `upstream_security_policy_url` | `https://github.com/apache/airflow/security/policy` | |

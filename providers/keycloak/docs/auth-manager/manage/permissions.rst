@@ -31,8 +31,8 @@ They can create the permissions and needed resources easily.
 
 There are two options to create the permissions:
 
-* Create all permissions (Scopes, Resources, Permissions) in one go using one CLI command
-* Create all permissions (Scopes, Resources, Permissions) step-by-step using the CLI commands
+* Create all permissions (Scopes, Resources, Roles, Permissions) in one go using one CLI command
+* Create all permissions (Scopes, Resources, Roles, Permissions) step-by-step using the CLI commands
 
 CLI commands take the following parameters:
 
@@ -68,7 +68,7 @@ One-go creation of permissions
 
 There is a single command do all the magic for you.
 
-This command will create scopes, resources and permissions in one-go.
+This command will create scopes, resources, roles and permissions in one-go.
 
 .. code-block:: bash
 
@@ -97,7 +97,18 @@ This command will create resources for certain types of permissions.
 
   airflow keycloak-auth-manager create-resources --teams team-a,team-b
 
-Finally, with the command below, we create the permissions using the previously created scopes and resources.
+This command will create the ``Viewer``, ``User``, ``Op``, ``Admin`` and ``SuperAdmin`` roles as client
+roles of the Airflow client. A role that already exists, as a realm role or as a client role, is left unchanged.
+
+.. code-block:: bash
+
+  airflow keycloak-auth-manager create-roles
+
+The permissions use the realm role of that name when one exists, and the client role of the
+Airflow client otherwise. When both exist, the policy uses the realm role only, so a user that has
+only the client role does not get the permissions of that role.
+
+Finally, with the command below, we create the permissions using the previously created scopes, resources and roles.
 
 .. code-block:: bash
 
@@ -166,7 +177,7 @@ When using team-scoped permissions, the model is:
 * Team policies require both group membership and role membership
 * A separate ``SuperAdmin`` role can be used for global admin access across all teams
 
-Note: the CLI creates groups, resources, permissions, and policies, but **does not assign roles to users**.
+Note: the CLI creates groups, roles, resources, permissions, and policies, but **does not assign roles to users**.
 You must assign the appropriate Keycloak roles (Admin/Op/User/Viewer or SuperAdmin) to each user separately.
 In multi-team mode, the ``Admin`` role is **team-scoped** (group + role). Only ``SuperAdmin`` grants global
 admin access across all teams.

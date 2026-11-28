@@ -58,7 +58,7 @@
     "parsedAt": "解析時間："
   },
   "deadlineAlerts": {
-    "completionRule": "必須在 {{reference}}後 {{interval}} 內完成",
+    "completionRule": "必須在 {{reference}}後 {{interval}}內完成",
     "completionRuleDynamic": "必須在 {{reference}}後的一段變動期間內完成",
     "count_one": "1 個期限",
     "count_other": "{{count, number}} 個期限",
@@ -71,8 +71,8 @@
   "deadlineStatus": {
     "actual": "實際",
     "expected": "預期",
-    "finishedEarly": "提前 {{duration}} 達成期限",
-    "finishedLate": "逾期 {{duration}} 完成",
+    "finishedEarly": "提前 {{duration}}達成期限",
+    "finishedLate": "逾期 {{duration}}完成",
     "label": "期限",
     "met": "已達成",
     "missed": "已逾期",
@@ -85,6 +85,8 @@
     "upcomingCount_other": "{{count, number}} 個即將到期的期限"
   },
   "extraLinks": "額外連結",
+  "failingWatcherTriggers_one": "1 個持續失敗的監聽器觸發器",
+  "failingWatcherTriggers_other": "{{count, number}} 個持續失敗的監聽器觸發器",
   "grid": {
     "buttons": {
       "newerRuns": "較新的執行",
@@ -108,6 +110,24 @@
     "allSources": "所有來源",
     "critical": "CRITICAL",
     "debug": "DEBUG",
+    "durable": {
+      "detail": {
+        "already_succeeded": "工作已完成，無需重新執行。",
+        "reconnected": "已沿用現有工作，避免約 {{duration}}的重複執行。",
+        "reconnectedFailed": "已等待現有工作完成（不重複執行），但該工作最終失敗。",
+        "reconnectedNoDuration": "已沿用現有工作，無需重複執行。",
+        "reconnectedRunning": "正在等待執行中的工作，無需重新啟動。"
+      },
+      "job": {
+        "id": "工作 ID：{{id}}",
+        "runTime": "執行時間：{{duration}}",
+        "submittedAt": "提交時間："
+      },
+      "title": {
+        "already_succeeded": "已沿用先前完成工作的結果",
+        "reconnected": "已重新連線至現有工作"
+      }
+    },
     "error": "ERROR",
     "info": "INFO",
     "noTryNumber": "無嘗試次數",

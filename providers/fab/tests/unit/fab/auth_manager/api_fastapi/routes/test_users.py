@@ -27,6 +27,8 @@ from airflow.providers.fab.auth_manager.api_fastapi.datamodels.users import (
 )
 from airflow.providers.fab.www.extensions.init_appbuilder import AirflowAppBuilder
 
+from unit.fab.auth_manager.test_utils import create_user
+
 
 @pytest.mark.db_test
 class TestUsers:
@@ -574,3 +576,88 @@ class TestUsers:
         assert auth_manager.appbuilder is appbuilder
         assert [response.status_code for response in responses] == [200, 200]
         assert "users" in responses[1].json()
+
+
+@pytest.mark.db_test
+class TestPatchUserWithDatabase:
+    """
+    Run ``PATCH /users`` against the real ``find_user`` and database.
+
+    The tests above mock the service, and the service tests mock ``find_user``, so neither sees
+    how ``find_user`` actually matches, e.g. usernames ignoring case.
+    """
+
+    ALICE = "patch_db_alice"
+    ALICE_EMAIL = "patch_db_alice@example.com"
+    CAROL = "Patch_DB_Carol"
+    CAROL_EMAIL = "patch_db_carol@example.com"
+    USERS = {ALICE: ALICE_EMAIL, CAROL: CAROL_EMAIL}
+
+    @pytest.fixture
+    def db_client(self, real_app_client):
+        auth_manager, client = real_app_client
+        app = auth_manager.flask_app
+        # Outside an app context, add_user logs an error and returns None instead of raising.
+        with app.app_context():
+            sm = app.appbuilder.sm
+            self._cleanup(sm)
+            for username, email in self.USERS.items():
+                assert create_user(app, username, email=email) is not None
+            yield client, sm
+            sm.session.rollback()
+            self._cleanup(sm)
+
+    def _cleanup(self, sm):
+        # find_user ignores case, so this also finds a user a test renamed to a different case.
+        for username in self.USERS:
+            if user := sm.find_user(username=username):
+                sm.del_register_user(user)
+
+    @pytest.mark.parametrize(
+        ("path_username", "body"),
+        [
+            pytest.param(ALICE, {"username": "Patch_DB_Alice"}, id="case-only-rename"),
+            pytest.param(
+                "patch_db_carol",
+                {"username": CAROL, "first_name": "Caro"},
+                id="path-in-lower-case-keeps-stored-name",
+            ),
+        ],
+    )
+    def test_patch_keeping_own_username_is_not_a_conflict(self, db_client, path_username, body):
+        client, sm = db_client
+
+        response = client.patch(f"/fab/v1/users/{path_username}", json=body)
+
+        assert response.status_code == 200
+        user = sm.find_user(username=path_username)
+        assert {field: getattr(user, field) for field in body} == body
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            pytest.param({"username": "patch_db_carol"}, id="username-of-another-user-in-other-case"),
+            pytest.param({"email": CAROL_EMAIL}, id="email-of-another-user"),
+        ],
+    )
+    def test_patch_to_another_users_value_is_a_conflict(self, db_client, body):
+        client, sm = db_client
+
+        response = client.patch(f"/fab/v1/users/{self.ALICE}", json=body)
+
+        assert response.status_code == 409
+        users = [sm.find_user(username=username) for username in self.USERS]
+        assert {user.username: user.email for user in users} == self.USERS
+
+    def test_patch_ignores_conflicts_outside_the_update_mask(self, db_client):
+        client, sm = db_client
+
+        response = client.patch(
+            f"/fab/v1/users/{self.ALICE}",
+            params={"update_mask": "first_name"},
+            json={"email": self.CAROL_EMAIL, "first_name": "Alicia"},
+        )
+
+        assert response.status_code == 200
+        user = sm.find_user(username=self.ALICE)
+        assert (user.first_name, user.email) == ("Alicia", self.ALICE_EMAIL)

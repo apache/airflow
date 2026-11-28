@@ -29,6 +29,7 @@ from tests_common.test_utils.version_compat import AIRFLOW_V_3_0_PLUS
 if not AIRFLOW_V_3_0_PLUS:
     pytest.skip("AWS auth manager is only compatible with Airflow >= 3.0.0", allow_module_level=True)
 
+from fastapi import Request
 from fastapi.testclient import TestClient
 
 from airflow.api_fastapi.app import AUTH_MANAGER_FASTAPI_APP_PREFIX, create_app
@@ -50,6 +51,7 @@ from airflow.providers.amazon.aws.auth_manager.routes.login import (  # noqa: E4
     LOGIN_MODE_REDIRECT,
     LOGIN_MODE_TOKEN,
     MAX_NEXT_URL_JSON_LENGTH,
+    _prepare_request,
     _sign_login_state,
 )
 
@@ -533,3 +535,58 @@ class TestLoginRouter:
     def test_login_callback_unsuccessful(self):
         response = get_login_callback_response(RELAY_REDIRECT, is_authenticated=False)
         assert response.status_code == 500
+
+    @pytest.mark.parametrize(
+        ("base_url", "req_scheme", "req_port", "expected_https", "expected_host"),
+        [
+            pytest.param("http://localhost:8080", "http", 8080, "off", "localhost:8080", id="http-local"),
+            pytest.param(
+                "https://airflow.example.com",
+                "http",
+                8000,
+                "on",
+                "airflow.example.com",
+                id="tls-reverse-proxy",
+            ),
+            pytest.param(
+                "https://airflow.example.com:8443",
+                "http",
+                8000,
+                "on",
+                "airflow.example.com:8443",
+                id="https-custom-port",
+            ),
+            pytest.param(
+                "http://airflow.example.com",
+                "http",
+                80,
+                "off",
+                "airflow.example.com",
+                id="http-default-port",
+            ),
+            pytest.param(
+                "http://airflow.example.com",
+                "http",
+                8080,
+                "off",
+                "airflow.example.com",
+                id="http-reverse-proxy",
+            ),
+        ],
+    )
+    def test_prepare_request_scheme_and_port(
+        self, base_url, req_scheme, req_port, expected_https, expected_host
+    ):
+        mock_request = Mock(spec=Request)
+        mock_request.url.scheme = req_scheme
+        mock_request.url.port = req_port
+        mock_request.url.path = "/api/v2/auth/login_callback"
+        mock_request.base_url.scheme = req_scheme
+        mock_request.query_params = {}
+        with conf_vars({("api", "base_url"): base_url}):
+            with patch("airflow.providers.amazon.aws.auth_manager.routes.login._read_form", return_value={}):
+                data = _prepare_request(mock_request)
+
+        assert data["https"] == expected_https
+        assert data["http_host"] == expected_host
+        assert "server_port" not in data

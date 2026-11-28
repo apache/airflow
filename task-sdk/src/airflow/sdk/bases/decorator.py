@@ -31,6 +31,7 @@ import typing_extensions
 from airflow.sdk import TriggerRule, timezone
 from airflow.sdk.bases.operator import (
     BASEOPERATOR_ARGS_EXPECTED_TYPES,
+    DEFAULT_POOL_NAME,
     BaseOperator,
     coerce_resources,
     coerce_timedelta,
@@ -683,6 +684,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             partial_kwargs["depends_on_past"] = True
         start_date = timezone.convert_to_utc(partial_kwargs.pop("start_date", None))
         end_date = timezone.convert_to_utc(partial_kwargs.pop("end_date", None))
+        if partial_kwargs.get("pool") is None:
+            partial_kwargs["pool"] = DEFAULT_POOL_NAME
         if "pool_slots" in partial_kwargs:
             if partial_kwargs["pool_slots"] < 1:
                 dag_str = ""

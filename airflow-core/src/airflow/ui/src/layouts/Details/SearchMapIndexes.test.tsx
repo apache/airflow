@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import "@testing-library/jest-dom/vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -131,6 +132,14 @@ describe("SearchMapIndexes", () => {
     expect(screen.getByTestId("search").textContent).toBe(`?region_id=${REGION_ID}`);
   });
 
+  it("opens all map indexes on their first page", () => {
+    renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2?cursor=page-2", MAPPED_ROUTE);
+
+    fireEvent.click(screen.getByRole("button", { name: "allMapIndexes" }));
+
+    expect(screen.getByTestId("search").textContent).toBe("");
+  });
+
   it("switches to the selected instance and closes the panel", () => {
     renderSearch("/dags/my_dag/runs/run_1/tasks/task_1/mapped/2", MAPPED_ROUTE);
 
@@ -138,6 +147,19 @@ describe("SearchMapIndexes", () => {
 
     expect(screen.getByTestId("location").textContent).toBe("/dags/my_dag/runs/run_1/tasks/task_1/mapped/0");
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("keeps the log filters but not the old pass or try across the switch", () => {
+    renderSearch(
+      `/dags/my_dag/runs/run_1/tasks/task_1/mapped/2/logs?region_id=other&region_index=2&try_number=3&log_level=info&log_source=task&offset=20`,
+      `${MAPPED_ROUTE}/logs`,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "alpha (success)" }));
+
+    expect(screen.getByTestId("search").textContent).toBe(
+      `?region_id=${REGION_ID}&region_index=0&log_level=info&log_source=task`,
+    );
   });
 
   it("keeps the open tab across the switch", () => {

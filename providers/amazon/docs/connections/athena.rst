@@ -61,3 +61,30 @@ for PyAthena supported parameters.
 Since this connection type uses authentication methods from the
 `Amazon Web Services Connection <./aws.html>`_ documentation, please refer to that
 for additional information about configuring the connection.
+
+Using a workgroup with managed query results
+--------------------------------------------
+
+For an Athena workgroup that uses
+`managed query results <https://docs.aws.amazon.com/athena/latest/ug/managed-results.html>`__,
+set ``work_group`` and set ``s3_staging_dir`` to an empty string. With an empty
+``s3_staging_dir``, PyAthena sends no Amazon S3 result location with your queries, even when
+the ``AWS_ATHENA_S3_STAGING_DIR`` environment variable is set.
+
+.. code-block:: json
+
+   {
+     "region_name": "us-east-1",
+     "work_group": "my-workgroup",
+     "s3_staging_dir": ""
+   }
+
+Athena stores the results of these queries and returns them through the Athena API.
+
+For SQLAlchemy, install ``apache-airflow-providers-amazon[sqlalchemy]`` to select a compatible
+PyAthena dialect. SQLAlchemy 1.4 requires PyAthena 3.x. Get the engine from the hook's
+``get_sqlalchemy_engine()`` to preserve the empty ``s3_staging_dir``. SQLAlchemy drops it when it
+parses the string returned by ``get_uri()``.
+Configure result encryption in the workgroup rather than with the ``encryption_option`` and
+``kms_key`` extras. Managed query results do not support query result reuse, so do not set
+``result_reuse_enable``.
