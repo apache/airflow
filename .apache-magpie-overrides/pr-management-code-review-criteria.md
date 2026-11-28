@@ -28,7 +28,7 @@ source files themselves; this file only points at them.
 | File | What it covers |
 |---|---|
 | `.github/instructions/code-review.instructions.md` | The review checklist every Airflow PR is checked against |
-| `AGENTS.md` (`CLAUDE.md` is a symlink to it) | Architecture boundaries, security model, coding standards, testing standards, commit/PR conventions, newsfragment rules |
+| `AGENTS.md` | Architecture boundaries, security model, coding standards, testing standards, commit/PR conventions, newsfragment rules |
 | `contributing-docs/05_pull_requests.rst` | PR conventions incl. Gen-AI disclosure |
 
 ## Per-area source files

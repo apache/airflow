@@ -20,6 +20,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+import pydantic
+
 from airflow.sdk.module_loading import qualname
 
 # lazy loading for performance reasons
@@ -33,7 +35,9 @@ if TYPE_CHECKING:
 
 __version__ = 1
 
-deserializers: list[type[object]] = []
+# Registering these as deserializers also adds them to the deserialization allowlist,
+# so they load without kubernetes.* in [core] allowed_deserialization_classes.
+deserializers = serializers
 log = logging.getLogger(__name__)
 
 
@@ -44,7 +48,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         return "", "", 0, False
 
     if isinstance(o, (k8s.V1Pod, k8s.V1ResourceRequirements)):
-        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+        from kubernetes.client import ApiClient
 
         # We're running this in an except block, so we don't want it to fail
         # under any circumstances, e.g. accessing a non-existing attribute.
@@ -55,10 +59,68 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
                 return None
 
         try:
-            return PodGenerator.serialize_pod(o), qualname(o), __version__, True
+            return ApiClient().sanitize_for_serialization(o), qualname(o), __version__, True
         except Exception:
             log.warning("Serialization failed for pod %s", safe_get_name(o))
             log.debug("traceback for serialization error", exc_info=True)
             return "", "", 0, False
 
     return "", "", 0, False
+
+
+def deserialize(cls: type, version: int, data: dict) -> pydantic.BaseModel:
+    if version > __version__:
+        raise TypeError(f"serialized version {version} is newer than class version {__version__}")
+
+    if not issubclass(cls, pydantic.BaseModel):
+        raise TypeError(f"do not know how to deserialize {qualname(cls)}")
+
+    try:
+        return cls.model_validate(data)
+    except pydantic.ValidationError as e:
+        try:
+            _coerce_legacy_values(data, e)
+        except (KeyError, TypeError, ValueError):
+            raise e
+        return cls.model_validate(data)
+
+
+def _coerce_legacy_values(data: dict, error: pydantic.ValidationError) -> None:
+    # kubernetes<37 stored numeric quantities/labels, string booleans and fields since
+    # removed, all of which the pydantic models of kubernetes>=37 reject.
+    for err in error.errors():
+        *path, key = err["loc"]
+        parent = _find_parent(data, path)
+        value = err["input"]
+        new: str | bool
+        if err["type"] == "extra_forbidden" and isinstance(parent, dict):
+            del parent[key]
+            continue
+        if err["type"] == "string_type" and isinstance(value, bool):
+            new = str(value).lower()
+        elif err["type"] == "string_type" and isinstance(value, (int, float)):
+            new = str(value)
+        elif err["type"] == "bool_type" and isinstance(value, str) and value.lower() in ("true", "false"):
+            new = value.lower() == "true"
+        else:
+            continue
+        if isinstance(parent, dict):
+            parent[key] = new
+        elif isinstance(key, int):
+            parent[key] = new
+
+
+def _find_parent(data: dict, path: list[int | str]) -> dict | list:
+    # Union fields add type tags to ``loc`` that are not keys in the data.
+    parent: dict | list = data
+    for part in path:
+        if isinstance(parent, dict):
+            child = parent[part]
+        elif isinstance(part, int):
+            child = parent[part]
+        else:
+            raise TypeError(f"cannot index a list with {part!r}")
+        if not isinstance(child, (dict, list)):
+            raise TypeError(f"{part!r} does not point to a dict or list")
+        parent = child
+    return parent

@@ -1516,15 +1516,17 @@ class _FakeApi:
 
     responses: dict[tuple[str, str], tuple[int, Any]] = attrs.field(factory=dict)
     requests: list[tuple[str, str, Any]] = attrs.field(factory=list)
+    api_version: str | None = None
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         body = json.loads(request.content) if request.content else None
         self.requests.append((request.method, request.url.path, body))
         status, content = self.responses.get((request.method, request.url.path), (200, {}))
         # json=None would send an empty body, but a null XCom item is the body "null".
-        return httpx2.Response(
-            status, content=json.dumps(content), headers={"content-type": "application/json"}
-        )
+        headers = {"content-type": "application/json"}
+        if self.api_version is not None:
+            headers["Airflow-API-Version"] = self.api_version
+        return httpx2.Response(status, content=json.dumps(content), headers=headers)
 
 
 def _sent_body(proc: _PopenActivitySubprocess) -> Any:
@@ -1539,6 +1541,7 @@ def _sent_error(proc: _PopenActivitySubprocess) -> Any:
 
 
 _XCOM_PATH = "/xcoms/tutorial_dag/run_1/task_1/summary"
+_MAP_INDEX_UNRESOLVED_API_VERSION = "2026-10-30"
 
 
 _STORED_SUMMARY = {("GET", _XCOM_PATH): (200, {"key": "summary", "value": "ref://task_1/None/summary"})}
@@ -1738,7 +1741,8 @@ class TestPopenActivitySubprocessXComBackend:
     def test_get_xcom_missing_reads_the_slice_and_sends_none(self, make_proc):
         """With no map index, a missing value is looked for in the slice too, as a mapped task's values."""
         api = _FakeApi(
-            {("GET", _XCOM_PATH): (404, {"detail": "not found"}), ("GET", f"{_XCOM_PATH}/slice"): (200, [])}
+            {("GET", _XCOM_PATH): (404, {"detail": "not found"}), ("GET", f"{_XCOM_PATH}/slice"): (200, [])},
+            api_version=_MAP_INDEX_UNRESOLVED_API_VERSION,
         )
         proc = make_proc(_RefXCom, api)
         proc._handle_request(
@@ -1763,7 +1767,8 @@ class TestPopenActivitySubprocessXComBackend:
             {
                 ("GET", _XCOM_PATH): (404, {"detail": "not found"}),
                 ("GET", f"{_XCOM_PATH}/slice"): (200, ["ref://task_1/None/summary", 5]),
-            }
+            },
+            api_version=_MAP_INDEX_UNRESOLVED_API_VERSION,
         )
         proc = make_proc(xcom, api)
 

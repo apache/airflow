@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import datetime
+import importlib.metadata
 import json
 import logging
 from typing import TYPE_CHECKING
@@ -30,7 +31,9 @@ import time_machine
 from flask_appbuilder import expose, has_access
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.views import BaseView, ModelView
+from packaging.version import Version
 from sqlalchemy import Date, Float, Integer, String, delete
+from werkzeug.security import generate_password_hash
 
 try:
     from sqlalchemy.orm import DeclarativeBase, Mapped
@@ -697,6 +700,29 @@ def test_sync_perm_for_dag_creates_permissions_on_resources(security_manager):
     assert security_manager.get_permission(permissions.ACTION_CAN_EDIT, prefixed_test_dag_id) is not None
 
 
+@pytest.mark.parametrize(
+    ("missing_permissions", "expected_query_count"),
+    [
+        pytest.param(set(), 1, id="all-exist"),
+        pytest.param({(permissions.ACTION_CAN_EDIT, "DAG:TEST_DAG_RESYNC")}, 7, id="one-missing"),
+    ],
+)
+def test_sync_perm_for_dag_only_creates_missing_permissions(
+    security_manager, missing_permissions, expected_query_count
+):
+    test_dag_id = "TEST_DAG_RESYNC"
+    security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
+    for action_name, resource_name in missing_permissions:
+        security_manager.delete_permission(action_name, resource_name)
+        assert security_manager.get_permission(action_name, resource_name) is None
+
+    with assert_queries_count(expected_query_count):
+        security_manager.sync_perm_for_dag(test_dag_id, access_control=None)
+
+    for action_name, resource_name in missing_permissions:
+        assert security_manager.get_permission(action_name, resource_name) is not None
+
+
 def test_sync_perm_for_dag_creates_permissions_for_specified_roles(app, security_manager):
     test_dag_id = "TEST_DAG"
     test_role = "limited-role"
@@ -1352,6 +1378,86 @@ def test_add_user_uses_configured_hash_method(mock_hash, app, security_manager):
                 mock_hash.assert_called_with("plaintext", method="pbkdf2:sha256")
             finally:
                 delete_user(app, "hash_method_add_test")
+
+
+USERNAME_WITHOUT_PASSWORD = "user_without_password"
+
+
+@pytest.mark.parametrize("password", ["", "\x00"])
+def test_reset_password_to_blank_stores_no_password_hash(password, app, security_manager):
+    try:
+        user = create_user(app, USERNAME_WITHOUT_PASSWORD)
+        with app.test_request_context():
+            assert security_manager.reset_password(user.id, password)
+            assert security_manager.find_user(username=USERNAME_WITHOUT_PASSWORD).password is None
+    finally:
+        delete_user(app, USERNAME_WITHOUT_PASSWORD)
+
+
+@pytest.mark.parametrize(
+    "hash_method",
+    [
+        pytest.param(
+            "scrypt",
+            marks=pytest.mark.skipif(
+                Version(importlib.metadata.version("werkzeug")) < Version("3.0.0"),
+                reason="werkzeug < 3 has no scrypt",
+            ),
+        ),
+        "pbkdf2:sha256",
+    ],
+)
+@pytest.mark.parametrize("password", ["", "\x00", "\x00" * 8])
+def test_blank_password_does_not_match_hash_of_empty_password(password, hash_method, app, security_manager):
+    email = f"{USERNAME_WITHOUT_PASSWORD}@example.org"
+    with app.test_request_context():
+        delete_user(app, USERNAME_WITHOUT_PASSWORD)
+        security_manager.add_user(
+            username=USERNAME_WITHOUT_PASSWORD,
+            first_name="No",
+            last_name="Password",
+            email=email,
+            hashed_password=generate_password_hash("", method=hash_method),
+        )
+        try:
+            assert security_manager.auth_user_db(USERNAME_WITHOUT_PASSWORD, password) is None
+            assert security_manager.auth_user_db(email, password) is None
+            assert not security_manager.check_password(USERNAME_WITHOUT_PASSWORD, password)
+        finally:
+            delete_user(app, USERNAME_WITHOUT_PASSWORD)
+
+
+@pytest.mark.parametrize("password", ["", "\x00"])
+def test_add_user_without_password_stores_no_password_hash(password, app, security_manager):
+    with app.test_request_context():
+        delete_user(app, USERNAME_WITHOUT_PASSWORD)
+        try:
+            user = security_manager.add_user(
+                username=USERNAME_WITHOUT_PASSWORD,
+                first_name="No",
+                last_name="Password",
+                email=f"{USERNAME_WITHOUT_PASSWORD}@example.org",
+                password=password,
+            )
+            assert user.password is None
+        finally:
+            delete_user(app, USERNAME_WITHOUT_PASSWORD)
+
+
+@pytest.mark.parametrize("password", ["", "\x00"])
+def test_add_register_user_without_password_stores_no_password_hash(password, app, security_manager):
+    with app.test_request_context():
+        register_user = security_manager.add_register_user(
+            USERNAME_WITHOUT_PASSWORD,
+            "No",
+            "Password",
+            f"{USERNAME_WITHOUT_PASSWORD}@example.org",
+            password=password,
+        )
+        try:
+            assert register_user.password is None
+        finally:
+            security_manager.del_register_user(register_user)
 
 
 def test_resource_name_does_not_collide_with_reserved_resource_names():

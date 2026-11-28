@@ -41,6 +41,8 @@ import type { JsonValue } from "../sdk/client-types.js";
 /** What Airflow stamps on an argument the Dag declared as a Python `int`. */
 const INT64_FORMAT = "int64";
 
+const PROTOCOL_PROBES = new Set(["then", "toJSON"]);
+
 /**
  * Fold a name to the token both sides are matched on.
  *
@@ -249,6 +251,7 @@ function makeArgsProxy(
       if (typeof property !== "string") return undefined;
       const name = resolve(property);
       if (name !== undefined) return values.get(name);
+      if (PROTOCOL_PROBES.has(property)) return undefined;
       // Logged, never thrown: a destructuring default such as
       // `{ runId = "manual" }` is a legitimate miss, and nothing here can tell
       // one from a typo.

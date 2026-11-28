@@ -34,6 +34,7 @@ from pydantic_ai.models.fallback import FallbackModel
 from pydantic_ai.providers import infer_provider_class
 from typing_extensions import ParamSpec
 
+from airflow.providers.common.ai.durable.member_stamp import MemberStampingModel
 from airflow.providers.common.ai.hooks.ollama import OllamaBackend
 from airflow.providers.common.ai.observability import genai_instrumentation_settings
 from airflow.providers.common.ai.utils.toolset_base import MaskingCapability
@@ -67,7 +68,8 @@ class ModelReadinessBackendFactory(Protocol):
     Builds the :class:`ModelReadinessBackend` for :meth:`PydanticAIHook.ensure_model_ready`.
 
     Called with the ``model_name`` without its provider prefix and the connection host as
-    ``base_url`` (``None`` when the connection has no host). ``OllamaBackend`` is one.
+    ``base_url`` (``None`` when the connection has no host). ``OllamaBackend`` and
+    ``LMStudioBackend`` are ready-made ones.
     See :ref:`self_hosted_models_readiness_backend`.
     """
 
@@ -407,13 +409,21 @@ class PydanticAIHook(BaseHook):
             return self._model
 
         model = self._resolve_own_model()
-        fallback_models = self._resolve_fallback_models()
+        fallback_members = self._resolve_fallback_models()
         # Pin pydantic-ai's own default explicitly: the retry-layers docs pin this exact
         # scope (UnexpectedModelBehavior, UsageLimitExceeded, and ContentFilterError are
         # deliberately excluded), and pyproject has no upper bound on pydantic-ai-slim, so
         # an upstream default change would otherwise move that documented behaviour silently.
         self._model = (
-            FallbackModel(model, *fallback_models, fallback_on=(ModelAPIError,)) if fallback_models else model
+            FallbackModel(
+                *(
+                    MemberStampingModel(member, conn_id=conn_id)
+                    for conn_id, member in ((self.llm_conn_id, model), *fallback_members)
+                ),
+                fallback_on=(ModelAPIError,),
+            )
+            if fallback_members
+            else model
         )
         return self._model
 
@@ -651,7 +661,7 @@ class PydanticAIHook(BaseHook):
                 f"ensure_model_ready has no built-in readiness backend for '{model_name}' on "
                 f"connection '{self.llm_conn_id}'; only Ollama is built in. Pass backend_factory= a "
                 "callable taking model_name= and base_url= that returns an object with load(); "
-                "OllamaBackend is available for a model that Ollama serves."
+                "OllamaBackend and LMStudioBackend are available for models that Ollama and LM Studio serve."
             )
         conn, _ = self._get_conn_and_extra()
         base_url = conn.host or None
@@ -672,7 +682,8 @@ class PydanticAIHook(BaseHook):
         Opt-in, blocks the worker slot, and loads only this hook's own connection. Details and
         limits: :ref:`self_hosted_models_ensure_model_ready`.
 
-        :param timeout: Seconds to wait for the load request, passed to the backend as is.
+        :param timeout: Seconds to wait for the load request, passed to the backend as is. A backend
+            may spend it over several requests.
         :param backend_factory: Callable that takes the keyword arguments ``model_name`` (the
             resolved name without its provider prefix) and ``base_url`` (the connection host, or
             ``None``) and returns an object with ``load()`` (see ModelReadinessBackend). When
@@ -680,7 +691,9 @@ class PydanticAIHook(BaseHook):
             raises ``ValueError``. See :ref:`self_hosted_models_readiness_backend`.
         :raises ValueError: If *timeout* is not a positive finite number or no model is configured;
             also from the default ``OllamaBackend`` when neither the connection host nor the
-            ``OLLAMA_BASE_URL`` environment variable is set.
+            ``OLLAMA_BASE_URL`` environment variable is set, and from ``LMStudioBackend`` when the
+            connection has no host, the model list has an unexpected shape, or no listed model has a
+            ``key`` equal to the model name.
         :raises NotImplementedError: If *backend_factory* is not given and the model's provider
             prefix has no built-in backend (only ``ollama`` has one).
         :raises TimeoutError: If a request times out.
@@ -724,9 +737,9 @@ class PydanticAIHook(BaseHook):
             )
         return [stripped for item in raw if (stripped := item.strip())]
 
-    def _resolve_fallback_models(self) -> list[Model]:
+    def _resolve_fallback_models(self) -> list[tuple[str, Model]]:
         """
-        Resolve one ``Model`` per fallback connection, in the configured order.
+        Resolve each fallback connection's ID and ``Model``, in the configured order.
 
         Each connection is resolved through the hook registered for its own
         ``conn_type``, so a chain can mix providers whose credentials live in
@@ -751,7 +764,7 @@ class PydanticAIHook(BaseHook):
 
         self.log.info("Resolving LLM fallback chain: %s", " -> ".join([self.llm_conn_id, *fallback_conn_ids]))
 
-        models: list[Model] = []
+        members: list[tuple[str, Model]] = []
         seen: set[str] = set()
         for conn_id in fallback_conn_ids:
             if conn_id == self.llm_conn_id:
@@ -788,15 +801,18 @@ class PydanticAIHook(BaseHook):
                     f"{FALLBACK_CONN_IDS_EXTRA_KEY}. Chains are not resolved recursively -- list "
                     f"every provider directly on '{self.llm_conn_id}' instead."
                 )
-            models.append(
-                hook._resolve_own_model(
-                    forwarded_model_id=forwarded_model_id,
-                    forwarded_from_conn_id=self.llm_conn_id,
-                    forwarded_model_provider=forwarded_model_provider,
+            members.append(
+                (
+                    conn_id,
+                    hook._resolve_own_model(
+                        forwarded_model_id=forwarded_model_id,
+                        forwarded_from_conn_id=self.llm_conn_id,
+                        forwarded_model_provider=forwarded_model_provider,
+                    ),
                 )
             )
 
-        return models
+        return members
 
     def _get_conn_if_model_configured(self) -> Model | None:
         """Return the hook model only when the hook or connection explicitly configures one."""

@@ -24,6 +24,7 @@ from collections.abc import Iterable
 from functools import lru_cache
 from typing import Any
 
+from airflow.providers.common.ai.exceptions import DurableJournalError
 from airflow.providers.common.ai.utils.task_logger import get_task_logger
 
 log = get_task_logger()
@@ -94,10 +95,25 @@ class DurableStorage:
         try:
             cache = json.loads(path.read_text())
             if not isinstance(cache, dict):
-                # JSON that is not an object holds no steps, just like a cut-off file.
+                # JSON that is not an object is as corrupt as a cut-off file.
                 raise ValueError("the journal file does not hold a JSON object")
-        except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError):
+        except FileNotFoundError:
             cache = {}
+        except OSError:
+            log.warning(
+                "Durable: could not read the journal; failing this attempt so finished steps don't run again",
+                path=str(path),
+            )
+            raise
+        except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as err:
+            log.warning(
+                "Durable: journal is corrupt; failing this attempt so finished steps don't run again",
+                path=str(path),
+            )
+            raise DurableJournalError(
+                "durable execution cannot replay a corrupt journal; inspect or restore the journal before retrying"
+            ) from err
+
         self._cache = cache
         return self._cache
 
@@ -141,18 +157,18 @@ class DurableStorage:
 
     def delete_steps(self, keys: Iterable[str]) -> None:
         """Remove these steps, and the journal file once nothing is left in it."""
-        cache = self._load_cache()
-        for key in keys:
-            cache.pop(key, None)
         # Runs after the run has already succeeded, so it must never raise; a file left
         # behind holds only steps a retry of this run would replay.
         try:
+            cache = self._load_cache()
+            for key in keys:
+                cache.pop(key, None)
             if cache:
                 self._write(json.dumps(cache))
             else:
                 self._get_path().unlink()
-                self._cache = None
+                self._cache = {}
         except FileNotFoundError:
-            self._cache = None
+            self._cache = {}
         except Exception:
             log.warning("Durable: could not clean up the journal file", exc_info=True)

@@ -38,6 +38,7 @@ from airflow.providers.fab.www.extensions.init_security import init_api_auth
 from airflow.providers.fab.www.extensions.init_session import (
     init_airflow_session_interface,
     init_session_max_lifetime,
+    init_session_token_generation,
 )
 from airflow.providers.fab.www.extensions.init_views import (
     init_error_handlers,
@@ -126,11 +127,15 @@ def create_app(enable_plugins: bool):
         # FAB auth manager. One example is ``run_update_fastapi_api_spec``, it calls
         # ``FabAuthManager().get_fastapi_app()`` to generate the openapi documentation regardless of the
         # configured auth manager.
+        is_fab_auth_manager = isinstance(get_auth_manager(), FabAuthManager)
         if enable_plugins:
             init_plugins(flask_app)
-        elif isinstance(get_auth_manager(), FabAuthManager):
+        if is_fab_auth_manager:
+            # The plugins app serves the FAB login views too, so its sessions follow the same
+            # ``[fab]`` session settings as the FAB auth manager app.
             init_airflow_session_interface(flask_app, db)
             init_session_max_lifetime(flask_app)
+            init_session_token_generation(flask_app)
         init_jinja_globals(flask_app, enable_plugins=enable_plugins)
         init_wsgi_middleware(flask_app)
     return flask_app

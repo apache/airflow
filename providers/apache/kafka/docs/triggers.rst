@@ -41,6 +41,9 @@ For parameter definitions take a look at :class:`~airflow.providers.apache.kafka
 
 For how to use the trigger, refer to the documentation of the :ref:`Apache Kafka Message Queue Trigger <howto/triggers:KafkaMessageQueueTrigger>`
 
+The trigger creates a new consumer every time it starts. For busy event-driven Dags on Airflow 3.3 or later,
+see :ref:`KafkaSharedStreamTrigger <howto/triggers:KafkaSharedStreamTrigger>`.
+
 
 .. _howto/triggers:KafkaSharedStreamTrigger:
 

@@ -6016,6 +6016,119 @@ export const $EventLogResponse = {
     description: 'Event Log Response.'
 } as const;
 
+export const $ExecutorInfoResponse = {
+    properties: {
+        status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/HealthStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        latest_executor_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Executor Heartbeat'
+        },
+        detailed_status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/DetailedHealthStatus'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        instances: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ExecutorInstanceInfoResponse'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Instances'
+        }
+    },
+    type: 'object',
+    required: ['status', 'latest_executor_heartbeat', 'detailed_status'],
+    title: 'ExecutorInfoResponse',
+    description: 'Executor info serializer for responses.'
+} as const;
+
+export const $ExecutorInstanceInfoResponse = {
+    properties: {
+        hostname: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Hostname'
+        },
+        executor: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Executor'
+        },
+        latest_executor_heartbeat: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Latest Executor Heartbeat'
+        },
+        team_names: {
+            items: {
+                type: 'string'
+            },
+            type: 'array',
+            title: 'Team Names'
+        },
+        health_check_result: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/HealthCheckResult'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    type: 'object',
+    required: ['hostname', 'executor', 'latest_executor_heartbeat', 'team_names', 'health_check_result'],
+    title: 'ExecutorInstanceInfoResponse',
+    description: 'Executor instance info serializer for responses.'
+} as const;
+
 export const $ExternalLogUrlResponse = {
     properties: {
         url: {
@@ -6534,6 +6647,19 @@ export const $HTTPValidationError = {
     title: 'HTTPValidationError'
 } as const;
 
+export const $HealthCheckResult = {
+    type: 'string',
+    enum: ['healthy', 'unhealthy', 'unknown'],
+    title: 'HealthCheckResult',
+    description: `Explicit outcome of a component's own last health check.
+
+Separate from whether the Job row itself is alive: a row can be alive (recent heartbeat) while
+this stays UNKNOWN because the check hasn't completed yet, raised, or was never implemented.
+Collapsing all of that into "no heartbeat means unhealthy" makes a real failure indistinguishable
+from "never checked" or "check is hanging", which is why this is a value of its own rather than
+being inferred from heartbeat recency.`
+} as const;
+
 export const $HealthInfoResponse = {
     properties: {
         metadatabase: {
@@ -6549,6 +6675,16 @@ export const $HealthInfoResponse = {
             anyOf: [
                 {
                     '$ref': '#/components/schemas/DagProcessorInfoResponse'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        executor: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/ExecutorInfoResponse'
                 },
                 {
                     type: 'null'
@@ -8196,6 +8332,20 @@ export const $ProviderInfoResponse = {
             ],
             title: 'Dialects'
         },
+        object_storage_providers: {
+            anyOf: [
+                {
+                    items: {
+                        '$ref': '#/components/schemas/ProviderObjectStorageProviderInfo'
+                    },
+                    type: 'array'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Object Storage Providers'
+        },
         transfers: {
             anyOf: [
                 {
@@ -8521,6 +8671,36 @@ export const $ProviderIntegrationModulesInfo = {
     required: ['integration_name', 'python_modules'],
     title: 'ProviderIntegrationModulesInfo',
     description: 'Python modules an integration contributes for one kind of functionality.'
+} as const;
+
+export const $ProviderObjectStorageProviderInfo = {
+    properties: {
+        storage_type: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Storage Type'
+        },
+        provider_class_name: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Provider Class Name'
+        }
+    },
+    type: 'object',
+    title: 'ProviderObjectStorageProviderInfo',
+    description: 'DataFusion object storage provider provided by a provider.'
 } as const;
 
 export const $ProviderPluginInfo = {
@@ -13157,6 +13337,86 @@ export const $DeadlineResponse = {
     required: ['id', 'deadline_time', 'missed', 'created_at', 'dag_id', 'dag_run_id', 'callback_id', 'callback_type'],
     title: 'DeadlineResponse',
     description: 'Deadline serializer for responses.'
+} as const;
+
+export const $DurableExecutionResponse = {
+    properties: {
+        tries: {
+            items: {
+                '$ref': '#/components/schemas/DurableTryResponse'
+            },
+            type: 'array',
+            title: 'Tries'
+        }
+    },
+    type: 'object',
+    required: ['tries'],
+    title: 'DurableExecutionResponse',
+    description: 'Durable execution history of a task instance, read by the logs banner.'
+} as const;
+
+export const $DurableTryResponse = {
+    properties: {
+        try_number: {
+            anyOf: [
+                {
+                    type: 'integer'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Try Number'
+        },
+        decision: {
+            type: 'string',
+            enum: ['submitted', 'resubmitted', 'reconnected', 'already_succeeded'],
+            title: 'Decision'
+        },
+        external_id: {
+            '$ref': '#/components/schemas/JsonValue'
+        },
+        status: {
+            anyOf: [
+                {
+                    '$ref': '#/components/schemas/TaskInstanceState'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        submitted_at: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Submitted At'
+        },
+        saved_seconds: {
+            anyOf: [
+                {
+                    type: 'number'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            title: 'Saved Seconds'
+        },
+        previous_external_id: {
+            '$ref': '#/components/schemas/JsonValue'
+        }
+    },
+    type: 'object',
+    required: ['try_number', 'decision', 'external_id', 'status', 'saved_seconds'],
+    title: 'DurableTryResponse',
+    description: 'What one try did with the external job.'
 } as const;
 
 export const $DurationStats = {

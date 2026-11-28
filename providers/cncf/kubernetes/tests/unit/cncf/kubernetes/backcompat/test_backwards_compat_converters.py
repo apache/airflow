@@ -121,9 +121,9 @@ def test_convert_from_dict_is_picklable_in_cluster(monkeypatch):
     result = _convert_from_dict({"name": "vol", "emptyDir": {}}, k8s.V1Volume)
 
     assert isinstance(result, k8s.V1Volume)
-    pickle.dumps(result)
-    assert result.local_vars_configuration.refresh_api_key_hook is None
-    assert result.empty_dir.local_vars_configuration.refresh_api_key_hook is None
+    restored = pickle.loads(pickle.dumps(result))
+    assert restored.name == "vol"
+    assert restored.empty_dir == k8s.V1EmptyDirVolumeSource()
 
 
 # testcase of convert_volume() function

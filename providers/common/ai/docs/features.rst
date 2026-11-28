@@ -230,9 +230,10 @@ Recover from failures
      - What it does
      - Extra
    * - :doc:`Durable execution <durable_execution>`
-     - With ``durable=True`` on ``@task.agent``, or the ``AirflowDurability`` capability
-       on your own agent, a retry replays the model and tool calls that finished instead
-       of paying for them again.
+     - On by default in ``AgentOperator`` and ``@task.agent`` for a task that can retry on
+       Airflow 3.3 and later, or with the ``AirflowDurability`` capability on your own
+       agent: a retry replays the model and tool calls that finished instead of paying for
+       them again.
      - None
    * - :doc:`Retry policies <retry_policies>`
      - Has a model read a failure and decide whether the task retries, and when. Works

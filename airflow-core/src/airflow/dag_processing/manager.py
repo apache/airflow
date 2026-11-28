@@ -122,13 +122,13 @@ if TYPE_CHECKING:
     from socket import socket
 
     from sqlalchemy.orm import Session
-    from sqlalchemy.sql import Select
 
     from airflow.callbacks.callback_requests import CallbackRequest
     from airflow.dag_processing.api_client import DagProcessorAPIClient
     from airflow.dag_processing.bundles.base import BaseDagBundle
     from airflow.sdk.api.client import Client
     from airflow.sdk.coordinators._dag_importer import CoordinatorDagImporter  # noqa: SDK001
+    from airflow.utils.sqlalchemy import Select
 
 # The budget limits when another send starts; an in-flight request retains its read/write timeout.
 _API_SEND_BUDGET_SECONDS = 1.0
@@ -959,7 +959,7 @@ class DagFileProcessorManager(LoggingMixin):
                 if bundle.supports_versioning and not bundle.is_initialized
             ]:
                 self.log.debug("Skipping callback fetch for uninitialized bundles: %s", unready_bundles)
-            query: Select[tuple[DbCallbackRequest]] = with_row_locks(
+            query: Select[DbCallbackRequest] = with_row_locks(
                 select(DbCallbackRequest)
                 .where(
                     DbCallbackRequest.bundle_name.in_(bundle_names),

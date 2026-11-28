@@ -46,6 +46,7 @@ def get_bundle() -> VersionBundle:
         AddRegionCoordinatesToSupervisorTaskInstance,
         AddRetryReasonToTaskState,
     )
+    from airflow.sdk.execution_time.schema.versions.v2026_12_01 import RemoveStringTriggerKwargsFromDeferTask
     from airflow.sdk.execution_time.schema.versions.v2027_02_28 import (
         AddBundleConfigToDagFileParseRequest,
         AddExecutionTimeoutToSupervisorTIRunContext,
@@ -64,6 +65,7 @@ def get_bundle() -> VersionBundle:
             MakeSupervisorVariableValueNonNullable,
             AddXComBackendErrorType,
         ),
+        Version("2026-12-01", RemoveStringTriggerKwargsFromDeferTask),
         Version(
             "2026-10-30",
             AddArgBindingsToSupervisorTIRunContext,

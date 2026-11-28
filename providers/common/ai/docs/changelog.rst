@@ -25,6 +25,74 @@
 Changelog
 ---------
 
+.. warning::
+  **Durable execution is on by default for** ``AgentOperator`` **and** ``@task.agent``
+
+  On Airflow 3.3 and later, an agent task that can retry (``retries`` above 0, or from
+  Airflow 3.4 a ``retry_policy``) now records each model response and tool call it completes, and a retry
+  replays them instead of running them again. ``durable`` defaults to ``None`` instead of
+  ``False``. What changes on a retry:
+
+  * A tool call the failed attempt completed is not run again; its recorded result is
+    returned to the model. A tool whose effect does not outlive the attempt, such as a file in
+    a temporary directory, or whose answer has to be current, needs the metadata
+    ``{"airflow": False}`` to run on every attempt (:ref:`durable-tool-opt-out`).
+  * The agent's ``run_id``, and its ``conversation_id`` when there is no message history,
+    stay those of the first attempt on every retry, in the ``run_id`` XCom and the
+    ``gen_ai.agent.call.id`` span attribute too.
+  * Each step is one write to the task state store, which keeps model responses and masked
+    tool results in the metadata database until the agent run succeeds. A task that fails its
+    last retry keeps them, with no expiry, until its Dag run is purged or the entries are
+    deleted (:ref:`durable-journal-storage`).
+
+  On Airflow 3.3, a clear does not delete the journal, so a cleared task that failed now
+  replays what its failed attempts recorded instead of starting over; from Airflow 3.4 a
+  clear starts over unless it keeps the task state (:ref:`durable-clear`).
+
+  Where durable execution cannot apply (a ``SandboxToolset``, an ``MCPToolset`` without an
+  ``id``, a toolset in a capability the operator cannot give an id to), it stays off and the
+  task log says why; so does a ``ModelFallback`` capability, or one that selects the model for
+  each request such as ``SelectModel``, since pydantic-ai refuses a request moved to a model
+  under durable execution. A ``fallback_conn_ids`` chain keeps it. A sandbox a function or
+  ``DynamicToolset`` builds per run cannot be seen before the run, so pass ``durable=False`` to
+  that task. When the Dag changes between attempts so that the default turns it off, such as
+  a ``SelectModel`` added or ``retries`` lowered to 0, and an earlier attempt started an agent run,
+  the task fails instead of running the agent live and repeating its tool calls
+  (:ref:`durable-not-journaled`). An agent pydantic-ai refuses only once its durable run has started, such as one a
+  capability whose ``for_run`` builds it when the run starts moves to a model instance the agent
+  was not built with, runs again without durable execution. The task
+  fails instead when a step a live run would repeat already ran, such as a tool call, or when it
+  has a HITL review, so pass ``durable=False`` to that task too (:ref:`durable-not-journaled`).
+  On by default, a step result the journal cannot hold is logged and runs again on retry;
+  ``durable=True`` still fails the task on it.
+
+  To keep the previous behaviour, pass ``durable=False`` to the task.
+  ``default_args={"durable": False}`` works too, but also turns off ``durable`` on every
+  resumable operator in the Dag, such as ``KubernetesPodOperator`` (:ref:`durable-opt-out`).
+
+  A task that used ``durable=True`` on 1.0.0 or 1.1.0 and failed is retried after the upgrade
+  with its recorded steps replayed, except when that attempt's write of the list of its agent
+  runs failed: then the retry runs those steps live once.
+
+.. note::
+  **Durable replay of a fallback chain**
+
+  A recorded model step through a ``fallback_conn_ids`` chain now replays after the chain is
+  edited, as long as the connection that answered it is still in the chain and at least one
+  fallback connection remains; with a single connection the hook passes the bare model
+  instead of a chain, so every step runs live. A step answered by a connection that was
+  removed from the chain, or whose ``model`` changed, runs live. The step also needs the
+  connection that answered it to remain in the chain under the same ID, so two connections
+  serving the same model are told apart; renaming a connection runs its steps live, while
+  changing its host or credentials does not. A response the model left suspended is resumed
+  by pydantic-ai on the first connection in the chain that serves its model, which need not
+  be the one that answered it. The fingerprint of a chain request no longer lists the
+  connections, so the first retry after upgrading a task whose durable journal holds steps
+  recorded through a chain by an earlier version runs every step live, tools included. A
+  ``FallbackModel`` built outside the hook keeps the earlier behaviour: its steps replay
+  while the chain is unchanged, and run live once it is edited.
+  See :doc:`recovery`.
+
 .. note::
   ``@task.llm_batch`` now runs OpenAI and Anthropic batches through pydantic-ai's ``Model.batch_*``
   methods and adds a Gemini adapter (``google:<model>``, Gemini Developer API only; a Vertex
@@ -80,6 +148,12 @@ Changelog
 
   A ``BatchAdapter`` written for the earlier contract keeps working: the new members have defaults.
 
+.. note::
+  The HITL review XComs ``airflow_hitl_review_agent_output_<n>`` and
+  ``airflow_hitl_review_human_feedback_<n>`` now hold ``{"text": ..., "dag_id": ...}``; in
+  1.2.0 they held the text itself. A task that pulls them reads the text from ``["text"]``.
+  See :doc:`hitl_review`.
+
 1.2.0
 .....
 
@@ -91,6 +165,17 @@ Changelog
   group the chain raised. ``LLMRetryPolicy`` and ``ClassifierRetryPolicy`` now also match their
   ``fallback_rules`` against the last connection's error, and show the model each connection's error
   and how many durable journal steps the attempt replayed and recorded.
+
+.. note::
+  **Significant change: durable journal failures**
+
+  On Airflow < 3.3, a durable journal that cannot be read or is corrupt now
+  fails the task attempt instead of treating the journal as absent and running
+  completed LLM calls or tool operations again. Before upgrading, S3 roles for
+  durable ObjectStorage journals must grant ``s3:ListBucket`` on the bucket, in
+  addition to permissions to read, write and delete journal objects. A storage
+  read failure follows the task's retry policy; a corrupt journal is not retried
+  and must be repaired or deleted before the task is run again.
 
 .. note::
   ``@task.llm``, ``@task.agent``, ``@task.llm_sql``, ``@task.llm_branch``,

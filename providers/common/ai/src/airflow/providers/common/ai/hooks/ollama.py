@@ -20,6 +20,8 @@ import os
 
 import httpx2
 
+from airflow.providers.common.ai.utils.readiness_errors import translate_readiness_errors
+
 
 def build_ollama_native_root(base_url: str) -> str:
     """Return the server root of an Ollama URL, dropping a trailing ``/v1`` (the OpenAI-compatible path)."""
@@ -60,39 +62,22 @@ class OllamaBackend:
         """
         Load the model, waiting at most *timeout* seconds.
 
-        :raises TimeoutError: If the server cannot be reached or does not finish loading within *timeout*.
+        :raises TimeoutError: If a request times out or the model does not finish loading within *timeout*.
+        :raises httpx2.ConnectError: If the server cannot be reached.
         :raises httpx2.HTTPStatusError: If the server answers with an error status; the message names the
             model and carries the server's ``error`` text (the response body when it has none).
         """
         # A /api/generate request with no prompt and stream=False returns once the model is
         # available. keep_alive only controls how long the model stays loaded afterwards.
-        try:
+        with translate_readiness_errors(
+            server="Ollama",
+            root=self.root,
+            timeout=timeout,
+            failure=f"could not load model '{self.model_name}'",
+            timeout_failure=f"did not finish loading model '{self.model_name}'",
+        ):
             with httpx2.Client(transport=self._transport, timeout=timeout) as client:
                 response = client.post(
                     f"{self.root}/api/generate", json={"model": self.model_name, "stream": False}
                 )
                 response.raise_for_status()
-        except httpx2.HTTPStatusError as e:
-            raise httpx2.HTTPStatusError(
-                f"Ollama could not load model '{self.model_name}' ({e.response.status_code}): "
-                f"{self._extract_error_detail(e.response)}",
-                request=e.request,
-                response=e.response,
-            ) from e
-        except httpx2.ConnectTimeout as e:
-            raise TimeoutError(f"Could not reach Ollama at {self.root} within {timeout} seconds.") from e
-        except httpx2.TimeoutException as e:
-            raise TimeoutError(
-                f"Ollama did not finish loading model '{self.model_name}' within {timeout} seconds."
-            ) from e
-
-    @staticmethod
-    def _extract_error_detail(response: httpx2.Response) -> str:
-        """Return Ollama's ``error`` field, or the body cut to a short length when there is none."""
-        try:
-            body = response.json()
-        except ValueError:
-            body = None
-        if isinstance(body, dict) and isinstance(error := body.get("error"), str) and error:
-            return error
-        return response.text.strip()[:200] or response.reason_phrase

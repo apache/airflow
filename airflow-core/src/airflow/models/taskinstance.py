@@ -168,6 +168,9 @@ _PER_ATTEMPT_COLUMNS = (
     "queued_by_job_id",
     "last_heartbeat_at",
 )
+# Task instances per batch of ``_reset_orphaned_attempts``: its archive UPDATE binds up to 3 parameters
+# per task instance, and SQLite before 3.32 allows 999 per statement.
+_RESET_BATCH_SIZE = 250
 tracer = trace.get_tracer(__name__)
 
 if TYPE_CHECKING:
@@ -620,7 +623,7 @@ def clear_task_instances(
             )
         ).all()
         if reset_dag_runs:
-            dag_run_state = DagRunState(dag_run_state)  # Validate the state value.
+            dag_run_state = DagRunState(str(dag_run_state))  # Validate the state value.
         for dr in drs:
             was_finished = dr.state in State.finished_dr_states
             if reset_dag_runs:
@@ -1097,6 +1100,49 @@ def _resolve_stored_index(map_index: int | None, region_index: int | None) -> in
 def uuid7() -> UUID:
     """Generate a new UUID7."""
     return uuid6.uuid7()
+
+
+def _get_successor_overrides(
+    *, try_number: int, state: TaskInstanceState | str | None, retry_at: datetime | None
+) -> dict[str, Any]:
+    """Return the columns of a successor attempt that are not copied from the attempt it succeeds."""
+    return {
+        **dict.fromkeys(_PER_ATTEMPT_COLUMNS),
+        "id": uuid7(),
+        "try_number": try_number + 1,
+        "working_set": True,
+        "archived_reason": None,
+        "trigger_id": None,
+        "external_executor_id": None,
+        "state": state,
+        "retry_at": retry_at,
+    }
+
+
+def _get_archived_changes(
+    *,
+    reason: str,
+    state: TaskInstanceState | str | None,
+    start_date: datetime | None,
+    end_date: datetime | None,
+    now: datetime,
+) -> dict[str, Any]:
+    """Return the columns ``archive()`` changes on an attempt, besides taking it out of the working set."""
+    never_started = reason == "superseded" and state in (
+        None,
+        TaskInstanceState.SCHEDULED,
+        TaskInstanceState.QUEUED,
+        TaskInstanceState.UP_FOR_RETRY,
+    )
+    if state in State.finished or never_started:
+        return {}
+    if end_date is not None:
+        return {"state": TaskInstanceState.FAILED}
+    return {
+        "state": TaskInstanceState.FAILED,
+        "end_date": now,
+        "duration": (now - start_date).total_seconds() if start_date else None,
+    }
 
 
 class LegacyTaskDataOwner(Base):
@@ -1740,17 +1786,15 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
         for name in ("state", "start_date", "end_date"):
             if not state.attrs[name].history.has_changes():
                 setattr(self, name, getattr(current, name))
-        never_started = reason == "superseded" and self.state in (
-            None,
-            TaskInstanceState.SCHEDULED,
-            TaskInstanceState.QUEUED,
-            TaskInstanceState.UP_FOR_RETRY,
+        changes = _get_archived_changes(
+            reason=reason,
+            state=self.state,
+            start_date=self.start_date,
+            end_date=self.end_date,
+            now=timezone.utcnow(),
         )
-        if self.state not in State.finished and not never_started:
-            self.state = TaskInstanceState.FAILED
-            if self.end_date is None:
-                self.end_date = timezone.utcnow()
-                self.set_duration()
+        for name, value in changes.items():
+            setattr(self, name, value)
         self.working_set = None
         self.archived_reason = reason
         self.trigger_id = None
@@ -1815,6 +1859,7 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
 
     def prepare_db_for_next_try(self, session: Session) -> TaskInstance:
         """Archive this UUID and return its successor in the caller's transaction."""
+        # _reset_orphaned_attempts writes the same rows in bulk; change both.
         successor_state = self.state
         dag_version_id = self.dag_version_id
         retry_at = None
@@ -1832,16 +1877,8 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             for attribute in inspect(TaskInstance).column_attrs
         }
         values.update(
-            {name: None for name in _PER_ATTEMPT_COLUMNS},
-            id=uuid7(),
-            try_number=self.try_number + 1,
-            working_set=True,
-            archived_reason=None,
-            trigger_id=None,
-            external_executor_id=None,
+            _get_successor_overrides(try_number=self.try_number, state=successor_state, retry_at=retry_at),
             dag_version_id=dag_version_id,
-            state=successor_state,
-            retry_at=retry_at,
         )
         session.execute(insert(TaskInstance.__table__).values(values))
         successor = session.scalars(select(TaskInstance).where(TaskInstance.id == values["id"])).one()
@@ -1853,6 +1890,128 @@ class TaskInstance(Base, LoggingMixin, BaseWorkload):
             carried.created_at, carried.updated_at = note.created_at, note.updated_at
             successor.task_instance_note = carried
         return successor
+
+    @classmethod
+    def _reset_orphaned_attempts(cls, tis: Sequence[TaskInstance], *, session: Session) -> None:
+        """
+        Reset the attempts a dead scheduler left, in bulk.
+
+        Equivalent to ``prepare_db_for_next_try`` on each task instance, followed by clearing the
+        successor's ``state``, ``next_method`` and ``next_kwargs``, in a few statements per batch of
+        ``_RESET_BATCH_SIZE`` task instances.
+
+        Only meant for ``SchedulerJobRunner.adopt_or_reset_orphaned_tasks``: ``tis`` are current attempts
+        attached to ``session``, loaded with every column but ``executor_config``, ``next_method`` and
+        ``next_kwargs``. Like ``archive()``,
+        each batch is locked and its archived outcome decided from what the rows hold then, and an
+        attempt that is no longer current raises ``ValueError``. Attempts whose state is ``up_for_retry``
+        go through ``prepare_db_for_next_try`` itself, which computes the successor's retry deadline.
+        Afterwards the objects hold their archived row, as after ``archive()``.
+        """
+        table = cls.__table__
+        note_table = TaskInstanceNote.__table__
+        # Not loaded by the orphan query: read for the batch below, or cleared on the successor.
+        not_loaded = {"executor_config", "next_method", "next_kwargs"}
+        copied_attributes = [attr for attr in inspect(cls).column_attrs if attr.key not in not_loaded]
+        archived_values = {"working_set": None, "archived_reason": "retry", "trigger_id": None}
+        for batch in chunks(list(tis), _RESET_BATCH_SIZE):
+            # Write what was changed in memory first, so the locked rows below hold it.
+            session.flush()
+            in_bulk = []
+            for ti in batch:
+                if ti.state == TaskInstanceState.UP_FOR_RETRY:
+                    successor = ti.prepare_db_for_next_try(session)
+                    successor.state = None
+                    successor.clear_next_method_args()
+                else:
+                    in_bulk.append(ti)
+            if not in_bulk:
+                continue
+            current = {
+                row.id: row
+                for row in session.execute(
+                    select(
+                        table.c.id,
+                        table.c.working_set,
+                        table.c.state,
+                        table.c.start_date,
+                        table.c.end_date,
+                        table.c.executor_config,
+                    )
+                    .where(table.c.id.in_([ti.id for ti in in_bulk]))
+                    .with_for_update()
+                )
+            }
+            if any(ti.id not in current or current[ti.id].working_set is not True for ti in in_bulk):
+                raise ValueError("An archived task instance cannot be archived again")
+            now = timezone.utcnow()
+            changes = {
+                ti.id: _get_archived_changes(
+                    reason="retry",
+                    state=current[ti.id].state,
+                    start_date=current[ti.id].start_date,
+                    end_date=current[ti.id].end_date,
+                    now=now,
+                )
+                for ti in in_bulk
+            }
+            # One UPDATE per kind of change: within one, only the duration differs between rows.
+            by_columns: defaultdict[tuple[str, ...], list[TaskInstance]] = defaultdict(list)
+            for ti in in_bulk:
+                by_columns[tuple(changes[ti.id])].append(ti)
+            for columns, group in by_columns.items():
+                values: dict[str, Any] = {name: changes[group[0].id][name] for name in columns}
+                if "duration" in columns:
+                    values["duration"] = case(
+                        *((table.c.id == ti.id, changes[ti.id]["duration"]) for ti in group),
+                        else_=table.c.duration,
+                    )
+                session.execute(
+                    update(table)
+                    .where(table.c.id.in_([ti.id for ti in group]))
+                    .values(**archived_values, updated_at=now, **values)
+                )
+            successors = [
+                {
+                    **{attr.columns[0].name: getattr(ti, attr.key) for attr in copied_attributes},
+                    "executor_config": current[ti.id].executor_config,
+                    **_get_successor_overrides(try_number=ti.try_number, state=None, retry_at=None),
+                    "next_method": None,
+                    "next_kwargs": None,
+                    "updated_at": now,
+                }
+                for ti in in_bulk
+            ]
+            # After the archive: only one attempt of a task instance may be in the working set.
+            session.execute(insert(table), successors)
+            successor_id_by_archived_id = {
+                ti.id: successor["id"] for ti, successor in zip(in_bulk, successors)
+            }
+            if notes := (
+                session.execute(
+                    select(note_table).where(note_table.c.ti_id.in_(list(successor_id_by_archived_id)))
+                )
+                .mappings()
+                .all()
+            ):
+                session.execute(
+                    insert(note_table),
+                    [{**note, "ti_id": successor_id_by_archived_id[note["ti_id"]]} for note in notes],
+                )
+            # The objects hold the archived rows, as after archive().
+            for ti in in_bulk:
+                row = current[ti.id]
+                for key, value in {
+                    "state": row.state,
+                    "start_date": row.start_date,
+                    "end_date": row.end_date,
+                    **changes[ti.id],
+                    **archived_values,
+                    "updated_at": now,
+                }.items():
+                    set_committed_value(ti, key, value)
+        # The successors of attempts reset through prepare_db_for_next_try.
+        session.flush()
 
     def complete_restart(
         self, *, session: Session, terminal_outcome: TaskInstanceState | None = None

@@ -124,7 +124,9 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{ZONE}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
+                # The MSSQL image layers are zstd-compressed, which needs Docker >= 23.0.
+                # Debian 12 ships docker.io 20.10, which fails the pull with "invalid tar header".
+                "source_image": "projects/debian-cloud/global/images/debian-13-trixie-v20261116",
             },
         }
     ],

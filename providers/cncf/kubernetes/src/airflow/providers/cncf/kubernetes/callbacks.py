@@ -153,7 +153,7 @@ class KubernetesPodOperatorCallback:
     @staticmethod
     def on_pod_cleanup(
         *,
-        pod: k8s.V1Pod,
+        pod: k8s.V1Pod | None,
         client: client_type,
         mode: str,
         operator: KubernetesPodOperator,

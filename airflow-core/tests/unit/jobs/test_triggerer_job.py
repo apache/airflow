@@ -22,6 +22,7 @@ import contextlib
 import copy
 import datetime
 import errno
+import importlib.util
 import itertools
 import json
 import logging
@@ -85,7 +86,7 @@ from airflow.jobs.triggerer_job_runner import (
     messages,
 )
 from airflow.models import Connection, DagModel, DagRun, Trigger, Variable
-from airflow.models.asset import AssetEvent, AssetModel
+from airflow.models.asset import AssetEvent, AssetModel, AssetWatcherModel
 from airflow.models.dag_version import DagVersion
 from airflow.models.dagbag import DBDagBag
 from airflow.models.dagbundle import DagBundleModel
@@ -128,6 +129,7 @@ from airflow.sdk.execution_time.comms import (
 )
 from airflow.sdk.execution_time.context import AssetStateStoreAccessors
 from airflow.sdk.log import init_log_file as create_log_file
+from airflow.sdk.serde import serialize
 from airflow.sdk.types import RuntimeTaskInstanceProtocol
 from airflow.serialization.serialized_objects import LazyDeserializedDAG
 from airflow.triggers.base import (
@@ -143,6 +145,7 @@ from airflow.triggers.shared_stream import SharedStreamProducer
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils.log.trigger_log import get_trigger_log_dir, get_trigger_log_relative_path
 from airflow.utils.log.watcher_log import WatcherLogs
+from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -332,6 +335,19 @@ def test_capacity_decode():
         job = Job()
         with pytest.raises(ValueError, match=r"Capacity number .+ is invalid"):
             TriggererJobRunner(job=job, capacity=input_str)
+
+
+@conf_vars({("triggerer", "triggerer_health_check_threshold"): "30.5"})
+def test_health_check_threshold_accepts_float():
+    # The threshold is read when the class body runs, so execute a fresh copy of the module.
+    # importlib.reload() would rebind the classes that the rest of this module imported and patches.
+    spec = importlib.util.find_spec("airflow.jobs.triggerer_job_runner")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.TriggerRunnerSupervisor.health_check_threshold == 30.5
 
 
 @pytest.mark.parametrize("team_name", ["team_a", None])
@@ -5305,6 +5321,56 @@ def test_handle_events_does_not_confirm_seq_when_persist_fails(jobless_superviso
     assert list(jobless_supervisor.persisted_event_seqs) == []
 
 
+@pytest.fixture
+def asset_watcher_trigger_id(session):
+    trigger_model = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    session.add(trigger_model)
+    session.flush()
+    asset = AssetModel("listener-after-commit")
+    asset.add_trigger(trigger_model, "listener-after-commit-watcher")
+    session.add(asset)
+    session.commit()
+    yield trigger_model.id
+    clear_db_assets()
+
+
+def _count_committed_asset_events() -> int:
+    with create_session(scoped=False) as other_session:
+        return other_session.execute(select(func.count()).select_from(AssetEvent)).scalar_one()
+
+
+@mock.patch("airflow.assets.manager.AssetManager.notify_asset_changed", autospec=True)
+@mock.patch("airflow.assets.manager.AssetManager.nofity_asset_event_emitted", autospec=True)
+def test_on_trigger_event_runs_asset_listeners_after_commit(
+    mock_event_emitted, mock_asset_changed, jobless_supervisor, asset_watcher_trigger_id
+):
+    committed_counts: list[int] = []
+    mock_asset_changed.side_effect = lambda **_: committed_counts.append(_count_committed_asset_events())
+    mock_event_emitted.side_effect = lambda **_: committed_counts.append(_count_committed_asset_events())
+
+    jobless_supervisor.on_trigger_event(trigger_id=asset_watcher_trigger_id, event=TriggerEvent("payload"))
+
+    assert committed_counts == [1, 1]
+
+
+@mock.patch("airflow.assets.manager.AssetManager._queue_dagruns", autospec=True)
+@mock.patch("airflow.assets.manager.AssetManager.notify_asset_changed", autospec=True)
+@mock.patch("airflow.assets.manager.AssetManager.nofity_asset_event_emitted", autospec=True)
+def test_on_trigger_event_skips_asset_listeners_when_transaction_fails(
+    mock_event_emitted, mock_asset_changed, mock_queue_dagruns, jobless_supervisor, asset_watcher_trigger_id
+):
+    mock_queue_dagruns.side_effect = OperationalError("SELECT 1", {}, Exception("deadlock"))
+
+    with pytest.raises(OperationalError):
+        jobless_supervisor.on_trigger_event(
+            trigger_id=asset_watcher_trigger_id, event=TriggerEvent("payload")
+        )
+
+    mock_asset_changed.assert_not_called()
+    mock_event_emitted.assert_not_called()
+    assert _count_committed_asset_events() == 0
+
+
 @pytest.mark.parametrize(
     ("team_name", "expected_tags"),
     [
@@ -6195,3 +6261,98 @@ class TestCreationFailureInFinished:
         runner.process_trigger_events(finished_ids=finished_ids)
 
         assert finished_ids == [10]
+
+
+class TestEncryptPlaintextTriggerKwargs:
+    """Tests that plaintext trigger kwargs are encrypted in place when picked up by the triggerer."""
+
+    @staticmethod
+    def _attach_trigger_to_asset(session, trigger: Trigger, suffix: str) -> int:
+
+        session.add(trigger)
+        session.flush()
+
+        asset = AssetModel(name=f"test_asset_{suffix}", uri=f"test://{suffix}")
+        session.add(asset)
+        session.flush()
+        session.add(AssetWatcherModel(name=f"watcher_{suffix}", asset_id=asset.id, trigger_id=trigger.id))
+        session.commit()
+        return trigger.id
+
+    def test_build_trigger_workloads_encrypts_plaintext_kwargs(self, session, jobless_supervisor):
+        plaintext = '{"__type": "dict", "__var": {"foo": "bar"}}'
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        trigger.encrypted_kwargs = plaintext
+        trigger_id = self._attach_trigger_to_asset(session, trigger, "encrypt_kwargs")
+
+        workloads_to_create = jobless_supervisor.build_trigger_workloads({trigger_id})
+
+        assert len(workloads_to_create) == 1
+        assert not workloads_to_create[0].encrypted_kwargs.startswith("{")
+
+        session.expire_all()
+        refreshed = session.get(Trigger, trigger_id)
+        assert refreshed is not None
+        assert not refreshed.encrypted_kwargs.startswith("{")
+        assert refreshed.kwargs == {"foo": "bar"}
+
+    def test_build_trigger_workloads_encrypts_serde_format_payload(self, session, jobless_supervisor):
+        """Deferred-task triggers stored via Execution API use serde format."""
+
+        serde_payload = json.dumps(serialize({"timeout": 30, "poke_interval": 5}))
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        trigger.encrypted_kwargs = serde_payload
+        trigger_id = self._attach_trigger_to_asset(session, trigger, "serde_kwargs")
+
+        workloads_to_create = jobless_supervisor.build_trigger_workloads({trigger_id})
+
+        assert len(workloads_to_create) == 1
+        assert not workloads_to_create[0].encrypted_kwargs.startswith("{")
+
+        session.expire_all()
+        refreshed = session.get(Trigger, trigger_id)
+        assert refreshed is not None
+        assert not refreshed.encrypted_kwargs.startswith("{")
+        assert refreshed.kwargs == {"timeout": 30, "poke_interval": 5}
+
+    def test_build_trigger_workloads_encrypts_undeserializable_row(self, session, jobless_supervisor):
+        """Plaintext rows that fail deserialization must still be encrypted without raising."""
+        undeserializable_plaintext = '{"__classname__": "nonexistent.module.DisallowedClass", "__version__": 1, "__data__": {"secret": "val"}}'
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+        trigger.encrypted_kwargs = undeserializable_plaintext
+        trigger_id = self._attach_trigger_to_asset(session, trigger, "undeserializable_kwargs")
+
+        workloads_to_create = jobless_supervisor.build_trigger_workloads({trigger_id})
+
+        assert len(workloads_to_create) == 1
+        assert not workloads_to_create[0].encrypted_kwargs.startswith("{")
+
+        session.expire_all()
+        refreshed = session.get(Trigger, trigger_id)
+        assert refreshed is not None
+        assert not refreshed.encrypted_kwargs.startswith("{")
+
+    def test_build_trigger_workloads_leaves_already_encrypted_row_unchanged(
+        self, session, jobless_supervisor
+    ):
+        """Already encrypted rows must not be re-encrypted or modified."""
+
+        trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={"foo": "bar"})
+        original_encrypted = trigger.encrypted_kwargs
+        assert not original_encrypted.startswith("{")
+
+        trigger_id = self._attach_trigger_to_asset(session, trigger, "already_encrypted_kwargs")
+
+        with patch.object(
+            Trigger, "_encrypt_serialized_kwargs", wraps=Trigger._encrypt_serialized_kwargs
+        ) as mock_encrypt:
+            workloads_to_create = jobless_supervisor.build_trigger_workloads({trigger_id})
+
+        mock_encrypt.assert_not_called()
+        assert len(workloads_to_create) == 1
+        assert workloads_to_create[0].encrypted_kwargs == original_encrypted
+
+        session.expire_all()
+        refreshed = session.get(Trigger, trigger_id)
+        assert refreshed is not None
+        assert refreshed.encrypted_kwargs == original_encrypted

@@ -96,6 +96,43 @@ English words, numbers, or symbols:
 "最近12小時"       // missing space around numbers
 ```
 
+### Spacing Around `{{variable}}` and `$t(key)`
+
+Decide the space by the **rendered text** next to a placeholder, not by the placeholder itself. Check the start and the end separately. If the start or the end can be English for some values and Chinese for others, keep the space there.
+
+To find the rendered text:
+
+- `$t(key)` renders another translation key in the locale files, so its value is fixed. `$t(common:mapIndex)` is `mapIndex` in `common.json`; a key without a prefix is usually in the same file.
+- `{{variable}}` is filled in by the UI code. Check the value at every call site (see step 2 of the [Translation Workflow](#translation-workflow)). Some call sites set a `defaultValue`, which shows as is, often in English, when no translation is found.
+
+**Correct** — no space next to Chinese:
+
+```jsonc
+"標記$t(task_one)為失敗"      // renders "標記任務為失敗"
+```
+
+**Correct** — space only next to English or a number:
+
+```jsonc
+"標記 $t(dagRun_one)為失敗"   // renders "標記 Dag 執行為失敗"
+"逾期 {{duration}}完成"       // renders "逾期 34.4 秒完成"
+```
+
+**Correct** — keep the space when the code can pass English or Chinese:
+
+```jsonc
+"清除 {{type}}"               // renders "清除 Dag 執行" or "清除 任務實例"
+```
+
+> **Note:** This leaves an extra space in "清除 任務實例", but removing it would render "清除Dag 執行". Keep the space as a trade-off.
+
+**Incorrect** — space between Chinese characters:
+
+```jsonc
+"標記 $t(task_one) 為失敗"    // renders "標記 任務 為失敗"
+"逾期 {{duration}} 完成"      // renders "逾期 34.4 秒 完成"
+```
+
 ## Punctuation
 
 - Use **full-width** punctuation for Chinese sentences: `，` `。` `：` `？` `！`

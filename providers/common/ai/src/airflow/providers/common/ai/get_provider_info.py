@@ -95,6 +95,7 @@ def get_provider_info():
                 "python-modules": [
                     "airflow.providers.common.ai.hooks.pydantic_ai",
                     "airflow.providers.common.ai.hooks.ollama",
+                    "airflow.providers.common.ai.hooks.lmstudio",
                 ],
             },
             {"integration-name": "MCP Server", "python-modules": ["airflow.providers.common.ai.hooks.mcp"]},

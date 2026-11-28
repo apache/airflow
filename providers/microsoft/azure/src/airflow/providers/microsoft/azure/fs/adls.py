@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
-from urllib.parse import urlparse
+from urllib.parse import ParseResult, urlparse
 
 from azure.identity import ClientSecretCredential
 
@@ -30,22 +30,53 @@ if TYPE_CHECKING:
 schemes = ["abfs", "abfss", "adl"]
 
 
+def _parsed_host(host: str | None) -> ParseResult | None:
+    """
+    Parse a connection host as a URL, treating a scheme-less host as a netloc.
+
+    Returns ``None`` for an empty host. The scheme-less handling lives here
+    alone, so the hostname and the account host are always read from the
+    same parse.
+    """
+    if not host:
+        return None
+    return urlparse(host if "://" in host else f"//{host}")
+
+
+def _hostname_from_host(host: str | None) -> str | None:
+    parsed = _parsed_host(host)
+    return parsed.hostname if parsed is not None else None
+
+
+def _account_host_from_parsed(parsed: ParseResult | None) -> str | None:
+    """
+    Return the blob account host for a parsed endpoint host, else ``None``.
+
+    adlfs is a Blob client, so a Data Lake (dfs) endpoint is mapped back to
+    its blob form wherever the ".dfs.core." labels appear in the hostname.
+    An invalid port raises ValueError: a malformed host is a configuration
+    error, and dropping the port silently would connect to the wrong endpoint.
+    """
+    if parsed is None or not parsed.hostname:
+        return None
+    hostname = parsed.hostname.replace(".dfs.core.", ".blob.core.")
+    port = parsed.port
+    return f"{hostname}:{port}" if port is not None else hostname
+
+
 def _bare_account_name_from_host(host: str | None) -> str | None:
     """
     Return the storage account name when the host is a bare account name, else ``None``.
 
     A bare host such as ``mystorageaccount`` is the ADLS account name itself. A full host
     like ``mystorageaccount.dfs.core.windows.net`` (or anything with a scheme, port or path)
-    is an endpoint and should keep the ``account_url`` handling instead.
+    is an endpoint instead and goes through the account URL derivation in ``get_fs``.
     """
-    if not host:
-        return None
-
     # urlparse().hostname is already lowercased, so compare against a lowercased host to keep
     # the check case-insensitive (Azure account names are lowercase anyway). The dot guard
     # keeps full endpoints like "acct.dfs.core.windows.net" out of the account_name path.
-    hostname = urlparse(host if "://" in host else f"//{host}").hostname
-    if hostname and "." not in hostname and hostname == host.lower():
+    hostname = _hostname_from_host(host)
+    if hostname and "." not in hostname and host is not None and hostname == host.lower():
         return hostname
     return None
 
@@ -77,8 +108,32 @@ def get_fs(conn_id: str | None, storage_options: dict[str, Any] | None = None) -
         # is the storage account name rather than part of an account URL.
         options["account_name"] = account_name
     elif conn_type != "adls" or conn.host or not tenant_id:
-        # WASB, full-URL, and custom-endpoint connections keep the historical account_url path.
-        options["account_url"] = parse_blob_account_url(conn.host, conn.login)
+        # adlfs has no account_url parameter and would silently drop it; it reads
+        # account_name and builds the URL from account_host, so derive both from
+        # the host. Only an endpoint host (a hostname with a dot, the same
+        # parsing _bare_account_name_from_host uses) supplies an account_host,
+        # and only when it is not the default blob host, which adlfs already
+        # defaults to. The name and host come from the parsed hostname, not the
+        # rebuilt account URL: parse_blob_account_url misreads a host with a
+        # port and no scheme as a scheme, and would build the URL from the
+        # login instead. A bare identifier is not an endpoint, and for those
+        # parse_blob_account_url builds the URL from the login. A bare login is
+        # the account name (wasb shared key), but with a tenant id the login is a
+        # service principal client id, so without an endpoint host nothing is
+        # derived and adlfs falls back to account_name from extras or the
+        # AZURE_STORAGE_ACCOUNT_NAME env var.
+        parsed_host = _parsed_host(conn.host)
+        conn_hostname = parsed_host.hostname if parsed_host is not None else None
+        if conn_hostname and "." in conn_hostname:
+            derived_account_name = conn_hostname.split(".")[0]
+            options["account_name"] = derived_account_name
+            account_host = _account_host_from_parsed(parsed_host)
+            if account_host and account_host != f"{derived_account_name}.blob.core.windows.net":
+                options["account_host"] = account_host
+        elif conn.login and not tenant_id:
+            account_url = urlparse(parse_blob_account_url(conn.host, conn.login))
+            if account_url.hostname:
+                options["account_name"] = account_url.hostname.split(".")[0]
     # Otherwise (adls + no host + a tenant_id) no account is set here: adlfs needs it from
     # ``account_name`` in Extra or the AZURE_STORAGE_ACCOUNT_NAME environment variable.
 

@@ -87,6 +87,8 @@ The following integrations are available.
 +---------------+-------------------------------------------------------+
 | pinot         | Integration required for Apache Pinot hooks.          |
 +---------------+-------------------------------------------------------+
+| polaris       | Integration required for Apache Polaris tests.        |
++---------------+-------------------------------------------------------+
 | qdrant        | Integration required for Qdrant tests.                |
 +---------------+-------------------------------------------------------+
 | redis         | * Integration required for Redis tests.               |
@@ -210,6 +212,14 @@ Runs mongo providers integration tests:
   .. code-block:: bash
 
        breeze testing providers-integration-tests  --db-reset --integration mongo
+
+The ``elasticsearch`` and ``opensearch`` integrations start the latest server version by default. Pick another
+supported version with ``--elasticsearch-version`` or ``--opensearch-version`` (``--help`` lists them).
+CI runs their tests once per supported version.
+
+  .. code-block:: bash
+
+       breeze testing providers-integration-tests  --db-reset --integration elasticsearch --elasticsearch-version <VERSION>
 
 
 Runs kerberos core integration tests:

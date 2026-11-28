@@ -22,6 +22,9 @@ import pytest
 import time_machine
 
 from airflow._shared.timezones.timezone import utc
+from airflow.sdk import EventsTimetable as SdkEventsTimetable
+from airflow.serialization.decoders import decode_timetable
+from airflow.serialization.encoders import encode_timetable
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.events import EventsTimetable
 
@@ -222,3 +225,32 @@ def test_timetable_without_description_after_serialization_is_the_same():
     assert deserialized.summary == summary
     assert deserialized.description == description
     assert deserialized.event_dates == EVENT_DATES
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "expected_summary", "expected_description"),
+    [
+        pytest.param(
+            {},
+            "5 events",
+            "5 events between 2021-09-06T00:00:00+00:00 and 2021-10-09T00:00:00+00:00",
+            id="no-description",
+        ),
+        pytest.param({"description": "World Cup"}, "World Cup", "World Cup", id="description"),
+        pytest.param(
+            {"restrict_to_events": True},
+            "5 events",
+            "5 events between 2021-09-06T00:00:00+00:00 and 2021-10-09T00:00:00+00:00",
+            id="restrict-to-events",
+        ),
+        pytest.param({"event_dates": []}, "0 events", "No events", id="empty"),
+    ],
+)
+def test_sdk_timetable_decodes_to_core_timetable(kwargs, expected_summary, expected_description):
+    sdk_timetable = SdkEventsTimetable(**{"event_dates": EVENT_DATES_SORTED, **kwargs})
+    timetable = decode_timetable(encode_timetable(sdk_timetable))
+    assert isinstance(timetable, EventsTimetable)
+    assert timetable.summary == expected_summary
+    assert timetable.description == expected_description
+    assert timetable.event_dates == sdk_timetable.event_dates
+    assert timetable.restrict_to_events == sdk_timetable.restrict_to_events
