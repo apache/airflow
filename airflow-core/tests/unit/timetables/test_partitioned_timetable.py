@@ -223,6 +223,7 @@ class TestPartitionedAssetTimetable:
                 "__type": "airflow.partition_mappers.identity.IdentityMapper",
                 "__var": {},
             },
+            "refire_policy": None,
         }
 
     def test_deserialize(self):
@@ -276,6 +277,28 @@ class TestPartitionedAssetTimetable:
 
         deserialized = PartitionedAssetTimetable.deserialize(serialized)
         assert deserialized.batch_asset_events is False
+
+    @pytest.mark.parametrize("refire_policy", [None, "rerun", "newrun"])
+    def test_serialize_deserialize_refire_policy(self, refire_policy):
+        """Serialize/deserialize round-trip preserves refire_policy, including the None default."""
+        ser_asset = ensure_serialized_asset(Asset("test"))
+        timetable = PartitionedAssetTimetable(
+            assets=ser_asset,
+            partition_mapper_config={ser_asset: IdentityMapper()},
+            refire_policy=refire_policy,
+        )
+        serialized = timetable.serialize()
+        assert serialized["refire_policy"] == refire_policy
+
+        deserialized = PartitionedAssetTimetable.deserialize(serialized)
+        assert deserialized.refire_policy == refire_policy
+
+    @pytest.mark.parametrize("refire_policy", ["bogus", "Rerun"])
+    def test_deserialize_rejects_unknown_refire_policy(self, refire_policy):
+        serialized = PartitionedAssetTimetable(assets=ensure_serialized_asset(Asset("test"))).serialize()
+        serialized["refire_policy"] = refire_policy
+        with pytest.raises(ValueError, match="RefirePolicy"):
+            PartitionedAssetTimetable.deserialize(serialized)
 
     @pytest.mark.parametrize("batch_asset_events", [False, True])
     @pytest.mark.parametrize("use_default_mapper", [False, True])

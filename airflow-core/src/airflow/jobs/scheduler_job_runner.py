@@ -121,7 +121,7 @@ from airflow.models.log import resolve_team_name
 from airflow.models.pool import normalize_pool_name_for_stats
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.task_coordinates import LOOP_GATE_OPERATOR, TaskCoordinateResolver
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.team import JobTeam, Team
 from airflow.models.trigger import TRIGGER_FAIL_REPR, Trigger, TriggerFailureReason, handle_event_submit
 from airflow.observability.metrics import stats_utils
@@ -130,6 +130,7 @@ from airflow.serialization.definitions.assets import SerializedAssetUniqueKey
 from airflow.serialization.definitions.notset import NOTSET
 from airflow.ti_deps.dependencies_states import ACTIVE_STATES, EXECUTION_STATES
 from airflow.timetables.base import Timetable, compute_rollup_fingerprint
+from airflow.timetables.simple import PartitionedAssetTimetable
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.helpers import chunks, prune_dict
@@ -400,6 +401,16 @@ def _build_scheduled_asset_event_clause(dag_id: str) -> ColumnElement[bool]:
         AssetEvent.source_aliases.any(
             AssetAliasModel.scheduled_dags.any(DagScheduleAssetAliasReference.dag_id == dag_id)
         ),
+    )
+
+
+def _build_apdr_event_ids_select(apdr: AssetPartitionDagRun) -> Select[int]:
+    """Select the IDs of the asset events logged against *apdr*, for ``_associate_asset_events_with_dag_run``."""
+    # DISTINCT because the association table is keyed on (dag_run_id, event_id).
+    return (
+        select(PartitionedAssetKeyLog.asset_event_id.label("event_id"))
+        .where(PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id)
+        .distinct()
     )
 
 
@@ -3310,6 +3321,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_id=apdr.target_dag_id,
                     carried_partition_date=apdr.partition_date,
                 )
+            refire_policy = getattr(timetable, "refire_policy", None)
+            if (
+                refire_policy == PartitionedAssetTimetable.RefirePolicy.RERUN
+                and self._rerun_partition_dag_run(apdr=apdr, session=session)
+            ):
+                continue
             try:
                 dag_run = dag.create_dagrun(
                     run_id=DagRun.generate_run_id(
@@ -3332,10 +3349,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 continue
             _associate_asset_events_with_dag_run(
                 dag_run=dag_run,
-                asset_event_ids_select=select(AssetEvent.id.label("event_id")).where(
-                    PartitionedAssetKeyLog.asset_partition_dag_run_id == apdr.id,
-                    PartitionedAssetKeyLog.asset_event_id == AssetEvent.id,
-                ),
+                asset_event_ids_select=_build_apdr_event_ids_select(apdr),
                 session=session,
             )
             session.flush()
@@ -3343,6 +3357,41 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             session.flush()
 
         return partition_dag_ids
+
+    def _rerun_partition_dag_run(self, *, apdr: AssetPartitionDagRun, session: Session) -> bool:
+        """
+        Clear and re-queue the Dag run an earlier APDR for the same partition created.
+
+        The run is resolved through the APDR chain rather than by ``partition_key`` alone, so a
+        manual or backfill run on the same key is never the one cleared. It moves to the latest Dag
+        version and consumes the APDR's events, the same code and inputs a ``"newrun"`` run would
+        get; what earlier attempts consumed stays in their fired APDRs' key logs. Returns ``False``
+        when no earlier APDR has a Dag run, and the caller creates a new one.
+        """
+        fired_apdr = AssetPartitionDagRun.get_latest_fired(
+            target_dag_id=apdr.target_dag_id, partition_key=apdr.partition_key, session=session
+        )
+        if fired_apdr is None or (existing_run := session.get(DagRun, fired_apdr.created_dag_run_id)) is None:
+            return False
+        clear_task_instances(
+            list(existing_run.task_instances),
+            session,
+            dag_run_state=DagRunState.QUEUED,
+            run_on_latest_version=True,
+        )
+        session.execute(delete(association_table).where(association_table.c.dag_run_id == existing_run.id))
+        _associate_asset_events_with_dag_run(
+            dag_run=existing_run, asset_event_ids_select=_build_apdr_event_ids_select(apdr), session=session
+        )
+        apdr.created_dag_run_id = existing_run.id
+        session.flush()
+        self.log.info(
+            "Refire(rerun): cleared and re-queued Dag run",
+            run_id=existing_run.run_id,
+            dag_id=apdr.target_dag_id,
+            partition_key=apdr.partition_key,
+        )
+        return True
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:

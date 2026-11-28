@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from datetime import datetime
+from enum import Enum
 from typing import TYPE_CHECKING, Any, TypeAlias
 
 import attrs
@@ -321,6 +322,20 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
         converter=attrs.converters.default_if_none(factory=dict),  # type: ignore[misc]
     )
     default_partition_mapper: PartitionMapper = DEFAULT_PARTITION_MAPPER
+
+    class RefirePolicy(str, Enum):
+        """How an event for a partition that already triggered a Dag run is handled."""
+
+        NEWRUN = "newrun"
+        """Reuse the earlier events of the partition and create a new Dag run."""
+
+        RERUN = "rerun"
+        """Reuse the earlier events of the partition and clear the Dag run it triggered."""
+
+    # None (the default) collects events for an already-fired partition from scratch.
+    refire_policy: RefirePolicy | None = attrs.field(
+        default=None, converter=attrs.converters.optional(RefirePolicy)
+    )
     batch_asset_events: bool = attrs.field(
         default=attrs.Factory(_get_default_batch_asset_events, takes_self=True)
     )
@@ -450,6 +465,7 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 for asset, partition_mapper in self.partition_mapper_config.items()
             ],
             "default_partition_mapper": encode_partition_mapper(self.default_partition_mapper),
+            "refire_policy": None if self.refire_policy is None else self.refire_policy.value,
         }
 
     @classmethod
@@ -468,5 +484,6 @@ class PartitionedAssetTimetable(AssetTriggeredTimetable):
                 decode_asset_like(ser_asest): decode_partition_mapper(ser_partition_mapper)
                 for ser_asest, ser_partition_mapper in partition_mapper_mappping_data
             },
+            refire_policy=data.get("refire_policy"),
         )
         return timetable

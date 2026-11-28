@@ -50,6 +50,37 @@ def test_partitioned_timetable_preserves_positional_mapper_arguments(batch_asset
     assert timetable.batch_asset_events is batch_asset_events
 
 
+def test_partitioned_timetable_refire_policy_defaults_to_none():
+    assert PartitionedAssetTimetable(assets=Asset("test")).refire_policy is None
+
+
+@pytest.mark.parametrize(
+    ("refire_policy", "expected"),
+    [
+        (None, None),
+        ("rerun", PartitionedAssetTimetable.RefirePolicy.RERUN),
+        ("newrun", PartitionedAssetTimetable.RefirePolicy.NEWRUN),
+        (PartitionedAssetTimetable.RefirePolicy.RERUN, PartitionedAssetTimetable.RefirePolicy.RERUN),
+    ],
+)
+def test_partitioned_timetable_accepts_valid_refire_policy(refire_policy, expected):
+    timetable = PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
+    timetable.validate()
+    DAG("refire-policy", schedule=timetable).validate()
+    assert timetable.refire_policy is expected
+
+
+@pytest.mark.parametrize("refire_policy", ["Rerun", "rerun ", "always", ""])
+def test_partitioned_timetable_rejects_invalid_refire_policy(refire_policy):
+    with pytest.raises(ValueError, match="RefirePolicy"):
+        PartitionedAssetTimetable(assets=Asset("test"), refire_policy=refire_policy)
+
+
+def test_partitioned_timetable_refire_policy_is_keyword_only():
+    with pytest.raises(TypeError):
+        PartitionedAssetTimetable(Asset("test"), {}, IdentityMapper(), "rerun")
+
+
 @pytest.mark.parametrize("configured", [False, True])
 @pytest.mark.parametrize("explicit", [None, False, True])
 @pytest.mark.parametrize(

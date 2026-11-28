@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import TYPE_CHECKING
 
 import attrs
@@ -73,10 +74,30 @@ class AssetTriggeredTimetable(BaseTimetable):
 
 @attrs.define
 class PartitionedAssetTimetable(AssetTriggeredTimetable):
-    """Asset-driven timetable that listens for partitioned assets."""
+    """
+    Asset-driven timetable that listens for partitioned assets.
+
+    :param refire_policy: How an event for a partition that already triggered a Dag run is
+        handled. ``None`` (the default) collects events for the partition again from scratch;
+        ``"newrun"`` reuses the earlier events and creates a new Dag run; ``"rerun"`` reuses
+        them and clears the earlier Dag run. Keyword-only.
+    """
+
+    class RefirePolicy(str, Enum):
+        """How an event for a partition that already triggered a Dag run is handled."""
+
+        NEWRUN = "newrun"
+        """Reuse the earlier events of the partition and create a new Dag run."""
+
+        RERUN = "rerun"
+        """Reuse the earlier events of the partition and clear the Dag run it triggered."""
 
     partition_mapper_config: dict[BaseAsset, PartitionMapper] = attrs.field(factory=dict)
     default_partition_mapper: PartitionMapper = IdentityMapper()
+    # None (the default) collects events for an already-fired partition from scratch.
+    refire_policy: RefirePolicy | None = attrs.field(
+        default=None, converter=attrs.converters.optional(RefirePolicy), kw_only=True
+    )
 
     # The factory needs the partition mappers to be initialized first.
     batch_asset_events: bool = attrs.field(

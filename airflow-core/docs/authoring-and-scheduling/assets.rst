@@ -730,6 +730,76 @@ including ``partition_key`` in the request body):
         "partition_key": "us|2026-03-10T09:00:00"
       }'
 
+Handling late or corrected events
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionadded:: 3.5.0
+
+``refire_policy`` on ``PartitionedAssetTimetable`` controls what happens when a
+late or corrected event arrives for a partition that has already triggered a Dag
+run. By default, the earlier Dag run is left as it is, and the late event starts
+collecting events for the partition again from scratch. ``"newrun"`` and
+``"rerun"`` instead reuse the events that triggered the earlier Dag run:
+
+.. code-block:: python
+
+    from airflow.sdk import DAG, PartitionedAssetTimetable
+
+    with DAG(
+        dag_id="clean_and_combine_player_stats",
+        schedule=PartitionedAssetTimetable(
+            assets=team_a_player_stats & team_b_player_stats,
+            refire_policy="rerun",
+        ),
+        catchup=False,
+    ):
+        ...
+
+* ``refire_policy=None`` (default) — the late event counts only toward a new
+  Dag run, and none of the earlier events are reused.
+
+  * With a single-asset condition, the late event satisfies the condition on its
+    own (unless the asset uses a rollup mapper), so it triggers a new,
+    independent Dag run for the same partition key that consumes only the late
+    event.
+  * With a multi-asset condition such as ``team_a_player_stats &
+    team_b_player_stats``, or a rollup mapper, the late event alone does not
+    satisfy the condition. No Dag run is created until every other required
+    asset (or source key) produces a new event for that partition key.
+
+* ``"newrun"`` — the late event, together with the events that triggered the
+  previous Dag run for the partition, triggers a new Dag run right away. Only the
+  earlier events that the late events replace are left out, so the new run
+  consumes the late events plus every other asset's and source key's earlier
+  event. This also holds when several late events arrive before the scheduler
+  handles them. For a single-asset condition without a rollup mapper, this is
+  the same as the default.
+* ``"rerun"`` — like ``"newrun"``, the condition is satisfied right away, but
+  instead of creating a new Dag run, Airflow clears the Dag run that the
+  partition previously triggered. The cleared Dag run consumes the same events
+  a ``"newrun"`` Dag run would, and runs on the latest version of the Dag. Its
+  ``clear_number`` is incremented, and the task instances of earlier attempts
+  are kept as try history. Only the Dag run triggered by this partition is
+  cleared; manual or backfill Dag runs with the same partition key are never
+  touched.
+
+``"newrun"`` and ``"rerun"`` find the earlier events through the Dag run the
+partition triggered, and deleting that Dag run removes this link. A late event
+that arrives after the Dag run was deleted is therefore handled as with the
+default. With ``"rerun"``, if the Dag run is deleted after the late event
+arrived but before the scheduler handled it, a new Dag run is created as with
+``"newrun"``. The earlier events are also not reused, and the late event is
+handled as with the default, when the Dag's assets or partition mappers have
+changed since the earlier Dag run.
+
+With ``"rerun"``, a Dag run that has already finished goes back to ``queued``,
+and all its task instances run again. A Dag run that is still queued or running
+keeps its state: running task instances are stopped and restarted, and all other
+task instances are reset to run again, as when the Dag run is cleared from the
+UI. With ``"newrun"`` and the default, an earlier Dag run that is still running is
+not affected, and the new Dag run runs alongside it, subject to
+``max_active_runs``.
+
 Rollup mappers
 ~~~~~~~~~~~~~~
 
