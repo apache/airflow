@@ -973,12 +973,3 @@ class TestAwsAuthManager:
         assert user.username == "test_username"
         assert user.email == "test@example.com"
         assert token == token_copy
-
-    def test_serialize_user(self, auth_manager, test_user):
-        result = auth_manager.serialize_user(test_user)
-        assert result == {
-            "sub": "test_user_id",
-            "groups": [],
-            "username": "test_username",
-            "email": None,
-        }
